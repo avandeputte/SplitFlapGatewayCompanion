@@ -48,9 +48,9 @@ All six build phases are done. What's here:
 - **Transports** — **sim** (no hardware), **MQTT** (raw frames via broker),
   **REST** (gateway HTTP API); honest live status pill.
 - **Home Assistant** — when the gateway has HA enabled, the companion publishes a
-  "SplitFlap Companion" MQTT device: a **Now Playing** sensor, **App** and
-  **Playlist** selects (start/stop from HA), a **Message** box, and a **Stop**
-  button — so HA automations can drive and react to what's on the display.
+  "SplitFlap Companion" MQTT device with **App** and **Playlist** selects
+  (start/stop from HA) and a **Stop** button — the companion-unique controls the
+  gateway's own HA device doesn't cover.
 - **Packaging** — Docker image (healthcheck + `/data` volume) and env-var config.
 
 ---
@@ -137,19 +137,19 @@ Set rows/cols/base to match how your modules are provisioned in the gateway.
 
 With `COMPANION_HA=auto` (the default) the companion enables HA when the gateway
 has HA turned on, reusing the **same MQTT broker**. It publishes one MQTT
-auto-discovery device, **SplitFlap Companion**:
+auto-discovery device, **SplitFlap Companion**, with only the controls that are
+unique to the companion — the gateway's own HA device already covers flashing a
+message and reporting the display content, so those aren't duplicated:
 
 | Entity | Type | Does |
 |---|---|---|
-| Now Playing | sensor | The running app / playlist / `Idle` |
-| App | select | Run an installed app (or `Off` to stop) |
-| Playlist | select | Run a saved playlist (or `Off`) |
-| Message | text | Push a message to the display |
+| App | select | Run an installed app (or `Off` to stop); its state shows the running app |
+| Playlist | select | Run a saved playlist (or `Off`); state shows the running playlist |
 | Stop | button | Stop whatever is running |
 
-So an HA automation can start an app, run a playlist, or flash a message on any
-trigger, and dashboards/automations can read what's currently showing. The
-select option lists update automatically as you install apps or save playlists.
+So an HA automation can start an app or run a playlist on any trigger, and
+dashboards can read which app/playlist is active from the select states. The
+option lists update automatically as you install apps or save playlists.
 
 ---
 

@@ -57,8 +57,10 @@ def _ha(tmp_path):
 def test_discovery_entities(tmp_path):
     ha, _ = _ha(tmp_path)
     comps = {obj: (comp, cfg) for comp, obj, cfg in ha._discovery()}
-    assert set(comps) == {"now_playing", "app", "playlist", "message", "stop"}
-    assert comps["now_playing"][0] == "sensor"
+    # Only companion-unique controls — no redundant message/now-playing.
+    assert set(comps) == {"app", "playlist", "stop"}
+    assert comps["app"][0] == "select" and comps["playlist"][0] == "select"
+    assert comps["stop"][0] == "button"
     assert comps["app"][1]["options"] == ["Off", "Weather", "Date"]
     assert comps["playlist"][1]["options"] == ["Off", "Morning"]
     assert comps["app"][1]["command_topic"] == "splitflap-companion/cmd/app"
@@ -83,12 +85,6 @@ def test_cmd_playlist(tmp_path):
     assert ("run_pl", "Morning") in ctrl.calls
 
 
-def test_cmd_message(tmp_path):
-    ha, ctrl = _ha(tmp_path)
-    asyncio.run(ha._command_coro(ha._cmd("message"), "HELLO"))
-    assert ("msg", "HELLO") in ctrl.calls
-
-
 def test_cmd_stop_button(tmp_path):
     ha, ctrl = _ha(tmp_path)
     asyncio.run(ha._command_coro(ha._cmd("stop"), "PRESS"))
@@ -99,16 +95,6 @@ def test_cmd_unknown_app_is_none(tmp_path):
     ha, _ = _ha(tmp_path)
     assert ha._command_coro(ha._cmd("app"), "Nonexistent") is None
     assert ha._command_coro("splitflap-companion/cmd/other", "x") is None
-
-
-def test_now_playing(tmp_path):
-    ha, ctrl = _ha(tmp_path)
-    assert ha._now_playing() == "Idle"
-    ctrl.active_app = "weather"
-    assert ha._now_playing() == "Weather"
-    ctrl.active_app = None
-    ctrl.active_playlist = "Morning"
-    assert ha._now_playing() == "Playlist: Morning"
 
 
 class FakeClient:
@@ -132,7 +118,7 @@ def test_on_connect_subscribes_and_publishes(tmp_path):
     ha._client = fc
     ha._on_connect(fc, None, None, 0)
 
-    assert set(fc.subs) == {ha._cmd(k) for k in ("app", "playlist", "message", "stop")}
+    assert set(fc.subs) == {ha._cmd(k) for k in ("app", "playlist", "stop")}
     assert (ha._avail(), "online", True) in fc.pubs
 
     dt = ha._disc_topic("select", "app")
@@ -142,9 +128,9 @@ def test_on_connect_subscribes_and_publishes(tmp_path):
     assert cfg["options"] == ["Off", "Weather", "Date"]
     assert cfg["command_topic"] == ha._cmd("app")
 
-    # initial state published (retained)
-    np = [p for p in fc.pubs if p[0] == ha._state("now_playing")]
-    assert np and np[0][1] == "Idle" and np[0][2] is True
+    # initial select state published (retained) — shows the active app
+    app_state = [p for p in fc.pubs if p[0] == ha._state("app")]
+    assert app_state and app_state[0][1] == "Off" and app_state[0][2] is True
 
 
 def test_bad_reason_code_no_publish(tmp_path):

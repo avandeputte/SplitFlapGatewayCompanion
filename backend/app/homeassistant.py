@@ -2,16 +2,19 @@
 homeassistant.py — Home Assistant MQTT auto-discovery for the companion.
 
 When the gateway has Home Assistant enabled (or COMPANION_HA forces it), the
-companion publishes a small HA device over the same MQTT broker the gateway uses:
+companion publishes a small HA device over the same MQTT broker the gateway uses.
+It exposes only what is *unique to the companion* — apps and playlists — since
+the gateway's own HA device already covers flashing a message and reporting the
+display content, and we don't duplicate those:
 
-  * sensor  "Now Playing"  — the running app / playlist / Idle
-  * select  "App"          — run an installed app (or "Off" to stop)
-  * select  "Playlist"     — run a saved playlist (or "Off")
-  * text    "Message"      — push a message to the display
-  * button  "Stop"         — stop whatever is running
+  * select  "App"       — run an installed app (or "Off" to stop); its state
+                          shows the running app
+  * select  "Playlist"  — run a saved playlist (or "Off"); state shows the
+                          running playlist
+  * button  "Stop"      — stop whatever is running
 
-Command topics let HA automations drive the display (receive triggers from HA);
-state topics + a Now-Playing sensor let HA see and react to what's showing.
+Command topics let HA automations start/stop apps and playlists (receive
+triggers from HA); the select states let HA see which app/playlist is active.
 
 Commands arrive on the paho thread and are marshalled onto the asyncio loop via
 run_coroutine_threadsafe, since the controller's run/stop are coroutines.
@@ -64,14 +67,13 @@ class HomeAssistant:
 
     # -- discovery + state --------------------------------------------------
     def _discovery(self) -> list[tuple[str, str, dict]]:
+        # Only companion-unique controls. The gateway's own HA device already
+        # covers "flash a message" and "what's on the display", so we don't
+        # duplicate those; the select states show the active app/playlist.
         d, av = self._device(), self._avail()
         apps = [a["name"] for a in self.plugins.app_list()]
         pls = list(self.settings.get("saved_app_playlists", {}).keys())
         return [
-            ("sensor", "now_playing", {
-                "name": "Now Playing", "unique_id": f"{self.node}_now_playing",
-                "state_topic": self._state("now_playing"), "availability_topic": av,
-                "icon": "mdi:play-circle", "device": d}),
             ("select", "app", {
                 "name": "App", "unique_id": f"{self.node}_app",
                 "command_topic": self._cmd("app"), "state_topic": self._state("app"),
@@ -82,10 +84,6 @@ class HomeAssistant:
                 "command_topic": self._cmd("playlist"), "state_topic": self._state("playlist"),
                 "options": ["Off"] + pls, "availability_topic": av,
                 "icon": "mdi:playlist-play", "device": d}),
-            ("text", "message", {
-                "name": "Message", "unique_id": f"{self.node}_message",
-                "command_topic": self._cmd("message"), "state_topic": self._state("message"),
-                "availability_topic": av, "max": 100, "icon": "mdi:message-text", "device": d}),
             ("button", "stop", {
                 "name": "Stop", "unique_id": f"{self.node}_stop",
                 "command_topic": self._cmd("stop"), "availability_topic": av,
@@ -95,14 +93,6 @@ class HomeAssistant:
     def _app_name(self, app_id: str) -> str:
         m = self.plugins.manifest(app_id)
         return m["name"] if m and m.get("name") else app_id
-
-    def _now_playing(self) -> str:
-        c = self.controller
-        if c.active_app:
-            return self._app_name(c.active_app)
-        if c.active_playlist:
-            return f"Playlist: {c.active_playlist}"
-        return "Idle"
 
     # -- lifecycle ----------------------------------------------------------
     async def start(self) -> bool:
@@ -148,7 +138,7 @@ class HomeAssistant:
             log.warning("HA MQTT connect rc=%s", reason_code)
             return
         self._connected.set()
-        for k in ("app", "playlist", "message", "stop"):
+        for k in ("app", "playlist", "stop"):
             client.subscribe(self._cmd(k), qos=0)
         client.publish(self._avail(), "online", retain=True)
         self.publish_discovery()
@@ -165,7 +155,6 @@ class HomeAssistant:
         if not self._client:
             return
         c = self.controller
-        self._client.publish(self._state("now_playing"), self._now_playing(), retain=True)
         self._client.publish(self._state("app"),
                              self._app_name(c.active_app) if c.active_app else "Off", retain=True)
         self._client.publish(self._state("playlist"), c.active_playlist or "Off", retain=True)
@@ -240,9 +229,4 @@ class HomeAssistant:
             if pl:
                 return self.controller.run_playlist(pl.get("entries", []), pl.get("loop", True), payload)
             log.info("HA: unknown playlist %r", payload)
-        elif topic == self._cmd("message"):
-            if payload:
-                async def _show():
-                    self.controller.send_text_bg(payload)
-                return _show()
         return None
