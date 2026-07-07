@@ -45,9 +45,12 @@ DEFAULTS: dict = {
     # startup (the gateway is the source of truth for hardware config).
     "sync_from_gateway": True,
     # This companion's own public URL, registered with the gateway (v3.0) so the
-    # gateway can show a "Companion" tab linking back here. Blank = don't
-    # register. Set via COMPANION_PUBLIC_URL.
+    # gateway can show a "Companion" tab linking back here. Blank = auto-detect
+    # this host's LAN IP + port. Set via COMPANION_PUBLIC_URL to override.
     "companion_url": "",
+    # Bind address + port (also used to build the auto-detected companion URL).
+    "host": "0.0.0.0",
+    "port": 8000,
 }
 
 
@@ -77,6 +80,10 @@ def _env_overrides() -> dict:
         ov["sync_from_gateway"] = e["COMPANION_SYNC_FROM_GATEWAY"].lower() in ("1", "true", "yes", "on")
     if "COMPANION_PUBLIC_URL" in e:
         ov["companion_url"] = e["COMPANION_PUBLIC_URL"]
+    if "COMPANION_HOST" in e:
+        ov["host"] = e["COMPANION_HOST"]
+    if "COMPANION_PORT" in e:
+        ov["port"] = int(e["COMPANION_PORT"])
 
     if "COMPANION_TRANSPORT" in e:
         ov["transport"]["type"] = e["COMPANION_TRANSPORT"]

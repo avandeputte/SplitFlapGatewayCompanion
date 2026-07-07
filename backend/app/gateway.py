@@ -31,20 +31,66 @@ async def fetch_gateway_config(url: str, timeout: float = 5.0) -> dict:
         return r.json()
 
 
-async def register_companion(gateway_url: str, companion_url: str, timeout: float = 5.0) -> bool:
-    """Tell the gateway (v3.0) where this companion lives, so it can show a
-    "Companion" tab that links back here. Best-effort; older gateways 404."""
+def _host_of(url: str) -> str:
+    from urllib.parse import urlparse
+
+    try:
+        return urlparse(url).hostname or ""
+    except Exception:
+        return ""
+
+
+def detect_local_ip(gateway_url: str = "") -> str | None:
+    """Best-effort: the LAN IP of the interface that reaches the gateway.
+
+    Opening a UDP socket toward the gateway (no packets sent) makes the OS pick
+    the outbound interface; its local address is the IP the gateway would see.
+    Falls back to a public IP if the gateway host can't be resolved.
+    """
+    import socket
+
+    for target in (_host_of(gateway_url), "8.8.8.8"):
+        if not target:
+            continue
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect((target, 80))
+            ip = s.getsockname()[0]
+            if ip and not ip.startswith("127."):
+                return ip
+        except Exception:
+            continue
+        finally:
+            s.close()
+    return None
+
+
+async def post_companion(gateway_url: str, *, url: str | None = None,
+                         status: str | None = None, timeout: float = 5.0) -> bool:
+    """Register / heartbeat / deregister with the gateway (v3.0).
+
+    ``url`` set → (re)register that URL; ``url=""`` → deregister; ``status`` →
+    update the running-status the gateway shows on its status page. Best-effort;
+    older gateways just 404.
+    """
     import httpx
 
-    if not gateway_url or not companion_url:
+    if not gateway_url:
+        return False
+    body: dict = {}
+    if url is not None:
+        body["url"] = url
+    if status is not None:
+        body["status"] = status
+    if not body:
         return False
     base = gateway_url.rstrip("/")
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            r = await client.post(f"{base}/api/companion", json={"url": companion_url})
+            r = await client.post(f"{base}/api/companion", json=body)
             return r.status_code < 400
     except Exception as e:
-        log.info("companion registration skipped: %s", e)
+        log.debug("companion post skipped: %s", e)
         return False
 
 

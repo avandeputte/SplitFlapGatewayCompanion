@@ -8,6 +8,7 @@ playlists/schedules/triggers, and the gateway reverse-proxy.
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 from contextlib import asynccontextmanager
@@ -21,7 +22,7 @@ from pydantic import BaseModel
 from . import __version__, helpers, renderer
 from .config import Config
 from .engine import DisplayController
-from .gateway import build_sync_patch, fetch_gateway_config, register_companion
+from .gateway import build_sync_patch, detect_local_ip, fetch_gateway_config, post_companion
 from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
 from .scheduler import Scheduler
@@ -79,6 +80,36 @@ async def do_gateway_sync() -> dict:
     }
 
 
+def resolve_companion_url() -> str:
+    """The URL to register with the gateway: explicit COMPANION_PUBLIC_URL, else
+    this host's detected LAN IP + port."""
+    explicit = (config.effective.get("companion_url") or "").strip()
+    if explicit:
+        return explicit
+    ip = detect_local_ip(config.transport.get("gateway_url", ""))
+    return f"http://{ip}:{int(config.effective.get('port', 8000))}" if ip else ""
+
+
+def companion_status_string() -> str:
+    """Short human status for the gateway's status page."""
+    if controller.active_app:
+        m = plugins.manifest(controller.active_app)
+        return f"App: {m['name']}" if m and m.get("name") else f"App: {controller.active_app}"
+    if controller.active_playlist:
+        return f"Playlist: {controller.active_playlist}"
+    return "Idle"
+
+
+async def _companion_heartbeat(gateway_url: str, companion_url: str):
+    """Periodically tell the gateway our URL + running status."""
+    while True:
+        await asyncio.sleep(30)
+        try:
+            await post_companion(gateway_url, url=companion_url, status=companion_status_string())
+        except Exception as e:
+            log.debug("companion heartbeat error: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("SplitFlapGatewayCompanion v%s starting (transport=%s, grid=%sx%s)",
@@ -93,12 +124,27 @@ async def lifespan(app: FastAPI):
     plugins.load()
     log.info("loaded %d app plugins", len(plugins.app_list()))
     scheduler.start()
-    # Register with the gateway (v3.0) so it can show a "Companion" tab.
-    companion_url = config.effective.get("companion_url")
-    if companion_url and config.transport.get("gateway_url"):
-        ok = await register_companion(config.transport["gateway_url"], companion_url)
-        log.info("companion registration %s", "ok" if ok else "skipped")
+
+    # Register with the gateway (v3.0) + start a status heartbeat.
+    gw = config.transport.get("gateway_url", "")
+    companion_url = resolve_companion_url()
+    hb_task = None
+    if gw and companion_url:
+        ok = await post_companion(gw, url=companion_url, status=companion_status_string())
+        log.info("companion registered as %s (%s)", companion_url, "ok" if ok else "gateway unreachable")
+        hb_task = asyncio.create_task(_companion_heartbeat(gw, companion_url))
+
     yield
+
+    # Deregister on shutdown.
+    if hb_task:
+        hb_task.cancel()
+    if gw and companion_url:
+        try:
+            await post_companion(gw, url="")
+            log.info("companion deregistered from gateway")
+        except Exception:
+            pass
     await scheduler.stop()
     await controller.stop()
 
