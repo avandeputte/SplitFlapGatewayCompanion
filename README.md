@@ -47,6 +47,10 @@ All six build phases are done. What's here:
   gateway's `GET /api/config` on startup and on demand.
 - **Transports** — **sim** (no hardware), **MQTT** (raw frames via broker),
   **REST** (gateway HTTP API); honest live status pill.
+- **Home Assistant** — when the gateway has HA enabled, the companion publishes a
+  "SplitFlap Companion" MQTT device: a **Now Playing** sensor, **App** and
+  **Playlist** selects (start/stop from HA), a **Message** box, and a **Stop**
+  button — so HA automations can drive and react to what's on the display.
 - **Packaging** — Docker image (healthcheck + `/data` volume) and env-var config.
 
 ---
@@ -104,6 +108,7 @@ below act as manual overrides (they win over the gateway if set).
 | `COMPANION_TRANSPORT` | `sim` \| `mqtt` \| `rest` | `sim` |
 | `COMPANION_MQTT_PASSWORD` | MQTT password (the gateway never exposes this) | — |
 | `COMPANION_MODULE_ID_BASE` | Module id of grid index 0 (companion-owned) | `0` |
+| `COMPANION_HA` | Home Assistant integration: `auto` (follow gateway) \| `true` \| `false` | `auto` |
 | `COMPANION_GRID_ROWS` / `COMPANION_GRID_COLS` | Manual panel-size override | *(from gateway)* |
 | `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | Manual MQTT overrides | *(from gateway)* |
 | `COMPANION_DATA_DIR` | Where config/state live | `<repo>/data` |
@@ -127,6 +132,24 @@ below act as manual overrides (they win over the gateway if set).
 
 The display is filled row-major: module `= module_id_base + (row × cols + col)`.
 Set rows/cols/base to match how your modules are provisioned in the gateway.
+
+### Home Assistant
+
+With `COMPANION_HA=auto` (the default) the companion enables HA when the gateway
+has HA turned on, reusing the **same MQTT broker**. It publishes one MQTT
+auto-discovery device, **SplitFlap Companion**:
+
+| Entity | Type | Does |
+|---|---|---|
+| Now Playing | sensor | The running app / playlist / `Idle` |
+| App | select | Run an installed app (or `Off` to stop) |
+| Playlist | select | Run a saved playlist (or `Off`) |
+| Message | text | Push a message to the display |
+| Stop | button | Stop whatever is running |
+
+So an HA automation can start an app, run a playlist, or flash a message on any
+trigger, and dashboards/automations can read what's currently showing. The
+select option lists update automatically as you install apps or save playlists.
 
 ---
 

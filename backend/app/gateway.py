@@ -43,15 +43,25 @@ def _host_of(url: str) -> str:
 def detect_local_ip(gateway_url: str = "") -> str | None:
     """Best-effort: the LAN IP of the interface that reaches the gateway.
 
-    Opening a UDP socket toward the gateway (no packets sent) makes the OS pick
+    Opening a UDP socket toward an address (no packets sent) makes the OS pick
     the outbound interface; its local address is the IP the gateway would see.
-    Falls back to a public IP if the gateway host can't be resolved.
+    We only aim at IP targets (the gateway's IP if it's one, else a public IP)
+    so we never do a slow/blocking hostname lookup on the event loop.
     """
+    import ipaddress
     import socket
 
-    for target in (_host_of(gateway_url), "8.8.8.8"):
-        if not target:
-            continue
+    targets = []
+    host = _host_of(gateway_url)
+    if host:
+        try:
+            ipaddress.ip_address(host)
+            targets.append(host)   # only when the gateway URL is already an IP
+        except ValueError:
+            pass
+    targets.append("8.8.8.8")      # public IP → gives the primary interface
+
+    for target in targets:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             s.connect((target, 80))

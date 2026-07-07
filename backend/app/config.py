@@ -51,6 +51,15 @@ DEFAULTS: dict = {
     # Bind address + port (also used to build the auto-detected companion URL).
     "host": "0.0.0.0",
     "port": 8000,
+    # Home Assistant MQTT integration. "auto" follows the gateway's own HA
+    # setting (haEnabled from its /api/config); true/false force it. Uses the
+    # same MQTT broker as the transport (transport.mqtt).
+    "ha": {
+        "enabled": "auto",
+        "discovery_prefix": "homeassistant",
+        "topic_prefix": "splitflap-companion",
+        "node_id": "splitflap-companion",
+    },
 }
 
 
@@ -84,6 +93,12 @@ def _env_overrides() -> dict:
         ov["host"] = e["COMPANION_HOST"]
     if "COMPANION_PORT" in e:
         ov["port"] = int(e["COMPANION_PORT"])
+    if "COMPANION_HA" in e:
+        v = e["COMPANION_HA"].lower()
+        ov.setdefault("ha", {})["enabled"] = True if v in ("1", "true", "yes", "on") \
+            else False if v in ("0", "false", "no", "off") else "auto"
+    if "COMPANION_HA_DISCOVERY_PREFIX" in e:
+        ov.setdefault("ha", {})["discovery_prefix"] = e["COMPANION_HA_DISCOVERY_PREFIX"]
 
     if "COMPANION_TRANSPORT" in e:
         ov["transport"]["type"] = e["COMPANION_TRANSPORT"]

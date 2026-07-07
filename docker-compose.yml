@@ -21,6 +21,8 @@ services:
       # COMPANION_MQTT_PASSWORD: ""
       COMPANION_MODULE_ID_BASE: "0"       # companion-owned; module id of grid index 0
       # COMPANION_SYNC_FROM_GATEWAY: "true"
+      # Home Assistant: auto (follow the gateway) | true | false
+      COMPANION_HA: "auto"
       # --- Manual overrides (only if you do NOT want to read from the gateway) ---
       # COMPANION_GRID_ROWS: "3"
       # COMPANION_GRID_COLS: "15"

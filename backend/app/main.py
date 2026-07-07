@@ -23,6 +23,7 @@ from . import __version__, helpers, renderer
 from .config import Config
 from .engine import DisplayController
 from .gateway import build_sync_patch, detect_local_ip, fetch_gateway_config, post_companion
+from .homeassistant import HomeAssistant
 from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
 from .scheduler import Scheduler
@@ -41,6 +42,7 @@ plugin_settings = PluginSettings(config.data_dir)
 plugins = PluginRuntime(config, plugin_settings, APPS_DIR)
 controller.attach_plugins(plugins)
 scheduler = Scheduler(controller, plugins)
+ha = HomeAssistant(config, plugins, controller)
 
 
 def _redact(cfg: dict) -> dict:
@@ -76,7 +78,7 @@ async def do_gateway_sync() -> dict:
         "ok": True,
         "applied": patch,
         "gateway": {k: gw.get(k) for k in
-                    ("gridRows", "gridCols", "mqHost", "mqPort", "mqUser", "mqPfx")},
+                    ("gridRows", "gridCols", "mqHost", "mqPort", "mqUser", "mqPfx", "haEnabled")},
     }
 
 
@@ -101,7 +103,16 @@ def companion_status_string() -> str:
 
 
 async def _companion_heartbeat(gateway_url: str, companion_url: str):
-    """Periodically tell the gateway our URL + running status."""
+    """Register immediately, then keep the gateway posted on our status.
+
+    Runs entirely in the background so an unreachable gateway never delays
+    startup (a POST to an unreachable host can take several seconds)."""
+    try:
+        ok = await post_companion(gateway_url, url=companion_url, status=companion_status_string())
+        log.info("companion registered as %s (%s)", companion_url,
+                 "ok" if ok else "gateway unreachable — will retry")
+    except Exception as e:
+        log.debug("companion registration error: %s", e)
     while True:
         await asyncio.sleep(30)
         try:
@@ -136,23 +147,32 @@ async def lifespan(app: FastAPI):
     log.info("SplitFlapGatewayCompanion v%s starting (transport=%s, grid=%sx%s)",
              __version__, config.transport.get("type"), config.grid["rows"], config.grid["cols"])
     await controller.start()
+    gw_ha = None
     if config.effective.get("sync_from_gateway") and config.transport.get("gateway_url"):
         res = await do_gateway_sync()
         if res.get("ok"):
             log.info("synced config from gateway: %s", res.get("applied"))
+            gw_ha = res.get("gateway", {}).get("haEnabled")
         else:
             log.info("gateway sync skipped at startup: %s", res.get("error"))
     plugins.load()
     log.info("loaded %d app plugins", len(plugins.app_list()))
     scheduler.start()
 
-    # Register with the gateway (v3.0) + start a status heartbeat.
+    # Home Assistant: "auto" follows the gateway's haEnabled; true/false force it.
+    # Started in the background so a slow/unreachable broker never delays startup.
+    ha_mode = config.effective.get("ha", {}).get("enabled", "auto")
+    ha_on = ha_mode is True if isinstance(ha_mode, bool) else bool(gw_ha)
+    if ha_on:
+        log.info("Home Assistant integration enabled")
+        asyncio.create_task(ha.start())
+
+    # Register with the gateway (v3.0) + status heartbeat, all in the background
+    # so an unreachable gateway never delays startup.
     gw = config.transport.get("gateway_url", "")
     companion_url = resolve_companion_url()
     tasks = []
     if gw and companion_url:
-        ok = await post_companion(gw, url=companion_url, status=companion_status_string())
-        log.info("companion registered as %s (%s)", companion_url, "ok" if ok else "gateway unreachable")
         tasks.append(asyncio.create_task(_companion_heartbeat(gw, companion_url)))
         # If we auto-detected our URL, verify it's actually reachable.
         if not (config.effective.get("companion_url") or "").strip():
@@ -169,6 +189,7 @@ async def lifespan(app: FastAPI):
             log.info("companion deregistered from gateway")
         except Exception:
             pass
+    await ha.stop()
     await scheduler.stop()
     await controller.stop()
 
@@ -299,12 +320,14 @@ async def apps_run(req: RunAppRequest):
         await controller.run_app(app_id)
     except KeyError:
         raise HTTPException(404, f"app not installed: {app_id}")
+    ha.publish_state()
     return {"ok": True, "active_app": app_id}
 
 
 @app.post("/api/apps/stop")
 async def apps_stop():
     await controller.stop_app()
+    ha.publish_state()
     return {"ok": True}
 
 
@@ -341,6 +364,8 @@ async def apps_install(app_id: str, req: InstallRequest):
     if not req.installed and controller.active_app == app_id:
         await controller.stop_app()
     plugins.set_installed(app_id, req.installed)
+    ha.refresh_discovery()  # app option list changed
+    ha.publish_state()
     return {"ok": True, "installed": req.installed}
 
 
@@ -360,6 +385,7 @@ async def playlists_save(req: PlaylistSave):
     saved = dict(plugin_settings.get("saved_app_playlists", {}))
     saved[name] = {"entries": req.entries, "loop": req.loop}
     plugin_settings.set("saved_app_playlists", saved)
+    ha.refresh_discovery()  # playlist option list changed
     return {"ok": True, "name": name}
 
 
@@ -368,6 +394,7 @@ async def playlists_delete(name: str):
     saved = dict(plugin_settings.get("saved_app_playlists", {}))
     saved.pop(name, None)
     plugin_settings.set("saved_app_playlists", saved)
+    ha.refresh_discovery()
     return {"ok": True}
 
 
@@ -376,6 +403,7 @@ async def playlists_run(req: RunPlaylist):
     if not req.entries:
         raise HTTPException(400, "playlist has no entries")
     await controller.run_playlist(req.entries, req.loop, req.name)
+    ha.publish_state()
     return {"ok": True, "active_playlist": controller.active_playlist}
 
 

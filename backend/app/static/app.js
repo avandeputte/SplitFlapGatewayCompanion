@@ -459,8 +459,6 @@ async function setupGatewayTabs() {
   let url = "";
   try { url = (await api("/api/gateway/status")).url || ""; } catch {}
   const base = url.replace(/\/$/, "");
-  const gwlink = $("gatewayLink");
-  if (base) gwlink.href = base; else gwlink.classList.add("disabled");
   document.querySelectorAll(".tab.gw").forEach((a) => {
     if (base) a.href = `${base}/#${a.dataset.gw}`;
     else a.classList.add("disabled");
