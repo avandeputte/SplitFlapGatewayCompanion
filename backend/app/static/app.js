@@ -55,14 +55,14 @@ async function pollState() {
 }
 
 async function pollStatus() {
-  const dot = $("statusDot"), txt = $("statusText");
+  const badge = $("statusBadge");
   try {
     const st = await api("/api/current_state");
     const t = st.transport;
-    if (t.type === "sim") { dot.className = "dot warn"; txt.textContent = "simulation"; return; }
-    if (t.connected) { dot.className = "dot ok"; txt.textContent = `${t.type} connected`; }
-    else { dot.className = "dot err"; txt.textContent = `${t.type} offline`; }
-  } catch { dot.className = "dot err"; txt.textContent = "companion error"; }
+    if (t.type === "sim") { badge.className = "badge warn"; badge.textContent = "simulation"; }
+    else if (t.connected) { badge.className = "badge ok"; badge.textContent = `${t.type} connected`; }
+    else { badge.className = "badge err"; badge.textContent = `${t.type} offline`; }
+  } catch { badge.className = "badge err"; badge.textContent = "error"; }
 }
 
 // ---- boot ------------------------------------------------------------------
@@ -72,15 +72,16 @@ async function bootGrid() {
 }
 
 function wireTabs() {
-  document.querySelectorAll(".tab").forEach((t) =>
+  // Only local button-tabs switch panes; the gateway link-tabs (.tab.gw)
+  // navigate to the gateway via their href.
+  document.querySelectorAll(".tab[data-tab]").forEach((t) =>
     t.addEventListener("click", () => {
       document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
       t.classList.add("active");
       const tab = t.dataset.tab;
-      ["apps", "playlists", "triggers", "display"]
+      ["apps", "playlists", "triggers"]
         .forEach((p) => $("page-" + p).classList.toggle("hidden", p !== tab));
-      const loaders = { apps: loadApps, playlists: loadPlaylists,
-                        triggers: loadTriggers, display: loadDisplay };
+      const loaders = { apps: loadApps, playlists: loadPlaylists, triggers: loadTriggers };
       if (loaders[tab]) loaders[tab]();
     })
   );
@@ -453,14 +454,24 @@ async function saveTriggers() {
   $("trigMsg").textContent = "Saved ✓"; setTimeout(() => ($("trigMsg").textContent = ""), 2000);
 }
 
-// ---- display (link straight to the gateway) --------------------------------
-async function loadDisplay() {
-  try {
-    const s = await api("/api/gateway/status");
-    if (s.url) $("gatewayLink").href = s.url;
-    if (s.ok) { const d = s.data || {}; $("gwStatus").textContent = `online · ${d.modules ?? "?"} modules${d.ip ? " · " + d.ip : ""}`; }
-    else $("gwStatus").textContent = "offline" + (s.error ? ": " + s.error : "");
-  } catch { $("gwStatus").textContent = "error"; }
+// ---- gateway link-tabs (unified nav) ---------------------------------------
+async function setupGatewayTabs() {
+  let url = "";
+  try { url = (await api("/api/gateway/status")).url || ""; } catch {}
+  const base = url.replace(/\/$/, "");
+  const gwlink = $("gatewayLink");
+  if (base) gwlink.href = base; else gwlink.classList.add("disabled");
+  document.querySelectorAll(".tab.gw").forEach((a) => {
+    if (base) a.href = `${base}/#${a.dataset.gw}`;
+    else a.classList.add("disabled");
+  });
+}
+
+// Deep-link: open the local tab named in the URL hash (e.g. companion/#playlists).
+function openTabFromHash() {
+  const h = (location.hash || "").replace("#", "");
+  const btn = document.querySelector(`.tab[data-tab="${h}"]`);
+  if (btn) btn.click();
 }
 
 async function init() {
@@ -480,7 +491,9 @@ async function init() {
   $("trigAdd").addEventListener("click", addTrigger);
   $("trigSave").addEventListener("click", saveTriggers);
   await loadApps();
-  loadDisplay();
+  setupGatewayTabs();
+  openTabFromHash();
+  window.addEventListener("hashchange", openTabFromHash);
   pollState(); pollStatus();
   setInterval(pollState, 300);
   setInterval(pollStatus, 3000);
