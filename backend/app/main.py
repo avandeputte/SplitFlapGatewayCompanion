@@ -110,6 +110,27 @@ async def _companion_heartbeat(gateway_url: str, companion_url: str):
             log.debug("companion heartbeat error: %s", e)
 
 
+async def _verify_reachable(companion_url: str):
+    """Confirm the URL we registered is actually reachable. If the server was
+    launched with `uvicorn ...` (binds 127.0.0.1) instead of `python -m app`
+    (binds 0.0.0.0), the LAN URL we register won't be reachable — warn loudly."""
+    import httpx
+
+    await asyncio.sleep(4)  # let the server start accepting connections
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as c:
+            r = await c.get(companion_url.rstrip("/") + "/api/health")
+            if r.status_code < 500:
+                return  # reachable — all good
+    except Exception:
+        pass
+    log.warning(
+        "⚠ Registered with the gateway as %s, but that address is NOT reachable "
+        "— the server looks bound to localhost. Launch with `python -m app` "
+        "(binds 0.0.0.0), or if you use uvicorn directly add `--host 0.0.0.0`.",
+        companion_url)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("SplitFlapGatewayCompanion v%s starting (transport=%s, grid=%sx%s)",
@@ -128,17 +149,20 @@ async def lifespan(app: FastAPI):
     # Register with the gateway (v3.0) + start a status heartbeat.
     gw = config.transport.get("gateway_url", "")
     companion_url = resolve_companion_url()
-    hb_task = None
+    tasks = []
     if gw and companion_url:
         ok = await post_companion(gw, url=companion_url, status=companion_status_string())
         log.info("companion registered as %s (%s)", companion_url, "ok" if ok else "gateway unreachable")
-        hb_task = asyncio.create_task(_companion_heartbeat(gw, companion_url))
+        tasks.append(asyncio.create_task(_companion_heartbeat(gw, companion_url)))
+        # If we auto-detected our URL, verify it's actually reachable.
+        if not (config.effective.get("companion_url") or "").strip():
+            tasks.append(asyncio.create_task(_verify_reachable(companion_url)))
 
     yield
 
     # Deregister on shutdown.
-    if hb_task:
-        hb_task.cancel()
+    for t in tasks:
+        t.cancel()
     if gw and companion_url:
         try:
             await post_companion(gw, url="")

@@ -70,12 +70,17 @@ to `mqtt` or `rest`, point `COMPANION_GATEWAY_URL` at your gateway, and set
 cd backend
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
-uvicorn app.main:app --app-dir . --reload
-# open http://localhost:8000
-pytest            # run the render conformance tests
+python -m app                    # binds 0.0.0.0:8000 (reachable on your LAN IP)
+# open http://localhost:8000  (or http://<this-host-ip>:8000)
+COMPANION_RELOAD=1 python -m app # dev auto-reload
+pytest                           # run the tests
 ```
 
-(From the repo root the app-dir is `backend`: `uvicorn app.main:app --app-dir backend --reload`.)
+> **Run it with `python -m app`, not `uvicorn app.main:app`.** The bare `uvicorn`
+> command binds **127.0.0.1** (localhost only), so the companion won't be
+> reachable on your LAN and the URL it registers with the gateway won't work.
+> `python -m app` binds `0.0.0.0` and honors `COMPANION_HOST` / `COMPANION_PORT`.
+> (If you must use uvicorn directly, add `--host 0.0.0.0 --app-dir .`.)
 
 ---
 
