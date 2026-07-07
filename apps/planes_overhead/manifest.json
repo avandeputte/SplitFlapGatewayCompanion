@@ -1,0 +1,361 @@
+{
+  "id": "planes_overhead",
+  "name": "Planes Overhead",
+  "icon": "✈️",
+  "description": "Nearby aircraft",
+  "type": "functional",
+  "refresh_interval": 1,
+  "loop_delay": 4,
+  "category": "data",
+  "settings": [
+    {
+      "key": "location",
+      "label": "Location (lat,lon)",
+      "type": "text",
+      "default": "41.97596460174016,-87.90326919959064"
+    },
+    {
+      "key": "radius",
+      "label": "Search Radius",
+      "type": "number",
+      "default": 25,
+      "min": 10,
+      "max": 250,
+      "step": 5,
+      "inline_toggle": {
+        "key": "radius_unit",
+        "position": "after",
+        "size": "md",
+        "options": [
+          {
+            "value": "mi",
+            "label": "MI"
+          },
+          {
+            "value": "km",
+            "label": "KM"
+          }
+        ],
+        "default": "mi"
+      }
+    },
+    {
+      "key": "max_results",
+      "label": "Max Flights To Cycle",
+      "type": "number",
+      "stepper": true,
+      "default": 9,
+      "min": 1,
+      "max": 10,
+      "step": 1
+    },
+    {
+      "key": "dwell_seconds",
+      "label": "Dwell Time (seconds)",
+      "type": "number",
+      "stepper": true,
+      "default": 20,
+      "min": 1,
+      "max": 60,
+      "step": 1
+    },
+    {
+      "key": "polling_rate",
+      "label": "Polling Rate (seconds)",
+      "type": "number",
+      "stepper": true,
+      "default": 240,
+      "min": 15,
+      "max": 3600,
+      "step": 15
+    },
+    {
+      "key": "_polling_stats",
+      "label": "API Usage Estimate",
+      "type": "computed",
+      "compute": "polling_usage_estimate",
+      "watches": [
+        "polling_rate",
+        "data_source"
+      ],
+      "compute_config": {
+        "min_rate": 15,
+        "default_rate": 240,
+        "selector_index": 1,
+        "selector_default": "opensky",
+        "text_template": "~{reqPerDay} req/day · ~{reqPerMonth}/month",
+        "default_limit_text": "Plan dependent",
+        "profiles": {
+          "opensky": {
+            "calls_per_poll": 1,
+            "limit_per_day": 400,
+            "limit_text": "400/day anonymous · 4,000/day registered",
+            "warn_prefix": "Exceeds OpenSky anonymous limit. Register for higher free limits."
+          },
+          "flightaware": {
+            "calls_per_poll": 1,
+            "limit_per_month": 100,
+            "limit_text": "Personal includes about 100 searches/month ($5 free at $0.05/search)",
+            "warn_prefix": "Exceeds FlightAware Personal included usage. Standard and Premium are paid usage-based tiers."
+          },
+          "flightradar24": {
+            "calls_per_poll": 1,
+            "limit_text": "RapidAPI quota varies by subscribed plan"
+          },
+          "airlabs": {
+            "calls_per_poll": 1,
+            "limit_per_month": 1000,
+            "limit_text": "Free plan: 1,000 queries/month",
+            "warn_prefix": "Exceeds AirLabs free plan usage. Paid tiers start at 25,000 queries/month."
+          },
+          "aviationstack": {
+            "calls_per_poll": 1,
+            "limit_per_month": 100,
+            "limit_text": "Free plan: 100 requests/month",
+            "warn_prefix": "Exceeds Aviationstack free plan usage. Paid tiers start at 10,000 requests/month."
+          }
+        }
+      }
+    },
+    {
+      "key": "data_source",
+      "label": "Datasource",
+      "note": "* APIs that are free or have a free tier.",
+      "type": "toggle",
+      "size": "md",
+      "default": "opensky",
+      "options": [
+        {
+          "value": "opensky",
+          "label": "OpenSky*"
+        },
+        {
+          "value": "flightaware",
+          "label": "FlightAware"
+        },
+        {
+          "value": "flightradar24",
+          "label": "FR24"
+        },
+        {
+          "value": "airlabs",
+          "label": "AirLabs*"
+        },
+        {
+          "value": "aviationstack",
+          "label": "AStack*"
+        }
+      ]
+    },
+    {
+      "key": "opensky_client_id",
+      "label": "OpenSky Client ID (optional; leave blank for free API)",
+      "type": "password",
+      "default": "",
+      "visible_when": {
+        "data_source": "opensky"
+      }
+    },
+    {
+      "key": "opensky_client_secret",
+      "label": "OpenSky Client Secret (optional; higher limits with free account)",
+      "type": "password",
+      "default": "",
+      "visible_when": {
+        "data_source": "opensky"
+      }
+    },
+    {
+      "key": "flightaware_api_key",
+      "label": "FlightAware AeroAPI Key",
+      "type": "password",
+      "default": "",
+      "visible_when": {
+        "data_source": "flightaware"
+      }
+    },
+    {
+      "key": "flightradar24_api_key",
+      "label": "FR24 RapidAPI Key",
+      "type": "password",
+      "default": "",
+      "visible_when": {
+        "data_source": "flightradar24"
+      }
+    },
+    {
+      "key": "flightradar24_api_host",
+      "label": "FR24 RapidAPI Host",
+      "type": "text",
+      "default": "flightradar24-com.p.rapidapi.com",
+      "visible_when": {
+        "data_source": "flightradar24"
+      }
+    },
+    {
+      "key": "airlabs_api_key",
+      "label": "AirLabs API Key",
+      "type": "password",
+      "default": "",
+      "visible_when": {
+        "data_source": "airlabs"
+      }
+    },
+    {
+      "key": "aviationstack_api_key",
+      "label": "Aviationstack API Key",
+      "type": "password",
+      "default": "",
+      "visible_when": {
+        "data_source": "aviationstack"
+      }
+    },
+    {
+      "key": "units_preset",
+      "label": "Units Preset",
+      "type": "toggle",
+      "size": "md",
+      "default": "aviation",
+      "sync_values": {
+        "aviation": {
+          "distance_unit": "nm",
+          "altitude_unit": "fl",
+          "speed_unit": "kt"
+        },
+        "metric": {
+          "distance_unit": "km",
+          "altitude_unit": "m",
+          "speed_unit": "kmh"
+        },
+        "imperial": {
+          "distance_unit": "mi",
+          "altitude_unit": "ft",
+          "speed_unit": "mph"
+        }
+      },
+      "options": [
+        {
+          "value": "aviation",
+          "label": "Aviation"
+        },
+        {
+          "value": "metric",
+          "label": "Metric"
+        },
+        {
+          "value": "imperial",
+          "label": "Imperial"
+        },
+        {
+          "value": "custom",
+          "label": "Custom"
+        }
+      ]
+    },
+    {
+      "key": "distance_unit",
+      "label": "Distance Unit",
+      "type": "toggle",
+      "size": "md",
+      "default": "nm",
+      "sync_parent": "units_preset",
+      "sync_parent_custom_value": "custom",
+      "options": [
+        {
+          "value": "km",
+          "label": "KM"
+        },
+        {
+          "value": "mi",
+          "label": "MI"
+        },
+        {
+          "value": "nm",
+          "label": "NM"
+        }
+      ]
+    },
+    {
+      "key": "altitude_unit",
+      "label": "Altitude Unit",
+      "type": "toggle",
+      "size": "md",
+      "default": "fl",
+      "sync_parent": "units_preset",
+      "sync_parent_custom_value": "custom",
+      "options": [
+        {
+          "value": "ft",
+          "label": "Feet"
+        },
+        {
+          "value": "fl",
+          "label": "Flight Level"
+        },
+        {
+          "value": "m",
+          "label": "Meters"
+        }
+      ]
+    },
+    {
+      "key": "speed_unit",
+      "label": "Speed Unit",
+      "type": "toggle",
+      "size": "md",
+      "default": "kt",
+      "sync_parent": "units_preset",
+      "sync_parent_custom_value": "custom",
+      "options": [
+        {
+          "value": "kt",
+          "label": "KT"
+        },
+        {
+          "value": "mph",
+          "label": "MPH"
+        },
+        {
+          "value": "kmh",
+          "label": "KMH"
+        }
+      ]
+    }
+  ],
+  "min_rows": 3,
+  "min_cols": 12,
+  "trigger_interval": 120,
+  "trigger_display_seconds": 30,
+  "trigger_cooldown": 60,
+  "trigger_conditions": [
+    {
+      "key": "filter",
+      "label": "Fire for",
+      "type": "toggle",
+      "default": "any",
+      "options": [
+        {"value": "any",      "label": "Any new aircraft"},
+        {"value": "keyword",  "label": "Callsign keyword"},
+        {"value": "military", "label": "Military aircraft"},
+        {"value": "altitude", "label": "Above altitude"}
+      ]
+    },
+    {
+      "key": "keyword",
+      "label": "Callsign contains (e.g. UAL, N12)",
+      "type": "text",
+      "default": "",
+      "visible_when": {"filter": "keyword"}
+    },
+    {
+      "key": "altitude_ft",
+      "label": "Minimum altitude (feet)",
+      "type": "number",
+      "default": "30000",
+      "min": "1000",
+      "max": "60000",
+      "step": "1000",
+      "visible_when": {"filter": "altitude"}
+    }
+  ]
+}

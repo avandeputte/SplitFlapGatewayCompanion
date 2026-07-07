@@ -1,0 +1,25 @@
+{
+  "id": "magic-8-ball",
+  "name": "Magic 8 Ball",
+  "icon": "🎱",
+  "description": "Ask the magic 8 ball",
+  "category": "entertainment",
+  "type": "channel",
+  "version": "1.0",
+  "refresh_interval": 300,
+  "loop_delay": 8,
+  "settings": [
+    {
+      "key": "loop_delay",
+      "label": "Delay Between Pages (seconds)",
+      "type": "number",
+      "default": "8",
+      "min": "2",
+      "max": "30",
+      "step": "1",
+      "stepper": true
+    }
+  ],
+  "min_rows": 3,
+  "min_cols": 10
+}

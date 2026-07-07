@@ -38,9 +38,22 @@ Built in phases. **Phase 1 (this drop) is a working end-to-end slice:**
 - ✅ Settings UI (gateway URL + sync, transport, MQTT password) + env-var config.
 - ✅ Docker packaging.
 
-Later phases: the plugin runtime + all 47 apps, playlists/schedules/triggers, the
-app library, and the gateway reverse-proxy "Display" tab. See
-[the plan](#roadmap).
+**Phase 2 (this drop) adds the plugin runtime + all apps:**
+
+- ✅ All **46 vendored splitflap-os apps** load and run (functional + channel),
+  drop-in compatible — a conformance test asserts every app satisfies the contract.
+- ✅ **Apps tab**: tile grid, one-tap run, live "▶ running" state, and an
+  **App Library** to add/remove apps.
+- ✅ **Manifest-driven settings** modal (text / number / password / textarea /
+  select / toggle, with `visible_when`), persisted; `search_chips` degrade to a
+  text field for now (full chip search is Phase 4).
+- ✅ Faithful **play-loop**: page cycling by `loop_delay`, fetch caching by
+  `refresh_interval` (+ `polling_rate` override), animation apps, OFFLINE
+  fallback, and compose/app **exclusivity**.
+
+Later phases: playlists/schedules/triggers, the full settings renderer +
+app-data helper endpoints, and the gateway reverse-proxy "Display" tab.
+See [the roadmap](#roadmap).
 
 ---
 
@@ -119,9 +132,9 @@ Set rows/cols/base to match how your modules are provisioned in the gateway.
 
 ## Roadmap
 
-1. **End-to-end slice** — compose → frames → gateway (both transports) + preview. ← *you are here*
-2. Plugin runtime + all 47 apps (drop-in compatible).
-3. Playlists + schedules + triggers.
-4. App library + app-data helper endpoints + full manifest-driven settings forms.
+1. ✅ **End-to-end slice** — compose → frames → gateway (both transports) + preview.
+2. ✅ **Plugin runtime + all apps** (drop-in compatible) + Apps tab + library + settings.
+3. Playlists + schedules + triggers. ← *next*
+4. Full manifest-driven settings renderer + app-data helper endpoints (search_chips).
 5. Gateway reverse-proxy "Display" tab + live status.
 6. Packaging polish + docs.

@@ -25,6 +25,8 @@ class DisplayState:
         self.transport_type: str = "sim"
         self.transport_connected: bool = False
         self.last_error: str | None = None
+        # Which app (if any) is currently driving the display.
+        self.active_app: str | None = None
 
     def resize(self, module_count: int) -> None:
         with self._lock:
@@ -55,6 +57,7 @@ class DisplayState:
                     for i in self.current_indices
                 ],
                 "is_homed": self.is_homed,
+                "active_app": self.active_app,
                 "flap_chars": renderer.FLAP_CHARS,
                 "transport": {
                     "type": self.transport_type,

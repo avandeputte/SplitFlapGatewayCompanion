@@ -1,0 +1,46 @@
+{
+  "id": "yt_comments",
+  "name": "Comments",
+  "icon": "💬",
+  "description": "YT comments",
+  "type": "functional",
+  "refresh_interval": 60,
+  "loop_delay": 8,
+  "trigger_interval": 120,
+  "trigger_display_seconds": 30,
+  "trigger_cooldown": 300,
+  "trigger_conditions": [
+    {
+      "key": "keyword",
+      "label": "Keyword in comment (empty = any new comment)",
+      "type": "text",
+      "default": ""
+    }
+  ],
+  "settings": [
+    {
+      "key": "yt_video_id",
+      "label": "Video ID",
+      "type": "text",
+      "default": "dQw4w9WgXcQ",
+      "global_key": true
+    },
+    {
+      "key": "yt_api_key",
+      "label": "API Key",
+      "type": "password",
+      "global_key": true
+    },
+    {
+      "key": "loop_delay",
+      "label": "Delay Between Pages (seconds)",
+      "type": "number",
+      "default": "8",
+      "min": "2",
+      "max": "30",
+      "step": "1",
+      "stepper": true
+    }
+  ],
+  "category": "data"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "trivia",
+  "name": "Trivia",
+  "icon": "🧠",
+  "description": "Random trivia questions",
+  "category": "education",
+  "type": "functional",
+  "version": "1.0",
+  "refresh_interval": 300,
+  "loop_delay": 10,
+  "settings": [
+    {
+      "key": "loop_delay",
+      "label": "Delay Between Pages (seconds)",
+      "type": "number",
+      "default": "10",
+      "min": "2",
+      "max": "30",
+      "step": "1",
+      "stepper": true
+    }
+  ],
+  "min_rows": 3,
+  "min_cols": 10
+}

@@ -1,0 +1,33 @@
+{
+  "id": "dashboard",
+  "name": "Dashboard",
+  "icon": "🏠",
+  "description": "Time + weather",
+  "type": "functional",
+  "refresh_interval": 60,
+  "loop_delay": 5,
+  "settings": [
+    {
+      "key": "timezone",
+      "label": "Timezone (override global)",
+      "type": "search_chips",
+      "searchUrl": "/timezones",
+      "resultKey": "zones",
+      "maxItems": 1,
+      "global_key": true
+    },
+    {
+      "key": "loop_delay",
+      "label": "Delay Between Pages (seconds)",
+      "type": "number",
+      "default": "5",
+      "min": "2",
+      "max": "30",
+      "step": "1",
+      "stepper": true
+    }
+  ],
+  "category": "data",
+  "min_rows": 3,
+  "min_cols": 12
+}

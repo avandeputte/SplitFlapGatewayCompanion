@@ -20,7 +20,8 @@
   </header>
 
   <nav class="tabs">
-    <button class="tab active" data-tab="compose">Compose</button>
+    <button class="tab active" data-tab="apps">Apps</button>
+    <button class="tab" data-tab="compose">Compose</button>
     <button class="tab" data-tab="settings">Settings</button>
     <button class="tab" data-tab="display" title="Gateway UI (coming in a later phase)">Display</button>
   </nav>
@@ -35,8 +36,23 @@
       <div class="board" id="preview"></div>
     </section>
 
+    <!-- APPS -->
+    <section class="panel tabpage" id="page-apps">
+      <div class="panel-head">
+        <h2>Apps</h2>
+        <div class="apps-actions">
+          <button class="btn ghost btn-sm" id="manageAppsBtn" title="Install / remove apps">＋ Library</button>
+        </div>
+      </div>
+      <div class="active-banner hidden" id="activeBanner">
+        <span>▶ <b id="activeAppName"></b> is running</span>
+        <button class="btn ghost btn-sm" id="stopAppBtn">■ Stop</button>
+      </div>
+      <div class="apps-grid" id="appsGrid"></div>
+    </section>
+
     <!-- COMPOSE -->
-    <section class="panel tabpage" id="page-compose">
+    <section class="panel tabpage hidden" id="page-compose">
       <div class="panel-head"><h2>Compose</h2></div>
 
       <label class="field">
@@ -139,6 +155,18 @@
       <pre class="statusdump" id="gatewayDump">gateway status will appear here…</pre>
     </section>
   </main>
+
+  <!-- Modal (app settings + library) -->
+  <div class="modal-overlay hidden" id="modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="modalTitle">…</h3>
+        <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot" id="modalFoot"></div>
+    </div>
+  </div>
 
   <script type="module" src="/app.js"></script>
 </body>

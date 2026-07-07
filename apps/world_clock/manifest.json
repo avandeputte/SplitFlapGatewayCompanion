@@ -1,0 +1,38 @@
+{
+  "id": "world_clock",
+  "name": "World Clock",
+  "icon": "🌍",
+  "description": "3 time zones",
+  "type": "functional",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "category": "time",
+  "trigger_interval": 60,
+  "trigger_display_seconds": 20,
+  "trigger_cooldown": 43200,
+  "trigger_conditions": [
+    {
+      "key": "event",
+      "label": "Fire when",
+      "type": "toggle",
+      "default": "open",
+      "options": [
+        {"value": "open",  "label": "Business opens (9am)"},
+        {"value": "close", "label": "Business closes (5pm)"}
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "key": "world_clock_zones",
+      "label": "Timezones (max 3)",
+      "type": "search_chips",
+      "searchUrl": "/timezones",
+      "resultKey": "zones",
+      "maxItems": 3,
+      "global_key": true
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 10
+}

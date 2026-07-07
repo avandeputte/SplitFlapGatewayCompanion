@@ -26,15 +26,21 @@ class DisplayController:
         self.state = state
         self.transport: DisplayTransport = SimTransport()
         self._send_lock = asyncio.Lock()
-        self._current_send: asyncio.Task | None = None
+        # A single "driver" task at a time: either a manual compose send or the
+        # app play-loop. Starting one cancels the other (they're exclusive).
+        self._task: asyncio.Task | None = None
+        self.active_app: str | None = None
+        self.plugins = None  # set via attach_plugins()
+
+    def attach_plugins(self, plugins) -> None:
+        self.plugins = plugins
 
     # -- lifecycle ----------------------------------------------------------
     async def start(self) -> None:
         await self._open_transport()
 
     async def stop(self) -> None:
-        if self._current_send and not self._current_send.done():
-            self._current_send.cancel()
+        await self._cancel_task()
         await self._safe_close(self.transport)
 
     async def _open_transport(self) -> None:
@@ -83,27 +89,38 @@ class DisplayController:
     def resize_grid(self) -> None:
         self.state.resize(self.config.module_count())
 
-    # -- sending ------------------------------------------------------------
+    # -- task control -------------------------------------------------------
+    async def _cancel_task(self) -> None:
+        task = self._task
+        self._task = None
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+
+    # -- manual compose -----------------------------------------------------
     def send_text_bg(self, text: str, style: str | None = None,
                      speed: int | None = None, raw: bool = False) -> str:
-        """Kick off a send in the background; return the normalized target.
-
-        A new request cancels an in-flight animation so the display always
-        tracks the latest intent.
-        """
+        """Stop any app/animation and show ``text`` (background). Returns target."""
         clean = self._normalize(text, raw=raw)
-        if self._current_send and not self._current_send.done():
-            self._current_send.cancel()
-        self._current_send = asyncio.create_task(
-            self._run_send(clean, style=style, speed=speed)
-        )
+        self.active_app = None
+        self.state.active_app = None
+        old = self._task
+        if old and not old.done():
+            old.cancel()  # releases the lock at its next await
+        self._task = asyncio.create_task(self._run_manual(clean, style=style, speed=speed))
         return clean
 
     async def send_text(self, text: str, style: str | None = None,
                         speed: int | None = None, raw: bool = False) -> str:
         """Send and await completion (used by tests / synchronous callers)."""
+        await self._cancel_task()
+        self.active_app = None
+        self.state.active_app = None
         clean = self._normalize(text, raw=raw)
-        await self._run_send(clean, style=style, speed=speed)
+        await self._run_manual(clean, style=style, speed=speed)
         return clean
 
     def _normalize(self, text: str, *, raw: bool) -> str:
@@ -114,23 +131,23 @@ class DisplayController:
             currency=self.config.display.get("currency_symbol", "$"),
         )
 
-    async def _run_send(self, clean: str, *, style: str | None, speed: int | None) -> None:
+    async def _run_manual(self, clean: str, *, style: str | None, speed: int | None) -> None:
         disp = self.config.display
         style = style or disp.get("transition_style", "ltr")
         if speed is None:
             speed = disp.get("slot_speed", 80) if style == "slot" else disp.get("transition_speed", 15)
+        await self._emit_page(clean, style=style, speed=int(speed))
 
+    async def _emit_page(self, clean: str, *, style: str, speed: int) -> None:
+        """Render ``clean`` to frames and push them over the transport."""
         grid = self.config.grid
         base = int(grid.get("module_id_base", 0))
         rows, cols = int(grid["rows"]), int(grid["cols"])
-
         plan = renderer.build_send_plan(
             clean, style=style, speed_ms=int(speed), rows=rows, cols=cols,
             current_indices=self.state.current_indices,
         )
-        # Show the target immediately (indices then animate toward it).
         self.state.set_target(clean)
-
         async with self._send_lock:
             try:
                 for step in plan:
@@ -150,3 +167,44 @@ class DisplayController:
     async def clear(self) -> str:
         """Blank the whole display."""
         return await self.send_text(" " * self.config.module_count(), style="ltr", raw=True)
+
+    # -- app play-loop ------------------------------------------------------
+    async def run_app(self, app_id: str) -> None:
+        """Start continuously running an app (fetch → page cycle)."""
+        if self.plugins is None or self.plugins.manifest(app_id) is None:
+            raise KeyError(app_id)
+        await self._cancel_task()
+        self.active_app = app_id
+        self.state.active_app = app_id
+        self._task = asyncio.create_task(self._app_loop(app_id))
+
+    async def stop_app(self) -> None:
+        await self._cancel_task()
+        self.active_app = None
+        self.state.active_app = None
+
+    async def _app_loop(self, app_id: str) -> None:
+        loop = asyncio.get_running_loop()
+        last_sent: str | None = None
+        while self.active_app == app_id:
+            try:
+                pages = await loop.run_in_executor(None, self.plugins.get_pages, app_id)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log.warning("app %s get_pages error: %s", app_id, e)
+                pages = []
+            if not pages:
+                await asyncio.sleep(1)
+                continue
+            t = self.plugins.page_timing(app_id)
+            for page in pages:
+                if self.active_app != app_id:
+                    return
+                text = page if isinstance(page, str) else str(page.get("text", ""))
+                # Non-anim apps skip re-sending an unchanged page.
+                if t["is_anim"] or text != last_sent:
+                    clean = self._normalize(text, raw=t["is_anim"])
+                    await self._emit_page(clean, style=t["style"], speed=t["speed"])
+                    last_sent = text
+                await asyncio.sleep(max(0.0, float(t["loop_delay"])))

@@ -22,16 +22,22 @@ from . import __version__, renderer
 from .config import Config
 from .engine import DisplayController
 from .gateway import build_sync_patch, fetch_gateway_config
+from .plugin_settings import PluginSettings
+from .plugins import PluginRuntime
 from .state import DisplayState
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("companion")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
 
 config = Config()
 state = DisplayState(config.module_count())
 controller = DisplayController(config, state)
+plugin_settings = PluginSettings(config.data_dir)
+plugins = PluginRuntime(config, plugin_settings, APPS_DIR)
+controller.attach_plugins(plugins)
 
 
 def _redact(cfg: dict) -> dict:
@@ -82,6 +88,8 @@ async def lifespan(app: FastAPI):
             log.info("synced config from gateway: %s", res.get("applied"))
         else:
             log.info("gateway sync skipped at startup: %s", res.get("error"))
+    plugins.load()
+    log.info("loaded %d app plugins", len(plugins.app_list()))
     yield
     await controller.stop()
 
@@ -104,6 +112,18 @@ class ConfigPatch(BaseModel):
     transport: dict | None = None
     display: dict | None = None
     sync_from_gateway: bool | None = None
+
+
+class RunAppRequest(BaseModel):
+    app: str
+
+
+class AppSettingsPatch(BaseModel):
+    values: dict
+
+
+class InstallRequest(BaseModel):
+    installed: bool
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +181,71 @@ async def update_config(patch: ConfigPatch):
 async def gateway_sync():
     """Pull grid geometry + MQTT settings from the gateway on demand."""
     return await do_gateway_sync()
+
+
+# ---------------------------------------------------------------------------
+# Apps / plugins
+# ---------------------------------------------------------------------------
+@app.get("/api/apps")
+async def apps_list():
+    return {"apps": plugins.app_list(), "active_app": controller.active_app}
+
+
+@app.get("/api/apps/available")
+async def apps_available():
+    return {"apps": plugins.available_list()}
+
+
+@app.post("/api/apps/run")
+async def apps_run(req: RunAppRequest):
+    app_id = req.app[7:] if req.app.startswith("plugin_") else req.app
+    try:
+        await controller.run_app(app_id)
+    except KeyError:
+        raise HTTPException(404, f"app not installed: {app_id}")
+    return {"ok": True, "active_app": app_id}
+
+
+@app.post("/api/apps/stop")
+async def apps_stop():
+    await controller.stop_app()
+    return {"ok": True}
+
+
+@app.get("/api/apps/{app_id}/settings")
+async def apps_get_settings(app_id: str):
+    try:
+        return plugins.settings_schema(app_id)
+    except KeyError:
+        raise HTTPException(404, f"app not installed: {app_id}")
+
+
+@app.post("/api/apps/{app_id}/settings")
+async def apps_save_settings(app_id: str, patch: AppSettingsPatch):
+    try:
+        plugins.save_settings(app_id, patch.values)
+    except KeyError:
+        raise HTTPException(404, f"app not installed: {app_id}")
+    return {"ok": True}
+
+
+@app.get("/api/apps/{app_id}/preview")
+async def apps_preview(app_id: str):
+    if plugins.manifest(app_id) is None:
+        raise HTTPException(404, f"app not installed: {app_id}")
+    import asyncio
+    pages = await asyncio.get_running_loop().run_in_executor(None, plugins.get_pages, app_id)
+    return {"pages": pages, "rows": plugins.get_rows(), "cols": plugins.get_cols()}
+
+
+@app.post("/api/apps/{app_id}/install")
+async def apps_install(app_id: str, req: InstallRequest):
+    if app_id not in plugins.discover():
+        raise HTTPException(404, f"unknown app: {app_id}")
+    if not req.installed and controller.active_app == app_id:
+        await controller.stop_app()
+    plugins.set_installed(app_id, req.installed)
+    return {"ok": True, "installed": req.installed}
 
 
 @app.post("/api/compose/send")
