@@ -125,8 +125,10 @@ below act as manual overrides (they win over the gateway if set).
 - **MQTT** — publishes raw frames (`m05-A\n`) to `<prefix>/send`, reads
   `<prefix>/rx`. Smoothest for animations. Needs a broker both the gateway and
   companion can reach. (This mirrors splitflap-os's proven gateway transport.)
-- **REST** — POSTs each frame to the gateway's `/api/rs485/send`. No broker
-  needed; animated styles cost one HTTP request per module.
+- **REST** — draws a whole page in **one** request via the gateway's
+  `/api/rs485/batch` (v3.0+), so animations are nearly as smooth as MQTT with no
+  broker. Against an older gateway without that endpoint it falls back
+  automatically to one `/api/rs485/send` per module.
 - **sim** — logs frames, drives the preview, needs no hardware.
 
 ### Grid → module mapping

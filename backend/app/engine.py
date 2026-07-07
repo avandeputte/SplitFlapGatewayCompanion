@@ -158,6 +158,16 @@ class DisplayController:
         self.state.set_target(clean)
         async with self._send_lock:
             try:
+                # Batch path (REST): draw the whole page in one request; the
+                # gateway paces the cascade. Falls back to per-frame if the
+                # transport/gateway can't batch.
+                if getattr(self.transport, "batch_capable", False):
+                    ordered = [(base + gi, ch, gi) for step in plan for (gi, ch) in step.frames]
+                    if await self.transport.send_batch([(m, c) for m, c, _ in ordered], int(speed)):
+                        for _, char, gi in ordered:
+                            self.state.set_module(gi, char)
+                        return
+                    # else fall through to per-frame below
                 for step in plan:
                     for grid_index, char in step.frames:
                         await self.transport.send_frame(base + grid_index, char)

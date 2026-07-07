@@ -1,11 +1,11 @@
 """
 transport/rest.py — drive the gateway over its HTTP REST API.
 
-No MQTT broker required: each frame is POSTed to the gateway's raw-bus endpoint
-``/api/rs485/send`` ({"data": "m05-A\\n"}). A persistent keep-alive client keeps
-per-frame overhead low, but note that animated styles issue one request per
-module — MQTT is smoother for heavy animation. For instant/`sync`-style full
-rows the gateway also offers ``/api/flap/text`` (used by ``send_text``).
+No MQTT broker required. A whole page is drawn in ONE request via the gateway's
+batch endpoint ``/api/rs485/batch`` ({"frames":[...], "step_ms":N}) — this is what
+closes the animation gap vs MQTT (previously each module was its own HTTP
+round-trip). Against an older gateway that lacks ``/api/rs485/batch`` it falls
+back automatically to per-frame ``/api/rs485/send``.
 """
 
 from __future__ import annotations
@@ -19,15 +19,19 @@ log = logging.getLogger("companion.transport.rest")
 
 class RestTransport(DisplayTransport):
     type_name = "rest"
+    batch_capable = True   # the engine will hand us whole pages to batch
 
     def __init__(self, gateway_url: str, timeout: float = 5.0):
         if not gateway_url:
             raise ValueError("REST transport requires a gateway_url")
         self.base = gateway_url.rstrip("/")
+        # Batching can block the gateway for the page's cascade duration, so use
+        # a longer timeout than the single-frame path.
         self.timeout = timeout
         self._client = None
         self._connected = False
         self._last_error: str | None = None
+        self._no_batch = False   # set True once we learn the gateway has no /batch
 
     async def connect(self) -> None:
         import httpx
@@ -74,6 +78,43 @@ class RestTransport(DisplayTransport):
             self._connected = False
             self._last_error = str(e)
             raise
+
+    async def send_batch(self, frames: list[tuple[int, str]], step_ms: int) -> bool:
+        """Send a whole page in one request. Returns True if batched; False if
+        the gateway has no batch endpoint (caller should fall back to per-frame).
+
+        step_ms paces the cascade device-side (the gateway sleeps between frames)
+        so this call blocks for roughly the page's animation duration — matching
+        how the per-frame path used to block, but with one round-trip."""
+        if self._client is None:
+            raise RuntimeError("REST transport not connected")
+        if self._no_batch:
+            return False
+        payload = {"frames": [frame_for(mid, ch) for mid, ch in frames],
+                   "step_ms": int(step_ms)}
+        try:
+            import httpx
+            # allow the gateway to pace a long page without a client timeout
+            r = await self._client.post("/api/rs485/batch", json=payload, timeout=30.0)
+            if r.status_code == 404:
+                self._no_batch = True
+                log.info("gateway has no /api/rs485/batch; using per-frame sends")
+                return False
+            r.raise_for_status()
+            self._connected = True
+            self._last_error = None
+            return True
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                self._no_batch = True
+                return False
+            self._connected = False
+            self._last_error = str(e)
+            return False
+        except Exception as e:
+            self._connected = False
+            self._last_error = str(e)
+            return False
 
     async def send_text(self, start: int, text: str) -> None:
         """Optional bulk fast-path for instant, non-animated row updates."""
