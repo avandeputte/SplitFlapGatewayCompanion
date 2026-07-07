@@ -41,6 +41,9 @@ DEFAULTS: dict = {
         "slot_speed": 80,        # ms per lock-in for slot style
         "currency_symbol": "$",
     },
+    # Pull grid geometry + MQTT broker from the gateway's own /api/config on
+    # startup (the gateway is the source of truth for hardware config).
+    "sync_from_gateway": True,
 }
 
 
@@ -65,6 +68,9 @@ def _env_overrides() -> dict:
         ov["grid"]["cols"] = int(e["COMPANION_GRID_COLS"])
     if "COMPANION_MODULE_ID_BASE" in e:
         ov["grid"]["module_id_base"] = int(e["COMPANION_MODULE_ID_BASE"])
+
+    if "COMPANION_SYNC_FROM_GATEWAY" in e:
+        ov["sync_from_gateway"] = e["COMPANION_SYNC_FROM_GATEWAY"].lower() in ("1", "true", "yes", "on")
 
     if "COMPANION_TRANSPORT" in e:
         ov["transport"]["type"] = e["COMPANION_TRANSPORT"]

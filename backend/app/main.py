@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from . import __version__, renderer
 from .config import Config
 from .engine import DisplayController
+from .gateway import build_sync_patch, fetch_gateway_config
 from .state import DisplayState
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -41,11 +42,46 @@ def _redact(cfg: dict) -> dict:
     return cfg
 
 
+async def do_gateway_sync() -> dict:
+    """Pull grid + MQTT settings from the gateway and apply them.
+
+    The gateway is the source of truth for hardware config; the companion keeps
+    only what the gateway can't give it (transport choice, MQTT password).
+    """
+    url = (config.transport.get("gateway_url") or "").strip()
+    if not url:
+        return {"ok": False, "error": "no gateway_url configured"}
+    try:
+        gw = await fetch_gateway_config(url)
+    except Exception as e:
+        log.warning("gateway sync failed: %s", e)
+        return {"ok": False, "error": str(e)}
+    patch = build_sync_patch(gw)
+    if patch:
+        config.update(patch)
+        if "grid" in patch:
+            controller.resize_grid()
+        if "transport" in patch and config.transport.get("type") == "mqtt":
+            await controller.reload_transport()
+    return {
+        "ok": True,
+        "applied": patch,
+        "gateway": {k: gw.get(k) for k in
+                    ("gridRows", "gridCols", "mqHost", "mqPort", "mqUser", "mqPfx")},
+    }
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("SplitFlapGatewayCompanion v%s starting (transport=%s, grid=%sx%s)",
              __version__, config.transport.get("type"), config.grid["rows"], config.grid["cols"])
     await controller.start()
+    if config.effective.get("sync_from_gateway") and config.transport.get("gateway_url"):
+        res = await do_gateway_sync()
+        if res.get("ok"):
+            log.info("synced config from gateway: %s", res.get("applied"))
+        else:
+            log.info("gateway sync skipped at startup: %s", res.get("error"))
     yield
     await controller.stop()
 
@@ -67,6 +103,7 @@ class ConfigPatch(BaseModel):
     grid: dict | None = None
     transport: dict | None = None
     display: dict | None = None
+    sync_from_gateway: bool | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -107,12 +144,23 @@ async def update_config(patch: ConfigPatch):
     body = {k: v for k, v in patch.model_dump().items() if v is not None}
     if not body:
         raise HTTPException(400, "empty config patch")
+    old_url = config.transport.get("gateway_url")
     config.update(body)
     if "grid" in body:
         controller.resize_grid()
     if "transport" in body:
         await controller.reload_transport()
+    # If the gateway URL just changed and auto-sync is on, pull its config now.
+    new_url = config.transport.get("gateway_url")
+    if new_url and new_url != old_url and config.effective.get("sync_from_gateway"):
+        await do_gateway_sync()
     return _redact(config.effective)
+
+
+@app.post("/api/gateway/sync")
+async def gateway_sync():
+    """Pull grid geometry + MQTT settings from the gateway on demand."""
+    return await do_gateway_sync()
 
 
 @app.post("/api/compose/send")

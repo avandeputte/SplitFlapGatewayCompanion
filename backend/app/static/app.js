@@ -123,6 +123,7 @@ async function loadConfig() {
   $("cfgBase").value = cfg.grid.module_id_base;
   $("cfgTransport").value = cfg.transport.type;
   $("cfgGatewayUrl").value = cfg.transport.gateway_url || "";
+  $("cfgAutoSync").checked = cfg.sync_from_gateway !== false;
   const m = cfg.transport.mqtt || {};
   $("cfgMqttBroker").value = m.broker || "";
   $("cfgMqttPort").value = m.port || 1883;
@@ -131,31 +132,54 @@ async function loadConfig() {
   $("cfgMqttPass").value = m.password === "********" ? "" : (m.password || "");
   $("gatewayLink").href = cfg.transport.gateway_url || "#";
   toggleMqttFields();
+  applyAutoSyncLock();
 }
 function toggleMqttFields() {
   document.querySelectorAll(".mqtt-only").forEach(
     (el) => (el.style.display = $("cfgTransport").value === "mqtt" ? "" : "none")
   );
 }
+// When auto-sync is on, the gateway owns rows/cols + MQTT broker/port/user/prefix,
+// so we lock those fields (password + ID base + transport type stay editable).
+function applyAutoSyncLock() {
+  const locked = $("cfgAutoSync").checked;
+  ["cfgRows", "cfgCols", "cfgMqttBroker", "cfgMqttPort", "cfgMqttPrefix", "cfgMqttUser"]
+    .forEach((id) => { $(id).disabled = locked; $(id).title = locked ? "From gateway" : ""; });
+}
+async function syncFromGateway() {
+  $("syncMsg").textContent = "Syncing…";
+  try {
+    const url = $("cfgGatewayUrl").value.trim();
+    if (url) await post("/api/config", { transport: { gateway_url: url } });
+    const r = await post("/api/gateway/sync");
+    if (!r.ok) { $("syncMsg").textContent = "Gateway error: " + r.error; return; }
+    await loadConfig(); await bootGrid();
+    $("syncMsg").textContent = `Synced ✓ ${r.gateway.gridRows}×${r.gateway.gridCols}, broker ${r.gateway.mqHost || "—"}`;
+  } catch (e) { $("syncMsg").textContent = "Error: " + e.message; }
+}
 async function saveSettings() {
+  const autoSync = $("cfgAutoSync").checked;
   const patch = {
-    grid: { rows: +$("cfgRows").value, cols: +$("cfgCols").value, module_id_base: +$("cfgBase").value },
-    transport: {
-      type: $("cfgTransport").value,
-      gateway_url: $("cfgGatewayUrl").value.trim(),
-      mqtt: {
-        broker: $("cfgMqttBroker").value.trim(),
-        port: +$("cfgMqttPort").value,
-        prefix: $("cfgMqttPrefix").value.trim() || "splitflap",
-        username: $("cfgMqttUser").value,
-      },
-    },
+    sync_from_gateway: autoSync,
+    grid: { module_id_base: +$("cfgBase").value },
+    transport: { type: $("cfgTransport").value, gateway_url: $("cfgGatewayUrl").value.trim(), mqtt: {} },
   };
+  // Only push gateway-owned fields when the user is in manual mode; otherwise
+  // we'd overwrite freshly-synced values with stale UI values.
+  if (!autoSync) {
+    patch.grid.rows = +$("cfgRows").value;
+    patch.grid.cols = +$("cfgCols").value;
+    patch.transport.mqtt.broker = $("cfgMqttBroker").value.trim();
+    patch.transport.mqtt.port = +$("cfgMqttPort").value;
+    patch.transport.mqtt.prefix = $("cfgMqttPrefix").value.trim() || "splitflap";
+    patch.transport.mqtt.username = $("cfgMqttUser").value;
+  }
   const pass = $("cfgMqttPass").value;
   if (pass) patch.transport.mqtt.password = pass;
   $("settingsMsg").textContent = "Applying…";
   try {
     await post("/api/config", patch);
+    await loadConfig();
     await bootGrid();
     $("settingsMsg").textContent = "Saved ✓";
     setTimeout(() => ($("settingsMsg").textContent = ""), 2500);
@@ -245,6 +269,8 @@ async function init() {
   $("quickInput").addEventListener("input", quickFill);
   $("saveSettingsBtn").addEventListener("click", saveSettings);
   $("cfgTransport").addEventListener("change", toggleMqttFields);
+  $("syncBtn").addEventListener("click", syncFromGateway);
+  $("cfgAutoSync").addEventListener("change", applyAutoSyncLock);
   pollState(); pollStatus();
   setInterval(pollState, 300);
   setInterval(pollStatus, 3000);

@@ -30,8 +30,12 @@ Built in phases. **Phase 1 (this drop) is a working end-to-end slice:**
   (`ltr`, `rtl`, `spiral`, `sync`, `slot`, …).
 - ✅ Selectable transport: **sim** (no hardware), **MQTT** (raw frames via broker),
   **REST** (gateway HTTP API).
+- ✅ **Gateway is the source of truth** — the companion reads its display size
+  (`gridRows`/`gridCols`) and MQTT broker (`mqHost`/`mqPort`/`mqUser`/`mqPfx`)
+  straight from the gateway's own `GET /api/config`, on startup and on demand.
+  You configure the panel and broker once, in the gateway.
 - ✅ Live split-flap preview + transport/gateway status pill.
-- ✅ Settings UI (grid layout, transport, gateway URL, MQTT) + env-var config.
+- ✅ Settings UI (gateway URL + sync, transport, MQTT password) + env-var config.
 - ✅ Docker packaging.
 
 Later phases: the plugin runtime + all 47 apps, playlists/schedules/triggers, the
@@ -74,14 +78,28 @@ Config is stored in `<data_dir>/config.json` (a Docker volume). **Environment
 variables always win** over the saved file, so a container can be configured with
 env alone.
 
+Because the **gateway is the source of truth**, the only thing you normally set is
+`COMPANION_GATEWAY_URL` (and `COMPANION_MQTT_PASSWORD` if your broker needs auth).
+Grid size and the MQTT broker/port/user/prefix are pulled from the gateway's
+`/api/config` on startup and whenever you hit **Sync**. The grid/MQTT env vars
+below act as manual overrides (they win over the gateway if set).
+
 | Env var | Meaning | Default |
 |---|---|---|
+| `COMPANION_GATEWAY_URL` | Gateway base URL (config sync + REST + status + proxy) | `http://splitflap-gateway.local` |
+| `COMPANION_SYNC_FROM_GATEWAY` | Pull grid + MQTT from the gateway on startup | `true` |
 | `COMPANION_TRANSPORT` | `sim` \| `mqtt` \| `rest` | `sim` |
-| `COMPANION_GATEWAY_URL` | Gateway base URL (REST + status + proxy) | `http://splitflap-gateway.local` |
-| `COMPANION_GRID_ROWS` / `COMPANION_GRID_COLS` | Panel size | `3` / `15` |
-| `COMPANION_MODULE_ID_BASE` | Module id of grid index 0 | `0` |
-| `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` / `_PASSWORD` | MQTT settings | — |
+| `COMPANION_MQTT_PASSWORD` | MQTT password (the gateway never exposes this) | — |
+| `COMPANION_MODULE_ID_BASE` | Module id of grid index 0 (companion-owned) | `0` |
+| `COMPANION_GRID_ROWS` / `COMPANION_GRID_COLS` | Manual panel-size override | *(from gateway)* |
+| `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | Manual MQTT overrides | *(from gateway)* |
 | `COMPANION_DATA_DIR` | Where config/state live | `<repo>/data` |
+
+> **Why no gateway firmware change?** The gateway (v2.1+) already exposes
+> `gridRows`, `gridCols`, `mqHost`, `mqPort`, `mqUser` and `mqPfx` via
+> `GET /api/config`, so the companion just reads them. The MQTT **password** is
+> intentionally *not* exposed by the gateway — supply it once in the companion
+> (or leave blank for an anonymous broker).
 
 ### Transports
 
