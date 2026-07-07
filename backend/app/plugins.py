@@ -36,10 +36,14 @@ _PASSTHROUGH = (
 
 
 class PluginRuntime:
-    def __init__(self, config: Config, settings: PluginSettings, apps_dir: Path):
+    def __init__(self, config: Config, settings: PluginSettings, apps_dir: Path,
+                 user_apps_dir: Path | None = None):
         self.config = config
         self.settings = settings
         self.apps_dir = Path(apps_dir)
+        # User-uploaded apps live here (persistent /data volume), and take
+        # precedence over a built-in of the same id.
+        self.user_apps_dir = Path(user_apps_dir) if user_apps_dir else self.apps_dir / "_user"
         self._registry: dict[str, dict] = {}   # app_id -> manifest
         self._modules: dict[str, object] = {}   # app_id -> imported module
         self._channel: dict[str, list] = {}     # app_id -> pages
@@ -60,15 +64,29 @@ class PluginRuntime:
         return "".join(l.center(cols)[:cols] for l in padded[:rows])
 
     # -- discovery / loading ----------------------------------------------
-    def discover(self) -> list[str]:
-        """All app ids present on disk (folders with a manifest.json)."""
-        if not self.apps_dir.is_dir():
-            return []
-        out = []
-        for name in sorted(os.listdir(self.apps_dir)):
-            if (self.apps_dir / name / "manifest.json").is_file():
-                out.append(name)
+    def _scan(self) -> dict[str, Path]:
+        """Map app_id -> its folder, scanning built-in then user dirs (user
+        wins on an id collision)."""
+        out: dict[str, Path] = {}
+        for base in (self.apps_dir, self.user_apps_dir):
+            if base and base.is_dir():
+                for name in sorted(os.listdir(base)):
+                    if name.startswith((".", "_")):
+                        continue
+                    if (base / name / "manifest.json").is_file():
+                        out[name] = base / name
         return out
+
+    def discover(self) -> list[str]:
+        """All app ids present on disk (built-in + user-uploaded)."""
+        return list(self._scan().keys())
+
+    def _app_dir(self, app_id: str) -> Path | None:
+        return self._scan().get(app_id)
+
+    def is_builtin(self, app_id: str) -> bool:
+        p = self._scan().get(app_id)
+        return p is not None and self.apps_dir == p.parent
 
     def load(self) -> None:
         """(Re)load all *installed* apps into the registry."""
@@ -84,12 +102,11 @@ class PluginRuntime:
         self._triggers.clear()
         self._caches.clear()
         enabled = set(self.settings.installed_apps)
-        for app_id in self.discover():
+        for app_id, app_dir in self._scan().items():
             if app_id in enabled:
-                self._load_one(app_id)
+                self._load_one(app_id, app_dir)
 
-    def _load_one(self, app_id: str) -> None:
-        app_dir = self.apps_dir / app_id
+    def _load_one(self, app_id: str, app_dir: Path) -> None:
         try:
             manifest = json.loads((app_dir / "manifest.json").read_text("utf-8"))
         except Exception as e:
@@ -275,6 +292,7 @@ class PluginRuntime:
             "has_settings": bool(manifest.get("settings")),
             "min_rows": manifest.get("min_rows"),
             "min_cols": manifest.get("min_cols"),
+            "builtin": self.is_builtin(app_id),
         }
 
     def app_list(self) -> list[dict]:
@@ -287,11 +305,11 @@ class PluginRuntime:
         """Every app on disk, with an ``installed`` flag (for the library)."""
         enabled = set(self.settings.installed_apps)
         out = []
-        for app_id in self.discover():
+        for app_id, app_dir in self._scan().items():
             manifest = self._registry.get(app_id)
             if manifest is None:
                 try:
-                    manifest = json.loads((self.apps_dir / app_id / "manifest.json").read_text("utf-8"))
+                    manifest = json.loads((app_dir / "manifest.json").read_text("utf-8"))
                 except Exception:
                     continue
             out.append(self._entry(app_id, manifest, app_id in enabled))
@@ -375,4 +393,95 @@ class PluginRuntime:
         # Preserve a stable-ish order: keep discovered order.
         ordered = [a for a in self.discover() if a in current]
         self.settings.set_installed(ordered)
+        self.load()
+
+    # -- upload / delete user apps ----------------------------------------
+    def install_zip(self, data: bytes, *, enable: bool = True) -> dict:
+        """Validate + install an uploaded app .zip into the user apps dir.
+
+        The zip must contain exactly one ``manifest.json`` (the app folder). The
+        app id is the containing folder's name (or the manifest ``id``). Returns
+        {id, name, type}; raises ValueError with a human message on any problem.
+
+        SECURITY: a functional app's ``app.py`` is imported (executed) to verify
+        it exposes fetch() — i.e. uploading runs arbitrary Python. Only upload
+        apps you trust.
+        """
+        import io
+        import re
+        import shutil
+        import tempfile
+        import zipfile
+
+        with tempfile.TemporaryDirectory() as td:
+            tdp = Path(td)
+            try:
+                with zipfile.ZipFile(io.BytesIO(data)) as z:
+                    for n in z.namelist():
+                        if n.startswith("/") or ".." in Path(n).parts:
+                            raise ValueError("unsafe path in zip")
+                    z.extractall(tdp)
+            except zipfile.BadZipFile:
+                raise ValueError("not a valid .zip file")
+
+            manifests = [m for m in tdp.rglob("manifest.json") if "__MACOSX" not in m.parts]
+            if len(manifests) != 1:
+                raise ValueError("the zip must contain exactly one manifest.json (the app folder)")
+            mpath = manifests[0]
+            root = mpath.parent
+            try:
+                manifest = json.loads(mpath.read_text("utf-8"))
+            except Exception as e:
+                raise ValueError(f"invalid manifest.json: {e}")
+
+            raw_id = root.name if root != tdp else (manifest.get("id") or manifest.get("name") or "app")
+            app_id = re.sub(r"[^A-Za-z0-9_-]", "", str(raw_id)) or "app"
+
+            if not manifest.get("name"):
+                raise ValueError("manifest.json is missing a 'name'")
+            kind = manifest.get("type")
+            if kind == "functional":
+                if not (root / "app.py").is_file():
+                    raise ValueError("functional app is missing app.py")
+                self._validate_fetch(root / "app.py")
+            elif kind == "channel":
+                if not (root / "data.json").is_file():
+                    raise ValueError("channel app is missing data.json")
+            else:
+                raise ValueError("manifest 'type' must be 'functional' or 'channel'")
+
+            self.user_apps_dir.mkdir(parents=True, exist_ok=True)
+            dest = self.user_apps_dir / app_id
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(root, dest)
+
+        if enable:
+            self.set_installed(app_id, True)   # also reloads
+        else:
+            self.load()
+        return {"id": app_id, "name": manifest.get("name"), "type": kind}
+
+    @staticmethod
+    def _validate_fetch(app_py: Path) -> None:
+        spec = importlib.util.spec_from_file_location(f"_upload_check_{app_py.parent.name}", str(app_py))
+        mod = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(mod)
+        except Exception as e:
+            raise ValueError(f"app.py failed to import: {e}")
+        if not (hasattr(mod, "fetch") and callable(mod.fetch)):
+            raise ValueError("app.py has no fetch() function")
+
+    def delete_app(self, app_id: str) -> None:
+        """Remove a user-uploaded app entirely (built-ins can't be deleted)."""
+        import shutil
+
+        app_dir = self._app_dir(app_id)
+        if app_dir is None:
+            raise KeyError(app_id)
+        if self.is_builtin(app_id):
+            raise ValueError("built-in apps cannot be deleted")
+        self.settings.set_installed([a for a in self.settings.installed_apps if a != app_id])
+        shutil.rmtree(app_dir, ignore_errors=True)
         self.load()

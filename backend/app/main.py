@@ -14,7 +14,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -52,7 +52,8 @@ config = Config()
 state = DisplayState(config.module_count())
 controller = DisplayController(config, state)
 plugin_settings = PluginSettings(config.data_dir)
-plugins = PluginRuntime(config, plugin_settings, APPS_DIR)
+# User-uploaded apps live in the persistent data volume, not the image's apps/.
+plugins = PluginRuntime(config, plugin_settings, APPS_DIR, config.data_dir / "apps")
 controller.attach_plugins(plugins)
 scheduler = Scheduler(controller, plugins)
 ha = HomeAssistant(config, plugins, controller)
@@ -380,6 +381,39 @@ async def apps_install(app_id: str, req: InstallRequest):
     ha.refresh_discovery()  # app option list changed
     ha.publish_state()
     return {"ok": True, "installed": req.installed}
+
+
+@app.post("/api/apps/upload")
+async def apps_upload(file: UploadFile = File(...)):
+    """Upload + register a new app from a .zip (manifest.json + app.py/data.json).
+
+    Note: a functional app's app.py is executed to validate it — only upload
+    apps you trust."""
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(413, "app too large (max 8 MB)")
+    try:
+        info = await asyncio.get_running_loop().run_in_executor(None, plugins.install_zip, data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    ha.refresh_discovery()
+    log.info("uploaded app: %s (%s)", info["id"], info["type"])
+    return {"ok": True, **info}
+
+
+@app.delete("/api/apps/{app_id}")
+async def apps_delete(app_id: str):
+    """Delete a user-uploaded app entirely (built-ins can't be deleted)."""
+    if controller.active_app == app_id:
+        await controller.stop_app()
+    try:
+        plugins.delete_app(app_id)
+    except KeyError:
+        raise HTTPException(404, f"unknown app: {app_id}")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    ha.refresh_discovery()
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

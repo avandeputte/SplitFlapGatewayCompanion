@@ -347,24 +347,67 @@ async function openAppSettings(id, name) {
 }
 
 // ---- app library -----------------------------------------------------------
+async function uploadApp(fileInput, msgEl) {
+  const f = fileInput.files[0];
+  if (!f) { msgEl.textContent = "Choose a .zip first."; return; }
+  msgEl.textContent = "Uploading…";
+  try {
+    const fd = new FormData(); fd.append("file", f);
+    const r = await fetch("/api/apps/upload", { method: "POST", body: fd });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { msgEl.textContent = "Error: " + (j.detail || r.status); return; }
+    fileInput.value = "";
+    openLibrary(); loadApps();
+  } catch (e) { msgEl.textContent = "Error: " + e.message; }
+}
+
 async function openLibrary() {
   const data = await api("/api/apps/available");
-  const list = el("div");
+  const wrap = el("div");
+
+  // Upload a new app
+  const box = el("div", "upload-box");
+  box.innerHTML = '<div class="lib-name">Upload an app</div>' +
+    '<div class="hint" style="margin:3px 0 8px">A <b>.zip</b> containing the app folder ' +
+    '(<code>manifest.json</code> + <code>app.py</code>, or <code>data.json</code> for a channel app). ' +
+    'Functional apps run Python on this host — only upload apps you trust.</div>';
+  const inp = el("input"); inp.type = "file"; inp.accept = ".zip"; inp.style.width = "auto";
+  const ub = el("button", "btn btn-sm primary"); ub.textContent = "Upload";
+  const um = el("span", "hint");
+  const urow = el("div", "inline-row"); urow.append(inp, ub, um);
+  ub.addEventListener("click", () => uploadApp(inp, um));
+  box.appendChild(urow); wrap.appendChild(box);
+
+  // Library list
+  const list = el("div"); list.style.marginTop = "12px";
   data.apps.forEach((a) => {
     const row = el("div", "lib-row");
+    const tag = a.builtin ? "" : ' <small style="color:var(--brand)">· uploaded</small>';
+    row.innerHTML = `<span class="app-icon" style="font-size:20px">${a.icon || "🧩"}</span>` +
+      `<div class="lib-meta"><div class="lib-name">${a.name}${tag}</div><div class="lib-desc">${a.description || ""}</div></div>`;
     const btn = el("button", "btn btn-sm " + (a.installed ? "ghost" : "primary"));
     btn.textContent = a.installed ? "Remove" : "Add";
     btn.addEventListener("click", async () => {
       await post(`/api/apps/${a.id}/install`, { installed: !a.installed });
       openLibrary(); loadApps();
     });
-    row.innerHTML = `<span class="app-icon" style="font-size:20px">${a.icon || "🧩"}</span>` +
-      `<div class="lib-meta"><div class="lib-name">${a.name}</div><div class="lib-desc">${a.description || ""}</div></div>`;
     row.appendChild(btn);
+    if (!a.builtin) {
+      const dl = el("button", "btn btn-sm"); dl.textContent = "🗑"; dl.title = "Delete uploaded app";
+      dl.style.background = "var(--hi)";
+      dl.addEventListener("click", async () => {
+        if (!confirm(`Delete "${a.name}"? This removes the uploaded app for good.`)) return;
+        await fetch(`/api/apps/${encodeURIComponent(a.id)}`, { method: "DELETE" });
+        openLibrary(); loadApps();
+      });
+      row.appendChild(dl);
+    }
     list.appendChild(row);
   });
+  wrap.appendChild(list);
+
   const close = el("button", "btn ghost"); close.textContent = "Close"; close.addEventListener("click", closeModal);
-  openModal("App Library", list, [close]);
+  openModal("App Library", wrap, [close]);
 }
 
 // ---- playlists -------------------------------------------------------------

@@ -147,6 +147,9 @@ a.btn { text-decoration: none; display: inline-block; }
 .saved-row .grow { flex: 1; font-weight: 600; }
 
 /* Library rows */
+.upload-box { border: 1px dashed var(--acc); border-radius: 6px; padding: 10px 12px; }
+.upload-box code { background: var(--input); padding: 0 3px; border-radius: 3px; }
+.inline-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .lib-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--acc); }
 .lib-row .lib-meta { flex: 1; min-width: 0; }
 .lib-row .lib-name { font-weight: 600; }
