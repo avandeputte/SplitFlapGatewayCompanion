@@ -1,0 +1,29 @@
+services:
+  companion:
+    build: .
+    image: splitflap-gateway-companion:latest
+    container_name: splitflap-companion
+    ports:
+      - "8000:8000"
+    volumes:
+      - companion-data:/data
+    restart: unless-stopped
+    environment:
+      # --- Display transport: sim | mqtt | rest ---
+      COMPANION_TRANSPORT: "sim"
+      # Gateway base URL (used by the REST transport, the status pill, and the
+      # reverse-proxy in a later phase):
+      COMPANION_GATEWAY_URL: "http://splitflap-gateway.local"
+      # --- Grid layout (must match how modules are provisioned in the gateway) ---
+      COMPANION_GRID_ROWS: "3"
+      COMPANION_GRID_COLS: "15"
+      COMPANION_MODULE_ID_BASE: "0"
+      # --- MQTT (only when COMPANION_TRANSPORT=mqtt) ---
+      # COMPANION_MQTT_BROKER: "192.168.1.50"
+      # COMPANION_MQTT_PORT: "1883"
+      # COMPANION_MQTT_PREFIX: "splitflap"
+      # COMPANION_MQTT_USER: ""
+      # COMPANION_MQTT_PASSWORD: ""
+
+volumes:
+  companion-data:

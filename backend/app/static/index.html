@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SplitFlap Gateway Companion</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-flap">SF</span>
+      <span class="brand-name">Gateway&nbsp;Companion</span>
+      <span class="brand-version" id="version"></span>
+    </div>
+    <div class="status" id="statusPill" title="Transport / gateway status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">…</span>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="compose">Compose</button>
+    <button class="tab" data-tab="settings">Settings</button>
+    <button class="tab" data-tab="display" title="Gateway UI (coming in a later phase)">Display</button>
+  </nav>
+
+  <main>
+    <!-- LIVE PREVIEW -->
+    <section class="panel preview-panel">
+      <div class="panel-head">
+        <h2>Live preview</h2>
+        <span class="hint" id="previewMeta"></span>
+      </div>
+      <div class="board" id="preview"></div>
+    </section>
+
+    <!-- COMPOSE -->
+    <section class="panel tabpage" id="page-compose">
+      <div class="panel-head"><h2>Compose</h2></div>
+
+      <label class="field">
+        <span>Quick message (fills the grid from the top-left)</span>
+        <input type="text" id="quickInput" placeholder="TYPE A MESSAGE" autocomplete="off" />
+      </label>
+
+      <div class="board editable" id="composeGrid"></div>
+
+      <div class="palette" id="palette">
+        <span class="palette-label">Color tile:</span>
+        <!-- swatches injected -->
+        <button class="swatch blank" data-code=" " title="Blank"></button>
+      </div>
+
+      <div class="controls">
+        <label class="field inline">
+          <span>Transition</span>
+          <select id="styleSelect"></select>
+        </label>
+        <label class="field inline">
+          <span>Speed (ms)</span>
+          <input type="number" id="speedInput" min="0" max="2000" step="5" value="15" />
+        </label>
+        <div class="spacer"></div>
+        <button class="btn ghost" id="clearGridBtn">Clear grid</button>
+        <button class="btn ghost" id="clearDisplayBtn">Clear display</button>
+        <button class="btn primary" id="sendBtn">Send ▶</button>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="panel tabpage hidden" id="page-settings">
+      <div class="panel-head"><h2>Settings</h2></div>
+
+      <fieldset>
+        <legend>Grid layout</legend>
+        <p class="hint">Module addressed = base + (row × cols + col), row-major. Match how your
+          modules are provisioned in the gateway.</p>
+        <div class="grid3">
+          <label class="field inline"><span>Rows</span><input type="number" id="cfgRows" min="1" max="20" /></label>
+          <label class="field inline"><span>Cols</span><input type="number" id="cfgCols" min="1" max="40" /></label>
+          <label class="field inline"><span>ID base</span><input type="number" id="cfgBase" min="0" max="254" /></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Transport</legend>
+        <label class="field inline"><span>Type</span>
+          <select id="cfgTransport">
+            <option value="sim">Simulation (no hardware)</option>
+            <option value="mqtt">MQTT (raw frames via broker)</option>
+            <option value="rest">Gateway REST API</option>
+          </select>
+        </label>
+        <label class="field"><span>Gateway URL (REST + status + proxy)</span>
+          <input type="text" id="cfgGatewayUrl" placeholder="http://splitflap-gateway.local" />
+        </label>
+        <div class="mqtt-only">
+          <div class="grid2">
+            <label class="field"><span>MQTT broker</span><input type="text" id="cfgMqttBroker" placeholder="192.168.1.50" /></label>
+            <label class="field inline"><span>Port</span><input type="number" id="cfgMqttPort" value="1883" /></label>
+          </div>
+          <div class="grid3">
+            <label class="field"><span>Topic prefix</span><input type="text" id="cfgMqttPrefix" placeholder="splitflap" /></label>
+            <label class="field"><span>Username</span><input type="text" id="cfgMqttUser" autocomplete="off" /></label>
+            <label class="field"><span>Password</span><input type="password" id="cfgMqttPass" autocomplete="new-password" /></label>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="controls">
+        <span class="hint" id="settingsMsg"></span>
+        <div class="spacer"></div>
+        <button class="btn primary" id="saveSettingsBtn">Save & apply</button>
+      </div>
+    </section>
+
+    <!-- DISPLAY (placeholder for the reverse-proxied gateway UI) -->
+    <section class="panel tabpage hidden" id="page-display">
+      <div class="panel-head"><h2>Display / Hardware</h2></div>
+      <p class="hint">Calibration, provisioning and diagnostics live in the gateway itself.
+        A later phase reverse-proxies the gateway's own UI here so it feels like one app.
+        For now, open it directly:</p>
+      <p><a class="btn ghost" id="gatewayLink" href="#" target="_blank" rel="noopener">Open gateway UI ↗</a></p>
+      <pre class="statusdump" id="gatewayDump">gateway status will appear here…</pre>
+    </section>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
