@@ -1,8 +1,10 @@
 // SplitFlapGatewayCompanion — Phase 1 SPA (vanilla).
 // Live preview + click-to-type compose grid + settings.
 
-const COLORS = { r: "r", o: "o", y: "y", g: "g", b: "b", p: "p", w: "w" };
+// Lowercase r/o/y/g/b/p/w are COLOUR flaps; uppercase letters are letters.
+// This is case-sensitive: 'y' = yellow tile, 'Y' = the letter Y.
 const COLOR_CODES = ["r", "o", "y", "g", "b", "p", "w"];
+const CODE_TO_EMOJI = { r: "🟥", o: "🟧", y: "🟨", g: "🟩", b: "🟦", p: "🟪", w: "⬜" };
 const $ = (id) => document.getElementById(id);
 
 let GRID = { rows: 3, cols: 15, module_count: 45, flap_chars: "", styles: [] };
@@ -18,12 +20,11 @@ const post = (path, body) =>
 
 // ---- rendering helpers -----------------------------------------------------
 function classForChar(ch) {
-  const c = (ch || " ").toLowerCase();
-  return COLORS[c] ? `flap color-${c}` : "flap";
+  return COLOR_CODES.includes(ch) ? `flap color-${ch}` : "flap";
 }
 function glyph(ch) {
-  // color codes render as an empty colored tile
-  return COLOR_CODES.includes((ch || "").toLowerCase()) ? "" : (ch || "");
+  // colour codes (lowercase) render as an empty coloured tile
+  return COLOR_CODES.includes(ch) ? "" : (ch || "");
 }
 
 function buildBoard(el, count, cols, editable) {
@@ -74,15 +75,19 @@ function applyCellColor(inp) {
   const cell = inp.parentElement;
   cell.className = classForChar(inp.value);
   cell.classList.toggle("focused", inp === focusedCell);
-  // color tiles show no glyph
-  if (COLOR_CODES.includes((inp.value || "").toLowerCase())) inp.style.color = "transparent";
-  else inp.style.color = "";
+  // colour tiles (lowercase code) show no glyph
+  inp.style.color = COLOR_CODES.includes(inp.value) ? "transparent" : "";
 }
 
 function composeString() {
+  // Colour cells hold a lowercase code (r/o/y/g/b/p/w); send them as the emoji
+  // tile so the server's uppercase→colour-code mapping preserves the colour.
   const inputs = $("composeGrid").querySelectorAll("input");
   let s = "";
-  inputs.forEach((inp) => (s += inp.value || " "));
+  inputs.forEach((inp) => {
+    const v = inp.value || " ";
+    s += CODE_TO_EMOJI[v] || v;
+  });
   return s;
 }
 
@@ -101,7 +106,7 @@ async function pollState() {
     $("previewMeta").textContent =
       `${GRID.rows}×${GRID.cols} · ${st.module_count} modules · ${st.transport.type}` +
       (st.transport.last_error ? ` · ${st.transport.last_error}` : "");
-    if (APPS.length) updateActiveUI(st.active_app);
+    if (APPS.length) updateActiveUI(st.active_app, st.active_playlist);
   } catch (e) { /* transient */ }
 }
 
@@ -114,77 +119,6 @@ async function pollStatus() {
     if (t.connected) { dot.className = "dot ok"; txt.textContent = `${t.type} connected`; }
     else { dot.className = "dot err"; txt.textContent = `${t.type} offline`; }
   } catch { dot.className = "dot err"; txt.textContent = "companion error"; }
-}
-
-// ---- settings --------------------------------------------------------------
-async function loadConfig() {
-  const cfg = await api("/api/config");
-  $("cfgRows").value = cfg.grid.rows;
-  $("cfgCols").value = cfg.grid.cols;
-  $("cfgBase").value = cfg.grid.module_id_base;
-  $("cfgTransport").value = cfg.transport.type;
-  $("cfgGatewayUrl").value = cfg.transport.gateway_url || "";
-  $("cfgAutoSync").checked = cfg.sync_from_gateway !== false;
-  const m = cfg.transport.mqtt || {};
-  $("cfgMqttBroker").value = m.broker || "";
-  $("cfgMqttPort").value = m.port || 1883;
-  $("cfgMqttPrefix").value = m.prefix || "splitflap";
-  $("cfgMqttUser").value = m.username || "";
-  $("cfgMqttPass").value = m.password === "********" ? "" : (m.password || "");
-  $("gatewayLink").href = cfg.transport.gateway_url || "#";
-  toggleMqttFields();
-  applyAutoSyncLock();
-}
-function toggleMqttFields() {
-  document.querySelectorAll(".mqtt-only").forEach(
-    (el) => (el.style.display = $("cfgTransport").value === "mqtt" ? "" : "none")
-  );
-}
-// When auto-sync is on, the gateway owns rows/cols + MQTT broker/port/user/prefix,
-// so we lock those fields (password + ID base + transport type stay editable).
-function applyAutoSyncLock() {
-  const locked = $("cfgAutoSync").checked;
-  ["cfgRows", "cfgCols", "cfgMqttBroker", "cfgMqttPort", "cfgMqttPrefix", "cfgMqttUser"]
-    .forEach((id) => { $(id).disabled = locked; $(id).title = locked ? "From gateway" : ""; });
-}
-async function syncFromGateway() {
-  $("syncMsg").textContent = "Syncing…";
-  try {
-    const url = $("cfgGatewayUrl").value.trim();
-    if (url) await post("/api/config", { transport: { gateway_url: url } });
-    const r = await post("/api/gateway/sync");
-    if (!r.ok) { $("syncMsg").textContent = "Gateway error: " + r.error; return; }
-    await loadConfig(); await bootGrid();
-    $("syncMsg").textContent = `Synced ✓ ${r.gateway.gridRows}×${r.gateway.gridCols}, broker ${r.gateway.mqHost || "—"}`;
-  } catch (e) { $("syncMsg").textContent = "Error: " + e.message; }
-}
-async function saveSettings() {
-  const autoSync = $("cfgAutoSync").checked;
-  const patch = {
-    sync_from_gateway: autoSync,
-    grid: { module_id_base: +$("cfgBase").value },
-    transport: { type: $("cfgTransport").value, gateway_url: $("cfgGatewayUrl").value.trim(), mqtt: {} },
-  };
-  // Only push gateway-owned fields when the user is in manual mode; otherwise
-  // we'd overwrite freshly-synced values with stale UI values.
-  if (!autoSync) {
-    patch.grid.rows = +$("cfgRows").value;
-    patch.grid.cols = +$("cfgCols").value;
-    patch.transport.mqtt.broker = $("cfgMqttBroker").value.trim();
-    patch.transport.mqtt.port = +$("cfgMqttPort").value;
-    patch.transport.mqtt.prefix = $("cfgMqttPrefix").value.trim() || "splitflap";
-    patch.transport.mqtt.username = $("cfgMqttUser").value;
-  }
-  const pass = $("cfgMqttPass").value;
-  if (pass) patch.transport.mqtt.password = pass;
-  $("settingsMsg").textContent = "Applying…";
-  try {
-    await post("/api/config", patch);
-    await loadConfig();
-    await bootGrid();
-    $("settingsMsg").textContent = "Saved ✓";
-    setTimeout(() => ($("settingsMsg").textContent = ""), 2500);
-  } catch (e) { $("settingsMsg").textContent = "Error: " + e.message; }
 }
 
 // ---- compose actions -------------------------------------------------------
@@ -247,7 +181,7 @@ function wireTabs() {
       document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
       t.classList.add("active");
       const tab = t.dataset.tab;
-      ["apps", "compose", "playlists", "schedules", "triggers", "settings", "display"]
+      ["apps", "compose", "playlists", "schedules", "triggers", "display"]
         .forEach((p) => $("page-" + p).classList.toggle("hidden", p !== tab));
       const loaders = { apps: loadApps, playlists: loadPlaylists, schedules: loadSchedules,
                         triggers: loadTriggers, display: loadDisplay };
@@ -260,34 +194,45 @@ function wireTabs() {
 const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
 let APPS = [];
 
+function appFits(a) {
+  return (!a.min_rows || GRID.rows >= a.min_rows) && (!a.min_cols || GRID.cols >= a.min_cols);
+}
+
 async function loadApps() {
   const data = await api("/api/apps");
   APPS = data.apps;
   const grid = $("appsGrid");
   grid.innerHTML = "";
   APPS.forEach((a) => {
-    const tile = el("div", "app-tile");
+    const fits = appFits(a);
+    const tile = el("div", "app-tile" + (fits ? "" : " disabled"));
     tile.dataset.appId = a.id;
+    if (!fits) tile.title = `Needs at least ${a.min_rows || 1}×${a.min_cols || 1}`;
     tile.innerHTML =
       `<div class="app-icon">${a.icon || "🧩"}</div>` +
       `<div class="app-name">${a.name}</div>` +
       `<div class="app-desc">${a.description || ""}</div>` +
       (a.has_settings ? `<button class="app-gear" title="Settings">⚙</button>` : "") +
-      `<span class="app-badge"></span>`;
+      `<span class="app-badge"></span>` +
+      (fits ? "" : `<span class="app-req">${a.min_rows || 1}×${a.min_cols || 1}</span>`);
     tile.addEventListener("click", (e) => {
       if (e.target.closest(".app-gear")) { openAppSettings(a.id, a.name); return; }
+      if (!fits) return;   // too big for this panel
       runApp(a.id);
     });
     grid.appendChild(tile);
   });
-  updateActiveUI(data.active_app);
+  updateActiveUI(data.active_app, data.active_playlist);
 }
 
-function updateActiveUI(activeApp) {
+function updateActiveUI(activeApp, activePlaylist) {
   const banner = $("activeBanner");
   if (activeApp) {
     const a = APPS.find((x) => x.id === activeApp);
     $("activeAppName").textContent = a ? a.name : activeApp;
+    banner.classList.remove("hidden");
+  } else if (activePlaylist) {
+    $("activeAppName").textContent = "Playlist · " + activePlaylist;
     banner.classList.remove("hidden");
   } else {
     banner.classList.add("hidden");
@@ -300,8 +245,8 @@ function updateActiveUI(activeApp) {
   });
 }
 
-async function runApp(id) { await post("/api/apps/run", { app: id }); updateActiveUI(id); }
-async function stopApp() { await post("/api/apps/stop"); updateActiveUI(null); }
+async function runApp(id) { await post("/api/apps/run", { app: id }); updateActiveUI(id, null); }
+async function stopApp() { await post("/api/apps/stop"); updateActiveUI(null, null); }
 
 // ---- modal -----------------------------------------------------------------
 function openModal(title, bodyEl, footButtons) {
@@ -685,15 +630,10 @@ async function init() {
   wireTabs();
   buildPalette();
   await bootGrid();
-  await loadConfig();
   $("sendBtn").addEventListener("click", send);
   $("clearGridBtn").addEventListener("click", clearGrid);
   $("clearDisplayBtn").addEventListener("click", () => post("/api/display/clear"));
   $("quickInput").addEventListener("input", quickFill);
-  $("saveSettingsBtn").addEventListener("click", saveSettings);
-  $("cfgTransport").addEventListener("change", toggleMqttFields);
-  $("syncBtn").addEventListener("click", syncFromGateway);
-  $("cfgAutoSync").addEventListener("change", applyAutoSyncLock);
   $("stopAppBtn").addEventListener("click", stopApp);
   $("manageAppsBtn").addEventListener("click", openLibrary);
   $("modalClose").addEventListener("click", closeModal);
@@ -711,6 +651,7 @@ async function init() {
   $("trigSave").addEventListener("click", saveTriggers);
   // display
   $("gwRefresh").addEventListener("click", loadDisplay);
+  $("gwFullscreen").addEventListener("click", () => { const f = $("gatewayFrame"); if (f.requestFullscreen) f.requestFullscreen(); });
   await loadApps();
   pollState(); pollStatus();
   setInterval(pollState, 300);

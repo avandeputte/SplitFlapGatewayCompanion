@@ -26,7 +26,6 @@
     <button class="tab" data-tab="schedules">Schedules</button>
     <button class="tab" data-tab="triggers">Triggers</button>
     <button class="tab" data-tab="display" title="Gateway hardware UI">Display</button>
-    <button class="tab" data-tab="settings">Settings</button>
   </nav>
 
   <main>
@@ -142,67 +141,6 @@
       </div>
     </section>
 
-    <!-- SETTINGS -->
-    <section class="panel tabpage hidden" id="page-settings">
-      <div class="panel-head"><h2>Settings</h2></div>
-
-      <fieldset>
-        <legend>Gateway</legend>
-        <p class="hint">The gateway is the source of truth for the display size and MQTT broker.
-          The companion reads them from it — you configure those once, in the gateway.</p>
-        <label class="field"><span>Gateway URL (REST + status + proxy + config sync)</span>
-          <input type="text" id="cfgGatewayUrl" placeholder="http://splitflap-gateway.local" />
-        </label>
-        <label class="field inline" style="margin-top:10px">
-          <input type="checkbox" id="cfgAutoSync" style="width:auto" />
-          <span style="min-width:0">Read display size &amp; MQTT from the gateway (auto-sync on startup)</span>
-        </label>
-        <div class="controls" style="margin-top:8px">
-          <button class="btn ghost" id="syncBtn" type="button">⟳ Sync from gateway now</button>
-          <span class="hint" id="syncMsg"></span>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Display layout</legend>
-        <p class="hint">Module addressed = base + (row × cols + col), row-major. Rows/cols come
-          from the gateway when auto-sync is on; ID base is set here.</p>
-        <div class="grid3">
-          <label class="field inline"><span>Rows</span><input type="number" id="cfgRows" min="1" max="20" /></label>
-          <label class="field inline"><span>Cols</span><input type="number" id="cfgCols" min="1" max="40" /></label>
-          <label class="field inline"><span>ID base</span><input type="number" id="cfgBase" min="0" max="254" /></label>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Transport</legend>
-        <label class="field inline"><span>Type</span>
-          <select id="cfgTransport">
-            <option value="sim">Simulation (no hardware)</option>
-            <option value="mqtt">MQTT (raw frames via broker)</option>
-            <option value="rest">Gateway REST API</option>
-          </select>
-        </label>
-        <div class="mqtt-only">
-          <div class="grid2">
-            <label class="field"><span>MQTT broker</span><input type="text" id="cfgMqttBroker" placeholder="192.168.1.50" /></label>
-            <label class="field inline"><span>Port</span><input type="number" id="cfgMqttPort" value="1883" /></label>
-          </div>
-          <div class="grid3">
-            <label class="field"><span>Topic prefix</span><input type="text" id="cfgMqttPrefix" placeholder="splitflap" /></label>
-            <label class="field"><span>Username</span><input type="text" id="cfgMqttUser" autocomplete="off" /></label>
-            <label class="field"><span>Password <small>(local only — not on gateway)</small></span><input type="password" id="cfgMqttPass" autocomplete="new-password" /></label>
-          </div>
-        </div>
-      </fieldset>
-
-      <div class="controls">
-        <span class="hint" id="settingsMsg"></span>
-        <div class="spacer"></div>
-        <button class="btn primary" id="saveSettingsBtn">Save & apply</button>
-      </div>
-    </section>
-
     <!-- DISPLAY (reverse-proxied gateway hardware UI) -->
     <section class="panel tabpage hidden" id="page-display">
       <div class="panel-head">
@@ -210,6 +148,7 @@
         <div class="apps-actions">
           <span class="hint" id="gwStatus">…</span>
           <button class="btn ghost btn-sm" id="gwRefresh">⟳</button>
+          <button class="btn ghost btn-sm" id="gwFullscreen">⛶ Fullscreen</button>
           <a class="btn ghost btn-sm" id="gatewayLink" href="/display/" target="_blank" rel="noopener">Open ↗</a>
         </div>
       </div>

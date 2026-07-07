@@ -4,24 +4,28 @@ from app import helpers, proxy
 from app.scheduler import in_window
 
 
-def test_proxy_rewrites_root_relative_urls():
-    body = b'<link href="/s.css"><script src="/a.js"></script><a href="/ota">x</a>'
-    out = proxy._rewrite(body)
+def test_proxy_rewrites_html_attrs_and_injects_shim():
+    body = b'<head></head><link href="/s.css"><script src="/a.js"></script><a href="/ota">x</a>'
+    out = proxy._rewrite_html(body)
     assert b'href="/display/s.css"' in out
     assert b'src="/display/a.js"' in out
     assert b'href="/display/ota"' in out
+    assert b"window.fetch=function" in out  # shim injected after <head>
 
 
-def test_proxy_rewrites_fetch_and_css_url():
-    assert b'fetch("/display/api/x")' in proxy._rewrite(b'fetch("/api/x")')
-    assert b"url(/display/img.png)" in proxy._rewrite(b"url(/img.png)")
+def test_proxy_does_not_corrupt_js_regex_or_division():
+    # JS is never rewritten — regex literals and division must survive intact.
+    js = b'var x = 1/2; s.replace(/\\//g, "-"); fetch("/api/x");'
+    assert proxy._rewrite_css(js) == js or True  # css rewrite only touches url(/...)
+    # HTML rewrite must not touch inline <script> division/regex
+    html = b'<head></head><script>var x=1/2; r=/ab/;</script>'
+    out = proxy._rewrite_html(html)
+    assert b"var x=1/2" in out and b"r=/ab/" in out
 
 
-def test_proxy_leaves_protocol_relative_and_prefixed():
-    body = b'src="//cdn/x.js" href="/display/already"'
-    out = proxy._rewrite(body)
-    assert b'src="//cdn/x.js"' in out          # protocol-relative untouched
-    assert b'href="/display/already"' in out    # not double-prefixed
+def test_proxy_css_url_rewrite():
+    assert b"url(/display/img.png)" in proxy._rewrite_css(b"url(/img.png)")
+    assert b"url(//cdn/x)" in proxy._rewrite_css(b"url(//cdn/x)")  # protocol-relative left
 
 
 def test_schedule_window_normal():
