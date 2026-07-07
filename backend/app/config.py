@@ -44,6 +44,10 @@ DEFAULTS: dict = {
     # Pull grid geometry + MQTT broker from the gateway's own /api/config on
     # startup (the gateway is the source of truth for hardware config).
     "sync_from_gateway": True,
+    # This companion's own public URL, registered with the gateway (v3.0) so the
+    # gateway can show a "Companion" tab linking back here. Blank = don't
+    # register. Set via COMPANION_PUBLIC_URL.
+    "companion_url": "",
 }
 
 
@@ -71,6 +75,8 @@ def _env_overrides() -> dict:
 
     if "COMPANION_SYNC_FROM_GATEWAY" in e:
         ov["sync_from_gateway"] = e["COMPANION_SYNC_FROM_GATEWAY"].lower() in ("1", "true", "yes", "on")
+    if "COMPANION_PUBLIC_URL" in e:
+        ov["companion_url"] = e["COMPANION_PUBLIC_URL"]
 
     if "COMPANION_TRANSPORT" in e:
         ov["transport"]["type"] = e["COMPANION_TRANSPORT"]

@@ -292,9 +292,3 @@ class DisplayController:
                 await asyncio.sleep(max(0.0, seconds))
             finally:
                 self._interrupting = False
-
-    async def set_quiet(self, on: bool) -> None:
-        """Quiet hours: stop the display driver while active."""
-        self.state.quiet = on
-        if on:
-            await self.stop_app()

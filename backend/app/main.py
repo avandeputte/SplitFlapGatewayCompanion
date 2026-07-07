@@ -18,10 +18,10 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, helpers, proxy, renderer
+from . import __version__, helpers, renderer
 from .config import Config
 from .engine import DisplayController
-from .gateway import build_sync_patch, fetch_gateway_config
+from .gateway import build_sync_patch, fetch_gateway_config, register_companion
 from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
 from .scheduler import Scheduler
@@ -93,6 +93,11 @@ async def lifespan(app: FastAPI):
     plugins.load()
     log.info("loaded %d app plugins", len(plugins.app_list()))
     scheduler.start()
+    # Register with the gateway (v3.0) so it can show a "Companion" tab.
+    companion_url = config.effective.get("companion_url")
+    if companion_url and config.transport.get("gateway_url"):
+        ok = await register_companion(config.transport["gateway_url"], companion_url)
+        log.info("companion registration %s", "ok" if ok else "skipped")
     yield
     await scheduler.stop()
     await controller.stop()
@@ -140,14 +145,6 @@ class RunPlaylist(BaseModel):
     entries: list = []
     loop: bool = True
     name: str | None = None
-
-
-class SchedulesPatch(BaseModel):
-    schedules: list | None = None
-    quiet_hours_enabled: bool | None = None
-    quiet_hours_start: str | None = None
-    quiet_hours_end: str | None = None
-    quiet_hours_days: list | None = None
 
 
 class TriggersPatch(BaseModel):
@@ -313,38 +310,6 @@ async def playlists_run(req: RunPlaylist):
 
 
 # ---------------------------------------------------------------------------
-# Schedules + quiet hours
-# ---------------------------------------------------------------------------
-@app.get("/api/schedules")
-async def schedules_get():
-    s = plugin_settings
-    return {
-        "schedules": s.get("schedules", []),
-        "quiet_hours_enabled": s.get("quiet_hours_enabled", False),
-        "quiet_hours_start": s.get("quiet_hours_start", "22:00"),
-        "quiet_hours_end": s.get("quiet_hours_end", "07:00"),
-        "quiet_hours_days": s.get("quiet_hours_days", []),
-    }
-
-
-@app.post("/api/schedules")
-async def schedules_save(patch: SchedulesPatch):
-    body = {k: v for k, v in patch.model_dump().items() if v is not None}
-    if body:
-        plugin_settings.update(body)
-    scheduler.force_reeval()
-    await scheduler.tick()
-    return {"ok": True}
-
-
-@app.post("/api/schedules/tick")
-async def schedules_tick():
-    scheduler.force_reeval()
-    await scheduler.tick()
-    return {"ok": True}
-
-
-# ---------------------------------------------------------------------------
 # Triggers
 # ---------------------------------------------------------------------------
 @app.get("/api/triggers")
@@ -434,36 +399,18 @@ async def display_clear():
 
 @app.get("/api/gateway/status")
 async def gateway_status():
-    """Best-effort probe of the gateway's own /api/status (for the status pill)."""
+    """Probe the gateway's /api/status and return its URL (for the Display tab)."""
     import httpx
 
     url = config.transport.get("gateway_url", "").rstrip("/")
     if not url:
-        return JSONResponse({"ok": False, "error": "no gateway_url configured"}, status_code=200)
+        return {"ok": False, "url": "", "error": "no gateway_url configured"}
     try:
         async with httpx.AsyncClient(timeout=4.0) as client:
             r = await client.get(f"{url}/api/status")
-            return {"ok": r.status_code < 400, "status_code": r.status_code, "data": r.json()}
+            return {"ok": r.status_code < 400, "url": url, "status_code": r.status_code, "data": r.json()}
     except Exception as e:
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=200)
-
-
-# ---------------------------------------------------------------------------
-# Gateway reverse-proxy: the gateway's own UI, under one origin at /display/*
-# ---------------------------------------------------------------------------
-from fastapi import Request  # noqa: E402
-from fastapi.responses import RedirectResponse  # noqa: E402
-
-
-@app.get("/display")
-async def display_root():
-    return RedirectResponse("/display/")
-
-
-@app.api_route("/display/{path:path}",
-               methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
-async def display_proxy(path: str, request: Request):
-    return await proxy.proxy(config.transport.get("gateway_url", ""), path, request)
+        return {"ok": False, "url": url, "error": str(e)}
 
 
 # ---------------------------------------------------------------------------

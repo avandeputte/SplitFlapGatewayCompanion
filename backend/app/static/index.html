@@ -21,11 +21,9 @@
 
   <nav class="tabs">
     <button class="tab active" data-tab="apps">Apps</button>
-    <button class="tab" data-tab="compose">Compose</button>
     <button class="tab" data-tab="playlists">Playlists</button>
-    <button class="tab" data-tab="schedules">Schedules</button>
     <button class="tab" data-tab="triggers">Triggers</button>
-    <button class="tab" data-tab="display" title="Gateway hardware UI">Display</button>
+    <button class="tab" data-tab="display" title="Open the gateway UI">Display</button>
   </nav>
 
   <main>
@@ -53,39 +51,6 @@
       <div class="apps-grid" id="appsGrid"></div>
     </section>
 
-    <!-- COMPOSE -->
-    <section class="panel tabpage hidden" id="page-compose">
-      <div class="panel-head"><h2>Compose</h2></div>
-
-      <label class="field">
-        <span>Quick message (fills the grid from the top-left)</span>
-        <input type="text" id="quickInput" placeholder="TYPE A MESSAGE" autocomplete="off" />
-      </label>
-
-      <div class="board editable" id="composeGrid"></div>
-
-      <div class="palette" id="palette">
-        <span class="palette-label">Color tile:</span>
-        <!-- swatches injected -->
-        <button class="swatch blank" data-code=" " title="Blank"></button>
-      </div>
-
-      <div class="controls">
-        <label class="field inline">
-          <span>Transition</span>
-          <select id="styleSelect"></select>
-        </label>
-        <label class="field inline">
-          <span>Speed (ms)</span>
-          <input type="number" id="speedInput" min="0" max="2000" step="5" value="15" />
-        </label>
-        <div class="spacer"></div>
-        <button class="btn ghost" id="clearGridBtn">Clear grid</button>
-        <button class="btn ghost" id="clearDisplayBtn">Clear display</button>
-        <button class="btn primary" id="sendBtn">Send ▶</button>
-      </div>
-    </section>
-
     <!-- PLAYLISTS -->
     <section class="panel tabpage hidden" id="page-playlists">
       <div class="panel-head"><h2>Playlists</h2></div>
@@ -101,27 +66,6 @@
       </div>
       <h3 style="margin:16px 0 8px;font-size:.95rem">Saved playlists</h3>
       <div id="plSaved"><span class="hint">None yet.</span></div>
-    </section>
-
-    <!-- SCHEDULES -->
-    <section class="panel tabpage hidden" id="page-schedules">
-      <div class="panel-head"><h2>Schedules</h2></div>
-      <fieldset>
-        <legend>Quiet hours</legend>
-        <label class="field inline"><input type="checkbox" id="qhEnabled" style="width:auto"><span style="min-width:0">Stop the display during quiet hours</span></label>
-        <div class="grid2">
-          <label class="field inline"><span>From</span><input type="time" id="qhStart" value="22:00"></label>
-          <label class="field inline"><span>To</span><input type="time" id="qhEnd" value="07:00"></label>
-        </div>
-        <div class="days" id="qhDays"></div>
-      </fieldset>
-      <fieldset>
-        <legend>Schedules</legend>
-        <div id="schList"></div>
-        <button class="btn ghost btn-sm" id="schAdd" style="margin-top:8px">＋ Add schedule</button>
-      </fieldset>
-      <div class="controls"><span class="hint" id="schMsg"></span><div class="spacer"></div>
-        <button class="btn primary" id="schSave">Save & apply</button></div>
     </section>
 
     <!-- TRIGGERS -->
@@ -141,20 +85,15 @@
       </div>
     </section>
 
-    <!-- DISPLAY (reverse-proxied gateway hardware UI) -->
+    <!-- DISPLAY / HARDWARE (links straight to the gateway) -->
     <section class="panel tabpage hidden" id="page-display">
       <div class="panel-head">
         <h2>Display / Hardware</h2>
-        <div class="apps-actions">
-          <span class="hint" id="gwStatus">…</span>
-          <button class="btn ghost btn-sm" id="gwRefresh">⟳</button>
-          <button class="btn ghost btn-sm" id="gwFullscreen">⛶ Fullscreen</button>
-          <a class="btn ghost btn-sm" id="gatewayLink" href="/display/" target="_blank" rel="noopener">Open ↗</a>
-        </div>
+        <span class="hint" id="gwStatus">…</span>
       </div>
-      <p class="hint">Calibration, provisioning and diagnostics run on the gateway itself,
-        proxied here so it's all one app.</p>
-      <iframe id="gatewayFrame" class="gw-frame" src="about:blank" title="Gateway UI"></iframe>
+      <p class="hint">Calibration, provisioning, diagnostics, quiet-time scheduling and
+        module setup all live on the gateway. Open its UI directly:</p>
+      <p><a class="btn primary" id="gatewayLink" href="#" target="_blank" rel="noopener">Open Gateway UI ↗</a></p>
     </section>
   </main>
 

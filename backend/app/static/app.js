@@ -2,13 +2,11 @@
 // Live preview + click-to-type compose grid + settings.
 
 // Lowercase r/o/y/g/b/p/w are COLOUR flaps; uppercase letters are letters.
-// This is case-sensitive: 'y' = yellow tile, 'Y' = the letter Y.
+// Case-sensitive in the preview: 'y' = yellow tile, 'Y' = the letter Y.
 const COLOR_CODES = ["r", "o", "y", "g", "b", "p", "w"];
-const CODE_TO_EMOJI = { r: "🟥", o: "🟧", y: "🟨", g: "🟩", b: "🟦", p: "🟪", w: "⬜" };
 const $ = (id) => document.getElementById(id);
 
 let GRID = { rows: 3, cols: 15, module_count: 45, flap_chars: "", styles: [] };
-let focusedCell = null;
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -27,68 +25,14 @@ function glyph(ch) {
   return COLOR_CODES.includes(ch) ? "" : (ch || "");
 }
 
-function buildBoard(el, count, cols, editable) {
+function buildBoard(el, count, cols) {
   el.style.gridTemplateColumns = `repeat(${cols}, auto)`;
   el.innerHTML = "";
   for (let i = 0; i < count; i++) {
     const cell = document.createElement("div");
     cell.className = "flap";
-    if (editable) {
-      const inp = document.createElement("input");
-      inp.maxLength = 1;
-      inp.dataset.idx = i;
-      inp.addEventListener("input", onCellInput);
-      inp.addEventListener("focus", () => { focusedCell = inp; markFocus(el); });
-      inp.addEventListener("keydown", onCellKey);
-      cell.appendChild(inp);
-    }
     el.appendChild(cell);
   }
-}
-
-function markFocus(el) {
-  el.querySelectorAll(".flap").forEach((f) => f.classList.remove("focused"));
-  if (focusedCell) focusedCell.parentElement.classList.add("focused");
-}
-
-function onCellInput(e) {
-  const inp = e.target;
-  inp.value = (inp.value || "").toUpperCase();
-  applyCellColor(inp);
-  if (inp.value) {
-    const next = inp.parentElement.nextElementSibling?.querySelector("input");
-    if (next) { next.focus(); focusedCell = next; }
-  }
-}
-function onCellKey(e) {
-  const inp = e.target;
-  const idx = +inp.dataset.idx;
-  const grid = $("composeGrid");
-  const goto = (j) => grid.querySelectorAll("input")[j]?.focus();
-  if (e.key === "Backspace" && !inp.value) { e.preventDefault(); if (idx > 0) { goto(idx - 1); grid.querySelectorAll("input")[idx-1].value=""; applyCellColor(grid.querySelectorAll("input")[idx-1]); } }
-  else if (e.key === "ArrowRight") goto(idx + 1);
-  else if (e.key === "ArrowLeft") goto(idx - 1);
-  else if (e.key === "ArrowDown") goto(idx + GRID.cols);
-  else if (e.key === "ArrowUp") goto(idx - GRID.cols);
-}
-function applyCellColor(inp) {
-  const cell = inp.parentElement;
-  cell.className = classForChar(inp.value);
-  cell.classList.toggle("focused", inp === focusedCell);
-  // colour tiles (lowercase code) show no glyph
-  inp.style.color = COLOR_CODES.includes(inp.value) ? "transparent" : "";
-}
-
-function composeString() {
-  // Colour cells hold a lowercase code (r/o/y/g/b/p/w); send them as the emoji
-  // tile so the server's uppercase→colour-code mapping preserves the colour.
-  const inputs = $("composeGrid").querySelectorAll("input");
-  let s = "";
-  inputs.forEach((inp) => {
-    const v = inp.value || " ";
-    s += CODE_TO_EMOJI[v] || v;
-  });
-  return s;
 }
 
 // ---- live preview ----------------------------------------------------------
@@ -96,7 +40,7 @@ async function pollState() {
   try {
     const st = await api("/api/current_state");
     const board = $("preview");
-    if (board.children.length !== st.chars.length) buildBoard(board, st.chars.length, GRID.cols, false);
+    if (board.children.length !== st.chars.length) buildBoard(board, st.chars.length, GRID.cols);
     st.chars.forEach((ch, i) => {
       const cell = board.children[i];
       if (!cell) return;
@@ -121,58 +65,10 @@ async function pollStatus() {
   } catch { dot.className = "dot err"; txt.textContent = "companion error"; }
 }
 
-// ---- compose actions -------------------------------------------------------
-async function send() {
-  const btn = $("sendBtn"); btn.disabled = true;
-  try {
-    await post("/api/compose/send", {
-      text: composeString(),
-      style: $("styleSelect").value,
-      speed: +$("speedInput").value,
-    });
-  } finally { setTimeout(() => (btn.disabled = false), 200); }
-}
-function clearGrid() {
-  $("composeGrid").querySelectorAll("input").forEach((inp) => { inp.value = ""; applyCellColor(inp); });
-  $("quickInput").value = "";
-}
-function quickFill() {
-  const text = $("quickInput").value.toUpperCase();
-  const inputs = $("composeGrid").querySelectorAll("input");
-  inputs.forEach((inp, i) => { inp.value = text[i] || ""; applyCellColor(inp); });
-}
-function paintSwatch(code) {
-  if (!focusedCell) focusedCell = $("composeGrid").querySelector("input");
-  if (!focusedCell) return;
-  focusedCell.value = code === " " ? "" : code;
-  applyCellColor(focusedCell);
-  const next = focusedCell.parentElement.nextElementSibling?.querySelector("input");
-  if (next) { next.focus(); focusedCell = next; }
-}
-
 // ---- boot ------------------------------------------------------------------
 async function bootGrid() {
   GRID = await api("/api/grid");
-  buildBoard($("composeGrid"), GRID.module_count, GRID.cols, true);
-  buildBoard($("preview"), GRID.module_count, GRID.cols, false);
-  // style select
-  const sel = $("styleSelect");
-  sel.innerHTML = "";
-  GRID.styles.forEach((s) => { const o = document.createElement("option"); o.value = s; o.textContent = s; sel.appendChild(o); });
-  sel.value = GRID.display?.transition_style || "ltr";
-  $("speedInput").value = GRID.display?.transition_speed ?? 15;
-}
-
-function buildPalette() {
-  const pal = $("palette");
-  COLOR_CODES.forEach((code) => {
-    const b = document.createElement("button");
-    b.className = "swatch"; b.style.background = `var(--${code})`;
-    b.title = code.toUpperCase(); b.dataset.code = code;
-    b.addEventListener("click", () => paintSwatch(code));
-    pal.insertBefore(b, pal.querySelector(".swatch.blank"));
-  });
-  pal.querySelector(".swatch.blank").addEventListener("click", () => paintSwatch(" "));
+  buildBoard($("preview"), GRID.module_count, GRID.cols);
 }
 
 function wireTabs() {
@@ -181,9 +77,9 @@ function wireTabs() {
       document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
       t.classList.add("active");
       const tab = t.dataset.tab;
-      ["apps", "compose", "playlists", "schedules", "triggers", "display"]
+      ["apps", "playlists", "triggers", "display"]
         .forEach((p) => $("page-" + p).classList.toggle("hidden", p !== tab));
-      const loaders = { apps: loadApps, playlists: loadPlaylists, schedules: loadSchedules,
+      const loaders = { apps: loadApps, playlists: loadPlaylists,
                         triggers: loadTriggers, display: loadDisplay };
       if (loaders[tab]) loaders[tab]();
     })
@@ -471,7 +367,6 @@ async function openLibrary() {
 }
 
 // ---- playlists -------------------------------------------------------------
-const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const rid = (p) => p + Math.random().toString(36).slice(2, 8);
 let PL_ENTRIES = [];
 let SAVED_PL = {};
@@ -522,62 +417,6 @@ async function savePlaylist() {
   await post("/api/playlists", { name, entries: PL_ENTRIES, loop: $("plLoop").checked }); loadPlaylists();
 }
 
-// ---- schedules -------------------------------------------------------------
-let SCHEDS = [];
-function buildDayPicker(container, selected) {
-  container.innerHTML = "";
-  DAYS.forEach((day) => {
-    const l = el("label"); const cb = el("input"); cb.type = "checkbox"; cb.dataset.day = day; cb.checked = selected.includes(day);
-    l.appendChild(cb); l.appendChild(document.createTextNode(day)); container.appendChild(l);
-  });
-}
-const readDays = (c) => [...c.querySelectorAll("input")].filter((cb) => cb.checked).map((cb) => cb.dataset.day);
-
-function schRender() {
-  const box = $("schList"); box.innerHTML = "";
-  if (!SCHEDS.length) box.innerHTML = '<span class="hint">No schedules.</span>';
-  SCHEDS.forEach((s, i) => {
-    const row = el("div", "row-card");
-    const en = el("input"); en.type = "checkbox"; en.title = "enabled"; en.checked = s.enabled !== false; en.onchange = () => (s.enabled = en.checked); row.appendChild(en);
-    const nm = el("input"); nm.className = "grow"; nm.placeholder = "Name"; nm.value = s.name || ""; nm.oninput = () => (s.name = nm.value); row.appendChild(nm);
-    const st = el("input"); st.type = "time"; st.value = s.start_time || "08:00"; st.oninput = () => (s.start_time = st.value); row.appendChild(st);
-    const et = el("input"); et.type = "time"; et.value = s.end_time || "17:00"; et.oninput = () => (s.end_time = et.value); row.appendChild(et);
-    s.action = s.action || { type: "app", value: "" };
-    const at = el("select"); ["off", "app", "playlist"].forEach((tp) => { const o = el("option"); o.value = tp; o.textContent = tp; if (s.action.type === tp) o.selected = true; at.appendChild(o); }); row.appendChild(at);
-    const av = el("select");
-    const fillAv = () => {
-      av.innerHTML = ""; const tp = at.value;
-      if (tp === "app") APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = a.name; av.appendChild(o); });
-      else if (tp === "playlist") Object.keys(SAVED_PL).forEach((n) => { const o = el("option"); o.value = n; o.textContent = n; av.appendChild(o); });
-      av.style.display = tp === "off" ? "none" : "";
-      if (s.action.value) av.value = s.action.value;
-    };
-    at.onchange = () => { s.action = { type: at.value, value: "" }; fillAv(); s.action.value = av.value; };
-    av.onchange = () => (s.action = { type: at.value, value: av.value }); fillAv(); row.appendChild(av);
-    const del = el("button", "del"); del.textContent = "✕"; del.onclick = () => { SCHEDS.splice(i, 1); schRender(); }; row.appendChild(del);
-    const days = el("div", "days"); days.style.flexBasis = "100%";
-    DAYS.forEach((d) => { const l = el("label"); const cb = el("input"); cb.type = "checkbox"; cb.checked = (s.days || []).includes(d); cb.onchange = () => { s.days = s.days || []; if (cb.checked) { if (!s.days.includes(d)) s.days.push(d); } else s.days = s.days.filter((x) => x !== d); }; l.appendChild(cb); l.appendChild(document.createTextNode(d)); days.appendChild(l); });
-    row.appendChild(days); box.appendChild(row);
-  });
-}
-async function loadSchedules() {
-  if (!APPS.length) await loadApps();
-  SAVED_PL = (await api("/api/playlists")).playlists || {};
-  const d = await api("/api/schedules");
-  $("qhEnabled").checked = d.quiet_hours_enabled; $("qhStart").value = d.quiet_hours_start; $("qhEnd").value = d.quiet_hours_end;
-  buildDayPicker($("qhDays"), d.quiet_hours_days || []);
-  SCHEDS = d.schedules || []; schRender();
-}
-function addSchedule() {
-  SCHEDS.push({ id: rid("sch_"), name: "New", start_time: "08:00", end_time: "17:00", days: ["mon", "tue", "wed", "thu", "fri"], action: { type: "app", value: APPS[0]?.id || "" }, enabled: true });
-  schRender();
-}
-async function saveSchedules() {
-  SCHEDS.forEach((s) => { if (!s.id) s.id = rid("sch_"); });
-  await post("/api/schedules", { schedules: SCHEDS, quiet_hours_enabled: $("qhEnabled").checked, quiet_hours_start: $("qhStart").value, quiet_hours_end: $("qhEnd").value, quiet_hours_days: readDays($("qhDays")) });
-  $("schMsg").textContent = "Saved ✓"; setTimeout(() => ($("schMsg").textContent = ""), 2000);
-}
-
 // ---- triggers --------------------------------------------------------------
 let TRIGS = [], TRIG_APPS = [];
 function trigRender() {
@@ -614,12 +453,11 @@ async function saveTriggers() {
   $("trigMsg").textContent = "Saved ✓"; setTimeout(() => ($("trigMsg").textContent = ""), 2000);
 }
 
-// ---- display (proxied gateway UI) ------------------------------------------
+// ---- display (link straight to the gateway) --------------------------------
 async function loadDisplay() {
-  const frame = $("gatewayFrame");
-  if (!frame.src || frame.src.endsWith("about:blank")) frame.src = "/display/";
   try {
     const s = await api("/api/gateway/status");
+    if (s.url) $("gatewayLink").href = s.url;
     if (s.ok) { const d = s.data || {}; $("gwStatus").textContent = `online · ${d.modules ?? "?"} modules${d.ip ? " · " + d.ip : ""}`; }
     else $("gwStatus").textContent = "offline" + (s.error ? ": " + s.error : "");
   } catch { $("gwStatus").textContent = "error"; }
@@ -628,12 +466,7 @@ async function loadDisplay() {
 async function init() {
   const h = await api("/api/health"); $("version").textContent = "v" + h.version;
   wireTabs();
-  buildPalette();
   await bootGrid();
-  $("sendBtn").addEventListener("click", send);
-  $("clearGridBtn").addEventListener("click", clearGrid);
-  $("clearDisplayBtn").addEventListener("click", () => post("/api/display/clear"));
-  $("quickInput").addEventListener("input", quickFill);
   $("stopAppBtn").addEventListener("click", stopApp);
   $("manageAppsBtn").addEventListener("click", openLibrary);
   $("modalClose").addEventListener("click", closeModal);
@@ -643,16 +476,11 @@ async function init() {
   $("plAddMsg").addEventListener("click", () => { PL_ENTRIES.push({ type: "compose", text: "", duration: 15 }); plRender(); });
   $("plRun").addEventListener("click", runPlaylistNow);
   $("plSave").addEventListener("click", savePlaylist);
-  // schedules
-  $("schAdd").addEventListener("click", addSchedule);
-  $("schSave").addEventListener("click", saveSchedules);
   // triggers
   $("trigAdd").addEventListener("click", addTrigger);
   $("trigSave").addEventListener("click", saveTriggers);
-  // display
-  $("gwRefresh").addEventListener("click", loadDisplay);
-  $("gwFullscreen").addEventListener("click", () => { const f = $("gatewayFrame"); if (f.requestFullscreen) f.requestFullscreen(); });
   await loadApps();
+  loadDisplay();
   pollState(); pollStatus();
   setInterval(pollState, 300);
   setInterval(pollStatus, 3000);

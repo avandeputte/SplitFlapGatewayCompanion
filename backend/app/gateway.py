@@ -31,6 +31,23 @@ async def fetch_gateway_config(url: str, timeout: float = 5.0) -> dict:
         return r.json()
 
 
+async def register_companion(gateway_url: str, companion_url: str, timeout: float = 5.0) -> bool:
+    """Tell the gateway (v3.0) where this companion lives, so it can show a
+    "Companion" tab that links back here. Best-effort; older gateways 404."""
+    import httpx
+
+    if not gateway_url or not companion_url:
+        return False
+    base = gateway_url.rstrip("/")
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.post(f"{base}/api/companion", json={"url": companion_url})
+            return r.status_code < 400
+    except Exception as e:
+        log.info("companion registration skipped: %s", e)
+        return False
+
+
 def build_sync_patch(gw: dict) -> dict:
     """Map a gateway /api/config document to a companion config patch.
 
