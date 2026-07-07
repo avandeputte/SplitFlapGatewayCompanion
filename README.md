@@ -6,10 +6,14 @@ animations, composed messages — to a split-flap display driven by
 
 The gateway (an ESP32) owns all the *hardware*: the RS-485 bus, module discovery,
 provisioning, calibration and diagnostics. The companion owns all the *content*:
-apps, playlists, schedules, triggers, a compose grid and a live preview. The two
-run on separate machines but are meant to feel like **one integrated product** —
-the companion reverse-proxies the gateway's own UI so calibration lives one click
-away without being duplicated.
+apps, playlists, triggers and a live preview. The two run on separate machines but
+are meant to feel like **one integrated product** — both share the same look and a
+unified tab bar that cross-links between them (with a ↗ marking the jump), and the
+companion registers itself so a **Companion** tab appears on the gateway.
+
+> **Requires Gateway 3.0 or newer.** The companion uses 3.0 APIs (batch RS-485
+> send, `/api/companion` registration, schedule-driven quiet time). It targets
+> 3.0+ exclusively — there are no fallbacks for older firmware.
 
 The content apps are the **plugin library from
 [csader/splitflap-os](https://github.com/csader/splitflap-os)**, reused through a
@@ -126,9 +130,7 @@ below act as manual overrides (they win over the gateway if set).
   `<prefix>/rx`. Smoothest for animations. Needs a broker both the gateway and
   companion can reach. (This mirrors splitflap-os's proven gateway transport.)
 - **REST** — draws a whole page in **one** request via the gateway's
-  `/api/rs485/batch` (v3.0+), so animations are nearly as smooth as MQTT with no
-  broker. Against an older gateway without that endpoint it falls back
-  automatically to one `/api/rs485/send` per module.
+  `/api/rs485/batch`, so animations are nearly as smooth as MQTT with no broker.
 - **sim** — logs frames, drives the preview, needs no hardware.
 
 ### Grid → module mapping

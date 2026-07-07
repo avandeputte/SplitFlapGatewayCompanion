@@ -77,11 +77,11 @@ def detect_local_ip(gateway_url: str = "") -> str | None:
 
 async def post_companion(gateway_url: str, *, url: str | None = None,
                          status: str | None = None, timeout: float = 5.0) -> bool:
-    """Register / heartbeat / deregister with the gateway (v3.0).
+    """Register / heartbeat / deregister with the gateway (v3.0+).
 
     ``url`` set → (re)register that URL; ``url=""`` → deregister; ``status`` →
-    update the running-status the gateway shows on its status page. Best-effort;
-    older gateways just 404.
+    update the running-status the gateway shows on its status page. Best-effort:
+    a transiently-unreachable gateway is simply retried on the next heartbeat.
     """
     import httpx
 

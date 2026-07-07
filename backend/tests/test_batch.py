@@ -1,6 +1,8 @@
-"""REST batch transport + engine batch path (the animation-gap fix)."""
+"""REST batch transport + engine batch path (Gateway 3.0+; no legacy fallback)."""
 
 import asyncio
+
+import pytest
 
 from app.config import Config
 from app.engine import DisplayController
@@ -36,21 +38,19 @@ def _rest(status=200):
 
 def test_send_batch_one_request_per_page():
     t = _rest(200)
-    ok = asyncio.run(t.send_batch([(0, "A"), (1, "B"), (2, "y")], 15))
-    assert ok is True
+    asyncio.run(t.send_batch([(0, "A"), (1, "B"), (2, "y")], 15))
     url, payload = t._client.calls[0]
     assert url == "/api/rs485/batch"
     assert payload["frames"] == ["m00-A\n", "m01-B\n", "m02-y\n"]
     assert payload["step_ms"] == 15
+    assert t.connected is True
 
 
-def test_send_batch_404_falls_back_and_sticks():
-    t = _rest(404)
-    assert asyncio.run(t.send_batch([(0, "A")], 15)) is False
-    assert t._no_batch is True
-    # once we know there's no batch endpoint, we don't POST again
-    assert asyncio.run(t.send_batch([(0, "A")], 15)) is False
-    assert len(t._client.calls) == 1
+def test_send_batch_raises_on_error():
+    t = _rest(500)
+    with pytest.raises(Exception):
+        asyncio.run(t.send_batch([(0, "A")], 0))
+    assert t.connected is False
 
 
 # --- engine integration ---
@@ -58,8 +58,8 @@ class FakeBatchTransport:
     type_name = "fake"
     batch_capable = True
 
-    def __init__(self, batch_ok=True):
-        self.batch_ok = batch_ok
+    def __init__(self, raise_on_batch=False):
+        self.raise_on_batch = raise_on_batch
         self.batches = []
         self.frames = []
 
@@ -76,7 +76,8 @@ class FakeBatchTransport:
 
     async def send_batch(self, frames, step_ms):
         self.batches.append((frames, step_ms))
-        return self.batch_ok
+        if self.raise_on_batch:
+            raise RuntimeError("boom")
 
 
 def _controller(tmp_path, transport):
@@ -87,22 +88,21 @@ def _controller(tmp_path, transport):
     return ctrl, cfg
 
 
-def test_engine_uses_batch_when_supported(tmp_path):
-    tr = FakeBatchTransport(batch_ok=True)
+def test_engine_batches_the_whole_page(tmp_path):
+    tr = FakeBatchTransport()
     ctrl, cfg = _controller(tmp_path, tr)
     asyncio.run(ctrl.send_text("HELLO", style="ltr", speed=0))
-    assert len(tr.batches) == 1          # one request for the whole page
-    assert tr.frames == []               # no per-frame calls
+    assert len(tr.batches) == 1     # one request for the whole page
+    assert tr.frames == []          # never per-frame
     frames, step = tr.batches[0]
     assert len(frames) == cfg.module_count()
     assert frames[0] == (0, "H")
-    # preview state reflects the page
     assert "".join(ctrl.state.snapshot()["chars"]).startswith("HELLO")
 
 
-def test_engine_falls_back_to_per_frame(tmp_path):
-    tr = FakeBatchTransport(batch_ok=False)   # gateway lacks /batch
+def test_engine_handles_batch_error_without_per_frame(tmp_path):
+    tr = FakeBatchTransport(raise_on_batch=True)
     ctrl, cfg = _controller(tmp_path, tr)
-    asyncio.run(ctrl.send_text("HI", style="ltr", speed=0))
-    assert len(tr.batches) == 1               # tried batch once
-    assert len(tr.frames) == cfg.module_count()  # then per-frame for the page
+    asyncio.run(ctrl.send_text("HI", style="ltr", speed=0))  # must not raise
+    assert len(tr.batches) == 1
+    assert tr.frames == []          # no legacy per-frame fallback
