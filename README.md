@@ -93,7 +93,8 @@ below act as manual overrides (they win over the gateway if set).
 
 | Env var | Meaning | Default |
 |---|---|---|
-| `COMPANION_GATEWAY_URL` | Gateway base URL (config sync + REST + status + proxy) | `http://splitflap-gateway.local` |
+| `COMPANION_GATEWAY_URL` | Gateway base URL (config sync + REST + status + Display link) | `http://splitflap-gateway.local` |
+| `COMPANION_PUBLIC_URL` | This companion's own URL, registered with the gateway (v3.0) for its "Companion" tab | *(blank)* |
 | `COMPANION_SYNC_FROM_GATEWAY` | Pull grid + MQTT from the gateway on startup | `true` |
 | `COMPANION_TRANSPORT` | `sim` \| `mqtt` \| `rest` | `sim` |
 | `COMPANION_MQTT_PASSWORD` | MQTT password (the gateway never exposes this) | — |

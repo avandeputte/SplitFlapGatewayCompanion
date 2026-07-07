@@ -13,6 +13,9 @@ services:
       # prefix are pulled from its /api/config. Normally you only set these two:
       COMPANION_GATEWAY_URL: "http://splitflap-gateway.local"
       COMPANION_TRANSPORT: "sim"          # sim | mqtt | rest
+      # This companion's own URL, registered with the gateway (v3.0+) so it shows
+      # a "Companion" tab linking back here:
+      # COMPANION_PUBLIC_URL: "http://companion-host:8000"
       # MQTT password is NOT exposed by the gateway — set it here if your broker
       # needs auth (leave unset for an anonymous broker):
       # COMPANION_MQTT_PASSWORD: ""
