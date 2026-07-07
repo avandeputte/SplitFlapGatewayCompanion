@@ -32,6 +32,19 @@ from .state import DisplayState
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("companion")
 
+
+class _SuppressStatePolling(logging.Filter):
+    """The preview polls /api/current_state a few times a second — drop just
+    those access-log lines so they don't flood the console (all other requests
+    still log). uvicorn configures its access logger before importing this app,
+    so attaching the filter here is reliable."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/api/current_state" not in record.getMessage()
+
+
+logging.getLogger("uvicorn.access").addFilter(_SuppressStatePolling())
+
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
 
