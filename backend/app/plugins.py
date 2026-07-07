@@ -196,6 +196,36 @@ class PluginRuntime:
 
         return [self.format_lines("PLUGIN ERROR", "UNKNOWN TYPE", "")]
 
+    # -- triggers ----------------------------------------------------------
+    def has_trigger(self, app_id: str) -> bool:
+        return app_id in self._triggers
+
+    def trigger_apps(self) -> list[dict]:
+        """Apps that expose a trigger() — for the Triggers UI."""
+        out = []
+        for app_id in self._triggers:
+            m = self._registry.get(app_id, {})
+            out.append({
+                "id": app_id,
+                "name": m.get("name", app_id),
+                "icon": m.get("icon", "🧩"),
+                "trigger_interval": m.get("trigger_interval", 60),
+                "trigger_display_seconds": m.get("trigger_display_seconds", 30),
+                "trigger_cooldown": m.get("trigger_cooldown", 300),
+                "trigger_conditions": m.get("trigger_conditions", []),
+            })
+        out.sort(key=lambda a: a["name"].lower())
+        return out
+
+    def call_trigger(self, app_id: str, conditions: dict) -> bool:
+        """Run an app's trigger(settings, conditions). Blocking — use executor."""
+        fn = self._triggers.get(app_id)
+        manifest = self._registry.get(app_id)
+        if not fn or not manifest:
+            return False
+        ps = self._plugin_settings(app_id, manifest)
+        return bool(fn(ps, conditions or {}))
+
     # -- run metadata ------------------------------------------------------
     def manifest(self, app_id: str) -> dict | None:
         return self._registry.get(app_id)

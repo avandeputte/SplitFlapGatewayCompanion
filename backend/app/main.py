@@ -18,12 +18,13 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, renderer
+from . import __version__, helpers, proxy, renderer
 from .config import Config
 from .engine import DisplayController
 from .gateway import build_sync_patch, fetch_gateway_config
 from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
+from .scheduler import Scheduler
 from .state import DisplayState
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -38,6 +39,7 @@ controller = DisplayController(config, state)
 plugin_settings = PluginSettings(config.data_dir)
 plugins = PluginRuntime(config, plugin_settings, APPS_DIR)
 controller.attach_plugins(plugins)
+scheduler = Scheduler(controller, plugins)
 
 
 def _redact(cfg: dict) -> dict:
@@ -90,7 +92,9 @@ async def lifespan(app: FastAPI):
             log.info("gateway sync skipped at startup: %s", res.get("error"))
     plugins.load()
     log.info("loaded %d app plugins", len(plugins.app_list()))
+    scheduler.start()
     yield
+    await scheduler.stop()
     await controller.stop()
 
 
@@ -124,6 +128,31 @@ class AppSettingsPatch(BaseModel):
 
 class InstallRequest(BaseModel):
     installed: bool
+
+
+class PlaylistSave(BaseModel):
+    name: str
+    entries: list = []
+    loop: bool = True
+
+
+class RunPlaylist(BaseModel):
+    entries: list = []
+    loop: bool = True
+    name: str | None = None
+
+
+class SchedulesPatch(BaseModel):
+    schedules: list | None = None
+    quiet_hours_enabled: bool | None = None
+    quiet_hours_start: str | None = None
+    quiet_hours_end: str | None = None
+    quiet_hours_days: list | None = None
+
+
+class TriggersPatch(BaseModel):
+    triggers: list | None = None
+    triggers_enabled: bool | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +277,147 @@ async def apps_install(app_id: str, req: InstallRequest):
     return {"ok": True, "installed": req.installed}
 
 
+# ---------------------------------------------------------------------------
+# Playlists
+# ---------------------------------------------------------------------------
+@app.get("/api/playlists")
+async def playlists_list():
+    return {"playlists": plugin_settings.get("saved_app_playlists", {})}
+
+
+@app.post("/api/playlists")
+async def playlists_save(req: PlaylistSave):
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(400, "name required")
+    saved = dict(plugin_settings.get("saved_app_playlists", {}))
+    saved[name] = {"entries": req.entries, "loop": req.loop}
+    plugin_settings.set("saved_app_playlists", saved)
+    return {"ok": True, "name": name}
+
+
+@app.delete("/api/playlists/{name}")
+async def playlists_delete(name: str):
+    saved = dict(plugin_settings.get("saved_app_playlists", {}))
+    saved.pop(name, None)
+    plugin_settings.set("saved_app_playlists", saved)
+    return {"ok": True}
+
+
+@app.post("/api/playlists/run")
+async def playlists_run(req: RunPlaylist):
+    if not req.entries:
+        raise HTTPException(400, "playlist has no entries")
+    await controller.run_playlist(req.entries, req.loop, req.name)
+    return {"ok": True, "active_playlist": controller.active_playlist}
+
+
+# ---------------------------------------------------------------------------
+# Schedules + quiet hours
+# ---------------------------------------------------------------------------
+@app.get("/api/schedules")
+async def schedules_get():
+    s = plugin_settings
+    return {
+        "schedules": s.get("schedules", []),
+        "quiet_hours_enabled": s.get("quiet_hours_enabled", False),
+        "quiet_hours_start": s.get("quiet_hours_start", "22:00"),
+        "quiet_hours_end": s.get("quiet_hours_end", "07:00"),
+        "quiet_hours_days": s.get("quiet_hours_days", []),
+    }
+
+
+@app.post("/api/schedules")
+async def schedules_save(patch: SchedulesPatch):
+    body = {k: v for k, v in patch.model_dump().items() if v is not None}
+    if body:
+        plugin_settings.update(body)
+    scheduler.force_reeval()
+    await scheduler.tick()
+    return {"ok": True}
+
+
+@app.post("/api/schedules/tick")
+async def schedules_tick():
+    scheduler.force_reeval()
+    await scheduler.tick()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Triggers
+# ---------------------------------------------------------------------------
+@app.get("/api/triggers")
+async def triggers_get():
+    trigs = []
+    for t in plugin_settings.get("triggers", []):
+        e = dict(t)
+        e["last_fired"] = scheduler.last_fired(t.get("id", ""))
+        trigs.append(e)
+    return {
+        "triggers": trigs,
+        "triggers_enabled": plugin_settings.get("triggers_enabled", True),
+        "trigger_apps": plugins.trigger_apps(),
+    }
+
+
+@app.post("/api/triggers")
+async def triggers_save(patch: TriggersPatch):
+    body = {k: v for k, v in patch.model_dump().items() if v is not None}
+    if body:
+        plugin_settings.update(body)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# App-data helper endpoints — served at the SAME root paths splitflap-os uses
+# so dropped-in app manifests' searchUrl / resultKey work unchanged.
+# ---------------------------------------------------------------------------
+class SportsFollow(BaseModel):
+    league: str
+    teams: str = ""
+
+
+@app.get("/location_search")
+async def h_location_search(q: str = ""):
+    return await helpers.location_search(q)
+
+
+@app.get("/location_timezone")
+async def h_location_timezone(lat: str = "", lon: str = ""):
+    return await helpers.location_timezone(lat, lon)
+
+
+@app.get("/timezones")
+async def h_timezones(q: str = ""):
+    return helpers.timezones(q)
+
+
+@app.get("/stocks_search")
+async def h_stocks_search(q: str = ""):
+    return await helpers.stocks_search(q)
+
+
+@app.get("/crypto_search")
+async def h_crypto_search(q: str = ""):
+    return await helpers.crypto_search(q)
+
+
+@app.get("/sports_leagues")
+async def h_sports_leagues():
+    return helpers.sports_leagues(plugin_settings)
+
+
+@app.get("/sports_teams/{league_key}")
+async def h_sports_teams(league_key: str, q: str = ""):
+    return await helpers.sports_teams(league_key, q)
+
+
+@app.post("/sports_follow")
+async def h_sports_follow(req: SportsFollow):
+    return helpers.sports_follow(plugin_settings, req.league, req.teams)
+
+
 @app.post("/api/compose/send")
 async def compose_send(req: ComposeRequest):
     if req.style and req.style not in renderer.ALL_STYLES:
@@ -276,6 +446,24 @@ async def gateway_status():
             return {"ok": r.status_code < 400, "status_code": r.status_code, "data": r.json()}
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=200)
+
+
+# ---------------------------------------------------------------------------
+# Gateway reverse-proxy: the gateway's own UI, under one origin at /display/*
+# ---------------------------------------------------------------------------
+from fastapi import Request  # noqa: E402
+from fastapi.responses import RedirectResponse  # noqa: E402
+
+
+@app.get("/display")
+async def display_root():
+    return RedirectResponse("/display/")
+
+
+@app.api_route("/display/{path:path}",
+               methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def display_proxy(path: str, request: Request):
+    return await proxy.proxy(config.transport.get("gateway_url", ""), path, request)
 
 
 # ---------------------------------------------------------------------------

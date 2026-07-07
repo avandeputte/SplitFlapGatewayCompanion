@@ -21,39 +21,33 @@ See [COMPATIBILITY.md](COMPATIBILITY.md) and [ATTRIBUTION.md](ATTRIBUTION.md).
 
 ---
 
-## Status
+## Status — feature-complete
 
-Built in phases. **Phase 1 (this drop) is a working end-to-end slice:**
+All six build phases are done. What's here:
 
-- ✅ Compose a message on a click-to-type grid (with colour tiles) and send it.
-- ✅ Faithful render/normalization + all splitflap-os transition styles
+- **Apps** — all **46 vendored splitflap-os apps** (functional + channel), loaded
+  through a behavior-identical runtime and **drop-in compatible** (a conformance
+  test asserts every app satisfies the contract). Tile grid, one-tap run, live
+  "▶ running" state, and an **App Library** to add/remove apps.
+- **Manifest-driven settings** — full renderer: text/number/password/textarea/
+  select/toggle, **search_chips** (live search for locations, stocks, crypto,
+  timezones), stepper, inline-toggle, `visible_when`, `sync_values`, and computed
+  fields. The search endpoints are served at the same paths splitflap-os uses.
+- **Compose** — click-to-type grid with colour tiles; all transition styles
   (`ltr`, `rtl`, `spiral`, `sync`, `slot`, …).
-- ✅ Selectable transport: **sim** (no hardware), **MQTT** (raw frames via broker),
-  **REST** (gateway HTTP API).
-- ✅ **Gateway is the source of truth** — the companion reads its display size
-  (`gridRows`/`gridCols`) and MQTT broker (`mqHost`/`mqPort`/`mqUser`/`mqPfx`)
-  straight from the gateway's own `GET /api/config`, on startup and on demand.
-  You configure the panel and broker once, in the gateway.
-- ✅ Live split-flap preview + transport/gateway status pill.
-- ✅ Settings UI (gateway URL + sync, transport, MQTT password) + env-var config.
-- ✅ Docker packaging.
-
-**Phase 2 (this drop) adds the plugin runtime + all apps:**
-
-- ✅ All **46 vendored splitflap-os apps** load and run (functional + channel),
-  drop-in compatible — a conformance test asserts every app satisfies the contract.
-- ✅ **Apps tab**: tile grid, one-tap run, live "▶ running" state, and an
-  **App Library** to add/remove apps.
-- ✅ **Manifest-driven settings** modal (text / number / password / textarea /
-  select / toggle, with `visible_when`), persisted; `search_chips` degrade to a
-  text field for now (full chip search is Phase 4).
-- ✅ Faithful **play-loop**: page cycling by `loop_delay`, fetch caching by
-  `refresh_interval` (+ `polling_rate` override), animation apps, OFFLINE
-  fallback, and compose/app **exclusivity**.
-
-Later phases: playlists/schedules/triggers, the full settings renderer +
-app-data helper endpoints, and the gateway reverse-proxy "Display" tab.
-See [the roadmap](#roadmap).
+- **Playlists** — sequence apps and messages with per-entry durations; save,
+  load, run, loop.
+- **Schedules** — time-of-day windows that run an app/playlist or turn the
+  display off, per weekday, plus **quiet hours**.
+- **Triggers** — apps that watch for events (ISS overhead, a game, weather) and
+  briefly **interrupt** the display, with per-trigger cooldown.
+- **Display tab** — the gateway's own calibration/modules/diagnostics UI
+  **reverse-proxied** under one origin (`/display/*`), so it's all one app.
+- **Gateway is the source of truth** — grid size + MQTT broker are read from the
+  gateway's `GET /api/config` on startup and on demand.
+- **Transports** — **sim** (no hardware), **MQTT** (raw frames via broker),
+  **REST** (gateway HTTP API); honest live status pill.
+- **Packaging** — Docker image (healthcheck + `/data` volume) and env-var config.
 
 ---
 
@@ -134,7 +128,10 @@ Set rows/cols/base to match how your modules are provisioned in the gateway.
 
 1. ✅ **End-to-end slice** — compose → frames → gateway (both transports) + preview.
 2. ✅ **Plugin runtime + all apps** (drop-in compatible) + Apps tab + library + settings.
-3. Playlists + schedules + triggers. ← *next*
-4. Full manifest-driven settings renderer + app-data helper endpoints (search_chips).
-5. Gateway reverse-proxy "Display" tab + live status.
-6. Packaging polish + docs.
+3. ✅ **Playlists + schedules + triggers**.
+4. ✅ **Full settings renderer + app-data helper endpoints** (search_chips).
+5. ✅ **Gateway reverse-proxy "Display" tab** + live status.
+6. ✅ **Packaging + docs**.
+
+Not yet exercised on physical hardware — the whole stack is verified in `sim`
+mode; point it at your gateway to drive the real display.

@@ -180,8 +180,45 @@ a.btn { text-decoration: none; display: inline-block; }
 .field small { color: var(--muted); font-weight: 400; }
 .notice { color: var(--muted); font-size: .82rem; background: var(--panel-2); border-radius: 7px; padding: 8px 10px; }
 
+/* Playlists / schedules / triggers */
+.pl-entries, #schList, #trigList { display: flex; flex-direction: column; gap: 8px; }
+.row-card {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px;
+}
+.row-card select, .row-card input { margin: 0; }
+.row-card .grow { flex: 1; min-width: 120px; }
+.row-card .del { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; }
+.row-card .handle { color: var(--muted); cursor: default; }
+.days { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.days label { display: flex; align-items: center; gap: 3px; color: var(--muted); font-size: .8rem; }
+.saved-row { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-bottom: 1px solid var(--border); }
+.saved-row .grow { flex: 1; font-weight: 600; }
+
+/* Gateway iframe */
+.gw-frame { width: 100%; height: 68vh; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+
+/* search_chips */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 14px; padding: 3px 9px; font-size: .82rem; }
+.chip button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+.chip-search { position: relative; }
+.chip-results {
+  position: absolute; z-index: 5; left: 0; right: 0; top: 100%; margin-top: 2px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px; max-height: 200px;
+  overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+}
+.chip-results div { padding: 7px 10px; cursor: pointer; font-size: .85rem; }
+.chip-results div:hover { background: var(--panel-2); }
+.stepper { display: inline-flex; align-items: center; gap: 6px; }
+.stepper button { width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 16px; }
+.inline-row { display: flex; align-items: center; gap: 8px; }
+
 @media (max-width: 620px) {
   .grid2, .grid3 { grid-template-columns: 1fr; }
   .flap { width: 26px; height: 36px; font-size: 18px; }
   .apps-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  .gw-frame { height: 60vh; }
 }

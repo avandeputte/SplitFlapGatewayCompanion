@@ -22,8 +22,11 @@
   <nav class="tabs">
     <button class="tab active" data-tab="apps">Apps</button>
     <button class="tab" data-tab="compose">Compose</button>
+    <button class="tab" data-tab="playlists">Playlists</button>
+    <button class="tab" data-tab="schedules">Schedules</button>
+    <button class="tab" data-tab="triggers">Triggers</button>
+    <button class="tab" data-tab="display" title="Gateway hardware UI">Display</button>
     <button class="tab" data-tab="settings">Settings</button>
-    <button class="tab" data-tab="display" title="Gateway UI (coming in a later phase)">Display</button>
   </nav>
 
   <main>
@@ -81,6 +84,61 @@
         <button class="btn ghost" id="clearGridBtn">Clear grid</button>
         <button class="btn ghost" id="clearDisplayBtn">Clear display</button>
         <button class="btn primary" id="sendBtn">Send ▶</button>
+      </div>
+    </section>
+
+    <!-- PLAYLISTS -->
+    <section class="panel tabpage hidden" id="page-playlists">
+      <div class="panel-head"><h2>Playlists</h2></div>
+      <p class="hint">Sequence apps and composed messages, each shown for its own duration.</p>
+      <div id="plEntries" class="pl-entries"></div>
+      <div class="controls">
+        <button class="btn ghost btn-sm" id="plAddApp">＋ App</button>
+        <button class="btn ghost btn-sm" id="plAddMsg">＋ Message</button>
+        <label class="field inline" style="margin:0"><input type="checkbox" id="plLoop" checked style="width:auto"><span style="min-width:0">Loop</span></label>
+        <div class="spacer"></div>
+        <button class="btn ghost btn-sm" id="plSave">Save…</button>
+        <button class="btn primary btn-sm" id="plRun">Run ▶</button>
+      </div>
+      <h3 style="margin:16px 0 8px;font-size:.95rem">Saved playlists</h3>
+      <div id="plSaved"><span class="hint">None yet.</span></div>
+    </section>
+
+    <!-- SCHEDULES -->
+    <section class="panel tabpage hidden" id="page-schedules">
+      <div class="panel-head"><h2>Schedules</h2></div>
+      <fieldset>
+        <legend>Quiet hours</legend>
+        <label class="field inline"><input type="checkbox" id="qhEnabled" style="width:auto"><span style="min-width:0">Stop the display during quiet hours</span></label>
+        <div class="grid2">
+          <label class="field inline"><span>From</span><input type="time" id="qhStart" value="22:00"></label>
+          <label class="field inline"><span>To</span><input type="time" id="qhEnd" value="07:00"></label>
+        </div>
+        <div class="days" id="qhDays"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Schedules</legend>
+        <div id="schList"></div>
+        <button class="btn ghost btn-sm" id="schAdd" style="margin-top:8px">＋ Add schedule</button>
+      </fieldset>
+      <div class="controls"><span class="hint" id="schMsg"></span><div class="spacer"></div>
+        <button class="btn primary" id="schSave">Save & apply</button></div>
+    </section>
+
+    <!-- TRIGGERS -->
+    <section class="panel tabpage hidden" id="page-triggers">
+      <div class="panel-head">
+        <h2>Triggers</h2>
+        <label class="field inline" style="margin:0"><input type="checkbox" id="trigEnabled" style="width:auto"><span style="min-width:0">Enable all</span></label>
+      </div>
+      <p class="hint">Apps watch for events and briefly interrupt the display when something happens.</p>
+      <div id="trigList"></div>
+      <div class="controls">
+        <select id="trigAddApp"></select>
+        <button class="btn ghost btn-sm" id="trigAdd">＋ Add trigger</button>
+        <div class="spacer"></div>
+        <span class="hint" id="trigMsg"></span>
+        <button class="btn primary" id="trigSave">Save</button>
       </div>
     </section>
 
@@ -145,14 +203,19 @@
       </div>
     </section>
 
-    <!-- DISPLAY (placeholder for the reverse-proxied gateway UI) -->
+    <!-- DISPLAY (reverse-proxied gateway hardware UI) -->
     <section class="panel tabpage hidden" id="page-display">
-      <div class="panel-head"><h2>Display / Hardware</h2></div>
-      <p class="hint">Calibration, provisioning and diagnostics live in the gateway itself.
-        A later phase reverse-proxies the gateway's own UI here so it feels like one app.
-        For now, open it directly:</p>
-      <p><a class="btn ghost" id="gatewayLink" href="#" target="_blank" rel="noopener">Open gateway UI ↗</a></p>
-      <pre class="statusdump" id="gatewayDump">gateway status will appear here…</pre>
+      <div class="panel-head">
+        <h2>Display / Hardware</h2>
+        <div class="apps-actions">
+          <span class="hint" id="gwStatus">…</span>
+          <button class="btn ghost btn-sm" id="gwRefresh">⟳</button>
+          <a class="btn ghost btn-sm" id="gatewayLink" href="/display/" target="_blank" rel="noopener">Open ↗</a>
+        </div>
+      </div>
+      <p class="hint">Calibration, provisioning and diagnostics run on the gateway itself,
+        proxied here so it's all one app.</p>
+      <iframe id="gatewayFrame" class="gw-frame" src="about:blank" title="Gateway UI"></iframe>
     </section>
   </main>
 

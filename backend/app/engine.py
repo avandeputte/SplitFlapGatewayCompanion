@@ -26,11 +26,15 @@ class DisplayController:
         self.state = state
         self.transport: DisplayTransport = SimTransport()
         self._send_lock = asyncio.Lock()
-        # A single "driver" task at a time: either a manual compose send or the
-        # app play-loop. Starting one cancels the other (they're exclusive).
+        # A single "driver" task at a time: manual compose, an app play-loop, or
+        # an app-playlist loop. Starting one cancels the others (exclusive).
         self._task: asyncio.Task | None = None
         self.active_app: str | None = None
+        self.active_playlist: str | None = None
         self.plugins = None  # set via attach_plugins()
+        # Trigger interrupts briefly take over the display, then the driver resumes.
+        self._interrupt_lock = asyncio.Lock()
+        self._interrupting = False
 
     def attach_plugins(self, plugins) -> None:
         self.plugins = plugins
@@ -101,12 +105,17 @@ class DisplayController:
                 pass
 
     # -- manual compose -----------------------------------------------------
+    def _clear_driver_flags(self) -> None:
+        self.active_app = None
+        self.active_playlist = None
+        self.state.active_app = None
+        self.state.active_playlist = None
+
     def send_text_bg(self, text: str, style: str | None = None,
                      speed: int | None = None, raw: bool = False) -> str:
-        """Stop any app/animation and show ``text`` (background). Returns target."""
+        """Stop any app/playlist and show ``text`` (background). Returns target."""
         clean = self._normalize(text, raw=raw)
-        self.active_app = None
-        self.state.active_app = None
+        self._clear_driver_flags()
         old = self._task
         if old and not old.done():
             old.cancel()  # releases the lock at its next await
@@ -117,8 +126,7 @@ class DisplayController:
                         speed: int | None = None, raw: bool = False) -> str:
         """Send and await completion (used by tests / synchronous callers)."""
         await self._cancel_task()
-        self.active_app = None
-        self.state.active_app = None
+        self._clear_driver_flags()
         clean = self._normalize(text, raw=raw)
         await self._run_manual(clean, style=style, speed=speed)
         return clean
@@ -174,14 +182,14 @@ class DisplayController:
         if self.plugins is None or self.plugins.manifest(app_id) is None:
             raise KeyError(app_id)
         await self._cancel_task()
+        self._clear_driver_flags()
         self.active_app = app_id
         self.state.active_app = app_id
         self._task = asyncio.create_task(self._app_loop(app_id))
 
     async def stop_app(self) -> None:
         await self._cancel_task()
-        self.active_app = None
-        self.state.active_app = None
+        self._clear_driver_flags()
 
     async def _app_loop(self, app_id: str) -> None:
         loop = asyncio.get_running_loop()
@@ -201,6 +209,7 @@ class DisplayController:
             for page in pages:
                 if self.active_app != app_id:
                     return
+                await self._wait_if_interrupted()
                 text = page if isinstance(page, str) else str(page.get("text", ""))
                 # Non-anim apps skip re-sending an unchanged page.
                 if t["is_anim"] or text != last_sent:
@@ -208,3 +217,84 @@ class DisplayController:
                     await self._emit_page(clean, style=t["style"], speed=t["speed"])
                     last_sent = text
                 await asyncio.sleep(max(0.0, float(t["loop_delay"])))
+
+    # -- app-playlist loop --------------------------------------------------
+    async def run_playlist(self, entries: list[dict], loop: bool = True,
+                           name: str | None = None) -> None:
+        """Cycle a list of playlist entries (apps and/or composed messages)."""
+        await self._cancel_task()
+        self._clear_driver_flags()
+        self.active_playlist = name or "(unsaved)"
+        self.state.active_playlist = self.active_playlist
+        self._task = asyncio.create_task(self._playlist_loop(entries, loop))
+
+    async def _playlist_loop(self, entries: list[dict], loop: bool) -> None:
+        rt_loop = asyncio.get_running_loop()
+        want = self.active_playlist
+        while self.active_playlist == want:
+            for entry in entries:
+                if self.active_playlist != want:
+                    return
+                etype = entry.get("type", "app")
+                duration = float(entry.get("duration", entry.get("delay", 30)))
+                if etype == "compose":
+                    await self._wait_if_interrupted()
+                    clean = self._normalize(entry.get("text", ""), raw=False)
+                    await self._emit_page(clean, style=entry.get("style", "ltr"),
+                                          speed=int(entry.get("speed", 15)))
+                    await asyncio.sleep(duration)
+                else:  # app entry — run the app's pages until the deadline
+                    app_id = entry.get("app", "")
+                    if app_id.startswith("plugin_"):
+                        app_id = app_id[7:]
+                    if not app_id or self.plugins.manifest(app_id) is None:
+                        continue
+                    deadline = asyncio.get_event_loop().time() + duration
+                    last_sent = None
+                    while rt_loop.time() < deadline and self.active_playlist == want:
+                        try:
+                            pages = await rt_loop.run_in_executor(None, self.plugins.get_pages, app_id)
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception:
+                            pages = []
+                        if not pages:
+                            await asyncio.sleep(1)
+                            continue
+                        t = self.plugins.page_timing(app_id)
+                        for page in pages:
+                            if rt_loop.time() >= deadline or self.active_playlist != want:
+                                break
+                            await self._wait_if_interrupted()
+                            text = page if isinstance(page, str) else str(page.get("text", ""))
+                            if t["is_anim"] or text != last_sent:
+                                clean = self._normalize(text, raw=t["is_anim"])
+                                await self._emit_page(clean, style=t["style"], speed=t["speed"])
+                                last_sent = text
+                            await asyncio.sleep(max(0.0, float(t["loop_delay"])))
+            if not loop:
+                self._clear_driver_flags()
+                return
+
+    # -- trigger interrupts + quiet hours -----------------------------------
+    async def _wait_if_interrupted(self) -> None:
+        while self._interrupting:
+            await asyncio.sleep(0.1)
+
+    async def fire_interrupt(self, text: str, seconds: float) -> None:
+        """Briefly show ``text`` over whatever is running, then let it resume."""
+        async with self._interrupt_lock:
+            self._interrupting = True
+            try:
+                clean = self._normalize(text, raw=True)  # already a grid string
+                await self._emit_page(clean, style="ltr",
+                                      speed=int(self.config.display.get("transition_speed", 15)))
+                await asyncio.sleep(max(0.0, seconds))
+            finally:
+                self._interrupting = False
+
+    async def set_quiet(self, on: bool) -> None:
+        """Quiet hours: stop the display driver while active."""
+        self.state.quiet = on
+        if on:
+            await self.stop_app()

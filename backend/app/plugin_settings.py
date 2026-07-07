@@ -69,6 +69,15 @@ def _defaults() -> dict:
         "global_loop_delay": 5,
         "transition_style": "ltr",
         "transition_speed": 15,
+        # Playlists / schedules / triggers (Phase 3).
+        "saved_app_playlists": {},
+        "schedules": [],
+        "quiet_hours_enabled": False,
+        "quiet_hours_start": "22:00",
+        "quiet_hours_end": "07:00",
+        "quiet_hours_days": ["sun", "mon", "tue", "wed", "thu", "fri", "sat"],
+        "triggers": [],
+        "triggers_enabled": True,
         # Which apps are enabled (shown in the grid + loaded). Mirrors the
         # splitflap-os default set; the app library (later phase) manages this.
         "installed_apps": [
