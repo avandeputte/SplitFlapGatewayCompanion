@@ -114,12 +114,3 @@ class RestTransport(DisplayTransport):
             self._connected = False
             self._last_error = str(e)
             raise
-
-    async def send_text(self, start: int, text: str) -> None:
-        """Optional bulk fast-path for instant, non-animated row updates."""
-        if self._client is None:
-            raise RuntimeError("REST transport not connected")
-        r = await self._client.post("/api/flap/text",
-                                    content=_win1252_body({"text": text, "start": start}),
-                                    headers=_JSON_1252_HEADERS)
-        r.raise_for_status()

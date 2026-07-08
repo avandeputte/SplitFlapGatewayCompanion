@@ -15,10 +15,6 @@ import logging
 
 log = logging.getLogger("companion.gateway")
 
-# Gateway /api/config field -> companion config path.
-_GRID_FIELDS = {"gridRows": "rows", "gridCols": "cols"}
-_MQTT_FIELDS = {"mqHost": "broker", "mqPort": "port", "mqUser": "username", "mqPfx": "prefix"}
-
 
 async def fetch_gateway_config(url: str, timeout: float = 5.0) -> dict:
     """GET ``{url}/api/config`` and return the parsed JSON (raises on failure)."""

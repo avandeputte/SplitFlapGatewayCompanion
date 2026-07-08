@@ -15,7 +15,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -375,7 +374,6 @@ async def apps_save_settings(app_id: str, patch: AppSettingsPatch):
 async def apps_preview(app_id: str):
     if plugins.manifest(app_id) is None:
         raise HTTPException(404, f"app not installed: {app_id}")
-    import asyncio
     pages = await asyncio.get_running_loop().run_in_executor(None, plugins.get_pages, app_id)
     return {"pages": pages, "rows": plugins.get_rows(), "cols": plugins.get_cols()}
 

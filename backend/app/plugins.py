@@ -83,7 +83,11 @@ class PluginRuntime:
         return self._scan().get(app_id)
 
     def is_builtin(self, app_id: str) -> bool:
-        p = self._scan().get(app_id)
+        return self._builtin_in(app_id, self._scan())
+
+    def _builtin_in(self, app_id: str, scan: dict[str, Path]) -> bool:
+        """Builtin check against an already-computed scan (avoids re-scanning)."""
+        p = scan.get(app_id)
         return p is not None and self.apps_dir == p.parent
 
     def load(self) -> None:
@@ -273,7 +277,7 @@ class PluginRuntime:
                 "skip_rotation": bool(m.get("skip_rotation_wait"))}
 
     # -- listings ----------------------------------------------------------
-    def _entry(self, app_id: str, manifest: dict, installed: bool) -> dict:
+    def _entry(self, app_id: str, manifest: dict, installed: bool, builtin: bool) -> dict:
         return {
             "id": app_id,
             "name": manifest.get("name", app_id),
@@ -288,12 +292,14 @@ class PluginRuntime:
             "min_rows": manifest.get("min_rows"),
             "min_cols": manifest.get("min_cols"),
             "min_modules": manifest.get("min_modules"),   # total-module minimum (any shape)
-            "builtin": self.is_builtin(app_id),
+            "builtin": builtin,
         }
 
     def app_list(self) -> list[dict]:
         """Installed (loaded) apps, sorted by name — powers the Apps grid."""
-        out = [self._entry(i, m, True) for i, m in self._registry.items()]
+        scan = self._scan()   # scan once; don't re-scan per app for builtin-ness
+        out = [self._entry(i, m, True, self._builtin_in(i, scan))
+               for i, m in self._registry.items()]
         out.sort(key=lambda a: a["name"].lower())
         return out
 
@@ -308,7 +314,8 @@ class PluginRuntime:
                     manifest = json.loads((app_dir / "manifest.json").read_text("utf-8"))
                 except Exception:
                     continue
-            out.append(self._entry(app_id, manifest, app_id in enabled))
+            out.append(self._entry(app_id, manifest, app_id in enabled,
+                                   app_dir.parent == self.apps_dir))
         out.sort(key=lambda a: a["name"].lower())
         return out
 
@@ -367,14 +374,24 @@ class PluginRuntime:
 
     def save_settings(self, app_id: str, values: dict) -> None:
         """Store already-resolved setting keys sent by the frontend."""
-        if app_id not in self._registry:
+        manifest = self._registry.get(app_id)
+        if manifest is None:
             raise KeyError(app_id)
-        # Guard: only accept this app's plugin_ keys or known global keys.
-        allowed_globals = set(self.settings.all().keys())
-        clean = {}
-        for k, v in values.items():
-            if k.startswith(f"plugin_{app_id}_") or k in allowed_globals:
-                clean[k] = v
+        # Accept: this app's own ``plugin_<id>_*`` keys, any key already in the
+        # store, and the GLOBAL keys this app's manifest declares (``global_key``
+        # settings + ``inline_toggle`` globals). That last part is essential —
+        # not every global an app uses is pre-seeded in the defaults, and without
+        # it those settings would be silently dropped and never persisted to
+        # app_settings.json.
+        allowed = set(self.settings.all().keys())
+        for st in manifest.get("settings", []):
+            if st.get("global_key") and st.get("key"):
+                allowed.add(st["key"])
+            it = st.get("inline_toggle")
+            if isinstance(it, dict) and it.get("global_key") and it.get("key"):
+                allowed.add(it["key"])
+        clean = {k: v for k, v in values.items()
+                 if k.startswith(f"plugin_{app_id}_") or k in allowed}
         if clean:
             self.settings.update(clean)
             self._caches.pop(app_id, None)  # settings changed -> drop cache

@@ -60,7 +60,6 @@ def _defaults() -> dict:
         "anim_style": "ltr",
         "anim_speed": "0.4",
         "anim_text": "SPLIT  FLAP  DISPLAY",
-        "currency_symbol": "$",
         "livestream_interval": "25",
         "livestream_comments": "",
         "sports_nfl": "", "sports_nba": "", "sports_mlb": "", "sports_nhl": "",
@@ -68,8 +67,11 @@ def _defaults() -> dict:
         "sports_laliga": "", "sports_ucl": "", "sports_wnba": "", "sports_pga": "",
         "sports_ufc": "",
         "global_loop_delay": 5,
-        "transition_style": "ltr",
-        "transition_speed": 15,
+        # NOTE: the global transition style/speed, slot speed and currency symbol
+        # are display config owned by ``config.display`` (defaults <- gateway <-
+        # env) and read from there, so they are intentionally NOT duplicated here.
+        # Only ``plugin_<id>_transition_style`` (a per-app override) lives in this
+        # store.
         # Playlists + triggers (schedules/quiet-time now live on the gateway).
         "saved_app_playlists": {},
         "triggers": [],

@@ -251,7 +251,7 @@ class DisplayController:
                         app_id = app_id[7:]
                     if not app_id or self.plugins.manifest(app_id) is None:
                         continue
-                    deadline = asyncio.get_event_loop().time() + duration
+                    deadline = rt_loop.time() + duration
                     last_sent = None
                     while rt_loop.time() < deadline and self.active_playlist == want:
                         try:
