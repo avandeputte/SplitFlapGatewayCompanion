@@ -1,7 +1,7 @@
-# SplitFlapGatewayCompanion — single-stage image (Phase 1).
-# The Phase-1 frontend is static (no build step), so no Node stage is needed yet.
-# When the SPA gains a build step (React/Vite in a later phase) this becomes a
-# multi-stage build: a Node stage compiles the SPA, the Python stage serves it.
+# SplitFlapGatewayCompanion — single-stage image.
+# The SPA is static (vanilla JS, no build step), so no Node stage is needed. If
+# the SPA ever gains a build step (e.g. React/Vite), add a Node stage that
+# compiles it and have this Python stage serve the compiled output.
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \

@@ -1,4 +1,4 @@
-// SplitFlapGatewayCompanion — Phase 1 SPA (vanilla).
+// SplitFlapGatewayCompanion — SPA (vanilla JS, no build step).
 // Live preview + click-to-type compose grid + settings.
 
 // Lowercase r/o/y/g/b/p/w are COLOUR flaps; uppercase letters are letters.

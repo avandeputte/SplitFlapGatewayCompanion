@@ -3,8 +3,8 @@ engine.py — the display controller.
 
 Owns the active transport and turns "show this text" requests into timed frame
 sends, updating live state as it goes. One send runs at a time (an asyncio lock
-stands in for splitflap-os's serial_lock). Later phases (app play-loop,
-playlists, schedules, triggers) will drive this same controller.
+serializes bus access). The manual compose path, the app play-loop, playlists,
+and trigger interrupts all drive this same controller.
 """
 
 from __future__ import annotations

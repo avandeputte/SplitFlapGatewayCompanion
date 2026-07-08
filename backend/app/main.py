@@ -1,9 +1,9 @@
 """
-main.py — FastAPI application (Phase 1 slice).
+main.py — FastAPI application.
 
-Serves the SPA, the companion API (compose/send, live state, config), and a
-best-effort gateway status probe. Later phases add the plugin runtime,
-playlists/schedules/triggers, and the gateway reverse-proxy.
+Serves the SPA, the companion API (compose/send, live state, config), the plugin
+runtime (apps, settings, library, playlists, triggers), the app-data helper
+endpoints, the gateway reverse-proxy, and a best-effort gateway status probe.
 """
 
 from __future__ import annotations

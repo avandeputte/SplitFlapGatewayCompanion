@@ -77,7 +77,7 @@ def _defaults() -> dict:
         "triggers": [],
         "triggers_enabled": True,
         # Which apps are enabled (shown in the grid + loaded). Mirrors the
-        # splitflap-os default set; the app library (later phase) manages this.
+        # splitflap-os default set; the App Library manages this at runtime.
         "installed_apps": [
             "time", "date", "weather", "stocks", "sports", "countdown",
             "world_clock", "crypto", "iss", "metro", "youtube", "yt_comments",
