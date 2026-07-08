@@ -33,19 +33,31 @@ coincidence, and this document is the contract we hold it to.
   same response shapes: `/sports_leagues`, `/sports_teams/<league>`,
   `/sports_follow`, `/location_search`, `/location_timezone`, `/timezones`,
   `/stocks_search`, `/crypto_search`.
-- **Rendering** — `FLAP_CHARS`, the emoji→colour-code map, the currency `$`
-  alias, `"`→`q`, and all transition orderings.
+- **Rendering** — the emoji→colour-code map and all transition orderings (apps
+  emit colour codes and expect the same animation styles).
 - **Caching / paging** — results cached per `refresh_interval`; each page shown
   `loop_delay` seconds.
 
+## Where the companion intentionally differs
+
+Final character normalization is **companion-specific** and deliberately *not* a
+port of splitflap-os. Because the gateway and modules support the full
+**Windows-1252** set, the companion sends accented letters, `€` and punctuation
+through verbatim (upper-cased in a cp1252-aware way, so `ß` and accents survive)
+instead of policing them against a fixed `FLAP_CHARS` set or substituting the
+currency `$`/`"`→`q`. This changes only the *final glyphs on the wire*, never what
+an app sees — the plugin ABI above is still identical in both directions, so apps
+stay interchangeable with stock splitflap-os.
+
 ## How it's enforced
 
-- `backend/tests/test_renderer.py` guards the character set, normalization and
-  animation orderings (a drift here is a compatibility regression).
-- Later phases add a loader conformance test that imports every `apps/*` and
-  asserts its manifest + `fetch`/`trigger` signatures satisfy this contract, plus
-  a manual drop-in check: copy a not-pre-vendored splitflap-os app into `apps/`
-  and confirm it appears, configures, and runs with no changes.
+- `backend/tests/test_renderer.py` guards normalization (cp1252-aware
+  upper-casing + verbatim Windows-1252 passthrough) and the animation orderings
+  (a drift here is a compatibility regression).
+- `backend/tests/test_plugins.py::test_every_app_loads` imports every `apps/*`
+  and asserts its manifest + `fetch`/`data` satisfy this contract. The manual
+  drop-in check still holds: copy a not-pre-vendored splitflap-os app into
+  `apps/` and confirm it appears, configures, and runs with no changes.
 
 ## When upstream changes
 

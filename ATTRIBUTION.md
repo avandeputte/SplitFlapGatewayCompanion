@@ -11,9 +11,10 @@ SplitFlap Gateway Companion is a **derivative work** and is licensed under
   **behavior-identical plugin runtime**: the `fetch(settings, format_lines, get_rows,
   get_cols)` / `trigger(settings, conditions)` contract, the `format_lines` / `get_rows`
   / `get_cols` helpers, the manifest settings schema and field renderer, the
-  `search_chips` helper endpoints, the `FLAP_CHARS` character set, the emoji colour-tile
-  map, and the transition/animation orderings are all ports of splitflap-os. Keeping them
-  identical is what makes plugins interchangeable in both directions.
+  `search_chips` helper endpoints, the emoji colour-tile map, and the
+  transition/animation orderings are all ports of splitflap-os. Keeping them
+  identical is what makes plugins interchangeable in both directions. (Final
+  character normalization deliberately differs — see [COMPATIBILITY.md](COMPATIBILITY.md).)
 
   **Pinned upstream:** commit `12df2773cbbe9890a7d6f92fdc60d2be920129bd`
   (splitflap-os `VERSION` 0.3.0, 2026-06-24). See [COMPATIBILITY.md](COMPATIBILITY.md).
@@ -27,5 +28,5 @@ SplitFlap Gateway Companion is a **derivative work** and is licensed under
 
 ## Originally authored here
 
-The engine (play loop, config store, state), the transports (MQTT / REST / sim),
-the gateway reverse-proxy, the SPA UI, and the packaging are original to this project.
+The engine (play loop, config store, state), the transports (REST / sim), the
+gateway reverse-proxy, the SPA UI, and the packaging are original to this project.

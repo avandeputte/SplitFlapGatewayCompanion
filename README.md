@@ -51,8 +51,7 @@ All six build phases are done. What's here:
 - **Gateway is the source of truth** — grid size + MQTT broker are read from the
   gateway's `GET /api/config` on startup and on demand.
 - **Transport** — **always REST**: a whole page in one `/api/rs485/batch` request
-  (no broker), with an honest live status pill. MQTT is used **only** for Home
-  Assistant, never for the display.
+  (no broker). MQTT is used **only** for Home Assistant, never for the display.
 - **Home Assistant** — when the gateway has HA enabled, the companion publishes a
   "SplitFlap Companion" MQTT device with **App** and **Playlist** selects
   (start/stop from HA) and a **Stop** button — the companion-unique controls the
@@ -162,8 +161,18 @@ animations are smooth with **no broker** to run. Each incoming batch also shows
 as a single **REST** row in the gateway's Monitor, above the TX frames it emits.
 
 **MQTT is used only for the Home Assistant integration** (below), which speaks
-MQTT regardless; it never carries display frames. (If no `gateway_url` is
-reachable, the app degrades to a no-op preview and says so in the status pill.)
+MQTT regardless; it never carries display frames. The UI stays uncluttered while
+the gateway is reachable and shows a red **Display offline** banner only if the
+connection drops (with no gateway reachable at all, the preview becomes a no-op).
+
+### Characters
+
+Text is upper-cased in a **Windows-1252-aware** way — so `ß` and accented letters
+like `É`, `Ü`, `ç` survive (`ß` is *not* expanded to `SS`) — and sent to the
+gateway in the Windows-1252 encoding. The companion does **not** police
+characters against a fixed set: every glyph (accents, `€`, punctuation) is passed
+straight through, and each module simply blanks anything its own flap set can't
+show. Emoji colour squares (🟥🟩🟦 …) still map to the gateway's colour flaps.
 
 ### Grid → module mapping
 
@@ -207,12 +216,12 @@ option lists update automatically as you install apps or save playlists.
 
 ## Roadmap
 
-1. ✅ **End-to-end slice** — compose → frames → gateway (both transports) + preview.
+1. ✅ **End-to-end slice** — compose → frames → gateway (REST batch) + preview.
 2. ✅ **Plugin runtime + all apps** (drop-in compatible) + Apps tab + library + settings.
 3. ✅ **Playlists + schedules + triggers**.
 4. ✅ **Full settings renderer + app-data helper endpoints** (search_chips).
 5. ✅ **Gateway reverse-proxy "Display" tab** + live status.
 6. ✅ **Packaging + docs**.
 
-Not yet exercised on physical hardware — the whole stack is verified in `sim`
-mode; point it at your gateway to drive the real display.
+Runs against real hardware (Gateway 3.0 + physical split-flap modules) and, for
+development without a gateway, in `sim` mode.
