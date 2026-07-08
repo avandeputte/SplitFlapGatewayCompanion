@@ -51,12 +51,12 @@ class DisplayController:
         cfg = self.config.transport
         build_error: str | None = None
         try:
-            transport = build_transport(cfg)
+            transport = build_transport(cfg)   # always REST
         except Exception as e:
-            # Invalid config (e.g. mqtt with no broker). Fall back to a sim
-            # no-op so the app still runs, but surface *why* in the status pill.
-            log.warning("transport build failed (%s); using sim", e)
-            build_error = f"{cfg.get('type')}: {e}"
+            # Only reachable if no gateway_url is configured. Fall back to a sim
+            # no-op so the app still serves the preview, with *why* in the pill.
+            log.warning("REST transport unavailable (%s); using sim no-op", e)
+            build_error = f"rest: {e}"
             transport = SimTransport()
         try:
             await transport.connect()
@@ -132,12 +132,7 @@ class DisplayController:
         return clean
 
     def _normalize(self, text: str, *, raw: bool) -> str:
-        return renderer.normalize(
-            text,
-            self.config.module_count(),
-            raw=raw,
-            currency=self.config.display.get("currency_symbol", "$"),
-        )
+        return renderer.normalize(text, self.config.module_count(), raw=raw)
 
     async def _run_manual(self, clean: str, *, style: str | None, speed: int | None) -> None:
         disp = self.config.display
@@ -153,7 +148,6 @@ class DisplayController:
         rows, cols = int(grid["rows"]), int(grid["cols"])
         plan = renderer.build_send_plan(
             clean, style=style, speed_ms=int(speed), rows=rows, cols=cols,
-            current_indices=self.state.current_indices,
         )
         self.state.set_target(clean)
         async with self._send_lock:

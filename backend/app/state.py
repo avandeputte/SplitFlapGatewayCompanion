@@ -1,24 +1,24 @@
 """
 state.py — live display state, mirrored to the browser for the preview.
 
-Holds the last-known flap index per module (so the preview can animate and so
-the ``sync`` style can compute stagger distances) plus the current target
-string and a little transport status for the UI status pill.
+Holds the character shown per module (verbatim — the companion never maps text
+to a fixed flap set; modules own their char maps and blank anything they lack)
+plus the current target string and a little transport status for the UI pill.
 """
 
 from __future__ import annotations
 
 import threading
 
-from . import renderer
-
 
 class DisplayState:
     def __init__(self, module_count: int):
         self._lock = threading.Lock()
         self.module_count = module_count
-        # -1 means "unknown / not yet homed" for that module.
-        self.current_indices: list[int] = [-1] * module_count
+        # The actual character shown per module, preserved verbatim (accents and
+        # any other Windows-1252 glyph included), so the preview mirrors exactly
+        # what is sent to the modules.
+        self.current_chars: list[str] = [" "] * module_count
         self.current_string: str = " " * module_count
         self.is_homed: bool = False
         # Populated by the active transport for the UI.
@@ -32,7 +32,7 @@ class DisplayState:
     def resize(self, module_count: int) -> None:
         with self._lock:
             self.module_count = module_count
-            self.current_indices = [-1] * module_count
+            self.current_chars = [" "] * module_count
             self.current_string = " " * module_count
             self.is_homed = False
 
@@ -40,7 +40,7 @@ class DisplayState:
         """Record that a module now shows ``char`` (updates preview state)."""
         with self._lock:
             if 0 <= grid_index < self.module_count:
-                self.current_indices[grid_index] = renderer.char_to_index(char)
+                self.current_chars[grid_index] = char
 
     def set_target(self, clean_text: str) -> None:
         with self._lock:
@@ -51,16 +51,13 @@ class DisplayState:
         with self._lock:
             return {
                 "module_count": self.module_count,
-                "indices": list(self.current_indices),
                 "string": self.current_string,
-                "chars": [
-                    renderer.FLAP_CHARS[i] if 0 <= i < len(renderer.FLAP_CHARS) else " "
-                    for i in self.current_indices
-                ],
+                # Raw characters shown (accents preserved) — drives the live
+                # preview so it matches what's on the modules.
+                "chars": list(self.current_chars),
                 "is_homed": self.is_homed,
                 "active_app": self.active_app,
                 "active_playlist": self.active_playlist,
-                "flap_chars": renderer.FLAP_CHARS,
                 "transport": {
                     "type": self.transport_type,
                     "connected": self.transport_connected,

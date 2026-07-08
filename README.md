@@ -50,8 +50,9 @@ All six build phases are done. What's here:
   **reverse-proxied** under one origin (`/display/*`), so it's all one app.
 - **Gateway is the source of truth** — grid size + MQTT broker are read from the
   gateway's `GET /api/config` on startup and on demand.
-- **Transports** — **sim** (no hardware), **MQTT** (raw frames via broker),
-  **REST** (gateway HTTP API); honest live status pill.
+- **Transport** — **always REST**: a whole page in one `/api/rs485/batch` request
+  (no broker), with an honest live status pill. MQTT is used **only** for Home
+  Assistant, never for the display.
 - **Home Assistant** — when the gateway has HA enabled, the companion publishes a
   "SplitFlap Companion" MQTT device with **App** and **Playlist** selects
   (start/stop from HA) and a **Stop** button — the companion-unique controls the
@@ -69,9 +70,32 @@ docker compose up --build
 # open http://localhost:8000
 ```
 
-Configure via environment (see `docker-compose.yml`): set `COMPANION_TRANSPORT`
-to `mqtt` or `rest`, point `COMPANION_GATEWAY_URL` at your gateway, and set
-`COMPANION_GRID_ROWS` / `COMPANION_GRID_COLS` to your panel.
+Configure via environment (see `docker-compose.yml`): point `GATEWAY_URL` at your
+gateway — that's usually all you need (and it's **required**; the app refuses to
+start without it). The companion always uses REST (no broker) and reads the grid
+size from the gateway.
+
+### Run from the registry (no build)
+
+Prebuilt **multi-arch** images are published to GitHub Container Registry, so the
+same tag runs on x86 (Windows/Linux) and arm64 (Raspberry Pi 64-bit, Apple
+Silicon) — Docker pulls the right architecture automatically:
+
+```bash
+docker run -d --name splitflap-companion -p 8000:8000 \
+  -e GATEWAY_URL=http://192.168.1.50 -v companion-data:/data \
+  ghcr.io/<owner>/splitflap-gateway-companion:latest
+```
+
+Or with compose — set `GHCR_OWNER` in `.env`, then:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+**Publishing new images** (maintainers): push a `v*` tag (or run the *Publish
+container image* GitHub Action) to build and push both architectures, or do it
+from your machine with `./scripts/publish-image.sh` (see `--help`).
 
 ### Local dev
 
@@ -79,9 +103,9 @@ to `mqtt` or `rest`, point `COMPANION_GATEWAY_URL` at your gateway, and set
 cd backend
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m app                    # binds 0.0.0.0:8000 (reachable on your LAN IP)
+GATEWAY_URL=http://192.168.1.50 python -m app   # GATEWAY_URL is required; binds 0.0.0.0:8000
 # open http://localhost:8000  (or http://<this-host-ip>:8000)
-COMPANION_RELOAD=1 python -m app # dev auto-reload
+GATEWAY_URL=http://192.168.1.50 COMPANION_RELOAD=1 python -m app  # dev auto-reload
 pytest                           # run the tests
 ```
 
@@ -95,28 +119,33 @@ pytest                           # run the tests
 
 ## Configuration
 
-Config is stored in `<data_dir>/config.json` (a Docker volume). **Environment
-variables always win** over the saved file, so a container can be configured with
-env alone.
+**There is no companion config file.** Configuration is derived at runtime from
+three sources — `defaults <- gateway <- environment` — and never written to disk,
+so there's nothing to seed, migrate, or back up. On restart it's all re-derived.
 
-Because the **gateway is the source of truth**, the only thing you normally set is
-`COMPANION_GATEWAY_URL` (and `COMPANION_MQTT_PASSWORD` if your broker needs auth).
-Grid size and the MQTT broker/port/user/prefix are pulled from the gateway's
-`/api/config` on startup and whenever you hit **Sync**. The grid/MQTT env vars
-below act as manual overrides (they win over the gateway if set).
+- **Environment** — the only things you set yourself: **`GATEWAY_URL`** (where the
+  gateway is — **required**; the app refuses to start without it) and, if your
+  broker needs auth for Home Assistant, `COMPANION_MQTT_PASSWORD`. Env always wins.
+- **Gateway (source of truth)** — grid size and the MQTT broker/port/user/prefix
+  are pulled from the gateway's `/api/config` on startup and on **Sync**.
+- **Defaults** — sensible fallbacks used until the gateway answers.
+
+The grid/MQTT env vars below still work as manual overrides (they win over the
+gateway if set). Note `<data_dir>` is still a Docker volume — it holds your
+**app settings, playlists, triggers and uploaded apps** (`app_settings.json` +
+`apps/`), just not any companion config.
 
 | Env var | Meaning | Default |
 |---|---|---|
-| `COMPANION_GATEWAY_URL` | Gateway base URL (config sync + REST + status + Display link) | `http://splitflap-gateway.local` |
+| `GATEWAY_URL` | Gateway base URL (REST + config sync + status + Display link). **Required** — the app won't start without it | *(none; required)* |
 | `COMPANION_PUBLIC_URL` | This companion's own URL, registered with the gateway (v3.0) for its "Companion" tab | *(blank)* |
 | `COMPANION_SYNC_FROM_GATEWAY` | Pull grid + MQTT from the gateway on startup | `true` |
-| `COMPANION_TRANSPORT` | `sim` \| `mqtt` \| `rest` | `sim` |
-| `COMPANION_MQTT_PASSWORD` | MQTT password (the gateway never exposes this) | — |
+| `COMPANION_MQTT_PASSWORD` | MQTT password for **Home Assistant only** (the gateway never exposes this) | — |
 | `COMPANION_MODULE_ID_BASE` | Module id of grid index 0 (companion-owned) | `0` |
 | `COMPANION_HA` | Home Assistant integration: `auto` (follow gateway) \| `true` \| `false` | `auto` |
 | `COMPANION_GRID_ROWS` / `COMPANION_GRID_COLS` | Manual panel-size override | *(from gateway)* |
 | `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | Manual MQTT overrides | *(from gateway)* |
-| `COMPANION_DATA_DIR` | Where config/state live | `<repo>/data` |
+| `COMPANION_DATA_DIR` | Where app settings, playlists, triggers + uploaded apps live (no config) | `<repo>/data` |
 
 > **Why no gateway firmware change?** The gateway (v2.1+) already exposes
 > `gridRows`, `gridCols`, `mqHost`, `mqPort`, `mqUser` and `mqPfx` via
@@ -124,14 +153,17 @@ below act as manual overrides (they win over the gateway if set).
 > intentionally *not* exposed by the gateway — supply it once in the companion
 > (or leave blank for an anonymous broker).
 
-### Transports
+### Transport — always REST
 
-- **MQTT** — publishes raw frames (`m05-A\n`) to `<prefix>/send`, reads
-  `<prefix>/rx`. Smoothest for animations. Needs a broker both the gateway and
-  companion can reach. (This mirrors splitflap-os's proven gateway transport.)
-- **REST** — draws a whole page in **one** request via the gateway's
-  `/api/rs485/batch`, so animations are nearly as smooth as MQTT with no broker.
-- **sim** — logs frames, drives the preview, needs no hardware.
+The companion **only** drives the gateway over REST, drawing a whole page in
+**one** `/api/rs485/batch` request (Gateway 3.0+). There is no transport
+selector, config field, or env var — REST is the single display path, so
+animations are smooth with **no broker** to run. Each incoming batch also shows
+as a single **REST** row in the gateway's Monitor, above the TX frames it emits.
+
+**MQTT is used only for the Home Assistant integration** (below), which speaks
+MQTT regardless; it never carries display frames. (If no `gateway_url` is
+reachable, the app degrades to a no-op preview and says so in the status pill.)
 
 ### Grid → module mapping
 

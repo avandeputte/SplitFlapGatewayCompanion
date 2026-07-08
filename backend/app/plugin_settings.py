@@ -7,8 +7,9 @@ stored as ``plugin_<id>_<key>``. To keep apps drop-in compatible, the companion
 maintains the same flat store here, seeded with the content-relevant defaults
 ported from splitflap-os (hardware/calibration keys are intentionally omitted).
 
-Persisted to ``<data_dir>/app_settings.json``, separate from the hardware config
-in ``config.json``.
+Persisted to ``<data_dir>/app_settings.json``. (The companion keeps no config
+file of its own — hardware config is read from the gateway at runtime; see
+``config.py``.)
 """
 
 from __future__ import annotations

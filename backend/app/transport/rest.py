@@ -16,6 +16,18 @@ from .base import DisplayTransport, frame_for
 
 log = logging.getLogger("companion.transport.rest")
 
+# The gateway and split-flap modules render the Windows-1252 code page, so the
+# request body is serialized as cp1252 (not httpx's default UTF-8). That keeps
+# every accented character a single byte — the byte the module expects — instead
+# of a UTF-8 multibyte sequence. JSON punctuation is ASCII, so only the frame
+# string values carry the high bytes.
+_JSON_1252_HEADERS = {"Content-Type": "application/json; charset=windows-1252"}
+
+
+def _win1252_body(payload: dict) -> bytes:
+    import json
+    return json.dumps(payload, ensure_ascii=False).encode("cp1252", "replace")
+
 
 class RestTransport(DisplayTransport):
     type_name = "rest"
@@ -68,7 +80,9 @@ class RestTransport(DisplayTransport):
             raise RuntimeError("REST transport not connected")
         try:
             r = await self._client.post(
-                "/api/rs485/send", json={"data": frame_for(module_id, char)}
+                "/api/rs485/send",
+                content=_win1252_body({"data": frame_for(module_id, char)}),
+                headers=_JSON_1252_HEADERS,
             )
             r.raise_for_status()
             self._connected = True
@@ -90,7 +104,9 @@ class RestTransport(DisplayTransport):
                    "step_ms": int(step_ms)}
         try:
             # allow the gateway to pace a long page without a client timeout
-            r = await self._client.post("/api/rs485/batch", json=payload, timeout=30.0)
+            r = await self._client.post("/api/rs485/batch",
+                                        content=_win1252_body(payload),
+                                        headers=_JSON_1252_HEADERS, timeout=30.0)
             r.raise_for_status()
             self._connected = True
             self._last_error = None
@@ -103,5 +119,7 @@ class RestTransport(DisplayTransport):
         """Optional bulk fast-path for instant, non-animated row updates."""
         if self._client is None:
             raise RuntimeError("REST transport not connected")
-        r = await self._client.post("/api/flap/text", json={"text": text, "start": start})
+        r = await self._client.post("/api/flap/text",
+                                    content=_win1252_body({"text": text, "start": start}),
+                                    headers=_JSON_1252_HEADERS)
         r.raise_for_status()

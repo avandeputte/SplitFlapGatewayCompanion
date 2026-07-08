@@ -86,8 +86,9 @@ async def do_gateway_sync() -> dict:
         config.update(patch)
         if "grid" in patch:
             controller.resize_grid()
-        if "transport" in patch and config.transport.get("type") == "mqtt":
-            await controller.reload_transport()
+        # A sync only touches grid (resized above) and the HA MQTT broker; the
+        # REST display transport depends only on gateway_url, which sync never
+        # changes, so there's nothing to reload here.
     return {
         "ok": True,
         "applied": patch,
@@ -158,8 +159,17 @@ async def _verify_reachable(companion_url: str):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    log.info("SplitFlapGatewayCompanion v%s starting (transport=%s, grid=%sx%s)",
-             __version__, config.transport.get("type"), config.grid["rows"], config.grid["cols"])
+    # Hard requirement: without a gateway there is nothing to drive. Refuse to
+    # start (rather than silently retrying a phantom host). __main__.py catches
+    # this earlier with a friendlier message; this also covers `uvicorn app.main:app`.
+    if not (config.transport.get("gateway_url") or "").strip():
+        raise RuntimeError(
+            "GATEWAY_URL is not set. Set it to your SplitFlapGateway's URL "
+            "(e.g. GATEWAY_URL=http://192.168.1.50) and restart."
+        )
+    log.info("SplitFlapGatewayCompanion v%s starting (transport=REST %s, grid=%sx%s)",
+             __version__, config.transport.get("gateway_url"),
+             config.grid["rows"], config.grid["cols"])
     await controller.start()
     gw_ha = None
     if config.effective.get("sync_from_gateway") and config.transport.get("gateway_url"):
@@ -278,7 +288,6 @@ async def grid():
         "cols": int(g["cols"]),
         "module_count": config.module_count(),
         "module_id_base": int(g.get("module_id_base", 0)),
-        "flap_chars": renderer.FLAP_CHARS,
         "styles": list(renderer.ALL_STYLES),
         "color_map": renderer.COLOR_MAP,
         "display": config.display,

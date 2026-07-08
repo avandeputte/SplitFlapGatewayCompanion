@@ -1,15 +1,16 @@
 """
-config.py — persisted companion configuration with env-var overrides.
+config.py — companion configuration from defaults, the gateway, and env vars.
 
-Config lives in ``<data_dir>/config.json`` (a Docker volume in production).
-Environment variables always win over the saved file, so a container can be
-configured purely through env without a pre-seeded file.
+**Nothing is persisted.** Grid geometry and the MQTT broker are pulled from the
+gateway's ``/api/config`` at runtime; the gateway URL and (optional) MQTT
+password come from the environment. On restart everything is re-derived, so there
+is no config file to manage. Precedence: ``defaults <- gateway sync <- env``, so
+env vars always win and a gateway-synced value never gets written to disk.
 """
 
 from __future__ import annotations
 
 import copy
-import json
 import os
 import threading
 from pathlib import Path
@@ -23,10 +24,16 @@ DEFAULTS: dict = {
         "module_id_base": 0,
     },
     "transport": {
-        "type": "sim",  # "sim" | "mqtt" | "rest"
-        # Base URL of the SplitFlapGateway (used by the REST transport and the
-        # gateway reverse-proxy / status pill).
-        "gateway_url": "http://splitflap-gateway.local",
+        # The companion ALWAYS drives the gateway over REST (a whole page in one
+        # /api/rs485/batch request, Gateway 3.0+). This is intentionally NOT
+        # configurable — there is no transport selector or env var. The "mqtt"
+        # block below is used ONLY by the Home Assistant integration (see the "ha"
+        # section), never for the display.
+        #
+        # gateway_url has NO default on purpose: it must be supplied via the
+        # GATEWAY_URL env var, and the app refuses to start without it (rather than
+        # silently retrying against a phantom host). See main.py / __main__.py.
+        "gateway_url": "",
         "mqtt": {
             "broker": "",
             "port": 1883,
@@ -100,10 +107,8 @@ def _env_overrides() -> dict:
     if "COMPANION_HA_DISCOVERY_PREFIX" in e:
         ov.setdefault("ha", {})["discovery_prefix"] = e["COMPANION_HA_DISCOVERY_PREFIX"]
 
-    if "COMPANION_TRANSPORT" in e:
-        ov["transport"]["type"] = e["COMPANION_TRANSPORT"]
-    if "COMPANION_GATEWAY_URL" in e:
-        ov["transport"]["gateway_url"] = e["COMPANION_GATEWAY_URL"]
+    if "GATEWAY_URL" in e:
+        ov["transport"]["gateway_url"] = e["GATEWAY_URL"]
     if "COMPANION_MQTT_BROKER" in e:
         ov["transport"]["mqtt"]["broker"] = e["COMPANION_MQTT_BROKER"]
     if "COMPANION_MQTT_PORT" in e:
@@ -132,29 +137,22 @@ class Config:
     """Loads, merges and persists companion configuration."""
 
     def __init__(self, data_dir: Path | None = None):
+        # data_dir still holds app_settings.json + uploaded apps; the companion
+        # config itself is never written there (or anywhere).
         self.data_dir = Path(data_dir) if data_dir else default_data_dir()
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        self.path = self.data_dir / "config.json"
         self._lock = threading.Lock()
-        self._file_config: dict = self._read_file()
+        self._synced: dict = {}     # values pulled from the gateway at runtime
         self._effective: dict = self._recompute()
 
-    def _read_file(self) -> dict:
-        if self.path.exists():
-            try:
-                return json.loads(self.path.read_text("utf-8"))
-            except (json.JSONDecodeError, OSError):
-                pass
-        return {}
-
     def _recompute(self) -> dict:
-        merged = _deep_merge(DEFAULTS, self._file_config)
+        merged = _deep_merge(DEFAULTS, self._synced)
         return _deep_merge(merged, _env_overrides())
 
     # -- access -------------------------------------------------------------
     @property
     def effective(self) -> dict:
-        """The active config: defaults <- saved file <- env overrides."""
+        """The active config: defaults <- gateway sync <- env overrides."""
         return copy.deepcopy(self._effective)
 
     @property
@@ -174,15 +172,13 @@ class Config:
 
     # -- mutation -----------------------------------------------------------
     def update(self, patch: dict) -> dict:
-        """Merge ``patch`` into the persisted config and re-derive effective.
+        """Apply ``patch`` (gateway sync or a runtime tweak) in memory only.
 
-        Env overrides still win in the effective view, so a value pinned by env
-        cannot be changed from the UI (by design).
+        Nothing is written to disk — on restart the config is re-derived from
+        defaults + the gateway + env. Env overrides still win in the effective
+        view, so a value pinned by env can't be changed at runtime (by design).
         """
         with self._lock:
-            self._file_config = _deep_merge(self._file_config, patch)
-            self.path.write_text(
-                json.dumps(self._file_config, indent=2, ensure_ascii=False), "utf-8"
-            )
+            self._synced = _deep_merge(self._synced, patch)
             self._effective = self._recompute()
         return self.effective

@@ -17,11 +17,9 @@ import importlib.util
 import json
 import logging
 import os
-import sys
 import time
 from pathlib import Path
 
-from . import renderer
 from .config import Config
 from .plugin_settings import PluginSettings
 
@@ -90,12 +88,9 @@ class PluginRuntime:
 
     def load(self) -> None:
         """(Re)load all *installed* apps into the registry."""
-        # Some apps (e.g. countdown) read FLAP_CHARS off __main__; expose it so
-        # they behave identically to running under splitflap-os.
-        try:
-            setattr(sys.modules["__main__"], "FLAP_CHARS", renderer.FLAP_CHARS)
-        except Exception:
-            pass
+        # The companion no longer defines a fixed flap character set, so nothing
+        # is injected into __main__. A vendored app that still reads
+        # ``__main__.FLAP_CHARS`` (e.g. countdown) falls back to its own default.
         self._registry.clear()
         self._modules.clear()
         self._channel.clear()
@@ -292,6 +287,7 @@ class PluginRuntime:
             "has_settings": bool(manifest.get("settings")),
             "min_rows": manifest.get("min_rows"),
             "min_cols": manifest.get("min_cols"),
+            "min_modules": manifest.get("min_modules"),   # total-module minimum (any shape)
             "builtin": self.is_builtin(app_id),
         }
 

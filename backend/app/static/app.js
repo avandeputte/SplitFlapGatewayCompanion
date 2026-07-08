@@ -6,7 +6,7 @@
 const COLOR_CODES = ["r", "o", "y", "g", "b", "p", "w"];
 const $ = (id) => document.getElementById(id);
 
-let GRID = { rows: 3, cols: 15, module_count: 45, flap_chars: "", styles: [] };
+let GRID = { rows: 3, cols: 15, module_count: 45, styles: [] };
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -47,22 +47,21 @@ async function pollState() {
       cell.className = classForChar(ch);
       cell.textContent = glyph(ch);
     });
-    $("previewMeta").textContent =
-      `${GRID.rows}×${GRID.cols} · ${st.module_count} modules · ${st.transport.type}` +
-      (st.transport.last_error ? ` · ${st.transport.last_error}` : "");
+    $("previewMeta").textContent = `${GRID.rows}×${GRID.cols} · ${st.module_count} modules`;
     if (APPS.length) updateActiveUI(st.active_app, st.active_playlist);
   } catch (e) { /* transient */ }
 }
 
 async function pollStatus() {
+  // Nothing is shown while the display is reachable -- only a red banner if the
+  // connection drops. No transport/technical wording surfaces in the UI.
   const badge = $("statusBadge");
+  const down = () => { badge.className = "badge err"; badge.textContent = "⚠ Display offline"; };
+  const ok = () => { badge.className = "badge hidden"; badge.textContent = ""; };
   try {
-    const st = await api("/api/current_state");
-    const t = st.transport;
-    if (t.type === "sim") { badge.className = "badge warn"; badge.textContent = "simulation"; }
-    else if (t.connected) { badge.className = "badge ok"; badge.textContent = `${t.type} connected`; }
-    else { badge.className = "badge err"; badge.textContent = `${t.type} offline`; }
-  } catch { badge.className = "badge err"; badge.textContent = "error"; }
+    const t = (await api("/api/current_state")).transport;
+    if (t.connected || t.type === "sim") ok(); else down();
+  } catch { down(); }
 }
 
 // ---- boot ------------------------------------------------------------------
@@ -92,7 +91,15 @@ const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.cla
 let APPS = [];
 
 function appFits(a) {
-  return (!a.min_rows || GRID.rows >= a.min_rows) && (!a.min_cols || GRID.cols >= a.min_cols);
+  return (!a.min_rows || GRID.rows >= a.min_rows) &&
+         (!a.min_cols || GRID.cols >= a.min_cols) &&
+         (!a.min_modules || GRID.rows * GRID.cols >= a.min_modules);
+}
+
+// Short human label for an app's display requirement (shown on a disabled tile).
+function appReq(a) {
+  if (a.min_modules) return `${a.min_modules} modules`;
+  return `${a.min_rows || 1}×${a.min_cols || 1}`;
 }
 
 async function loadApps() {
@@ -104,14 +111,14 @@ async function loadApps() {
     const fits = appFits(a);
     const tile = el("div", "app-tile" + (fits ? "" : " disabled"));
     tile.dataset.appId = a.id;
-    if (!fits) tile.title = `Needs at least ${a.min_rows || 1}×${a.min_cols || 1}`;
+    if (!fits) tile.title = `Needs at least ${appReq(a)}`;
     tile.innerHTML =
       `<div class="app-icon">${a.icon || "🧩"}</div>` +
       `<div class="app-name">${a.name}</div>` +
       `<div class="app-desc">${a.description || ""}</div>` +
       (a.has_settings ? `<button class="app-gear" title="Settings">⚙</button>` : "") +
       `<span class="app-badge"></span>` +
-      (fits ? "" : `<span class="app-req">${a.min_rows || 1}×${a.min_cols || 1}</span>`);
+      (fits ? "" : `<span class="app-req">${appReq(a)}</span>`);
     tile.addEventListener("click", (e) => {
       if (e.target.closest(".app-gear")) { openAppSettings(a.id, a.name); return; }
       if (!fits) return;   // too big for this panel

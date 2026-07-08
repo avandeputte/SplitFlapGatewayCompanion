@@ -1,15 +1,17 @@
 """
-renderer.py — faithful port of splitflap-os's display rendering / normalization.
+renderer.py — display text normalization + per-module "send plan" ordering.
 
-The split-flap protocol, character set, colour-tile mapping, and animation
-orderings here are behaviour-identical ports of splitflap-os
-(CC BY-NC-SA 4.0, csader). Keeping them identical is what lets any splitflap-os
-app render correctly on the companion. See ATTRIBUTION.md.
+The animation orderings and colour-tile mapping are ports of splitflap-os
+(CC BY-NC-SA 4.0, csader); see ATTRIBUTION.md. The companion deliberately does
+**not** model a fixed flap character set: every module can carry a different
+char array, and a module renders a blank for any character it lacks, so the
+companion never validates, maps, or strips the characters it sends — it passes
+each one through verbatim and lets the module decide.
 
 This module is pure logic: it turns a page of text into an ordered "send plan"
-of per-module frames. The actual I/O (MQTT / REST / sim) and inter-step timing
-are handled by the transport + engine layers, so this file stays testable with
-no hardware.
+of per-module frames. The actual I/O (REST / sim) and inter-step timing are
+handled by the transport + engine layers, so this file stays testable with no
+hardware.
 """
 
 from __future__ import annotations
@@ -17,12 +19,8 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-# The physical flap character set, in flap order (index 0..63). Ported verbatim
-# from splitflap-os app.py. Index into this string == the flap's position.
-FLAP_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;q:%'.,/?*roygbpw"
-
 # Emoji colour tiles -> the single-char firmware colour codes (r o y g b p w),
-# black tile -> blank. Ported verbatim from splitflap-os.
+# black tile -> blank. A colour-tile syntax (not character policing).
 COLOR_MAP = {
     "\U0001f7e5": "r",  # 🟥
     "\U0001f7e7": "o",  # 🟧
@@ -44,28 +42,57 @@ ORDERED_STYLES = (
 SPECIAL_STYLES = ("sync", "slot")
 ALL_STYLES = ORDERED_STYLES + SPECIAL_STYLES
 
-
-def char_to_index(ch: str) -> int:
-    """Flap index for a character; unknown chars fall back to 0 (blank)."""
-    idx = FLAP_CHARS.find(ch)
-    return idx if idx != -1 else 0
+# Transient characters for the slot-machine spin effect only — never a "valid
+# set" the display is limited to; a module just blanks any it doesn't carry.
+_SPIN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 
-def normalize(text: str, n: int, *, raw: bool = False, currency: str = "$") -> str:
+def _in_cp1252(s: str) -> bool:
+    try:
+        s.encode("cp1252")
+        return True
+    except UnicodeEncodeError:
+        return False
+
+
+def cp1252_upper(text: str) -> str:
+    """Uppercase for a Windows-1252 display.
+
+    Like ``str.upper()`` but never expands or drops a glyph the modules can show
+    as a single Windows-1252 byte. Notably Python maps ``ß`` -> ``"SS"``, which
+    both loses the ß glyph (0xDF, which the gateway/modules support) and changes
+    the string length; here ß — and any cp1252 character whose uppercase would
+    leave the code page — is kept intact. Accented letters that DO have a cp1252
+    uppercase (é->É, ü->Ü, ç->Ç, …) still uppercase normally.
+    """
+    out = []
+    for c in text:
+        u = c.upper()
+        if len(u) == 1 and _in_cp1252(u):
+            out.append(u)
+        elif _in_cp1252(c):
+            out.append(c)
+        else:
+            out.append(u)
+    return "".join(out)
+
+
+def normalize(text: str, n: int, *, raw: bool = False) -> str:
     """Normalize display text to exactly ``n`` module characters.
 
-    Mirrors splitflap-os send_to_display: uppercase (unless ``raw`` — animation
-    pages keep their lowercase colour codes), emoji tiles -> colour codes,
-    user currency symbol -> ``$`` (the physical flap), ``"`` -> ``q`` (the
-    firmware alias for the double-quote flap), then pad/truncate to ``n``.
+    Uppercase (unless ``raw`` — animation pages keep their lowercase colour
+    codes), map emoji tiles to colour codes, then pad/truncate to ``n``.
+
+    The companion does NOT police characters: every other character — accents,
+    punctuation, quotes, currency symbols, anything — is passed through verbatim.
+    Modules carry their own (possibly per-module) char maps and render a blank
+    for anything they lack, so there's nothing to validate or substitute here.
+    Uppercasing is Windows-1252-aware (see ``cp1252_upper``) so single-byte
+    accents and ``ß`` survive intact.
     """
-    clean = text if raw else text.upper()
+    clean = text if raw else cp1252_upper(text)
     for emoji, code in COLOR_MAP.items():
         clean = clean.replace(emoji, code)
-    currency = (currency or "$").strip()
-    if currency and currency != "$":
-        clean = clean.replace(currency.upper(), "$")
-    clean = clean.replace('"', "q")
     return clean.ljust(n)[:n]
 
 
@@ -195,19 +222,16 @@ def build_send_plan(
     speed_ms: int,
     rows: int,
     cols: int,
-    current_indices: list[int],
 ) -> list[Step]:
     """Turn a normalized page into an ordered list of timed steps.
 
     ``clean_text`` must already be normalized to ``rows*cols`` chars.
-    ``current_indices`` is the last-known flap index per module (or -1 if
-    unknown) and is used only to compute stagger distances for ``sync``.
     """
     n = rows * cols
     step_delay = max(0, speed_ms) / 1000.0
 
     if style == "sync":
-        return _plan_sync(clean_text, n, current_indices)
+        return _plan_sync(clean_text, n)
     if style == "slot":
         return _plan_slot(clean_text, n, effect_speed_ms=speed_ms or 80)
 
@@ -220,35 +244,16 @@ def build_send_plan(
     return steps
 
 
-def _plan_sync(clean_text: str, n: int, current_indices: list[int]) -> list[Step]:
-    """All modules staggered so they arrive at their target simultaneously.
+def _plan_sync(clean_text: str, n: int) -> list[Step]:
+    """All modules update together: emit every frame in a single step.
 
-    Port of send_to_display_sync: total sweep is ~4s (4/64 s per flap step),
-    modules with the shortest distance start last. We convert the continuous
-    stagger into discrete steps by delaying between successive sends.
+    A true "arrive at the same instant" stagger would need each module's flap
+    layout and per-character flip distance — which the companion no longer models
+    (modules own their char maps and flip concurrently). Sending them together is
+    the layout-agnostic equivalent and needs no character-set knowledge.
     """
-    dists = []
-    for i in range(n):
-        ch = clean_text[i] if i < len(clean_text) else " "
-        target = char_to_index(ch)
-        current = 0 if current_indices[i] == -1 else current_indices[i]
-        dist = (target - current) % 64
-        dists.append((i, ch, dist))
-
-    max_dist = max((d[2] for d in dists), default=0)
-    # Longest distance first (starts immediately); shortest last.
-    dists_sorted = sorted(dists, key=lambda x: -x[2])
-
-    steps: list[Step] = []
-    prev_start = 0.0
-    for i, ch, dist in dists_sorted:
-        start = (max_dist - dist) * (4.0 / 64.0)
-        # Wait the gap since the previous module's send before emitting this one.
-        if steps:
-            steps[-1].delay_after = max(0.0, start - prev_start)
-        steps.append(Step(frames=[(i, ch)], delay_after=0.0))
-        prev_start = start
-    return steps
+    frames = [(i, clean_text[i]) for i in range(n) if i < len(clean_text)]
+    return [Step(frames=frames, delay_after=0.0)]
 
 
 def _plan_slot(clean_text: str, n: int, effect_speed_ms: int) -> list[Step]:
@@ -256,12 +261,10 @@ def _plan_slot(clean_text: str, n: int, effect_speed_ms: int) -> list[Step]:
     spin_chars: list[str] = []
     for i in range(n):
         ch = clean_text[i] if i < len(clean_text) else " "
-        target = char_to_index(ch)
-        # Candidate spin chars exclude the 4 trailing colour codes and the target.
-        candidates = [
-            c for c in FLAP_CHARS[1: len(FLAP_CHARS) - 4] if char_to_index(c) != target
-        ]
-        spin_chars.append(random.choice(candidates) if candidates else FLAP_CHARS[1])
+        # Spin chars are drawn from a generic set (not any module's real map) and
+        # simply differ from the target; a module blanks any it doesn't carry.
+        candidates = [c for c in _SPIN_CHARS if c != ch]
+        spin_chars.append(random.choice(candidates) if candidates else _SPIN_CHARS[0])
 
     steps: list[Step] = []
     # Phase 1: everyone spins at once, then hold 1.5s.

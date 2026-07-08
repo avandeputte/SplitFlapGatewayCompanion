@@ -1,0 +1,55 @@
+# Build the multi-arch companion image (linux/amd64 + linux/arm64) and push it
+# to this repo's GitHub Container Registry. No secrets to configure — the
+# built-in GITHUB_TOKEN authenticates the push.
+#
+# Runs when you push a version tag (e.g. `git tag v0.1.0 && git push --tags`)
+# or when you trigger it by hand from the Actions tab.
+name: Publish container image
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image coordinates
+        id: meta
+        run: |
+          echo "version=$(tr -d ' \t\n\r' < VERSION)" >> "$GITHUB_OUTPUT"
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}"    >> "$GITHUB_OUTPUT"
+
+      # QEMU lets the amd64 runner cross-build the arm64 layer.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.owner }}/splitflap-gateway-companion:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ steps.meta.outputs.owner }}/splitflap-gateway-companion:latest
+          labels: |
+            org.opencontainers.image.title=SplitFlap Gateway Companion
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=CC-BY-NC-SA-4.0
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

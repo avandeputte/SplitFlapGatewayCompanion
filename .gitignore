@@ -6,7 +6,7 @@ venv/
 *.egg-info/
 .pytest_cache/
 
-# Runtime data (config + state volume)
+# Runtime data volume (app settings, playlists, triggers, uploaded apps)
 /data/
 
 # Node (later phases)

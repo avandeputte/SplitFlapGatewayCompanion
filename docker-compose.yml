@@ -1,7 +1,13 @@
 services:
   companion:
+    # Prefer the published multi-arch image from GitHub Container Registry
+    # (works on x86 and arm64 — Raspberry Pi, Apple Silicon — automatically).
+    #   docker compose pull && docker compose up -d
+    # Set GHCR_OWNER (your GitHub user/org) in .env; pin a release with
+    # COMPANION_TAG. `build: .` is kept as a fallback so `docker compose build`
+    # still works for local development without the registry.
+    image: ghcr.io/${GHCR_OWNER:-your-github-username}/splitflap-gateway-companion:${COMPANION_TAG:-latest}
     build: .
-    image: splitflap-gateway-companion:latest
     container_name: splitflap-companion
     ports:
       - "8000:8000"
@@ -10,9 +16,11 @@ services:
     restart: unless-stopped
     environment:
       # The gateway is the source of truth: grid size + MQTT broker/port/user/
-      # prefix are pulled from its /api/config. Normally you only set these two:
-      COMPANION_GATEWAY_URL: "http://splitflap-gateway.local"
-      COMPANION_TRANSPORT: "sim"          # sim | mqtt | rest
+      # prefix are pulled from its /api/config. There is no config file — normally
+      # this URL is the only thing you set:
+      GATEWAY_URL: "http://192.168.1.50"   # REQUIRED — the app refuses to start without it
+      # The companion always talks to the gateway over REST (/api/rs485/batch);
+      # there is no transport setting. MQTT below is only for Home Assistant.
       # This companion's own URL, registered with the gateway (v3.0+) so it shows
       # a "Companion" tab linking back here:
       # COMPANION_PUBLIC_URL: "http://companion-host:8000"

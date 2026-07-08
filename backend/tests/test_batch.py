@@ -1,6 +1,7 @@
 """REST batch transport + engine batch path (Gateway 3.0+; no legacy fallback)."""
 
 import asyncio
+import json
 
 import pytest
 
@@ -25,8 +26,9 @@ class FakeHttp:
         self.status = status
         self.calls = []
 
-    async def post(self, url, json=None, timeout=None):
-        self.calls.append((url, json))
+    async def post(self, url, json=None, content=None, headers=None, timeout=None):
+        # The transport now sends a Windows-1252-encoded body via `content=`.
+        self.calls.append({"url": url, "content": content, "headers": headers})
         return FakeResp(self.status)
 
 
@@ -39,11 +41,28 @@ def _rest(status=200):
 def test_send_batch_one_request_per_page():
     t = _rest(200)
     asyncio.run(t.send_batch([(0, "A"), (1, "B"), (2, "y")], 15))
-    url, payload = t._client.calls[0]
-    assert url == "/api/rs485/batch"
+    call = t._client.calls[0]
+    assert call["url"] == "/api/rs485/batch"
+    payload = json.loads(call["content"].decode("cp1252"))
     assert payload["frames"] == ["m00-A\n", "m01-B\n", "m02-y\n"]
     assert payload["step_ms"] == 15
     assert t.connected is True
+
+
+def test_send_batch_encodes_accents_as_windows_1252():
+    """Accented characters must reach the gateway as single cp1252 bytes."""
+    t = _rest(200)
+    asyncio.run(t.send_batch([(0, "É"), (1, "Ü"), (2, "ß")], 0))
+    body = t._client.calls[0]["content"]
+    assert isinstance(body, bytes)
+    # Each accent is a single cp1252 byte after the "mNN-" prefix (the trailing
+    # newline is JSON-escaped as \n, so it isn't matched here).
+    assert b"m00-\xc9" in body   # É -> 0xC9
+    assert b"m01-\xdc" in body   # Ü -> 0xDC
+    assert b"m02-\xdf" in body   # ß -> 0xDF
+    # and NOT the UTF-8 two-byte form of É
+    assert b"\xc3\x89" not in body
+    assert "windows-1252" in t._client.calls[0]["headers"]["Content-Type"]
 
 
 def test_send_batch_raises_on_error():
