@@ -18,7 +18,8 @@ companion registers itself so a **Companion** tab appears on the gateway.
 The content apps are the **plugin library from
 [csader/splitflap-os](https://github.com/csader/splitflap-os)**, reused through a
 **behavior-identical plugin runtime** so any splitflap-os app drops in unchanged.
-See [COMPATIBILITY.md](COMPATIBILITY.md) and [ATTRIBUTION.md](ATTRIBUTION.md).
+Want to build your own? **[WRITING_APPS.md](WRITING_APPS.md)** is a full guide.
+See also [COMPATIBILITY.md](COMPATIBILITY.md) and [ATTRIBUTION.md](ATTRIBUTION.md).
 
 > **License:** CC BY-NC-SA 4.0 (non-commercial, share-alike, attribution) — this
 > is a derivative of splitflap-os. See [LICENSE](LICENSE).
@@ -27,7 +28,8 @@ See [COMPATIBILITY.md](COMPATIBILITY.md) and [ATTRIBUTION.md](ATTRIBUTION.md).
 
 ## Status — feature-complete
 
-All six build phases are done. What's here:
+Feature-complete and running on real hardware (Gateway 3.0 + physical split-flap
+modules), with a gateway-free `sim` mode for development. What's here:
 
 - **Apps** — all **46 vendored splitflap-os apps** (functional + channel), loaded
   through a behavior-identical runtime and **drop-in compatible** (a conformance
@@ -183,8 +185,10 @@ Set rows/cols/base to match how your modules are provisioned in the gateway.
 
 **App Library → Upload** takes a `.zip` of an app folder — `manifest.json` plus
 `app.py` (functional) or `data.json` (channel), the same format as the built-in
-apps (see [COMPATIBILITY.md](COMPATIBILITY.md) and
-[the splitflap-os app guide](https://github.com/csader/splitflap-os/blob/main/APPS_README.md)).
+apps. **See [WRITING_APPS.md](WRITING_APPS.md) for a complete guide** to building
+your own (every file, the `fetch()` ABI, settings fields, triggers and
+animations); [COMPATIBILITY.md](COMPATIBILITY.md) is the formal compatibility
+contract with [splitflap-os](https://github.com/csader/splitflap-os/blob/main/APPS_README.md).
 The upload is validated (manifest + a functional app's `fetch()` must import),
 written to `<data_dir>/apps/<id>/` (so it survives restarts and image upgrades,
 separate from the vendored `apps/`), enabled, and loaded immediately. Uploaded
@@ -211,17 +215,3 @@ message and reporting the display content, so those aren't duplicated:
 So an HA automation can start an app or run a playlist on any trigger, and
 dashboards can read which app/playlist is active from the select states. The
 option lists update automatically as you install apps or save playlists.
-
----
-
-## Roadmap
-
-1. ✅ **End-to-end slice** — compose → frames → gateway (REST batch) + preview.
-2. ✅ **Plugin runtime + all apps** (drop-in compatible) + Apps tab + library + settings.
-3. ✅ **Playlists + schedules + triggers**.
-4. ✅ **Full settings renderer + app-data helper endpoints** (search_chips).
-5. ✅ **Gateway reverse-proxy "Display" tab** + live status.
-6. ✅ **Packaging + docs**.
-
-Runs against real hardware (Gateway 3.0 + physical split-flap modules) and, for
-development without a gateway, in `sim` mode.
