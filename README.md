@@ -83,7 +83,7 @@ Silicon) — Docker pulls the right architecture automatically:
 ```bash
 docker run -d --name splitflap-companion -p 8000:8000 \
   -e GATEWAY_URL=http://192.168.1.50 -v companion-data:/data \
-  ghcr.io/<owner>/splitflap-gateway-companion:latest
+  ghcr.io/avandeputte/splitflap-gateway-companion:latest
 ```
 
 Or with compose — set `GHCR_OWNER` in `.env`, then:

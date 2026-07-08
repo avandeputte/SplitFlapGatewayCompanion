@@ -6,7 +6,7 @@ services:
     # Set GHCR_OWNER (your GitHub user/org) in .env; pin a release with
     # COMPANION_TAG. `build: .` is kept as a fallback so `docker compose build`
     # still works for local development without the registry.
-    image: ghcr.io/${GHCR_OWNER:-your-github-username}/splitflap-gateway-companion:${COMPANION_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER:-avandeputte}/splitflap-gateway-companion:${COMPANION_TAG:-latest}
     build: .
     container_name: splitflap-companion
     ports:
