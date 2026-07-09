@@ -100,6 +100,71 @@ async def post_companion(gateway_url: str, *, url: str | None = None,
         return False
 
 
+def gateway_version(gw: dict) -> tuple[int, int] | None:
+    """(major, minor) parsed from a gateway /api/config document, or None."""
+    import re
+
+    raw = gw.get("version") or gw.get("firmwareVersion") or gw.get("fw") or ""
+    m = re.search(r"(\d+)\.(\d+)", str(raw))
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def supports_settings(gw: dict) -> bool:
+    """Whether the gateway can store the companion's settings (Gateway 3.1+)."""
+    v = gateway_version(gw)
+    return v is not None and v >= (3, 1)
+
+
+# --- companion settings blob, stored on the gateway (3.1+), gzipped -----------
+# These are synchronous (they run in a background debounce thread and at startup),
+# unlike the async helpers above. Contract with the gateway firmware:
+#   GET  /api/companion/settings -> 200 + gzipped JSON body, or 404/204 when none
+#   PUT  /api/companion/settings <- gzipped JSON body (store atomically), 2xx on ok
+
+def fetch_gateway_settings(url: str, timeout: float = 8.0) -> dict | None:
+    """Fetch + decompress the stored settings doc, or None (nothing stored / error)."""
+    import gzip
+    import json
+
+    import httpx
+
+    base = url.rstrip("/")
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            r = client.get(f"{base}/api/companion/settings")
+        if r.status_code != 200 or not r.content:
+            return None
+        raw = r.content
+        try:
+            raw = gzip.decompress(raw)
+        except (OSError, EOFError):
+            pass   # tolerate an uncompressed body
+        doc = json.loads(raw.decode("utf-8"))
+        return doc if isinstance(doc, dict) else None
+    except Exception as e:
+        log.warning("could not fetch settings from gateway: %s", e)
+        return None
+
+
+def push_gateway_settings(url: str, doc: dict, timeout: float = 8.0) -> bool:
+    """Compress + PUT the settings doc to the gateway. Best-effort (returns success)."""
+    import gzip
+    import json
+
+    import httpx
+
+    base = url.rstrip("/")
+    try:
+        body = gzip.compress(json.dumps(doc, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), 6)
+        with httpx.Client(timeout=timeout) as client:
+            r = client.put(f"{base}/api/companion/settings", content=body,
+                           headers={"Content-Type": "application/gzip"})
+        return r.status_code < 400
+    except Exception as e:
+        log.warning("could not push settings to gateway: %s", e)
+        return False
+
+
 def build_sync_patch(gw: dict) -> dict:
     """Map a gateway /api/config document to a companion config patch.
 

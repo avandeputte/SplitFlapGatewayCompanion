@@ -51,6 +51,13 @@ DEFAULTS: dict = {
     # Pull grid geometry + MQTT broker from the gateway's own /api/config on
     # startup (the gateway is the source of truth for hardware config).
     "sync_from_gateway": True,
+    # Where the companion's settings live (needs Gateway 3.1+ for the gateway):
+    #   "mirror"  — local file is primary, mirrored to the gateway (gzipped) on
+    #               change; a fresh host with no local file restores from the gateway.
+    #   "local"   — local file only, never touches the gateway (pre-3.1 behavior).
+    #   "gateway" — stored ONLY on the gateway, nothing written locally.
+    # Set via COMPANION_SETTINGS_STORE. On a pre-3.1 gateway this degrades to local.
+    "settings_store": "mirror",
     # This companion's own public URL, registered with the gateway (v3.0) so the
     # gateway can show a "Companion" tab linking back here. Blank = auto-detect
     # this host's LAN IP + port. Set via COMPANION_PUBLIC_URL to override.
@@ -94,6 +101,11 @@ def _env_overrides() -> dict:
 
     if "COMPANION_SYNC_FROM_GATEWAY" in e:
         ov["sync_from_gateway"] = e["COMPANION_SYNC_FROM_GATEWAY"].lower() in ("1", "true", "yes", "on")
+    if "COMPANION_SETTINGS_STORE" in e:
+        v = e["COMPANION_SETTINGS_STORE"].strip().lower()
+        # tolerant aliases: off/none/no -> local, only -> gateway
+        v = {"off": "local", "none": "local", "no": "local", "only": "gateway"}.get(v, v)
+        ov["settings_store"] = v if v in ("mirror", "local", "gateway") else "mirror"
     if "COMPANION_PUBLIC_URL" in e:
         ov["companion_url"] = e["COMPANION_PUBLIC_URL"]
     if "COMPANION_HOST" in e:

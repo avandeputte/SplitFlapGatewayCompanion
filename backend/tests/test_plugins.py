@@ -528,6 +528,80 @@ def test_perapp_location_override(tmp_path):
     assert ps["location_name"] == "Tokyo"
 
 
+def test_gateway_settings_version_gate():
+    """Settings-on-gateway needs Gateway 3.1+; older/unknown versions are rejected."""
+    from app import gateway
+    assert gateway.gateway_version({"version": "3.1.0"}) == (3, 1)
+    assert gateway.gateway_version({"firmwareVersion": "3.0.9"}) == (3, 0)
+    assert gateway.gateway_version({}) is None
+    assert gateway.supports_settings({"version": "3.1.4"}) is True
+    assert gateway.supports_settings({"version": "3.0.9"}) is False   # backward compat: no 3.0 mirror
+    assert gateway.supports_settings({}) is False
+
+
+def test_settings_mirror_push_and_restore(tmp_path):
+    """Mirror mode keeps a local file and pushes a debounced, coalesced blob; a
+    gateway doc can restore the whole store."""
+    from app.plugin_settings import PluginSettings
+    ps = PluginSettings(tmp_path)
+    pushed = []
+    ps.attach_gateway_sync(lambda doc: pushed.append(doc) or True, debounce=60)  # won't auto-fire in-test
+    ps.set("language", "fr")
+    assert (tmp_path / "app_settings.json").exists()          # local copy kept in mirror mode
+    assert ps.flush() is True and pushed[-1]["global"]["language"] == "fr"
+    pushed.clear()
+    ps.set("timezone", "Europe/Paris"); ps.set("plugin_weather_temperature_unit", "c")
+    ps.flush()
+    assert len(pushed) == 1                                    # coalesced to a single push
+    ps.restore_from_doc({"global": {"language": "de"}, "installed_apps": ["weather"]})
+    assert ps.get("language") == "de" and ps.installed_apps == ["weather"]
+
+
+def test_gateway_settings_http_roundtrip():
+    """The gzipped GET/PUT wire format (the contract Gateway 3.1 implements) round-trips."""
+    import http.server
+    import threading
+    from app import gateway
+    store = {"blob": None}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            if self.path == "/api/companion/settings" and store["blob"] is not None:
+                self.send_response(200); self.end_headers(); self.wfile.write(store["blob"])
+            else:
+                self.send_response(404); self.end_headers()
+
+        def do_PUT(self):
+            n = int(self.headers.get("Content-Length", "0"))
+            store["blob"] = self.rfile.read(n)
+            self.send_response(204); self.end_headers()
+
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        assert gateway.fetch_gateway_settings(url) is None            # nothing stored yet
+        doc = {"global": {"language": "fr"}, "installed_apps": ["weather"]}
+        assert gateway.push_gateway_settings(url, doc) is True
+        assert store["blob"][:2] == b"\x1f\x8b"                       # stored gzipped
+        assert gateway.fetch_gateway_settings(url) == doc            # round-trips
+    finally:
+        srv.shutdown()
+
+
+def test_settings_gateway_only_writes_nothing_local(tmp_path):
+    from app.plugin_settings import PluginSettings
+    ps = PluginSettings(tmp_path)
+    ps.attach_gateway_sync(lambda doc: True, debounce=60)
+    ps.set_gateway_only()
+    ps.set("language", "es")
+    assert not (tmp_path / "app_settings.json").exists()      # nothing local
+    assert ps.has_local() is False and ps.get("language") == "es"
+
+
 def test_language_pinned_to_top_of_global_settings(tmp_path):
     rt = _runtime(tmp_path, [])
     fields = rt.global_settings_schema()["fields"]

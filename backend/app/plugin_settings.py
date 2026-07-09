@@ -79,13 +79,19 @@ def _defaults() -> dict:
 
 
 class PluginSettings:
-    def __init__(self, data_dir: Path):
+    def __init__(self, data_dir: Path, *, local_persist: bool = True):
         self.path = Path(data_dir) / "app_settings.json"
         self._lock = threading.Lock()
         self._data = _defaults()
         self._app_ids: set[str] = set()    # set by the runtime for tidy per-app nesting
         self._list_keys: set[str] = set()  # keys stored as JSON arrays (multi-value)
-        if self.path.exists():
+        # Gateway-mirror sync state (attach_gateway_sync wires the pusher).
+        self._local_persist = local_persist      # False = gateway-only (nothing local)
+        self._pusher = None                       # callable(nested_doc) -> bool
+        self._debounce = 3.0
+        self._timer: threading.Timer | None = None
+        self._dirty = False
+        if local_persist and self.path.exists():
             try:
                 self._data.update(self._from_nested(json.loads(self.path.read_text("utf-8"))))
             except (json.JSONDecodeError, OSError) as e:
@@ -182,16 +188,92 @@ class PluginSettings:
         return doc
 
     def _save(self) -> None:
-        """Persist atomically: write a sibling temp file, fsync, then rename over
-        the target. A crash/kill mid-write leaves the previous good file intact
-        instead of a truncated JSON that would reset all settings on next start."""
-        data = json.dumps(self._to_nested(), indent=2, ensure_ascii=False)
+        """A settings mutation: persist locally (unless gateway-only) and schedule a
+        debounced push to the gateway mirror if one is attached."""
+        if self._local_persist:
+            self._write_raw_doc(self._to_nested())
+        self._dirty = True
+        self._schedule_push()
+
+    def _write_raw_doc(self, doc: dict) -> None:
+        """Write a nested settings doc atomically: temp file, fsync, rename over the
+        target. A crash/kill mid-write leaves the previous good file intact instead
+        of a truncated JSON that would reset all settings on next start."""
+        data = json.dumps(doc, indent=2, ensure_ascii=False)
         tmp = self.path.with_name(self.path.name + ".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, self.path)
+
+    # -- gateway mirror ----------------------------------------------------
+    def attach_gateway_sync(self, pusher, debounce: float = 3.0) -> None:
+        """Register a push callback (nested_doc -> bool) called, debounced, after
+        changes. Used to mirror settings onto the gateway (Gateway 3.1+)."""
+        self._pusher = pusher
+        self._debounce = max(0.0, float(debounce))
+
+    def restore_from_doc(self, doc: dict) -> None:
+        """Replace the store from a gateway-provided nested doc (boot restore on a
+        fresh host / gateway-only mode). Writes the local cache verbatim (it's
+        already nested) without marking the store dirty — it just came from there."""
+        with self._lock:
+            self._data = _defaults()
+            self._data.update(self._from_nested(doc))
+            if self._local_persist:
+                try:
+                    self._write_raw_doc(doc)
+                except OSError as e:
+                    log.warning("could not cache restored settings locally: %s", e)
+
+    def has_local(self) -> bool:
+        """Whether a non-empty local settings file exists (a fresh host has none)."""
+        try:
+            return self._local_persist and self.path.exists() and self.path.stat().st_size > 0
+        except OSError:
+            return False
+
+    def set_gateway_only(self) -> None:
+        """Switch to gateway-only storage: stop writing locally and drop any cache."""
+        self._local_persist = False
+        try:
+            self.path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    def sync_now(self) -> None:
+        """Mark the store dirty and schedule a push (e.g. to seed an empty gateway)."""
+        self._dirty = True
+        self._schedule_push()
+
+    def _schedule_push(self) -> None:
+        if self._pusher is None:
+            return
+        if self._timer is not None:
+            self._timer.cancel()
+        self._timer = threading.Timer(self._debounce, self.flush)
+        self._timer.daemon = True
+        self._timer.start()
+
+    def flush(self) -> bool:
+        """Push the current settings to the gateway now if there's anything pending.
+        Called by the debounce timer, a periodic retry, and at shutdown. Returns
+        True if nothing is pending or the push succeeded."""
+        if self._pusher is None:
+            return True
+        with self._lock:
+            if not self._dirty:
+                return True
+            doc = self._to_nested()
+        try:
+            ok = bool(self._pusher(doc))
+        except Exception as e:
+            log.warning("settings push to gateway failed: %s", e)
+            ok = False
+        if ok:
+            self._dirty = False
+        return ok
 
     def all(self) -> dict:
         with self._lock:

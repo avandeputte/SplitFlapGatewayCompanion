@@ -29,6 +29,10 @@ services:
       # COMPANION_MQTT_PASSWORD: ""
       COMPANION_MODULE_ID_BASE: "0"       # companion-owned; module id of grid index 0
       # COMPANION_SYNC_FROM_GATEWAY: "true"
+      # Where settings live (needs Gateway 3.1+): mirror (default) | local | gateway.
+      # "mirror" lets a fresh companion on a new host restore its settings from the
+      # gateway; "gateway" keeps nothing on disk. Degrades to local on a 3.0 gateway.
+      # COMPANION_SETTINGS_STORE: "mirror"
       # Home Assistant: auto (follow the gateway) | true | false
       COMPANION_HA: "auto"
       # --- Manual overrides (only if you do NOT want to read from the gateway) ---

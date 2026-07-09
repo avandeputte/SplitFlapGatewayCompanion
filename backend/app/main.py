@@ -23,7 +23,9 @@ from pydantic import BaseModel
 from . import __version__, helpers, renderer, weather
 from .config import Config
 from .engine import DisplayController
-from .gateway import build_sync_patch, detect_local_ip, fetch_gateway_config, post_companion
+from .gateway import (build_sync_patch, detect_local_ip, fetch_gateway_config,
+                      fetch_gateway_settings, post_companion, push_gateway_settings,
+                      supports_settings)
 from .homeassistant import HomeAssistant
 from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
@@ -109,6 +111,69 @@ def resolve_companion_url() -> str:
     return f"http://{ip}:{int(config.effective.get('port', 8000))}" if ip else ""
 
 
+async def setup_settings_sync() -> None:
+    """Wire settings storage per COMPANION_SETTINGS_STORE (needs Gateway 3.1+):
+      * local   — nothing to do (the default local file is authoritative).
+      * mirror  — mirror local settings onto the gateway; a fresh host with no local
+                  file restores from the gateway, and an empty gateway is seeded.
+      * gateway — the gateway is authoritative: load from it, stop writing locally.
+    On a pre-3.1 (or unreachable) gateway this degrades to local, so the companion
+    stays backward compatible with Gateway 3.0."""
+    mode = config.effective.get("settings_store", "mirror")
+    url = (config.transport.get("gateway_url") or "").strip()
+    if mode == "local" or not url:
+        return
+    try:
+        gw = await fetch_gateway_config(url)
+    except Exception as e:
+        gw = None
+        log.info("settings sync: could not reach gateway to check version: %s", e)
+    if not (gw and supports_settings(gw)):
+        if mode == "gateway":
+            log.warning("COMPANION_SETTINGS_STORE=gateway needs Gateway 3.1+; this gateway is "
+                        "older or unreachable — falling back to LOCAL settings.")
+        else:
+            log.info("settings sync: gateway is pre-3.1 (or unreachable) — settings stay local.")
+        return
+
+    def _pusher(doc: dict) -> bool:
+        return push_gateway_settings(url, doc)
+
+    debounce = float(config.effective.get("settings_debounce", 3.0))
+    if mode == "gateway":
+        remote = await asyncio.to_thread(fetch_gateway_settings, url)
+        if remote is not None:
+            plugin_settings.restore_from_doc(remote)
+        plugin_settings.set_gateway_only()               # nothing local
+        plugin_settings.attach_gateway_sync(_pusher, debounce)
+        if remote is None:
+            plugin_settings.sync_now()                   # seed the empty gateway
+        log.info("settings: stored ONLY on the gateway (3.1+)")
+    else:  # mirror
+        plugin_settings.attach_gateway_sync(_pusher, debounce)
+        has_local = plugin_settings.has_local()
+        remote = await asyncio.to_thread(fetch_gateway_settings, url)
+        if not has_local and remote is not None:
+            plugin_settings.restore_from_doc(remote)
+            log.info("settings: restored from gateway (fresh host); mirroring enabled")
+        elif has_local and remote is None:
+            plugin_settings.sync_now()                   # seed the empty gateway from local
+            log.info("settings: mirroring to gateway (seeding it from local)")
+        else:
+            log.info("settings: local primary, mirroring to gateway enabled")
+
+
+async def _settings_flush_loop() -> None:
+    """Periodically retry a pending settings push (covers a gateway that was briefly
+    unreachable when a change happened)."""
+    while True:
+        await asyncio.sleep(30)
+        try:
+            await asyncio.to_thread(plugin_settings.flush)
+        except Exception:
+            pass
+
+
 def companion_status_string() -> str:
     """Short human status for the gateway's status page."""
     if controller.active_app:
@@ -181,6 +246,9 @@ async def lifespan(app: FastAPI):
             gw_ha = res.get("gateway", {}).get("haEnabled")
         else:
             log.info("gateway sync skipped at startup: %s", res.get("error"))
+    # Settings storage (mirror / gateway-only) — before plugins.load() so a list of
+    # installed apps restored from the gateway drives what gets loaded.
+    await setup_settings_sync()
     plugins.load()
     log.info("loaded %d app plugins", len(plugins.app_list()))
     scheduler.start()
@@ -204,9 +272,16 @@ async def lifespan(app: FastAPI):
         # If we auto-detected our URL, verify it's actually reachable.
         if not (config.effective.get("companion_url") or "").strip():
             tasks.append(asyncio.create_task(_verify_reachable(companion_url)))
+    # Retry pending settings pushes if the gateway was briefly unreachable.
+    tasks.append(asyncio.create_task(_settings_flush_loop()))
 
     yield
 
+    # Flush any pending settings to the gateway before shutting down.
+    try:
+        await asyncio.to_thread(plugin_settings.flush)
+    except Exception:
+        pass
     # Deregister on shutdown; cancel background tasks and let them unwind.
     for t in tasks:
         t.cancel()

@@ -199,6 +199,7 @@ gateway if set). Note `<data_dir>` is still a Docker volume — it holds your
 | `COMPANION_GRID_ROWS` / `COMPANION_GRID_COLS` | Manual panel-size override | *(from gateway)* |
 | `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | Manual MQTT overrides | *(from gateway)* |
 | `COMPANION_DATA_DIR` | Where app settings, playlists, triggers + uploaded apps live (no config) | `<repo>/data` |
+| `COMPANION_SETTINGS_STORE` | Where settings live (Gateway 3.1+): `mirror` \| `local` \| `gateway` — see [Settings storage](#settings-storage-gateway-31) | `mirror` |
 | `COMPANION_DEV_MODE` | Show a **⚙ Dev** menu: toggle simulation mode (nothing sent to the display), force a gateway resync, and override the grid geometry while simulating | `off` |
 
 > **Why no gateway firmware change?** The gateway (v2.1+) already exposes
@@ -206,6 +207,38 @@ gateway if set). Note `<data_dir>` is still a Docker volume — it holds your
 > `GET /api/config`, so the companion just reads them. The MQTT **password** is
 > intentionally *not* exposed by the gateway — supply it once in the companion
 > (or leave blank for an anonymous broker).
+
+### Settings storage (Gateway 3.1+)
+
+By default the companion keeps its settings, playlists and triggers in
+`<data_dir>/app_settings.json`. With **Gateway 3.1+** it can also keep them **on the
+gateway**, so a companion container is effectively stateless — spin one up on any
+host and it inherits the settings from the gateway. `COMPANION_SETTINGS_STORE`:
+
+- **`mirror`** (default) — the local file stays primary, and every change is mirrored
+  to the gateway (gzipped, **debounced** so a burst of edits is one write). A fresh
+  host with no local file **restores from the gateway** on boot; an empty gateway is
+  seeded from the local copy.
+- **`local`** — local file only; the gateway is never touched (identical to pre-3.1).
+- **`gateway`** — stored **only** on the gateway, nothing written locally (a truly
+  diskless companion; it loads from the gateway on boot and writes back on change).
+
+It's **backward compatible**: on a **Gateway 3.0** (or an unreachable gateway) the
+companion never attempts to mirror — `mirror` and `gateway` both quietly fall back to
+local. Settings are tiny (~1–2 KB gzipped even fully loaded), so this costs the
+gateway negligible flash; writes are debounced to be gentle on it. *Uploaded custom
+apps still live in `<data_dir>/apps/` — only the settings blob moves.*
+
+**Gateway firmware contract (3.1).** To support this, the gateway exposes a version
+in `GET /api/config` (`"version": "3.1.x"`) and a small blob store:
+
+| Endpoint | Behavior |
+|---|---|
+| `GET /api/companion/settings` | Return the stored gzipped JSON body (`200`), or `404`/`204` when nothing is stored yet |
+| `PUT /api/companion/settings` | Store the gzipped JSON request body (write atomically); reply `2xx` |
+
+The body is `gzip(minified-JSON)`; the companion decompresses on read and compresses
+on write. Store it verbatim — the companion owns the schema.
 
 ### Transport — always REST
 
