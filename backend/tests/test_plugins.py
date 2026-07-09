@@ -6,6 +6,9 @@ a valid manifest, and either a functional app.py exposing fetch() or a channel
 data.json. If this breaks, a vendored (or dropped-in) app would fail to run.
 """
 
+import io
+import json
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -24,6 +27,26 @@ def _runtime(tmp_path, installed):
     rt = PluginRuntime(cfg, ps, APPS_DIR)
     rt.load()
     return rt
+
+
+def _upload_runtime(tmp_path):
+    """A runtime whose user-apps dir is isolated in tmp (so uploads never touch
+    the repo's apps/)."""
+    rt = PluginRuntime(Config(data_dir=tmp_path), PluginSettings(tmp_path),
+                       APPS_DIR, user_apps_dir=tmp_path / "user_apps")
+    rt.load()
+    return rt
+
+
+def _make_app_zip(app_id, manifest, *, app_py=None, data_json=None):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr(f"{app_id}/manifest.json", json.dumps(manifest))
+        if app_py is not None:
+            z.writestr(f"{app_id}/app.py", app_py)
+        if data_json is not None:
+            z.writestr(f"{app_id}/data.json", json.dumps(data_json))
+    return buf.getvalue()
 
 
 def test_apps_directory_populated():
@@ -242,6 +265,81 @@ def test_anim_style_and_speed_are_per_app(tmp_path):
     assert abs(rt.loop_delay("anim_rainbow") - 0.2) < 1e-9
     # a different animation is unaffected (its own default)
     assert rt.page_timing("anim_sweep")["style"] == "ltr"
+
+
+# -- upload validation / hardening -------------------------------------------
+
+def test_upload_rejects_malicious_app(tmp_path):
+    """A functional app using disallowed operations is rejected before install,
+    with the reason(s) in the message."""
+    rt = _upload_runtime(tmp_path)
+    z = _make_app_zip("evil", {"name": "Evil", "type": "functional"},
+                      app_py="import subprocess\n"
+                             "def fetch(s, f, r, c):\n"
+                             "    subprocess.run(['id'])\n"
+                             "    return ['x']\n")
+    with pytest.raises(ValueError) as ei:
+        rt.install_zip(z, enable=False)
+    msg = str(ei.value)
+    assert "subprocess" in msg and "not allowed" in msg
+    assert not (tmp_path / "user_apps" / "evil").exists()   # nothing installed
+
+
+def test_upload_rejects_env_and_eval(tmp_path):
+    rt = _upload_runtime(tmp_path)
+    z = _make_app_zip("sneaky", {"name": "Sneaky", "type": "functional"},
+                      app_py="import os\n"
+                             "def fetch(s, f, r, c):\n"
+                             "    return [str(eval(s.get('x', '1'))) + str(os.environ)]\n")
+    with pytest.raises(ValueError) as ei:
+        rt.install_zip(z, enable=False)
+    assert "eval" in str(ei.value) or "environ" in str(ei.value)
+
+
+def test_upload_rejects_app_without_fetch(tmp_path):
+    rt = _upload_runtime(tmp_path)
+    z = _make_app_zip("nofetch", {"name": "NoFetch", "type": "functional"},
+                      app_py="X = 1\n")
+    with pytest.raises(ValueError, match="fetch"):
+        rt.install_zip(z, enable=False)
+
+
+def test_upload_rejects_bad_channel(tmp_path):
+    rt = _upload_runtime(tmp_path)
+    z = _make_app_zip("chan", {"name": "Chan", "type": "channel"}, data_json={"pages": []})
+    with pytest.raises(ValueError, match="pages"):
+        rt.install_zip(z, enable=False)
+
+
+def test_upload_scopes_undeclared_settings_into_manifest(tmp_path):
+    """A clean app is installed, and a non-global setting it reads but never
+    declares is auto-declared as an app-level setting in the manifest."""
+    rt = _upload_runtime(tmp_path)
+    z = _make_app_zip("widget", {"name": "Widget", "type": "functional", "settings": []},
+                      app_py="def fetch(s, f, r, c):\n"
+                             "    n = int(s.get('widget_count', '3'))\n"
+                             "    return [f('X' * n)]\n")
+    rt.install_zip(z, enable=True)
+    manifest = json.loads((tmp_path / "user_apps" / "widget" / "manifest.json").read_text())
+    keys = {st["key"] for st in manifest.get("settings", [])}
+    assert "widget_count" in keys                       # auto-declared app-level
+    # and it resolves per-app (never global) when read
+    fields = {f["key"] for f in rt.settings_schema("widget")["fields"]}
+    assert "plugin_widget_widget_count" in fields
+
+
+def test_upload_drops_misleading_global_key_flag(tmp_path):
+    """A non-catalog setting marked global_key is genuinely app-level; the upload
+    rewrites the manifest to drop the misleading flag."""
+    rt = _upload_runtime(tmp_path)
+    z = _make_app_zip("flagged", {"name": "Flagged", "type": "functional",
+                                  "settings": [{"key": "my_opt", "type": "text",
+                                                "global_key": True}]},
+                      app_py="def fetch(s, f, r, c):\n    return [f(s.get('my_opt', ''))]\n")
+    rt.install_zip(z, enable=True)
+    manifest = json.loads((tmp_path / "user_apps" / "flagged" / "manifest.json").read_text())
+    opt = next(st for st in manifest["settings"] if st["key"] == "my_opt")
+    assert "global_key" not in opt
 
 
 def test_grid_change_clears_page_caches(tmp_path):

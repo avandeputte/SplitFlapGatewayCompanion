@@ -388,6 +388,7 @@ async function openGlobalSettings() {
 // ---- app library -----------------------------------------------------------
 async function uploadApp(fileInput, msgEl) {
   const f = fileInput.files[0];
+  msgEl.style.whiteSpace = "pre-wrap";   // keep line breaks in rejection reasons
   if (!f) { msgEl.textContent = "Choose a .zip first."; return; }
   msgEl.textContent = "Uploading…";
   try {

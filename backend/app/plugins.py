@@ -24,7 +24,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import weather
+from . import appaudit, weather
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -224,19 +224,28 @@ class PluginRuntime:
 
     @staticmethod
     def _scan_reads(src: str) -> dict:
-        """Keys read via ``settings.get('k'[, default])`` / ``settings['k']`` in an
-        app's source, mapped to the literal default when one is given (for type
-        inference). AST-based, so it's robust to formatting."""
+        """Keys read via ``<settings>.get('k'[, default])`` / ``<settings>['k']`` in
+        an app's source, mapped to the literal default when given (for type
+        inference). The settings variable is the first parameter of fetch()/
+        trigger() — detected by name, so apps that call it ``s`` are handled too.
+        AST-based, so it's robust to formatting."""
         reads: dict = {}
         try:
             tree = ast.parse(src)
         except SyntaxError:
             return reads
+        names = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
+                    and node.name in ("fetch", "trigger") and node.args.args:
+                names.add(node.args.args[0].arg)
+        if not names:
+            names = {"settings"}
         for node in ast.walk(tree):
             if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                     and node.func.attr == "get"
                     and isinstance(node.func.value, ast.Name)
-                    and node.func.value.id == "settings" and node.args
+                    and node.func.value.id in names and node.args
                     and isinstance(node.args[0], ast.Constant)
                     and isinstance(node.args[0].value, str)):
                 dflt = None
@@ -245,7 +254,7 @@ class PluginRuntime:
                 reads.setdefault(node.args[0].value, dflt)
             elif (isinstance(node, ast.Subscript)
                     and isinstance(node.value, ast.Name)
-                    and node.value.id == "settings"
+                    and node.value.id in names
                     and isinstance(node.slice, ast.Constant)
                     and isinstance(node.slice.value, str)):
                 reads.setdefault(node.slice.value, None)
@@ -669,9 +678,15 @@ class PluginRuntime:
         app id is the containing folder's name (or the manifest ``id``). Returns
         {id, name, type}; raises ValueError with a human message on any problem.
 
-        SECURITY: a functional app's ``app.py`` is imported (executed) to verify
-        it exposes fetch() — i.e. uploading runs arbitrary Python. Only upload
-        apps you trust.
+        The upload is vetted before install: the manifest is structurally checked,
+        a functional app's ``app.py`` is statically audited for disallowed /
+        malicious operations (rejected with reasons if unsafe), its fetch()
+        signature is verified, and every setting the code reads that isn't a global
+        is declared as an app-level setting in the manifest (rewritten if needed).
+        Only after the audit passes is the app imported to surface import errors.
+
+        SECURITY: the static audit is defense-in-depth, not a sandbox; a vetted app
+        still runs in-process. Only upload apps you trust.
         """
         import io
         import re
@@ -703,18 +718,36 @@ class PluginRuntime:
             raw_id = root.name if root != tdp else (manifest.get("id") or manifest.get("name") or "app")
             app_id = re.sub(r"[^A-Za-z0-9_-]", "", str(raw_id)) or "app"
 
-            if not manifest.get("name"):
-                raise ValueError("manifest.json is missing a 'name'")
+            self._validate_manifest(manifest)
             kind = manifest.get("type")
             if kind == "functional":
-                if not (root / "app.py").is_file():
+                app_py = root / "app.py"
+                if not app_py.is_file():
                     raise ValueError("functional app is missing app.py")
-                self._validate_fetch(root / "app.py")
+                src = app_py.read_text("utf-8", errors="replace")
+                # 1) Static safety audit — BEFORE the module is ever executed.
+                violations = appaudit.audit_python(src)
+                if violations:
+                    raise ValueError(
+                        "app rejected — app.py contains operations that are not allowed:\n  - "
+                        + "\n  - ".join(violations))
+                # 2) fetch() must exist with the right arity (checked statically).
+                fn = appaudit.find_fetch(src)
+                if fn is None:
+                    raise ValueError(
+                        "app.py must define a fetch(settings, format_lines, get_rows, get_cols) function")
+                if len(fn.args.args) < 4:
+                    raise ValueError(
+                        "fetch() must accept (settings, format_lines, get_rows, get_cols)")
+                # 3) Scope settings: declare every non-global setting the code reads
+                #    as an app-level setting, rewriting the manifest if needed.
+                if self._scope_manifest_settings(manifest, src):
+                    mpath.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), "utf-8")
+                # 4) Only now import it — the audit has cleared it — to surface
+                #    import/syntax errors (missing deps, etc.).
+                self._validate_fetch(app_py)
             elif kind == "channel":
-                if not (root / "data.json").is_file():
-                    raise ValueError("channel app is missing data.json")
-            else:
-                raise ValueError("manifest 'type' must be 'functional' or 'channel'")
+                self._validate_channel(root)
 
             self.user_apps_dir.mkdir(parents=True, exist_ok=True)
             dest = self.user_apps_dir / app_id
@@ -727,6 +760,68 @@ class PluginRuntime:
         else:
             self.load()
         return {"id": app_id, "name": manifest.get("name"), "type": kind}
+
+    @staticmethod
+    def _validate_manifest(manifest) -> None:
+        """Structural manifest checks with human-readable errors."""
+        if not isinstance(manifest, dict):
+            raise ValueError("manifest.json must be a JSON object")
+        name = manifest.get("name")
+        if not name or not isinstance(name, str):
+            raise ValueError("manifest.json is missing a 'name'")
+        if manifest.get("type") not in ("functional", "channel"):
+            raise ValueError("manifest 'type' must be 'functional' or 'channel'")
+        settings = manifest.get("settings")
+        if settings is not None:
+            if not isinstance(settings, list):
+                raise ValueError("manifest 'settings' must be a list")
+            for i, st in enumerate(settings):
+                if not isinstance(st, dict) or not st.get("key"):
+                    raise ValueError(f"manifest setting #{i + 1} must be an object with a 'key'")
+
+    @staticmethod
+    def _validate_channel(root: Path) -> None:
+        dp = root / "data.json"
+        if not dp.is_file():
+            raise ValueError("channel app is missing data.json")
+        try:
+            data = json.loads(dp.read_text("utf-8"))
+        except Exception as e:
+            raise ValueError(f"invalid data.json: {e}")
+        if not isinstance(data, dict) or not data.get("pages"):
+            raise ValueError("channel app's data.json must have a non-empty 'pages' list")
+
+    def _scope_manifest_settings(self, manifest: dict, src: str) -> bool:
+        """Ensure every non-global setting the app reads is declared as an app-level
+        setting in the manifest. Adds inferred fields for settings the code reads
+        but never declares, and drops a misleading ``global_key`` flag from any
+        non-catalog (i.e. genuinely app-level) setting. Returns True if changed."""
+        settings = manifest.setdefault("settings", [])
+        if not isinstance(settings, list):
+            return False
+        declared, changed = set(), False
+        for st in settings:
+            if not isinstance(st, dict):
+                continue
+            k = st.get("key")
+            if k:
+                declared.add(k)
+            it = st.get("inline_toggle")
+            if isinstance(it, dict) and it.get("key"):
+                declared.add(it["key"])
+            # A non-catalog setting is app-level regardless of any global_key flag;
+            # drop the misleading flag so the manifest is honest about its scope.
+            if k and k not in CATALOG_KEYS and st.pop("global_key", None) is not None:
+                changed = True
+        for key, dflt in self._scan_reads(src).items():
+            if key in declared or key in GLOBAL_STORAGE_KEYS or key == "currency_symbol":
+                continue
+            field = self._infer_field(key, key, dflt)   # manifest uses the raw key
+            field["note"] = "Auto-declared on upload — the app reads this setting."
+            settings.append(field)
+            declared.add(key)
+            changed = True
+        return changed
 
     @staticmethod
     def _validate_fetch(app_py: Path) -> None:

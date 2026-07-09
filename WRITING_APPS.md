@@ -452,18 +452,40 @@ Two ways:
    cd my-app && zip -r ../my-app.zip .        # or zip the folder itself
    ```
 
-   The upload is validated: the manifest must have a `name` and a valid `type`; a
-   functional app must include `app.py` and it must **import cleanly and expose
-   `fetch()`**; a channel app must include `data.json`. Uploaded apps are written
-   to the persistent data volume (so they survive restarts and image upgrades),
-   enabled, and loaded immediately. They show a **· uploaded** tag and a 🗑 to
-   remove; built-ins can't be deleted. An uploaded app with the same id as a
-   built-in **overrides** it.
+   The upload is vetted before it installs — if anything fails, the upload is
+   rejected with a clear reason and nothing is written:
 
-> ⚠️ **Security:** installing a functional app *runs its `app.py`* (the upload
-> validator imports it, and the runtime executes `fetch()`). That's arbitrary
-> Python on the companion host — only install apps you trust. Same trust model as
-> splitflap-os plugins.
+   - **Manifest** must have a `name`, a valid `type`, and (if present) a
+     `settings` list whose entries each have a `key`.
+   - **Functional** apps must include `app.py`; it must define
+     `fetch(settings, format_lines, get_rows, get_cols)` (checked statically),
+     pass the **safety audit** below, and then import cleanly (so a missing
+     dependency is caught).
+   - **Channel** apps must include a `data.json` with a non-empty `pages` list.
+
+   **Safety audit.** `app.py` is statically scanned *before it is ever executed*
+   and rejected if it uses operations an app has no business doing — running
+   programs (`subprocess`, `os.system`), executing code (`eval`/`exec`/`compile`,
+   `pickle`, dynamic import), raw sockets, writing/deleting files, reading
+   `os.environ`, or interpreter-escape introspection (`__subclasses__`,
+   `__globals__`, …). Apps fetch data with `requests`/`urllib` and render pages —
+   that's allowed; the rest isn't. (This is best-effort defense-in-depth, not a
+   sandbox — a vetted app still runs in-process, so only install apps you trust.)
+
+   **Settings are scoped for you.** Any setting your code *reads* that isn't a
+   global (catalog) key is auto-declared as an **app-level** setting in the
+   manifest on upload (and a misleading `global_key` flag on a non-catalog setting
+   is dropped), so every app-specific setting is stored under `plugin_<id>_<key>`
+   and never collides with another app.
+
+   Uploaded apps are written to the persistent data volume (so they survive
+   restarts and image upgrades), enabled, and loaded immediately. They show a
+   **· uploaded** tag and a 🗑 to remove; built-ins can't be deleted. An uploaded
+   app with the same id as a built-in **overrides** it.
+
+> ⚠️ **Security:** the audit blocks obvious abuse, but installing a functional app
+> ultimately *runs its `app.py`* on the companion host. Only install apps you
+> trust. Same trust model as splitflap-os plugins.
 
 ---
 

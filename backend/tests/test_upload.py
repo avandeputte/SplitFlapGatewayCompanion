@@ -86,7 +86,11 @@ def test_reject_app_py_import_error(tmp_path):
     with pytest.raises(ValueError, match="import"):
         rt.install_zip(_zip({
             "a/manifest.json": json.dumps({"name": "A", "type": "functional"}),
-            "a/app.py": "import a_module_that_does_not_exist\n",
+            # valid fetch() (passes the static checks) but a missing dependency —
+            # surfaced when the vetted module is imported.
+            "a/app.py": "import a_module_that_does_not_exist\n"
+                        "def fetch(settings, format_lines, get_rows, get_cols):\n"
+                        "    return [format_lines('HI')]\n",
         }))
 
 
