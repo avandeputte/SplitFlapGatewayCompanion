@@ -283,13 +283,10 @@ class PluginRuntime:
                                        dflt if dflt is not None else s.get(key, ""))
         return s
 
-    # -- pages (faithful get_plugin_pages) --------------------------------
-    def get_pages(self, app_id: str) -> list[str]:
-        cols = self.get_cols()
-        manifest = self._registry.get(app_id)
-        if not manifest:
-            return [self.format_lines("PLUGIN ERROR", app_id.upper()[:cols], "NOT FOUND")]
-        app_type = manifest.get("type")
+    def _refresh_secs(self, app_id: str, manifest: dict) -> int:
+        """How often fetch() is re-run (its result is cached in between): the
+        manifest's refresh_interval, overridden by a per-app polling_rate (seconds)
+        or the friendlier refresh_minutes, if the app declares one."""
         refresh = manifest.get("refresh_interval", 300)
         poll = self.settings.get(f"plugin_{app_id}_polling_rate")
         if poll:
@@ -297,6 +294,22 @@ class PluginRuntime:
                 refresh = max(10, int(float(poll)))
             except (ValueError, TypeError):
                 pass
+        mins = self.settings.get(f"plugin_{app_id}_refresh_minutes")
+        if mins:
+            try:
+                refresh = max(10, int(float(mins) * 60))
+            except (ValueError, TypeError):
+                pass
+        return refresh
+
+    # -- pages (faithful get_plugin_pages) --------------------------------
+    def get_pages(self, app_id: str) -> list[str]:
+        cols = self.get_cols()
+        manifest = self._registry.get(app_id)
+        if not manifest:
+            return [self.format_lines("PLUGIN ERROR", app_id.upper()[:cols], "NOT FOUND")]
+        app_type = manifest.get("type")
+        refresh = self._refresh_secs(app_id, manifest)
 
         if app_type == "channel":
             pages = self._channel.get(app_id, [])

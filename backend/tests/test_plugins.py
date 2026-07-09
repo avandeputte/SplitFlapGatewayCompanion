@@ -342,6 +342,16 @@ def test_upload_drops_misleading_global_key_flag(tmp_path):
     assert "global_key" not in opt
 
 
+def test_refresh_minutes_overrides_fetch_cadence(tmp_path):
+    """A per-app refresh_minutes controls how often fetch() is re-run (so a
+    random-content app pulls a fresh item on the user's schedule)."""
+    rt = _runtime(tmp_path, ["cat-facts"])
+    m = rt.manifest("cat-facts")
+    assert rt._refresh_secs("cat-facts", m) == m.get("refresh_interval", 300)
+    rt.save_settings("cat-facts", {"plugin_cat-facts_refresh_minutes": "5"})
+    assert rt._refresh_secs("cat-facts", m) == 300   # 5 minutes
+
+
 def test_grid_change_clears_page_caches(tmp_path):
     """A grid resize must drop cached pages (they were sized for the old width)
     so apps re-render at the new dimensions."""

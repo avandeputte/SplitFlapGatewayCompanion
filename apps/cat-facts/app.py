@@ -28,7 +28,14 @@ def fetch(settings, format_lines, get_rows, get_cols):
     import requests
     rows, cols = get_rows(), get_cols()
     try:
-        d = requests.get('https://catfact.ninja/fact', timeout=8).json()
+        max_len = int(float(settings.get('max_length', '120') or 120))
+    except (TypeError, ValueError):
+        max_len = 120
+    max_len = max(40, min(250, max_len))
+    try:
+        # catfact.ninja honors max_length, so we can ask for a display-friendly fact.
+        d = requests.get('https://catfact.ninja/fact',
+                         params={'max_length': max_len}, timeout=8).json()
         text = str(d.get('fact', '') or '').strip().upper()
         if not text:
             return [format_lines('CAT FACT', 'NO DATA', '')]

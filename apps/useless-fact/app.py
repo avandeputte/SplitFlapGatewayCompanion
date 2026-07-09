@@ -28,11 +28,29 @@ def fetch(settings, format_lines, get_rows, get_cols):
     import requests
     rows, cols = get_rows(), get_cols()
     try:
+        max_len = int(float(settings.get('max_length', '140') or 140))
+    except (TypeError, ValueError):
+        max_len = 140
+    max_len = max(40, min(280, max_len))
+
+    def one():
         d = requests.get('https://uselessfacts.jsph.pl/api/v2/facts/random',
                          params={'language': 'en'}, timeout=8).json()
-        text = str(d.get('text', '') or '').strip().upper()
-        if not text:
+        return str(d.get('text', '') or '').strip()
+
+    try:
+        # This API can't filter by length, so try a few times for a short one and
+        # keep the shortest we've seen if none come in under the limit.
+        best = None
+        for _ in range(3):
+            t = one()
+            if t and len(t) <= max_len:
+                best = t
+                break
+            if t and (best is None or len(t) < len(best)):
+                best = t
+        if not best:
             return [format_lines('RANDOM FACT', 'NO DATA', '')]
-        return _pages(format_lines, 'DID YOU KNOW', text, rows, cols)
+        return _pages(format_lines, 'DID YOU KNOW', best.upper(), rows, cols)
     except Exception:
         return [format_lines('RANDOM FACT', 'OFFLINE', '')]

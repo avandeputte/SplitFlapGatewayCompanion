@@ -2,14 +2,34 @@
   "id": "useless-fact",
   "name": "Random Fact",
   "icon": "🤓",
-  "description": "A random useless fact",
+  "description": "A concise random fact",
   "type": "functional",
-  "refresh_interval": 900,
+  "refresh_interval": 1800,
   "loop_delay": 7,
   "category": "fun",
   "min_rows": 1,
   "min_cols": 10,
   "settings": [
+    {
+      "key": "max_length",
+      "label": "Max fact length (characters)",
+      "type": "number",
+      "default": "140",
+      "min": "40",
+      "max": "280",
+      "step": "10",
+      "stepper": true
+    },
+    {
+      "key": "refresh_minutes",
+      "label": "Fetch a new fact every (minutes)",
+      "type": "number",
+      "default": "30",
+      "min": "1",
+      "max": "1440",
+      "step": "1",
+      "stepper": true
+    },
     {
       "key": "loop_delay",
       "label": "Delay Between Pages (seconds)",
