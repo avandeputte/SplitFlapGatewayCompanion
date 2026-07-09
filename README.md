@@ -86,8 +86,8 @@ It will:
   Companion tab back on the gateway);
 - ask how to store data — a **Docker named volume** (default) or a **bind mount** to a
   host directory (default `/opt/sfgwcompanion`, created if missing);
-- optionally add a **Diun** container to watch the images and report when a newer
-  version is published (Diun *notifies*; it doesn't auto-apply — see below);
+- optionally add a **Watchtower** container that checks the images every 6h and
+  automatically pulls + restarts to apply any newer version;
 - optionally enable **developer mode** (off by default; mainly for app developers —
   a Dev menu for simulation, gateway resync and grid override). Toggle it later via
   `COMPANION_DEV_MODE` in the project's `.env`.
@@ -101,11 +101,11 @@ GATEWAY_URL=http://192.168.1.50 DEPLOY_MQTT=no AUTO_UPDATE=yes \
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/avandeputte/SplitFlapGatewayCompanion/main/install.sh)"
 ```
 
-> **On updates:** Diun watches images and *notifies* (wire a target with
-> `DIUN_NOTIF_*` env vars) — it does **not** pull-and-recreate on its own. To apply:
-> `cd <project-dir> && docker compose pull && docker compose up -d`. If you'd rather
-> have updates applied automatically and unattended, swap Diun for
-> [Watchtower](https://containrrr.dev/watchtower/).
+> **On updates:** [Watchtower](https://containrrr.dev/watchtower/) applies updates
+> automatically — it checks every 6h and pulls + restarts the containers it manages
+> (those carrying the `com.centurylinklabs.watchtower.enable` label — the companion
+> and, if deployed, the broker). To update by hand instead, leave it off and run
+> `cd <project-dir> && docker compose pull && docker compose up -d`.
 
 Prefer to wire it up by hand? Use Compose or `docker run` directly:
 

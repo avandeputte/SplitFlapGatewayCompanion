@@ -9,7 +9,7 @@
 #   2. optionally deploys a Mosquitto MQTT broker (only needed for Home Assistant),
 #   3. asks for your gateway URL + MQTT password,
 #   4. writes a docker-compose project and starts the companion,
-#   5. optionally adds a Diun container to watch the images for updates.
+#   5. optionally adds a Watchtower container to auto-update the images.
 #
 # Everything is interactive but honors env-var overrides for unattended installs,
 # e.g.:  GATEWAY_URL=http://192.168.1.50 DEPLOY_MQTT=no AUTO_UPDATE=no bash install.sh
@@ -193,9 +193,9 @@ fi
 
 say ""
 say "${B}Automatic image updates${N}"
-say "${DIM}  Adds a Diun container that watches the companion (and broker) images and"
-say "  reports when a newer version is published.${N}"
-askyn AUTO_UPDATE "  Enable update watching with Diun?" n
+say "${DIM}  Adds a Watchtower container that checks the companion (and broker) images"
+say "  every 6h and automatically pulls + restarts to apply any newer version.${N}"
+askyn AUTO_UPDATE "  Enable automatic updates with Watchtower?" n
 
 say ""
 say "${B}Developer mode${N}"
@@ -305,7 +305,7 @@ COMPOSE="$DIR/docker-compose.yml"
   fi
   if [ "$AUTO_UPDATE" = yes ]; then
     echo "    labels:"
-    echo "      - diun.enable=true"
+    echo "      - com.centurylinklabs.watchtower.enable=true"
   fi
 
   if [ "$DEPLOY_MQTT" = yes ]; then
@@ -322,32 +322,30 @@ COMPOSE="$DIR/docker-compose.yml"
     echo "      - mosquitto-log:/mosquitto/log"
     if [ "$AUTO_UPDATE" = yes ]; then
       echo "    labels:"
-      echo "      - diun.enable=true"
+      echo "      - com.centurylinklabs.watchtower.enable=true"
     fi
   fi
 
   if [ "$AUTO_UPDATE" = yes ]; then
     echo ""
-    echo "  diun:"
-    echo "    image: crazymax/diun:latest"
-    echo "    container_name: splitflap-diun"
-    echo "    command: serve"
+    echo "  watchtower:"
+    echo "    image: containrrr/watchtower:latest"
+    echo "    container_name: splitflap-watchtower"
     echo "    restart: unless-stopped"
     echo "    environment:"
     echo "      - TZ=\${TZ:-UTC}"
-    echo "      - DIUN_WATCH_SCHEDULE=0 */6 * * *"
-    echo "      - DIUN_WATCH_FIRSTCHECKNOTIF=false"
-    echo "      - DIUN_PROVIDERS_DOCKER=true"
-    echo "      - DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT=false"
+    echo "      - WATCHTOWER_CLEANUP=true"          # remove the old image after updating
+    echo "      - WATCHTOWER_LABEL_ENABLE=true"     # only touch containers we opt in
+    echo "      - WATCHTOWER_SCHEDULE=0 0 */6 * * *"  # every 6h (6-field cron: sec min hour …)
     echo "    volumes:"
-    echo "      - /var/run/docker.sock:/var/run/docker.sock:ro"
-    echo "      - diun-data:/data"
+    echo "      - /var/run/docker.sock:/var/run/docker.sock"
     echo "    labels:"
-    echo "      - diun.enable=true"
+    echo "      - com.centurylinklabs.watchtower.enable=true"
   fi
 
-  # Only emit a `volumes:` section if at least one named volume is actually used.
-  if [ "$USE_NAMED_VOLUME" = yes ] || [ "$DEPLOY_MQTT" = yes ] || [ "$AUTO_UPDATE" = yes ]; then
+  # Only emit a `volumes:` section if a named volume is actually used (Watchtower
+  # needs none; a bind mount declares no named volume).
+  if [ "$USE_NAMED_VOLUME" = yes ] || [ "$DEPLOY_MQTT" = yes ]; then
     echo ""
     echo "volumes:"
     [ "$USE_NAMED_VOLUME" = yes ] && echo "  companion-data:"
@@ -355,7 +353,6 @@ COMPOSE="$DIR/docker-compose.yml"
       echo "  mosquitto-data:"
       echo "  mosquitto-log:"
     fi
-    [ "$AUTO_UPDATE" = yes ] && echo "  diun-data:"
   fi
 } >"$COMPOSE"
 ok "Wrote $COMPOSE"
@@ -382,10 +379,8 @@ if [ "$DEPLOY_MQTT" = yes ]; then
   say "                 ${DIM}Point Home Assistant's MQTT integration at this broker.${N}"
 fi
 if [ "$AUTO_UPDATE" = yes ]; then
-  say "  Updates      : ${DIM}Diun watches the images every 6h ($DC logs diun to see it)."
-  say "                 Note: Diun *notifies* about new images, it does not apply them."
-  say "                 Wire a notifier with DIUN_NOTIF_* env vars, then apply updates with"
-  say "                 'cd $DIR && $DC pull && $DC up -d'.${N}"
+  say "  Updates      : ${DIM}Watchtower auto-applies new images every 6h (pull + restart)"
+  say "                 for the containers it manages. '$DC logs watchtower' to watch it.${N}"
 fi
 if [ "$DEV_MODE" = yes ]; then
   say "  Developer    : ${DIM}ON — a Dev menu is available in the UI (simulation, resync,"
