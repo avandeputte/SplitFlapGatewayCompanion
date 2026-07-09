@@ -146,6 +146,27 @@ def fetch(settings, format_lines, get_rows, get_cols):
 - **`get_rows()`** / **`get_cols()`** — the current grid dimensions as ints. Call
   these and adapt your layout — a good app renders sensibly at 1×N and 3×N.
 
+### Optional: shared current weather
+
+If your app shows the weather, don't hardcode a provider — opt into the shared
+helper by adding a fifth parameter, `get_weather=None`:
+
+```python
+def fetch(settings, format_lines, get_rows, get_cols, get_weather=None):
+    if get_weather is None:            # running on a host without the helper
+        return [format_lines("NO WEATHER")]
+    w = get_weather()                  # uses the *global* provider + key + location
+    if not w["ok"]:
+        return [format_lines("WEATHER", "UNAVAILABLE")]
+    return [format_lines(w["city"], f'{w["temp_f"]}F {w["desc"]}')]
+```
+
+`get_weather()` returns a dict: `ok`, `city`, `temp_f`, `feels_like_f`, `hi_f`,
+`lo_f`, `desc`, `humidity`, `wind_mph`, `cloud_cover`, `provider`, `lat`, `lon`
+(temperatures in °F; `ok` is `False` with an `error` key on failure). Because the
+default provider is keyless Open-Meteo, weather works with **no API key**. The
+four-argument signature keeps working unchanged, so `get_weather` is purely opt-in.
+
 ### The return value
 
 Return a **list of page strings**. Each should be `rows × cols` characters — i.e.

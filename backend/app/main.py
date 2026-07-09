@@ -20,7 +20,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, helpers, renderer
+from . import __version__, helpers, renderer, weather
 from .config import Config
 from .engine import DisplayController
 from .gateway import build_sync_patch, detect_local_ip, fetch_gateway_config, post_companion
@@ -532,6 +532,13 @@ async def h_crypto_search(q: str = ""):
 @app.get("/sports_search")
 async def h_sports_search(q: str = ""):
     return await helpers.sports_search(q)
+
+
+@app.get("/weather")
+async def h_weather():
+    """Current conditions via the global provider/key/location — the same shared
+    helper apps get injected as get_weather()."""
+    return await asyncio.to_thread(weather.fetch_current, plugin_settings)
 
 
 @app.post("/api/compose/send")

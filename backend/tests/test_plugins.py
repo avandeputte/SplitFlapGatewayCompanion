@@ -244,6 +244,23 @@ def test_anim_style_and_speed_are_per_app(tmp_path):
     assert rt.page_timing("anim_sweep")["style"] == "ltr"
 
 
+def test_weather_helper_injected_only_when_opted_in(tmp_path):
+    """An app opts into the shared weather helper by taking a get_weather param;
+    a classic 4-arg app is called unchanged."""
+    rt = _runtime(tmp_path, ["dashboard", "date"])
+    assert rt._wants_weather.get("dashboard") is True   # fetch(..., get_weather=None)
+    assert rt._wants_weather.get("date") is False       # classic 4-arg signature
+
+
+def test_weather_helper_app_credited_under_weather_globals(tmp_path):
+    """An app that uses get_weather is credited under the weather globals in the
+    Global editor, even though it never reads them directly."""
+    rt = _runtime(tmp_path, ["dashboard"])
+    fields = {f["key"]: f for f in rt.global_settings_schema()["fields"]}
+    assert "Dashboard" in fields["weather_provider"]["note"]
+    assert "Dashboard" in fields["weather_api_key"]["note"]
+
+
 def test_sports_league_dicts_in_sync(tmp_path):
     """The picker's league list (helpers) must match what the app fetches."""
     import re

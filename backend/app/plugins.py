@@ -16,12 +16,14 @@ from __future__ import annotations
 import ast
 import collections
 import importlib.util
+import inspect
 import json
 import logging
 import os
 import time
 from pathlib import Path
 
+from . import weather
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -51,6 +53,7 @@ class PluginRuntime:
         self._triggers: dict[str, object] = {}  # app_id -> trigger fn
         self._caches: dict[str, dict] = {}       # app_id -> {pages, fetched_at}
         self._reads: dict[str, dict] = {}        # app_id -> {settings key it reads: default}
+        self._wants_weather: dict[str, bool] = {}  # app_id -> fetch() accepts get_weather
 
     # -- helpers injected into plugins -------------------------------------
     def get_rows(self) -> int:
@@ -105,6 +108,7 @@ class PluginRuntime:
         self._triggers.clear()
         self._caches.clear()
         self._reads.clear()
+        self._wants_weather.clear()
         # Let the settings store nest per-app keys by app id when it persists.
         self.settings.set_known_apps(self.discover())
         enabled = set(self.settings.installed_apps)
@@ -173,6 +177,7 @@ class PluginRuntime:
             return
         if hasattr(mod, "fetch") and callable(mod.fetch):
             self._modules[app_id] = mod
+            self._wants_weather[app_id] = self._fetch_wants_weather(mod.fetch)
         else:
             log.error("plugin %s: app.py has no fetch()", app_id)
         if hasattr(mod, "trigger") and callable(mod.trigger):
@@ -183,6 +188,22 @@ class PluginRuntime:
             self._reads[app_id] = self._scan_reads(module_path.read_text("utf-8"))
         except Exception:
             self._reads[app_id] = {}
+
+    @staticmethod
+    def _fetch_wants_weather(fn) -> bool:
+        """True if an app's fetch() opts into the shared weather helper — i.e. it
+        accepts a 5th positional argument or a ``get_weather`` parameter. Apps with
+        the classic 4-arg signature are called unchanged."""
+        try:
+            params = list(inspect.signature(fn).parameters.values())
+        except (TypeError, ValueError):
+            return False
+        if any(p.name == "get_weather" for p in params):
+            return True
+        positional = [p for p in params
+                      if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+        has_varargs = any(p.kind == p.VAR_POSITIONAL for p in params)
+        return has_varargs or len(positional) >= 5
 
     @staticmethod
     def _scan_reads(src: str) -> dict:
@@ -265,7 +286,10 @@ class PluginRuntime:
                 return cached["pages"]
             try:
                 ps = self._plugin_settings(app_id, manifest)
-                pages = mod.fetch(ps, self.format_lines, self.get_rows, self.get_cols)
+                args = [ps, self.format_lines, self.get_rows, self.get_cols]
+                if self._wants_weather.get(app_id):
+                    args.append(lambda s=None: weather.fetch_current(s if s is not None else ps))
+                pages = mod.fetch(*args)
                 if not isinstance(pages, list):
                     pages = [str(pages)]
                 self._caches[app_id] = {"pages": pages, "fetched_at": now}
@@ -462,6 +486,8 @@ class PluginRuntime:
             for c in CATALOG:
                 if k in c.get("_composite", []):
                     used_global.add(c["key"])
+        if self._wants_weather.get(app_id):
+            used_global |= set(weather.GLOBAL_KEYS)   # used via the shared weather helper
         if used_global:
             names = ", ".join(CATALOG_BY_KEY[k]["label"]
                               for k in sorted(used_global, key=lambda x: CATALOG_BY_KEY[x]["label"]))
@@ -513,6 +539,10 @@ class PluginRuntime:
             for k in self._reads.get(app_id, {}):
                 if k in keys:
                     usage[k].add(name)
+            if self._wants_weather.get(app_id):   # depends on the weather globals via get_weather
+                for wk in weather.GLOBAL_KEYS:
+                    if wk in keys:
+                        usage[wk].add(name)
         return usage
 
     def _infer_field(self, key: str, raw_key: str, default) -> dict:
