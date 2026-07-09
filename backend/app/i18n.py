@@ -117,6 +117,19 @@ _STRINGS: dict[str, dict[str, str]] = {
     "PLATINUM":   {"fr": "PLATINE", "de": "PLATIN", "es": "PLATINO", "it": "PLATINO", "pt": "PLATINA", "nl": "PLATINA"},
     "PALLADIUM":  {"fr": "PALLADIUM", "de": "PALLADIUM", "es": "PALADIO", "it": "PALLADIO", "pt": "PALADIO", "nl": "PALLADIUM"},
     "SPOT PRICE": {"fr": "COURS", "de": "KURS", "es": "PRECIO", "it": "PREZZO", "pt": "PRECO", "nl": "KOERS"},
+    # time-since
+    "TIME SINCE":   {"fr": "DEPUIS", "de": "SEIT", "es": "DESDE", "it": "DA", "pt": "DESDE", "nl": "SINDS"},
+    "NOT YET":      {"fr": "PAS ENCORE", "de": "NOCH NICHT", "es": "AUN NO", "it": "NON ANCORA", "pt": "AINDA NAO", "nl": "NOG NIET"},
+    "STARTED":      {"fr": "COMMENCE", "de": "GESTARTET", "es": "EMPEZADO", "it": "INIZIATO", "pt": "INICIADO", "nl": "GESTART"},
+    "INVALID DATE": {"fr": "DATE INVALIDE", "de": "UNGULT. DATUM", "es": "FECHA INVALIDA", "it": "DATA NON VALIDA", "pt": "DATA INVALIDA", "nl": "ONGELDIGE DATUM"},
+    # wiki-today
+    "FEATURED":  {"fr": "A LA UNE", "de": "ARTIKEL", "es": "DESTACADO", "it": "IN VETRINA", "pt": "DESTAQUE", "nl": "UITGELICHT"},
+    "MOST READ": {"fr": "TOP LUS", "de": "MEISTGELESEN", "es": "MAS LEIDO", "it": "PIU LETTI", "pt": "MAIS LIDO", "nl": "MEEST GELEZEN"},
+    # word-of-the-day
+    "WORD OF THE DAY": {"fr": "MOT DU JOUR", "de": "WORT DES TAGES", "es": "PALABRA DEL DIA", "it": "PAROLA DEL GIORNO", "pt": "PALAVRA DO DIA", "nl": "WOORD VAN DE DAG"},
+    # holidays
+    "NEXT HOLIDAY": {"fr": "PROCHAIN CONGE", "de": "NAECHSTER FEIERTAG", "es": "PROX. FESTIVO", "it": "PROSS. FESTA", "pt": "PROX. FERIADO", "nl": "VOLGENDE FEESTDAG"},
+    "IN":           {"fr": "DANS", "de": "IN", "es": "EN", "it": "TRA", "pt": "EM", "nl": "OVER"},
 }
 
 
@@ -173,6 +186,7 @@ def date(dt, lang, short=False, year=False):
 # diverge (French JOUR->J, German TAG->T, Italian GIORNO->G, Dutch hour UUR->U); the
 # rest are near-universal single letters.
 _DURATION_UNITS = {
+    "Y": {"fr": "A", "de": "J", "es": "A", "it": "A", "pt": "A", "nl": "J"},   # year (an/Jahr/año…)
     "D": {"fr": "J", "de": "T", "es": "D", "it": "G", "pt": "D", "nl": "D"},
     "H": {"fr": "H", "de": "H", "es": "H", "it": "H", "pt": "H", "nl": "U"},
     "M": {"fr": "M", "de": "M", "es": "M", "it": "M", "pt": "M", "nl": "M"},
@@ -227,6 +241,18 @@ def base_currency(lang):
     return _BASE_CURRENCY.get((lang or "en").lower(), "USD")
 
 
+# The country a language/region implies — for holidays (which calendar to show) and
+# any other country-scoped data. English splits by region; others use their homeland.
+_COUNTRY = {
+    "en": "US", "en-us": "US", "en-gb": "GB", "en-au": "AU",
+    "fr": "FR", "de": "DE", "es": "ES", "it": "IT", "pt": "PT", "nl": "NL",
+}
+
+
+def country(lang):
+    return _COUNTRY.get((lang or "en").lower(), "US")
+
+
 def clock(dt, lang, seconds=False, ampm_space=True):
     """Locale-appropriate wall-clock time: ``3:48 PM`` in English, ``15:48`` elsewhere."""
     if uses_24h(lang):
@@ -269,3 +295,12 @@ class Localizer:
 
     def base_currency(self):
         return base_currency(self.lang)
+
+    def country(self):
+        return country(self.lang)
+
+    @property
+    def lang_base(self):
+        """The 2-letter language without region ('en-GB' -> 'en'), for APIs that
+        want a plain language code (Wikipedia editions, weather providers, …)."""
+        return self.lang.split("-")[0]

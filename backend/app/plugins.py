@@ -335,7 +335,10 @@ class PluginRuntime:
                     if self._wants_weather.get(app_id):
                         kwargs["get_weather"] = lambda s=None: weather.fetch_current(s if s is not None else ps)
                     if self._wants_i18n.get(app_id):
-                        kwargs["i18n"] = i18n.Localizer(self.settings.get("language", "en"))
+                        # A per-app Language override (plugin_<id>_language) wins over
+                        # the global Language; blank/unset = follow global.
+                        lang = self._perapp_value(app_id, "language") or self.settings.get("language", "en-US")
+                        kwargs["i18n"] = i18n.Localizer(lang)
                     pages = mod.fetch(ps, self.format_lines, self.get_rows, self.get_cols, **kwargs)
                     if not isinstance(pages, list):
                         pages = [str(pages)]
@@ -538,6 +541,22 @@ class PluginRuntime:
         # App-specific settings only. Catalog/global keys live in the Global
         # editor, so they're excluded here (a hint points to them below).
         fields = []
+
+        # Any app that adapts to language gets a per-app Language override, stored
+        # under its own plugin_<id>_language key so it never touches the global one.
+        # Blank = follow the global Language.
+        if manifest.get("i18n") and not any(s["key"] == "language" for s in raw_settings):
+            lang_options = [{"value": "", "label": "Follow global"}]
+            lang_options += [dict(o) for o in CATALOG_BY_KEY["language"]["options"]]
+            fields.append({
+                "key": f"plugin_{app_id}_language",
+                "label": "Language",
+                "type": "select",
+                "options": lang_options,
+                "default": "",
+                "note": "Override the global Language for this app only.",
+            })
+
         for s in raw_settings:
             if s["key"] in GLOBAL_STORAGE_KEYS:
                 continue

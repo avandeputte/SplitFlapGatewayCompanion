@@ -448,10 +448,10 @@ def test_i18n_number_and_base_currency():
 
 def test_manifest_i18n_flag_surfaces_in_listing(tmp_path):
     """The manifest's i18n flag reaches the app listing so the UI can badge cards."""
-    rt = _runtime(tmp_path, ["crypto", "time"])
+    rt = _runtime(tmp_path, ["crypto", "cat-facts"])
     flags = {a["id"]: a["i18n"] for a in rt.app_list()}
     assert flags["crypto"] is True      # a localized app
-    assert flags["time"] is False       # not localized
+    assert flags["cat-facts"] is False  # not localized
 
 
 def test_english_variants_differ_by_region():
@@ -485,12 +485,33 @@ def test_fortune_cookies_have_english_region_variants():
     assert "FAVOUR" in gb and "FAVOUR" not in us
 
 
+def test_i18n_country_and_year_unit():
+    from app import i18n
+    assert i18n.country("en-US") == "US" and i18n.country("en-GB") == "GB" and i18n.country("en-AU") == "AU"
+    assert i18n.country("fr") == "FR" and i18n.country("de") == "DE"
+    assert i18n.duration_unit("Y", "fr") == "A" and i18n.duration_unit("Y", "de") == "J"
+    assert i18n.Localizer("en-GB").lang_base == "en"
+
+
+def test_perapp_language_override(tmp_path):
+    """A per-app Language (plugin_<id>_language) overrides the global; blank follows it."""
+    rt = _runtime(tmp_path, ["word-of-the-day"])
+    keys = {f["key"] for f in rt.settings_schema("word-of-the-day")["fields"]}
+    assert "plugin_word-of-the-day_language" in keys          # the override field is auto-injected
+    rt.settings.set("language", "en-US")
+    rt.settings.set("plugin_word-of-the-day_language", "fr")   # override wins
+    assert any("MOT DU JOUR" in p for p in rt.get_pages("word-of-the-day"))
+    rt.settings.set("plugin_word-of-the-day_language", "")     # blank -> follow global (US)
+    rt._caches.pop("word-of-the-day", None)
+    assert any("WORD OF THE DAY" in p for p in rt.get_pages("word-of-the-day"))
+
+
 def test_i18n_injected_by_param_name(tmp_path):
     """An app opts into localization by declaring an i18n parameter; the runtime
     injects a language-bound helper (a classic app gets nothing)."""
-    rt = _runtime(tmp_path, ["date", "time"])
+    rt = _runtime(tmp_path, ["date", "cat-facts"])
     assert rt._wants_i18n.get("date") is True     # date(...) declares i18n
-    assert rt._wants_i18n.get("time") is False    # time(...) does not
+    assert rt._wants_i18n.get("cat-facts") is False  # cat-facts(...) does not
     rt.settings.set("language", "de")
     from datetime import datetime
     wd = datetime.now().strftime("%A")

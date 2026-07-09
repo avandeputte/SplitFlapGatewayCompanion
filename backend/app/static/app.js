@@ -117,9 +117,11 @@ async function loadApps() {
       `<div class="app-name">${a.name}</div>` +
       `<div class="app-desc">${a.description || ""}</div>` +
       (a.has_settings ? `<button class="app-gear" title="Settings">⚙</button>` : "") +
-      (a.i18n ? `<span class="app-i18n" title="Multilingual — adapts to the global Language">🌐</span>` : "") +
-      `<span class="app-badge"></span>` +
-      (fits ? "" : `<span class="app-req">${appReq(a)}</span>`);
+      `<div class="app-foot">` +
+        (a.i18n ? `<span class="app-i18n" title="Multilingual — adapts to the global Language">🌐</span>` : "") +
+        `<span class="app-badge"></span>` +
+        (fits ? "" : `<span class="app-req">${appReq(a)}</span>`) +
+      `</div>`;
     tile.addEventListener("click", (e) => {
       if (e.target.closest(".app-gear")) { openAppSettings(a.id, a.name); return; }
       if (!fits) return;   // too big for this panel
@@ -486,7 +488,7 @@ function plRender() {
     const tag = el("span", "handle"); tag.textContent = e.type === "app" ? "▸ App" : "▸ Msg"; row.appendChild(tag);
     if (e.type === "app") {
       const sel = el("select"); sel.className = "grow";
-      APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}`; if (a.id === e.app) o.selected = true; sel.appendChild(o); });
+      APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}${a.i18n ? " 🌐" : ""}`; if (a.id === e.app) o.selected = true; sel.appendChild(o); });
       if (!e.app && APPS[0]) e.app = APPS[0].id;
       sel.onchange = () => (e.app = sel.value); row.appendChild(sel);
     } else {

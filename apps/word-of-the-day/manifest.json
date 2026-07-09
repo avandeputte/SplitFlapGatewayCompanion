@@ -1,5 +1,6 @@
 {
   "id": "word-of-the-day",
+  "i18n": true,
   "name": "Word of the Day",
   "icon": "📖",
   "description": "Expand your vocabulary daily",

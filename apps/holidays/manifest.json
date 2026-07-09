@@ -1,5 +1,6 @@
 {
   "id": "holidays",
+  "i18n": true,
   "name": "Public Holidays",
   "icon": "📅",
   "description": "Upcoming public holidays",
@@ -14,9 +15,10 @@
       "key": "country",
       "label": "Country (2-letter code)",
       "type": "text",
-      "default": "US",
+      "default": "",
       "size": "sm",
-      "note": "ISO country code, e.g. US, GB, DE, FR, CA."
+      "ph": "blank = follow Language",
+      "note": "ISO country code, e.g. US, GB, DE, FR, CA. Blank follows the Language."
     },
     {
       "key": "loop_delay",

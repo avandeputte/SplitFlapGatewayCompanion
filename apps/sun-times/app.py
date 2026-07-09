@@ -1,4 +1,7 @@
-"""Sunrise / sunset / day length for the configured location (keyless: sunrise-sunset.org)."""
+"""Sunrise / sunset / day length for the configured location (keyless: Open-Meteo).
+
+Times track the location: Open-Meteo returns them in the place's own local time
+(timezone=auto), just like the weather app — no separate timezone setting needed."""
 
 
 def _latlon(settings, requests):
@@ -29,7 +32,6 @@ def _latlon(settings, requests):
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import requests
     from datetime import datetime
-    import pytz
     rows, cols = get_rows(), get_cols()
 
     def t(s):
@@ -40,29 +42,27 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
     def line(label, value):                 # label trimmed to fit — never the time
         return f'{label[:max(1, cols - len(value) - 1)]} {value}'
+
+    def fmt_time(iso):                       # ISO is already the location's local time
+        if not iso:
+            return '--:--'
+        dt = datetime.fromisoformat(str(iso))
+        # AM/PM is English-only — everyone else gets 24h.
+        if i18n is not None:
+            return i18n.time(dt, ampm_space=False)
+        return dt.strftime('%I:%M%p').lstrip('0')
+
     try:
         lat, lon = _latlon(settings, requests)
-        data = requests.get('https://api.sunrise-sunset.org/json',
-                            params={'lat': lat, 'lng': lon, 'formatted': 0},
+        data = requests.get('https://api.open-meteo.com/v1/forecast',
+                            params={'latitude': lat, 'longitude': lon,
+                                    'daily': 'sunrise,sunset,daylight_duration',
+                                    'timezone': 'auto', 'forecast_days': 1},
                             timeout=8).json()
-        r = data.get('results', {})
-        try:
-            tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
-        except pytz.UnknownTimeZoneError:
-            tz = pytz.timezone('US/Eastern')
-
-        def local(key):
-            iso = r.get(key)
-            if not iso:
-                return '--:--'
-            dt = datetime.fromisoformat(str(iso).replace('Z', '+00:00')).astimezone(tz)
-            # AM/PM is English-only — everyone else gets 24h.
-            if i18n is not None:
-                return i18n.time(dt, ampm_space=False)
-            return dt.strftime('%I:%M%p').lstrip('0')
-
-        rise, sett = local('sunrise'), local('sunset')
-        secs = int(r.get('day_length', 0) or 0)
+        daily = data.get('daily', {})
+        rise = fmt_time((daily.get('sunrise') or [None])[0])
+        sett = fmt_time((daily.get('sunset') or [None])[0])
+        secs = int((daily.get('daylight_duration') or [0])[0] or 0)
         length = f'{secs // 3600}{u("H")}{(secs % 3600) // 60:02d}{u("M")}'
         if rows == 1:
             return [format_lines(f'{t("UP")} {rise} {t("DN")} {sett}')]

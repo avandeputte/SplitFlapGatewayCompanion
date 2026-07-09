@@ -1,5 +1,6 @@
 {
   "id": "wiki-today",
+  "i18n": true,
   "name": "Wikipedia Today",
   "icon": "📚",
   "description": "Featured article & most-read on Wikipedia",
