@@ -111,6 +111,12 @@ _STRINGS: dict[str, dict[str, str]] = {
     "EXTREME":     {"fr": "EXTREME", "de": "EXTREM", "es": "EXTREMO", "it": "ESTREMO", "pt": "EXTREMO", "nl": "EXTREEM"},
     "NONE":        {"fr": "AUCUN", "de": "KEIN", "es": "NINGUNO", "it": "NESSUNO", "pt": "NENHUM", "nl": "GEEN"},
     "UNKNOWN":     {"fr": "INCONNU", "de": "UNBEKANNT", "es": "DESCON.", "it": "SCONOSC.", "pt": "DESCON.", "nl": "ONBEKEND"},
+    # precious metals
+    "GOLD":       {"fr": "OR", "de": "GOLD", "es": "ORO", "it": "ORO", "pt": "OURO", "nl": "GOUD"},
+    "SILVER":     {"fr": "ARGENT", "de": "SILBER", "es": "PLATA", "it": "ARGENTO", "pt": "PRATA", "nl": "ZILVER"},
+    "PLATINUM":   {"fr": "PLATINE", "de": "PLATIN", "es": "PLATINO", "it": "PLATINO", "pt": "PLATINA", "nl": "PLATINA"},
+    "PALLADIUM":  {"fr": "PALLADIUM", "de": "PALLADIUM", "es": "PALADIO", "it": "PALLADIO", "pt": "PALADIO", "nl": "PALLADIUM"},
+    "SPOT PRICE": {"fr": "COURS", "de": "KURS", "es": "PRECIO", "it": "PREZZO", "pt": "PRECO", "nl": "KOERS"},
 }
 
 
@@ -172,6 +178,38 @@ def uses_24h(lang):
     return not (not lang or lang.lower().startswith("en"))
 
 
+# Non-ASCII group separators CLDR uses (French narrow/no-break spaces) — the flap
+# display only speaks Windows-1252, so we fold them back to a plain space.
+_GROUP_SPACES = ("\u202f", "\u00a0", "\u2009")
+
+
+def number(value, lang, decimals=2, grouping=True):
+    """Format a number with the locale's own separators: 1,234.5 (en) vs 1.234,5
+    (de/es/it/…) vs 1 234,5 (fr). Falls back to English grouping off-companion."""
+    try:
+        from babel.numbers import format_decimal
+        pattern = ("#,##0" if grouping else "0") + ("." + "0" * decimals if decimals > 0 else "")
+        s = format_decimal(float(value), format=pattern, locale=(lang or "en"))
+    except Exception:
+        try:
+            s = f"{float(value):,.{decimals}f}" if grouping else f"{float(value):.{decimals}f}"
+        except Exception:
+            return str(value)
+    for ch in _GROUP_SPACES:
+        s = s.replace(ch, " ")
+    return s
+
+
+# The "home" currency implied by a language, used as the default base for FX. The
+# language carries no region, so we pick the most common: English -> USD, the rest
+# of Western Europe -> EUR (users can always override the base explicitly).
+_BASE_CURRENCY = {"en": "USD", "fr": "EUR", "de": "EUR", "es": "EUR", "it": "EUR", "pt": "EUR", "nl": "EUR"}
+
+
+def base_currency(lang):
+    return _BASE_CURRENCY.get((lang or "en").lower(), "USD")
+
+
 def clock(dt, lang, seconds=False, ampm_space=True):
     """Locale-appropriate wall-clock time: ``3:48 PM`` in English, ``15:48`` elsewhere."""
     if uses_24h(lang):
@@ -208,3 +246,9 @@ class Localizer:
 
     def unit(self, key):
         return duration_unit(key, self.lang)
+
+    def number(self, value, decimals=2, grouping=True):
+        return number(value, self.lang, decimals, grouping)
+
+    def base_currency(self):
+        return base_currency(self.lang)

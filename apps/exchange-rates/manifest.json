@@ -1,5 +1,6 @@
 {
   "id": "exchange-rates",
+  "i18n": true,
   "name": "Exchange Rates",
   "icon": "💱",
   "description": "Live currency rates (ECB)",
@@ -14,7 +15,8 @@
       "key": "base",
       "label": "Base currency (3-letter code)",
       "type": "text",
-      "default": "USD",
+      "default": "",
+      "ph": "blank = follow Language",
       "size": "sm"
     },
     {

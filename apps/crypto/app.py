@@ -1,4 +1,4 @@
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import requests
     coins = [s.strip() for s in settings.get('crypto_list', '').split(',') if s.strip()]
     if not coins:
@@ -15,8 +15,17 @@ def fetch(settings, format_lines, get_rows, get_cols):
     rows, cols = get_rows(), get_cols()
     no_color = settings.get('disable_colors', 'no') == 'yes'
 
+    # Numbers follow the global Language (1,234.50 vs 1.234,50 vs 1 234,50).
+    def n(v, d=2, grouping=True):
+        if i18n is not None:
+            return i18n.number(v, d, grouping)
+        return f'{v:,.{d}f}' if grouping else f'{v:.{d}f}'
+
+    def pct(v):
+        return f"{'+' if v >= 0 else '-'}{n(abs(v), 1, grouping=False)}%"
+
     def price_str(price):
-        return f'{currency}{price:,.0f}' if price >= 1 else f'{currency}{price:.4f}'
+        return f'{currency}{n(price, 0)}' if price >= 1 else f'{currency}{n(price, 4, grouping=False)}'
 
     def block(c):
         """The lines for one coin, sized to the display: price+change together on
@@ -29,9 +38,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
         if chg is None:
             chg_str = 'N/A'
         elif no_color:
-            chg_str = f'{chg:+.1f}%'
+            chg_str = pct(chg)
         else:
-            chg_str = ('🟩' if chg >= 0 else '🟥') + f' {chg:+.1f}%'
+            chg_str = ('🟩' if chg >= 0 else '🟥') + f' {pct(chg)}'
         if rows == 1:
             return [f'{sym} {price_str(price)}']
         if rows == 2:

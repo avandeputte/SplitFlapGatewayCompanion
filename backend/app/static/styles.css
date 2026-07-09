@@ -106,6 +106,8 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 .app-tile .app-gear:hover { opacity: 1; }
 .app-tile .app-badge { position: absolute; top: 8px; left: 8px; font-size: .62rem; color: var(--brand); font-weight: 700; letter-spacing: .5px; }
 .app-tile .app-req { position: absolute; bottom: 8px; right: 10px; font-size: .62rem; color: var(--hi); font-weight: 700; }
+.app-tile .app-i18n { position: absolute; bottom: 7px; left: 10px; font-size: .74rem; opacity: .7; cursor: help; }
+.app-tile .app-i18n:hover { opacity: 1; }
 
 .active-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px;
   background: rgba(124,92,255,.15); border: 1px solid var(--brand); border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; }

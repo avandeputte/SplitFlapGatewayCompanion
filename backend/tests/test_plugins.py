@@ -435,6 +435,25 @@ def test_i18n_duration_units():
     assert i18n.duration_unit("S", "fr") == "S"             # near-universal
 
 
+def test_i18n_number_and_base_currency():
+    """Numbers use the locale's separators; the FX base follows the language."""
+    from app import i18n
+    assert i18n.number(1234.5, "en") == "1,234.50"          # comma thousands, dot decimal
+    assert i18n.number(1234.5, "de") == "1.234,50"          # dot thousands, comma decimal
+    assert i18n.number(0.0432, "en", 4, grouping=False) == "0.0432"
+    fr = i18n.number(1234567, "fr", 0)                       # French groups with spaces...
+    assert fr == "1 234 567" and all(ord(c) < 128 for c in fr)   # ...folded to plain ASCII
+    assert i18n.base_currency("en") == "USD" and i18n.base_currency("fr") == "EUR"
+
+
+def test_manifest_i18n_flag_surfaces_in_listing(tmp_path):
+    """The manifest's i18n flag reaches the app listing so the UI can badge cards."""
+    rt = _runtime(tmp_path, ["crypto", "time"])
+    flags = {a["id"]: a["i18n"] for a in rt.app_list()}
+    assert flags["crypto"] is True      # a localized app
+    assert flags["time"] is False       # not localized
+
+
 def test_i18n_injected_by_param_name(tmp_path):
     """An app opts into localization by declaring an i18n parameter; the runtime
     injects a language-bound helper (a classic app gets nothing)."""

@@ -458,6 +458,7 @@ class PluginRuntime:
             "loaded": app_id in self._registry,
             "animation": self.is_anim(app_id) if app_id in self._registry else app_id.startswith("anim_"),
             "has_settings": bool(manifest.get("settings")),
+            "i18n": bool(manifest.get("i18n")),           # adapts to the global Language
             "min_rows": manifest.get("min_rows"),
             "min_cols": manifest.get("min_cols"),
             "min_modules": manifest.get("min_modules"),   # total-module minimum (any shape)

@@ -85,7 +85,10 @@ It will:
 - create the **companion** container (auto-detecting this host's IP to register a
   Companion tab back on the gateway);
 - optionally add a **Diun** container to watch the images and report when a newer
-  version is published (Diun *notifies*; it doesn't auto-apply — see below).
+  version is published (Diun *notifies*; it doesn't auto-apply — see below);
+- optionally enable **developer mode** (off by default; mainly for app developers —
+  a Dev menu for simulation, gateway resync and grid override). Toggle it later via
+  `COMPANION_DEV_MODE` in the project's `.env`.
 
 The project lands in `/opt/splitflap-companion` (root) or `~/splitflap-companion`,
 as a plain `docker-compose.yml` + `.env` you can edit and re-`up` any time. It's

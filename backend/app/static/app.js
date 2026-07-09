@@ -117,6 +117,7 @@ async function loadApps() {
       `<div class="app-name">${a.name}</div>` +
       `<div class="app-desc">${a.description || ""}</div>` +
       (a.has_settings ? `<button class="app-gear" title="Settings">⚙</button>` : "") +
+      (a.i18n ? `<span class="app-i18n" title="Multilingual — adapts to the global Language">🌐</span>` : "") +
       `<span class="app-badge"></span>` +
       (fits ? "" : `<span class="app-req">${appReq(a)}</span>`);
     tile.addEventListener("click", (e) => {
@@ -444,8 +445,9 @@ async function openLibrary() {
   data.apps.forEach((a) => {
     const row = el("div", "lib-row");
     const tag = a.builtin ? "" : ' <small style="color:var(--brand)">· uploaded</small>';
+    const i18nTag = a.i18n ? ' <span title="Multilingual — adapts to the global Language">🌐</span>' : "";
     row.innerHTML = `<span class="app-icon" style="font-size:20px">${a.icon || "🧩"}</span>` +
-      `<div class="lib-meta"><div class="lib-name">${a.name}${tag}</div><div class="lib-desc">${a.description || ""}</div></div>`;
+      `<div class="lib-meta"><div class="lib-name">${a.name}${i18nTag}${tag}</div><div class="lib-desc">${a.description || ""}</div></div>`;
     const btn = el("button", "btn btn-sm " + (a.installed ? "ghost" : "primary"));
     btn.textContent = a.installed ? "Remove" : "Add";
     btn.addEventListener("click", async () => {

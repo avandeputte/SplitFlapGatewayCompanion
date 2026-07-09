@@ -1,5 +1,6 @@
 {
   "id": "sun-times",
+  "i18n": true,
   "name": "Sun Times",
   "icon": "☀️",
   "description": "Sunrise, sunset & day length",

@@ -193,6 +193,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
   exposes the same decision if you need to branch yourself.
 - `i18n.unit("D")` — a localized compact duration suffix for `D`/`H`/`M`/`S`, so
   `175D` becomes `175J` in French (jour), `175T` in German (Tag), `175G` in Italian.
+- `i18n.number(value, decimals=2, grouping=True)` — a number with the locale's own
+  separators: `1,234.50` (en) vs `1.234,50` (de) vs `1 234,50` (fr). Use it for any
+  price/rate/percent — never hardcode `f"{v:,.2f}"`.
+- `i18n.base_currency()` — the currency a language implies (`USD` for English, `EUR`
+  for Western Europe), a sensible default base for a currency/FX app.
 - `i18n.t("ENGLISH LABEL")` — a translated UI word; if there's no translation for
   the current language it returns the English key, so nothing ever breaks. The
   curated set (see `app/i18n.py`) covers the major Western-European languages;
@@ -205,6 +210,10 @@ a language's structure genuinely differs (a word clock, a plural rule), keep tha
 logic **inside the app** keyed off `i18n.lang` — see `apps/word-clock/app.py`, which
 carries its own per-language phrase builders. All helpers compose with
 `get_weather`: `def fetch(..., get_weather=None, i18n=None)`.
+
+Once your app adapts to the language, add `"i18n": true` to its `manifest.json` — the
+Apps grid and library show a 🌐 badge on those cards so users know they follow the
+global **Language**.
 
 ### The return value
 

@@ -186,6 +186,14 @@ say "${DIM}  Adds a Diun container that watches the companion (and broker) image
 say "  reports when a newer version is published.${N}"
 askyn AUTO_UPDATE "  Enable update watching with Diun?" n
 
+say ""
+say "${B}Developer mode${N}"
+say "${DIM}  Primarily for app developers. Adds a \"Dev\" menu in the UI to run apps in"
+say "  simulation mode (nothing is sent to the display), force a gateway resync, and"
+say "  override the grid size while simulating. Leave off for normal use — you can turn"
+say "  it on later by adding COMPANION_DEV_MODE=1 to the project's .env and re-running up.${N}"
+askyn DEV_MODE "  Enable developer mode?" n
+
 # --------------------------------------------------------------------------- #
 # 3. Derive host facts
 # --------------------------------------------------------------------------- #
@@ -214,6 +222,7 @@ info "Project directory: $DIR"
   [ -n "$MQTT_PORT" ]   && echo "COMPANION_MQTT_PORT=$MQTT_PORT"
   [ -n "$MQTT_USER" ]   && echo "COMPANION_MQTT_USER=$MQTT_USER"
   [ -n "$MQTT_PASS" ]   && echo "COMPANION_MQTT_PASSWORD=$MQTT_PASS"
+  [ "$DEV_MODE" = yes ] && echo "COMPANION_DEV_MODE=1"
   echo "TZ=$TZ_VAL"
   echo "# Pin a specific release instead of latest, and set your GHCR owner if you forked:"
   echo "# GHCR_OWNER=avandeputte"
@@ -346,6 +355,10 @@ if [ "$AUTO_UPDATE" = yes ]; then
   say "                 Note: Diun *notifies* about new images, it does not apply them."
   say "                 Wire a notifier with DIUN_NOTIF_* env vars, then apply updates with"
   say "                 'cd $DIR && $DC pull && $DC up -d'.${N}"
+fi
+if [ "$DEV_MODE" = yes ]; then
+  say "  Developer    : ${DIM}ON — a Dev menu is available in the UI (simulation, resync,"
+  say "                 grid override). Remove COMPANION_DEV_MODE from .env to disable.${N}"
 fi
 say ""
 say "  ${DIM}Manage:  cd $DIR"
