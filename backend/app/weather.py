@@ -59,9 +59,12 @@ def _resolve_location(settings, client: httpx.Client):
 
     zip_code = str(settings.get("zip_code", "02118") or "02118").strip()
     try:
+        import re
+        params = {"q": zip_code, "format": "json", "limit": 1, "addressdetails": 1}
+        if re.fullmatch(r"\d{5}", zip_code):   # a US ZIP — 02118 is also a valid postcode abroad
+            params["countrycodes"] = "us"
         geo = client.get(
-            "https://nominatim.openstreetmap.org/search",
-            params={"q": zip_code, "format": "json", "limit": 1, "addressdetails": 1},
+            "https://nominatim.openstreetmap.org/search", params=params,
             headers={"User-Agent": "SplitFlapGatewayCompanion/1.0"},
         ).json()
         if geo:

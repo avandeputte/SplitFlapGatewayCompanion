@@ -1,0 +1,24 @@
+{
+  "id": "wiki-today",
+  "name": "Wikipedia Today",
+  "icon": "📚",
+  "description": "Featured article & most-read on Wikipedia",
+  "type": "functional",
+  "refresh_interval": 3600,
+  "loop_delay": 8,
+  "category": "news",
+  "min_rows": 1,
+  "min_cols": 12,
+  "settings": [
+    {
+      "key": "loop_delay",
+      "label": "Delay Between Pages (seconds)",
+      "type": "number",
+      "default": "8",
+      "min": "2",
+      "max": "30",
+      "step": "1",
+      "stepper": true
+    }
+  ]
+}

@@ -251,8 +251,12 @@ def fetch(settings, format_lines, get_rows, get_cols):
             _lat, _lon = float(loc_lat), float(loc_lon)
             _city = loc_name.split(',')[0].strip().upper() if loc_name else 'LOCATION'
         else:
+            import re
+            _geo_params = {'q': zip_code, 'format': 'json', 'limit': 1}
+            if re.fullmatch(r'\d{5}', str(zip_code).strip()):   # US ZIP — 02118 also exists abroad
+                _geo_params['countrycodes'] = 'us'
             geo = requests.get(
-                f'https://nominatim.openstreetmap.org/search?q={zip_code}&format=json&limit=1',
+                'https://nominatim.openstreetmap.org/search', params=_geo_params,
                 timeout=5, headers={'User-Agent': 'SplitFlapGatewayCompanion/1.0'}
             ).json()
             if geo:
