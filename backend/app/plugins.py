@@ -288,14 +288,14 @@ class PluginRuntime:
         manifest's refresh_interval, overridden by a per-app polling_rate (seconds)
         or the friendlier refresh_minutes, if the app declares one."""
         refresh = manifest.get("refresh_interval", 300)
-        poll = self.settings.get(f"plugin_{app_id}_polling_rate")
-        if poll:
+        poll = self._perapp_value(app_id, "polling_rate")
+        if poll not in (None, ""):
             try:
                 refresh = max(10, int(float(poll)))
             except (ValueError, TypeError):
                 pass
-        mins = self.settings.get(f"plugin_{app_id}_refresh_minutes")
-        if mins:
+        mins = self._perapp_value(app_id, "refresh_minutes")
+        if mins not in (None, ""):
             try:
                 refresh = max(10, int(float(mins) * 60))
             except (ValueError, TypeError):
@@ -390,17 +390,43 @@ class PluginRuntime:
         m = self._registry.get(app_id, {})
         return app_id.startswith("anim_") or bool(m.get("animation"))
 
+    def _setting_default(self, app_id: str, key: str):
+        """The manifest's declared default for a setting (what the app dialog
+        shows). None if the app doesn't declare that setting."""
+        for st in self._registry.get(app_id, {}).get("settings", []):
+            if st.get("key") == key:
+                d = st.get("default")
+                return d if d not in (None, "") else None
+        return None
+
+    def _perapp_value(self, app_id: str, key: str):
+        """Effective value of a runtime-consumed per-app setting: the saved value,
+        else the manifest's declared default. So a setting's default takes effect
+        immediately — the user shouldn't have to save it first. None if neither."""
+        saved = self.settings.get(f"plugin_{app_id}_{key}")
+        if saved not in (None, ""):
+            return saved
+        return self._setting_default(app_id, key)
+
     def loop_delay(self, app_id: str) -> float:
         m = self._registry.get(app_id, {})
         if self.is_anim(app_id):
             # anim speed is a per-app setting (each animation keeps its own).
-            return max(0.1, float(self.settings.get(f"plugin_{app_id}_anim_speed", "0.4") or 0.4))
-        saved = self.settings.get(f"plugin_{app_id}_loop_delay", "")
-        default = float(m.get("loop_delay", self.settings.get("global_loop_delay", 5)))
+            v = self._perapp_value(app_id, "anim_speed")
+            try:
+                return max(0.1, float(v)) if v is not None else 0.4
+            except (ValueError, TypeError):
+                return 0.4
+        # The declared setting default (what the dialog shows) is used before the
+        # manifest's top-level loop_delay or the global default — so it applies
+        # even when the user hasn't explicitly saved the app's settings.
+        v = self._perapp_value(app_id, "loop_delay")
+        if v is None:
+            v = m.get("loop_delay", self.settings.get("global_loop_delay", 8))
         try:
-            return float(saved) if saved else default
+            return float(v)
         except (ValueError, TypeError):
-            return default
+            return float(self.settings.get("global_loop_delay", 8) or 8)
 
     def page_timing(self, app_id: str) -> dict:
         """Style/speed/delay for the play loop (mirrors playlist_loop)."""

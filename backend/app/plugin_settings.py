@@ -60,7 +60,7 @@ def _defaults() -> dict:
         "weather_provider": "openmeteo",
         "weather_api_key": "",
         "yt_api_key": "",
-        "global_loop_delay": 5,
+        "global_loop_delay": 8,
         # Playlists + triggers (schedules/quiet-time now live on the gateway).
         "saved_app_playlists": {},
         "triggers": [],

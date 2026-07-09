@@ -342,6 +342,30 @@ def test_upload_drops_misleading_global_key_flag(tmp_path):
     assert "global_key" not in opt
 
 
+def test_setting_default_applies_without_saving(tmp_path):
+    """A per-app setting's declared default (what the dialog shows) is the
+    effective value even before the user saves it — it overrides the global
+    fallback. Regression: it used to fall back to global_loop_delay until saved."""
+    import json
+    apps = tmp_path / "apps"
+    (apps / "slowapp").mkdir(parents=True)
+    (apps / "slowapp" / "manifest.json").write_text(json.dumps({
+        "name": "Slow", "type": "functional",
+        # a loop_delay SETTING with a high default, but NO top-level loop_delay
+        "settings": [{"key": "loop_delay", "type": "number", "default": "20"}]}))
+    (apps / "slowapp" / "app.py").write_text(
+        "def fetch(s, f, r, c):\n    return [f('X')]\n")
+    ps = PluginSettings(tmp_path)
+    ps.set_installed(["slowapp"])
+    rt = PluginRuntime(Config(data_dir=tmp_path), ps, apps)
+    rt.load()
+    assert ps.get("global_loop_delay") == 8       # raised global default
+    assert rt.loop_delay("slowapp") == 20.0        # the setting default, not the global
+    # a saved value still wins
+    rt.save_settings("slowapp", {"plugin_slowapp_loop_delay": "3"})
+    assert rt.loop_delay("slowapp") == 3.0
+
+
 def test_refresh_minutes_overrides_fetch_cadence(tmp_path):
     """A per-app refresh_minutes controls how often fetch() is re-run (so a
     random-content app pulls a fresh item on the user's schedule)."""

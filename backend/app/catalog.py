@@ -67,7 +67,7 @@ CATALOG: list[dict] = [
      "note": "Apps that support multiple languages use this. Only Windows-1252 "
              "(Western-European) languages are listed — the modules can't show others."},
     {"key": "global_loop_delay", "label": "Default page dwell (seconds)", "type": "number",
-     "default": 5, "min": "1", "step": "1", "stepper": True,
+     "default": 8, "min": "1", "max": "60", "step": "1", "stepper": True,
      "note": "How long each app page shows before advancing, unless an app overrides it."},
     {"key": "yt_api_key", "label": "YouTube Data API Key", "type": "password",
      "note": "Shared by the YouTube subscriber, comments and livestream apps."},
