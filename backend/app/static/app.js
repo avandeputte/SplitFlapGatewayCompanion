@@ -379,6 +379,47 @@ async function openAppSettings(id, name) {
   openModal(`${schema.icon} ${name || schema.name}`, form, [msg, close, save]);
 }
 
+// Per-playlist-entry settings: reuse the app's own settings form, but save the
+// values into this entry's `overrides` (only what differs from the app's config),
+// so the same app can appear multiple times configured differently.
+async function openEntrySettings(entry) {
+  const app = APPS.find((a) => a.id === entry.app);
+  const schema = await api(`/api/apps/${entry.app}/settings`);
+  const base = Object.assign({}, schema.values, entry.overrides || {});   // entry values win in the form
+  const form = el("div");
+  const note = el("p", "hint");
+  note.textContent = "These apply to this playlist entry only. Unchanged fields follow the app's own settings.";
+  form.appendChild(note);
+  _formFields = [];
+  schema.fields.forEach((f) => {
+    if (f.key && f.key.startsWith("_globals_note_")) return;   // the shared-globals hint isn't overridable per entry
+    const w = mkField(f, base); _formFields.push(w); form.appendChild(w);
+    if (f.inline_toggle) {
+      const it = f.inline_toggle;
+      const tw = mkField({ key: it.key, type: "toggle", label: "", options: it.options }, base);
+      _formFields.push(tw); form.appendChild(tw);
+    }
+  });
+  onFormChange();
+  const save = el("button", "btn primary"); save.textContent = "Save for this entry";
+  const clear = el("button", "btn ghost"); clear.textContent = "Clear";
+  clear.title = "Remove all per-entry overrides (follow the app's settings)";
+  const msg = el("span", "hint"); msg.style.marginRight = "auto";
+  clear.addEventListener("click", () => { entry.overrides = {}; closeModal(); plRender(); });
+  save.addEventListener("click", () => {
+    const ov = {};
+    _formFields.forEach((w) => {
+      const v = w._getValue && w._getValue();
+      if (v === undefined) return;
+      const k = w._field.key;
+      if (String(v) !== String(schema.values[k] ?? "")) ov[k] = v;   // store only genuine overrides
+    });
+    entry.overrides = ov;
+    closeModal(); plRender();
+  });
+  openModal(`${app ? app.icon + " " : ""}${app ? app.name : entry.app} — entry settings`, form, [msg, clear, save]);
+}
+
 async function openGlobalSettings() {
   const schema = await api("/api/global-settings");
   const form = el("div", "gsettings");
@@ -490,7 +531,15 @@ function plRender() {
       const sel = el("select"); sel.className = "grow";
       APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}${a.i18n ? " 🌐" : ""}`; if (a.id === e.app) o.selected = true; sel.appendChild(o); });
       if (!e.app && APPS[0]) e.app = APPS[0].id;
-      sel.onchange = () => (e.app = sel.value); row.appendChild(sel);
+      sel.onchange = () => { e.app = sel.value; e.overrides = {}; plRender(); }; row.appendChild(sel);
+      // Per-entry settings: override this entry's config (location/units/language…)
+      // independently, so the same app can appear more than once configured differently.
+      const nOv = Object.keys(e.overrides || {}).length;
+      const cfg = el("button", "del"); cfg.textContent = nOv ? `⚙ ${nOv}` : "⚙";
+      cfg.title = nOv ? `${nOv} setting(s) overridden for this entry` : "Settings for this entry";
+      if (nOv) cfg.style.color = "var(--brand)";
+      cfg.onclick = () => openEntrySettings(e);
+      row.appendChild(cfg);
     } else {
       const inp = el("input"); inp.className = "grow"; inp.placeholder = "MESSAGE"; inp.value = e.text || "";
       inp.oninput = () => (e.text = inp.value); row.appendChild(inp);

@@ -493,6 +493,22 @@ def test_i18n_country_and_year_unit():
     assert i18n.Localizer("en-GB").lang_base == "en"
 
 
+def test_playlist_entry_overrides(tmp_path):
+    """get_pages(app, overrides) renders one instance with its own config without
+    touching saved settings, and two override sets don't share a cache."""
+    rt = _runtime(tmp_path, ["metals"])
+    rt.settings.set("language", "en-US")
+    us = " ".join(rt.get_pages("metals"))                                  # global
+    de = " ".join(rt.get_pages("metals", {"plugin_metals_language": "de"}))  # this entry only
+    fr = " ".join(rt.get_pages("metals", {"plugin_metals_language": "fr"}))
+    assert "GOLD" in us and "GOLD" in de and "OR" in fr                    # de keeps GOLD, fr -> OR
+    assert "KURS" in de and "COURS" in fr and "SPOT PRICE" in us
+    # a second no-override render is unaffected by the overridden ones (no cache bleed)
+    assert " ".join(rt.get_pages("metals")) == us
+    # the global setting was never mutated
+    assert rt.settings.get("plugin_metals_language") in (None, "")
+
+
 def test_perapp_language_override(tmp_path):
     """A per-app Language (plugin_<id>_language) overrides the global; blank follows it."""
     rt = _runtime(tmp_path, ["word-of-the-day"])

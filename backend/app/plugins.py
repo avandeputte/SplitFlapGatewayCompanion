@@ -39,6 +39,35 @@ _PASSTHROUGH = (
 )
 
 
+class _SettingsOverlay:
+    """A read-through view of the settings store with a transient override layer,
+    used to render one app with per-instance config (e.g. a playlist entry that
+    carries its own location/language) without touching the saved settings."""
+
+    def __init__(self, base, overrides):
+        self._base = base
+        self._ov = {k: v for k, v in (overrides or {}).items() if v not in (None, "")}
+
+    def get(self, key, default=None):
+        if key in self._ov:
+            return self._ov[key]
+        return self._base.get(key, default)
+
+    def all(self):
+        merged = self._base.all()
+        merged.update(self._ov)
+        return merged
+
+
+def _cache_key(app_id: str, overrides: dict | None) -> str:
+    """Cache/lock key: the app id, plus a stable digest of any overrides so two
+    playlist entries of the same app with different config don't share a cache."""
+    if not overrides:
+        return app_id
+    items = sorted((k, v) for k, v in overrides.items() if v not in (None, ""))
+    return app_id if not items else app_id + "\x00" + repr(items)
+
+
 class PluginRuntime:
     def __init__(self, config: Config, settings: PluginSettings, apps_dir: Path,
                  user_apps_dir: Path | None = None):
@@ -260,8 +289,9 @@ class PluginRuntime:
         return reads
 
     # -- settings assembly (faithful) -------------------------------------
-    def _plugin_settings(self, app_id: str, manifest: dict) -> dict:
-        s = self.settings.all()
+    def _plugin_settings(self, app_id: str, manifest: dict, settings=None) -> dict:
+        settings = settings or self.settings
+        s = settings.all()
         # currency_symbol is owned by the display config; keep them in sync.
         s["currency_symbol"] = self.config.display.get("currency_symbol", "$")
         declared = set()
@@ -272,28 +302,28 @@ class PluginRuntime:
             declared.add(key)
             if key in GLOBAL_STORAGE_KEYS:
                 continue  # a global — already present in `s`
-            s[key] = self.settings.get(f"plugin_{app_id}_{key}", st.get("default", ""))
+            s[key] = settings.get(f"plugin_{app_id}_{key}", st.get("default", ""))
         # Settings the app READS but never declares are per-app too (not shared
         # bare keys), so each app keeps its own value.
         for key, dflt in self._reads.get(app_id, {}).items():
             if key in GLOBAL_STORAGE_KEYS or key in declared:
                 continue
-            s[key] = self.settings.get(f"plugin_{app_id}_{key}",
-                                       dflt if dflt is not None else s.get(key, ""))
+            s[key] = settings.get(f"plugin_{app_id}_{key}",
+                                  dflt if dflt is not None else s.get(key, ""))
         return s
 
-    def _refresh_secs(self, app_id: str, manifest: dict) -> int:
+    def _refresh_secs(self, app_id: str, manifest: dict, settings=None) -> int:
         """How often fetch() is re-run (its result is cached in between): the
         manifest's refresh_interval, overridden by a per-app polling_rate (seconds)
         or the friendlier refresh_minutes, if the app declares one."""
         refresh = manifest.get("refresh_interval", 300)
-        poll = self._perapp_value(app_id, "polling_rate")
+        poll = self._perapp_value(app_id, "polling_rate", settings)
         if poll not in (None, ""):
             try:
                 refresh = max(10, int(float(poll)))
             except (ValueError, TypeError):
                 pass
-        mins = self._perapp_value(app_id, "refresh_minutes")
+        mins = self._perapp_value(app_id, "refresh_minutes", settings)
         if mins not in (None, ""):
             try:
                 refresh = max(10, int(float(mins) * 60))
@@ -302,13 +332,18 @@ class PluginRuntime:
         return refresh
 
     # -- pages (faithful get_plugin_pages) --------------------------------
-    def get_pages(self, app_id: str) -> list[str]:
+    def get_pages(self, app_id: str, overrides: dict | None = None) -> list[str]:
         cols = self.get_cols()
         manifest = self._registry.get(app_id)
         if not manifest:
             return [self.format_lines("PLUGIN ERROR", app_id.upper()[:cols], "NOT FOUND")]
         app_type = manifest.get("type")
-        refresh = self._refresh_secs(app_id, manifest)
+        # Per-entry overrides (playlist) render this app with its own config without
+        # disturbing the saved settings; the cache/lock key includes them so two
+        # entries of the same app don't collide.
+        settings = _SettingsOverlay(self.settings, overrides) if overrides else self.settings
+        ckey = _cache_key(app_id, overrides)
+        refresh = self._refresh_secs(app_id, manifest, settings)
 
         if app_type == "channel":
             pages = self._channel.get(app_id, [])
@@ -321,32 +356,32 @@ class PluginRuntime:
             # Serialize fetches for this app: get_pages runs in executor threads
             # (app loop + a preview can hit the same app at once), so this
             # coalesces duplicate fetches and protects non-reentrant app state.
-            lock = self._fetch_locks.get(app_id)
+            lock = self._fetch_locks.get(ckey)
             if lock is None:
-                lock = self._fetch_locks[app_id] = threading.Lock()
+                lock = self._fetch_locks[ckey] = threading.Lock()
             with lock:
                 now = time.time()
-                cached = self._caches.get(app_id)
+                cached = self._caches.get(ckey)
                 if cached and (now - cached["fetched_at"]) < refresh:
                     return cached["pages"]
                 try:
-                    ps = self._plugin_settings(app_id, manifest)
+                    ps = self._plugin_settings(app_id, manifest, settings)
                     kwargs = {}
                     if self._wants_weather.get(app_id):
                         kwargs["get_weather"] = lambda s=None: weather.fetch_current(s if s is not None else ps)
                     if self._wants_i18n.get(app_id):
                         # A per-app Language override (plugin_<id>_language) wins over
                         # the global Language; blank/unset = follow global.
-                        lang = self._perapp_value(app_id, "language") or self.settings.get("language", "en-US")
+                        lang = self._perapp_value(app_id, "language", settings) or settings.get("language", "en-US")
                         kwargs["i18n"] = i18n.Localizer(lang)
                     pages = mod.fetch(ps, self.format_lines, self.get_rows, self.get_cols, **kwargs)
                     if not isinstance(pages, list):
                         pages = [str(pages)]
-                    self._caches[app_id] = {"pages": pages, "fetched_at": now}
+                    self._caches[ckey] = {"pages": pages, "fetched_at": now}
                     return pages
                 except Exception as e:
                     log.warning("plugin %s fetch error: %s", app_id, e)
-                    cp = self._caches.get(app_id, {}).get("pages")
+                    cp = self._caches.get(ckey, {}).get("pages")
                     if cp:
                         return cp
                     err = str(e).lower()
@@ -403,20 +438,21 @@ class PluginRuntime:
                 return d if d not in (None, "") else None
         return None
 
-    def _perapp_value(self, app_id: str, key: str):
+    def _perapp_value(self, app_id: str, key: str, settings=None):
         """Effective value of a runtime-consumed per-app setting: the saved value,
         else the manifest's declared default. So a setting's default takes effect
         immediately — the user shouldn't have to save it first. None if neither."""
-        saved = self.settings.get(f"plugin_{app_id}_{key}")
+        saved = (settings or self.settings).get(f"plugin_{app_id}_{key}")
         if saved not in (None, ""):
             return saved
         return self._setting_default(app_id, key)
 
-    def loop_delay(self, app_id: str) -> float:
+    def loop_delay(self, app_id: str, settings=None) -> float:
         m = self._registry.get(app_id, {})
+        settings = settings or self.settings
         if self.is_anim(app_id):
             # anim speed is a per-app setting (each animation keeps its own).
-            v = self._perapp_value(app_id, "anim_speed")
+            v = self._perapp_value(app_id, "anim_speed", settings)
             try:
                 return max(0.1, float(v)) if v is not None else 0.4
             except (ValueError, TypeError):
@@ -424,28 +460,30 @@ class PluginRuntime:
         # The declared setting default (what the dialog shows) is used before the
         # manifest's top-level loop_delay or the global default — so it applies
         # even when the user hasn't explicitly saved the app's settings.
-        v = self._perapp_value(app_id, "loop_delay")
+        v = self._perapp_value(app_id, "loop_delay", settings)
         if v is None:
-            v = m.get("loop_delay", self.settings.get("global_loop_delay", 8))
+            v = m.get("loop_delay", settings.get("global_loop_delay", 8))
         try:
             return float(v)
         except (ValueError, TypeError):
-            return float(self.settings.get("global_loop_delay", 8) or 8)
+            return float(settings.get("global_loop_delay", 8) or 8)
 
-    def page_timing(self, app_id: str) -> dict:
-        """Style/speed/delay for the play loop (mirrors playlist_loop)."""
+    def page_timing(self, app_id: str, overrides: dict | None = None) -> dict:
+        """Style/speed/delay for the play loop (mirrors playlist_loop). Accepts
+        per-entry overrides so a playlist entry's own loop_delay/style is honored."""
+        settings = _SettingsOverlay(self.settings, overrides) if overrides else self.settings
         m = self._registry.get(app_id, {})
         disp = self.config.display
         speed = int(disp.get("transition_speed", 15))
         if self.is_anim(app_id):
             # anim style is a per-app setting (each animation keeps its own).
-            style = self.settings.get(f"plugin_{app_id}_anim_style", "ltr") or "ltr"
+            style = settings.get(f"plugin_{app_id}_anim_style", "ltr") or "ltr"
             return {"is_anim": True, "style": style, "speed": speed,
-                    "loop_delay": self.loop_delay(app_id), "skip_rotation": True}
-        style = self.settings.get(f"plugin_{app_id}_transition_style") or \
+                    "loop_delay": self.loop_delay(app_id, settings), "skip_rotation": True}
+        style = settings.get(f"plugin_{app_id}_transition_style") or \
             disp.get("transition_style", "ltr")
         return {"is_anim": False, "style": style, "speed": speed,
-                "loop_delay": self.loop_delay(app_id),
+                "loop_delay": self.loop_delay(app_id, settings),
                 "skip_rotation": bool(m.get("skip_rotation_wait"))}
 
     # -- listings ----------------------------------------------------------

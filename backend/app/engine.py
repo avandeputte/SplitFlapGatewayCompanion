@@ -256,11 +256,14 @@ class DisplayController:
                         app_id = app_id[7:]
                     if not app_id or self.plugins.manifest(app_id) is None:
                         continue
+                    # Per-entry setting overrides (own location/language/config), so
+                    # the same app can appear twice with different configuration.
+                    ov = entry.get("overrides") or None
                     deadline = rt_loop.time() + duration
                     last_sent = None
                     while rt_loop.time() < deadline and self.active_playlist == want:
                         try:
-                            pages = await rt_loop.run_in_executor(None, self.plugins.get_pages, app_id)
+                            pages = await rt_loop.run_in_executor(None, self.plugins.get_pages, app_id, ov)
                         except asyncio.CancelledError:
                             raise
                         except Exception:
@@ -268,7 +271,7 @@ class DisplayController:
                         if not pages:
                             await asyncio.sleep(1)
                             continue
-                        t = self.plugins.page_timing(app_id)
+                        t = self.plugins.page_timing(app_id, ov)
                         for page in pages:
                             if rt_loop.time() >= deadline or self.active_playlist != want:
                                 break
