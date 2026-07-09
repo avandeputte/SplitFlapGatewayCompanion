@@ -18,7 +18,8 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 dt = datetime.fromisoformat(arr)
                 mins = max(0, int((dt - now).total_seconds() // 60))
                 preds[d_id] = f'{mins} MIN'
-        header = f'🟧 {route.upper()} LINE 🟧'
+        no_color = settings.get('disable_colors', 'no') == 'yes'
+        header = f'{route.upper()} LINE' if no_color else f'🟧 {route.upper()} LINE 🟧'
         line0 = preds.get(0, 'NO DATA')
         line1 = preds.get(1, 'NO DATA')
         rows = get_rows()

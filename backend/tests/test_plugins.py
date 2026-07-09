@@ -220,6 +220,18 @@ def test_catalog_is_the_reusable_set(tmp_path):
             "global_loop_delay", "yt_api_key"} <= CATALOG_KEYS
 
 
+def test_disable_colors_is_a_global_toggle(tmp_path):
+    """Disabling colors is one global toggle every color app reads (Crypto,
+    Stocks, Weather, Metro) — not a per-app setting."""
+    from app.catalog import CATALOG_BY_KEY, CATALOG_KEYS
+    assert "disable_colors" in CATALOG_KEYS
+    assert CATALOG_BY_KEY["disable_colors"]["type"] == "toggle"
+    rt = _runtime(tmp_path, ["crypto"])
+    rt.save_global_settings({"disable_colors": "yes"})
+    ps = rt._plugin_settings("crypto", rt.manifest("crypto"))
+    assert ps.get("disable_colors") == "yes"        # reaches the app as a global
+
+
 def test_language_global_is_windows1252_only(tmp_path):
     """Language is a global picker limited to Windows-1252 (Western) languages."""
     from app.catalog import CATALOG_BY_KEY, CATALOG_KEYS

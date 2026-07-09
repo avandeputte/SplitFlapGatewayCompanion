@@ -172,7 +172,9 @@ def _format_temp(value, temp_unit):
     return f"{int(round(converted))}{temp_unit.upper()}"
 
 
-def _compact_color(color):
+def _compact_color(color, mono=False):
+    if mono:
+        return ''
     return {
         'GREEN': '🟩',
         'YELLOW': '🟨',
@@ -183,9 +185,11 @@ def _compact_color(color):
     }.get(color, color)
 
 
-def _decorate_status(label, color, cols):
-    swatch = _compact_color(color)
+def _decorate_status(label, color, cols, mono=False):
     text = str(label or '').strip()
+    if mono:                       # colors disabled: show the label only
+        return text[:cols]
+    swatch = _compact_color(color)
     if not text:
         return swatch
 
@@ -224,6 +228,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
     temp_unit = str(settings.get('temperature_unit', 'f')).lower()
     if temp_unit not in ('f', 'c', 'k'):
         temp_unit = 'f'
+    no_color = settings.get('disable_colors', 'no') == 'yes'
     show_aqi = settings.get('show_aqi', 'yes') == 'yes'
     show_uv = settings.get('show_uv', 'yes') == 'yes' and weather_provider in ('openmeteo', 'weatherapi')
     show_pollen = settings.get('show_pollen', 'yes') == 'yes' and weather_provider in ('openmeteo', 'weatherapi')
@@ -511,7 +516,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 if aqi_num is None or aqi_num <= 0:
                     raise ValueError('AQI unavailable')
 
-                aqi_display = _decorate_status(aqi_label, aqi_color, cols)
+                aqi_display = _decorate_status(aqi_label, aqi_color, cols, no_color)
                 if rows == 1:
                     pages.append(format_lines(f'AQI {aqi_display}'))
                 elif rows == 2:
@@ -533,7 +538,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
                     uv_num = int(round(float(uv_value)))
                     uv_label = _uv_level(float(uv_value))
                     uv_color = _uv_color(float(uv_value))
-                    uv_display = _decorate_status(uv_label, uv_color, cols)
+                    uv_display = _decorate_status(uv_label, uv_color, cols, no_color)
                     if rows == 1:
                         pages.append(format_lines(f'UV {uv_display}'))
                     elif rows == 2:
@@ -575,17 +580,17 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 grass_label = _pollen_level(grass)
                 tree_label = _pollen_level(birch)
                 weed_label = _pollen_level(weed or ragweed)
-                overall_display = _decorate_status(overall_label, overall_color, cols)
+                overall_display = _decorate_status(overall_label, overall_color, cols, no_color)
                 component_displays = []
                 if grass is not None:
-                    grass_display = f'{grass_word} {grass_label} {_compact_color(_pollen_color(grass))}'
+                    grass_display = f'{grass_word} {grass_label} {_compact_color(_pollen_color(grass), no_color)}'.rstrip()
                     component_displays.append(grass_display)
                 if birch is not None:
-                    tree_display = f'{tree_word} {tree_label} {_compact_color(_pollen_color(birch))}'
+                    tree_display = f'{tree_word} {tree_label} {_compact_color(_pollen_color(birch), no_color)}'.rstrip()
                     component_displays.append(tree_display)
                 weed_value = weed or ragweed
                 if weed_value is not None:
-                    weed_display = f'{weed_word} {weed_label} {_compact_color(_pollen_color(weed_value))}'
+                    weed_display = f'{weed_word} {weed_label} {_compact_color(_pollen_color(weed_value), no_color)}'.rstrip()
                     component_displays.append(weed_display)
 
                 if rows == 1:

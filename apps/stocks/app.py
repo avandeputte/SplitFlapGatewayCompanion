@@ -4,6 +4,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
     if not tickers:
         return [format_lines('STOCKS', 'NO TICKERS', 'CONFIGURE')]
     currency = settings.get('currency_symbol', '$').strip() or '$'
+    no_color = settings.get('disable_colors', 'no') == 'yes'
     rows = get_rows()
     pages = []
     for i in range(0, len(tickers), rows):
@@ -16,7 +17,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 price = info['lastPrice']
                 prev = info['previousClose']
                 chg = ((price - prev) / prev) * 100
-                icon = '🟩' if chg >= 0 else '🟥'
+                icon = '' if no_color else ('🟩' if chg >= 0 else '🟥')
                 price_lines.append(f'{sym} {currency}{price:.2f}')
                 change_lines.append(f'{sym} {icon}{chg:+.1f}%')
             except Exception:

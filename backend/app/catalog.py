@@ -69,6 +69,10 @@ CATALOG: list[dict] = [
     {"key": "global_loop_delay", "label": "Default page dwell (seconds)", "type": "number",
      "default": 8, "min": "1", "max": "60", "step": "1", "stepper": True,
      "note": "How long each app page shows before advancing, unless an app overrides it."},
+    {"key": "disable_colors", "label": "Disable colors", "type": "toggle", "default": "no",
+     "options": [{"value": "no", "label": "No"}, {"value": "yes", "label": "Yes"}],
+     "note": "Show up/down and status as text only, without colored tiles "
+             "(used by Crypto, Stocks, Weather and Metro)."},
     {"key": "yt_api_key", "label": "YouTube Data API Key", "type": "password",
      "note": "Shared by the YouTube subscriber, comments and livestream apps."},
 ]

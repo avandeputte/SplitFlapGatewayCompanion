@@ -13,6 +13,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
     except Exception:
         return [format_lines('CRYPTO', 'ERROR', 'API FAIL')]
     rows, cols = get_rows(), get_cols()
+    no_color = settings.get('disable_colors', 'no') == 'yes'
 
     def price_str(price):
         return f'{currency}{price:,.0f}' if price >= 1 else f'{currency}{price:.4f}'
@@ -25,7 +26,12 @@ def fetch(settings, format_lines, get_rows, get_cols):
         sym = c[:6].upper()
         if price is None:
             return [f'{sym} ERR']
-        chg_str = (('🟩' if chg >= 0 else '🟥') + f' {chg:+.1f}%') if chg is not None else 'N/A'
+        if chg is None:
+            chg_str = 'N/A'
+        elif no_color:
+            chg_str = f'{chg:+.1f}%'
+        else:
+            chg_str = ('🟩' if chg >= 0 else '🟥') + f' {chg:+.1f}%'
         if rows == 1:
             return [f'{sym} {price_str(price)}']
         if rows == 2:
