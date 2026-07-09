@@ -53,6 +53,38 @@
   ],
   "settings": [
     {
+      "key": "sports_filter",
+      "label": "Which games to show",
+      "type": "select",
+      "default": "all",
+      "options": [
+        {"value": "all", "label": "All (recent, live & upcoming)"},
+        {"value": "live", "label": "Live only"},
+        {"value": "live+upcoming", "label": "Live & upcoming"},
+        {"value": "live+final", "label": "Live & finals"}
+      ]
+    },
+    {
+      "key": "sports_show_league",
+      "label": "Show the league name",
+      "type": "toggle",
+      "default": "yes",
+      "options": [
+        {"value": "yes", "label": "Yes"},
+        {"value": "no", "label": "No"}
+      ]
+    },
+    {
+      "key": "sports_compact",
+      "label": "Compact (more games per page)",
+      "type": "toggle",
+      "default": "no",
+      "options": [
+        {"value": "no", "label": "No"},
+        {"value": "yes", "label": "Yes"}
+      ]
+    },
+    {
       "key": "loop_delay",
       "label": "Delay Between Pages (seconds)",
       "type": "number",

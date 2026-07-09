@@ -150,12 +150,13 @@ def test_noncatalog_setting_is_per_app(tmp_path):
 
 
 def test_app_dialog_infers_undeclared_perapp_setting(tmp_path):
-    """A private setting an app reads but never declares (sports -> sports_compact,
-    read with a 'no' default) is surfaced as an inferred per-app toggle."""
-    rt = _runtime(tmp_path, ["sports"])
-    fields = {f["key"]: f for f in rt.settings_schema("sports")["fields"]}
-    assert "plugin_sports_sports_compact" in fields
-    assert fields["plugin_sports_sports_compact"]["type"] == "toggle"
+    """A private setting an app reads but never declares (planes_overhead ->
+    radius_km, read with a numeric default) is surfaced as an inferred per-app
+    field, typed from the default it's read with."""
+    rt = _runtime(tmp_path, ["planes_overhead"])
+    fields = {f["key"]: f for f in rt.settings_schema("planes_overhead")["fields"]}
+    assert "plugin_planes_overhead_radius_km" in fields
+    assert fields["plugin_planes_overhead_radius_km"]["type"] == "number"
 
 
 def test_global_persists_from_global_editor(tmp_path):
@@ -192,6 +193,31 @@ def test_language_global_is_windows1252_only(tmp_path):
     vals = {o["value"] for o in CATALOG_BY_KEY["language"]["options"]}
     assert {"en", "fr", "de", "es", "is"} <= vals            # Western/Latin-1 included
     assert not ({"el", "ru", "zh", "ja", "ko", "ar", "he", "th", "tr", "pl"} & vals)  # excluded
+
+
+def test_sports_follow_reaches_the_app(tmp_path):
+    """A league followed via the picker endpoint (a bare sports_<league> key) must
+    reach the app's fetch() settings dict — the dynamic keys are read with an
+    f-string, so they can only ride through on the full store, not per-app."""
+    from app import helpers
+    rt = _runtime(tmp_path, ["sports"])
+    helpers.sports_follow(rt.settings, "ger", "BAY,BVB")
+    helpers.sports_follow(rt.settings, "mlb", "*")
+    ps = rt._plugin_settings("sports", rt.manifest("sports"))
+    assert ps.get("sports_ger") == "BAY,BVB"
+    assert ps.get("sports_mlb") == "*"
+
+
+def test_sports_display_options_are_declared_fields(tmp_path):
+    """The Sports dialog exposes the filter/league/compact display options as
+    proper per-app controls (not crude auto-inferred fields)."""
+    rt = _runtime(tmp_path, ["sports"])
+    fields = {f["key"]: f for f in rt.settings_schema("sports")["fields"]}
+    assert fields["plugin_sports_sports_filter"]["type"] == "select"
+    assert fields["plugin_sports_sports_show_league"]["type"] == "toggle"
+    assert fields["plugin_sports_sports_compact"]["type"] == "toggle"
+    # a declared setting is no longer auto-inferred
+    assert "auto-detected" not in (fields["plugin_sports_sports_compact"].get("note") or "")
 
 
 def test_sports_league_dicts_in_sync(tmp_path):
