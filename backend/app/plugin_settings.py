@@ -20,7 +20,12 @@ import os
 import threading
 from pathlib import Path
 
+from .catalog import CATALOG_KEYS
+
 log = logging.getLogger("companion.settings")
+
+# Top-level (non-setting) keys — kept out of the global/shared/apps sections.
+_META_KEYS = ("installed_apps", "saved_app_playlists", "triggers", "triggers_enabled")
 
 
 def _detect_timezone() -> str:
@@ -94,14 +99,68 @@ class PluginSettings:
         self.path = Path(data_dir) / "app_settings.json"
         self._lock = threading.Lock()
         self._data = _defaults()
+        self._app_ids: set[str] = set()   # set by the runtime for tidy per-app nesting
         if self.path.exists():
             try:
-                self._data.update(json.loads(self.path.read_text("utf-8")))
+                self._data.update(self._from_nested(json.loads(self.path.read_text("utf-8"))))
             except (json.JSONDecodeError, OSError) as e:
                 log.warning("could not read %s: %s", self.path, e)
 
+    def set_known_apps(self, app_ids) -> None:
+        """The runtime supplies the known app ids so per-app keys can nest by app
+        when persisted (``plugin_<app>_<key>`` -> ``apps[<app>][<key>]``)."""
+        with self._lock:
+            self._app_ids = set(app_ids)
+
+    # -- on-disk structure (meta + global + shared + per-app) --------------
+    @staticmethod
+    def _from_nested(doc: dict) -> dict:
+        """Read the sectioned layout — or a legacy flat file — into a flat dict."""
+        if not isinstance(doc, dict):
+            return {}
+        if not any(k in doc for k in ("global", "shared", "apps")):
+            return doc  # legacy flat file (loaded as-is; re-saved sectioned)
+        flat: dict = {}
+        for k in _META_KEYS:
+            if k in doc:
+                flat[k] = doc[k]
+        for section in ("global", "shared"):
+            for k, v in (doc.get(section) or {}).items():
+                flat[k] = v
+        for app_id, kv in (doc.get("apps") or {}).items():
+            for k, v in (kv or {}).items():
+                # "_other" holds keys we couldn't attribute to a known app; they
+                # were stored under their full flat key, so keep them verbatim.
+                flat[k if app_id == "_other" else f"plugin_{app_id}_{k}"] = v
+        return flat
+
+    def _to_nested(self) -> dict:
+        """Group the flat store: meta at top; catalog keys under ``global``; other
+        bare (cross-app) keys under ``shared``; ``plugin_<app>_*`` under apps."""
+        doc: dict = {k: self._data.get(k, _defaults().get(k)) for k in _META_KEYS}
+        glob, shared, apps = {}, {}, {}
+        ids = sorted(self._app_ids, key=len, reverse=True)  # greedy longest match
+        for k, v in self._data.items():
+            if k in _META_KEYS:
+                continue
+            if k.startswith("plugin_"):
+                app = next((a for a in ids if k.startswith(f"plugin_{a}_")), None)
+                if app:
+                    apps.setdefault(app, {})[k[len(f"plugin_{app}_"):]] = v
+                else:
+                    apps.setdefault("_other", {})[k] = v   # unknown/uninstalled app
+            elif k in CATALOG_KEYS:
+                glob[k] = v
+            else:
+                shared[k] = v
+        doc["global"] = dict(sorted(glob.items()))
+        doc["shared"] = dict(sorted(shared.items()))
+        doc["apps"] = {a: dict(sorted(kv.items())) for a, kv in sorted(apps.items())}
+        return doc
+
     def _save(self) -> None:
-        self.path.write_text(json.dumps(self._data, indent=2, ensure_ascii=False), "utf-8")
+        self.path.write_text(
+            json.dumps(self._to_nested(), indent=2, ensure_ascii=False), "utf-8")
 
     def all(self) -> dict:
         return dict(self._data)

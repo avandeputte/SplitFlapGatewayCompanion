@@ -91,8 +91,8 @@ def test_settings_schema_resolves_keys(tmp_path):
     keys = {f["key"] for f in schema["fields"]}
     # per-app (non-global) keys are namespaced plugin_<id>_<key>
     assert "plugin_weather_temperature_unit" in keys
-    # global_key settings keep their bare key
-    assert "weather_api_key" in keys
+    # a catalog global (weather_api_key) is edited under Global settings, not here
+    assert "weather_api_key" not in keys
     for f in schema["fields"]:
         assert f["key"] in schema["values"]
 
@@ -117,21 +117,35 @@ def test_missing_app_pages_error(tmp_path):
 
 # -- surfacing settings apps read but never declare (no hidden settings) ------
 
-def test_app_dialog_surfaces_read_but_undeclared_global(tmp_path):
-    """A global an app READS but doesn't declare (dashboard -> weather_api_key)
-    still appears in the app's settings dialog, flagged shared."""
-    rt = _runtime(tmp_path, ["dashboard", "weather"])
-    fields = {f["key"]: f for f in rt.settings_schema("dashboard")["fields"]}
-    assert "weather_api_key" in fields, "read-but-undeclared global not surfaced"
-    assert fields["weather_api_key"].get("shared") is True
-    assert fields["weather_api_key"]["type"] == "password"  # from Weather's definition
+def test_global_editor_is_catalog_only_and_rich(tmp_path):
+    """The global editor shows exactly the built-in catalog, always — even with
+    only one app installed and the declaring app absent."""
+    from app.catalog import CATALOG_KEYS
+    rt = _runtime(tmp_path, ["dashboard"])   # weather NOT installed
+    fields = {f["key"]: f for f in rt.global_settings_schema()["fields"]}
+    assert set(fields) == set(CATALOG_KEYS)
+    # renders richly from the catalog even though Weather isn't installed
+    assert fields["weather_api_key"]["type"] == "password"
+    assert "Dashboard" in fields["weather_api_key"]["note"]   # dashboard reads it
 
 
-def test_global_usage_counts_readers(tmp_path):
-    """The global editor's 'Used by' includes apps that only READ the key."""
+def test_app_dialog_excludes_catalog_globals_but_hints(tmp_path):
+    """Catalog globals an app uses (dashboard -> weather_api_key/timezone) are NOT
+    fields in the app dialog (edited under Global settings); a hint names them."""
     rt = _runtime(tmp_path, ["dashboard", "weather"])
-    gs = {f["key"]: f for f in rt.global_settings_schema()["fields"]}
-    assert "Dashboard" in gs["weather_api_key"]["note"]  # dashboard reads, weather declares
+    schema = rt.settings_schema("dashboard")
+    keys = {f["key"] for f in schema["fields"]}
+    assert "weather_api_key" not in keys and "timezone" not in keys
+    hint = next((f for f in schema["fields"] if f.get("type") == "notice"), None)
+    assert hint and "Weather Provider API Key" in hint["label"]
+
+
+def test_noncatalog_shared_global_still_shown_in_app(tmp_path):
+    """A shared-but-not-catalog global (anim_style, used by several anim apps)
+    stays in the app dialog, flagged shared."""
+    rt = _runtime(tmp_path, ["anim_rainbow", "anim_sweep"])
+    fields = {f["key"]: f for f in rt.settings_schema("anim_rainbow")["fields"]}
+    assert "anim_style" in fields and fields["anim_style"].get("shared") is True
 
 
 def test_app_dialog_infers_undeclared_perapp_setting(tmp_path):

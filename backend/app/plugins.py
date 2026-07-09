@@ -22,6 +22,7 @@ import os
 import time
 from pathlib import Path
 
+from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
 
@@ -32,14 +33,6 @@ _PASSTHROUGH = (
     "size", "ph", "min", "max", "step", "stepper", "searchUrl", "resultKey",
     "maxItems", "compute", "watches", "variant", "title", "text", "items",
     "icon", "linkText", "linkHref", "default", "note",
-)
-
-# Global keys that apps READ but that no manifest exposes as an editable setting.
-# Surfaced in the global-settings editor so they can be set in one place.
-_GLOBAL_CORE = (
-    {"key": "zip_code", "label": "Location — ZIP, postcode, or city",
-     "type": "text", "ph": "02118",
-     "note": "Used to locate you when an app has no precise coordinates (geocoded)."},
 )
 
 
@@ -112,6 +105,8 @@ class PluginRuntime:
         self._triggers.clear()
         self._caches.clear()
         self._reads.clear()
+        # Let the settings store nest per-app keys by app id when it persists.
+        self.settings.set_known_apps(self.discover())
         enabled = set(self.settings.installed_apps)
         for app_id, app_dir in self._scan().items():
             if app_id in enabled:
@@ -402,13 +397,13 @@ class PluginRuntime:
             s["key"]: self._resolve_key(app_id, s["key"], s.get("global_key", False))
             for s in raw_settings
         }
-        # Shared-global definitions (declared globals + core keys like zip_code)
-        # and who uses each, so we can both flag declared globals and surface
-        # globals the app reads without declaring.
-        shared_defs = dict(self._global_def_map())
-        for core in _GLOBAL_CORE:
-            shared_defs.setdefault(core["key"], core)
-        usage = self._global_usage(shared_defs)
+        # Definitions + usage for NON-catalog shared globals, so a shared setting
+        # an app reads without declaring can still be surfaced here. Catalog
+        # (well-known reusable) keys are excluded — those live ONLY in the Global
+        # settings editor, even if this app declares or reads them.
+        shared_defs = {k: d for k, d in self._global_def_map().items()
+                       if k not in CATALOG_KEYS}
+        usage = self._global_usage(set(shared_defs))
         this_name = manifest.get("name", app_id)
         declared_keys = {s["key"] for s in raw_settings}
 
@@ -422,34 +417,42 @@ class PluginRuntime:
 
         fields = []
         for s in raw_settings:
+            if s["key"] in CATALOG_KEYS:
+                continue  # reusable global — edited under Global settings
             f = self._field(app_id, s, resolved)
-            # "(override global)" is misleading on a global_key setting: editing it
-            # changes the shared value, it does NOT create a per-app override. (A
-            # real per-app override, e.g. Weather's "Location (leave blank for
-            # global)", is a non-global setting and keeps its accurate label.)
             f["label"] = f["label"].replace(" (override global)", "")
             if s.get("global_key"):
                 _mark_shared(f, s["key"])
             fields.append(f)
 
-        # Surface settings the app READS but never DECLARES, so nothing it relies
-        # on stays hidden. Shared globals (weather_api_key, timezone, …) render
-        # from their canonical definition + a shared badge; a private per-app key
-        # the manifest forgot is inferred from the default it's read with.
+        # Surface settings the app READS but never DECLARES (except catalog keys),
+        # so nothing app-specific stays hidden. A non-catalog shared global renders
+        # from its definition + a shared badge; a private key the manifest forgot
+        # is inferred from the default it's read with.
         exclude = {"currency_symbol", "location_lat", "location_lon", "location_name"}
         for key, default in self._reads.get(app_id, {}).items():
-            if key in declared_keys or key in exclude:
+            if key in declared_keys or key in exclude or key in CATALOG_KEYS:
                 continue
             if key in shared_defs:
                 f = self._field("", shared_defs[key], {key: key})
-                for phrase in (" (override global)", " (leave blank for global)"):
-                    f["label"] = f["label"].replace(phrase, "")
+                f["label"] = f["label"].replace(" (override global)", "")
                 f["shared"] = True
                 if not _mark_shared(f, key):
                     f["note"] = "Shared setting (used across apps)"
             else:
                 f = self._infer_field(key, default)
             fields.append(f)
+
+        # Point to the reusable globals this app relies on (edited elsewhere).
+        cat_used = sorted(
+            {k for k in declared_keys if k in CATALOG_KEYS}
+            | {k for k in self._reads.get(app_id, {}) if k in CATALOG_KEYS},
+            key=lambda k: CATALOG_BY_KEY[k]["label"])
+        if cat_used:
+            names = ", ".join(CATALOG_BY_KEY[k]["label"] for k in cat_used)
+            fields.append({"key": f"_globals_note_{app_id}", "type": "notice",
+                           "label": "Also uses global settings: " + names
+                                    + " — set these under Global settings."})
 
         values = {}
         for s in raw_settings:
@@ -559,36 +562,27 @@ class PluginRuntime:
         return f
 
     def global_settings_schema(self) -> dict:
-        """Every shared global setting an installed app declares (deduped to its
-        most descriptive label), plus core keys no manifest exposes (e.g.
-        zip_code) — so the shared settings apps rely on are editable in one
-        place. 'Used by' reflects every app that declares OR reads the key."""
-        seen: dict[str, dict] = self._global_def_map()
-        for core in _GLOBAL_CORE:
-            seen.setdefault(core["key"], core)
-        usage = self._global_usage(seen)
-        resolved = {k: k for k in seen}   # globals resolve to their bare key
+        """The built-in catalog of well-known reusable global settings — the ONLY
+        settings shown in the Global editor. They render from the catalog (so a
+        key looks right even if the declaring app isn't installed); a 'Used by'
+        note lists the installed apps that declare or read each one."""
+        usage = self._global_usage(CATALOG_KEYS)
+        resolved = {c["key"]: c["key"] for c in CATALOG}
         fields = []
-        for key, st in seen.items():
-            f = self._field("", st, resolved)
-            # Labels are written from an app's point of view ("override global");
-            # here these ARE the globals, so drop that now-misleading wording.
-            for phrase in (" (override global)", " (leave blank for global)"):
-                f["label"] = f["label"].replace(phrase, "")
-            apps = usage.get(key)
-            if apps:
-                f["note"] = "Used by " + ", ".join(sorted(apps))
+        for c in CATALOG:
+            f = self._field("", c, resolved)
+            apps = usage.get(c["key"])
+            base = c.get("note", "")
+            used = ("Used by " + ", ".join(sorted(apps))) if apps else ""
+            f["note"] = "  ·  ".join(x for x in (base, used) if x)
             fields.append(f)
-        fields.sort(key=lambda f: f["label"].lower())
-        values = {k: self.settings.get(k, seen[k].get("default", "")) for k in seen}
+        values = {c["key"]: self.settings.get(c["key"], c.get("default", "")) for c in CATALOG}
         return {"fields": fields, "values": values}
 
     def save_global_settings(self, values: dict) -> None:
-        """Persist edited global settings. Only keys shown in the editor (declared
-        globals + core keys) are accepted; changing a global can affect many apps,
-        so all caches are dropped."""
-        allowed = set(self._global_def_map()) | {c["key"] for c in _GLOBAL_CORE}
-        clean = {k: v for k, v in values.items() if k in allowed}
+        """Persist edited global settings. Only catalog keys are accepted;
+        changing a global can affect many apps, so all caches are dropped."""
+        clean = {k: v for k, v in values.items() if k in CATALOG_KEYS}
         if clean:
             self.settings.update(clean)
             self._caches.clear()
