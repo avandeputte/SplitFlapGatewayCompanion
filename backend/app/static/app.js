@@ -232,6 +232,8 @@ function mkField(f, values) {
     const n = el("div", "notice"); wrap.appendChild(n); wrap._computeEl = n; return wrap;
   }
   const label = el("span"); label.innerHTML = f.label || f.key; wrap.appendChild(label);
+  if (f.shared) { const b = el("span", "shared-badge"); b.textContent = "shared"; b.title = "Global setting — shared across apps"; label.appendChild(b); }
+  if (f.note) { const nt = el("small", "field-note"); nt.textContent = f.note; wrap.appendChild(nt); }
 
   if (f.type === "toggle" || f.type === "select") {
     const opts = normOpts(f.options);
@@ -324,7 +326,6 @@ function mkField(f, values) {
       wrap.appendChild(inp);
     }
   }
-  if (f.note) { const nt = el("small"); nt.style.cssText = "display:block;margin-top:3px"; nt.textContent = f.note; wrap.appendChild(nt); }
   return wrap;
 }
 
@@ -356,7 +357,7 @@ async function openAppSettings(id, name) {
 
 async function openGlobalSettings() {
   const schema = await api("/api/global-settings");
-  const form = el("div");
+  const form = el("div", "gsettings");
   if (!schema.fields.length) {
     const p = el("p", "hint"); p.textContent = "No global settings yet — install apps that use shared settings (weather, stocks, …).";
     form.appendChild(p);

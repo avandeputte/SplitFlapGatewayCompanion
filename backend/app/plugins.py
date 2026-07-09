@@ -363,7 +363,22 @@ class PluginRuntime:
             s["key"]: self._resolve_key(app_id, s["key"], s.get("global_key", False))
             for s in raw_settings
         }
-        fields = [self._field(app_id, s, resolved) for s in raw_settings]
+        # Some of an app's settings are shared globals (e.g. weather_api_key,
+        # timezone) — flag them so the dialog shows they affect other apps too.
+        used = self._declared_globals()
+        this_name = manifest.get("name", app_id)
+        fields = []
+        for s in raw_settings:
+            f = self._field(app_id, s, resolved)
+            # Flag a global only when it is ACTUALLY shared with other apps, so
+            # the badge means what it says (a global used only here isn't "shared").
+            if s.get("global_key"):
+                others = sorted(set(used.get(s["key"], [])) - {this_name})
+                if others:
+                    f["shared"] = True
+                    shared = "Shared setting — also used by " + ", ".join(others)
+                    f["note"] = (f["note"] + "  ·  " + shared) if f.get("note") else shared
+            fields.append(f)
         values = {}
         for s in raw_settings:
             rk = resolved[s["key"]]
@@ -449,6 +464,10 @@ class PluginRuntime:
         fields = []
         for key, st in seen.items():
             f = self._field("", st, resolved)
+            # Labels are written from an app's point of view ("override global");
+            # here these ARE the globals, so drop that now-misleading wording.
+            for phrase in (" (override global)", " (leave blank for global)"):
+                f["label"] = f["label"].replace(phrase, "")
             apps = used.get(key)
             if apps:
                 f["note"] = "Used by " + ", ".join(sorted(set(apps)))
