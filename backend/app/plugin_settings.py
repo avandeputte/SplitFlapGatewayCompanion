@@ -100,15 +100,16 @@ class PluginSettings:
         with self._lock:
             self._list_keys = set(keys)
 
-    # -- on-disk structure (meta + global + shared + per-app) --------------
+    # -- on-disk structure (meta + global + per-app) -----------------------
     @staticmethod
     def _from_nested(doc: dict) -> dict:
-        """Read the sectioned layout — or a legacy flat file — into a flat dict.
+        """Read the sectioned layout into a flat dict. Only recognized keys are
+        kept: meta, reusable ``global`` catalog keys, and per-app
+        ``plugin_<app>_*`` values. Settings are cleanly global-or-per-app, so any
+        stray cross-app ('shared') key is dropped rather than carried forward.
         Array values (multi-value settings) become comma-strings in memory."""
         if not isinstance(doc, dict):
             return {}
-        if not any(k in doc for k in ("global", "shared", "apps")):
-            return doc  # legacy flat file (loaded as-is; re-saved sectioned)
 
         def unlist(v):
             return ",".join(str(x) for x in v) if isinstance(v, list) else v
@@ -117,24 +118,32 @@ class PluginSettings:
         for k in _META_KEYS:
             if k in doc:
                 flat[k] = doc[k]
-        for section in ("global", "shared"):
-            for k, v in (doc.get(section) or {}).items():
-                if k.startswith("_"):
-                    continue  # documentation/comment key
-                flat[k] = unlist(v)
-        for app_id, kv in (doc.get("apps") or {}).items():
-            if app_id.startswith("_") and app_id != "_other":
-                continue
-            for k, v in (kv or {}).items():
-                # "_other" holds keys we couldn't attribute to a known app; they
-                # were stored under their full flat key, so keep them verbatim.
-                flat[k if app_id == "_other" else f"plugin_{app_id}_{k}"] = unlist(v)
+
+        if any(k in doc for k in ("global", "apps")):
+            for k, v in (doc.get("global") or {}).items():
+                if not k.startswith("_"):
+                    flat[k] = unlist(v)
+            for app_id, kv in (doc.get("apps") or {}).items():
+                if app_id.startswith("_") and app_id != "_other":
+                    continue
+                for k, v in (kv or {}).items():
+                    # "_other" holds keys for an app id we don't recognize (e.g. a
+                    # since-removed upload); they're stored under their full key.
+                    flat[k if app_id == "_other" else f"plugin_{app_id}_{k}"] = unlist(v)
+            return flat  # a legacy "shared" section, if present, is intentionally ignored
+
+        # A legacy flat file: keep only recognized keys; drop bare cross-app cruft.
+        for k, v in doc.items():
+            if k in _META_KEYS or k in GLOBAL_STORAGE_KEYS or k.startswith("plugin_"):
+                flat[k] = v
         return flat
 
     def _to_nested(self) -> dict:
-        """Group the flat store: meta at top; reusable global keys under
-        ``global``; other bare (cross-app) keys under ``shared``;
-        ``plugin_<app>_*`` under ``apps``. Multi-value keys become JSON arrays."""
+        """Group the flat store: meta at top; reusable catalog keys under
+        ``global``; ``plugin_<app>_*`` under ``apps`` (by app id). Every setting is
+        either a reusable global (the catalog) or per-app — there is no cross-app
+        bucket, so a stray bare key is simply not persisted. Multi-value keys
+        become JSON arrays."""
         def as_stored(k, v):
             if k in self._list_keys:
                 return [x.strip() for x in str(v).split(",") if x.strip()]
@@ -145,13 +154,12 @@ class PluginSettings:
         doc: dict = {"_about": {
             "_": "SplitFlap Gateway Companion settings — prefer editing in the app UI.",
             "global": "Reusable settings shared across apps (the Global settings editor).",
-            "shared": "Other settings used across apps; edited in each app's own dialog.",
             "apps": "Per-app settings, keyed by app id (e.g. apps.weather.show_aqi).",
             "arrays": "Multi-value settings are stored as JSON arrays.",
         }}
         for k in _META_KEYS:
             doc[k] = self._data.get(k, _defaults().get(k))
-        glob, shared, apps = {}, {}, {}
+        glob, apps = {}, {}
         ids = sorted(self._app_ids, key=len, reverse=True)  # greedy longest match
         for k, v in self._data.items():
             if k in _META_KEYS:
@@ -164,10 +172,8 @@ class PluginSettings:
                     apps.setdefault("_other", {})[k] = as_stored(k, v)  # unknown app
             elif k in GLOBAL_STORAGE_KEYS:
                 glob[k] = as_stored(k, v)
-            else:
-                shared[k] = as_stored(k, v)
+            # else: a stray bare (cross-app) key — intentionally not persisted
         doc["global"] = dict(sorted(glob.items()))
-        doc["shared"] = dict(sorted(shared.items()))
         doc["apps"] = {a: dict(sorted(kv.items())) for a, kv in sorted(apps.items())}
         return doc
 

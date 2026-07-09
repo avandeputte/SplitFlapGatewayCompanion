@@ -53,6 +53,16 @@
   ],
   "settings": [
     {
+      "key": "follows",
+      "label": "Teams & leagues to follow",
+      "type": "search_chips",
+      "searchUrl": "/sports_search",
+      "resultKey": "results",
+      "maxItems": 100,
+      "ph": "Search a team or league…",
+      "note": "Add any mix of teams and whole leagues — the app rotates through their games."
+    },
+    {
       "key": "sports_filter",
       "label": "Which games to show",
       "type": "select",

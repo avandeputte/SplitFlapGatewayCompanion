@@ -323,7 +323,8 @@ class PluginRuntime:
     def loop_delay(self, app_id: str) -> float:
         m = self._registry.get(app_id, {})
         if self.is_anim(app_id):
-            return max(0.1, float(self.settings.get("anim_speed", "0.4") or 0.4))
+            # anim speed is a per-app setting (each animation keeps its own).
+            return max(0.1, float(self.settings.get(f"plugin_{app_id}_anim_speed", "0.4") or 0.4))
         saved = self.settings.get(f"plugin_{app_id}_loop_delay", "")
         default = float(m.get("loop_delay", self.settings.get("global_loop_delay", 5)))
         try:
@@ -337,7 +338,8 @@ class PluginRuntime:
         disp = self.config.display
         speed = int(disp.get("transition_speed", 15))
         if self.is_anim(app_id):
-            style = self.settings.get("anim_style", "ltr") or "ltr"
+            # anim style is a per-app setting (each animation keeps its own).
+            style = self.settings.get(f"plugin_{app_id}_anim_style", "ltr") or "ltr"
             return {"is_anim": True, "style": style, "speed": speed,
                     "loop_delay": self.loop_delay(app_id), "skip_rotation": True}
         style = self.settings.get(f"plugin_{app_id}_transition_style") or \
@@ -428,6 +430,12 @@ class PluginRuntime:
             for s in raw_settings
         }
         declared_keys = {s["key"] for s in raw_settings}
+        # An inline_toggle declares its own key too (rendered beside its parent),
+        # so it must count as declared or it gets double-surfaced by inference.
+        for s in raw_settings:
+            it = s.get("inline_toggle")
+            if it and it.get("key"):
+                declared_keys.add(it["key"])
 
         # App-specific settings only. Catalog/global keys live in the Global
         # editor, so they're excluded here (a hint points to them below).

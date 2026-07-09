@@ -29,6 +29,26 @@ LEAGUES = {
     'ufc':    {'path': 'mma/ufc',                            'name': 'UFC'},
 }
 
+def _parse_follows(raw):
+    """Parse the ``follows`` chip list into ``{league: set_of_abbrs_or_{'*'}}``.
+    Each item is ``"<league>:<ABBR>"`` or ``"<league>:*"``, optionally suffixed
+    with ``"|<display label>"`` (ignored here)."""
+    by_league = {}
+    for item in str(raw or '').split(','):
+        item = item.strip()
+        if not item:
+            continue
+        core = item.split('|', 1)[0]            # drop the display label
+        league, _, team = core.partition(':')
+        league = league.strip().lower()
+        team = team.strip().upper()
+        if league not in LEAGUES:
+            continue
+        picks = by_league.setdefault(league, set())
+        picks.add('*' if team in ('', '*') else team)
+    return by_league
+
+
 def fetch(settings, format_lines, get_rows, get_cols):
     import requests, logging
 
@@ -36,13 +56,15 @@ def fetch(settings, format_lines, get_rows, get_cols):
     show_league = settings.get('sports_show_league', 'yes') == 'yes'
     compact = settings.get('sports_compact', 'no') == 'yes'
 
+    by_league = _parse_follows(settings.get('follows', ''))
+    if not by_league:
+        return [format_lines("SPORTS", "NOTHING", "FOLLOWED")]
+
     all_games = []
-    for key, info in LEAGUES.items():
-        teams_str = settings.get(f'sports_{key}', '').strip()
-        if not teams_str:
-            continue
-        team_filter = [t.strip().upper() for t in teams_str.split(',') if t.strip()]
-        show_all = '*' in team_filter
+    for key, picks in by_league.items():
+        info = LEAGUES[key]
+        show_all = '*' in picks
+        team_filter = sorted(t for t in picks if t != '*')
         try:
             games = _fetch_league(key, info, team_filter, show_all, format_lines, get_cols, requests, game_filter)
             all_games.extend(games)
@@ -50,10 +72,8 @@ def fetch(settings, format_lines, get_rows, get_cols):
             logging.error(f"ESPN {key} error: {e}")
 
     if not all_games:
-        if any(settings.get(f'sports_{key}', '').strip() for key in LEAGUES):
-            filter_labels = {'all': 'ALL', 'live': 'LIVE', 'live+upcoming': 'LIVE/UPCOMING', 'live+final': 'LIVE/FINAL'}
-            return [format_lines("SPORTS", "NO GAMES", filter_labels.get(game_filter, 'FOUND'))]
-        return [format_lines("SPORTS", "NO TEAMS", "CONFIGURED")]
+        filter_labels = {'all': 'ALL', 'live': 'LIVE', 'live+upcoming': 'LIVE/UPCOMING', 'live+final': 'LIVE/FINAL'}
+        return [format_lines("SPORTS", "NO GAMES", filter_labels.get(game_filter, 'FOUND'))]
 
     rows = get_rows()
     cols = get_cols()
@@ -261,15 +281,15 @@ def trigger(settings, conditions):
     teams_str = conditions.get('teams', '').strip()
     trigger_teams = {t.strip().upper() for t in teams_str.split(',') if t.strip()} if teams_str else None
 
+    followed = _parse_follows(settings.get('follows', ''))
+
     # Build set of all followed teams if no specific teams configured
     if not trigger_teams:
         trigger_teams = set()
-        for key in LEAGUES:
-            val = settings.get(f'sports_{key}', '').strip()
-            if val and val != '*':
-                trigger_teams.update(t.strip().upper() for t in val.split(',') if t.strip())
-            elif val == '*':
-                trigger_teams.add('*')  # follow-all league
+        for picks in followed.values():
+            if '*' in picks:
+                trigger_teams.add('*')          # follow-all league
+            trigger_teams.update(t for t in picks if t != '*')
 
     if not trigger_teams:
         return False
@@ -282,12 +302,10 @@ def trigger(settings, conditions):
     try:
         start = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
         end = (datetime.now() + timedelta(days=1)).strftime('%Y%m%d')
-        for key, info in LEAGUES.items():
+        for key in followed:
             if key in ('pga', 'ufc'):
                 continue
-            teams_setting = settings.get(f'sports_{key}', '').strip()
-            if not teams_setting:
-                continue
+            info = LEAGUES[key]
             url = f"https://site.api.espn.com/apis/site/v2/sports/{info['path']}/scoreboard?dates={start}-{end}&limit=50"
             data = requests.get(url, timeout=8).json()
             for event in data.get('events', []):

@@ -504,11 +504,6 @@ async def triggers_save(patch: TriggersPatch):
 # App-data helper endpoints — served at the fixed root paths that dropped-in app
 # manifests' searchUrl / resultKey point at, so they work unchanged.
 # ---------------------------------------------------------------------------
-class SportsFollow(BaseModel):
-    league: str
-    teams: str = ""
-
-
 @app.get("/location_search")
 async def h_location_search(q: str = ""):
     return await helpers.location_search(q)
@@ -534,19 +529,9 @@ async def h_crypto_search(q: str = ""):
     return await helpers.crypto_search(q)
 
 
-@app.get("/sports_leagues")
-async def h_sports_leagues():
-    return helpers.sports_leagues(plugin_settings)
-
-
-@app.get("/sports_teams/{league_key}")
-async def h_sports_teams(league_key: str, q: str = ""):
-    return await helpers.sports_teams(league_key, q)
-
-
-@app.post("/sports_follow")
-async def h_sports_follow(req: SportsFollow):
-    return helpers.sports_follow(plugin_settings, req.league, req.teams)
+@app.get("/sports_search")
+async def h_sports_search(q: str = ""):
+    return await helpers.sports_search(q)
 
 
 @app.post("/api/compose/send")

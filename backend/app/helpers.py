@@ -174,51 +174,71 @@ async def crypto_search(q: str) -> dict:
     return {"coins": results[:12]}
 
 
-def sports_leagues(settings) -> dict:
-    out = []
-    for key, info in SPORTS_LEAGUES.items():
-        followed = (settings.get(f"sports_{key}", "") or "").strip()
-        out.append({"key": key, "name": info["name"], "followed": followed,
-                    "follow_all": followed == "*"})
-    return {"leagues": out}
-
-
-async def sports_teams(league_key: str, q: str) -> dict:
+async def _league_teams(league_key: str) -> list[dict]:
+    """All teams in one league (abbr/name/short), cached. Empty for team-less
+    leagues (golf/mma)."""
     info = SPORTS_LEAGUES.get(league_key)
-    if not info:
-        return {"teams": [], "error": "Unknown league"}
-    if league_key in ("pga", "ufc"):
-        return {"teams": [], "no_teams": True}
-    q = (q or "").strip().lower()
+    if not info or league_key in ("pga", "ufc"):
+        return []
     if league_key not in _teams_cache:
+        all_teams = []
+        for page in range(1, 4):
+            data = await _get_json(
+                f"https://site.api.espn.com/apis/site/v2/sports/{info['path']}/teams",
+                params={"limit": 200, "page": page})
+            batch = data.get("sports", [{}])[0].get("leagues", [{}])[0].get("teams", [])
+            if not batch:
+                break
+            for entry in batch:
+                t = entry.get("team", entry)
+                all_teams.append({"abbr": t.get("abbreviation", "?"),
+                                  "name": t.get("displayName", "?"),
+                                  "short": t.get("shortDisplayName", t.get("displayName", "?"))})
+        all_teams.sort(key=lambda t: t["name"])
+        seen = set()
+        _teams_cache[league_key] = [t for t in all_teams
+                                    if t["abbr"] not in seen and not seen.add(t["abbr"])]
+    return _teams_cache[league_key]
+
+
+async def sports_search(q: str) -> dict:
+    """Search across every league and its teams for the Sports app's ``follows``
+    chips. Each result's ``value`` is ``"<league>:<abbr>|<label>"`` (or
+    ``"<league>:*|<label>"`` for a whole league); the app splits on ``|`` to get
+    the routable ``league:team`` and shows the label. Comma-free so it round-trips
+    through the comma-joined chip list."""
+    import asyncio
+
+    q = (q or "").strip().lower()
+
+    def item(value_core: str, label: str) -> dict:
+        label = label.replace(",", " ").strip()
+        return {"value": f"{value_core}|{label}", "label": label}
+
+    results: list[dict] = []
+    # Whole-league options (cheap, in-memory). With no query, offer them all.
+    for key, info in SPORTS_LEAGUES.items():
+        if not q or q in info["name"].lower() or q in key:
+            results.append(item(f"{key}:*", f"{info['name']} — all games"))
+
+    # Team-level matches (needs the team index; warm every league in parallel).
+    if len(q) >= 2:
+        keys = [k for k in SPORTS_LEAGUES if k not in ("pga", "ufc")]
         try:
-            all_teams = []
-            for page in range(1, 4):
-                data = await _get_json(
-                    f"https://site.api.espn.com/apis/site/v2/sports/{info['path']}/teams",
-                    params={"limit": 200, "page": page})
-                batch = data.get("sports", [{}])[0].get("leagues", [{}])[0].get("teams", [])
-                if not batch:
-                    break
-                for entry in batch:
-                    t = entry.get("team", entry)
-                    all_teams.append({"abbr": t.get("abbreviation", "?"),
-                                      "name": t.get("displayName", "?"),
-                                      "short": t.get("shortDisplayName", t.get("displayName", "?"))})
-            all_teams.sort(key=lambda t: t["name"])
-            seen = set()
-            all_teams = [t for t in all_teams if t["abbr"] not in seen and not seen.add(t["abbr"])]
-            _teams_cache[league_key] = all_teams
-        except Exception as e:
-            return {"teams": [], "error": str(e)}
-    teams = _teams_cache[league_key]
-    if q:
-        teams = [t for t in teams if q in t["name"].lower() or q in t["abbr"].lower()]
-    return {"teams": teams}
-
-
-def sports_follow(settings, league: str, teams: str) -> dict:
-    if league not in SPORTS_LEAGUES:
-        return {"ok": False, "error": "Unknown league"}
-    settings.set(f"sports_{league}", teams)
-    return {"ok": True}
+            per_league = await asyncio.gather(
+                *(_league_teams(k) for k in keys), return_exceptions=True)
+        except Exception as e:  # pragma: no cover - defensive
+            log.warning("sports team index error: %s", e)
+            per_league = []
+        for key, teams in zip(keys, per_league):
+            if isinstance(teams, Exception):
+                continue
+            league_name = SPORTS_LEAGUES[key]["name"]
+            for t in teams:
+                if q in t["name"].lower() or q in t["abbr"].lower():
+                    results.append(item(f"{key}:{t['abbr']}", f"{t['name']} · {league_name}"))
+                    if len(results) >= 60:
+                        break
+            if len(results) >= 60:
+                break
+    return {"results": results[:60]}

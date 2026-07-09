@@ -150,13 +150,24 @@ def test_noncatalog_setting_is_per_app(tmp_path):
 
 
 def test_app_dialog_infers_undeclared_perapp_setting(tmp_path):
-    """A private setting an app reads but never declares (planes_overhead ->
-    radius_km, read with a numeric default) is surfaced as an inferred per-app
-    field, typed from the default it's read with."""
-    rt = _runtime(tmp_path, ["planes_overhead"])
-    fields = {f["key"]: f for f in rt.settings_schema("planes_overhead")["fields"]}
-    assert "plugin_planes_overhead_radius_km" in fields
-    assert fields["plugin_planes_overhead_radius_km"]["type"] == "number"
+    """A dropped-in app that READS a setting it never declares gets it surfaced as
+    an inferred per-app field, typed from the default it's read with. (No vendored
+    app relies on this — they declare everything — but drop-in compat needs it.)"""
+    import json
+    apps = tmp_path / "apps"
+    (apps / "widget").mkdir(parents=True)
+    (apps / "widget" / "manifest.json").write_text(json.dumps(
+        {"name": "Widget", "type": "functional", "settings": []}))
+    (apps / "widget" / "app.py").write_text(
+        "def fetch(settings, format_lines, get_rows, get_cols):\n"
+        "    return [format_lines(str(int(settings.get('widget_count', 3))))]\n")
+    ps = PluginSettings(tmp_path)
+    ps.set_installed(["widget"])
+    rt = PluginRuntime(Config(data_dir=tmp_path), ps, apps)
+    rt.load()
+    fields = {f["key"]: f for f in rt.settings_schema("widget")["fields"]}
+    assert "plugin_widget_widget_count" in fields
+    assert fields["plugin_widget_widget_count"]["type"] == "number"
 
 
 def test_global_persists_from_global_editor(tmp_path):
@@ -195,29 +206,42 @@ def test_language_global_is_windows1252_only(tmp_path):
     assert not ({"el", "ru", "zh", "ja", "ko", "ar", "he", "th", "tr", "pl"} & vals)  # excluded
 
 
-def test_sports_follow_reaches_the_app(tmp_path):
-    """A league followed via the picker endpoint (a bare sports_<league> key) must
-    reach the app's fetch() settings dict — the dynamic keys are read with an
-    f-string, so they can only ride through on the full store, not per-app."""
-    from app import helpers
+def test_sports_follows_is_one_perapp_list(tmp_path):
+    """Sports follows are a single per-app list (plugin_sports_follows) — no bare
+    per-league keys — and it reaches the app's fetch() dict as ``follows``."""
     rt = _runtime(tmp_path, ["sports"])
-    helpers.sports_follow(rt.settings, "ger", "BAY,BVB")
-    helpers.sports_follow(rt.settings, "mlb", "*")
+    rt.save_settings("sports", {"plugin_sports_follows": "mlb:NYY,ger:*"})
+    # stored per-app, nothing bare/shared
+    assert rt.settings.get("plugin_sports_follows") == "mlb:NYY,ger:*"
+    assert rt.settings.get("sports_ger") is None
+    # the app reads it as the bare declared key
     ps = rt._plugin_settings("sports", rt.manifest("sports"))
-    assert ps.get("sports_ger") == "BAY,BVB"
-    assert ps.get("sports_mlb") == "*"
+    assert ps.get("follows") == "mlb:NYY,ger:*"
 
 
 def test_sports_display_options_are_declared_fields(tmp_path):
-    """The Sports dialog exposes the filter/league/compact display options as
-    proper per-app controls (not crude auto-inferred fields)."""
+    """The Sports dialog exposes the follows list + filter/league/compact options
+    as proper per-app controls (not crude auto-inferred fields)."""
     rt = _runtime(tmp_path, ["sports"])
     fields = {f["key"]: f for f in rt.settings_schema("sports")["fields"]}
+    assert fields["plugin_sports_follows"]["type"] == "search_chips"
     assert fields["plugin_sports_sports_filter"]["type"] == "select"
     assert fields["plugin_sports_sports_show_league"]["type"] == "toggle"
     assert fields["plugin_sports_sports_compact"]["type"] == "toggle"
     # a declared setting is no longer auto-inferred
     assert "auto-detected" not in (fields["plugin_sports_sports_compact"].get("note") or "")
+
+
+def test_anim_style_and_speed_are_per_app(tmp_path):
+    """Animation style/speed are per-app now (each animation keeps its own), so
+    the engine reads them from plugin_<app>_ keys."""
+    rt = _runtime(tmp_path, ["anim_rainbow", "anim_sweep"])
+    rt.save_settings("anim_rainbow", {"plugin_anim_rainbow_anim_style": "sync",
+                                      "plugin_anim_rainbow_anim_speed": "0.2"})
+    assert rt.page_timing("anim_rainbow")["style"] == "sync"
+    assert abs(rt.loop_delay("anim_rainbow") - 0.2) < 1e-9
+    # a different animation is unaffected (its own default)
+    assert rt.page_timing("anim_sweep")["style"] == "ltr"
 
 
 def test_sports_league_dicts_in_sync(tmp_path):

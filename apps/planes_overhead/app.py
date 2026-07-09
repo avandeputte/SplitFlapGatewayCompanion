@@ -467,7 +467,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
     location_raw = settings.get("location", "42.3601,-71.0589")
     radius_value = max(
         1.0,
-        _to_float(settings.get("radius", settings.get("radius_km", 100)), 100.0),
+        _to_float(settings.get("radius", 100), 100.0),
     )
     radius_unit = str(settings.get("radius_unit", "mi")).lower()
     max_results = max(1, min(10, _to_int(settings.get("max_results", "9"), 9)))
