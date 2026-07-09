@@ -181,6 +181,17 @@ else
 fi
 
 say ""
+say "${B}Data storage${N}"
+say "${DIM}  Where app settings, playlists, triggers and uploaded apps live. A Docker"
+say "  named volume is managed by Docker (simplest). A bind mount instead keeps the"
+say "  data at a path you choose on this host, easier to back up or inspect directly.${N}"
+askyn DATA_VOLUME "  Use a Docker named volume (recommended)?" y
+DATA_BIND="${DATA_BIND:-}"
+if [ "$DATA_VOLUME" = no ]; then
+  ask DATA_BIND "  Host directory to bind-mount for data:" "/opt/sfgwcompanion"
+fi
+
+say ""
 say "${B}Automatic image updates${N}"
 say "${DIM}  Adds a Diun container that watches the companion (and broker) images and"
 say "  reports when a newer version is published.${N}"
@@ -209,6 +220,18 @@ TZ_VAL=$(cat /etc/timezone 2>/dev/null || true)
 if [ "$(id -u)" -eq 0 ]; then DIR="/opt/splitflap-companion"; else DIR="$HOME/splitflap-companion"; fi
 mkdir -p "$DIR"
 info "Project directory: $DIR"
+
+# Data location: a Docker named volume, or a host bind mount we create if missing.
+if [ "$DATA_VOLUME" = no ]; then
+  case "$DATA_BIND" in /*) ;; *) DATA_BIND="$DIR/$DATA_BIND" ;; esac   # make relative paths absolute
+  mkdir -p "$DATA_BIND" 2>/dev/null || $SUDO mkdir -p "$DATA_BIND"
+  DATA_MOUNT="${DATA_BIND}:/data"
+  USE_NAMED_VOLUME=no
+  ok "Data directory (bind mount): $DATA_BIND"
+else
+  DATA_MOUNT="companion-data:/data"
+  USE_NAMED_VOLUME=yes
+fi
 
 # --------------------------------------------------------------------------- #
 # 4. Write .env
@@ -275,7 +298,7 @@ COMPOSE="$DIR/docker-compose.yml"
   echo "    env_file:"
   echo "      - .env"
   echo "    volumes:"
-  echo "      - companion-data:/data"
+  echo "      - ${DATA_MOUNT}"
   if [ "$DEPLOY_MQTT" = yes ]; then
     echo "    depends_on:"
     echo "      - mosquitto"
@@ -323,14 +346,17 @@ COMPOSE="$DIR/docker-compose.yml"
     echo "      - diun.enable=true"
   fi
 
-  echo ""
-  echo "volumes:"
-  echo "  companion-data:"
-  if [ "$DEPLOY_MQTT" = yes ]; then
-    echo "  mosquitto-data:"
-    echo "  mosquitto-log:"
+  # Only emit a `volumes:` section if at least one named volume is actually used.
+  if [ "$USE_NAMED_VOLUME" = yes ] || [ "$DEPLOY_MQTT" = yes ] || [ "$AUTO_UPDATE" = yes ]; then
+    echo ""
+    echo "volumes:"
+    [ "$USE_NAMED_VOLUME" = yes ] && echo "  companion-data:"
+    if [ "$DEPLOY_MQTT" = yes ]; then
+      echo "  mosquitto-data:"
+      echo "  mosquitto-log:"
+    fi
+    [ "$AUTO_UPDATE" = yes ] && echo "  diun-data:"
   fi
-  [ "$AUTO_UPDATE" = yes ] && echo "  diun-data:"
 } >"$COMPOSE"
 ok "Wrote $COMPOSE"
 
@@ -346,6 +372,11 @@ ok  "${B}Done.${N}"
 say ""
 say "  Companion UI : ${C}${PUBLIC_URL}${N}"
 say "  Project dir  : ${DIR}   ${DIM}(docker-compose.yml + .env)${N}"
+if [ "$USE_NAMED_VOLUME" = yes ]; then
+  say "  Data         : ${DIM}Docker named volume 'companion-data'${N}"
+else
+  say "  Data         : ${DIM}bind mount at ${DATA_BIND}${N}"
+fi
 if [ "$DEPLOY_MQTT" = yes ]; then
   say "  MQTT broker  : ${HOST_IP}:1883  ${DIM}$([ -n "$MQTT_USER" ] && echo "user '$MQTT_USER' (password set)" || echo 'anonymous')${N}"
   say "                 ${DIM}Point Home Assistant's MQTT integration at this broker.${N}"

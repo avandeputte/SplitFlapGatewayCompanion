@@ -84,6 +84,8 @@ It will:
 - ask for your **gateway URL** and, if applicable, the **MQTT password**;
 - create the **companion** container (auto-detecting this host's IP to register a
   Companion tab back on the gateway);
+- ask how to store data — a **Docker named volume** (default) or a **bind mount** to a
+  host directory (default `/opt/sfgwcompanion`, created if missing);
 - optionally add a **Diun** container to watch the images and report when a newer
   version is published (Diun *notifies*; it doesn't auto-apply — see below);
 - optionally enable **developer mode** (off by default; mainly for app developers —
