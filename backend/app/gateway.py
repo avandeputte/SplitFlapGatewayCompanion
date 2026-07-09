@@ -144,6 +144,7 @@ def fetch_gateway_settings(url: str, timeout: float = 8.0) -> dict | None:
     try:
         with httpx.Client(timeout=timeout) as client:
             r = client.get(f"{base}/api/companion/settings")
+        log.debug("gateway settings GET -> %s (%d bytes)", r.status_code, len(r.content or b""))
         if r.status_code != 200 or not r.content:
             return None
         raw = r.content
@@ -174,6 +175,7 @@ def push_gateway_settings(url: str, doc: dict, timeout: float = 8.0) -> bool:
         with httpx.Client(timeout=timeout) as client:
             r = client.put(f"{base}/api/companion/settings", content=body,
                            headers={"Content-Type": "application/gzip"})
+        log.debug("gateway settings PUT %d gzip bytes -> %s", len(body), r.status_code)
         return r.status_code < 400
     except Exception as e:
         log.warning("could not push settings to gateway: %s", e)

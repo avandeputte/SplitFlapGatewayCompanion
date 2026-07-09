@@ -12,6 +12,7 @@ import asyncio
 import copy
 import hashlib
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -32,8 +33,17 @@ from .plugins import PluginRuntime
 from .scheduler import Scheduler
 from .state import DisplayState
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# Log level from COMPANION_LOG_LEVEL (DEBUG/INFO/WARNING/ERROR/CRITICAL); default INFO.
+_LEVEL = getattr(logging, os.environ.get("COMPANION_LOG_LEVEL", "INFO").strip().upper(), None)
+if not isinstance(_LEVEL, int):
+    _LEVEL = logging.INFO
+logging.basicConfig(level=_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# Keep chatty third-party libraries from flooding the log at DEBUG — we want the
+# companion's own DEBUG lines, not httpcore/asyncio wire-level noise.
+for _noisy in ("httpx", "httpcore", "asyncio", "urllib3", "paho", "python_multipart", "multipart"):
+    logging.getLogger(_noisy).setLevel(max(_LEVEL, logging.INFO))
 log = logging.getLogger("companion")
+log.debug("log level set to %s", logging.getLevelName(_LEVEL))
 
 
 class _SuppressStatePolling(logging.Filter):
@@ -95,6 +105,7 @@ async def do_gateway_sync() -> dict:
         log.warning("gateway sync failed after retries: %s", last_err)
         return {"ok": False, "error": str(last_err)}
     patch = build_sync_patch(gw)
+    log.debug("gateway sync: config=%s -> patch=%s", {k: gw.get(k) for k in ("gridRows", "gridCols", "version")}, patch)
     if patch:
         config.update(patch)
         if "grid" in patch:
@@ -470,6 +481,52 @@ async def dev_grid(req: DevGrid):
     controller.resize_grid()
     plugins.on_grid_changed()
     return config.dev_state()
+
+
+async def _gateway_settings_ready() -> tuple[str, dict] | dict:
+    """(url, gateway-config) if the gateway is reachable and supports settings storage
+    (3.1+); otherwise an error dict to return to the caller."""
+    url = (config.transport.get("gateway_url") or "").strip()
+    if not url:
+        return {"ok": False, "error": "no gateway_url configured"}
+    try:
+        gw = await fetch_gateway_config(url)
+    except Exception as e:
+        return {"ok": False, "error": f"gateway unreachable: {e}"}
+    if not supports_settings(gw):
+        return {"ok": False, "error": "this gateway does not store settings (needs Gateway 3.1+)"}
+    return url, gw
+
+
+@app.post("/api/dev/settings/pull")
+async def dev_settings_pull():
+    """Force-retrieve the settings blob from the gateway and apply it."""
+    _require_dev()
+    ready = await _gateway_settings_ready()
+    if isinstance(ready, dict):
+        return ready
+    url, _ = ready
+    doc = await asyncio.to_thread(fetch_gateway_settings, url)
+    if doc is None:
+        return {"ok": False, "error": "no settings are stored on the gateway yet"}
+    plugin_settings.restore_from_doc(doc)
+    plugins.load()                 # apply the restored installed-apps list + settings
+    ha.refresh_discovery()         # the app/playlist option lists may have changed
+    log.info("dev: retrieved settings from the gateway (%d apps installed)", len(plugin_settings.installed_apps))
+    return {"ok": True, "applied": True, "installed": len(plugin_settings.installed_apps)}
+
+
+@app.post("/api/dev/settings/push")
+async def dev_settings_push():
+    """Force-write the current settings to the gateway now."""
+    _require_dev()
+    ready = await _gateway_settings_ready()
+    if isinstance(ready, dict):
+        return ready
+    url, _ = ready
+    ok = await asyncio.to_thread(push_gateway_settings, url, plugin_settings.snapshot())
+    log.info("dev: pushed settings to the gateway (ok=%s)", ok)
+    return {"ok": ok, "error": None if ok else "push failed"}
 
 
 # ---------------------------------------------------------------------------

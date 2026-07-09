@@ -34,7 +34,10 @@ def main() -> None:
     reload = os.environ.get("COMPANION_RELOAD", "").lower() in ("1", "true", "yes", "on")
     logging.getLogger("companion").info(
         "binding %s:%d%s", host, port, " (reload)" if reload else "")
-    uvicorn.run("app.main:app", host=host, port=port, reload=reload, log_level="info")
+    uv_level = os.environ.get("COMPANION_LOG_LEVEL", "INFO").strip().lower()
+    if uv_level not in ("debug", "info", "warning", "error", "critical"):
+        uv_level = "info"
+    uvicorn.run("app.main:app", host=host, port=port, reload=reload, log_level=uv_level)
 
 
 if __name__ == "__main__":

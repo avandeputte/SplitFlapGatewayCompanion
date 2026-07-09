@@ -396,6 +396,7 @@ class PluginRuntime:
                     if not isinstance(pages, list):
                         pages = [str(pages)]
                     self._caches[ckey] = {"pages": pages, "fetched_at": now}
+                    log.debug("fetched %s: %d page(s) (refresh %ss)", ckey, len(pages), refresh)
                     return pages
                 except Exception as e:
                     log.warning("plugin %s fetch error: %s", app_id, e)

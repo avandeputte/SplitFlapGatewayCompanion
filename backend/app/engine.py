@@ -163,6 +163,8 @@ class DisplayController:
         while gateway.settings_active() and waited < 5.0:
             await asyncio.sleep(0.05)
             waited += 0.05
+        if waited:
+            log.debug("held display send %.2fs for an in-flight settings transfer", waited)
         async with self._send_lock:
             try:
                 # Batch path (REST): draw the whole page in one request; the

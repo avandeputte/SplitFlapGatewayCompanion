@@ -33,6 +33,8 @@ services:
       # "mirror" lets a fresh companion on a new host restore its settings from the
       # gateway; "gateway" keeps nothing on disk. Degrades to local on a 3.0 gateway.
       # COMPANION_SETTINGS_STORE: "mirror"
+      # Log level: DEBUG | INFO | WARNING | ERROR | CRITICAL (default INFO)
+      # COMPANION_LOG_LEVEL: "INFO"
       # Home Assistant: auto (follow the gateway) | true | false
       COMPANION_HA: "auto"
       # --- Manual overrides (only if you do NOT want to read from the gateway) ---

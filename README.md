@@ -200,7 +200,8 @@ gateway if set). Note `<data_dir>` is still a Docker volume — it holds your
 | `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | Manual MQTT overrides | *(from gateway)* |
 | `COMPANION_DATA_DIR` | Where app settings, playlists, triggers + uploaded apps live (no config) | `<repo>/data` |
 | `COMPANION_SETTINGS_STORE` | Where settings live (Gateway 3.1+): `mirror` \| `local` \| `gateway` — see [Settings storage](#settings-storage-gateway-31) | `mirror` |
-| `COMPANION_DEV_MODE` | Show a **⚙ Dev** menu: toggle simulation mode (nothing sent to the display), force a gateway resync, and override the grid geometry while simulating | `off` |
+| `COMPANION_DEV_MODE` | Show a **⚙ Dev** menu: simulation mode, force a gateway resync, **retrieve/write settings to the gateway**, and override the grid geometry while simulating | `off` |
+| `COMPANION_LOG_LEVEL` | Log verbosity: `DEBUG` \| `INFO` \| `WARNING` \| `ERROR` \| `CRITICAL` (DEBUG adds companion detail without noisy third-party wire logs) | `INFO` |
 
 > **Why no gateway firmware change?** The gateway (v2.1+) already exposes
 > `gridRows`, `gridCols`, `mqHost`, `mqPort`, `mqUser` and `mqPfx` via

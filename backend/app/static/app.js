@@ -684,6 +684,28 @@ async function openDevMenu() {
     reRow.appendChild(reBtn); reRow.appendChild(reMsg); reF.appendChild(reRow);
     wrap.appendChild(reF);
 
+    // 2b) Gateway-stored settings (Gateway 3.1+)
+    const gsF = el("div", "field");
+    const gsLbl = el("span"); gsLbl.textContent = "Gateway-stored settings"; gsLbl.style.fontWeight = "600"; gsF.appendChild(gsLbl);
+    const gsRow = el("div"); gsRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap";
+    const pullBtn = el("button", "btn ghost btn-sm"); pullBtn.textContent = "⭳ Retrieve from gateway";
+    const pushBtn = el("button", "btn ghost btn-sm"); pushBtn.textContent = "⭱ Write to gateway";
+    const gsMsg = el("small", "field-note"); gsMsg.textContent = "Manually sync this companion's settings with the gateway (needs Gateway 3.1+).";
+    pullBtn.addEventListener("click", async () => {
+      pullBtn.disabled = pushBtn.disabled = true; gsMsg.textContent = "Retrieving…";
+      try { const r = await post("/api/dev/settings/pull", {}); gsMsg.textContent = r.ok ? `Retrieved ✓ (${r.installed} apps)` : "Failed: " + (r.error || "unknown"); if (r.ok) await loadApps(); }
+      catch (e) { gsMsg.textContent = "Failed: " + e.message; }
+      pullBtn.disabled = pushBtn.disabled = false;
+    });
+    pushBtn.addEventListener("click", async () => {
+      pullBtn.disabled = pushBtn.disabled = true; gsMsg.textContent = "Writing…";
+      try { const r = await post("/api/dev/settings/push", {}); gsMsg.textContent = r.ok ? "Written ✓" : "Failed: " + (r.error || "unknown"); }
+      catch (e) { gsMsg.textContent = "Failed: " + e.message; }
+      pullBtn.disabled = pushBtn.disabled = false;
+    });
+    gsRow.appendChild(pullBtn); gsRow.appendChild(pushBtn); gsF.appendChild(gsRow); gsF.appendChild(gsMsg);
+    wrap.appendChild(gsF);
+
     // 3) Grid geometry override (simulation only)
     const gF = el("div", "field");
     const gLbl = el("span"); gLbl.textContent = "Grid geometry override"; gLbl.style.fontWeight = "600"; gF.appendChild(gLbl);

@@ -227,6 +227,11 @@ class PluginSettings:
                 except OSError as e:
                     log.warning("could not cache restored settings locally: %s", e)
 
+    def snapshot(self) -> dict:
+        """The current settings as the nested doc (for a manual export/gateway push)."""
+        with self._lock:
+            return self._to_nested()
+
     def has_local(self) -> bool:
         """Whether a non-empty local settings file exists (a fresh host has none)."""
         try:
@@ -273,6 +278,7 @@ class PluginSettings:
             ok = False
         if ok:
             self._dirty = False
+            log.debug("settings mirrored to gateway (%d installed apps)", len(self._data.get("installed_apps", [])))
         return ok
 
     def all(self) -> dict:

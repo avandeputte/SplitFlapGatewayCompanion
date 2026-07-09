@@ -639,6 +639,18 @@ def test_settings_transfer_raises_pause_flag():
         srv.shutdown()
 
 
+def test_settings_snapshot(tmp_path):
+    """snapshot() returns the nested doc used for a manual export / gateway push."""
+    from app.plugin_settings import PluginSettings
+    ps = PluginSettings(tmp_path)
+    ps.set_known_apps(["weather"])          # runtime supplies this for per-app nesting
+    ps.set("language", "fr")
+    ps.set("plugin_weather_temperature_unit", "c")
+    snap = ps.snapshot()
+    assert snap["global"]["language"] == "fr"
+    assert snap["apps"]["weather"]["temperature_unit"] == "c"
+
+
 def test_settings_gateway_only_writes_nothing_local(tmp_path):
     from app.plugin_settings import PluginSettings
     ps = PluginSettings(tmp_path)
