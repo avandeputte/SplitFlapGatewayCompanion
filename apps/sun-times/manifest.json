@@ -7,8 +7,8 @@
   "refresh_interval": 1800,
   "loop_delay": 6,
   "category": "data",
-  "min_rows": 1,
-  "min_cols": 10,
+  "min_rows": 2,
+  "min_cols": 12,
   "settings": [
     {
       "key": "loop_delay",

@@ -8,7 +8,7 @@
   "loop_delay": 7,
   "category": "news",
   "min_rows": 2,
-  "min_cols": 12,
+  "min_cols": 15,
   "settings": [
     {
       "key": "count",

@@ -7,7 +7,7 @@
   "refresh_interval": 3600,
   "loop_delay": 6,
   "category": "sports",
-  "min_rows": 1,
+  "min_rows": 2,
   "min_cols": 12,
   "settings": [
     {
