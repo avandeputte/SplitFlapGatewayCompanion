@@ -184,12 +184,27 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 - `i18n.weekday(dt, short=False)` / `i18n.month(dt, short=False)` — CLDR-correct,
   UPPERCASE day/month names for *every* language (via babel).
+- `i18n.date(dt, short=False, year=False)` — day + month (and optional year) in the
+  locale's **own order and wording**: `JULY 9` in English but `9 JUILLET` (fr),
+  `9. JULI` (de), `9 DE JULIO` (es). Don't hand-assemble `month + " " + day` — the
+  order is language-specific, so let this decide it.
+- `i18n.time(dt, seconds=False, ampm_space=True)` — wall-clock time: `3:48 PM` in
+  English, `15:48` everywhere else (AM/PM is an English convention). `i18n.is_24h`
+  exposes the same decision if you need to branch yourself.
+- `i18n.unit("D")` — a localized compact duration suffix for `D`/`H`/`M`/`S`, so
+  `175D` becomes `175J` in French (jour), `175T` in German (Tag), `175G` in Italian.
 - `i18n.t("ENGLISH LABEL")` — a translated UI word; if there's no translation for
   the current language it returns the English key, so nothing ever breaks. The
   curated set (see `app/i18n.py`) covers the major Western-European languages;
   add keys there rather than in your app. Keep translations short — the modules
-  are narrow, and a long word will be trimmed. Both helpers compose with
-  `get_weather`: `def fetch(..., get_weather=None, i18n=None)`.
+  are narrow, and a long word will be trimmed.
+
+Localization is grammar, not word-swapping: name the hour before the minutes in
+Romance languages, honor date order, spell numbers the way the language does. When
+a language's structure genuinely differs (a word clock, a plural rule), keep that
+logic **inside the app** keyed off `i18n.lang` — see `apps/word-clock/app.py`, which
+carries its own per-language phrase builders. All helpers compose with
+`get_weather`: `def fetch(..., get_weather=None, i18n=None)`.
 
 ### The return value
 

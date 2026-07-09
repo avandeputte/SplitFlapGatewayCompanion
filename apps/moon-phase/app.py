@@ -6,6 +6,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     def t(s):
         return i18n.t(s) if i18n is not None else s
 
+    def u(k):                       # localized D/H/M/S suffix (French J for jour, etc.)
+        return i18n.unit(k) if i18n is not None else k
+
     try:
         tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
     except pytz.UnknownTimeZoneError:
@@ -46,8 +49,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
     name = t(phase_name)
     pages = [
-        format_lines(name, f'{illum_pct}% {t("LIT")}', f'{t("FULL IN")} {int(days_to_full)}D'),
-        format_lines(name, bar, f'{t("NEW IN")} {int(days_to_new)}D'),
+        format_lines(name, f'{illum_pct}% {t("LIT")}', f'{t("FULL IN")} {int(days_to_full)}{u("D")}'),
+        format_lines(name, bar, f'{t("NEW IN")} {int(days_to_new)}{u("D")}'),
     ]
     return pages
 

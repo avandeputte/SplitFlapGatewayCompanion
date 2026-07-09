@@ -35,6 +35,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     def t(s):
         return i18n.t(s) if i18n is not None else s
 
+    def u(k):                               # localized H/M duration suffix (Dutch U for uur, etc.)
+        return i18n.unit(k) if i18n is not None else k
+
     def line(label, value):                 # label trimmed to fit — never the time
         return f'{label[:max(1, cols - len(value) - 1)]} {value}'
     try:
@@ -53,11 +56,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             if not iso:
                 return '--:--'
             dt = datetime.fromisoformat(str(iso).replace('Z', '+00:00')).astimezone(tz)
+            # AM/PM is English-only — everyone else gets 24h.
+            if i18n is not None:
+                return i18n.time(dt, ampm_space=False)
             return dt.strftime('%I:%M%p').lstrip('0')
 
         rise, sett = local('sunrise'), local('sunset')
         secs = int(r.get('day_length', 0) or 0)
-        length = f'{secs // 3600}H{(secs % 3600) // 60:02d}M'
+        length = f'{secs // 3600}{u("H")}{(secs % 3600) // 60:02d}{u("M")}'
         if rows == 1:
             return [format_lines(f'{t("UP")} {rise} {t("DN")} {sett}')]
         if rows == 2:

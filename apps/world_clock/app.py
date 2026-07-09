@@ -1,4 +1,4 @@
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     from datetime import datetime
     import pytz
     cols = get_cols()
@@ -10,9 +10,12 @@ def fetch(settings, format_lines, get_rows, get_cols):
         except pytz.UnknownTimeZoneError:
             continue
         now = datetime.now(tz)
-        # Compact time (e.g. 2:55PM) leaves room for the city; a long city is
-        # trimmed to fit so the time is never cut off.
-        t = now.strftime('%I:%M%p').lstrip('0')
+        # Compact time leaves room for the city; a long city is trimmed so the time
+        # is never cut off. AM/PM is an English convention — everyone else is 24h.
+        if i18n is not None:
+            t = i18n.time(now, ampm_space=False)
+        else:
+            t = now.strftime('%I:%M%p').lstrip('0')
         city = z.split('/')[-1].replace('_', ' ').upper()
         avail = max(1, cols - len(t) - 1)
         lines.append(f'{city[:avail]} {t}')

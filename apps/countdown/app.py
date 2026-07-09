@@ -5,6 +5,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     def t(s):
         return i18n.t(s) if i18n is not None else s
 
+    def u(k):                       # localized D/H/M/S suffix (French J for jour, etc.)
+        return i18n.unit(k) if i18n is not None else k
+
     def get_allowed_chars():
         default_chars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*"
 
@@ -39,11 +42,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         mins, secs = divmod(rem, 60)
 
         # Keep the most useful leading units that still fit on the sign.
+        day_u = u('D')
         sections = [
-            f'{days}D',
-            f'{hrs}H',
-            f'{mins}M',
-            f'{secs}S',
+            f'{days}{day_u}',
+            f'{hrs}{u("H")}',
+            f'{mins}{u("M")}',
+            f'{secs}{u("S")}',
         ]
 
         text = ''
@@ -58,8 +62,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             return text
         # At the narrowest widths, preserve the day suffix so the value still has context.
         if cols <= 1:
-            return 'D'[:cols]
-        return f"{str(days)[:cols - 1]}D"
+            return day_u[:cols]
+        return f"{str(days)[:cols - len(day_u)]}{day_u}"
 
     def _pick(cols, *words):
         for w in words:

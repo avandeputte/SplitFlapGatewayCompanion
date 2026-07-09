@@ -50,6 +50,67 @@ _STRINGS: dict[str, dict[str, str]] = {
     "PARTY":   {"fr": "FETE", "de": "PARTY", "es": "FIESTA", "it": "FESTA", "pt": "FESTA", "nl": "FEEST"},
     "TODAY":   {"fr": "AUJOURDHUI", "de": "HEUTE", "es": "HOY", "it": "OGGI", "pt": "HOJE", "nl": "VANDAAG"},
     "NOW":     {"fr": "MAINTENANT", "de": "JETZT", "es": "AHORA", "it": "ORA", "pt": "AGORA", "nl": "NU"},
+    # weather — condition text (the keyless Open-Meteo provider maps codes to these;
+    # the keyed providers already return localized text from their own API).
+    "CLEAR":          {"fr": "DEGAGE", "de": "KLAR", "es": "DESPEJADO", "it": "SERENO", "pt": "LIMPO", "nl": "HELDER"},
+    "MAINLY CLEAR":   {"fr": "PLUTOT CLAIR", "de": "MEIST KLAR", "es": "MAYORM. CLARO", "it": "POCO NUVOLOSO", "pt": "QUASE LIMPO", "nl": "VNL. HELDER"},
+    "PARTLY CLOUDY":  {"fr": "NUAGEUX", "de": "TEILS WOLKIG", "es": "PARC. NUBLADO", "it": "POCO NUVOLOSO", "pt": "PARC. NUBLADO", "nl": "HALF BEWOLKT"},
+    "OVERCAST":       {"fr": "COUVERT", "de": "BEDECKT", "es": "CUBIERTO", "it": "COPERTO", "pt": "ENCOBERTO", "nl": "BEWOLKT"},
+    "FOG":            {"fr": "BROUILLARD", "de": "NEBEL", "es": "NIEBLA", "it": "NEBBIA", "pt": "NEVOEIRO", "nl": "MIST"},
+    "RIME FOG":       {"fr": "BRUME GIVRANTE", "de": "RAUREIF", "es": "NIEBLA HELADA", "it": "NEBBIA GHIAC.", "pt": "NEVOA GELADA", "nl": "RIJP-MIST"},
+    "LIGHT DRIZZLE":  {"fr": "BRUINE LEGERE", "de": "LEICHT NIESEL", "es": "LLOVIZNA LEVE", "it": "PIOVIGGINE", "pt": "CHUVISCO FRACO", "nl": "LICHTE MOTREG"},
+    "DRIZZLE":        {"fr": "BRUINE", "de": "NIESELN", "es": "LLOVIZNA", "it": "PIOVIGGINE", "pt": "CHUVISCO", "nl": "MOTREGEN"},
+    "HEAVY DRIZZLE":  {"fr": "BRUINE FORTE", "de": "STARK. NIESEL", "es": "LLOVIZNA FTE", "it": "PIOVIGGINE FT", "pt": "CHUVISCO FORTE", "nl": "ZWARE MOTREG"},
+    "LIGHT RAIN":     {"fr": "PLUIE LEGERE", "de": "LEICHT. REGEN", "es": "LLUVIA LEVE", "it": "PIOGGIA LEGG.", "pt": "CHUVA FRACA", "nl": "LICHTE REGEN"},
+    "RAIN":           {"fr": "PLUIE", "de": "REGEN", "es": "LLUVIA", "it": "PIOGGIA", "pt": "CHUVA", "nl": "REGEN"},
+    "HEAVY RAIN":     {"fr": "PLUIE FORTE", "de": "STARKREGEN", "es": "LLUVIA FUERTE", "it": "PIOGGIA FORTE", "pt": "CHUVA FORTE", "nl": "ZWARE REGEN"},
+    "LIGHT FREEZING RAIN": {"fr": "PLUIE VERGLAC.", "de": "L. GEFR. REGEN", "es": "LLUVIA HELADA", "it": "PIOGGIA GELATA", "pt": "CHUVA GELADA", "nl": "LICHTE IJZEL"},
+    "FREEZING RAIN":  {"fr": "PLUIE VERGLAC.", "de": "GEFRIER-REGEN", "es": "LLUVIA HELADA", "it": "PIOGGIA GELATA", "pt": "CHUVA GELADA", "nl": "IJZEL"},
+    "LIGHT SNOW":     {"fr": "NEIGE LEGERE", "de": "LEICHT SCHNEE", "es": "NIEVE LEVE", "it": "NEVE LEGGERA", "pt": "NEVE FRACA", "nl": "LICHTE SNEEUW"},
+    "SNOW":           {"fr": "NEIGE", "de": "SCHNEE", "es": "NIEVE", "it": "NEVE", "pt": "NEVE", "nl": "SNEEUW"},
+    "HEAVY SNOW":     {"fr": "NEIGE FORTE", "de": "STARK. SCHNEE", "es": "NIEVE FUERTE", "it": "NEVE FORTE", "pt": "NEVE FORTE", "nl": "ZWARE SNEEUW"},
+    "SNOW GRAINS":    {"fr": "GRAINS NEIGE", "de": "SCHNEEGRIESEL", "es": "GRANIZO NIEVE", "it": "NEVE GRANUL.", "pt": "NEVE GRANULAR", "nl": "KORRELSNEEUW"},
+    "RAIN SHOWERS":   {"fr": "AVERSES", "de": "REGENSCHAUER", "es": "CHUBASCOS", "it": "ROVESCI", "pt": "AGUACEIROS", "nl": "REGENBUIEN"},
+    "HEAVY SHOWERS":  {"fr": "AVERSES FORTES", "de": "STARK. SCHAUER", "es": "CHUBASCOS FTES", "it": "ROVESCI FORTI", "pt": "AGUAC. FORTES", "nl": "ZWARE BUIEN"},
+    "SNOW SHOWERS":   {"fr": "AVERSES NEIGE", "de": "SCHNEESCHAUER", "es": "CHUBASCOS NIEVE", "it": "ROVESCI NEVE", "pt": "AGUAC. NEVE", "nl": "SNEEUWBUIEN"},
+    "HEAVY SNOW SHOWERS": {"fr": "AVERSES NEIGE", "de": "SCHNEESCHAUER", "es": "CHUBASCOS NIEVE", "it": "ROVESCI NEVE", "pt": "AGUAC. NEVE", "nl": "SNEEUWBUIEN"},
+    "THUNDERSTORM":   {"fr": "ORAGE", "de": "GEWITTER", "es": "TORMENTA", "it": "TEMPORALE", "pt": "TROVOADA", "nl": "ONWEER"},
+    "THUNDER HAIL":   {"fr": "ORAGE GRELE", "de": "GEWITTER HAGEL", "es": "TORM. GRANIZO", "it": "TEMP. GRANDINE", "pt": "TROV. GRANIZO", "nl": "ONWEER HAGEL"},
+    "SEVERE TSTORM":  {"fr": "ORAGE VIOLENT", "de": "SCHW. GEWITTER", "es": "TORM. FUERTE", "it": "TEMP. VIOLENTO", "pt": "TROV. FORTE", "nl": "ZWAAR ONWEER"},
+    "CURRENT CONDITIONS": {"fr": "CONDITIONS", "de": "WETTER", "es": "TIEMPO", "it": "METEO", "pt": "TEMPO", "nl": "WEER"},
+    # weather — labels + qualitative levels (computed in-app for every provider)
+    "FEELS":       {"fr": "RESSENTI", "de": "GEFUHLT", "es": "SENSAC.", "it": "PERCEP.", "pt": "SENSAC.", "nl": "GEVOELD"},
+    "FLS":         {"fr": "RES", "de": "GEF", "es": "SEN", "it": "PER", "pt": "SEN", "nl": "GVL"},
+    "AIR QUALITY": {"fr": "QUALITE AIR", "de": "LUFTQUALITAT", "es": "CALIDAD AIRE", "it": "QUALITA ARIA", "pt": "QUALID. AR", "nl": "LUCHTKWAL."},
+    "SUN EXPOSURE":{"fr": "EXPO SOLEIL", "de": "UV-BELASTUNG", "es": "EXPO SOLAR", "it": "ESPOS. SOLE", "pt": "EXPO SOLAR", "nl": "ZONKRACHT"},
+    "SUN UV":      {"fr": "UV SOLEIL", "de": "SONNE UV", "es": "UV SOLAR", "it": "UV SOLE", "pt": "UV SOLAR", "nl": "ZON UV"},
+    "POLLEN":      {"fr": "POLLEN", "de": "POLLEN", "es": "POLEN", "it": "POLLINE", "pt": "POLEN", "nl": "POLLEN"},
+    "OVERALL":     {"fr": "GLOBAL", "de": "GESAMT", "es": "TOTAL", "it": "TOTALE", "pt": "GERAL", "nl": "TOTAAL"},
+    "OVR":         {"fr": "GLB", "de": "GES", "es": "TOT", "it": "TOT", "pt": "GER", "nl": "TOT"},
+    "GRASS":       {"fr": "HERBE", "de": "GRAS", "es": "HIERBA", "it": "ERBA", "pt": "RELVA", "nl": "GRAS"},
+    "GRS":         {"fr": "HRB", "de": "GRA", "es": "HIE", "it": "ERB", "pt": "REL", "nl": "GRS"},
+    "TREE":        {"fr": "ARBRE", "de": "BAUM", "es": "ARBOL", "it": "ALBERO", "pt": "ARVORE", "nl": "BOOM"},
+    "TRE":         {"fr": "ARB", "de": "BAU", "es": "ARB", "it": "ALB", "pt": "ARV", "nl": "BOM"},
+    "WEED":        {"fr": "HERBACEE", "de": "UNKRAUT", "es": "MALEZA", "it": "ERBACCE", "pt": "ERVAS", "nl": "ONKRUID"},
+    "WED":         {"fr": "HER", "de": "UNK", "es": "MAL", "it": "ERB", "pt": "ERV", "nl": "ONK"},
+    "PROV":        {"fr": "SRCE", "de": "QUELLE", "es": "FUENTE", "it": "FONTE", "pt": "FONTE", "nl": "BRON"},
+    "PRV":         {"fr": "SRC", "de": "QLE", "es": "FTE", "it": "FNT", "pt": "FNT", "nl": "BRN"},
+    "GOOD":        {"fr": "BON", "de": "GUT", "es": "BUENA", "it": "BUONA", "pt": "BOA", "nl": "GOED"},
+    "FAIR":        {"fr": "CORRECT", "de": "MASSIG", "es": "ACEPTABLE", "it": "DISCRETA", "pt": "RAZOAVEL", "nl": "REDELIJK"},
+    "MODERATE":    {"fr": "MODERE", "de": "MASSIG", "es": "MODERADA", "it": "MODERATA", "pt": "MODERADA", "nl": "MATIG"},
+    "POOR":        {"fr": "MAUVAIS", "de": "SCHLECHT", "es": "MALA", "it": "SCARSA", "pt": "FRACA", "nl": "SLECHT"},
+    "V.POOR":      {"fr": "TRES MAUVAIS", "de": "SEHR SCHL.", "es": "MUY MALA", "it": "PESSIMA", "pt": "MUITO FRACA", "nl": "ZEER SLECHT"},
+    "MOD":         {"fr": "MOYEN", "de": "MITTEL", "es": "MODER.", "it": "MEDIO", "pt": "MODER.", "nl": "MATIG"},
+    "USG":         {"fr": "SENSIBLES", "de": "EMPFINDL.", "es": "SENSIBLES", "it": "SENSIBILI", "pt": "SENSIVEIS", "nl": "GEVOELIG"},
+    "UNHEALTHY":   {"fr": "MALSAIN", "de": "UNGESUND", "es": "INSALUBRE", "it": "MALSANO", "pt": "INSALUBRE", "nl": "ONGEZOND"},
+    "V.UNHLTHY":   {"fr": "TRES MALSAIN", "de": "SEHR UNGESUND", "es": "MUY INSALUBRE", "it": "MOLTO MALSANO", "pt": "MUITO INSALUB", "nl": "ZEER ONGEZOND"},
+    "HAZARDOUS":   {"fr": "DANGEREUX", "de": "GEFAHRLICH", "es": "PELIGROSA", "it": "PERICOLOSA", "pt": "PERIGOSA", "nl": "GEVAARLIJK"},
+    "LOW":         {"fr": "FAIBLE", "de": "NIEDRIG", "es": "BAJO", "it": "BASSO", "pt": "BAIXO", "nl": "LAAG"},
+    "HIGH":        {"fr": "ELEVE", "de": "HOCH", "es": "ALTO", "it": "ALTO", "pt": "ALTO", "nl": "HOOG"},
+    "V.HIGH":      {"fr": "TRES ELEVE", "de": "SEHR HOCH", "es": "MUY ALTO", "it": "MOLTO ALTO", "pt": "MUITO ALTO", "nl": "ZEER HOOG"},
+    "EXTREME":     {"fr": "EXTREME", "de": "EXTREM", "es": "EXTREMO", "it": "ESTREMO", "pt": "EXTREMO", "nl": "EXTREEM"},
+    "NONE":        {"fr": "AUCUN", "de": "KEIN", "es": "NINGUNO", "it": "NESSUNO", "pt": "NENHUM", "nl": "GEEN"},
+    "UNKNOWN":     {"fr": "INCONNU", "de": "UNBEKANNT", "es": "DESCON.", "it": "SCONOSC.", "pt": "DESCON.", "nl": "ONBEKEND"},
 }
 
 
@@ -76,11 +137,59 @@ def month(dt, lang, short=False):
     return _cldr(dt, "MMM" if short else "MMMM", lang) or dt.strftime("%b" if short else "%B").upper()
 
 
+def date(dt, lang, short=False, year=False):
+    """Day + month (optionally year) in the locale's own order and wording:
+    ``JULY 9`` (en) but ``9 JUILLET`` (fr), ``9. JULI`` (de), ``9 DE JULIO`` (es)."""
+    skeleton = ("MMM" if short else "MMMM") + "d" + ("y" if year else "")
+    try:
+        from babel.dates import format_skeleton
+        return format_skeleton(skeleton, dt, locale=lang).upper()
+    except Exception:
+        base = f"{month(dt, lang, short)} {dt.day}"
+        return f"{base} {dt.year}" if year else base
+
+
+# Compact duration-unit suffixes ("175D 7H 52M"). The day is where languages truly
+# diverge (French JOUR->J, German TAG->T, Italian GIORNO->G, Dutch hour UUR->U); the
+# rest are near-universal single letters.
+_DURATION_UNITS = {
+    "D": {"fr": "J", "de": "T", "es": "D", "it": "G", "pt": "D", "nl": "D"},
+    "H": {"fr": "H", "de": "H", "es": "H", "it": "H", "pt": "H", "nl": "U"},
+    "M": {"fr": "M", "de": "M", "es": "M", "it": "M", "pt": "M", "nl": "M"},
+    "S": {"fr": "S", "de": "S", "es": "S", "it": "S", "pt": "S", "nl": "S"},
+}
+
+
+def duration_unit(key, lang):
+    """Localized single-letter duration suffix (D/H/M/S) -> e.g. J/H/M/S in French."""
+    if not lang or lang.lower().startswith("en"):
+        return key
+    return _DURATION_UNITS.get(key, {}).get(lang.lower(), key)
+
+
+def uses_24h(lang):
+    """AM/PM is essentially an English-language convention; everyone else is 24h."""
+    return not (not lang or lang.lower().startswith("en"))
+
+
+def clock(dt, lang, seconds=False, ampm_space=True):
+    """Locale-appropriate wall-clock time: ``3:48 PM`` in English, ``15:48`` elsewhere."""
+    if uses_24h(lang):
+        return dt.strftime("%H:%M:%S" if seconds else "%H:%M")
+    body = dt.strftime("%I:%M:%S" if seconds else "%I:%M").lstrip("0")
+    sep = " " if ampm_space else ""
+    return f"{body}{sep}{dt.strftime('%p')}"
+
+
 class Localizer:
     """Language-bound convenience wrapper handed to apps as ``i18n``."""
 
     def __init__(self, lang):
         self.lang = (lang or "en").lower()
+
+    @property
+    def is_24h(self):
+        return uses_24h(self.lang)
 
     def t(self, text):
         return translate(text, self.lang)
@@ -90,3 +199,12 @@ class Localizer:
 
     def month(self, dt, short=False):
         return month(dt, self.lang, short)
+
+    def date(self, dt, short=False, year=False):
+        return date(dt, self.lang, short, year)
+
+    def time(self, dt, seconds=False, ampm_space=True):
+        return clock(dt, self.lang, seconds, ampm_space)
+
+    def unit(self, key):
+        return duration_unit(key, self.lang)

@@ -410,6 +410,31 @@ def test_i18n_localizes_labels_and_dates():
     assert i18n.month(d, "es") == "ENERO"
 
 
+def test_i18n_date_order_and_time_format():
+    """Babel gives the locale's own day/month order; AM/PM is English-only."""
+    from datetime import datetime
+    from app import i18n
+    dt = datetime(2026, 7, 9, 15, 5)                         # July 9, 15:05
+    assert i18n.date(dt, "en") == "JULY 9"                   # month-first
+    assert i18n.date(dt, "fr") == "9 JUILLET"                # day-first
+    assert i18n.date(dt, "de") == "9. JULI"
+    assert i18n.clock(dt, "en") == "3:05 PM"                 # 12h + meridiem
+    assert i18n.clock(dt, "fr") == "15:05"                   # 24h everywhere else
+    assert i18n.clock(dt, "de", ampm_space=False) == "15:05"
+    assert not i18n.uses_24h("en") and i18n.uses_24h("fr")
+
+
+def test_i18n_duration_units():
+    """Compact D/H/M/S suffixes follow the language (French jour -> J, etc.)."""
+    from app import i18n
+    assert i18n.duration_unit("D", "en") == "D"             # English unchanged
+    assert i18n.duration_unit("D", "fr") == "J"             # jour
+    assert i18n.duration_unit("D", "de") == "T"             # Tag
+    assert i18n.duration_unit("D", "it") == "G"             # giorno
+    assert i18n.duration_unit("H", "nl") == "U"             # uur
+    assert i18n.duration_unit("S", "fr") == "S"             # near-universal
+
+
 def test_i18n_injected_by_param_name(tmp_path):
     """An app opts into localization by declaring an i18n parameter; the runtime
     injects a language-bound helper (a classic app gets nothing)."""
