@@ -183,3 +183,22 @@ def test_catalog_is_the_reusable_set(tmp_path):
             "yt_channel_id", "yt_video_id"} & CATALOG_KEYS == set()
     assert {"weather_api_key", "zip_code", "timezone",
             "global_loop_delay", "yt_api_key"} <= CATALOG_KEYS
+
+
+def test_language_global_is_windows1252_only(tmp_path):
+    """Language is a global picker limited to Windows-1252 (Western) languages."""
+    from app.catalog import CATALOG_BY_KEY, CATALOG_KEYS
+    assert "language" in CATALOG_KEYS
+    vals = {o["value"] for o in CATALOG_BY_KEY["language"]["options"]}
+    assert {"en", "fr", "de", "es", "is"} <= vals            # Western/Latin-1 included
+    assert not ({"el", "ru", "zh", "ja", "ko", "ar", "he", "th", "tr", "pl"} & vals)  # excluded
+
+
+def test_sports_league_dicts_in_sync(tmp_path):
+    """The picker's league list (helpers) must match what the app fetches."""
+    import re
+    h = (Path(__file__).resolve().parents[1] / "app" / "helpers.py").read_text()
+    a = (APPS_DIR / "sports" / "app.py").read_text()
+    hk = set(re.findall(r'"(\w+)": \{"path": "', h[h.find("SPORTS_LEAGUES"):]))
+    ak = set(re.findall(r"'(\w+)':\s*\{'path'", a[a.find("LEAGUES ="):a.find("def ")]))
+    assert hk == ak and "ger" in hk   # includes Bundesliga
