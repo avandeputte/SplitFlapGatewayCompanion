@@ -71,8 +71,7 @@ CATALOG: list[dict] = [
      "note": "How long each app page shows before advancing, unless an app overrides it."},
     {"key": "disable_colors", "label": "Disable colors", "type": "toggle", "default": "no",
      "options": [{"value": "no", "label": "No"}, {"value": "yes", "label": "Yes"}],
-     "note": "Show up/down and status as text only, without colored tiles "
-             "(used by Crypto, Stocks, Weather and Metro)."},
+     "note": "Show up/down and status as text only, without the colored tiles."},
     {"key": "yt_api_key", "label": "YouTube Data API Key", "type": "password",
      "note": "Shared by the YouTube subscriber, comments and livestream apps."},
 ]
