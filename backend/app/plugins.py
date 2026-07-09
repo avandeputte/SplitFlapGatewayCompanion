@@ -13,6 +13,7 @@ thread executor (see engine.py).
 
 from __future__ import annotations
 
+import collections
 import importlib.util
 import json
 import logging
@@ -370,6 +371,11 @@ class PluginRuntime:
         fields = []
         for s in raw_settings:
             f = self._field(app_id, s, resolved)
+            # "(override global)" is misleading on a global_key setting: editing it
+            # changes the shared value, it does NOT create a per-app override. (A
+            # real per-app override, e.g. Weather's "Location (leave blank for
+            # global)", is a non-global setting and keeps its accurate label.)
+            f["label"] = f["label"].replace(" (override global)", "")
             # Flag a global only when it is ACTUALLY shared with other apps, so
             # the badge means what it says (a global used only here isn't "shared").
             if s.get("global_key"):
@@ -441,12 +447,13 @@ class PluginRuntime:
         """Every ``global_key`` setting declared by installed apps (deduped),
         plus core shared keys no manifest exposes (e.g. zip_code) — so the shared
         settings apps rely on can all be edited in one place."""
-        seen: dict[str, dict] = {}       # key -> first-seen setting definition
         used = self._declared_globals()
+        # Collect every declaration of each global key across installed apps.
         # Some globals are really one app's private multi-field store (Countdown's
         # five events) or non-inputs (a notice) — they live in that app's own
         # settings, so keep them out of the shared editor.
         skip_types = {"notice", "computed", "button"}
+        decls: dict[str, list[dict]] = collections.defaultdict(list)
         for app_id, manifest in sorted(
                 self._registry.items(),
                 key=lambda kv: kv[1].get("name", kv[0]).lower()):
@@ -456,7 +463,16 @@ class PluginRuntime:
                     continue
                 if st.get("type") in skip_types or key.startswith("countdown_"):
                     continue
-                seen.setdefault(key, st)
+                decls[key].append(st)
+        # Different apps can label the same global differently ("API Key" vs
+        # "YouTube Data API Key"). Pick the most descriptive: the label used by
+        # the most apps, ties broken by the longer (more specific) one.
+        seen: dict[str, dict] = {}
+        for key, sts in decls.items():
+            labels = [s.get("label", "") for s in sts]
+            freq = collections.Counter(labels)
+            best = max(labels, key=lambda l: (freq[l], len(l)))
+            seen[key] = next(s for s in sts if s.get("label", "") == best)
         for core in _GLOBAL_CORE:
             seen.setdefault(core["key"], core)
 
