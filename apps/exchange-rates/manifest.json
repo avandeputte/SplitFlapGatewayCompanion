@@ -16,7 +16,8 @@
       "label": "Base currency (3-letter code)",
       "type": "text",
       "default": "",
-      "ph": "blank = follow Language",
+      "ph": "blank = follow Location",
+      "note": "Blank uses your Location's currency (then Language).",
       "size": "sm"
     },
     {

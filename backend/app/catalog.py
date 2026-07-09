@@ -66,8 +66,11 @@ CATALOG: list[dict] = [
          {"value": "ms", "label": "Bahasa Melayu (Malay)"},
          {"value": "sw", "label": "Kiswahili (Swahili)"},
      ],
-     "note": "Apps that support multiple languages use this. Only Windows-1252 "
-             "(Western-European) languages are listed — the modules can't show others."},
+     "note": "The display language for apps that support it (look for the 🌐 badge): it "
+             "translates their words and sets date order, number format and 12h/24h. "
+             "Currency and holidays follow your Location, not this. Any app can override "
+             "it in its own settings. Only Windows-1252 (Western-European) languages are "
+             "listed — the modules can't show others."},
     {"key": "global_loop_delay", "label": "Default page dwell (seconds)", "type": "number",
      "default": 8, "min": "1", "max": "60", "step": "1", "stepper": True,
      "note": "How long each app page shows before advancing, unless an app overrides it."},

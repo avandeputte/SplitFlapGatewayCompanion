@@ -24,7 +24,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import appaudit, i18n, weather
+from . import appaudit, i18n, location, weather
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -84,6 +84,7 @@ class PluginRuntime:
         self._caches: dict[str, dict] = {}       # app_id -> {pages, fetched_at}
         self._reads: dict[str, dict] = {}        # app_id -> {settings key it reads: default}
         self._wants_weather: dict[str, bool] = {}  # app_id -> fetch() accepts get_weather
+        self._wants_location: dict[str, bool] = {}  # app_id -> fetch() accepts get_location
         self._wants_i18n: dict[str, bool] = {}     # app_id -> fetch() accepts i18n
         self._fetch_locks: dict[str, threading.Lock] = {}  # app_id -> serialize its fetches
 
@@ -141,6 +142,7 @@ class PluginRuntime:
         self._caches.clear()
         self._reads.clear()
         self._wants_weather.clear()
+        self._wants_location.clear()
         self._wants_i18n.clear()
         self._fetch_locks.clear()
         # Scan the app dirs once and reuse it (discovery + per-app load).
@@ -225,6 +227,7 @@ class PluginRuntime:
         if hasattr(mod, "fetch") and callable(mod.fetch):
             self._modules[app_id] = mod
             self._wants_weather[app_id] = self._fetch_accepts(mod.fetch, "get_weather")
+            self._wants_location[app_id] = self._fetch_accepts(mod.fetch, "get_location")
             self._wants_i18n[app_id] = self._fetch_accepts(mod.fetch, "i18n")
             self._fetch_locks[app_id] = threading.Lock()
         else:
@@ -369,6 +372,8 @@ class PluginRuntime:
                     kwargs = {}
                     if self._wants_weather.get(app_id):
                         kwargs["get_weather"] = lambda s=None: weather.fetch_current(s if s is not None else ps)
+                    if self._wants_location.get(app_id):
+                        kwargs["get_location"] = lambda: location.resolve(ps)
                     if self._wants_i18n.get(app_id):
                         # A per-app Language override (plugin_<id>_language) wins over
                         # the global Language; blank/unset = follow global.
@@ -619,6 +624,8 @@ class PluginRuntime:
                     used_global.add(c["key"])
         if self._wants_weather.get(app_id):
             used_global |= set(weather.GLOBAL_KEYS)   # used via the shared weather helper
+        if self._wants_location.get(app_id):
+            used_global |= set(location.GLOBAL_KEYS)  # used via the shared location helper
         if used_global:
             names = ", ".join(CATALOG_BY_KEY[k]["label"]
                               for k in sorted(used_global, key=lambda x: CATALOG_BY_KEY[x]["label"]))
@@ -718,6 +725,9 @@ class PluginRuntime:
                 values[c["key"]] = self._composite_value(c["_composite"])
             else:
                 values[c["key"]] = self.settings.get(c["key"], c.get("default", ""))
+        # Language is a headline feature — pin it to the very top (stable sort keeps
+        # the rest of the catalog order).
+        fields.sort(key=lambda f: 0 if f.get("key") == "language" else 1)
         return {"fields": fields, "values": values}
 
     def _composite_value(self, comp: list) -> str:

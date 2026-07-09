@@ -493,6 +493,26 @@ def test_i18n_country_and_year_unit():
     assert i18n.Localizer("en-GB").lang_base == "en"
 
 
+def test_location_helper_and_currency_map(tmp_path):
+    """Currency/holiday apps opt into the location helper; it maps country->currency
+    so geography (not language) drives them."""
+    from app import location
+    rt = _runtime(tmp_path, ["holidays", "exchange-rates", "date"])
+    assert rt._wants_location.get("holidays") is True
+    assert rt._wants_location.get("exchange-rates") is True
+    assert rt._wants_location.get("date") is False           # date doesn't use it
+    assert location._CURRENCY["CA"] == "CAD"                 # French Canada -> CAD, not EUR
+    assert location._CURRENCY["CH"] == "CHF"                 # French Switzerland -> CHF
+    assert location._CURRENCY["FR"] == "EUR" and location._CURRENCY["DE"] == "EUR"
+    assert location.resolve({}).get("country") is None        # no location set -> nothing to resolve
+
+
+def test_language_pinned_to_top_of_global_settings(tmp_path):
+    rt = _runtime(tmp_path, [])
+    fields = rt.global_settings_schema()["fields"]
+    assert fields[0]["key"] == "language"
+
+
 def test_playlist_entry_overrides(tmp_path):
     """get_pages(app, overrides) renders one instance with its own config without
     touching saved settings, and two override sets don't share a cache."""

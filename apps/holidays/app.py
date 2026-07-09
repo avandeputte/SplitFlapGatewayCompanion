@@ -1,7 +1,7 @@
 """Upcoming public holidays for a country (keyless: Nager.Date)."""
 
 
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
     import requests
     from datetime import datetime, date
     rows, cols = get_rows(), get_cols()
@@ -9,10 +9,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     def t(s):
         return i18n.t(s) if i18n is not None else s
 
-    # Country: an explicit code wins; otherwise follow the Language's country
-    # (US/GB/AU/FR/DE/…). Nager returns each holiday's localName in the country's own
-    # language, so the calendar AND the holiday names match the chosen language.
+    # Which calendar to show: an explicit code wins; otherwise the configured
+    # LOCATION decides (France vs Canada vs Switzerland — the language can't), and
+    # only then the Language as a last resort. Nager returns each holiday's localName
+    # in the country's own language, so the names match the calendar automatically.
     country = str(settings.get('country', '') or '').strip().upper()[:2]
+    if not country and get_location is not None:
+        country = str((get_location() or {}).get('country') or '')
     if not country:
         country = i18n.country() if i18n is not None else 'US'
     try:

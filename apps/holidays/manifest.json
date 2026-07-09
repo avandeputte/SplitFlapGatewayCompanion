@@ -17,8 +17,8 @@
       "type": "text",
       "default": "",
       "size": "sm",
-      "ph": "blank = follow Language",
-      "note": "ISO country code, e.g. US, GB, DE, FR, CA. Blank follows the Language."
+      "ph": "blank = follow Location",
+      "note": "ISO country code, e.g. US, GB, DE, FR, CA. Blank follows your Location (then Language)."
     },
     {
       "key": "loop_delay",

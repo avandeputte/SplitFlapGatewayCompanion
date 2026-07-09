@@ -167,6 +167,25 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None):
 default provider is keyless Open-Meteo, weather works with **no API key**. The
 four-argument signature keeps working unchanged, so `get_weather` is purely opt-in.
 
+### Optional: location → country / currency (`get_location`)
+
+Anything tied to *geography* — which currency, which country's holidays — should key
+off the configured **Location**, not the language (French is France, Canada,
+Belgium, Switzerland — different currencies and holidays). Declare a `get_location`
+parameter to get the shared resolver:
+
+```python
+def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
+    loc = get_location() if get_location else {}
+    country  = loc.get("country")    # ISO 3166-1 alpha-2, e.g. "CH"
+    currency = loc.get("currency")   # ISO 4217, e.g. "CHF" (None if unknown/unset)
+```
+
+It reverse-geocodes the global Location once (cached) and is keyless. Prefer an
+explicit setting first, then `get_location()`, then fall back to `i18n` — e.g. a
+currency's base: `settings.get("base") or (get_location() or {}).get("currency") or
+i18n.base_currency()`.
+
 ### Optional: localization (`i18n`)
 
 If your app shows words (day/month names, status labels), opt into localization by

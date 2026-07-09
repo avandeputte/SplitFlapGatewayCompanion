@@ -1,13 +1,16 @@
 """Currency exchange rates via Frankfurter (European Central Bank data, keyless)."""
 
 
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
     import requests
     rows, cols = get_rows(), get_cols()
 
-    # Base currency: an explicit setting wins; otherwise follow the global Language
-    # (English -> USD, the rest of Western Europe -> EUR) instead of assuming USD.
+    # Base currency: an explicit setting wins; otherwise the configured LOCATION
+    # decides (a French speaker in Canada wants CAD, in Switzerland CHF — the
+    # language can't tell), falling back to the Language only if no location is set.
     base = str(settings.get('base', '') or '').strip().upper()[:3]
+    if not base and get_location is not None:
+        base = str((get_location() or {}).get('currency') or '')
     if not base:
         base = i18n.base_currency() if i18n is not None else 'USD'
     targets = [t.strip().upper()[:3] for t in str(settings.get('targets', 'EUR,GBP,JPY')).split(',') if t.strip()]
