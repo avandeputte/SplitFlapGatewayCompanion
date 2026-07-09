@@ -56,7 +56,7 @@ def _defaults() -> dict:
         "location_lon": "",
         "location_name": "",
         "timezone": _detect_timezone(),
-        "language": "en",
+        "language": "en-US",
         "weather_provider": "openmeteo",
         "weather_api_key": "",
         "yt_api_key": "",

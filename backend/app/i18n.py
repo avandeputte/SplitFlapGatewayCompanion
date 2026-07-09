@@ -127,10 +127,24 @@ def translate(text, lang):
     return _STRINGS.get(text, {}).get(lang.lower(), text)
 
 
+def _babel_locale(lang):
+    """Our language code -> a babel locale id. English carries a region that changes
+    date order (US 'July 9' vs UK/AU '9 July'): 'en-GB' -> 'en_GB', 'en'/'en-US' ->
+    'en_US'. Other languages just use their base code ('fr', 'de', …)."""
+    if not lang:
+        return "en_US"
+    parts = str(lang).replace("-", "_").split("_")
+    base = parts[0].lower()
+    if base == "en":
+        region = parts[1].upper() if len(parts) > 1 and parts[1] else "US"
+        return f"en_{region}"
+    return base
+
+
 def _cldr(dt, fmt, lang):
     try:
         from babel.dates import format_date
-        return format_date(dt, fmt, locale=lang).upper()
+        return format_date(dt, fmt, locale=_babel_locale(lang)).upper()
     except Exception:
         return None
 
@@ -149,7 +163,7 @@ def date(dt, lang, short=False, year=False):
     skeleton = ("MMM" if short else "MMMM") + "d" + ("y" if year else "")
     try:
         from babel.dates import format_skeleton
-        return format_skeleton(skeleton, dt, locale=lang).upper()
+        return format_skeleton(skeleton, dt, locale=_babel_locale(lang)).upper()
     except Exception:
         base = f"{month(dt, lang, short)} {dt.day}"
         return f"{base} {dt.year}" if year else base
@@ -189,7 +203,7 @@ def number(value, lang, decimals=2, grouping=True):
     try:
         from babel.numbers import format_decimal
         pattern = ("#,##0" if grouping else "0") + ("." + "0" * decimals if decimals > 0 else "")
-        s = format_decimal(float(value), format=pattern, locale=(lang or "en"))
+        s = format_decimal(float(value), format=pattern, locale=_babel_locale(lang))
     except Exception:
         try:
             s = f"{float(value):,.{decimals}f}" if grouping else f"{float(value):.{decimals}f}"
@@ -200,10 +214,13 @@ def number(value, lang, decimals=2, grouping=True):
     return s
 
 
-# The "home" currency implied by a language, used as the default base for FX. The
-# language carries no region, so we pick the most common: English -> USD, the rest
-# of Western Europe -> EUR (users can always override the base explicitly).
-_BASE_CURRENCY = {"en": "USD", "fr": "EUR", "de": "EUR", "es": "EUR", "it": "EUR", "pt": "EUR", "nl": "EUR"}
+# The "home" currency implied by a language/region, used as the default base for FX:
+# US -> USD, UK -> GBP, Australia -> AUD, the rest of Western Europe -> EUR. Users can
+# always override the base explicitly.
+_BASE_CURRENCY = {
+    "en": "USD", "en-us": "USD", "en-gb": "GBP", "en-au": "AUD",
+    "fr": "EUR", "de": "EUR", "es": "EUR", "it": "EUR", "pt": "EUR", "nl": "EUR",
+}
 
 
 def base_currency(lang):

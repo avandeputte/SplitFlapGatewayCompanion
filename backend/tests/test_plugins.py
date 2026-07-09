@@ -237,7 +237,7 @@ def test_language_global_is_windows1252_only(tmp_path):
     from app.catalog import CATALOG_BY_KEY, CATALOG_KEYS
     assert "language" in CATALOG_KEYS
     vals = {o["value"] for o in CATALOG_BY_KEY["language"]["options"]}
-    assert {"en", "fr", "de", "es", "is"} <= vals            # Western/Latin-1 included
+    assert {"en-US", "en-GB", "en-AU", "fr", "de", "es", "is"} <= vals   # Western/Latin-1 (English split by region)
     assert not ({"el", "ru", "zh", "ja", "ko", "ar", "he", "th", "tr", "pl"} & vals)  # excluded
 
 
@@ -452,6 +452,37 @@ def test_manifest_i18n_flag_surfaces_in_listing(tmp_path):
     flags = {a["id"]: a["i18n"] for a in rt.app_list()}
     assert flags["crypto"] is True      # a localized app
     assert flags["time"] is False       # not localized
+
+
+def test_english_variants_differ_by_region():
+    """US vs UK/AU English differ in date order and the implied home currency."""
+    from datetime import datetime
+    from app import i18n
+    dt = datetime(2026, 7, 9)
+    assert i18n.Localizer("en-US").date(dt) == "JULY 9"     # month-first
+    assert i18n.Localizer("en-GB").date(dt) == "9 JULY"     # day-first
+    assert i18n.Localizer("en-AU").date(dt) == "9 JULY"
+    assert i18n.Localizer("en").date(dt) == "JULY 9"        # legacy 'en' == American
+    assert i18n.base_currency("en-US") == "USD"
+    assert i18n.base_currency("en-GB") == "GBP"
+    assert i18n.base_currency("en-AU") == "AUD"
+    # English variants keep 12h AM/PM and English UI words.
+    assert not i18n.uses_24h("en-GB") and i18n.translate("GOLD", "en-GB") == "GOLD"
+
+
+def test_fortune_cookies_have_english_region_variants():
+    """British + Australian fortune files exist, are substantial, and are display-safe."""
+    import json
+    d = APPS_DIR / "sarcastic-fortune-cookies"
+    for fname in ("fortunes_en-gb.json", "fortunes_en-au.json"):
+        data = json.loads((d / fname).read_text("utf-8"))
+        assert len(data) > 100
+        for e in data:
+            e["fortune"].encode("cp1252")   # must render on the Windows-1252 modules
+    # the region files really differ from the American source
+    us = (d / "fortunes_en.json").read_text("utf-8")
+    gb = (d / "fortunes_en-gb.json").read_text("utf-8")
+    assert "FAVOUR" in gb and "FAVOUR" not in us
 
 
 def test_i18n_injected_by_param_name(tmp_path):

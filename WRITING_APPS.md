@@ -196,8 +196,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 - `i18n.number(value, decimals=2, grouping=True)` — a number with the locale's own
   separators: `1,234.50` (en) vs `1.234,50` (de) vs `1 234,50` (fr). Use it for any
   price/rate/percent — never hardcode `f"{v:,.2f}"`.
-- `i18n.base_currency()` — the currency a language implies (`USD` for English, `EUR`
-  for Western Europe), a sensible default base for a currency/FX app.
+- `i18n.base_currency()` — the currency a language/region implies (`USD`/`GBP`/`AUD`
+  for US/UK/Australian English, `EUR` for Western Europe), a sensible default base for
+  a currency/FX app. English is split by region (`en-US`/`en-GB`/`en-AU`), which also
+  drives date order — `i18n.date()` gives `JULY 9` for US but `9 JULY` for UK/AU.
 - `i18n.t("ENGLISH LABEL")` — a translated UI word; if there's no translation for
   the current language it returns the English key, so nothing ever breaks. The
   curated set (see `app/i18n.py`) covers the major Western-European languages;

@@ -215,7 +215,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     # Global Language (when the companion injects i18n). Open-Meteo maps codes to
     # English text we translate ourselves; the keyed providers can return native
     # condition text if we ask, so we pass the language through to them.
-    lang = i18n.lang if i18n is not None else 'en'
+    # Base language for the providers' `lang` param — they want 'en'/'fr', not a
+    # regional 'en-gb' (the English variants all return English weather text anyway).
+    lang = (i18n.lang.split('-')[0] if i18n is not None else 'en')
 
     def t(s):
         return i18n.t(s) if i18n is not None else s

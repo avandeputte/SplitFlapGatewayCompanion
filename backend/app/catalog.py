@@ -38,11 +38,13 @@ CATALOG: list[dict] = [
     {"key": "timezone", "label": "Timezone", "type": "search_chips",
      "searchUrl": "/timezones", "resultKey": "zones", "maxItems": 1,
      "note": "Default timezone for clocks and time-based apps."},
-    {"key": "language", "label": "Language", "type": "select", "default": "en",
+    {"key": "language", "label": "Language", "type": "select", "default": "en-US",
      # Only languages whose characters fit Windows-1252 (Western/Latin-1) — no
      # Greek, Cyrillic, CJK, etc., since the modules can't display them.
      "options": [
-         {"value": "en", "label": "English"},
+         {"value": "en-US", "label": "English (US)"},
+         {"value": "en-GB", "label": "English (UK)"},
+         {"value": "en-AU", "label": "English (Australia)"},
          {"value": "fr", "label": "Français (French)"},
          {"value": "de", "label": "Deutsch (German)"},
          {"value": "es", "label": "Español (Spanish)"},
