@@ -43,29 +43,81 @@ def _load(lang):
     return cache[lang]
 
 
-def _wrap(text, rows, cols):
-    """Fit ``text`` into at most ``rows`` lines of ``cols`` characters.
+def _hard_wrap(words, rows, cols):
+    flat = " ".join(words)
+    return [flat[i:i + cols] for i in range(0, len(flat), cols)][:rows]
 
-    Word-wrap first (prettier); if that needs more than ``rows`` lines, fall back
-    to a hard character wrap so even a maximally long fortune still lands on a
-    single page. An accented letter counts as one character (one module).
+
+def _balance(words, lens, cols, k):
+    """Split ``words`` into exactly ``k`` lines (each <= cols), minimizing
+    raggedness (sum of squared trailing slack) so the lines are evenly filled
+    instead of packing the top and orphaning the last word — nudged toward
+    ending a line at sentence punctuation. A short DP; fortunes are tiny."""
+    n = len(words)
+    pre = [0]
+    for wl in lens:
+        pre.append(pre[-1] + wl)
+
+    def linelen(i, j):                      # words[i..j] inclusive, with spaces
+        return pre[j + 1] - pre[i] + (j - i)
+
+    INF = float("inf")
+    dp = [[INF] * (n + 1) for _ in range(k + 1)]
+    nxt = [[0] * (n + 1) for _ in range(k + 1)]
+    dp[0][n] = 0.0
+    for kk in range(1, k + 1):
+        for i in range(n - 1, -1, -1):
+            j = i
+            while j < n:
+                ll = linelen(i, j)
+                if ll > cols and j > i:
+                    break
+                rest = dp[kk - 1][j + 1]
+                if rest < INF:
+                    slack = cols - ll
+                    cost = slack * slack + rest
+                    if words[j][-1:] in ".!?":
+                        cost -= cols        # prefer breaking after a sentence
+                    if cost < dp[kk][i]:
+                        dp[kk][i] = cost
+                        nxt[kk][i] = j + 1
+                j += 1
+    if dp[k][0] >= INF:
+        return _hard_wrap(words, k, cols)
+    out, i, kk = [], 0, k
+    while kk > 0:
+        j = nxt[kk][i]
+        out.append(" ".join(words[i:j]))
+        i, kk = j, kk - 1
+    return out
+
+
+def _wrap(text, rows, cols):
+    """Fit ``text`` into at most ``rows`` lines of ``cols`` characters, balanced.
+
+    When the text fits on the page, its words are spread evenly across the lines
+    it needs (not greedily packed, which leaves a lonely last word); only if even
+    the tightest word-wrap needs more rows than the board has do we fall back to a
+    hard character wrap. An accented letter counts as one character (one module).
     """
     words = text.split()
-    lines, cur = [], ""
-    for w in words:
-        if not cur:
-            cur = w
-        elif len(cur) + 1 + len(w) <= cols:
-            cur += " " + w
+    if not words:
+        return []
+    lens = [len(w) for w in words]
+    if max(lens) > cols:
+        return _hard_wrap(words, rows, cols)
+    # Fewest lines a word-wrap needs.
+    need, cur = 1, 0
+    for wl in lens:
+        add = wl if cur == 0 else cur + 1 + wl
+        if add <= cols:
+            cur = add
         else:
-            lines.append(cur)
-            cur = w
-    if cur:
-        lines.append(cur)
-    if len(lines) > rows:
-        flat = " ".join(words)
-        lines = [flat[i:i + cols] for i in range(0, len(flat), cols)]
-    return lines[:rows]
+            need += 1
+            cur = wl
+    if need > rows:
+        return _hard_wrap(words, rows, cols)
+    return _balance(words, lens, cols, need)
 
 
 def fetch(settings, format_lines, get_rows, get_cols):
