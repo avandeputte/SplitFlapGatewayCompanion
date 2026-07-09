@@ -113,3 +113,38 @@ def test_missing_app_pages_error(tmp_path):
     rt = _runtime(tmp_path, [])
     pages = rt.get_pages("does-not-exist")
     assert pages and "NOT FOUND" in pages[0]
+
+
+# -- surfacing settings apps read but never declare (no hidden settings) ------
+
+def test_app_dialog_surfaces_read_but_undeclared_global(tmp_path):
+    """A global an app READS but doesn't declare (dashboard -> weather_api_key)
+    still appears in the app's settings dialog, flagged shared."""
+    rt = _runtime(tmp_path, ["dashboard", "weather"])
+    fields = {f["key"]: f for f in rt.settings_schema("dashboard")["fields"]}
+    assert "weather_api_key" in fields, "read-but-undeclared global not surfaced"
+    assert fields["weather_api_key"].get("shared") is True
+    assert fields["weather_api_key"]["type"] == "password"  # from Weather's definition
+
+
+def test_global_usage_counts_readers(tmp_path):
+    """The global editor's 'Used by' includes apps that only READ the key."""
+    rt = _runtime(tmp_path, ["dashboard", "weather"])
+    gs = {f["key"]: f for f in rt.global_settings_schema()["fields"]}
+    assert "Dashboard" in gs["weather_api_key"]["note"]  # dashboard reads, weather declares
+
+
+def test_app_dialog_infers_undeclared_perapp_setting(tmp_path):
+    """A private setting an app reads but never declares (sports -> sports_compact,
+    read with a 'no' default) is surfaced as an inferred toggle."""
+    rt = _runtime(tmp_path, ["sports"])
+    fields = {f["key"]: f for f in rt.settings_schema("sports")["fields"]}
+    assert "sports_compact" in fields
+    assert fields["sports_compact"]["type"] == "toggle"
+
+
+def test_read_setting_persists_from_app_dialog(tmp_path):
+    """Surfaced settings must be saveable from the app dialog."""
+    rt = _runtime(tmp_path, ["dashboard", "weather"])
+    rt.save_settings("dashboard", {"weather_api_key": "K"})
+    assert rt.settings.get("weather_api_key") == "K"
