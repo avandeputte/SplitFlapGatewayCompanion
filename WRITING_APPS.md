@@ -177,14 +177,21 @@ parameter to get the shared resolver:
 ```python
 def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
     loc = get_location() if get_location else {}
-    country  = loc.get("country")    # ISO 3166-1 alpha-2, e.g. "CH"
-    currency = loc.get("currency")   # ISO 4217, e.g. "CHF" (None if unknown/unset)
+    country     = loc.get("country")      # ISO 3166-1 alpha-2, e.g. "CA"
+    subdivision = loc.get("subdivision")  # ISO 3166-2, e.g. "CA-QC" (Quebec); may be None
+    currency    = loc.get("currency")     # ISO 4217, e.g. "CAD" (None if unknown/unset)
 ```
 
 It reverse-geocodes the global Location once (cached) and is keyless. Prefer an
 explicit setting first, then `get_location()`, then fall back to `i18n` — e.g. a
 currency's base: `settings.get("base") or (get_location() or {}).get("currency") or
-i18n.base_currency()`.
+i18n.base_currency()`. The `subdivision` lets you narrow region-specific data (the
+Public Holidays app filters to your province/state with it). Declaring `get_location`
+also gives the app an automatic per-app **Location** override in its settings.
+
+If you show public-holiday names from an English-only source, `i18n.holiday(name)`
+returns a localized name for the common holidays (or `None` — then keep the source's
+native name).
 
 ### Optional: localization (`i18n`)
 

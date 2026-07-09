@@ -313,6 +313,19 @@ class PluginRuntime:
                 continue
             s[key] = settings.get(f"plugin_{app_id}_{key}",
                                   dflt if dflt is not None else s.get(key, ""))
+        # Per-app Location override: a place chip ("lat,lon|name") auto-injected for
+        # location-using apps, overriding the global location for this app only. We
+        # write it into the keys the helpers already read (location_lat/lon/name).
+        if "location" not in declared:                   # weather owns its own 'location' field
+            loc_ovr = settings.get(f"plugin_{app_id}_location")
+            if loc_ovr:
+                coords, _, nm = str(loc_ovr).partition("|")
+                lat, _, lon = coords.partition(",")
+                if lat.strip() and lon.strip():
+                    s["location_lat"], s["location_lon"] = lat.strip(), lon.strip()
+                    if nm.strip():
+                        s["location_name"] = nm.strip()
+                    s["location"] = loc_ovr
         return s
 
     def _refresh_secs(self, app_id: str, manifest: dict, settings=None) -> int:
@@ -442,6 +455,14 @@ class PluginRuntime:
                 d = st.get("default")
                 return d if d not in (None, "") else None
         return None
+
+    _LOCATION_KEYS = {"location_lat", "location_lon", "location_name", "zip_code", "location"}
+
+    def _uses_location(self, app_id: str) -> bool:
+        """True if the app is tied to a place — via the weather/location helpers or by
+        reading a location key directly — so it should offer a per-app Location override."""
+        return bool(self._wants_weather.get(app_id) or self._wants_location.get(app_id)
+                    or (set(self._reads.get(app_id, {})) & self._LOCATION_KEYS))
 
     def _perapp_value(self, app_id: str, key: str, settings=None):
         """Effective value of a runtime-consumed per-app setting: the saved value,
@@ -598,6 +619,20 @@ class PluginRuntime:
                 "options": lang_options,
                 "default": "",
                 "note": "Override the global Language for this app only.",
+            })
+
+        # Any location-tied app gets a per-app Location override (a place search),
+        # blank = follow the global Location. Weather owns its own 'location' field.
+        if self._uses_location(app_id) and not any(s["key"] == "location" for s in raw_settings):
+            fields.append({
+                "key": f"plugin_{app_id}_location",
+                "label": "Location",
+                "type": "search_chips",
+                "searchUrl": "/location_search",
+                "resultKey": "results",
+                "maxItems": 1,
+                "default": "",
+                "note": "Override the global Location for this app only (place search).",
             })
 
         for s in raw_settings:

@@ -9,8 +9,9 @@ one lookup, not one per render.
 
 import re
 
-# Global settings this reads (surfaced as a hint on apps that use the helper).
-GLOBAL_KEYS = ["location_lat", "location_lon", "location_name", "zip_code"]
+# Catalog globals this helper draws on (named in the app dialog's "also uses" hint).
+# It reads the location_precise composite's coordinates and the ZIP fallback.
+GLOBAL_KEYS = ["location_precise", "zip_code"]
 
 # Country (ISO 3166-1 alpha-2) -> currency (ISO 4217): the eurozone plus the common
 # non-euro countries. Unknown countries fall through to None (caller decides).
@@ -27,7 +28,7 @@ _CURRENCY = {
     "ES": "EUR", "HR": "EUR",
 }
 
-_country_cache: dict = {}   # rounded (lat, lon) -> ISO country code
+_geo_cache: dict = {}   # rounded (lat, lon) -> {"country": "CA", "subdivision": "CA-QC"}
 
 
 def _latlon(settings, requests):
@@ -55,29 +56,41 @@ def _latlon(settings, requests):
     return None
 
 
-def country(settings):
-    """ISO country code for the configured location (reverse-geocoded, cached)."""
+def _geo(settings):
+    """Reverse-geocode the configured location to {country, subdivision}, cached.
+    subdivision is the ISO 3166-2 code (e.g. 'CA-QC' for Quebec) or None."""
     import requests
     ll = _latlon(settings, requests)
     if not ll:
-        return None
+        return {"country": None, "subdivision": None}
     key = (round(ll[0], 2), round(ll[1], 2))
-    if key in _country_cache:
-        return _country_cache[key]
+    if key in _geo_cache:
+        return _geo_cache[key]
+    out = {"country": None, "subdivision": None}
     try:
         r = requests.get("https://nominatim.openstreetmap.org/reverse",
-                         params={"lat": ll[0], "lon": ll[1], "format": "json", "zoom": 3},
+                         params={"lat": ll[0], "lon": ll[1], "format": "json", "zoom": 5},
                          headers={"User-Agent": "SplitFlapGatewayCompanion/1.0"}, timeout=6).json()
-        cc = str((r.get("address") or {}).get("country_code") or "").upper()[:2] or None
-        if cc:
-            _country_cache[key] = cc
-        return cc
+        addr = r.get("address") or {}
+        out["country"] = str(addr.get("country_code") or "").upper()[:2] or None
+        sub = str(addr.get("ISO3166-2-lvl4") or addr.get("ISO3166-2-lvl6") or "").upper()
+        out["subdivision"] = sub or None
+        if out["country"]:
+            _geo_cache[key] = out
     except Exception:
-        return None
+        pass
+    return out
+
+
+def country(settings):
+    """ISO country code for the configured location (reverse-geocoded, cached)."""
+    return _geo(settings).get("country")
 
 
 def resolve(settings) -> dict:
-    """{ok, country, currency} for the configured location. ok is False (country/
-    currency None) when there's no location set or the lookup failed."""
-    cc = country(settings)
-    return {"ok": bool(cc), "country": cc, "currency": _CURRENCY.get(cc) if cc else None}
+    """{ok, country, subdivision, currency} for the configured location. ok is False
+    (values None) when there's no location set or the lookup failed."""
+    g = _geo(settings)
+    cc = g.get("country")
+    return {"ok": bool(cc), "country": cc, "subdivision": g.get("subdivision"),
+            "currency": _CURRENCY.get(cc) if cc else None}

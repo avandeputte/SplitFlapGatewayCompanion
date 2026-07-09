@@ -253,6 +253,49 @@ def country(lang):
     return _COUNTRY.get((lang or "en").lower(), "US")
 
 
+# Common public-holiday names -> localized. Most countries' holiday source already
+# returns names in the country's own language, but some (e.g. Canada) return only
+# English, so a French speaker in Quebec still gets English. This maps the widely
+# shared holidays; anything not here keeps its native name. Keyed by lowercased
+# English name (as the holiday source returns it).
+_HOLIDAYS = {
+    "new year's day":   {"fr": "Jour de l'An", "de": "Neujahr", "es": "Año Nuevo", "it": "Capodanno", "pt": "Ano Novo", "nl": "Nieuwjaar"},
+    "epiphany":         {"fr": "Épiphanie", "de": "Heilige Drei Könige", "es": "Epifanía", "it": "Epifania", "pt": "Dia de Reis", "nl": "Driekoningen"},
+    "good friday":      {"fr": "Vendredi Saint", "de": "Karfreitag", "es": "Viernes Santo", "it": "Venerdì Santo", "pt": "Sexta-feira Santa", "nl": "Goede Vrijdag"},
+    "easter sunday":    {"fr": "Pâques", "de": "Ostersonntag", "es": "Domingo de Pascua", "it": "Pasqua", "pt": "Páscoa", "nl": "Eerste Paasdag"},
+    "easter monday":    {"fr": "Lundi de Pâques", "de": "Ostermontag", "es": "Lunes de Pascua", "it": "Lunedì dell'Angelo", "pt": "Segunda de Páscoa", "nl": "Tweede Paasdag"},
+    "labour day":       {"fr": "Fête du Travail", "de": "Tag der Arbeit", "es": "Día del Trabajo", "it": "Festa del Lavoro", "pt": "Dia do Trabalhador", "nl": "Dag van de Arbeid"},
+    "labor day":        {"fr": "Fête du Travail", "de": "Tag der Arbeit", "es": "Día del Trabajo", "it": "Festa del Lavoro", "pt": "Dia do Trabalhador", "nl": "Dag van de Arbeid"},
+    "ascension day":    {"fr": "Ascension", "de": "Christi Himmelfahrt", "es": "Ascensión", "it": "Ascensione", "pt": "Ascensão", "nl": "Hemelvaart"},
+    "whit sunday":      {"fr": "Pentecôte", "de": "Pfingstsonntag", "es": "Pentecostés", "it": "Pentecoste", "pt": "Pentecostes", "nl": "Eerste Pinksterdag"},
+    "whit monday":      {"fr": "Lundi de Pentecôte", "de": "Pfingstmontag", "es": "Lunes de Pentecostés", "it": "Lunedì di Pentecoste", "pt": "Segunda de Pentecostes", "nl": "Tweede Pinksterdag"},
+    "corpus christi":   {"fr": "Fête-Dieu", "de": "Fronleichnam", "es": "Corpus Christi", "it": "Corpus Domini", "pt": "Corpo de Deus", "nl": "Sacramentsdag"},
+    "assumption day":   {"fr": "Assomption", "de": "Mariä Himmelfahrt", "es": "Asunción", "it": "Assunzione", "pt": "Assunção", "nl": "Maria-Tenhemelopneming"},
+    "all saints' day":  {"fr": "Toussaint", "de": "Allerheiligen", "es": "Todos los Santos", "it": "Ognissanti", "pt": "Todos os Santos", "nl": "Allerheiligen"},
+    "christmas day":    {"fr": "Noël", "de": "Weihnachten", "es": "Navidad", "it": "Natale", "pt": "Natal", "nl": "Kerstmis"},
+    "st. stephen's day":{"fr": "Saint-Étienne", "de": "Stefanitag", "es": "San Esteban", "it": "Santo Stefano", "pt": "Dia de Santo Estêvão", "nl": "Tweede Kerstdag"},
+    "boxing day":       {"fr": "Lendemain de Noël", "de": "Zweiter Weihnachtsfeiertag", "es": "San Esteban", "it": "Santo Stefano", "pt": "Boxing Day", "nl": "Tweede Kerstdag"},
+    # Canada / Quebec (the source returns these only in English)
+    "canada day":       {"fr": "Fête du Canada"},
+    "victoria day":     {"fr": "Journée des Patriotes"},
+    "thanksgiving":     {"fr": "Action de grâce"},
+    "remembrance day":  {"fr": "Jour du Souvenir"},
+    "family day":       {"fr": "Jour de la famille"},
+    "civic holiday":    {"fr": "Congé civique"},
+    "national holiday": {"fr": "Fête nationale"},
+    "national day for truth and reconciliation": {"fr": "Journée de la vérité et réconciliation"},
+    "saint-jean-baptiste day": {"fr": "Fête nationale du Québec"},
+}
+
+
+def holiday(name, lang):
+    """Localized public-holiday name, or None if we have no translation (caller
+    then keeps the source's native name)."""
+    if not lang or not name:
+        return None
+    return _HOLIDAYS.get(str(name).strip().lower(), {}).get((lang or "").lower())
+
+
 def clock(dt, lang, seconds=False, ampm_space=True):
     """Locale-appropriate wall-clock time: ``3:48 PM`` in English, ``15:48`` elsewhere."""
     if uses_24h(lang):
@@ -298,6 +341,9 @@ class Localizer:
 
     def country(self):
         return country(self.lang)
+
+    def holiday(self, name):
+        return holiday(name, self.lang_base)
 
     @property
     def lang_base(self):

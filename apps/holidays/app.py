@@ -1,4 +1,12 @@
-"""Upcoming public holidays for a country (keyless: Nager.Date)."""
+"""Upcoming public holidays for your location (keyless: Nager.Date).
+
+Which calendar to show is driven by the configured LOCATION (the language can't tell
+France from Canada from Switzerland), down to the province/state: in Quebec you get
+Quebec's holidays, not the other provinces'. Names use the source's native localName,
+or a localized translation for the common holidays (so a French speaker in Quebec —
+where the source only has English — still reads Fête du Travail, Action de grâce…).
+An explicit Country setting overrides the location; the Language is the last resort.
+"""
 
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
@@ -9,22 +17,27 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
     def t(s):
         return i18n.t(s) if i18n is not None else s
 
-    # Which calendar to show: an explicit code wins; otherwise the configured
-    # LOCATION decides (France vs Canada vs Switzerland — the language can't), and
-    # only then the Language as a last resort. Nager returns each holiday's localName
-    # in the country's own language, so the names match the calendar automatically.
+    loc = (get_location() or {}) if get_location is not None else {}
     country = str(settings.get('country', '') or '').strip().upper()[:2]
-    if not country and get_location is not None:
-        country = str((get_location() or {}).get('country') or '')
     if not country:
-        country = i18n.country() if i18n is not None else 'US'
+        country = str(loc.get('country') or '') or (i18n.country() if i18n is not None else 'US')
+    # Province/state (e.g. CA-QC) — only trusted when it belongs to the country we're
+    # actually showing (an explicit Country setting can differ from the location).
+    subdivision = str(loc.get('subdivision') or '')
+    if subdivision and not subdivision.startswith(country):
+        subdivision = ''
     try:
         data = requests.get(f'https://date.nager.at/api/v3/NextPublicHolidays/{country}', timeout=8).json()
         if not isinstance(data, list) or not data:
             return [format_lines('HOLIDAYS', 'NONE FOUND', country)]
+        # Keep nationwide holidays + the ones for our own province/state; drop other
+        # regions' (so Quebec doesn't list British Columbia Day).
+        if subdivision:
+            data = [h for h in data if h.get('global') or subdivision in (h.get('counties') or [])]
         pages, today = [], date.today()
         for h in data[:4]:
-            name = str(h.get('localName') or h.get('name') or '').upper()
+            localized = i18n.holiday(h.get('name')) if i18n is not None else None
+            name = str(localized or h.get('localName') or h.get('name') or '').upper()
             cd = ''
             try:
                 days = (datetime.strptime(h.get('date', ''), '%Y-%m-%d').date() - today).days

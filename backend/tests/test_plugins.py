@@ -507,6 +507,27 @@ def test_location_helper_and_currency_map(tmp_path):
     assert location.resolve({}).get("country") is None        # no location set -> nothing to resolve
 
 
+def test_holiday_name_localization():
+    from app import i18n
+    assert i18n.holiday("Labour Day", "fr") == "Fête du Travail"       # English-only source -> French
+    assert i18n.holiday("Christmas Day", "de") == "Weihnachten"
+    assert i18n.holiday("British Columbia Day", "fr") is None          # not common -> keep native name
+    assert i18n.holiday("Labour Day", "en") is None                   # English keeps the source name
+
+
+def test_perapp_location_override(tmp_path):
+    """Location-tied apps get a per-app Location field; setting it rewrites the
+    location keys every helper reads, so that app resolves a different place."""
+    rt = _runtime(tmp_path, ["holidays", "exchange-rates", "metals"])
+    present = {a: any(f["key"] == f"plugin_{a}_location" for f in rt.settings_schema(a)["fields"])
+               for a in ["holidays", "exchange-rates", "metals"]}
+    assert present == {"holidays": True, "exchange-rates": True, "metals": False}
+    rt.settings.set("plugin_holidays_location", "35.68,139.69|Tokyo")
+    ps = rt._plugin_settings("holidays", rt.manifest("holidays"))
+    assert ps["location_lat"] == "35.68" and ps["location_lon"] == "139.69"
+    assert ps["location_name"] == "Tokyo"
+
+
 def test_language_pinned_to_top_of_global_settings(tmp_path):
     rt = _runtime(tmp_path, [])
     fields = rt.global_settings_schema()["fields"]

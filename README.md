@@ -43,7 +43,14 @@ modules), with a gateway-free `sim` mode for development. What's here:
 - **Compose** — click-to-type grid with colour tiles; all transition styles
   (`ltr`, `rtl`, `spiral`, `sync`, `slot`, …).
 - **Playlists** — sequence apps and messages with per-entry durations; save,
-  load, run, loop.
+  load, run, loop. **Per-entry settings** let the same app appear more than once
+  configured differently (e.g. Weather for two cities in two languages).
+- **Localization** — a global **Language** (US/UK/Australian English + the major
+  Western-European languages) that apps carrying a 🌐 badge follow: translated
+  words, locale date order, number format and 12h/24h. **Currency and public
+  holidays follow your Location** (down to province — Quebec ≠ the rest of Canada),
+  not the language. Both **Language and Location are overridable per app** (and per
+  playlist entry). See **[Localization](#localization)**.
 - **Schedules** — time-of-day windows that run an app/playlist or turn the
   display off, per weekday, plus **quiet hours**.
 - **Triggers** — apps that watch for events (ISS overhead, a game, weather) and
@@ -261,3 +268,50 @@ message and reporting the display content, so those aren't duplicated:
 So an HA automation can start an app or run a playlist on any trigger, and
 dashboards can read which app/playlist is active from the select states. The
 option lists update automatically as you install apps or save playlists.
+
+---
+
+## Localization
+
+Set the **Language** at the top of **Global settings**. Apps that adapt to it carry
+a 🌐 badge (on their tile, in the library, and in the playlist picker). The choices
+are the languages whose characters fit the modules' Windows-1252 code page:
+**English (US / UK / Australia)** plus French, German, Spanish, Italian, Portuguese,
+Dutch and the other Western-European languages.
+
+**What the Language controls** (for 🌐 apps):
+
+- **Words** — labels and status text are translated (SUNRISE → LEVER, GOLD → OR,
+  weather conditions, moon phases, countdown/time-since units, and more). Untranslated
+  words fall back to English, so nothing ever breaks.
+- **Date order** — `JULY 9` in US English, `9 JULY` in UK/Australian English,
+  `9 JUILLET` in French, `9. JULI` in German — via CLDR, correct for every language.
+- **Number format** — `1,234.50` (US/UK) vs `1.234,50` (de/es/it/nl/pt) vs
+  `1 234,50` (fr), used for prices, rates and percentages.
+- **Clock** — 12-hour with AM/PM in English, 24-hour everywhere else.
+- **Word clock & fortunes** — genuinely per-language, not word-swapped: the word
+  clock builds each language's own grammar (`HALB ELF` = 10:30 in German), and the
+  sarcastic-fortune-cookies app ships British and Australian editions with local
+  spelling and vocabulary.
+
+**Currency and holidays follow your Location, not the language.** French can be
+France (EUR), Canada (CAD), Belgium (EUR) or Switzerland (CHF) — the language can't
+tell them apart, so these key off the configured **Location** (reverse-geocoded to a
+country, cached):
+
+- **Exchange Rates** — the base currency defaults to your country's currency.
+- **Public Holidays** — shows *your country's* calendar, down to the **province /
+  state**: in Quebec you get Quebec's holidays (not British Columbia's), and the
+  common ones are shown in your Language (`FÊTE DU TRAVAIL`, `ACTION DE GRÂCE`).
+
+**Overrides.** Both are overridable so you're never stuck with a global choice:
+
+- **Per app** — every 🌐 app has a **Language** picker in its own settings (blank =
+  follow global), and every location-tied app (weather, sun times, holidays,
+  exchange rates) has a **Location** override too.
+- **Per playlist entry** — the same app can appear multiple times in a playlist,
+  each with its own settings (the ⚙ on the entry), so one playlist can show the
+  weather for Paris in French and Tokyo in Japanese back to back.
+
+Building an app that localizes? **[WRITING_APPS.md](WRITING_APPS.md)** documents the
+injected `i18n`, `get_weather` and `get_location` helpers.
