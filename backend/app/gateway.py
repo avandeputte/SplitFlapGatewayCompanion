@@ -12,8 +12,19 @@ it blank for an anonymous broker.
 from __future__ import annotations
 
 import logging
+import threading
 
 log = logging.getLogger("companion.gateway")
+
+# Set while a settings blob is being uploaded to / downloaded from the gateway. The
+# engine yields to it so display frames don't compete for the gateway's attention
+# mid-transfer. Thread-safe (the transfer runs in a background thread).
+_settings_transfer = threading.Event()
+
+
+def settings_active() -> bool:
+    """True while a settings upload/download is in flight (engine pauses sending)."""
+    return _settings_transfer.is_set()
 
 
 async def fetch_gateway_config(url: str, timeout: float = 5.0) -> dict:
@@ -129,6 +140,7 @@ def fetch_gateway_settings(url: str, timeout: float = 8.0) -> dict | None:
     import httpx
 
     base = url.rstrip("/")
+    _settings_transfer.set()      # pause the display send loop for the transfer
     try:
         with httpx.Client(timeout=timeout) as client:
             r = client.get(f"{base}/api/companion/settings")
@@ -144,6 +156,8 @@ def fetch_gateway_settings(url: str, timeout: float = 8.0) -> dict | None:
     except Exception as e:
         log.warning("could not fetch settings from gateway: %s", e)
         return None
+    finally:
+        _settings_transfer.clear()
 
 
 def push_gateway_settings(url: str, doc: dict, timeout: float = 8.0) -> bool:
@@ -154,6 +168,7 @@ def push_gateway_settings(url: str, doc: dict, timeout: float = 8.0) -> bool:
     import httpx
 
     base = url.rstrip("/")
+    _settings_transfer.set()      # pause the display send loop for the transfer
     try:
         body = gzip.compress(json.dumps(doc, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), 6)
         with httpx.Client(timeout=timeout) as client:
@@ -163,6 +178,8 @@ def push_gateway_settings(url: str, doc: dict, timeout: float = 8.0) -> bool:
     except Exception as e:
         log.warning("could not push settings to gateway: %s", e)
         return False
+    finally:
+        _settings_transfer.clear()
 
 
 def build_sync_patch(gw: dict) -> dict:

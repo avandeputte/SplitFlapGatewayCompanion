@@ -592,6 +592,44 @@ def test_gateway_settings_http_roundtrip():
         srv.shutdown()
 
 
+def test_settings_transfer_raises_pause_flag():
+    """While a settings blob is uploaded/downloaded, gateway.settings_active() is set
+    so the engine yields (no frame traffic competing for the gateway mid-transfer)."""
+    import http.server
+    import threading
+    import time
+    from app import gateway
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_PUT(self):
+            self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            time.sleep(0.2)                       # gateway busy storing the blob
+            self.send_response(204); self.end_headers()
+
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}"
+    seen = []
+
+    def watch():
+        for _ in range(30):
+            seen.append(gateway.settings_active())
+            time.sleep(0.02)
+
+    try:
+        assert gateway.settings_active() is False
+        w = threading.Thread(target=watch); w.start()
+        gateway.push_gateway_settings(url, {"global": {"language": "fr"}})
+        w.join()
+        assert any(seen)                          # raised during the transfer
+        assert gateway.settings_active() is False  # cleared afterwards
+    finally:
+        srv.shutdown()
+
+
 def test_settings_gateway_only_writes_nothing_local(tmp_path):
     from app.plugin_settings import PluginSettings
     ps = PluginSettings(tmp_path)

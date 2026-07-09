@@ -226,8 +226,10 @@ host and it inherits the settings from the gateway. `COMPANION_SETTINGS_STORE`:
 It's **backward compatible**: on a **Gateway 3.0** (or an unreachable gateway) the
 companion never attempts to mirror — `mirror` and `gateway` both quietly fall back to
 local. Settings are tiny (~1–2 KB gzipped even fully loaded), so this costs the
-gateway negligible flash; writes are debounced to be gentle on it. *Uploaded custom
-apps still live in `<data_dir>/apps/` — only the settings blob moves.*
+gateway negligible flash; writes are debounced to be gentle on it, and the companion
+**silently pauses sending display frames while a settings blob is being uploaded or
+retrieved**, so it never floods the gateway mid-transfer. *Uploaded custom apps still
+live in `<data_dir>/apps/` — only the settings blob moves.*
 
 **Gateway firmware contract (3.1).** To support this, the gateway exposes a version
 in `GET /api/config` (`"version": "3.1.x"`) and a small blob store:

@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from . import renderer
+from . import gateway, renderer
 from .config import Config
 from .state import DisplayState
 from .transport import DisplayTransport, SimTransport, build_transport
@@ -155,6 +155,14 @@ class DisplayController:
             clean, style=style, speed_ms=int(speed), rows=rows, cols=cols,
         )
         self.state.set_target(clean)
+        # Silently yield to a settings upload/download so we don't flood the gateway
+        # with frame traffic while it's busy storing/serving the settings blob. The
+        # transfer is small and quick; cap the wait so a stuck flag never wedges the
+        # display.
+        waited = 0.0
+        while gateway.settings_active() and waited < 5.0:
+            await asyncio.sleep(0.05)
+            waited += 0.05
         async with self._send_lock:
             try:
                 # Batch path (REST): draw the whole page in one request; the
