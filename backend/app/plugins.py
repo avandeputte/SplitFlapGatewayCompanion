@@ -22,7 +22,7 @@ import os
 import time
 from pathlib import Path
 
-from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS
+from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
 
@@ -218,11 +218,22 @@ class PluginRuntime:
         s = self.settings.all()
         # currency_symbol is owned by the display config; keep them in sync.
         s["currency_symbol"] = self.config.display.get("currency_symbol", "$")
+        declared = set()
         for st in manifest.get("settings", []):
             key = st.get("key")
-            if not key or st.get("global_key"):
-                continue  # global keys already present in `s`
+            if not key:
+                continue
+            declared.add(key)
+            if key in GLOBAL_STORAGE_KEYS:
+                continue  # a global — already present in `s`
             s[key] = self.settings.get(f"plugin_{app_id}_{key}", st.get("default", ""))
+        # Settings the app READS but never declares are per-app too (not shared
+        # bare keys), so each app keeps its own value.
+        for key, dflt in self._reads.get(app_id, {}).items():
+            if key in GLOBAL_STORAGE_KEYS or key in declared:
+                continue
+            s[key] = self.settings.get(f"plugin_{app_id}_{key}",
+                                       dflt if dflt is not None else s.get(key, ""))
         return s
 
     # -- pages (faithful get_plugin_pages) --------------------------------
@@ -379,8 +390,10 @@ class PluginRuntime:
         return out
 
     # -- per-app settings schema + values ---------------------------------
-    def _resolve_key(self, app_id: str, raw_key: str, global_key: bool) -> str:
-        return raw_key if global_key else f"plugin_{app_id}_{raw_key}"
+    def _resolve_key(self, app_id: str, raw_key: str, global_key: bool = False) -> str:
+        # The catalog is the single source of truth for what is global; every
+        # other setting is per-app. A manifest's ``global_key`` flag is ignored.
+        return raw_key if raw_key in GLOBAL_STORAGE_KEYS else f"plugin_{app_id}_{raw_key}"
 
     def _field(self, app_id: str, setting: dict, resolved: dict) -> dict:
         raw = setting["key"]
@@ -414,59 +427,36 @@ class PluginRuntime:
             s["key"]: self._resolve_key(app_id, s["key"], s.get("global_key", False))
             for s in raw_settings
         }
-        # Definitions + usage for NON-catalog shared globals, so a shared setting
-        # an app reads without declaring can still be surfaced here. Catalog
-        # (well-known reusable) keys are excluded — those live ONLY in the Global
-        # settings editor, even if this app declares or reads them.
-        shared_defs = {k: d for k, d in self._global_def_map().items()
-                       if k not in CATALOG_KEYS}
-        usage = self._global_usage(set(shared_defs))
-        this_name = manifest.get("name", app_id)
         declared_keys = {s["key"] for s in raw_settings}
 
-        def _mark_shared(f, key):
-            others = sorted(usage.get(key, set()) - {this_name})
-            if others:
-                f["shared"] = True
-                sh = "Shared setting — also used by " + ", ".join(others)
-                f["note"] = (f["note"] + "  ·  " + sh) if f.get("note") else sh
-            return others
-
+        # App-specific settings only. Catalog/global keys live in the Global
+        # editor, so they're excluded here (a hint points to them below).
         fields = []
         for s in raw_settings:
-            if s["key"] in CATALOG_KEYS:
-                continue  # reusable global — edited under Global settings
+            if s["key"] in GLOBAL_STORAGE_KEYS:
+                continue
             f = self._field(app_id, s, resolved)
             f["label"] = f["label"].replace(" (override global)", "")
-            if s.get("global_key"):
-                _mark_shared(f, s["key"])
             fields.append(f)
 
-        # Surface settings the app READS but never DECLARES (except catalog keys),
-        # so nothing app-specific stays hidden. A non-catalog shared global renders
-        # from its definition + a shared badge; a private key the manifest forgot
-        # is inferred from the default it's read with.
-        exclude = {"currency_symbol", "location_lat", "location_lon", "location_name"}
+        # Settings the app READS but never declares are per-app too — surface them
+        # (inferred from the default they're read with) so nothing stays hidden.
         for key, default in self._reads.get(app_id, {}).items():
-            if key in declared_keys or key in exclude or key in CATALOG_KEYS:
+            if key in declared_keys or key in GLOBAL_STORAGE_KEYS or key == "currency_symbol":
                 continue
-            if key in shared_defs:
-                f = self._field("", shared_defs[key], {key: key})
-                f["label"] = f["label"].replace(" (override global)", "")
-                f["shared"] = True
-                if not _mark_shared(f, key):
-                    f["note"] = "Shared setting (used across apps)"
-            else:
-                f = self._infer_field(key, default)
-            fields.append(f)
+            fields.append(self._infer_field(self._resolve_key(app_id, key), key, default))
 
-        # Point to the reusable globals this app relies on (edited elsewhere).
-        cat_used = sorted(
-            {k for k in declared_keys if k in CATALOG_KEYS}
-            | {k for k in self._reads.get(app_id, {}) if k in CATALOG_KEYS},
-            key=lambda k: CATALOG_BY_KEY[k]["label"])
-        if cat_used:
-            names = ", ".join(CATALOG_BY_KEY[k]["label"] for k in cat_used)
+        # Point to the reusable globals this app uses (edited under Global settings).
+        used_global = set()
+        for k in declared_keys | set(self._reads.get(app_id, {})):
+            if k in CATALOG_KEYS:
+                used_global.add(k)
+            for c in CATALOG:
+                if k in c.get("_composite", []):
+                    used_global.add(c["key"])
+        if used_global:
+            names = ", ".join(CATALOG_BY_KEY[k]["label"]
+                              for k in sorted(used_global, key=lambda x: CATALOG_BY_KEY[x]["label"]))
             fields.append({"key": f"_globals_note_{app_id}", "type": "notice",
                            "label": "Also uses global settings: " + names
                                     + " — set these under Global settings."})
@@ -477,9 +467,9 @@ class PluginRuntime:
             values[rk] = self.settings.get(rk, s.get("default", ""))
             it = s.get("inline_toggle")
             if it and it.get("key"):
-                ik = self._resolve_key(app_id, it["key"], it.get("global_key", False))
+                ik = self._resolve_key(app_id, it["key"])
                 values[ik] = self.settings.get(ik, it.get("default", ""))
-        for f in fields:   # surfaced fields use bare keys not covered above
+        for f in fields:
             values.setdefault(f["key"], self.settings.get(f["key"], f.get("default", "")))
         return {
             "id": app_id,
@@ -490,79 +480,38 @@ class PluginRuntime:
         }
 
     def save_settings(self, app_id: str, values: dict) -> None:
-        """Store already-resolved setting keys sent by the frontend."""
-        manifest = self._registry.get(app_id)
-        if manifest is None:
+        """Store this app's per-app settings. The app dialog only holds
+        ``plugin_<id>_*`` keys now — globals live in the Global editor — so only
+        those are accepted."""
+        if app_id not in self._registry:
             raise KeyError(app_id)
-        # Accept: this app's own ``plugin_<id>_*`` keys, any key already in the
-        # store, and the GLOBAL keys this app's manifest declares (``global_key``
-        # settings + ``inline_toggle`` globals). That last part is essential —
-        # not every global an app uses is pre-seeded in the defaults, and without
-        # it those settings would be silently dropped and never persisted to
-        # app_settings.json.
-        allowed = set(self.settings.all().keys())
-        for st in manifest.get("settings", []):
-            if st.get("global_key") and st.get("key"):
-                allowed.add(st["key"])
-            it = st.get("inline_toggle")
-            if isinstance(it, dict) and it.get("global_key") and it.get("key"):
-                allowed.add(it["key"])
-        # ...plus every setting the app actually reads (so surfaced-but-undeclared
-        # settings — shared globals it consumes, or private keys it reads — persist).
-        allowed |= set(self._reads.get(app_id, {}))
-        clean = {k: v for k, v in values.items()
-                 if k.startswith(f"plugin_{app_id}_") or k in allowed}
+        clean = {k: v for k, v in values.items() if k.startswith(f"plugin_{app_id}_")}
         if clean:
             self.settings.update(clean)
             self._caches.pop(app_id, None)  # settings changed -> drop cache
 
     # -- global (shared) settings editor ----------------------------------
-    def _global_def_map(self) -> dict[str, dict]:
-        """The best (most descriptive) definition for each shared global key an
-        installed app declares. Excludes non-inputs and the Countdown app's
-        private per-event globals (edited in that app's own settings)."""
-        skip_types = {"notice", "computed", "button"}
-        decls: dict[str, list[dict]] = collections.defaultdict(list)
-        for app_id, manifest in sorted(
-                self._registry.items(),
-                key=lambda kv: kv[1].get("name", kv[0]).lower()):
-            for st in manifest.get("settings", []):
-                key = st.get("key")
-                if not (st.get("global_key") and key):
-                    continue
-                if st.get("type") in skip_types or key.startswith("countdown_"):
-                    continue
-                decls[key].append(st)
-        # Apps can label the same global differently ("API Key" vs "YouTube Data
-        # API Key"). Pick the most descriptive: the label used by the most apps,
-        # ties broken by the longer (more specific) one.
-        best: dict[str, dict] = {}
-        for key, sts in decls.items():
-            labels = [s.get("label", "") for s in sts]
-            freq = collections.Counter(labels)
-            blabel = max(labels, key=lambda l: (freq[l], len(l)))
-            best[key] = next(s for s in sts if s.get("label", "") == blabel)
-        return best
-
     def _global_usage(self, keys) -> dict[str, set[str]]:
-        """App names that USE each given key — whether they declare it as a
-        global OR just read it in their code (settings.get)."""
+        """App names that USE each given global key — whether they declare it OR
+        just read it in their code (settings.get). For the Global editor's
+        'Used by' note."""
         keys = set(keys)
         usage: dict[str, set[str]] = collections.defaultdict(set)
         for app_id, manifest in self._registry.items():
             name = manifest.get("name", app_id)
             for st in manifest.get("settings", []):
-                if st.get("global_key") and st.get("key") in keys:
+                if st.get("key") in keys:
                     usage[st["key"]].add(name)
             for k in self._reads.get(app_id, {}):
                 if k in keys:
                     usage[k].add(name)
         return usage
 
-    def _infer_field(self, key: str, default) -> dict:
+    def _infer_field(self, key: str, raw_key: str, default) -> dict:
         """A best-effort field for a per-app setting the manifest never declared,
-        inferred from the default value the code reads it with."""
-        f = {"key": key, "label": key.replace("_", " ").title(),
+        inferred from the default value the code reads it with. ``key`` is the
+        resolved (per-app) storage key; ``raw_key`` names it."""
+        f = {"key": key, "label": raw_key.replace("_", " ").title(),
              "note": "Used by this app (auto-detected — not in the app's manifest)"}
         if isinstance(default, bool):
             f.update(type="toggle", default=("true" if default else "false"),

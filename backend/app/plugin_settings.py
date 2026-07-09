@@ -46,37 +46,17 @@ def _detect_timezone() -> str:
 # Hardware keys (offsets, calibrations, serial_port, …) are deliberately excluded.
 def _defaults() -> dict:
     return {
+        # Global (catalog) settings — the only shared keys. Everything else is
+        # per-app, stored as ``plugin_<id>_<key>`` and defaulted from manifests.
         "zip_code": "02118",
         "location_lat": "",
         "location_lon": "",
         "location_name": "",
         "timezone": _detect_timezone(),
+        "weather_provider": "openmeteo",
         "weather_api_key": "",
-        "mbta_stop": "",
-        "mbta_route": "",
-        "stocks_list": "",
-        "yt_channel_id": "",
         "yt_api_key": "",
-        "yt_video_id": "",
-        "countdown_event": "NEW YEAR",
-        "countdown_target": "2027-01-01T00:00:00",
-        "world_clock_zones": "US/Eastern,US/Pacific,Europe/London",
-        "crypto_list": "bitcoin,ethereum,solana",
-        "anim_style": "ltr",
-        "anim_speed": "0.4",
-        "anim_text": "SPLIT  FLAP  DISPLAY",
-        "livestream_interval": "25",
-        "livestream_comments": "",
-        "sports_nfl": "", "sports_nba": "", "sports_mlb": "", "sports_nhl": "",
-        "sports_ncaaf": "", "sports_ncaab": "", "sports_mls": "", "sports_epl": "",
-        "sports_laliga": "", "sports_ucl": "", "sports_wnba": "", "sports_pga": "",
-        "sports_ufc": "",
         "global_loop_delay": 5,
-        # NOTE: the global transition style/speed, slot speed and currency symbol
-        # are display config owned by ``config.display`` (defaults <- gateway <-
-        # env) and read from there, so they are intentionally NOT duplicated here.
-        # Only ``plugin_<id>_transition_style`` (a per-app override) lives in this
-        # store.
         # Playlists + triggers (schedules/quiet-time now live on the gateway).
         "saved_app_playlists": {},
         "triggers": [],

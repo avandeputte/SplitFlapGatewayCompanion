@@ -99,13 +99,12 @@ def test_settings_schema_resolves_keys(tmp_path):
 
 def test_save_settings_roundtrip(tmp_path):
     rt = _runtime(tmp_path, ["weather"])
-    rt.save_settings("weather", {"plugin_weather_temperature_unit": "celsius",
-                                 "weather_api_key": "abc123"})
-    schema = rt.settings_schema("weather")
-    assert schema["values"]["plugin_weather_temperature_unit"] == "celsius"
-    assert schema["values"]["weather_api_key"] == "abc123"
-    # a key that isn't this app's namespace or a known global is rejected
-    rt.save_settings("weather", {"plugin_other_x": "nope"})
+    rt.save_settings("weather", {"plugin_weather_temperature_unit": "celsius"})
+    assert rt.settings_schema("weather")["values"]["plugin_weather_temperature_unit"] == "celsius"
+    # the app dialog only saves this app's per-app keys — a global (weather_api_key)
+    # or another app's key is rejected (globals are owned by the Global editor).
+    rt.save_settings("weather", {"weather_api_key": "abc", "plugin_other_x": "nope"})
+    assert rt.settings.get("weather_api_key") == ""
     assert rt.settings.get("plugin_other_x") is None
 
 
@@ -140,27 +139,29 @@ def test_app_dialog_excludes_catalog_globals_but_hints(tmp_path):
     assert hint and "Weather Provider API Key" in hint["label"]
 
 
-def test_noncatalog_shared_global_still_shown_in_app(tmp_path):
-    """A shared-but-not-catalog global (anim_style, used by several anim apps)
-    stays in the app dialog, flagged shared."""
+def test_noncatalog_setting_is_per_app(tmp_path):
+    """A non-catalog setting (anim_style) is per-app — each app has its own,
+    namespaced key, and it's not flagged shared."""
     rt = _runtime(tmp_path, ["anim_rainbow", "anim_sweep"])
     fields = {f["key"]: f for f in rt.settings_schema("anim_rainbow")["fields"]}
-    assert "anim_style" in fields and fields["anim_style"].get("shared") is True
+    assert "plugin_anim_rainbow_anim_style" in fields
+    assert not fields["plugin_anim_rainbow_anim_style"].get("shared")
+    assert "anim_style" not in fields   # not the bare/shared key
 
 
 def test_app_dialog_infers_undeclared_perapp_setting(tmp_path):
     """A private setting an app reads but never declares (sports -> sports_compact,
-    read with a 'no' default) is surfaced as an inferred toggle."""
+    read with a 'no' default) is surfaced as an inferred per-app toggle."""
     rt = _runtime(tmp_path, ["sports"])
     fields = {f["key"]: f for f in rt.settings_schema("sports")["fields"]}
-    assert "sports_compact" in fields
-    assert fields["sports_compact"]["type"] == "toggle"
+    assert "plugin_sports_sports_compact" in fields
+    assert fields["plugin_sports_sports_compact"]["type"] == "toggle"
 
 
-def test_read_setting_persists_from_app_dialog(tmp_path):
-    """Surfaced settings must be saveable from the app dialog."""
+def test_global_persists_from_global_editor(tmp_path):
+    """Globals are saved via the Global editor and read by every app."""
     rt = _runtime(tmp_path, ["dashboard", "weather"])
-    rt.save_settings("dashboard", {"weather_api_key": "K"})
+    rt.save_global_settings({"weather_api_key": "K"})
     assert rt.settings.get("weather_api_key") == "K"
 
 

@@ -18,6 +18,13 @@ stored keys. ``location`` is a place search that fills ``location_lat`` /
 from __future__ import annotations
 
 CATALOG: list[dict] = [
+    {"key": "weather_provider", "label": "Weather Provider", "type": "toggle",
+     "default": "openmeteo",
+     "options": [{"value": "openmeteo", "label": "Open-Meteo"},
+                 {"value": "weatherapi", "label": "WeatherAPI.com"},
+                 {"value": "qweather", "label": "QWeather"},
+                 {"value": "openweather", "label": "OpenWeather"}],
+     "note": "Open-Meteo is keyless; the others use the Weather API key below."},
     {"key": "weather_api_key", "label": "Weather Provider API Key", "type": "password",
      "ph": "Optional for Open-Meteo",
      "note": "Required for OpenWeather, WeatherAPI.com and QWeather; Open-Meteo needs none."},

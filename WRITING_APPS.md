@@ -276,16 +276,19 @@ renders them into the app's settings dialog and passes the saved values into
 - A normal setting `"key": "city"` is stored per-app and appears in the
   `settings` dict under **`"city"`**. (Internally it's namespaced as
   `plugin_<id>_city`, but your code just reads `settings.get("city")`.)
-- A setting with **`"global_key": true`** reads/writes a **shared** value used by
-  many apps — e.g. `timezone`, `zip_code`, `weather_api_key`, `location_lat/lon`,
-  `crypto_list`, `anim_style`, `anim_speed`, `currency_symbol`. Its value appears
-  in `settings` under that bare name, and changing it affects every app that uses
-  it. Use a global key when you want to reuse the standard shared config; use a
-  plain key for app-specific options.
+- The companion has a **fixed built-in catalog of global settings** — the API
+  keys, location, timezone, weather provider and default page dwell
+  (`weather_api_key`, `weather_provider`, `zip_code`, `location_lat/lon/name`,
+  `timezone`, `yt_api_key`, `global_loop_delay`). Reading one of those keys
+  (`settings.get("weather_api_key")`) returns the shared global value.
+- **Everything else is per-app** — each app keeps its own value even if two apps
+  use the same key name. On the companion a manifest's `"global_key": true` is
+  *ignored* (only the catalog is global); it still works on stock splitflap-os,
+  so it's harmless to leave in, but it won't make a non-catalog key shared here.
 
-The `settings` dict your code receives always includes **all** global settings
-plus this app's own keys, so you can read shared config (`settings['zip_code']`)
-even without declaring it.
+The `settings` dict your code receives always includes the catalog globals plus
+this app's own keys, so you can read shared config (`settings['zip_code']`) even
+without declaring it.
 
 ### Setting object fields
 
