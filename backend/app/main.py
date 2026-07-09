@@ -432,6 +432,10 @@ async def apps_save_settings(app_id: str, patch: AppSettingsPatch):
         plugins.save_settings(app_id, patch.values)
     except KeyError:
         raise HTTPException(404, f"app not installed: {app_id}")
+    # If this app is on the display right now, restart it so the new settings
+    # (page dwell, refresh cadence, content options) take effect immediately.
+    if controller.active_app == app_id:
+        await controller.run_app(app_id)
     return {"ok": True}
 
 
@@ -444,6 +448,10 @@ async def global_settings_get():
 @app.post("/api/global-settings")
 async def global_settings_save(patch: AppSettingsPatch):
     plugins.save_global_settings(patch.values)
+    # Globals (location, provider, page dwell, …) can change what the running app
+    # shows or how fast it cycles — restart it so the change is visible at once.
+    if controller.active_app:
+        await controller.run_app(controller.active_app)
     return {"ok": True}
 
 
