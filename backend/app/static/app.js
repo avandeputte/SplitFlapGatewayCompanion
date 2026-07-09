@@ -329,6 +329,91 @@ function mkField(f, values) {
   return wrap;
 }
 
+// ---- sports league/team picker (bespoke — dynamic sports_<league> keys) ------
+async function sportsPicker(form) {
+  const wrap = el("div", "field");
+  const label = el("span"); label.textContent = "Follow teams by league"; wrap.appendChild(label);
+  const note = el("small", "field-note");
+  note.textContent = "Pick a league, then add teams (or follow the whole league). Saved as you go.";
+  wrap.appendChild(note);
+
+  let leagues = [];
+  try { leagues = (await api("/sports_leagues")).leagues || []; } catch (e) { /* offline */ }
+  const state = {};
+  leagues.forEach((l) => { state[l.key] = l.followed || ""; });
+  const count = (t) => (t === "*" ? "all" : (t ? String(t.split(",").filter(Boolean).length) : ""));
+  const lbl = (l) => l.name + (count(state[l.key]) ? " · " + count(state[l.key]) : "");
+
+  const sel = el("select");
+  const opt0 = el("option"); opt0.value = ""; opt0.textContent = "— choose a league —"; sel.appendChild(opt0);
+  leagues.forEach((l) => { const o = el("option"); o.value = l.key; o.textContent = lbl(l); sel.appendChild(o); });
+  wrap.appendChild(sel);
+  const panel = el("div"); panel.style.marginTop = "8px"; wrap.appendChild(panel);
+  const refreshSel = () => { [...sel.options].forEach((o, i) => { if (i > 0) o.textContent = lbl(leagues[i - 1]); }); };
+  sel.addEventListener("change", () => renderLeague(sel.value));
+
+  function renderLeague(key) {
+    panel.innerHTML = "";
+    if (!key) return;
+    const save = async (teams) => {
+      state[key] = teams;
+      try { await post("/sports_follow", { league: key, teams }); } catch (e) { /* offline */ }
+      refreshSel();
+    };
+    const allLab = el("label"); allLab.style.cssText = "display:flex;align-items:center;gap:6px;margin:4px 0";
+    const allCb = el("input"); allCb.type = "checkbox"; allCb.checked = state[key] === "*";
+    allLab.appendChild(allCb); allLab.appendChild(document.createTextNode(" Follow the whole league (all teams / games)"));
+    panel.appendChild(allLab);
+
+    const box = el("div", "chip-search");
+    const chipsDiv = el("div", "chips");
+    let chips = (state[key] && state[key] !== "*")
+      ? state[key].split(",").filter(Boolean).map((v) => ({ value: v })) : [];
+    const teams = () => chips.map((c) => c.value).join(",");
+    const draw = () => {
+      chipsDiv.innerHTML = "";
+      chips.forEach((c, i) => {
+        const ch = el("span", "chip"); ch.textContent = c.value;
+        const x = el("button"); x.textContent = "✕";
+        x.onclick = () => { chips.splice(i, 1); draw(); save(teams()); };
+        ch.appendChild(x); chipsDiv.appendChild(ch);
+      });
+    };
+    const search = el("input"); search.placeholder = "Search teams…";
+    const results = el("div", "chip-results"); results.style.display = "none";
+    let timer;
+    search.addEventListener("input", () => {
+      clearTimeout(timer); const q = search.value.trim();
+      if (!q) { results.style.display = "none"; return; }
+      timer = setTimeout(async () => {
+        try {
+          const data = await api(`/sports_teams/${key}?q=${encodeURIComponent(q)}`);
+          results.innerHTML = "";
+          if (data.no_teams) {
+            const d = el("div"); d.textContent = "No teams — use ‘Follow the whole league’.";
+            results.appendChild(d); results.style.display = ""; return;
+          }
+          (data.teams || []).forEach((it) => {
+            const d = el("div"); d.textContent = `${it.name} (${it.abbr})`;
+            d.onclick = () => {
+              if (!chips.find((c) => c.value === it.abbr)) { chips.push({ value: it.abbr }); draw(); save(teams()); }
+              search.value = ""; results.style.display = "none";
+            };
+            results.appendChild(d);
+          });
+          results.style.display = (data.teams || []).length ? "" : "none";
+        } catch (e) { results.style.display = "none"; }
+      }, 250);
+    });
+    box.appendChild(chipsDiv); box.appendChild(search); box.appendChild(results);
+    panel.appendChild(box);
+    const applyAll = () => { box.style.display = allCb.checked ? "none" : ""; };
+    allCb.addEventListener("change", () => { applyAll(); save(allCb.checked ? "*" : teams()); });
+    applyAll(); draw();
+  }
+  form.appendChild(wrap);
+}
+
 async function openAppSettings(id, name) {
   const schema = await api(`/api/apps/${id}/settings`);
   const form = el("div");
@@ -341,6 +426,7 @@ async function openAppSettings(id, name) {
       _formFields.push(tw); form.appendChild(tw);
     }
   });
+  if (id === "sports") await sportsPicker(form);
   onFormChange();
   const save = el("button", "btn primary"); save.textContent = "Save";
   const msg = el("span", "hint"); msg.style.marginRight = "auto";
