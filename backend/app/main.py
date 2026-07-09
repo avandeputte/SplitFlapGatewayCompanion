@@ -501,8 +501,8 @@ async def triggers_save(patch: TriggersPatch):
 
 
 # ---------------------------------------------------------------------------
-# App-data helper endpoints — served at the SAME root paths splitflap-os uses
-# so dropped-in app manifests' searchUrl / resultKey work unchanged.
+# App-data helper endpoints — served at the fixed root paths that dropped-in app
+# manifests' searchUrl / resultKey point at, so they work unchanged.
 # ---------------------------------------------------------------------------
 class SportsFollow(BaseModel):
     league: str

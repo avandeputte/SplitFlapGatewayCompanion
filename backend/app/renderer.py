@@ -1,8 +1,8 @@
 """
 renderer.py — display text normalization + per-module "send plan" ordering.
 
-The animation orderings and colour-tile mapping are ports of splitflap-os
-(CC BY-NC-SA 4.0, csader); see ATTRIBUTION.md. The companion deliberately does
+The animation orderings and colour-tile mapping are ports of the upstream
+app-plugin renderer (see ATTRIBUTION.md). The companion deliberately does
 **not** model a fixed flap character set: every module can carry a different
 char array, and a module renders a blank for any character it lacks, so the
 companion never validates, maps, or strips the characters it sends — it passes

@@ -1,7 +1,7 @@
 """
-Renderer conformance tests — these guard the *faithful port* of splitflap-os's
+Renderer conformance tests — these guard the *faithful port* of the app-plugin
 character set, normalization, and animation orderings. If any of these drift,
-dropped-in splitflap-os apps would render differently, so treat failures here as
+dropped-in apps would render differently, so treat failures here as
 compatibility regressions, not cosmetic ones.
 """
 

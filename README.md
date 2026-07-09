@@ -31,7 +31,7 @@ See also [COMPATIBILITY.md](COMPATIBILITY.md) and [ATTRIBUTION.md](ATTRIBUTION.m
 Feature-complete and running on real hardware (Gateway 3.0 + physical split-flap
 modules), with a gateway-free `sim` mode for development. What's here:
 
-- **Apps** — all **46 vendored splitflap-os apps** (functional + channel), loaded
+- **Apps** — all **45 vendored splitflap-os apps** (functional + channel), loaded
   through a behavior-identical runtime and **drop-in compatible** (a conformance
   test asserts every app satisfies the contract). Tile grid, one-tap run, live
   "▶ running" state, and an **App Library** to add/remove apps or **upload your

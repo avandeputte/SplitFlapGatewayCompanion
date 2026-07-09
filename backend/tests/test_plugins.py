@@ -1,7 +1,7 @@
 """
 Plugin conformance tests — the guardrail for drop-in compatibility.
 
-Every app under ../../apps must load and satisfy the splitflap-os contract:
+Every app under ../../apps must load and satisfy the app-plugin contract:
 a valid manifest, and either a functional app.py exposing fetch() or a channel
 data.json. If this breaks, a vendored (or dropped-in) app would fail to run.
 """
@@ -162,3 +162,23 @@ def test_read_setting_persists_from_app_dialog(tmp_path):
     rt = _runtime(tmp_path, ["dashboard", "weather"])
     rt.save_settings("dashboard", {"weather_api_key": "K"})
     assert rt.settings.get("weather_api_key") == "K"
+
+
+def test_location_composite_writes_component_keys(tmp_path):
+    """The catalog 'location_precise' search stores its coordinates into the
+    real location_lat/lon/name keys apps read, and rebuilds the chip on read."""
+    rt = _runtime(tmp_path, ["weather"])
+    rt.save_global_settings({"location_precise": "42.35,-71.08|Boston"})
+    assert rt.settings.get("location_lat") == "42.35"
+    assert rt.settings.get("location_lon") == "-71.08"
+    assert rt.settings.get("location_name") == "Boston"
+    assert rt.global_settings_schema()["values"]["location_precise"] == "42.35,-71.08|Boston"
+
+
+def test_catalog_is_the_reusable_set(tmp_path):
+    from app.catalog import CATALOG_KEYS
+    # single-app keys are NOT global; reusable infra IS
+    assert {"stocks_list", "crypto_list", "world_clock_zones",
+            "yt_channel_id", "yt_video_id"} & CATALOG_KEYS == set()
+    assert {"weather_api_key", "zip_code", "timezone",
+            "global_loop_delay", "yt_api_key"} <= CATALOG_KEYS

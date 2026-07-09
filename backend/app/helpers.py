@@ -1,7 +1,7 @@
 """
 helpers.py — app-data search/lookup endpoints (the search_chips backends).
 
-These are faithful ports of splitflap-os's helper routes and MUST stay at the
+These are faithful ports of the app-plugin helper routes and MUST stay at the
 same paths and return the same JSON keys, because dropped-in app manifests point
 their ``searchUrl`` at them (``/location_search``, ``/timezones``,
 ``/stocks_search``, ``/crypto_search``) and use ``resultKey`` to read the array.

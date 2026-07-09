@@ -1,10 +1,10 @@
 """
-plugins.py — the plugin runtime (faithful port of splitflap-os).
+plugins.py — the plugin runtime (a faithful port of the app-plugin contract).
 
 Discovers and loads apps from ``apps/<id>/`` (functional ``app.py`` or channel
-``data.json``), assembles the per-app settings dict exactly as splitflap-os does,
+``data.json``), assembles the per-app settings dict exactly as the app-plugin contract expects,
 and produces display pages with the same caching/paging semantics. Keeping this
-behaviour-identical is what makes any splitflap-os app drop in unchanged — see
+behaviour-identical is what lets any compatible app drop in unchanged — see
 COMPATIBILITY.md.
 
 ``fetch()`` may do blocking network I/O, so callers run ``get_pages()`` in a
@@ -111,6 +111,23 @@ class PluginRuntime:
         for app_id, app_dir in self._scan().items():
             if app_id in enabled:
                 self._load_one(app_id, app_dir)
+        # Multi-value settings (search_chips) are stored as JSON arrays on disk.
+        self.settings.set_list_keys(self._list_keys())
+
+    def _list_keys(self) -> set[str]:
+        """Resolved storage keys whose value is a comma-list (a multi-value
+        search_chips), so the store can persist them as arrays."""
+        keys: set[str] = set()
+        for c in CATALOG:
+            if c.get("type") == "search_chips" and c.get("maxItems") != 1 \
+                    and not c.get("_composite"):
+                keys.add(c["key"])
+        for app_id, manifest in self._registry.items():
+            for st in manifest.get("settings", []):
+                if (st.get("type") == "search_chips" and st.get("maxItems") != 1
+                        and st.get("key")):
+                    keys.add(self._resolve_key(app_id, st["key"], st.get("global_key", False)))
+        return keys
 
     def _load_one(self, app_id: str, app_dir: Path) -> None:
         try:
@@ -566,23 +583,57 @@ class PluginRuntime:
         settings shown in the Global editor. They render from the catalog (so a
         key looks right even if the declaring app isn't installed); a 'Used by'
         note lists the installed apps that declare or read each one."""
-        usage = self._global_usage(CATALOG_KEYS)
+        comp_keys = {k for c in CATALOG for k in c.get("_composite", [])}
+        usage = self._global_usage(CATALOG_KEYS | comp_keys)
         resolved = {c["key"]: c["key"] for c in CATALOG}
-        fields = []
+        fields, values = [], {}
         for c in CATALOG:
             f = self._field("", c, resolved)
-            apps = usage.get(c["key"])
+            used_apps = set()
+            for k in [c["key"], *c.get("_composite", [])]:
+                used_apps |= usage.get(k, set())
             base = c.get("note", "")
-            used = ("Used by " + ", ".join(sorted(apps))) if apps else ""
+            used = ("Used by " + ", ".join(sorted(used_apps))) if used_apps else ""
             f["note"] = "  ·  ".join(x for x in (base, used) if x)
             fields.append(f)
-        values = {c["key"]: self.settings.get(c["key"], c.get("default", "")) for c in CATALOG}
+            if c.get("_composite"):
+                values[c["key"]] = self._composite_value(c["_composite"])
+            else:
+                values[c["key"]] = self.settings.get(c["key"], c.get("default", ""))
         return {"fields": fields, "values": values}
 
+    def _composite_value(self, comp: list) -> str:
+        """Rebuild a location search chip value (``lat,lon|name``) from its stored
+        component keys, or '' when no coordinates are set."""
+        lat = self.settings.get(comp[0], "")
+        lon = self.settings.get(comp[1], "")
+        name = self.settings.get(comp[2], "") if len(comp) > 2 else ""
+        return f"{lat},{lon}|{name}" if (lat and lon) else ""
+
+    @staticmethod
+    def _parse_composite(comp: list, value) -> dict:
+        """Split a ``lat,lon|name`` chip value into its component keys (empty
+        value clears them)."""
+        coords, _, name = str(value or "").partition("|")
+        lat, _, lon = coords.partition(",")
+        out = {comp[0]: lat.strip(), comp[1]: lon.strip()}
+        if len(comp) > 2:
+            out[comp[2]] = name.strip()
+        return out
+
     def save_global_settings(self, values: dict) -> None:
-        """Persist edited global settings. Only catalog keys are accepted;
-        changing a global can affect many apps, so all caches are dropped."""
-        clean = {k: v for k, v in values.items() if k in CATALOG_KEYS}
+        """Persist edited global settings. Only catalog keys are accepted (a
+        composite control writes its component keys); changing a global can affect
+        many apps, so all caches are dropped."""
+        clean: dict = {}
+        for k, v in values.items():
+            if k not in CATALOG_KEYS:
+                continue
+            comp = CATALOG_BY_KEY[k].get("_composite")
+            if comp:
+                clean.update(self._parse_composite(comp, v))
+            else:
+                clean[k] = v
         if clean:
             self.settings.update(clean)
             self._caches.clear()

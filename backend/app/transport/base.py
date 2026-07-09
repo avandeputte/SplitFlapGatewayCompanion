@@ -4,8 +4,8 @@ transport/base.py — the display transport interface + the frame format.
 Every transport emits the split-flap module's RS-485 wire frame,
 ``m<ID:02d>-<CHAR>\n`` (e.g. ``m05-A\n``) — the protocol the modules themselves
 speak. It originates with the split-flap hardware/firmware (not with any one
-driver); the SplitFlapGateway and splitflap-os are two projects that implement
-it. The gateway forwards these frames verbatim to the RS-485 bus; the companion
+driver); the SplitFlapGateway is one of several drivers that speak it. The
+gateway forwards these frames verbatim to the RS-485 bus; the companion
 posts them to its ``/api/rs485/send`` + ``/api/rs485/batch`` endpoints.
 """
 

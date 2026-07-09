@@ -46,3 +46,14 @@ def test_unknown_app_keys_preserved(tmp_path):
     doc = json.loads((tmp_path / "app_settings.json").read_text())
     assert doc["apps"]["_other"]["plugin_ghost_thing"] == "v"
     assert PluginSettings(tmp_path).get("plugin_ghost_thing") == "v"
+
+
+def test_multivalue_setting_stored_as_array(tmp_path):
+    """A multi-value (search_chips) setting persists as a JSON array on disk but
+    stays a comma-string in memory (what apps read)."""
+    ps = PluginSettings(tmp_path)
+    ps.set_list_keys({"stocks_list"})
+    ps.set("stocks_list", "MSFT,GOOG,AAPL")
+    doc = json.loads((tmp_path / "app_settings.json").read_text())
+    assert doc["shared"]["stocks_list"] == ["MSFT", "GOOG", "AAPL"]   # array on disk
+    assert PluginSettings(tmp_path).get("stocks_list") == "MSFT,GOOG,AAPL"  # comma in memory

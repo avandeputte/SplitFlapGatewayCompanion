@@ -1,16 +1,18 @@
 """
 catalog.py — the built-in catalog of well-known, reusable GLOBAL settings.
 
-These are the shared infrastructure keys many apps read (API keys, location,
-timezone, watch-lists). They are the ONLY settings shown in the "Global settings"
-editor, and they render richly from these definitions regardless of which apps
-happen to be installed. Everything else — even a setting shared between a few
-apps — is configured in each app's own settings dialog.
+These are the *reusable* infrastructure keys — the ones many apps legitimately
+share (a location, a timezone, an API key, the default page dwell). They are the
+only settings shown in the "Global settings" editor, and they render richly from
+these definitions regardless of which apps are installed.
 
-Keeping this list here (rather than deriving it from whichever app declares a
-key) means the field renders correctly even when the declaring app isn't
-installed (e.g. the Dashboard app needs the weather API key without the Weather
-app installed).
+Deliberately NOT here: settings that belong to a single app even though they are
+technically shared (a stock list, a YouTube channel id). Those live in that
+app's own settings dialog.
+
+Some catalog entries are *composite*: one control that reads/writes several
+stored keys. ``location`` is a place search that fills ``location_lat`` /
+``location_lon`` / ``location_name`` (the keys apps actually read).
 """
 
 from __future__ import annotations
@@ -21,26 +23,28 @@ CATALOG: list[dict] = [
      "note": "Required for OpenWeather, WeatherAPI.com and QWeather; Open-Meteo needs none."},
     {"key": "zip_code", "label": "Location — ZIP, postcode, or city", "type": "text",
      "ph": "02118",
-     "note": "Where weather, ISS and similar apps place you when they have no precise coordinates."},
+     "note": "Geocoded to place you — used unless a precise location is set below."},
+    {"key": "location_precise", "label": "Location — precise (optional)", "type": "search_chips",
+     "searchUrl": "/location_search", "resultKey": "results", "maxItems": 1,
+     "note": "Search a place for exact coordinates; overrides the ZIP/city above.",
+     "_composite": ["location_lat", "location_lon", "location_name"]},
     {"key": "timezone", "label": "Timezone", "type": "search_chips",
      "searchUrl": "/timezones", "resultKey": "zones", "maxItems": 1,
      "note": "Default timezone for clocks and time-based apps."},
-    {"key": "stocks_list", "label": "Stock Tickers", "type": "search_chips",
-     "searchUrl": "/stocks_search", "resultKey": "tickers",
-     "note": "Symbols the Stocks app cycles through."},
-    {"key": "crypto_list", "label": "Cryptocurrencies", "type": "search_chips",
-     "searchUrl": "/crypto_search", "resultKey": "coins",
-     "note": "Coins the Crypto app cycles through."},
-    {"key": "world_clock_zones", "label": "World Clock Timezones", "type": "search_chips",
-     "searchUrl": "/timezones", "resultKey": "zones", "maxItems": 3,
-     "note": "Up to three zones shown by the World Clock app."},
+    {"key": "global_loop_delay", "label": "Default page dwell (seconds)", "type": "number",
+     "default": 5, "min": "1", "step": "1", "stepper": True,
+     "note": "How long each app page shows before advancing, unless an app overrides it."},
     {"key": "yt_api_key", "label": "YouTube Data API Key", "type": "password",
-     "note": "Needed by the YouTube subscriber and livestream apps."},
-    {"key": "yt_channel_id", "label": "YouTube Channel ID", "type": "text",
-     "note": "Channel whose subscriber count is shown."},
-    {"key": "yt_video_id", "label": "YouTube Video ID", "type": "text",
-     "note": "Live video used for viewer count / comments."},
+     "note": "Shared by the YouTube subscriber, comments and livestream apps."},
 ]
 
 CATALOG_KEYS: frozenset[str] = frozenset(c["key"] for c in CATALOG)
 CATALOG_BY_KEY: dict[str, dict] = {c["key"]: c for c in CATALOG}
+
+# The keys actually STORED for the globals: a composite control (location_precise)
+# is not stored itself — its component keys (location_lat/lon/name) are. Used by
+# the settings store to decide what belongs in the on-disk "global" section.
+_COMPOSITE_KEYS: frozenset[str] = frozenset(
+    k for c in CATALOG for k in c.get("_composite", []))
+GLOBAL_STORAGE_KEYS: frozenset[str] = frozenset(
+    {c["key"] for c in CATALOG if not c.get("_composite")} | _COMPOSITE_KEYS)
