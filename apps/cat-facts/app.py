@@ -71,23 +71,25 @@ def _greedy(words, cols):
 
 
 def _pages(format_lines, title, text, rows, cols):
-    """Lay the text out under a title. When it fits on one page the words are
-    balanced evenly across the lines it needs; longer text word-wraps and
-    paginates."""
+    """Lay the text out (optionally under a title). When it fits on one page the
+    words are balanced evenly across the lines; longer text word-wraps and
+    paginates. With no title the text uses every row and is vertically centered."""
     words = text.split() or ['']
     lens = [len(w) for w in words]
     if rows == 1:
         return [ln.center(cols)[:cols] for ln in _greedy(words, cols)]
-    body = rows - 1
+    body = rows - 1 if title else rows
     if max(lens) <= cols:
         need = _need_lines(lens, cols)
         if need <= body:
             bal = _balance(words, lens, cols, need)
             if bal is not None:
-                return [format_lines(title, *bal)]
+                if title:
+                    return [format_lines(title, *bal)]
+                top = (rows - len(bal)) // 2
+                return [format_lines(*([''] * top + bal))]
     lines = _greedy(words, cols)
-    pages = [format_lines(title, *lines[:body])]
-    i = body
+    pages, i = ([format_lines(title, *lines[:body])], body) if title else ([], 0)
     while i < len(lines):
         pages.append(format_lines(*lines[i:i + rows]))
         i += rows
@@ -108,6 +110,6 @@ def fetch(settings, format_lines, get_rows, get_cols):
         text = str(d.get('fact', '') or '').strip().upper()
         if not text:
             return [format_lines('CAT FACT', 'NO DATA', '')]
-        return _pages(format_lines, 'CAT FACT', text, rows, cols)
+        return _pages(format_lines, '', text, rows, cols)   # no title — just the fact
     except Exception:
         return [format_lines('CAT FACT', 'OFFLINE', '')]

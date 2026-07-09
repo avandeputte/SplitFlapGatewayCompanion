@@ -1,4 +1,38 @@
-"""On This Day in History plugin for Split-Flap Display."""
+"""On This Day in History — one concise event, on a single page (byabbe.se)."""
+
+_FALLBACK = [
+    (1776, "DECLARATION OF INDEPENDENCE SIGNED"),
+    (1969, "FIRST MOON LANDING BY APOLLO 11"),
+    (1989, "BERLIN WALL FALLS IN GERMANY"),
+    (1903, "WRIGHT BROTHERS FIRST FLIGHT"),
+    (1865, "CIVIL WAR ENDS IN AMERICA"),
+    (1945, "WORLD WAR 2 ENDS"),
+    (1963, "I HAVE A DREAM SPEECH BY MLK"),
+    (1912, "TITANIC SINKS ON MAIDEN VOYAGE"),
+    (1929, "STOCK MARKET CRASH BLACK TUESDAY"),
+    (1955, "ROSA PARKS REFUSES TO GIVE UP SEAT"),
+]
+_ALLOWED = set(" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*")
+
+
+def _clean(s):
+    return ''.join(c if c in _ALLOWED else ' ' for c in s.upper()).strip()
+
+
+def _split(text, width):
+    words, lines, cur = text.split(), [], ''
+    for w in words:
+        if cur and len(cur) + 1 + len(w) > width:
+            lines.append(cur)
+            cur = w[:width]
+        elif not cur:
+            cur = w[:width]
+        else:
+            cur += ' ' + w
+    if cur:
+        lines.append(cur)
+    return lines
+
 
 def fetch(settings, format_lines, get_rows, get_cols):
     import urllib.request
@@ -7,68 +41,36 @@ def fetch(settings, format_lines, get_rows, get_cols):
     from datetime import datetime
     import pytz
 
-    cols = get_cols()
-    rows = get_rows()
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    cols, rows = get_cols(), get_rows()
+    try:
+        tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.timezone('US/Eastern')
     now = datetime.now(tz)
-
-    fallback = [
-        (1776, "DECLARATION OF INDEPENDENCE SIGNED"),
-        (1969, "FIRST MOON LANDING BY APOLLO 11"),
-        (1989, "BERLIN WALL FALLS IN GERMANY"),
-        (1903, "WRIGHT BROTHERS FIRST FLIGHT"),
-        (1865, "CIVIL WAR ENDS IN AMERICA"),
-        (1945, "WORLD WAR 2 ENDS"),
-        (1963, "I HAVE A DREAM SPEECH BY MLK"),
-        (1912, "TITANIC SINKS ON MAIDEN VOYAGE"),
-        (1929, "STOCK MARKET CRASH BLACK TUESDAY"),
-        (1955, "ROSA PARKS REFUSES TO GIVE UP SEAT"),
-    ]
-
-    def split_text(text, width):
-        words = text.split()
-        lines = []
-        current = ''
-        for word in words:
-            if current and len(current) + 1 + len(word) > width:
-                lines.append(current)
-                current = word
-            elif not current:
-                current = word[:width]
-            else:
-                current += ' ' + word
-        if current:
-            lines.append(current)
-        return lines
 
     try:
         url = f"https://byabbe.se/on-this-day/{now.month}/{now.day}/events.json"
-        req = urllib.request.Request(url, headers={"User-Agent": "SplitFlap/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "SplitFlapGatewayCompanion/1.0"})
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read().decode())
-        events = data.get("events", [])
+        events = [(str(e.get("year", "")), _clean(e.get("description", "")))
+                  for e in data.get("events", []) if e.get("description")]
         if not events:
-            raise ValueError("No events")
-        event = random.choice(events)
-        year = event.get("year", "")
-        desc = event.get("description", "").upper()
+            raise ValueError("no events")
     except Exception:
-        year, desc = random.choice(fallback)
-        year = str(year)
-        desc = desc.upper()
+        events = [(str(y), _clean(d)) for y, d in _FALLBACK]
 
-    allowed = set(" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*")
-    desc = ''.join(c if c in allowed else ' ' for c in desc)
-
-    text_lines = split_text(desc, cols)
-    pages = []
-    header = f'ON THIS DAY {year}'
-    first_page = [header] + text_lines[:rows - 1]
-    pages.append(format_lines(*first_page[:rows]))
-
-    remaining = text_lines[rows - 1:]
-    for i in range(0, len(remaining), rows):
-        chunk = remaining[i:i + rows]
-        pages.append(format_lines(*chunk))
-
-    return pages
+    # Lead with the year (no wasted 'ON THIS DAY' header row) and keep the whole
+    # thing on one page — prefer a short event that fits, else the shortest.
+    events = [(y, f'{y} {d}') for y, d in events]     # (year, "YEAR DESC")
+    if rows == 1:
+        return [min(events, key=lambda e: len(e[1]))[1][:cols].center(cols)]
+    random.shuffle(events)
+    text = min(events, key=lambda e: len(e[1]))[1]
+    for _y, t in events:
+        if len(_split(t, cols)) <= rows:
+            text = t
+            break
+    lines = _split(text, cols)[:rows]
+    top = (rows - len(lines)) // 2
+    return [format_lines(*([''] * top + lines))]

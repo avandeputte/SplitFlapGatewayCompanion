@@ -30,7 +30,7 @@
       "searchUrl": "/timezones",
       "resultKey": "zones",
       "maxItems": 3,
-      "global_key": true
+      "default": "US/Eastern,US/Pacific,Europe/London"
     }
   ],
   "min_rows": 1,
