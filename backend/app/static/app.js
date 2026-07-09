@@ -324,6 +324,7 @@ function mkField(f, values) {
       wrap.appendChild(inp);
     }
   }
+  if (f.note) { const nt = el("small"); nt.style.cssText = "display:block;margin-top:3px"; nt.textContent = f.note; wrap.appendChild(nt); }
   return wrap;
 }
 
@@ -351,6 +352,36 @@ async function openAppSettings(id, name) {
   });
   const close = el("button", "btn ghost"); close.textContent = "Close"; close.addEventListener("click", closeModal);
   openModal(`${schema.icon} ${name || schema.name}`, form, [msg, close, save]);
+}
+
+async function openGlobalSettings() {
+  const schema = await api("/api/global-settings");
+  const form = el("div");
+  if (!schema.fields.length) {
+    const p = el("p", "hint"); p.textContent = "No global settings yet — install apps that use shared settings (weather, stocks, …).";
+    form.appendChild(p);
+  }
+  _formFields = [];
+  schema.fields.forEach((f) => {
+    const w = mkField(f, schema.values); _formFields.push(w); form.appendChild(w);
+    if (f.inline_toggle) {
+      const it = f.inline_toggle;
+      const tw = mkField({ key: it.key, type: "toggle", label: "", options: it.options }, schema.values);
+      _formFields.push(tw); form.appendChild(tw);
+    }
+  });
+  onFormChange();
+  const save = el("button", "btn primary"); save.textContent = "Save";
+  const msg = el("span", "hint"); msg.style.marginRight = "auto";
+  save.addEventListener("click", async () => {
+    const values = {};
+    _formFields.forEach((w) => { const v = w._getValue && w._getValue(); if (v !== undefined) values[w._field.key] = v; });
+    msg.textContent = "Saving…";
+    try { await post("/api/global-settings", { values }); closeModal(); }
+    catch (e) { msg.textContent = "Error: " + e.message; }
+  });
+  const close = el("button", "btn ghost"); close.textContent = "Close"; close.addEventListener("click", closeModal);
+  openModal("⚙ Global settings", form, [msg, close, save]);
 }
 
 // ---- app library -----------------------------------------------------------
@@ -528,6 +559,7 @@ async function init() {
   await bootGrid();
   $("stopAppBtn").addEventListener("click", stopApp);
   $("manageAppsBtn").addEventListener("click", openLibrary);
+  $("globalSettingsBtn").addEventListener("click", openGlobalSettings);
   $("modalClose").addEventListener("click", closeModal);
   $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
   // playlists

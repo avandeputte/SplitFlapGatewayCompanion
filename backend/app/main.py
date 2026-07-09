@@ -370,6 +370,18 @@ async def apps_save_settings(app_id: str, patch: AppSettingsPatch):
     return {"ok": True}
 
 
+@app.get("/api/global-settings")
+async def global_settings_get():
+    """Shared settings apps rely on (weather_api_key, timezone, location, …)."""
+    return plugins.global_settings_schema()
+
+
+@app.post("/api/global-settings")
+async def global_settings_save(patch: AppSettingsPatch):
+    plugins.save_global_settings(patch.values)
+    return {"ok": True}
+
+
 @app.get("/api/apps/{app_id}/preview")
 async def apps_preview(app_id: str):
     if plugins.manifest(app_id) is None:

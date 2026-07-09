@@ -29,7 +29,15 @@ log = logging.getLogger("companion.plugins")
 _PASSTHROUGH = (
     "size", "ph", "min", "max", "step", "stepper", "searchUrl", "resultKey",
     "maxItems", "compute", "watches", "variant", "title", "text", "items",
-    "icon", "linkText", "linkHref", "default",
+    "icon", "linkText", "linkHref", "default", "note",
+)
+
+# Global keys that apps READ but that no manifest exposes as an editable setting.
+# Surfaced in the global-settings editor so they can be set in one place.
+_GLOBAL_CORE = (
+    {"key": "zip_code", "label": "Location — ZIP, postcode, or city",
+     "type": "text", "ph": "02118",
+     "note": "Used to locate you when an app has no precise coordinates (geocoded)."},
 )
 
 
@@ -395,6 +403,69 @@ class PluginRuntime:
         if clean:
             self.settings.update(clean)
             self._caches.pop(app_id, None)  # settings changed -> drop cache
+
+    # -- global (shared) settings editor ----------------------------------
+    def _declared_globals(self) -> dict[str, list[str]]:
+        """Map each global setting key -> the names of installed apps using it."""
+        used: dict[str, list[str]] = {}
+        # Deterministic order so dedupe (first-wins) is stable.
+        for app_id, manifest in sorted(
+                self._registry.items(),
+                key=lambda kv: kv[1].get("name", kv[0]).lower()):
+            name = manifest.get("name", app_id)
+            for st in manifest.get("settings", []):
+                for k in (st.get("key") if st.get("global_key") else None,
+                          (st.get("inline_toggle") or {}).get("key")
+                          if isinstance(st.get("inline_toggle"), dict)
+                          and st["inline_toggle"].get("global_key") else None):
+                    if k:
+                        used.setdefault(k, []).append(name)
+        return used
+
+    def global_settings_schema(self) -> dict:
+        """Every ``global_key`` setting declared by installed apps (deduped),
+        plus core shared keys no manifest exposes (e.g. zip_code) — so the shared
+        settings apps rely on can all be edited in one place."""
+        seen: dict[str, dict] = {}       # key -> first-seen setting definition
+        used = self._declared_globals()
+        # Some globals are really one app's private multi-field store (Countdown's
+        # five events) or non-inputs (a notice) — they live in that app's own
+        # settings, so keep them out of the shared editor.
+        skip_types = {"notice", "computed", "button"}
+        for app_id, manifest in sorted(
+                self._registry.items(),
+                key=lambda kv: kv[1].get("name", kv[0]).lower()):
+            for st in manifest.get("settings", []):
+                key = st.get("key")
+                if not (st.get("global_key") and key):
+                    continue
+                if st.get("type") in skip_types or key.startswith("countdown_"):
+                    continue
+                seen.setdefault(key, st)
+        for core in _GLOBAL_CORE:
+            seen.setdefault(core["key"], core)
+
+        resolved = {k: k for k in seen}   # globals resolve to their bare key
+        fields = []
+        for key, st in seen.items():
+            f = self._field("", st, resolved)
+            apps = used.get(key)
+            if apps:
+                f["note"] = "Used by " + ", ".join(sorted(set(apps)))
+            fields.append(f)
+        fields.sort(key=lambda f: f["label"].lower())
+        values = {k: self.settings.get(k, seen[k].get("default", "")) for k in seen}
+        return {"fields": fields, "values": values}
+
+    def save_global_settings(self, values: dict) -> None:
+        """Persist edited global settings. Only keys declared as a global by an
+        installed app (or a known core key) are accepted; changing a global can
+        affect many apps, so all caches are dropped."""
+        allowed = {c["key"] for c in _GLOBAL_CORE} | set(self._declared_globals())
+        clean = {k: v for k, v in values.items() if k in allowed}
+        if clean:
+            self.settings.update(clean)
+            self._caches.clear()
 
     # -- install / uninstall ----------------------------------------------
     def set_installed(self, app_id: str, installed: bool) -> None:
