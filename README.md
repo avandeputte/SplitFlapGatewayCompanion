@@ -147,6 +147,7 @@ gateway if set). Note `<data_dir>` is still a Docker volume — it holds your
 | `COMPANION_GRID_ROWS` / `COMPANION_GRID_COLS` | Manual panel-size override | *(from gateway)* |
 | `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | Manual MQTT overrides | *(from gateway)* |
 | `COMPANION_DATA_DIR` | Where app settings, playlists, triggers + uploaded apps live (no config) | `<repo>/data` |
+| `COMPANION_DEV_MODE` | Show a **⚙ Dev** menu: toggle simulation mode (nothing sent to the display), force a gateway resync, and override the grid geometry while simulating | `off` |
 
 > **Why no gateway firmware change?** The gateway (v2.1+) already exposes
 > `gridRows`, `gridCols`, `mqHost`, `mqPort`, `mqUser` and `mqPfx` via

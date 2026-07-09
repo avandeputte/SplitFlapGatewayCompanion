@@ -246,6 +246,15 @@ class ConfigPatch(BaseModel):
     sync_from_gateway: bool | None = None
 
 
+class DevSim(BaseModel):
+    on: bool
+
+
+class DevGrid(BaseModel):
+    rows: int
+    cols: int
+
+
 class RunAppRequest(BaseModel):
     app: str
 
@@ -330,6 +339,52 @@ async def update_config(patch: ConfigPatch):
 async def gateway_sync():
     """Pull grid geometry + MQTT settings from the gateway on demand."""
     return await do_gateway_sync()
+
+
+# ---------------------------------------------------------------------------
+# Developer mode (gated by COMPANION_DEV_MODE). The GET is always safe to call
+# (the UI uses `enabled` to decide whether to show the dev menu); the actions
+# require dev mode to be on.
+# ---------------------------------------------------------------------------
+def _require_dev():
+    if not config.dev_mode:
+        raise HTTPException(404, "developer mode is off (set COMPANION_DEV_MODE=1)")
+
+
+@app.get("/api/dev")
+async def dev_state():
+    return config.dev_state()
+
+
+@app.post("/api/dev/sim")
+async def dev_sim(req: DevSim):
+    """Toggle simulation mode: on = nothing is sent to the display."""
+    _require_dev()
+    config.set_sim_mode(req.on)          # turning off also clears any grid override
+    await controller.reload_transport()  # swap REST <-> sim
+    controller.resize_grid()             # geometry may have reverted
+    plugins.on_grid_changed()
+    return config.dev_state()
+
+
+@app.post("/api/dev/resync")
+async def dev_resync():
+    """Force a settings resync with the gateway."""
+    _require_dev()
+    return await do_gateway_sync()
+
+
+@app.post("/api/dev/grid")
+async def dev_grid(req: DevGrid):
+    """Override the grid geometry — only while simulating (so the real display's
+    gateway-derived geometry is never touched)."""
+    _require_dev()
+    if not config.sim_mode:
+        raise HTTPException(400, "turn simulation mode on before overriding the grid")
+    config.set_grid_override(req.rows, req.cols)
+    controller.resize_grid()
+    plugins.on_grid_changed()
+    return config.dev_state()
 
 
 # ---------------------------------------------------------------------------

@@ -555,6 +555,91 @@ function openTabFromHash() {
   if (btn) btn.click();
 }
 
+// ---- developer mode (env-gated: COMPANION_DEV_MODE) ------------------------
+function updateDevBtn(st) {
+  const b = $("devBtn");
+  b.textContent = st && st.sim_mode ? "⚙ Dev · SIM" : "⚙ Dev";
+  b.classList.toggle("warn", !!(st && st.sim_mode));
+}
+
+async function refreshGridUI() {
+  await bootGrid();
+  const active = document.querySelector(".tab.active");
+  if (!active || active.dataset.tab === "apps") loadApps();
+}
+
+async function openDevMenu() {
+  const wrap = el("div", "gsettings");
+
+  const render = (st) => {
+    updateDevBtn(st);
+    wrap.innerHTML = "";
+
+    // 1) Simulation mode
+    const simF = el("div", "field");
+    const simLbl = el("label"); simLbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
+    const sim = el("input"); sim.type = "checkbox"; sim.checked = st.sim_mode; sim.style.width = "auto";
+    simLbl.appendChild(sim);
+    simLbl.appendChild(document.createTextNode("Simulation mode"));
+    simF.appendChild(simLbl);
+    const simNote = el("small", "field-note");
+    simNote.textContent = st.sim_mode
+      ? "Simulating — nothing is sent to the physical display (the live preview still updates)."
+      : "Live — frames are sent to the display. Turn on to test apps without touching the wall.";
+    simF.appendChild(simNote);
+    sim.addEventListener("change", async () => {
+      sim.disabled = true;
+      try { render(await post("/api/dev/sim", { on: sim.checked })); await refreshGridUI(); }
+      catch (e) { simNote.textContent = "Failed: " + e.message; sim.disabled = false; }
+    });
+    wrap.appendChild(simF);
+
+    // 2) Force resync with the gateway
+    const reF = el("div", "field");
+    const reLbl = el("span"); reLbl.textContent = "Gateway sync"; reLbl.style.fontWeight = "600"; reF.appendChild(reLbl);
+    const reRow = el("div"); reRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:6px";
+    const reBtn = el("button", "btn ghost btn-sm"); reBtn.textContent = "↻ Force resync";
+    const reMsg = el("small", "field-note"); reMsg.textContent = "Pull grid geometry + MQTT settings from the gateway now.";
+    reBtn.addEventListener("click", async () => {
+      reBtn.disabled = true; reMsg.textContent = "Syncing…";
+      try { const r = await post("/api/dev/resync", {}); reMsg.textContent = r.ok ? "Resynced ✓" : "Failed: " + (r.error || "unknown"); }
+      catch (e) { reMsg.textContent = "Failed: " + e.message; }
+      reBtn.disabled = false;
+      render(await api("/api/dev")); await refreshGridUI();
+    });
+    reRow.appendChild(reBtn); reRow.appendChild(reMsg); reF.appendChild(reRow);
+    wrap.appendChild(reF);
+
+    // 3) Grid geometry override (simulation only)
+    const gF = el("div", "field");
+    const gLbl = el("span"); gLbl.textContent = "Grid geometry override"; gLbl.style.fontWeight = "600"; gF.appendChild(gLbl);
+    const gNote = el("small", "field-note");
+    gNote.textContent = st.sim_mode
+      ? `Now ${st.grid.rows}×${st.grid.cols}` + (st.grid_overridden ? " (overridden)" : "") + ` · gateway is ${st.gateway_grid.rows}×${st.gateway_grid.cols}.`
+      : "Turn on simulation mode to override rows/cols (the real display's geometry is never touched).";
+    gF.appendChild(gNote);
+    const gRow = el("div"); gRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-top:6px";
+    const rows = el("input"); rows.type = "number"; rows.min = 1; rows.max = 20; rows.value = st.grid.rows; rows.style.width = "64px";
+    const cols = el("input"); cols.type = "number"; cols.min = 1; cols.max = 40; cols.value = st.grid.cols; cols.style.width = "64px";
+    const applyBtn = el("button", "btn ghost btn-sm"); applyBtn.textContent = "Apply";
+    [rows, cols, applyBtn].forEach((x) => (x.disabled = !st.sim_mode));
+    gRow.appendChild(document.createTextNode("Rows")); gRow.appendChild(rows);
+    gRow.appendChild(document.createTextNode("Cols")); gRow.appendChild(cols);
+    gRow.appendChild(applyBtn);
+    applyBtn.addEventListener("click", async () => {
+      applyBtn.disabled = true;
+      try { render(await post("/api/dev/grid", { rows: Number(rows.value), cols: Number(cols.value) })); await refreshGridUI(); }
+      catch (e) { gNote.textContent = "Failed: " + e.message; applyBtn.disabled = false; }
+    });
+    gF.appendChild(gRow);
+    wrap.appendChild(gF);
+  };
+
+  render(await api("/api/dev"));
+  const close = el("button", "btn"); close.textContent = "Close"; close.addEventListener("click", closeModal);
+  openModal("Developer", wrap, [close]);
+}
+
 async function init() {
   const h = await api("/api/health"); $("version").textContent = "v" + h.version;
   wireTabs();
@@ -562,6 +647,15 @@ async function init() {
   $("stopAppBtn").addEventListener("click", stopApp);
   $("manageAppsBtn").addEventListener("click", openLibrary);
   $("globalSettingsBtn").addEventListener("click", openGlobalSettings);
+  // Developer menu — only when the companion was started with COMPANION_DEV_MODE.
+  try {
+    const dev = await api("/api/dev");
+    if (dev.enabled) {
+      updateDevBtn(dev);
+      $("devBtn").classList.remove("hidden");
+      $("devBtn").addEventListener("click", openDevMenu);
+    }
+  } catch { /* dev endpoint unavailable */ }
   $("modalClose").addEventListener("click", closeModal);
   $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
   // playlists

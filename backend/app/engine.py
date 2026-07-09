@@ -48,8 +48,13 @@ class DisplayController:
         await self._safe_close(self.transport)
 
     async def _open_transport(self) -> None:
-        cfg = self.config.transport
         build_error: str | None = None
+        if self.config.sim_mode:
+            # Developer simulation mode: nothing is sent to the display.
+            self.transport = SimTransport()
+            self._sync_transport_state()
+            return
+        cfg = self.config.transport
         try:
             transport = build_transport(cfg)   # always REST
         except Exception as e:

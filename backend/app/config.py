@@ -143,6 +143,12 @@ class Config:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._synced: dict = {}     # values pulled from the gateway at runtime
+        # Developer mode (env-gated). When on, the UI exposes a dev menu that can
+        # toggle a "simulation" transport (nothing reaches the display) and, while
+        # simulating, override the grid geometry for layout testing.
+        self.dev_mode = os.environ.get("COMPANION_DEV_MODE", "").lower() in ("1", "true", "yes", "on")
+        self._sim = False
+        self._grid_override: dict | None = None   # {rows, cols}; only honored in sim mode
         self._effective: dict = self._recompute()
 
     def _recompute(self) -> dict:
@@ -157,7 +163,39 @@ class Config:
 
     @property
     def grid(self) -> dict:
-        return copy.deepcopy(self._effective["grid"])
+        base = copy.deepcopy(self._effective["grid"])
+        if self._sim and self._grid_override:
+            base.update(self._grid_override)   # dev geometry override (sim mode only)
+        return base
+
+    # -- developer mode -----------------------------------------------------
+    @property
+    def sim_mode(self) -> bool:
+        return self._sim
+
+    def set_sim_mode(self, on: bool) -> None:
+        with self._lock:
+            self._sim = bool(on)
+            if not self._sim:
+                self._grid_override = None   # leaving sim reverts to the real geometry
+
+    def set_grid_override(self, rows: int, cols: int) -> None:
+        with self._lock:
+            self._grid_override = {"rows": max(1, int(rows)), "cols": max(1, int(cols))}
+
+    def clear_grid_override(self) -> None:
+        with self._lock:
+            self._grid_override = None
+
+    def dev_state(self) -> dict:
+        """State for the developer menu (safe to expose regardless of dev_mode)."""
+        return {
+            "enabled": self.dev_mode,
+            "sim_mode": self._sim,
+            "grid": self.grid,
+            "gateway_grid": copy.deepcopy(self._effective["grid"]),
+            "grid_overridden": bool(self._sim and self._grid_override),
+        }
 
     @property
     def transport(self) -> dict:
