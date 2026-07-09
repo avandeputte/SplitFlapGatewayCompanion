@@ -299,6 +299,12 @@ def trigger(settings, conditions):
         state_obj = {'seen_game_ids': set(), 'last_scores': {}}
         setattr(trigger, '_state', state_obj)
 
+    # Bound the bookkeeping so it can't grow without limit over a long uptime.
+    if len(state_obj['seen_game_ids']) > 1000:
+        state_obj['seen_game_ids'].clear()
+    if len(state_obj['last_scores']) > 1000:
+        state_obj['last_scores'].clear()
+
     try:
         start = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
         end = (datetime.now() + timedelta(days=1)).strftime('%Y%m%d')

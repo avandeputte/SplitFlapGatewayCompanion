@@ -230,33 +230,36 @@ def fetch(settings, format_lines, get_rows, get_cols):
     polling_seconds = max(30.0, min(86400.0, float(settings.get('polling_rate', 300) or 300)))
     openmeteo_air = None
 
-    # Resolve location: per-app override > global lat/lon > geocode zip_code
+    # Resolve location: per-app override > global lat/lon > geocode zip_code.
+    # Any bad input / geocode failure falls back to Boston instead of crashing.
     app_location = settings.get('location', '').strip()
     loc_lat = settings.get('location_lat', '')
     loc_lon = settings.get('location_lon', '')
     loc_name = settings.get('location_name', '')
-    if app_location and ',' in app_location:
-        if '|' in app_location:
-            coords, _city = app_location.split('|', 1)
-            _city = _city.strip().upper()
+    _lat, _lon, _city = 42.3496, -71.0783, 'BOSTON'
+    try:
+        if app_location and ',' in app_location:
+            if '|' in app_location:
+                coords, _city = app_location.split('|', 1)
+                _city = _city.strip().upper()
+            else:
+                coords = app_location
+                _city = 'LOCATION'
+            parts = coords.split(',', 1)
+            _lat, _lon = float(parts[0]), float(parts[1])
+        elif loc_lat and loc_lon:
+            _lat, _lon = float(loc_lat), float(loc_lon)
+            _city = loc_name.split(',')[0].strip().upper() if loc_name else 'LOCATION'
         else:
-            coords = app_location
-            _city = 'LOCATION'
-        parts = coords.split(',', 1)
-        _lat, _lon = float(parts[0]), float(parts[1])
-    elif loc_lat and loc_lon:
-        _lat, _lon = float(loc_lat), float(loc_lon)
-        _city = loc_name.split(',')[0].strip().upper() if loc_name else 'LOCATION'
-    else:
-        geo = requests.get(
-            f'https://nominatim.openstreetmap.org/search?q={zip_code}&format=json&limit=1',
-            timeout=5, headers={'User-Agent': 'SplitFlapOS/1.0'}
-        ).json()
-        if geo:
-            _lat, _lon = float(geo[0]['lat']), float(geo[0]['lon'])
-            _city = geo[0].get('display_name', zip_code).split(',')[0].strip().upper()
-        else:
-            _lat, _lon, _city = 42.3496, -71.0783, 'BOSTON'
+            geo = requests.get(
+                f'https://nominatim.openstreetmap.org/search?q={zip_code}&format=json&limit=1',
+                timeout=5, headers={'User-Agent': 'SplitFlapGatewayCompanion/1.0'}
+            ).json()
+            if geo:
+                _lat, _lon = float(geo[0]['lat']), float(geo[0]['lon'])
+                _city = geo[0].get('display_name', zip_code).split(',')[0].strip().upper()
+    except (ValueError, KeyError, IndexError, TypeError, requests.RequestException):
+        _lat, _lon, _city = 42.3496, -71.0783, 'BOSTON'
 
     settings_sig = (
         api_key, _lat, _lon, weather_provider, temp_unit,

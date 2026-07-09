@@ -20,6 +20,7 @@ import inspect
 import json
 import logging
 import os
+import threading
 import time
 from pathlib import Path
 
@@ -54,6 +55,7 @@ class PluginRuntime:
         self._caches: dict[str, dict] = {}       # app_id -> {pages, fetched_at}
         self._reads: dict[str, dict] = {}        # app_id -> {settings key it reads: default}
         self._wants_weather: dict[str, bool] = {}  # app_id -> fetch() accepts get_weather
+        self._fetch_locks: dict[str, threading.Lock] = {}  # app_id -> serialize its fetches
 
     # -- helpers injected into plugins -------------------------------------
     def get_rows(self) -> int:
@@ -109,14 +111,28 @@ class PluginRuntime:
         self._caches.clear()
         self._reads.clear()
         self._wants_weather.clear()
+        self._fetch_locks.clear()
+        # Scan the app dirs once and reuse it (discovery + per-app load).
+        scan = self._scan()
         # Let the settings store nest per-app keys by app id when it persists.
-        self.settings.set_known_apps(self.discover())
+        self.settings.set_known_apps(list(scan.keys()))
         enabled = set(self.settings.installed_apps)
-        for app_id, app_dir in self._scan().items():
+        for app_id, app_dir in scan.items():
             if app_id in enabled:
                 self._load_one(app_id, app_dir)
         # Multi-value settings (search_chips) are stored as JSON arrays on disk.
         self.settings.set_list_keys(self._list_keys())
+
+    def on_grid_changed(self) -> None:
+        """The grid dimensions changed. Drop cached pages (they were centered/
+        truncated for the old width) and re-render channel apps, whose pages are
+        pre-formatted at load time."""
+        self._caches.clear()
+        scan = self._scan()
+        for app_id in list(self._channel):
+            app_dir = scan.get(app_id)
+            if app_dir:
+                self._load_channel(app_id, app_dir)
 
     def _list_keys(self) -> set[str]:
         """Resolved storage keys whose value is a comma-list (a multi-value
@@ -178,6 +194,7 @@ class PluginRuntime:
         if hasattr(mod, "fetch") and callable(mod.fetch):
             self._modules[app_id] = mod
             self._wants_weather[app_id] = self._fetch_wants_weather(mod.fetch)
+            self._fetch_locks[app_id] = threading.Lock()
         else:
             log.error("plugin %s: app.py has no fetch()", app_id)
         if hasattr(mod, "trigger") and callable(mod.trigger):
@@ -280,29 +297,36 @@ class PluginRuntime:
             mod = self._modules.get(app_id)
             if not mod:
                 return [self.format_lines("PLUGIN ERROR", app_id.upper()[:cols], "NOT LOADED")]
-            now = time.time()
-            cached = self._caches.get(app_id)
-            if cached and (now - cached["fetched_at"]) < refresh:
-                return cached["pages"]
-            try:
-                ps = self._plugin_settings(app_id, manifest)
-                args = [ps, self.format_lines, self.get_rows, self.get_cols]
-                if self._wants_weather.get(app_id):
-                    args.append(lambda s=None: weather.fetch_current(s if s is not None else ps))
-                pages = mod.fetch(*args)
-                if not isinstance(pages, list):
-                    pages = [str(pages)]
-                self._caches[app_id] = {"pages": pages, "fetched_at": now}
-                return pages
-            except Exception as e:
-                log.warning("plugin %s fetch error: %s", app_id, e)
-                cp = self._caches.get(app_id, {}).get("pages")
-                if cp:
-                    return cp
-                err = str(e).lower()
-                if "timeout" in err or "connection" in err or "network" in err:
-                    return [self.format_lines(manifest.get("name", app_id).upper()[:cols], "OFFLINE", "")]
-                return [self.format_lines("APP ERROR", app_id.upper()[:cols], str(e)[:cols])]
+            # Serialize fetches for this app: get_pages runs in executor threads
+            # (app loop + a preview can hit the same app at once), so this
+            # coalesces duplicate fetches and protects non-reentrant app state.
+            lock = self._fetch_locks.get(app_id)
+            if lock is None:
+                lock = self._fetch_locks[app_id] = threading.Lock()
+            with lock:
+                now = time.time()
+                cached = self._caches.get(app_id)
+                if cached and (now - cached["fetched_at"]) < refresh:
+                    return cached["pages"]
+                try:
+                    ps = self._plugin_settings(app_id, manifest)
+                    args = [ps, self.format_lines, self.get_rows, self.get_cols]
+                    if self._wants_weather.get(app_id):
+                        args.append(lambda s=None: weather.fetch_current(s if s is not None else ps))
+                    pages = mod.fetch(*args)
+                    if not isinstance(pages, list):
+                        pages = [str(pages)]
+                    self._caches[app_id] = {"pages": pages, "fetched_at": now}
+                    return pages
+                except Exception as e:
+                    log.warning("plugin %s fetch error: %s", app_id, e)
+                    cp = self._caches.get(app_id, {}).get("pages")
+                    if cp:
+                        return cp
+                    err = str(e).lower()
+                    if "timeout" in err or "connection" in err or "network" in err:
+                        return [self.format_lines(manifest.get("name", app_id).upper()[:cols], "OFFLINE", "")]
+                    return [self.format_lines("APP ERROR", app_id.upper()[:cols], str(e)[:cols])]
 
         return [self.format_lines("PLUGIN ERROR", "UNKNOWN TYPE", "")]
 

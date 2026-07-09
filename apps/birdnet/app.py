@@ -51,20 +51,19 @@ def fetch(settings, format_lines, get_rows, get_cols):
         lines[mid] = text
         return format_lines(*lines)
 
+    rows = get_rows()
+    cols = get_cols()
     try:
         limit = 50 if mode == 'leaderboard' else 10
         r = requests.get(f"{base_url}/api/v1/detections/recent?limit={limit}", timeout=10)
         r.raise_for_status()
         detections = r.json()
-        detections = [d for d in detections if d['confidence'] >= min_conf]
+        detections = [d for d in detections if d.get('confidence', 0) >= min_conf]
 
         if not detections:
             pages = [format_lines('BIRDNET', 'NO DETECTIONS', 'CHECK SETTINGS')]
             state['last_pages'] = pages
             return pages
-
-        rows = get_rows()
-        cols = get_cols()
 
         if mode == 'latest':
             bird = detections[0]

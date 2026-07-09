@@ -12,6 +12,8 @@ Uses httpx (async) instead of blocking requests so the event loop stays free.
 
 from __future__ import annotations
 
+import asyncio
+import collections
 import logging
 from datetime import datetime
 
@@ -51,6 +53,10 @@ SPORTS_LEAGUES = {
 
 _teams_cache: dict[str, list] = {}
 _crypto_cache: list = []
+# Serialize cache fills so concurrent searches don't each launch the same
+# (expensive) fetch; each fill is double-checked after the lock is acquired.
+_crypto_lock = asyncio.Lock()
+_teams_locks: dict[str, asyncio.Lock] = collections.defaultdict(asyncio.Lock)
 
 
 async def _get_json(url: str, *, params=None, headers=None, timeout=8.0):
@@ -70,12 +76,15 @@ async def location_search(q: str) -> dict:
             headers={"User-Agent": "SplitFlapGatewayCompanion/1.0"}, timeout=6.0)
         results = []
         for r in data:
+            lat, lon = r.get("lat"), r.get("lon")
+            if lat is None or lon is None:
+                continue   # skip a malformed result rather than abort the whole list
             name = r.get("display_name", q)
             addr = r.get("address", {})
             short = (addr.get("city") or addr.get("town") or addr.get("village")
                      or addr.get("municipality") or name.split(",")[0].strip())
-            results.append({"lat": r["lat"], "lon": r["lon"], "name": name,
-                            "short_name": short, "value": f"{r['lat']},{r['lon']}|{q}",
+            results.append({"lat": lat, "lon": lon, "name": name,
+                            "short_name": short, "value": f"{lat},{lon}|{q}",
                             "label": name})
         return {"results": results}
     except Exception as e:
@@ -154,13 +163,15 @@ async def crypto_search(q: str) -> dict:
     if len(q) < 1:
         return {"coins": []}
     if not _crypto_cache:
-        try:
-            data = await _get_json("https://api.coingecko.com/api/v3/coins/list", timeout=10.0)
-            _crypto_cache = [{"id": c["id"], "symbol": c["symbol"].upper(), "name": c["name"]}
-                             for c in data]
-        except Exception as e:
-            log.warning("coingecko error: %s", e)
-            return {"coins": [], "error": str(e)}
+        async with _crypto_lock:
+            if not _crypto_cache:   # double-check once we hold the lock
+                try:
+                    data = await _get_json("https://api.coingecko.com/api/v3/coins/list", timeout=10.0)
+                    _crypto_cache = [{"id": c["id"], "symbol": c["symbol"].upper(), "name": c["name"]}
+                                     for c in data]
+                except Exception as e:
+                    log.warning("coingecko error: %s", e)
+                    return {"coins": [], "error": str(e)}
     results = []
     for c in _crypto_cache:
         if q in c["name"].lower() or q in c["symbol"].lower() or q in c["id"]:
@@ -180,13 +191,18 @@ async def _league_teams(league_key: str) -> list[dict]:
     info = SPORTS_LEAGUES.get(league_key)
     if not info or league_key in ("pga", "ufc"):
         return []
-    if league_key not in _teams_cache:
+    if league_key in _teams_cache:
+        return _teams_cache[league_key]
+    async with _teams_locks[league_key]:
+        if league_key in _teams_cache:   # double-check once we hold the lock
+            return _teams_cache[league_key]
         all_teams = []
         for page in range(1, 4):
             data = await _get_json(
                 f"https://site.api.espn.com/apis/site/v2/sports/{info['path']}/teams",
                 params={"limit": 200, "page": page})
-            batch = data.get("sports", [{}])[0].get("leagues", [{}])[0].get("teams", [])
+            leagues = data.get("sports") or [{}]
+            batch = (leagues[0].get("leagues") or [{}])[0].get("teams", [])
             if not batch:
                 break
             for entry in batch:

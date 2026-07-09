@@ -1,13 +1,20 @@
 def fetch(settings, format_lines, get_rows, get_cols):
     from datetime import datetime
     import pytz
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    try:
+        tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.timezone('US/Eastern')
     now = datetime.now(tz)
     h = now.hour
     m = now.minute
     h12 = h % 12
 
-    interval = int(settings.get('interval', '5'))
+    try:
+        interval = int(settings.get('interval', '5'))
+    except (TypeError, ValueError):
+        interval = 5
+    interval = max(1, min(30, interval))
 
     hours = ['TWELVE', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE',
              'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN']

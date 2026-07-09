@@ -87,6 +87,7 @@ async def do_gateway_sync() -> dict:
         config.update(patch)
         if "grid" in patch:
             controller.resize_grid()
+            plugins.on_grid_changed()   # cached/channel pages were sized for the old grid
         # A sync only touches grid (resized above) and the HA MQTT broker; the
         # REST display transport depends only on gateway_url, which sync never
         # changes, so there's nothing to reload here.
@@ -188,15 +189,16 @@ async def lifespan(app: FastAPI):
     # Started in the background so a slow/unreachable broker never delays startup.
     ha_mode = config.effective.get("ha", {}).get("enabled", "auto")
     ha_on = ha_mode is True if isinstance(ha_mode, bool) else bool(gw_ha)
-    if ha_on:
-        log.info("Home Assistant integration enabled")
-        asyncio.create_task(ha.start())
-
     # Register with the gateway (v3.0) + status heartbeat, all in the background
     # so an unreachable gateway never delays startup.
     gw = config.transport.get("gateway_url", "")
     companion_url = resolve_companion_url()
     tasks = []
+    if ha_on:
+        log.info("Home Assistant integration enabled")
+        # Keep a strong reference (a bare create_task() can be GC'd mid-await,
+        # and its exception would go unretrieved) and cancel it at shutdown.
+        tasks.append(asyncio.create_task(ha.start()))
     if gw and companion_url:
         tasks.append(asyncio.create_task(_companion_heartbeat(gw, companion_url)))
         # If we auto-detected our URL, verify it's actually reachable.
@@ -205,9 +207,14 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Deregister on shutdown.
+    # Deregister on shutdown; cancel background tasks and let them unwind.
     for t in tasks:
         t.cancel()
+    for t in tasks:
+        try:
+            await t
+        except (asyncio.CancelledError, Exception):
+            pass
     if gw and companion_url:
         try:
             await post_companion(gw, url="")
@@ -309,6 +316,7 @@ async def update_config(patch: ConfigPatch):
     config.update(body)
     if "grid" in body:
         controller.resize_grid()
+        plugins.on_grid_changed()   # cached/channel pages were sized for the old grid
     if "transport" in body:
         await controller.reload_transport()
     # If the gateway URL just changed and auto-sync is on, pull its config now.
@@ -398,7 +406,10 @@ async def apps_install(app_id: str, req: InstallRequest):
         raise HTTPException(404, f"unknown app: {app_id}")
     if not req.installed and controller.active_app == app_id:
         await controller.stop_app()
-    plugins.set_installed(app_id, req.installed)
+    # set_installed() reloads all plugins (re-executes each app.py), so run it off
+    # the event loop to avoid freezing the display loop and other requests.
+    await asyncio.get_running_loop().run_in_executor(
+        None, plugins.set_installed, app_id, req.installed)
     ha.refresh_discovery()  # app option list changed
     ha.publish_state()
     return {"ok": True, "installed": req.installed}
@@ -428,7 +439,8 @@ async def apps_delete(app_id: str):
     if controller.active_app == app_id:
         await controller.stop_app()
     try:
-        plugins.delete_app(app_id)
+        # delete_app() reloads all plugins — run it off the event loop.
+        await asyncio.get_running_loop().run_in_executor(None, plugins.delete_app, app_id)
     except KeyError:
         raise HTTPException(404, f"unknown app: {app_id}")
     except ValueError as e:
@@ -574,16 +586,32 @@ async def gateway_status():
 # ---------------------------------------------------------------------------
 # Static SPA (mounted last so /api/* wins)
 # ---------------------------------------------------------------------------
+_asset_ver_cache: dict[str, tuple[float, str]] = {}   # asset -> (mtime, hash)
+
+
+def _asset_version(p: Path) -> str | None:
+    """Content hash of an asset, recomputed only when its mtime changes (so we
+    don't re-read + md5 the files on every page load)."""
+    try:
+        mtime = p.stat().st_mtime
+    except OSError:
+        return None
+    cached = _asset_ver_cache.get(p.name)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    ver = hashlib.md5(p.read_bytes()).hexdigest()[:10]
+    _asset_ver_cache[p.name] = (mtime, ver)
+    return ver
+
+
 def _cache_bust(html: str, static_dir: Path) -> str:
     """Append ``?v=<content-hash>`` to each SPA asset URL so an updated CSS/JS is
     fetched fresh without a manual browser cache purge. The query changes only
-    when the file's bytes change (per-file md5), so unchanged assets still cache."""
+    when the file's bytes change, so unchanged assets still cache."""
     for asset in ("styles.css", "app.js"):
-        p = static_dir / asset
-        if not p.exists():
-            continue
-        ver = hashlib.md5(p.read_bytes()).hexdigest()[:10]
-        html = html.replace(f'"/{asset}"', f'"/{asset}?v={ver}"')
+        ver = _asset_version(static_dir / asset)
+        if ver:
+            html = html.replace(f'"/{asset}"', f'"/{asset}?v={ver}"')
     return html
 
 

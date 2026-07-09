@@ -79,7 +79,9 @@ def trigger(settings, conditions):
             items = root.findall('.//{http://www.w3.org/2005/Atom}entry')
 
         for item in items[:10]:
-            title_el = item.find('title') or item.find('{http://www.w3.org/2005/Atom}title')
+            title_el = item.find('title')
+            if title_el is None:
+                title_el = item.find('{http://www.w3.org/2005/Atom}title')
             if title_el is None or not title_el.text:
                 continue
             title = title_el.text.strip().upper()

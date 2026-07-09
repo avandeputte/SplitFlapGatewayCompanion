@@ -14,6 +14,7 @@ file of its own — hardware config is read from the gateway at runtime; see
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
@@ -37,9 +38,11 @@ def _detect_timezone() -> str:
         pass
     try:
         link = os.readlink("/etc/localtime")
-        return link.split("zoneinfo/")[-1]
+        if "zoneinfo/" in link:
+            return link.split("zoneinfo/")[-1]
     except OSError:
-        return "US/Eastern"
+        pass
+    return "US/Eastern"
 
 
 # Content-relevant defaults (the app-facing subset of the plugin settings).
@@ -157,8 +160,9 @@ class PluginSettings:
             "apps": "Per-app settings, keyed by app id (e.g. apps.weather.show_aqi).",
             "arrays": "Multi-value settings are stored as JSON arrays.",
         }}
+        defaults = _defaults()
         for k in _META_KEYS:
-            doc[k] = self._data.get(k, _defaults().get(k))
+            doc[k] = self._data.get(k, defaults.get(k))
         glob, apps = {}, {}
         ids = sorted(self._app_ids, key=len, reverse=True)  # greedy longest match
         for k, v in self._data.items():
@@ -178,14 +182,24 @@ class PluginSettings:
         return doc
 
     def _save(self) -> None:
-        self.path.write_text(
-            json.dumps(self._to_nested(), indent=2, ensure_ascii=False), "utf-8")
+        """Persist atomically: write a sibling temp file, fsync, then rename over
+        the target. A crash/kill mid-write leaves the previous good file intact
+        instead of a truncated JSON that would reset all settings on next start."""
+        data = json.dumps(self._to_nested(), indent=2, ensure_ascii=False)
+        tmp = self.path.with_name(self.path.name + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, self.path)
 
     def all(self) -> dict:
-        return dict(self._data)
+        with self._lock:
+            return copy.deepcopy(self._data)
 
     def get(self, key: str, default=None):
-        return self._data.get(key, default)
+        with self._lock:
+            return copy.deepcopy(self._data.get(key, default))
 
     def set(self, key: str, value) -> None:
         with self._lock:

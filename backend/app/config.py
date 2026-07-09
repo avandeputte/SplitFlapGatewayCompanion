@@ -157,15 +157,15 @@ class Config:
 
     @property
     def grid(self) -> dict:
-        return self._effective["grid"]
+        return copy.deepcopy(self._effective["grid"])
 
     @property
     def transport(self) -> dict:
-        return self._effective["transport"]
+        return copy.deepcopy(self._effective["transport"])
 
     @property
     def display(self) -> dict:
-        return self._effective["display"]
+        return copy.deepcopy(self._effective["display"])
 
     def module_count(self) -> int:
         return int(self.grid["rows"]) * int(self.grid["cols"])

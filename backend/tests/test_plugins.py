@@ -244,6 +244,16 @@ def test_anim_style_and_speed_are_per_app(tmp_path):
     assert rt.page_timing("anim_sweep")["style"] == "ltr"
 
 
+def test_grid_change_clears_page_caches(tmp_path):
+    """A grid resize must drop cached pages (they were sized for the old width)
+    so apps re-render at the new dimensions."""
+    rt = _runtime(tmp_path, ["date"])
+    rt.get_pages("date")               # populates the page cache
+    assert "date" in rt._caches
+    rt.on_grid_changed()
+    assert "date" not in rt._caches
+
+
 def test_weather_helper_injected_only_when_opted_in(tmp_path):
     """An app opts into the shared weather helper by taking a get_weather param;
     a classic 4-arg app is called unchanged."""

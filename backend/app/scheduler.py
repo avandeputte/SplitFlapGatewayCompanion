@@ -32,6 +32,11 @@ class Scheduler:
     async def stop(self) -> None:
         if self._task:
             self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
 
     def last_fired(self, trig_id: str):
         return self._cooldown.get(trig_id)
@@ -41,7 +46,14 @@ class Scheduler:
             return
         now = time.time()
         loop = asyncio.get_running_loop()
-        for trig in self.settings.get("triggers", []):
+        triggers = self.settings.get("triggers", [])
+        # Prune bookkeeping for triggers that no longer exist (renamed/deleted),
+        # so these dicts can't grow without bound over a long uptime.
+        live_ids = {t.get("id", "") for t in triggers}
+        for d in (self._cooldown, self._last_check, self._failures):
+            for stale in [k for k in d if k not in live_ids]:
+                del d[stale]
+        for trig in triggers:
             if not trig.get("enabled", True):
                 continue
             tid = trig.get("id", "")

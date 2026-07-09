@@ -72,6 +72,15 @@ def test_migrates_legacy_flat_file(tmp_path):
     assert "shared" not in doc
 
 
+def test_all_returns_an_independent_deep_copy(tmp_path):
+    """all()/get() return deep copies, so a caller can't mutate the store's
+    internal nested state (installed_apps/playlists/triggers) by reference."""
+    ps = PluginSettings(tmp_path)
+    ps.all()["installed_apps"].append("HACK")
+    ps.get("installed_apps").append("HACK")
+    assert "HACK" not in ps.get("installed_apps")
+
+
 def test_unknown_app_keys_preserved(tmp_path):
     """A plugin_<app>_ key whose app isn't known is kept verbatim, not lost."""
     ps = PluginSettings(tmp_path)                    # no known apps set

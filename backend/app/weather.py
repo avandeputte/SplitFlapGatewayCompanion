@@ -158,8 +158,9 @@ _PROVIDERS = {
 
 def fetch_current(settings) -> dict:
     """Current conditions for the global location via the global provider. Falls
-    back to keyless Open-Meteo when a keyed provider is selected without a key.
-    Returns ``{ok: False, error, provider}`` on failure (never raises)."""
+    back to keyless Open-Meteo when a keyed provider is missing its key OR fails /
+    returns an error body (bad key, rate-limited, outage). Returns
+    ``{ok: False, error, provider}`` only if Open-Meteo itself fails; never raises."""
     provider = str(settings.get("weather_provider", "openmeteo") or "openmeteo").lower()
     key = str(settings.get("weather_api_key", "") or "").strip()
     if provider not in _PROVIDERS or (provider != "openmeteo" and not key):
@@ -167,9 +168,24 @@ def fetch_current(settings) -> dict:
     try:
         with httpx.Client(timeout=8.0) as client:
             lat, lon, city = _resolve_location(settings, client)
-            data = _PROVIDERS[provider](client, lat, lon, city, key)
+            data = None
+            if provider != "openmeteo":
+                try:
+                    got = _PROVIDERS[provider](client, lat, lon, city, key)
+                    # A keyed provider that 401s/429s still returns 200-ish JSON
+                    # with no temperature: treat a missing temp as a failure.
+                    if got.get("temp_f") is not None:
+                        data = got
+                    else:
+                        log.warning("weather provider %s returned no data; using open-meteo", provider)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("weather provider %s failed (%s); using open-meteo", provider, e)
+                if data is None:
+                    provider = "openmeteo"
+            if data is None:
+                data = _openmeteo(client, lat, lon, city, key)
         data.update(ok=True, provider=provider, lat=lat, lon=lon)
         return data
     except Exception as e:  # noqa: BLE001
-        log.warning("weather fetch (%s) failed: %s", provider, e)
+        log.warning("weather fetch failed: %s", e)
         return {"ok": False, "error": str(e), "provider": provider}
