@@ -182,6 +182,20 @@ def push_gateway_settings(url: str, doc: dict, timeout: float = 8.0) -> bool:
         _settings_transfer.clear()
 
 
+def _as_int(v):
+    """Coerce a gateway field to int — tolerating a numeric string — else None, so a
+    grid resync isn't silently dropped if the firmware serializes numbers as strings."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float) and v.is_integer():
+        return int(v)
+    if isinstance(v, str) and v.strip().lstrip("-").isdigit():
+        return int(v.strip())
+    return None
+
+
 def build_sync_patch(gw: dict) -> dict:
     """Map a gateway /api/config document to a companion config patch.
 
@@ -189,16 +203,18 @@ def build_sync_patch(gw: dict) -> dict:
     type and gateway URL are intentionally left untouched (companion-owned).
     """
     grid: dict = {}
-    if isinstance(gw.get("gridRows"), int):
-        grid["rows"] = max(1, gw["gridRows"])
-    if isinstance(gw.get("gridCols"), int):
-        grid["cols"] = max(1, gw["gridCols"])
+    rows, cols = _as_int(gw.get("gridRows")), _as_int(gw.get("gridCols"))
+    if rows is not None:
+        grid["rows"] = max(1, rows)
+    if cols is not None:
+        grid["cols"] = max(1, cols)
 
     mqtt: dict = {}
     if isinstance(gw.get("mqHost"), str) and gw["mqHost"]:
         mqtt["broker"] = gw["mqHost"]
-    if isinstance(gw.get("mqPort"), int):
-        mqtt["port"] = gw["mqPort"]
+    port = _as_int(gw.get("mqPort"))
+    if port is not None:
+        mqtt["port"] = port
     if isinstance(gw.get("mqUser"), str):
         mqtt["username"] = gw["mqUser"]
     if isinstance(gw.get("mqPfx"), str) and gw["mqPfx"]:

@@ -79,11 +79,21 @@ async def do_gateway_sync() -> dict:
     url = (config.transport.get("gateway_url") or "").strip()
     if not url:
         return {"ok": False, "error": "no gateway_url configured"}
-    try:
-        gw = await fetch_gateway_config(url)
-    except Exception as e:
-        log.warning("gateway sync failed: %s", e)
-        return {"ok": False, "error": str(e)}
+    # The gateway is a single-threaded ESP32 that may be briefly busy (driving a
+    # flap cascade, an in-flight settings transfer) when we ask, so a one-shot fetch
+    # can transiently time out and make a resync a silent no-op. Retry a few times.
+    gw, last_err = None, None
+    for attempt in range(3):
+        try:
+            gw = await fetch_gateway_config(url)
+            break
+        except Exception as e:
+            last_err = e
+            if attempt < 2:
+                await asyncio.sleep(0.4)
+    if gw is None:
+        log.warning("gateway sync failed after retries: %s", last_err)
+        return {"ok": False, "error": str(last_err)}
     patch = build_sync_patch(gw)
     if patch:
         config.update(patch)

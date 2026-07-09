@@ -528,6 +528,15 @@ def test_perapp_location_override(tmp_path):
     assert ps["location_name"] == "Tokyo"
 
 
+def test_gateway_sync_patch_tolerant_of_types():
+    """A grid resync isn't silently dropped if the gateway serializes numbers as
+    strings; junk is ignored so no phantom grid is applied."""
+    from app.gateway import build_sync_patch
+    assert build_sync_patch({"gridRows": 4, "gridCols": 20})["grid"] == {"rows": 4, "cols": 20}
+    assert build_sync_patch({"gridRows": "4", "gridCols": "20"})["grid"] == {"rows": 4, "cols": 20}
+    assert "grid" not in build_sync_patch({"gridRows": "abc", "gridCols": None})
+
+
 def test_gateway_settings_version_gate():
     """Settings-on-gateway needs Gateway 3.1+; older/unknown versions are rejected."""
     from app import gateway
