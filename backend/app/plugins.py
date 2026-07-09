@@ -24,7 +24,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import appaudit, weather
+from . import appaudit, i18n, weather
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -55,6 +55,7 @@ class PluginRuntime:
         self._caches: dict[str, dict] = {}       # app_id -> {pages, fetched_at}
         self._reads: dict[str, dict] = {}        # app_id -> {settings key it reads: default}
         self._wants_weather: dict[str, bool] = {}  # app_id -> fetch() accepts get_weather
+        self._wants_i18n: dict[str, bool] = {}     # app_id -> fetch() accepts i18n
         self._fetch_locks: dict[str, threading.Lock] = {}  # app_id -> serialize its fetches
 
     # -- helpers injected into plugins -------------------------------------
@@ -111,6 +112,7 @@ class PluginRuntime:
         self._caches.clear()
         self._reads.clear()
         self._wants_weather.clear()
+        self._wants_i18n.clear()
         self._fetch_locks.clear()
         # Scan the app dirs once and reuse it (discovery + per-app load).
         scan = self._scan()
@@ -193,7 +195,8 @@ class PluginRuntime:
             return
         if hasattr(mod, "fetch") and callable(mod.fetch):
             self._modules[app_id] = mod
-            self._wants_weather[app_id] = self._fetch_wants_weather(mod.fetch)
+            self._wants_weather[app_id] = self._fetch_accepts(mod.fetch, "get_weather")
+            self._wants_i18n[app_id] = self._fetch_accepts(mod.fetch, "i18n")
             self._fetch_locks[app_id] = threading.Lock()
         else:
             log.error("plugin %s: app.py has no fetch()", app_id)
@@ -207,20 +210,16 @@ class PluginRuntime:
             self._reads[app_id] = {}
 
     @staticmethod
-    def _fetch_wants_weather(fn) -> bool:
-        """True if an app's fetch() opts into the shared weather helper — i.e. it
-        accepts a 5th positional argument or a ``get_weather`` parameter. Apps with
-        the classic 4-arg signature are called unchanged."""
+    def _fetch_accepts(fn, name) -> bool:
+        """True if an app's fetch() declares a parameter called ``name`` (how an
+        app opts into an injected helper like ``get_weather`` or ``i18n``), or
+        accepts arbitrary keywords. Classic 4-arg apps accept neither and are
+        called unchanged."""
         try:
-            params = list(inspect.signature(fn).parameters.values())
+            params = inspect.signature(fn).parameters
         except (TypeError, ValueError):
             return False
-        if any(p.name == "get_weather" for p in params):
-            return True
-        positional = [p for p in params
-                      if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
-        has_varargs = any(p.kind == p.VAR_POSITIONAL for p in params)
-        return has_varargs or len(positional) >= 5
+        return name in params or any(p.kind == p.VAR_KEYWORD for p in params.values())
 
     @staticmethod
     def _scan_reads(src: str) -> dict:
@@ -332,10 +331,12 @@ class PluginRuntime:
                     return cached["pages"]
                 try:
                     ps = self._plugin_settings(app_id, manifest)
-                    args = [ps, self.format_lines, self.get_rows, self.get_cols]
+                    kwargs = {}
                     if self._wants_weather.get(app_id):
-                        args.append(lambda s=None: weather.fetch_current(s if s is not None else ps))
-                    pages = mod.fetch(*args)
+                        kwargs["get_weather"] = lambda s=None: weather.fetch_current(s if s is not None else ps)
+                    if self._wants_i18n.get(app_id):
+                        kwargs["i18n"] = i18n.Localizer(self.settings.get("language", "en"))
+                    pages = mod.fetch(ps, self.format_lines, self.get_rows, self.get_cols, **kwargs)
                     if not isinstance(pages, list):
                         pages = [str(pages)]
                     self._caches[app_id] = {"pages": pages, "fetched_at": now}

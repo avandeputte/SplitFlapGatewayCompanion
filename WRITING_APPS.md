@@ -167,6 +167,30 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None):
 default provider is keyless Open-Meteo, weather works with **no API key**. The
 four-argument signature keeps working unchanged, so `get_weather` is purely opt-in.
 
+### Optional: localization (`i18n`)
+
+If your app shows words (day/month names, status labels), opt into localization by
+adding an `i18n=None` parameter. The runtime binds it to the global **Language**
+setting; on a host without it, `i18n` is `None` and you fall back to English.
+
+```python
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+    from datetime import datetime
+    now = datetime.now()
+    weekday = i18n.weekday(now) if i18n else now.strftime("%A").upper()
+    label = i18n.t("SUNRISE") if i18n else "SUNRISE"
+    return [format_lines(weekday, label)]
+```
+
+- `i18n.weekday(dt, short=False)` / `i18n.month(dt, short=False)` — CLDR-correct,
+  UPPERCASE day/month names for *every* language (via babel).
+- `i18n.t("ENGLISH LABEL")` — a translated UI word; if there's no translation for
+  the current language it returns the English key, so nothing ever breaks. The
+  curated set (see `app/i18n.py`) covers the major Western-European languages;
+  add keys there rather than in your app. Keep translations short — the modules
+  are narrow, and a long word will be trimmed. Both helpers compose with
+  `get_weather`: `def fetch(..., get_weather=None, i18n=None)`.
+
 ### The return value
 
 Return a **list of page strings**. Each should be `rows × cols` characters — i.e.

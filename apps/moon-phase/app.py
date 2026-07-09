@@ -1,9 +1,15 @@
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     from datetime import datetime
     import pytz
     import math
 
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    def t(s):
+        return i18n.t(s) if i18n is not None else s
+
+    try:
+        tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.timezone('US/Eastern')
     now = datetime.now(tz)
 
     # Known new moon: January 6, 2000 18:14 UTC
@@ -38,9 +44,10 @@ def fetch(settings, format_lines, get_rows, get_cols):
     filled = int(illumination * cols)
     bar = 'w' * filled + ' ' * (cols - filled)
 
+    name = t(phase_name)
     pages = [
-        format_lines(phase_name, f'{illum_pct}% LIT', f'FULL IN {int(days_to_full)}D'),
-        format_lines(phase_name, bar, f'NEW IN {int(days_to_new)}D'),
+        format_lines(name, f'{illum_pct}% {t("LIT")}', f'{t("FULL IN")} {int(days_to_full)}D'),
+        format_lines(name, bar, f'{t("NEW IN")} {int(days_to_new)}D'),
     ]
     return pages
 

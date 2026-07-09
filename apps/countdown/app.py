@@ -1,6 +1,9 @@
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     from datetime import datetime
     import pytz
+
+    def t(s):
+        return i18n.t(s) if i18n is not None else s
 
     def get_allowed_chars():
         default_chars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*"
@@ -58,30 +61,20 @@ def fetch(settings, format_lines, get_rows, get_cols):
             return 'D'[:cols]
         return f"{str(days)[:cols - 1]}D"
 
+    def _pick(cols, *words):
+        for w in words:
+            if w and cols >= len(w):
+                return w
+        return (words[-1] or '')[:cols]
+
     def build_arrived_text(cols):
-        if cols >= len('ARRIVED!'):
-            return 'ARRIVED!'
-        if cols >= len('HERE!'):
-            return 'HERE!'
-        if cols >= len('NOW!'):
-            return 'NOW!'
-        return 'GO'[:cols]
+        return _pick(cols, t('ARRIVED') + '!', t('HERE') + '!', t('NOW') + '!', 'GO')
 
     def build_celebration_text(cols):
-        if cols >= len('CELEBRATE!'):
-            return 'CELEBRATE!'
-        if cols >= len('PARTY!'):
-            return 'PARTY!'
-        if cols >= len('YAY!'):
-            return 'YAY!'
-        return ''
+        return _pick(cols, t('CELEBRATE') + '!', t('PARTY') + '!', '')
 
     def build_remaining_text(cols):
-        if cols >= len('REMAINING'):
-            return 'REMAINING'
-        if cols >= len('LEFT'):
-            return 'LEFT'
-        return ''
+        return _pick(cols, t('REMAINING'), t('LEFT'), '')
 
     def build_slot_pages(event, target, now, rows, cols):
         diff = target - now

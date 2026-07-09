@@ -26,11 +26,17 @@ def _latlon(settings, requests):
     return 42.3601, -71.0589
 
 
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import requests
     from datetime import datetime
     import pytz
-    rows = get_rows()
+    rows, cols = get_rows(), get_cols()
+
+    def t(s):
+        return i18n.t(s) if i18n is not None else s
+
+    def line(label, value):                 # label trimmed to fit — never the time
+        return f'{label[:max(1, cols - len(value) - 1)]} {value}'
     try:
         lat, lon = _latlon(settings, requests)
         data = requests.get('https://api.sunrise-sunset.org/json',
@@ -53,9 +59,10 @@ def fetch(settings, format_lines, get_rows, get_cols):
         secs = int(r.get('day_length', 0) or 0)
         length = f'{secs // 3600}H{(secs % 3600) // 60:02d}M'
         if rows == 1:
-            return [format_lines(f'UP {rise} DN {sett}')]
+            return [format_lines(f'{t("UP")} {rise} {t("DN")} {sett}')]
         if rows == 2:
-            return [format_lines(f'SUNRISE {rise}', f'SUNSET {sett}')]
-        return [format_lines(f'SUNRISE  {rise}', f'SUNSET   {sett}', f'DAYLIGHT {length}')]
+            return [format_lines(line(t('SUNRISE'), rise), line(t('SUNSET'), sett))]
+        return [format_lines(line(t('SUNRISE'), rise), line(t('SUNSET'), sett),
+                             line(t('DAYLIGHT'), length))]
     except Exception:
         return [format_lines('SUN TIMES', 'OFFLINE', '')]

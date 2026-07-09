@@ -8,3 +8,4 @@ python-multipart>=0.0.9   # file uploads (app upload endpoint)
 requests>=2.31
 pytz>=2024.1
 yfinance>=0.2.40   # used by the `stocks` app; heavy (pandas/numpy)
+babel>=2.14        # CLDR day/month names for app localization (app/i18n.py)

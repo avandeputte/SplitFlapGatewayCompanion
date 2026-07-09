@@ -1,13 +1,20 @@
 """Dashboard plugin: time + current weather (via the shared weather helper)."""
 
-def fetch(settings, format_lines, get_rows, get_cols, get_weather=None):
+def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=None):
     from datetime import datetime
     import pytz
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    try:
+        tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.timezone('US/Eastern')
     dt = datetime.now(tz)
-    time_page = format_lines(dt.strftime("%A").upper(),
-                             dt.strftime("%b %d %Y").upper(),
-                             dt.strftime("%I:%M %p").upper())
+    if i18n is not None:                     # localized day/month names
+        weekday = i18n.weekday(dt)
+        date_line = f'{i18n.month(dt, short=True)} {dt.day} {dt.year}'
+    else:
+        weekday = dt.strftime("%A").upper()
+        date_line = dt.strftime("%b %d %Y").upper()
+    time_page = format_lines(weekday, date_line, dt.strftime("%I:%M %p").upper())
 
     # Weather comes from the companion's shared helper (global provider + key +
     # location). With no helper (e.g. a bare host), just show the time.

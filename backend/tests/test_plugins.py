@@ -398,6 +398,33 @@ def test_grid_change_clears_page_caches(tmp_path):
     assert "date" not in rt._caches
 
 
+def test_i18n_localizes_labels_and_dates():
+    from datetime import date
+    from app import i18n
+    assert i18n.translate("SUNRISE", "fr") == "LEVER"
+    assert i18n.translate("SUNRISE", "en") == "SUNRISE"      # English -> unchanged
+    assert i18n.translate("SUNRISE", "zz") == "SUNRISE"      # unknown language -> English
+    assert i18n.translate("NOT_A_KEY", "fr") == "NOT_A_KEY"  # unknown key -> English
+    d = date(2026, 1, 5)                                     # a Monday
+    assert i18n.weekday(d, "fr") == "LUNDI" and i18n.weekday(d, "de") == "MONTAG"
+    assert i18n.month(d, "es") == "ENERO"
+
+
+def test_i18n_injected_by_param_name(tmp_path):
+    """An app opts into localization by declaring an i18n parameter; the runtime
+    injects a language-bound helper (a classic app gets nothing)."""
+    rt = _runtime(tmp_path, ["date", "time"])
+    assert rt._wants_i18n.get("date") is True     # date(...) declares i18n
+    assert rt._wants_i18n.get("time") is False    # time(...) does not
+    rt.settings.set("language", "de")
+    from datetime import datetime
+    wd = datetime.now().strftime("%A")
+    de = {"Monday": "MONTAG", "Tuesday": "DIENSTAG", "Wednesday": "MITTWOCH",
+          "Thursday": "DONNERSTAG", "Friday": "FREITAG", "Saturday": "SAMSTAG",
+          "Sunday": "SONNTAG"}[wd]
+    assert any(de in p for p in rt.get_pages("date"))   # weekday shows in German
+
+
 def test_weather_helper_injected_only_when_opted_in(tmp_path):
     """An app opts into the shared weather helper by taking a get_weather param;
     a classic 4-arg app is called unchanged."""
