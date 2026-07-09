@@ -64,6 +64,46 @@ modules), with a gateway-free `sim` mode for development. What's here:
 
 ## Quick start
 
+### Install script (easiest)
+
+One command sets everything up on a Raspberry Pi (Raspberry Pi OS, arm64) or any
+x86-64 Linux box — it installs Docker if needed, asks a few questions, writes a
+`docker-compose` project and starts the companion:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/avandeputte/SplitFlapGatewayCompanion/main/install.sh | bash
+```
+
+It will:
+
+- **install Docker** (`docker-ce`) via `get.docker.com` if it isn't already present;
+- **optionally deploy a Mosquitto MQTT broker** — only needed for the Home Assistant
+  integration. If your **gateway already has a broker configured, skip this**: the
+  companion reuses the gateway's broker automatically. Deploy one here only if you
+  have no broker yet and want HA;
+- ask for your **gateway URL** and, if applicable, the **MQTT password**;
+- create the **companion** container (auto-detecting this host's IP to register a
+  Companion tab back on the gateway);
+- optionally add a **Diun** container to watch the images and report when a newer
+  version is published (Diun *notifies*; it doesn't auto-apply — see below).
+
+The project lands in `/opt/splitflap-companion` (root) or `~/splitflap-companion`,
+as a plain `docker-compose.yml` + `.env` you can edit and re-`up` any time. It's
+fully scriptable for unattended installs — every prompt has an env-var override:
+
+```bash
+GATEWAY_URL=http://192.168.1.50 DEPLOY_MQTT=no AUTO_UPDATE=yes \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/avandeputte/SplitFlapGatewayCompanion/main/install.sh)"
+```
+
+> **On updates:** Diun watches images and *notifies* (wire a target with
+> `DIUN_NOTIF_*` env vars) — it does **not** pull-and-recreate on its own. To apply:
+> `cd <project-dir> && docker compose pull && docker compose up -d`. If you'd rather
+> have updates applied automatically and unattended, swap Diun for
+> [Watchtower](https://containrrr.dev/watchtower/).
+
+Prefer to wire it up by hand? Use Compose or `docker run` directly:
+
 ### Docker (recommended)
 
 ```bash
