@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import hashlib
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -580,5 +582,27 @@ async def gateway_status():
 # ---------------------------------------------------------------------------
 # Static SPA (mounted last so /api/* wins)
 # ---------------------------------------------------------------------------
+def _cache_bust(html: str, static_dir: Path) -> str:
+    """Append ``?v=<content-hash>`` to each SPA asset URL so an updated CSS/JS is
+    fetched fresh without a manual browser cache purge. The query changes only
+    when the file's bytes change (per-file md5), so unchanged assets still cache."""
+    for asset in ("styles.css", "app.js"):
+        p = static_dir / asset
+        if not p.exists():
+            continue
+        ver = hashlib.md5(p.read_bytes()).hexdigest()[:10]
+        html = html.replace(f'"/{asset}"', f'"/{asset}?v={ver}"')
+    return html
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
+async def spa_index():
+    """Serve the SPA shell with cache-busted asset URLs. The shell is tiny and
+    served no-cache, so the current asset hashes are always seen on reload."""
+    html = (STATIC_DIR / "index.html").read_text("utf-8")
+    return HTMLResponse(_cache_bust(html, STATIC_DIR), headers={"Cache-Control": "no-cache"})
+
+
 if STATIC_DIR.exists():
     app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="spa")
