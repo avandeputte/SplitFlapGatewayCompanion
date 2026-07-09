@@ -78,16 +78,15 @@ def _pages(format_lines, title, text, rows, cols):
     lens = [len(w) for w in words]
     if rows == 1:
         return [ln.center(cols)[:cols] for ln in _greedy(words, cols)]
-    body = rows - 1
+    body = rows - 1 if title else rows
     if max(lens) <= cols:
         need = _need_lines(lens, cols)
         if need <= body:
             bal = _balance(words, lens, cols, need)
             if bal is not None:
-                return [format_lines(title, *bal)]
+                return [format_lines(title, *bal)] if title else [format_lines(*bal)]
     lines = _greedy(words, cols)
-    pages = [format_lines(title, *lines[:body])]
-    i = body
+    pages, i = ([format_lines(title, *lines[:body])], body) if title else ([], 0)
     while i < len(lines):
         pages.append(format_lines(*lines[i:i + rows]))
         i += rows
@@ -123,6 +122,6 @@ def fetch(settings, format_lines, get_rows, get_cols):
             return [format_lines('QUOTE', 'NO DATA', '')]
         q, a = best
         text = f'{q.upper()}  - {a.upper()}' if a else q.upper()
-        return _pages(format_lines, 'QUOTE', text, rows, cols)
+        return _pages(format_lines, '', f'QUOTE: {text}', rows, cols)
     except Exception:
         return [format_lines('QUOTE', 'OFFLINE', '')]
