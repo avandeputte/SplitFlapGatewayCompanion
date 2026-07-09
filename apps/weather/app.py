@@ -467,6 +467,8 @@ def fetch(settings, format_lines, get_rows, get_cols):
         lat = weather['lat']
         lon = weather['lon']
 
+        # Only one location is supported, so we don't repeat it on every page —
+        # the current conditions fit on a single consolidated page.
         rows = get_rows()
         if rows == 1:
             pages = [format_lines(f'{temp} {desc}')]
@@ -476,15 +478,10 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 format_lines(f'{hi} {lo}', desc),
             ]
         elif rows == 3:
-            pages = [
-                format_lines(city, f'{temp} {feels}', desc),
-                format_lines(city, f'{hi} {lo}', desc),
-            ]
+            pages = [format_lines(f'{temp} {feels}', f'{hi} {lo}', desc)]
         else:
-            pages = [
-                format_lines(city, f'{temp} {feels}', desc, f'{hi} {lo}'),
-                format_lines(city, f'{hi} {lo}', desc, f'{provider_word} {weather_provider.upper()}'),
-            ]
+            pages = [format_lines(f'{temp} {feels}', f'{hi} {lo}', desc,
+                                  f'{provider_word} {weather_provider.upper()}')]
 
         if show_aqi:
             try:
@@ -520,9 +517,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 elif rows == 2:
                     pages.append(format_lines(f'AQI {aqi_num}', aqi_display))
                 elif rows == 3:
-                    pages.append(format_lines(city, f'AQI {aqi_num}', aqi_display))
+                    pages.append(format_lines('AIR QUALITY', f'AQI {aqi_num}', aqi_display))
                 else:
-                    pages.append(format_lines(city, f'AQI {aqi_num}', aqi_display, f'{provider_word} {weather_provider.upper()}'))
+                    pages.append(format_lines('AIR QUALITY', f'AQI {aqi_num}', aqi_display, f'{provider_word} {weather_provider.upper()}'))
             except Exception:
                 pass
 
@@ -542,9 +539,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
                     elif rows == 2:
                         pages.append(format_lines(f'UV {uv_num}', uv_display))
                     elif rows == 3:
-                        pages.append(format_lines(city, f'UV {uv_num}', uv_display))
+                        pages.append(format_lines(sun_exposure_text, f'UV {uv_num}', uv_display))
                     else:
-                        pages.append(format_lines(city, f'UV {uv_num}', uv_display, sun_exposure_text))
+                        pages.append(format_lines(sun_exposure_text, f'UV {uv_num}', uv_display, ''))
             except Exception:
                 pass
 
@@ -598,12 +595,12 @@ def fetch(settings, format_lines, get_rows, get_cols):
                     if component_displays:
                         pages.append(format_lines(*component_displays))
                 elif rows == 3:
-                    pages.append(format_lines(city, pollen_word, overall_display))
+                    pages.append(format_lines(pollen_word, overall_display))
                     if component_displays:
                         pages.append(format_lines(*component_displays))
                 else:
-                    pages.append(format_lines(city, pollen_word, overall_display, f'{provider_word} {weather_provider.upper()}'))
-                    detail_lines = [city] + component_displays
+                    pages.append(format_lines(pollen_word, overall_display, f'{provider_word} {weather_provider.upper()}'))
+                    detail_lines = list(component_displays)
                     if rows >= 5:
                         detail_lines.append(f'{overall_word} {overall_display}')
                     pages.append(format_lines(*detail_lines))

@@ -177,8 +177,8 @@ a.btn { text-decoration: none; display: inline-block; }
   border-radius: 14px; padding: 3px 9px; font-size: .82rem; }
 .chip button { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 13px; margin: 0; }
 .chip-search { position: relative; }
-.chip-results { position: absolute; z-index: 5; left: 0; right: 0; top: 100%; margin-top: 2px;
-  background: var(--card); border: 1px solid var(--acc); border-radius: 6px; max-height: 200px; overflow-y: auto;
+.chip-results { position: fixed; z-index: 60;
+  background: var(--card); border: 1px solid var(--acc); border-radius: 6px; max-height: 220px; overflow-y: auto;
   box-shadow: 0 6px 20px rgba(0,0,0,.5); }
 .chip-results div { padding: 7px 10px; cursor: pointer; font-size: .85rem; }
 .chip-results div:hover { background: var(--acc); }

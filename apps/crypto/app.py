@@ -12,26 +12,35 @@ def fetch(settings, format_lines, get_rows, get_cols):
         ).json()
     except Exception:
         return [format_lines('CRYPTO', 'ERROR', 'API FAIL')]
-    rows = get_rows()
+    rows, cols = get_rows(), get_cols()
+
+    def price_str(price):
+        return f'{currency}{price:,.0f}' if price >= 1 else f'{currency}{price:.4f}'
+
+    def block(c):
+        """The lines for one coin, sized to the display: price+change together on
+        2+ row displays (with the name too when there are 3+ rows)."""
+        d = r.get(c, {})
+        price, chg = d.get('usd'), d.get('usd_24h_change')
+        sym = c[:6].upper()
+        if price is None:
+            return [f'{sym} ERR']
+        chg_str = (('🟩' if chg >= 0 else '🟥') + f' {chg:+.1f}%') if chg is not None else 'N/A'
+        if rows == 1:
+            return [f'{sym} {price_str(price)}']
+        if rows == 2:
+            return [f'{sym} {price_str(price)}', chg_str]
+        return [c.upper()[:cols], price_str(price), chg_str]   # name / price / change
+
+    lines_per = 1 if rows == 1 else (2 if rows == 2 else 3)
+    per_page = max(1, rows // lines_per)   # how many coins fit on one page
     pages = []
-    for i in range(0, len(coins), rows):
-        chunk = coins[i:i+rows]
-        price_lines, change_lines = [], []
-        for c in chunk:
-            d = r.get(c, {})
-            price = d.get('usd')
-            chg = d.get('usd_24h_change')
-            sym = c[:5].upper()
-            if price is not None:
-                price_lines.append(f'{sym} {currency}{price:,.0f}' if price >= 1 else f'{sym} {currency}{price:.4f}')
-                icon = '🟩' if (chg or 0) >= 0 else '🟥'
-                change_lines.append(f'{sym} {icon}{chg:+.1f}%' if chg is not None else f'{sym} N/A')
-            else:
-                price_lines.append(f'{sym} ERR')
-                change_lines.append(f'{sym} ERR')
-        pad = [''] * (rows - len(chunk))
-        pages.append(format_lines(*(price_lines + pad)))
-        pages.append(format_lines(*(change_lines + pad)))
+    for i in range(0, len(coins), per_page):
+        lines = []
+        for c in coins[i:i + per_page]:
+            b = block(c)
+            lines += b + [''] * (lines_per - len(b))   # pad each block so coins align
+        pages.append(format_lines(*lines))
     return pages or [format_lines('CRYPTO', 'NO DATA', '')]
 
 

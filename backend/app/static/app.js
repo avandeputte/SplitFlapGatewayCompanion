@@ -277,10 +277,30 @@ function mkField(f, values) {
     };
     const search = el("input"); search.placeholder = "Search…";
     const results = el("div", "chip-results"); results.style.display = "none";
+    // The results dropdown floats as a fixed overlay anchored under the input, so
+    // it doesn't inflate the modal body's scroll height (which caused a second,
+    // nested scrollbar). Position it on show and reposition on scroll/resize.
+    const placeResults = () => {
+      const r = search.getBoundingClientRect();
+      results.style.left = r.left + "px";
+      results.style.top = r.bottom + 2 + "px";
+      results.style.width = r.width + "px";
+    };
+    const onReposition = () => placeResults();
+    const showResults = () => {
+      results.style.display = ""; placeResults();
+      window.addEventListener("scroll", onReposition, true);
+      window.addEventListener("resize", onReposition);
+    };
+    const hideResults = () => {
+      results.style.display = "none";
+      window.removeEventListener("scroll", onReposition, true);
+      window.removeEventListener("resize", onReposition);
+    };
     let timer;
     search.addEventListener("input", () => {
       clearTimeout(timer); const q = search.value.trim();
-      if (!q) { results.style.display = "none"; return; }
+      if (!q) { hideResults(); return; }
       timer = setTimeout(async () => {
         try {
           const data = await api(`${f.searchUrl}?q=${encodeURIComponent(q)}`);
@@ -291,14 +311,15 @@ function mkField(f, values) {
             d.onclick = () => {
               if (maxItems === 1) chips = [];
               if (chips.length < maxItems) { chips.push({ value: it.value ?? it.abbr ?? it.id, label: it.label || it.name || it.value }); draw(); onFormChange(); }
-              search.value = ""; results.style.display = "none";
+              search.value = ""; hideResults();
             };
             results.appendChild(d);
           });
-          results.style.display = items.length ? "" : "none";
-        } catch { results.style.display = "none"; }
+          if (items.length) showResults(); else hideResults();
+        } catch { hideResults(); }
       }, 250);
     });
+    search.addEventListener("blur", () => setTimeout(hideResults, 150));
     box.appendChild(chipsDiv); box.appendChild(search); box.appendChild(results); wrap.appendChild(box); draw();
     wrap._getValue = () => chips.map((c) => c.value).join(",");
     wrap._setValue = (v) => { chips = v ? String(v).split(",").filter(Boolean).map((x) => ({ value: x, label: chipLabel(x) })) : []; draw(); };
