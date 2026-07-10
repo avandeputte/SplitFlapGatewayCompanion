@@ -17,6 +17,8 @@ stored keys. ``location`` is a place search that fills ``location_lat`` /
 
 from __future__ import annotations
 
+from . import i18n
+
 CATALOG: list[dict] = [
     {"key": "weather_provider", "label": "Weather Provider", "type": "toggle",
      "default": "openmeteo",
@@ -39,33 +41,10 @@ CATALOG: list[dict] = [
      "searchUrl": "/timezones", "resultKey": "zones", "maxItems": 1,
      "note": "Default timezone for clocks and time-based apps."},
     {"key": "language", "label": "Language", "type": "select", "default": "en-US",
-     # Only languages whose characters fit Windows-1252 (Western/Latin-1) — no
-     # Greek, Cyrillic, CJK, etc., since the modules can't display them.
-     "options": [
-         {"value": "en-US", "label": "English (US)"},
-         {"value": "en-GB", "label": "English (UK)"},
-         {"value": "en-AU", "label": "English (Australia)"},
-         {"value": "fr", "label": "Français (French)"},
-         {"value": "de", "label": "Deutsch (German)"},
-         {"value": "es", "label": "Español (Spanish)"},
-         {"value": "it", "label": "Italiano (Italian)"},
-         {"value": "pt", "label": "Português (Portuguese)"},
-         {"value": "nl", "label": "Nederlands (Dutch)"},
-         {"value": "da", "label": "Dansk (Danish)"},
-         {"value": "no", "label": "Norsk (Norwegian)"},
-         {"value": "sv", "label": "Svenska (Swedish)"},
-         {"value": "fi", "label": "Suomi (Finnish)"},
-         {"value": "is", "label": "Íslenska (Icelandic)"},
-         {"value": "ga", "label": "Gaeilge (Irish)"},
-         {"value": "ca", "label": "Català (Catalan)"},
-         {"value": "gl", "label": "Galego (Galician)"},
-         {"value": "eu", "label": "Euskara (Basque)"},
-         {"value": "et", "label": "Eesti (Estonian)"},
-         {"value": "af", "label": "Afrikaans"},
-         {"value": "id", "label": "Bahasa Indonesia"},
-         {"value": "ms", "label": "Bahasa Melayu (Malay)"},
-         {"value": "sw", "label": "Kiswahili (Swahili)"},
-     ],
+     # The selectable languages live in i18n_data.json (only Windows-1252 /
+     # Western-Latin-1 — no Greek, Cyrillic, CJK, since the modules can't show them).
+     # Includes non-European regional variants (pt-BR, es-MX, fr-CA, …).
+     "options": i18n.LANGUAGE_OPTIONS,
      "note": "The display language for apps that support it (look for the 🌐 badge): it "
              "translates their words and sets date order, number format and 12h/24h. "
              "Currency and holidays follow your Location, not this. Any app can override "

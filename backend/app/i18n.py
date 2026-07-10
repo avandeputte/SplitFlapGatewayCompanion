@@ -3,178 +3,96 @@ i18n.py — shared localization for apps.
 
 Two pieces:
   * CLDR-correct day / month names via babel — authoritative for every language.
-  * A small curated table of the UI words apps show (SUNRISE, FULL MOON, DAYS …),
-    translated into the major Western-European languages. Anything without an
-    entry falls back to the English key, so nothing breaks.
+  * A curated table of the UI words apps show (SUNRISE, FULL MOON, DAYS …),
+    translated into the supported languages. Anything without an entry falls back to
+    the English key, so nothing breaks.
+
+All data — the selectable ``LANGUAGE_OPTIONS`` list, translations, and the default
+currency/country per language — is loaded from ``i18n_data.json`` (see that file's
+per-key context notes). Regional variants inherit their base language: ``pt-BR``
+reuses every ``pt`` translation but resolves to Brazil / BRL.
 
 The runtime binds this to the global Language setting and injects it into any app
-whose ``fetch()`` declares an ``i18n`` parameter (like ``get_weather``); off a
-companion host the app just falls back to English. Translations stay in one place
-instead of being copied into every self-contained app.
+whose ``fetch()`` declares an ``i18n`` parameter (like ``get_weather``); on a host
+without the helper the app just falls back to English. Translations stay in one
+place instead of being copied into every self-contained app.
 """
 
 from __future__ import annotations
 
-# Curated UI strings. Key = the English UPPERCASE word an app already uses; value
-# = {lang: translation}. Only the well-supported languages are filled in; any
-# missing (lang, key) falls back to the English key. Accents are kept — the
-# modules render the Windows-1252 code page directly.
-_STRINGS: dict[str, dict[str, str]] = {
-    # sun-times
-    "SUNRISE":  {"fr": "LEVER", "de": "AUFGANG", "es": "AMANECER", "it": "ALBA", "pt": "NASCER", "nl": "OPKOMST"},
-    "SUNSET":   {"fr": "COUCHER", "de": "UNTERGANG", "es": "OCASO", "it": "TRAMONTO", "pt": "OCASO", "nl": "ONDERGANG"},
-    "DAYLIGHT": {"fr": "JOUR", "de": "TAGESLICHT", "es": "LUZ DIA", "it": "LUCE", "pt": "LUZ DIA", "nl": "DAGLICHT"},
-    "UP":       {"fr": "LEV", "de": "AUF", "es": "SAL", "it": "ALBA", "pt": "NASC", "nl": "OP"},
-    "DN":       {"fr": "COU", "de": "UNT", "es": "OCA", "it": "TRAM", "pt": "OCA", "nl": "OND"},
-    # moon-phase
-    "NEW MOON":        {"fr": "NOUVELLE LUNE", "de": "NEUMOND", "es": "LUNA NUEVA", "it": "LUNA NUOVA", "pt": "LUA NOVA", "nl": "NIEUWE MAAN"},
-    "FULL MOON":       {"fr": "PLEINE LUNE", "de": "VOLLMOND", "es": "LUNA LLENA", "it": "LUNA PIENA", "pt": "LUA CHEIA", "nl": "VOLLE MAAN"},
-    "FIRST QUARTER":   {"fr": "1ER QUARTIER", "de": "1. VIERTEL", "es": "CUARTO CREC.", "it": "PRIMO QUARTO", "pt": "QUARTO CRESC.", "nl": "EERSTE KWART."},
-    "LAST QUARTER":    {"fr": "DERN. QUARTIER", "de": "LETZT. VIERTEL", "es": "CUARTO MENG.", "it": "ULTIMO QUARTO", "pt": "QUARTO MING.", "nl": "LAATSTE KWART."},
-    "WAXING CRESCENT": {"fr": "1ER CROISSANT", "de": "ZUN. SICHEL", "es": "CRECIENTE", "it": "CRESCENTE", "pt": "CRESCENTE", "nl": "WASSEND"},
-    "WANING CRESCENT": {"fr": "DERN. CROISSANT", "de": "ABN. SICHEL", "es": "MENGUANTE", "it": "CALANTE", "pt": "MINGUANTE", "nl": "AFNEMEND"},
-    "WAXING GIBBOUS":  {"fr": "GIBBEUSE CROIS.", "de": "ZUN. MOND", "es": "GIBOSA CREC.", "it": "GIBBOSA CRESC.", "pt": "GIBOSA CRESC.", "nl": "WASSEND"},
-    "WANING GIBBOUS":  {"fr": "GIBBEUSE DECR.", "de": "ABN. MOND", "es": "GIBOSA MENG.", "it": "GIBBOSA CAL.", "pt": "GIBOSA MING.", "nl": "AFNEMEND"},
-    "LIT":     {"fr": "ECLAIRE", "de": "HELL", "es": "ILUM.", "it": "ILLUM.", "pt": "ILUM.", "nl": "VERL."},
-    "FULL IN": {"fr": "PLEINE DANS", "de": "VOLL IN", "es": "LLENA EN", "it": "PIENA IN", "pt": "CHEIA EM", "nl": "VOL OVER"},
-    "NEW IN":  {"fr": "NOUV. DANS", "de": "NEU IN", "es": "NUEVA EN", "it": "NUOVA IN", "pt": "NOVA EM", "nl": "NIEUW OVER"},
-    # countdown / durations
-    "DAYS":    {"fr": "JOURS", "de": "TAGE", "es": "DIAS", "it": "GIORNI", "pt": "DIAS", "nl": "DAGEN"},
-    "HOURS":   {"fr": "HEURES", "de": "STD", "es": "HORAS", "it": "ORE", "pt": "HORAS", "nl": "UUR"},
-    "MINS":    {"fr": "MIN", "de": "MIN", "es": "MIN", "it": "MIN", "pt": "MIN", "nl": "MIN"},
-    "LEFT":    {"fr": "RESTE", "de": "UBRIG", "es": "QUEDAN", "it": "MANCA", "pt": "FALTAM", "nl": "OVER"},
-    "REMAINING": {"fr": "RESTANT", "de": "VERBLEIB.", "es": "RESTANTE", "it": "RIMANENTE", "pt": "RESTANTE", "nl": "RESTEREND"},
-    "ARRIVED": {"fr": "ARRIVE", "de": "DA", "es": "LLEGO", "it": "ARRIVATO", "pt": "CHEGOU", "nl": "AANGEKOMEN"},
-    "HERE":    {"fr": "ICI", "de": "HIER", "es": "AQUI", "it": "QUI", "pt": "AQUI", "nl": "HIER"},
-    "CELEBRATE": {"fr": "FETEZ", "de": "FEIERN", "es": "CELEBRA", "it": "FESTA", "pt": "FESTA", "nl": "VIER"},
-    "PARTY":   {"fr": "FETE", "de": "PARTY", "es": "FIESTA", "it": "FESTA", "pt": "FESTA", "nl": "FEEST"},
-    "TODAY":   {"fr": "AUJOURDHUI", "de": "HEUTE", "es": "HOY", "it": "OGGI", "pt": "HOJE", "nl": "VANDAAG"},
-    "NOW":     {"fr": "MAINTENANT", "de": "JETZT", "es": "AHORA", "it": "ORA", "pt": "AGORA", "nl": "NU"},
-    # weather — condition text (the keyless Open-Meteo provider maps codes to these;
-    # the keyed providers already return localized text from their own API).
-    "CLEAR":          {"fr": "DEGAGE", "de": "KLAR", "es": "DESPEJADO", "it": "SERENO", "pt": "LIMPO", "nl": "HELDER"},
-    "MAINLY CLEAR":   {"fr": "PLUTOT CLAIR", "de": "MEIST KLAR", "es": "MAYORM. CLARO", "it": "POCO NUVOLOSO", "pt": "QUASE LIMPO", "nl": "VNL. HELDER"},
-    "PARTLY CLOUDY":  {"fr": "NUAGEUX", "de": "TEILS WOLKIG", "es": "PARC. NUBLADO", "it": "POCO NUVOLOSO", "pt": "PARC. NUBLADO", "nl": "HALF BEWOLKT"},
-    "OVERCAST":       {"fr": "COUVERT", "de": "BEDECKT", "es": "CUBIERTO", "it": "COPERTO", "pt": "ENCOBERTO", "nl": "BEWOLKT"},
-    "FOG":            {"fr": "BROUILLARD", "de": "NEBEL", "es": "NIEBLA", "it": "NEBBIA", "pt": "NEVOEIRO", "nl": "MIST"},
-    "RIME FOG":       {"fr": "BRUME GIVRANTE", "de": "RAUREIF", "es": "NIEBLA HELADA", "it": "NEBBIA GHIAC.", "pt": "NEVOA GELADA", "nl": "RIJP-MIST"},
-    "LIGHT DRIZZLE":  {"fr": "BRUINE LEGERE", "de": "LEICHT NIESEL", "es": "LLOVIZNA LEVE", "it": "PIOVIGGINE", "pt": "CHUVISCO FRACO", "nl": "LICHTE MOTREG"},
-    "DRIZZLE":        {"fr": "BRUINE", "de": "NIESELN", "es": "LLOVIZNA", "it": "PIOVIGGINE", "pt": "CHUVISCO", "nl": "MOTREGEN"},
-    "HEAVY DRIZZLE":  {"fr": "BRUINE FORTE", "de": "STARK. NIESEL", "es": "LLOVIZNA FTE", "it": "PIOVIGGINE FT", "pt": "CHUVISCO FORTE", "nl": "ZWARE MOTREG"},
-    "LIGHT RAIN":     {"fr": "PLUIE LEGERE", "de": "LEICHT. REGEN", "es": "LLUVIA LEVE", "it": "PIOGGIA LEGG.", "pt": "CHUVA FRACA", "nl": "LICHTE REGEN"},
-    "RAIN":           {"fr": "PLUIE", "de": "REGEN", "es": "LLUVIA", "it": "PIOGGIA", "pt": "CHUVA", "nl": "REGEN"},
-    "HEAVY RAIN":     {"fr": "PLUIE FORTE", "de": "STARKREGEN", "es": "LLUVIA FUERTE", "it": "PIOGGIA FORTE", "pt": "CHUVA FORTE", "nl": "ZWARE REGEN"},
-    "LIGHT FREEZING RAIN": {"fr": "PLUIE VERGLAC.", "de": "L. GEFR. REGEN", "es": "LLUVIA HELADA", "it": "PIOGGIA GELATA", "pt": "CHUVA GELADA", "nl": "LICHTE IJZEL"},
-    "FREEZING RAIN":  {"fr": "PLUIE VERGLAC.", "de": "GEFRIER-REGEN", "es": "LLUVIA HELADA", "it": "PIOGGIA GELATA", "pt": "CHUVA GELADA", "nl": "IJZEL"},
-    "LIGHT SNOW":     {"fr": "NEIGE LEGERE", "de": "LEICHT SCHNEE", "es": "NIEVE LEVE", "it": "NEVE LEGGERA", "pt": "NEVE FRACA", "nl": "LICHTE SNEEUW"},
-    "SNOW":           {"fr": "NEIGE", "de": "SCHNEE", "es": "NIEVE", "it": "NEVE", "pt": "NEVE", "nl": "SNEEUW"},
-    "HEAVY SNOW":     {"fr": "NEIGE FORTE", "de": "STARK. SCHNEE", "es": "NIEVE FUERTE", "it": "NEVE FORTE", "pt": "NEVE FORTE", "nl": "ZWARE SNEEUW"},
-    "SNOW GRAINS":    {"fr": "GRAINS NEIGE", "de": "SCHNEEGRIESEL", "es": "GRANIZO NIEVE", "it": "NEVE GRANUL.", "pt": "NEVE GRANULAR", "nl": "KORRELSNEEUW"},
-    "RAIN SHOWERS":   {"fr": "AVERSES", "de": "REGENSCHAUER", "es": "CHUBASCOS", "it": "ROVESCI", "pt": "AGUACEIROS", "nl": "REGENBUIEN"},
-    "HEAVY SHOWERS":  {"fr": "AVERSES FORTES", "de": "STARK. SCHAUER", "es": "CHUBASCOS FTES", "it": "ROVESCI FORTI", "pt": "AGUAC. FORTES", "nl": "ZWARE BUIEN"},
-    "SNOW SHOWERS":   {"fr": "AVERSES NEIGE", "de": "SCHNEESCHAUER", "es": "CHUBASCOS NIEVE", "it": "ROVESCI NEVE", "pt": "AGUAC. NEVE", "nl": "SNEEUWBUIEN"},
-    "HEAVY SNOW SHOWERS": {"fr": "AVERSES NEIGE", "de": "SCHNEESCHAUER", "es": "CHUBASCOS NIEVE", "it": "ROVESCI NEVE", "pt": "AGUAC. NEVE", "nl": "SNEEUWBUIEN"},
-    "THUNDERSTORM":   {"fr": "ORAGE", "de": "GEWITTER", "es": "TORMENTA", "it": "TEMPORALE", "pt": "TROVOADA", "nl": "ONWEER"},
-    "THUNDER HAIL":   {"fr": "ORAGE GRELE", "de": "GEWITTER HAGEL", "es": "TORM. GRANIZO", "it": "TEMP. GRANDINE", "pt": "TROV. GRANIZO", "nl": "ONWEER HAGEL"},
-    "SEVERE TSTORM":  {"fr": "ORAGE VIOLENT", "de": "SCHW. GEWITTER", "es": "TORM. FUERTE", "it": "TEMP. VIOLENTO", "pt": "TROV. FORTE", "nl": "ZWAAR ONWEER"},
-    "CURRENT CONDITIONS": {"fr": "CONDITIONS", "de": "WETTER", "es": "TIEMPO", "it": "METEO", "pt": "TEMPO", "nl": "WEER"},
-    # weather — labels + qualitative levels (computed in-app for every provider)
-    "FEELS":       {"fr": "RESSENTI", "de": "GEFUHLT", "es": "SENSAC.", "it": "PERCEP.", "pt": "SENSAC.", "nl": "GEVOELD"},
-    "FLS":         {"fr": "RES", "de": "GEF", "es": "SEN", "it": "PER", "pt": "SEN", "nl": "GVL"},
-    "AIR QUALITY": {"fr": "QUALITE AIR", "de": "LUFTQUALITAT", "es": "CALIDAD AIRE", "it": "QUALITA ARIA", "pt": "QUALID. AR", "nl": "LUCHTKWAL."},
-    "SUN EXPOSURE":{"fr": "EXPO SOLEIL", "de": "UV-BELASTUNG", "es": "EXPO SOLAR", "it": "ESPOS. SOLE", "pt": "EXPO SOLAR", "nl": "ZONKRACHT"},
-    "SUN UV":      {"fr": "UV SOLEIL", "de": "SONNE UV", "es": "UV SOLAR", "it": "UV SOLE", "pt": "UV SOLAR", "nl": "ZON UV"},
-    "POLLEN":      {"fr": "POLLEN", "de": "POLLEN", "es": "POLEN", "it": "POLLINE", "pt": "POLEN", "nl": "POLLEN"},
-    "OVERALL":     {"fr": "GLOBAL", "de": "GESAMT", "es": "TOTAL", "it": "TOTALE", "pt": "GERAL", "nl": "TOTAAL"},
-    "OVR":         {"fr": "GLB", "de": "GES", "es": "TOT", "it": "TOT", "pt": "GER", "nl": "TOT"},
-    "GRASS":       {"fr": "HERBE", "de": "GRAS", "es": "HIERBA", "it": "ERBA", "pt": "RELVA", "nl": "GRAS"},
-    "GRS":         {"fr": "HRB", "de": "GRA", "es": "HIE", "it": "ERB", "pt": "REL", "nl": "GRS"},
-    "TREE":        {"fr": "ARBRE", "de": "BAUM", "es": "ARBOL", "it": "ALBERO", "pt": "ARVORE", "nl": "BOOM"},
-    "TRE":         {"fr": "ARB", "de": "BAU", "es": "ARB", "it": "ALB", "pt": "ARV", "nl": "BOM"},
-    "WEED":        {"fr": "HERBACEE", "de": "UNKRAUT", "es": "MALEZA", "it": "ERBACCE", "pt": "ERVAS", "nl": "ONKRUID"},
-    "WED":         {"fr": "HER", "de": "UNK", "es": "MAL", "it": "ERB", "pt": "ERV", "nl": "ONK"},
-    "PROV":        {"fr": "SRCE", "de": "QUELLE", "es": "FUENTE", "it": "FONTE", "pt": "FONTE", "nl": "BRON"},
-    "PRV":         {"fr": "SRC", "de": "QLE", "es": "FTE", "it": "FNT", "pt": "FNT", "nl": "BRN"},
-    "GOOD":        {"fr": "BON", "de": "GUT", "es": "BUENA", "it": "BUONA", "pt": "BOA", "nl": "GOED"},
-    "FAIR":        {"fr": "CORRECT", "de": "MASSIG", "es": "ACEPTABLE", "it": "DISCRETA", "pt": "RAZOAVEL", "nl": "REDELIJK"},
-    "MODERATE":    {"fr": "MODERE", "de": "MASSIG", "es": "MODERADA", "it": "MODERATA", "pt": "MODERADA", "nl": "MATIG"},
-    "POOR":        {"fr": "MAUVAIS", "de": "SCHLECHT", "es": "MALA", "it": "SCARSA", "pt": "FRACA", "nl": "SLECHT"},
-    "V.POOR":      {"fr": "TRES MAUVAIS", "de": "SEHR SCHL.", "es": "MUY MALA", "it": "PESSIMA", "pt": "MUITO FRACA", "nl": "ZEER SLECHT"},
-    "MOD":         {"fr": "MOYEN", "de": "MITTEL", "es": "MODER.", "it": "MEDIO", "pt": "MODER.", "nl": "MATIG"},
-    "USG":         {"fr": "SENSIBLES", "de": "EMPFINDL.", "es": "SENSIBLES", "it": "SENSIBILI", "pt": "SENSIVEIS", "nl": "GEVOELIG"},
-    "UNHEALTHY":   {"fr": "MALSAIN", "de": "UNGESUND", "es": "INSALUBRE", "it": "MALSANO", "pt": "INSALUBRE", "nl": "ONGEZOND"},
-    "V.UNHLTHY":   {"fr": "TRES MALSAIN", "de": "SEHR UNGESUND", "es": "MUY INSALUBRE", "it": "MOLTO MALSANO", "pt": "MUITO INSALUB", "nl": "ZEER ONGEZOND"},
-    "HAZARDOUS":   {"fr": "DANGEREUX", "de": "GEFAHRLICH", "es": "PELIGROSA", "it": "PERICOLOSA", "pt": "PERIGOSA", "nl": "GEVAARLIJK"},
-    "LOW":         {"fr": "FAIBLE", "de": "NIEDRIG", "es": "BAJO", "it": "BASSO", "pt": "BAIXO", "nl": "LAAG"},
-    "HIGH":        {"fr": "ELEVE", "de": "HOCH", "es": "ALTO", "it": "ALTO", "pt": "ALTO", "nl": "HOOG"},
-    "V.HIGH":      {"fr": "TRES ELEVE", "de": "SEHR HOCH", "es": "MUY ALTO", "it": "MOLTO ALTO", "pt": "MUITO ALTO", "nl": "ZEER HOOG"},
-    "EXTREME":     {"fr": "EXTREME", "de": "EXTREM", "es": "EXTREMO", "it": "ESTREMO", "pt": "EXTREMO", "nl": "EXTREEM"},
-    "NONE":        {"fr": "AUCUN", "de": "KEIN", "es": "NINGUNO", "it": "NESSUNO", "pt": "NENHUM", "nl": "GEEN"},
-    "UNKNOWN":     {"fr": "INCONNU", "de": "UNBEKANNT", "es": "DESCON.", "it": "SCONOSC.", "pt": "DESCON.", "nl": "ONBEKEND"},
-    # precious metals
-    "GOLD":       {"fr": "OR", "de": "GOLD", "es": "ORO", "it": "ORO", "pt": "OURO", "nl": "GOUD"},
-    "SILVER":     {"fr": "ARGENT", "de": "SILBER", "es": "PLATA", "it": "ARGENTO", "pt": "PRATA", "nl": "ZILVER"},
-    "PLATINUM":   {"fr": "PLATINE", "de": "PLATIN", "es": "PLATINO", "it": "PLATINO", "pt": "PLATINA", "nl": "PLATINA"},
-    "PALLADIUM":  {"fr": "PALLADIUM", "de": "PALLADIUM", "es": "PALADIO", "it": "PALLADIO", "pt": "PALADIO", "nl": "PALLADIUM"},
-    "SPOT PRICE": {"fr": "COURS", "de": "KURS", "es": "PRECIO", "it": "PREZZO", "pt": "PRECO", "nl": "KOERS"},
-    # time-since
-    "TIME SINCE":   {"fr": "DEPUIS", "de": "SEIT", "es": "DESDE", "it": "DA", "pt": "DESDE", "nl": "SINDS"},
-    "NOT YET":      {"fr": "PAS ENCORE", "de": "NOCH NICHT", "es": "AUN NO", "it": "NON ANCORA", "pt": "AINDA NAO", "nl": "NOG NIET"},
-    "STARTED":      {"fr": "COMMENCE", "de": "GESTARTET", "es": "EMPEZADO", "it": "INIZIATO", "pt": "INICIADO", "nl": "GESTART"},
-    "INVALID DATE": {"fr": "DATE INVALIDE", "de": "UNGULT. DATUM", "es": "FECHA INVALIDA", "it": "DATA NON VALIDA", "pt": "DATA INVALIDA", "nl": "ONGELDIGE DATUM"},
-    # wiki-today
-    "FEATURED":  {"fr": "A LA UNE", "de": "ARTIKEL", "es": "DESTACADO", "it": "IN VETRINA", "pt": "DESTAQUE", "nl": "UITGELICHT"},
-    "MOST READ": {"fr": "TOP LUS", "de": "MEISTGELESEN", "es": "MAS LEIDO", "it": "PIU LETTI", "pt": "MAIS LIDO", "nl": "MEEST GELEZEN"},
-    # word-of-the-day
-    "WORD OF THE DAY": {"fr": "MOT DU JOUR", "de": "WORT DES TAGES", "es": "PALABRA DEL DIA", "it": "PAROLA DEL GIORNO", "pt": "PALAVRA DO DIA", "nl": "WOORD VAN DE DAG"},
-    # holidays
-    "NEXT HOLIDAY": {"fr": "PROCHAIN CONGE", "de": "NAECHSTER FEIERTAG", "es": "PROX. FESTIVO", "it": "PROSS. FESTA", "pt": "PROX. FERIADO", "nl": "VOLGENDE FEESTDAG"},
-    "IN":           {"fr": "DANS", "de": "IN", "es": "EN", "it": "TRA", "pt": "EM", "nl": "OVER"},
-    # shared status labels (reused across many apps — add once, reuse on every conversion)
-    "OFFLINE":  {"fr": "HORS LIGNE", "de": "OFFLINE", "es": "SIN CONEXION", "it": "OFFLINE", "pt": "OFFLINE", "nl": "OFFLINE"},
-    "NO DATA":  {"fr": "PAS DE DONNEES", "de": "KEINE DATEN", "es": "SIN DATOS", "it": "NESSUN DATO", "pt": "SEM DADOS", "nl": "GEEN DATA"},
-    "ERROR":    {"fr": "ERREUR", "de": "FEHLER", "es": "ERROR", "it": "ERRORE", "pt": "ERRO", "nl": "FOUT"},
-    # tides
-    "TIDES":     {"fr": "MAREES", "de": "GEZEITEN", "es": "MAREAS", "it": "MAREE", "pt": "MARES", "nl": "GETIJDEN"},
-    "HIGH TIDE": {"fr": "MAREE HAUTE", "de": "FLUT", "es": "PLEAMAR", "it": "ALTA MAREA", "pt": "PREIA-MAR", "nl": "VLOED"},
-    "LOW TIDE":  {"fr": "MAREE BASSE", "de": "EBBE", "es": "BAJAMAR", "it": "BASSA MAREA", "pt": "BAIXA-MAR", "nl": "EB"},
-    "CHECK STATION": {"fr": "VERIF STATION", "de": "STATION PRUEF", "es": "VER ESTACION", "it": "VERIF STAZIONE", "pt": "VER ESTACAO", "nl": "STATION CHECK"},
-    # aurora
-    "AURORA":       {"fr": "AURORE", "de": "POLARLICHT", "es": "AURORA", "it": "AURORA", "pt": "AURORA", "nl": "NOORDERLICHT"},
-    "QUIET":        {"fr": "CALME", "de": "RUHIG", "es": "TRANQUILO", "it": "QUIETE", "pt": "CALMO", "nl": "RUSTIG"},
-    "UNSETTLED":    {"fr": "AGITE", "de": "UNRUHIG", "es": "INESTABLE", "it": "INSTABILE", "pt": "INSTAVEL", "nl": "ONRUSTIG"},
-    "MINOR STORM":  {"fr": "ORAGE MINEUR", "de": "KL. STURM", "es": "TORM. MENOR", "it": "TEMP. MINORE", "pt": "TORM. MENOR", "nl": "KL. STORM"},
-    "STRONG STORM": {"fr": "ORAGE FORT", "de": "STARK. STURM", "es": "TORM. FUERTE", "it": "TEMP. FORTE", "pt": "TORM. FORTE", "nl": "ZWARE STORM"},
-    "SEVERE STORM": {"fr": "ORAGE SEVERE", "de": "SCHW. STURM", "es": "TORM. SEVERA", "it": "TEMP. SEVERO", "pt": "TORM. SEVERA", "nl": "HEVIGE STORM"},
-    # rocket-launch
-    "NEXT LAUNCH": {"fr": "PROCH. LANCEMENT", "de": "NAECHST. START", "es": "PROX. LANZAMIENTO", "it": "PROSS. LANCIO", "pt": "PROX. LANCAMENTO", "nl": "VOLGENDE START"},
-    "MISSION":     {"fr": "MISSION", "de": "MISSION", "es": "MISION", "it": "MISSIONE", "pt": "MISSAO", "nl": "MISSIE"},
-    "IMMINENT":    {"fr": "IMMINENT", "de": "UNMITTELBAR", "es": "INMINENTE", "it": "IMMINENTE", "pt": "IMINENTE", "nl": "OP KOMST"},
-    "SCHEDULED":   {"fr": "PREVU", "de": "GEPLANT", "es": "PROGRAMADO", "it": "PREVISTO", "pt": "AGENDADO", "nl": "GEPLAND"},
-    # formula1
-    "NEXT GP":         {"fr": "PROCHAIN GP", "de": "NAECHSTER GP", "es": "PROXIMO GP", "it": "PROSSIMO GP", "pt": "PROXIMO GP", "nl": "VOLGENDE GP"},
-    "NEXT GRAND PRIX": {"fr": "PROCHAIN GP", "de": "NAECHSTER GP", "es": "PROXIMO GP", "it": "PROSSIMO GP", "pt": "PROXIMO GP", "nl": "VOLGENDE GP"},
-    "RACE WEEKEND":    {"fr": "WEEKEND COURSE", "de": "RENN-WOCHENENDE", "es": "FIN DE SEMANA", "it": "WEEKEND GARA", "pt": "FIM DE SEMANA", "nl": "RACEWEEKEND"},
-    "SEASON":          {"fr": "SAISON", "de": "SAISON", "es": "TEMPORADA", "it": "STAGIONE", "pt": "TEMPORADA", "nl": "SEIZOEN"},
-    "OVER":            {"fr": "TERMINEE", "de": "VORBEI", "es": "TERMINADA", "it": "FINITA", "pt": "TERMINADA", "nl": "VOORBIJ"},
-    "CHAMPIONSHIP":    {"fr": "CHAMPIONNAT", "de": "MEISTERSCHAFT", "es": "CAMPEONATO", "it": "CAMPIONATO", "pt": "CAMPEONATO", "nl": "KAMPIOENSCHAP"},
-    "LEADER":          {"fr": "LEADER", "de": "FUEHRENDER", "es": "LIDER", "it": "LEADER", "pt": "LIDER", "nl": "LEIDER"},
-    "POINTS":          {"fr": "POINTS", "de": "PUNKTE", "es": "PUNTOS", "it": "PUNTI", "pt": "PONTOS", "nl": "PUNTEN"},
-    "PTS":             {"fr": "PTS", "de": "PKT", "es": "PTS", "it": "PTI", "pt": "PTS", "nl": "PNT"},
-    # bitcoin fear & greed (index classifications, as the API returns them)
-    "FEAR":          {"fr": "PEUR", "de": "ANGST", "es": "MIEDO", "it": "PAURA", "pt": "MEDO", "nl": "ANGST"},
-    "GREED":         {"fr": "AVIDITE", "de": "GIER", "es": "CODICIA", "it": "AVIDITA", "pt": "GANANCIA", "nl": "HEBZUCHT"},
-    "NEUTRAL":       {"fr": "NEUTRE", "de": "NEUTRAL", "es": "NEUTRAL", "it": "NEUTRO", "pt": "NEUTRO", "nl": "NEUTRAAL"},
-    "EXTREME FEAR":  {"fr": "PEUR EXTREME", "de": "EXTR. ANGST", "es": "MIEDO EXTREMO", "it": "PAURA ESTREMA", "pt": "MEDO EXTREMO", "nl": "EXTR. ANGST"},
-    "EXTREME GREED": {"fr": "AVIDITE EXTREME", "de": "EXTREME GIER", "es": "CODICIA EXTREMA", "it": "AVIDITA ESTREMA", "pt": "GANANCIA EXTREMA", "nl": "EXTREME HEBZUCHT"},
-}
+import json
+import os
+
+# All localization data — the selectable language list, curated UI strings,
+# duration-unit suffixes, holiday-name translations, and the default currency/country
+# a language implies — lives in i18n_data.json so it can be edited, corrected, or
+# extended with a whole new language without touching this module. A missing or
+# invalid file degrades gracefully, so the lookups below just return their
+# English/None defaults and apps keep working in English.
+_DATA_PATH = os.path.join(os.path.dirname(__file__), "i18n_data.json")
+
+# Minimal fallback so the Language selector is never empty if the data file is
+# missing/broken (the runtime still works, just English-only).
+_DEFAULT_LANGUAGES = [{"value": "en-US", "label": "English (US)"}]
+
+
+def _translations(section):
+    """Flatten a data section into the runtime ``{key: {lang: value}}`` lookup. Each
+    entry in the file is ``{"context": "...", "translations": {lang: value}}`` (the
+    context note is for translators only); a bare ``{lang: value}`` is also accepted."""
+    out = {}
+    for key, entry in (section or {}).items():
+        if isinstance(entry, dict) and "translations" in entry:
+            out[key] = entry["translations"]
+        elif isinstance(entry, dict):
+            out[key] = entry
+    return out
+
+
+def _load_i18n_data():
+    try:
+        with open(_DATA_PATH, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        data = {}
+    return (_translations(data.get("strings")),
+            _translations(data.get("duration_units")),
+            _translations(data.get("holidays")),
+            data.get("base_currency", {}),
+            data.get("country", {}),
+            data.get("languages") or _DEFAULT_LANGUAGES)
+
+
+(_STRINGS, _DURATION_UNITS, _HOLIDAYS, _BASE_CURRENCY, _COUNTRY,
+ LANGUAGE_OPTIONS) = _load_i18n_data()
+
+
+def _base_lang(lang):
+    """The base language subtag: ``pt-BR`` / ``pt_BR`` -> ``pt``, ``de`` -> ``de``."""
+    return str(lang or "").replace("_", "-").split("-")[0].lower()
+
+
+def _localized(table, key, lang, default):
+    """Look up ``key`` in a ``{lang: value}`` table, trying the full language code
+    first and then its base subtag, so a regional variant (``pt-BR``) inherits the
+    base language (``pt``) wherever it has no entry of its own."""
+    variants = table.get(key)
+    if not variants:
+        return default
+    code = str(lang or "").lower()
+    if code in variants:
+        return variants[code]
+    base = _base_lang(lang)
+    if base in variants:
+        return variants[base]
+    return default
 
 
 def translate(text, lang):
     """English UI string -> localized (or the English key if unknown/English)."""
-    if not lang or lang.lower().startswith("en"):
+    if not lang or _base_lang(lang) == "en":
         return text
-    return _STRINGS.get(text, {}).get(lang.lower(), text)
+    return _localized(_STRINGS, text, lang, text)
 
 
 def _babel_locale(lang):
@@ -219,28 +137,16 @@ def date(dt, lang, short=False, year=False):
         return f"{base} {dt.year}" if year else base
 
 
-# Compact duration-unit suffixes ("175D 7H 52M"). The day is where languages truly
-# diverge (French JOUR->J, German TAG->T, Italian GIORNO->G, Dutch hour UUR->U); the
-# rest are near-universal single letters.
-_DURATION_UNITS = {
-    "Y": {"fr": "A", "de": "J", "es": "A", "it": "A", "pt": "A", "nl": "J"},   # year (an/Jahr/año…)
-    "D": {"fr": "J", "de": "T", "es": "D", "it": "G", "pt": "D", "nl": "D"},
-    "H": {"fr": "H", "de": "H", "es": "H", "it": "H", "pt": "H", "nl": "U"},
-    "M": {"fr": "M", "de": "M", "es": "M", "it": "M", "pt": "M", "nl": "M"},
-    "S": {"fr": "S", "de": "S", "es": "S", "it": "S", "pt": "S", "nl": "S"},
-}
-
-
 def duration_unit(key, lang):
     """Localized single-letter duration suffix (D/H/M/S) -> e.g. J/H/M/S in French."""
-    if not lang or lang.lower().startswith("en"):
+    if not lang or _base_lang(lang) == "en":
         return key
-    return _DURATION_UNITS.get(key, {}).get(lang.lower(), key)
+    return _localized(_DURATION_UNITS, key, lang, key)
 
 
 def uses_24h(lang):
     """AM/PM is essentially an English-language convention; everyone else is 24h."""
-    return not (not lang or lang.lower().startswith("en"))
+    return bool(lang) and _base_lang(lang) != "en"
 
 
 # Non-ASCII group separators CLDR uses (French narrow/no-break spaces) — the flap
@@ -250,7 +156,7 @@ _GROUP_SPACES = ("\u202f", "\u00a0", "\u2009")
 
 def number(value, lang, decimals=2, grouping=True):
     """Format a number with the locale's own separators: 1,234.5 (en) vs 1.234,5
-    (de/es/it/…) vs 1 234,5 (fr). Falls back to English grouping off-companion."""
+    (de/es/it/…) vs 1 234,5 (fr). Falls back to English grouping without babel."""
     try:
         from babel.numbers import format_decimal
         pattern = ("#,##0" if grouping else "0") + ("." + "0" * decimals if decimals > 0 else "")
@@ -265,64 +171,21 @@ def number(value, lang, decimals=2, grouping=True):
     return s
 
 
-# The "home" currency implied by a language/region, used as the default base for FX:
-# US -> USD, UK -> GBP, Australia -> AUD, the rest of Western Europe -> EUR. Users can
-# always override the base explicitly.
-_BASE_CURRENCY = {
-    "en": "USD", "en-us": "USD", "en-gb": "GBP", "en-au": "AUD",
-    "fr": "EUR", "de": "EUR", "es": "EUR", "it": "EUR", "pt": "EUR", "nl": "EUR",
-}
-
-
 def base_currency(lang):
-    return _BASE_CURRENCY.get((lang or "en").lower(), "USD")
-
-
-# The country a language/region implies — for holidays (which calendar to show) and
-# any other country-scoped data. English splits by region; others use their homeland.
-_COUNTRY = {
-    "en": "US", "en-us": "US", "en-gb": "GB", "en-au": "AU",
-    "fr": "FR", "de": "DE", "es": "ES", "it": "IT", "pt": "PT", "nl": "NL",
-}
+    """The "home" currency a language/region implies (the default base for FX): US ->
+    USD, UK -> GBP, Brazil -> BRL, the rest of Western Europe -> EUR. From
+    i18n_data.json; a regional variant (``pt-BR``) wins over its base (``pt``), and
+    unknown languages default to USD. Users can override explicitly."""
+    code = str(lang or "en").lower()
+    return _BASE_CURRENCY.get(code) or _BASE_CURRENCY.get(_base_lang(lang or "en"), "USD")
 
 
 def country(lang):
-    return _COUNTRY.get((lang or "en").lower(), "US")
-
-
-# Common public-holiday names -> localized. Most countries' holiday source already
-# returns names in the country's own language, but some (e.g. Canada) return only
-# English, so a French speaker in Quebec still gets English. This maps the widely
-# shared holidays; anything not here keeps its native name. Keyed by lowercased
-# English name (as the holiday source returns it).
-_HOLIDAYS = {
-    "new year's day":   {"fr": "Jour de l'An", "de": "Neujahr", "es": "Año Nuevo", "it": "Capodanno", "pt": "Ano Novo", "nl": "Nieuwjaar"},
-    "epiphany":         {"fr": "Épiphanie", "de": "Heilige Drei Könige", "es": "Epifanía", "it": "Epifania", "pt": "Dia de Reis", "nl": "Driekoningen"},
-    "good friday":      {"fr": "Vendredi Saint", "de": "Karfreitag", "es": "Viernes Santo", "it": "Venerdì Santo", "pt": "Sexta-feira Santa", "nl": "Goede Vrijdag"},
-    "easter sunday":    {"fr": "Pâques", "de": "Ostersonntag", "es": "Domingo de Pascua", "it": "Pasqua", "pt": "Páscoa", "nl": "Eerste Paasdag"},
-    "easter monday":    {"fr": "Lundi de Pâques", "de": "Ostermontag", "es": "Lunes de Pascua", "it": "Lunedì dell'Angelo", "pt": "Segunda de Páscoa", "nl": "Tweede Paasdag"},
-    "labour day":       {"fr": "Fête du Travail", "de": "Tag der Arbeit", "es": "Día del Trabajo", "it": "Festa del Lavoro", "pt": "Dia do Trabalhador", "nl": "Dag van de Arbeid"},
-    "labor day":        {"fr": "Fête du Travail", "de": "Tag der Arbeit", "es": "Día del Trabajo", "it": "Festa del Lavoro", "pt": "Dia do Trabalhador", "nl": "Dag van de Arbeid"},
-    "ascension day":    {"fr": "Ascension", "de": "Christi Himmelfahrt", "es": "Ascensión", "it": "Ascensione", "pt": "Ascensão", "nl": "Hemelvaart"},
-    "whit sunday":      {"fr": "Pentecôte", "de": "Pfingstsonntag", "es": "Pentecostés", "it": "Pentecoste", "pt": "Pentecostes", "nl": "Eerste Pinksterdag"},
-    "whit monday":      {"fr": "Lundi de Pentecôte", "de": "Pfingstmontag", "es": "Lunes de Pentecostés", "it": "Lunedì di Pentecoste", "pt": "Segunda de Pentecostes", "nl": "Tweede Pinksterdag"},
-    "corpus christi":   {"fr": "Fête-Dieu", "de": "Fronleichnam", "es": "Corpus Christi", "it": "Corpus Domini", "pt": "Corpo de Deus", "nl": "Sacramentsdag"},
-    "assumption day":   {"fr": "Assomption", "de": "Mariä Himmelfahrt", "es": "Asunción", "it": "Assunzione", "pt": "Assunção", "nl": "Maria-Tenhemelopneming"},
-    "all saints' day":  {"fr": "Toussaint", "de": "Allerheiligen", "es": "Todos los Santos", "it": "Ognissanti", "pt": "Todos os Santos", "nl": "Allerheiligen"},
-    "christmas day":    {"fr": "Noël", "de": "Weihnachten", "es": "Navidad", "it": "Natale", "pt": "Natal", "nl": "Kerstmis"},
-    "st. stephen's day":{"fr": "Saint-Étienne", "de": "Stefanitag", "es": "San Esteban", "it": "Santo Stefano", "pt": "Dia de Santo Estêvão", "nl": "Tweede Kerstdag"},
-    "boxing day":       {"fr": "Lendemain de Noël", "de": "Zweiter Weihnachtsfeiertag", "es": "San Esteban", "it": "Santo Stefano", "pt": "Boxing Day", "nl": "Tweede Kerstdag"},
-    # Canada / Quebec (the source returns these only in English)
-    "canada day":       {"fr": "Fête du Canada"},
-    "victoria day":     {"fr": "Journée des Patriotes"},
-    "thanksgiving":     {"fr": "Action de grâce"},
-    "remembrance day":  {"fr": "Jour du Souvenir"},
-    "family day":       {"fr": "Jour de la famille"},
-    "civic holiday":    {"fr": "Congé civique"},
-    "national holiday": {"fr": "Fête nationale"},
-    "national day for truth and reconciliation": {"fr": "Journée de la vérité et réconciliation"},
-    "saint-jean-baptiste day": {"fr": "Fête nationale du Québec"},
-}
+    """The country a language/region implies — for holidays (which calendar to show)
+    and other country-scoped data. Regional variants split by country (``pt-BR`` ->
+    BR, ``pt`` -> PT); from i18n_data.json, unknown languages default to US."""
+    code = str(lang or "en").lower()
+    return _COUNTRY.get(code) or _COUNTRY.get(_base_lang(lang or "en"), "US")
 
 
 def holiday(name, lang):
@@ -330,7 +193,7 @@ def holiday(name, lang):
     then keeps the source's native name)."""
     if not lang or not name:
         return None
-    return _HOLIDAYS.get(str(name).strip().lower(), {}).get((lang or "").lower())
+    return _localized(_HOLIDAYS, str(name).strip().lower(), lang, None)
 
 
 def clock(dt, lang, seconds=False, ampm_space=True):

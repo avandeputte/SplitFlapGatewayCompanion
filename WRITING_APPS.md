@@ -227,10 +227,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
   a currency/FX app. English is split by region (`en-US`/`en-GB`/`en-AU`), which also
   drives date order — `i18n.date()` gives `JULY 9` for US but `9 JULY` for UK/AU.
 - `i18n.t("ENGLISH LABEL")` — a translated UI word; if there's no translation for
-  the current language it returns the English key, so nothing ever breaks. The
-  curated set (see `app/i18n.py`) covers the major Western-European languages;
-  add keys there rather than in your app. Keep translations short — the modules
-  are narrow, and a long word will be trimmed.
+  the current language it returns the English key, so nothing ever breaks. The data
+  lives in `app/i18n_data.json` (the language list, translations, and per-language
+  default currency/country). Add keys or languages there rather than in your app,
+  give each key a generic `context` note for translators, and keep translations short
+  — the modules are narrow, and a long word will be trimmed. A regional variant like
+  `pt-BR` automatically inherits every `pt` translation.
 
 Localization is grammar, not word-swapping: name the hour before the minutes in
 Romance languages, honor date order, spell numbers the way the language does. When
