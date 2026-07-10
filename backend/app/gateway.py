@@ -111,6 +111,22 @@ async def post_companion(gateway_url: str, *, url: str | None = None,
         return False
 
 
+async def home_all(gateway_url: str, timeout: float = 10.0) -> bool:
+    """Broadcast a Home to every module via ``POST /api/flap/home {"id": -1}``.
+
+    The gateway sends the RS-485 broadcast (``m*h``) and returns immediately
+    (fire-and-forget), so this resolves quickly. Raises on an unreachable gateway
+    or a non-2xx response; returns True when the gateway accepts the command.
+    """
+    import httpx
+
+    base = gateway_url.rstrip("/")
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        r = await client.post(f"{base}/api/flap/home", json={"id": -1})
+        r.raise_for_status()
+        return r.status_code < 400
+
+
 def gateway_version(gw: dict) -> tuple[int, int] | None:
     """(major, minor) parsed from a gateway /api/config document, or None."""
     import re

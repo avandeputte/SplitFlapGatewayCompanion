@@ -90,6 +90,7 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 
 /* Apps grid */
 .apps-actions { display: flex; gap: 6px; }
+.preview-actions { display: flex; align-items: center; gap: 12px; }
 .apps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .app-tile { background: var(--input); border: 1px solid var(--acc); border-radius: 8px; padding: 12px;
   cursor: pointer; position: relative; transition: border-color .12s;

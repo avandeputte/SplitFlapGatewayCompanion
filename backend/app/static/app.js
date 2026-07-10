@@ -155,6 +155,28 @@ function updateActiveUI(activeApp, activePlaylist) {
 async function runApp(id) { await post("/api/apps/run", { app: id }); updateActiveUI(id, null); }
 async function stopApp() { await post("/api/apps/stop"); updateActiveUI(null, null); }
 
+// Physically home every module (stops whatever is playing, blanks the wall).
+async function homeAll() {
+  const btn = $("homeAllBtn");
+  if (!confirm("Home all modules?\n\nThis returns the whole display to its blank home position and stops anything currently playing.")) return;
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Homing…";
+  let restore = 1500;
+  try {
+    const r = await post("/api/display/home");
+    if (r && r.ok === false) throw new Error(r.error || "home failed");
+    updateActiveUI(null, null);
+    await pollState();
+    btn.textContent = "Homed ✓";
+  } catch (e) {
+    btn.textContent = "Home failed";
+    console.error("home all:", e);
+    restore = 2500;
+  } finally {
+    setTimeout(() => { btn.textContent = label; btn.disabled = false; }, restore);
+  }
+}
+
 // ---- modal -----------------------------------------------------------------
 function openModal(title, bodyEl, footButtons) {
   $("modalTitle").textContent = title;
@@ -741,6 +763,7 @@ async function init() {
   wireTabs();
   await bootGrid();
   $("stopAppBtn").addEventListener("click", stopApp);
+  $("homeAllBtn").addEventListener("click", homeAll);
   $("manageAppsBtn").addEventListener("click", openLibrary);
   $("globalSettingsBtn").addEventListener("click", openGlobalSettings);
   // Developer menu — only when the companion was started with COMPANION_DEV_MODE.

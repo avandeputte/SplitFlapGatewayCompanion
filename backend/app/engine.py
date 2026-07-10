@@ -193,6 +193,29 @@ class DisplayController:
         """Blank the whole display."""
         return await self.send_text(" " * self.config.module_count(), style="ltr", raw=True)
 
+    async def home_all(self) -> bool:
+        """Physically home every module and blank the preview.
+
+        Stops any running app/playlist first — homing is a manual takeover of the
+        wall, like compose/clear — then broadcasts a Home to the gateway, which
+        returns every module to flap 0 (the blank home flap). In simulation mode
+        nothing is sent to the gateway, but the preview is still blanked so the
+        effect is visible. Returns whether the gateway accepted the command (True
+        in sim). Raises if no gateway is configured or the gateway call fails.
+        """
+        await self._cancel_task()
+        self._clear_driver_flags()
+        ok = True
+        async with self._send_lock:   # serialize with any in-flight/interrupt send
+            if not self.config.sim_mode:
+                url = (self.config.transport.get("gateway_url") or "").strip()
+                if not url:
+                    raise RuntimeError("no gateway_url configured")
+                ok = await gateway.home_all(url)
+            self.state.blank()
+        self._sync_transport_state()
+        return ok
+
     # -- app play-loop ------------------------------------------------------
     async def run_app(self, app_id: str) -> None:
         """Start continuously running an app (fetch → page cycle)."""

@@ -772,6 +772,18 @@ async def display_clear():
     return {"ok": True}
 
 
+@app.post("/api/display/home")
+async def display_home():
+    """Physically home every module (gateway broadcast), stop any running
+    app/playlist, and blank the live preview. Best-effort: reports the reason on
+    failure rather than raising, so the UI can surface it inline."""
+    try:
+        ok = await controller.home_all()
+        return {"ok": ok, "error": None if ok else "gateway rejected the home command"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 @app.get("/api/gateway/status")
 async def gateway_status():
     """Probe the gateway's /api/status and return its URL (for the Display tab)."""

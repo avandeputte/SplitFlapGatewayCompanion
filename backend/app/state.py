@@ -36,6 +36,13 @@ class DisplayState:
             self.current_string = " " * module_count
             self.is_homed = False
 
+    def blank(self) -> None:
+        """Reset every module to blank — the preview after a physical Home, where
+        each module returns to flap 0 (the blank/home flap)."""
+        with self._lock:
+            self.current_chars = [" "] * self.module_count
+            self.current_string = " " * self.module_count
+
     def set_module(self, grid_index: int, char: str) -> None:
         """Record that a module now shows ``char`` (updates preview state)."""
         with self._lock:

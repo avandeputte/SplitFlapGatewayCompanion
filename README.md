@@ -42,6 +42,9 @@ modules), with a gateway-free `sim` mode for development. What's here:
   fields. The search endpoints are served at the same paths splitflap-os uses.
 - **Compose** — click-to-type grid with colour tiles; all transition styles
   (`ltr`, `rtl`, `spiral`, `sync`, `slot`, …).
+- **Live preview + Home all** — the board mirrors exactly what's on the wall, and
+  a one-click **⌂ Home all** returns every module to its blank home position
+  (stopping whatever is playing).
 - **Playlists** — sequence apps and messages with per-entry durations; save,
   load, run, loop. **Per-entry settings** let the same app appear more than once
   configured differently (e.g. Weather for two cities in two languages).
