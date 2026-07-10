@@ -5,6 +5,7 @@
   "description": "Cynical fortune-cookie wisdom",
   "category": "entertainment",
   "type": "functional",
+  "i18n": true,
   "version": "1.0",
   "refresh_interval": 15,
   "loop_delay": 15,

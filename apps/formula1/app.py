@@ -1,10 +1,17 @@
 """Formula 1 — next Grand Prix & championship leader (keyless: Jolpica / Ergast)."""
 
 
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import requests
     from datetime import datetime, timezone
     rows, cols = get_rows(), get_cols()
+
+    def t(s):
+        return i18n.t(s) if i18n is not None else s
+
+    def u(k):                                 # localized D/H duration suffix
+        return i18n.unit(k) if i18n is not None else k
+
     pages = []
     try:
         nxt = requests.get('https://api.jolpi.ca/ergast/f1/current/next.json', timeout=10).json()
@@ -19,22 +26,23 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 secs = int((dt - datetime.now(timezone.utc)).total_seconds())
                 if secs > 0:
                     d, h = secs // 86400, (secs % 86400) // 3600
-                    cd = f'IN {d}D {h}H' if d else f'IN {h}H'
+                    in_ = t('IN')
+                    cd = f'{in_} {d}{u("D")} {h}{u("H")}' if d else f'{in_} {h}{u("H")}'
                 else:
-                    cd = 'RACE WEEKEND'
+                    cd = t('RACE WEEKEND')
             except ValueError:
                 pass
             if rows == 1:
                 pages.append(f'{name} {cd}'[:cols].center(cols))
             elif rows == 2:
-                pages.append(format_lines('NEXT GP', name))
+                pages.append(format_lines(t('NEXT GP'), name))
                 pages.append(format_lines(name, cd))
             else:
-                pages.append(format_lines('NEXT GRAND PRIX', name, cd))
+                pages.append(format_lines(t('NEXT GRAND PRIX'), name, cd))
         else:
-            pages.append(format_lines('FORMULA 1', 'SEASON', 'OVER'))
+            pages.append(format_lines('FORMULA 1', t('SEASON'), t('OVER')))
     except Exception:
-        return [format_lines('FORMULA 1', 'OFFLINE', '')]
+        return [format_lines('FORMULA 1', t('OFFLINE'), '')]
 
     try:
         st = requests.get('https://api.jolpi.ca/ergast/f1/current/driverStandings.json', timeout=10).json()
@@ -45,11 +53,11 @@ def fetch(settings, format_lines, get_rows, get_cols):
             nm = str(top.get('Driver', {}).get('familyName', '')).upper()
             pts = top.get('points', '')
             if rows == 1:
-                pages.append(f'LEADER {nm} {pts}'[:cols].center(cols))
+                pages.append(f'{t("LEADER")} {nm} {pts}'[:cols].center(cols))
             elif rows == 2:
-                pages.append(format_lines('CHAMPIONSHIP', f'{nm} {pts}PTS'))
+                pages.append(format_lines(t('CHAMPIONSHIP'), f'{nm} {pts}{t("PTS")}'))
             else:
-                pages.append(format_lines('LEADER', nm, f'{pts} POINTS'))
+                pages.append(format_lines(t('LEADER'), nm, f'{pts} {t("POINTS")}'))
     except Exception:
         pass
-    return pages or [format_lines('FORMULA 1', 'NO DATA', '')]
+    return pages or [format_lines('FORMULA 1', t('NO DATA'), '')]

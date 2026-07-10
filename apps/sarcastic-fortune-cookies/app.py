@@ -120,12 +120,13 @@ def _wrap(text, rows, cols):
     return _balance(words, lens, cols, need)
 
 
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     rows, cols = get_rows(), get_cols()
 
-    # Language follows the global Language setting; use it when we bundle
-    # fortunes for it, otherwise fall back to English.
-    lang = str(settings.get("language") or "en").lower()
+    # Language follows the global Language (or a per-app override, via i18n); use
+    # it when we bundle fortunes for it, otherwise fall back to English. Off a
+    # companion host (i18n is None) we read the raw setting.
+    lang = str((i18n.lang if i18n is not None else settings.get("language")) or "en").lower()
     if not _load(lang):
         lang = "en"
     try:

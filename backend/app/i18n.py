@@ -130,6 +130,43 @@ _STRINGS: dict[str, dict[str, str]] = {
     # holidays
     "NEXT HOLIDAY": {"fr": "PROCHAIN CONGE", "de": "NAECHSTER FEIERTAG", "es": "PROX. FESTIVO", "it": "PROSS. FESTA", "pt": "PROX. FERIADO", "nl": "VOLGENDE FEESTDAG"},
     "IN":           {"fr": "DANS", "de": "IN", "es": "EN", "it": "TRA", "pt": "EM", "nl": "OVER"},
+    # shared status labels (reused across many apps — add once, reuse on every conversion)
+    "OFFLINE":  {"fr": "HORS LIGNE", "de": "OFFLINE", "es": "SIN CONEXION", "it": "OFFLINE", "pt": "OFFLINE", "nl": "OFFLINE"},
+    "NO DATA":  {"fr": "PAS DE DONNEES", "de": "KEINE DATEN", "es": "SIN DATOS", "it": "NESSUN DATO", "pt": "SEM DADOS", "nl": "GEEN DATA"},
+    "ERROR":    {"fr": "ERREUR", "de": "FEHLER", "es": "ERROR", "it": "ERRORE", "pt": "ERRO", "nl": "FOUT"},
+    # tides
+    "TIDES":     {"fr": "MAREES", "de": "GEZEITEN", "es": "MAREAS", "it": "MAREE", "pt": "MARES", "nl": "GETIJDEN"},
+    "HIGH TIDE": {"fr": "MAREE HAUTE", "de": "FLUT", "es": "PLEAMAR", "it": "ALTA MAREA", "pt": "PREIA-MAR", "nl": "VLOED"},
+    "LOW TIDE":  {"fr": "MAREE BASSE", "de": "EBBE", "es": "BAJAMAR", "it": "BASSA MAREA", "pt": "BAIXA-MAR", "nl": "EB"},
+    "CHECK STATION": {"fr": "VERIF STATION", "de": "STATION PRUEF", "es": "VER ESTACION", "it": "VERIF STAZIONE", "pt": "VER ESTACAO", "nl": "STATION CHECK"},
+    # aurora
+    "AURORA":       {"fr": "AURORE", "de": "POLARLICHT", "es": "AURORA", "it": "AURORA", "pt": "AURORA", "nl": "NOORDERLICHT"},
+    "QUIET":        {"fr": "CALME", "de": "RUHIG", "es": "TRANQUILO", "it": "QUIETE", "pt": "CALMO", "nl": "RUSTIG"},
+    "UNSETTLED":    {"fr": "AGITE", "de": "UNRUHIG", "es": "INESTABLE", "it": "INSTABILE", "pt": "INSTAVEL", "nl": "ONRUSTIG"},
+    "MINOR STORM":  {"fr": "ORAGE MINEUR", "de": "KL. STURM", "es": "TORM. MENOR", "it": "TEMP. MINORE", "pt": "TORM. MENOR", "nl": "KL. STORM"},
+    "STRONG STORM": {"fr": "ORAGE FORT", "de": "STARK. STURM", "es": "TORM. FUERTE", "it": "TEMP. FORTE", "pt": "TORM. FORTE", "nl": "ZWARE STORM"},
+    "SEVERE STORM": {"fr": "ORAGE SEVERE", "de": "SCHW. STURM", "es": "TORM. SEVERA", "it": "TEMP. SEVERO", "pt": "TORM. SEVERA", "nl": "HEVIGE STORM"},
+    # rocket-launch
+    "NEXT LAUNCH": {"fr": "PROCH. LANCEMENT", "de": "NAECHST. START", "es": "PROX. LANZAMIENTO", "it": "PROSS. LANCIO", "pt": "PROX. LANCAMENTO", "nl": "VOLGENDE START"},
+    "MISSION":     {"fr": "MISSION", "de": "MISSION", "es": "MISION", "it": "MISSIONE", "pt": "MISSAO", "nl": "MISSIE"},
+    "IMMINENT":    {"fr": "IMMINENT", "de": "UNMITTELBAR", "es": "INMINENTE", "it": "IMMINENTE", "pt": "IMINENTE", "nl": "OP KOMST"},
+    "SCHEDULED":   {"fr": "PREVU", "de": "GEPLANT", "es": "PROGRAMADO", "it": "PREVISTO", "pt": "AGENDADO", "nl": "GEPLAND"},
+    # formula1
+    "NEXT GP":         {"fr": "PROCHAIN GP", "de": "NAECHSTER GP", "es": "PROXIMO GP", "it": "PROSSIMO GP", "pt": "PROXIMO GP", "nl": "VOLGENDE GP"},
+    "NEXT GRAND PRIX": {"fr": "PROCHAIN GP", "de": "NAECHSTER GP", "es": "PROXIMO GP", "it": "PROSSIMO GP", "pt": "PROXIMO GP", "nl": "VOLGENDE GP"},
+    "RACE WEEKEND":    {"fr": "WEEKEND COURSE", "de": "RENN-WOCHENENDE", "es": "FIN DE SEMANA", "it": "WEEKEND GARA", "pt": "FIM DE SEMANA", "nl": "RACEWEEKEND"},
+    "SEASON":          {"fr": "SAISON", "de": "SAISON", "es": "TEMPORADA", "it": "STAGIONE", "pt": "TEMPORADA", "nl": "SEIZOEN"},
+    "OVER":            {"fr": "TERMINEE", "de": "VORBEI", "es": "TERMINADA", "it": "FINITA", "pt": "TERMINADA", "nl": "VOORBIJ"},
+    "CHAMPIONSHIP":    {"fr": "CHAMPIONNAT", "de": "MEISTERSCHAFT", "es": "CAMPEONATO", "it": "CAMPIONATO", "pt": "CAMPEONATO", "nl": "KAMPIOENSCHAP"},
+    "LEADER":          {"fr": "LEADER", "de": "FUEHRENDER", "es": "LIDER", "it": "LEADER", "pt": "LIDER", "nl": "LEIDER"},
+    "POINTS":          {"fr": "POINTS", "de": "PUNKTE", "es": "PUNTOS", "it": "PUNTI", "pt": "PONTOS", "nl": "PUNTEN"},
+    "PTS":             {"fr": "PTS", "de": "PKT", "es": "PTS", "it": "PTI", "pt": "PTS", "nl": "PNT"},
+    # bitcoin fear & greed (index classifications, as the API returns them)
+    "FEAR":          {"fr": "PEUR", "de": "ANGST", "es": "MIEDO", "it": "PAURA", "pt": "MEDO", "nl": "ANGST"},
+    "GREED":         {"fr": "AVIDITE", "de": "GIER", "es": "CODICIA", "it": "AVIDITA", "pt": "GANANCIA", "nl": "HEBZUCHT"},
+    "NEUTRAL":       {"fr": "NEUTRE", "de": "NEUTRAL", "es": "NEUTRAL", "it": "NEUTRO", "pt": "NEUTRO", "nl": "NEUTRAAL"},
+    "EXTREME FEAR":  {"fr": "PEUR EXTREME", "de": "EXTR. ANGST", "es": "MIEDO EXTREMO", "it": "PAURA ESTREMA", "pt": "MEDO EXTREMO", "nl": "EXTR. ANGST"},
+    "EXTREME GREED": {"fr": "AVIDITE EXTREME", "de": "EXTREME GIER", "es": "CODICIA EXTREMA", "it": "AVIDITA ESTREMA", "pt": "GANANCIA EXTREMA", "nl": "EXTREME HEBZUCHT"},
 }
 
 

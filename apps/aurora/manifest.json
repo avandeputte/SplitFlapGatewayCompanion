@@ -4,6 +4,7 @@
   "icon": "🌌",
   "description": "Geomagnetic activity (Kp index)",
   "type": "functional",
+  "i18n": true,
   "refresh_interval": 900,
   "loop_delay": 6,
   "category": "data",
