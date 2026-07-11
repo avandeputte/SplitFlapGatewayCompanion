@@ -658,6 +658,64 @@ async function uploadApp(fileInput, msgEl) {
   } catch (e) { msgEl.textContent = "Error: " + e.message; }
 }
 
+const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// The category filter and search text the library modal was last left on
+// ("" = All), so a reopen after Add/Remove/Upload lands back where you were.
+let LIB_CAT = "";
+let LIB_Q = "";
+
+function libRow(a, reopen) {
+  const row = el("div", "lib-row");
+
+  const icon = el("span", "app-icon"); icon.style.fontSize = "20px"; icon.textContent = a.icon || "🧩";
+
+  const meta = el("div", "lib-meta");
+  const name = el("div", "lib-name"); name.textContent = a.name;
+  if (a.i18n) {
+    const globe = el("span"); globe.textContent = " 🌐";
+    globe.title = "Multilingual — adapts to the global Language";
+    name.appendChild(globe);
+  }
+  if (!a.builtin) {
+    const up = el("small", "lib-uploaded"); up.textContent = " · uploaded";
+    name.appendChild(up);
+  }
+  const desc = el("div", "lib-desc"); desc.textContent = a.description || "";
+
+  // The manifest's own metadata, same as the SplitFlap OS library shows:
+  // what kind of app it is, its version, and its category.
+  const tags = el("div", "lib-tags");
+  const kind = el("span", "lib-tag");
+  kind.textContent = a.type + (a.version ? ` · v${a.version}` : "");
+  tags.appendChild(kind);
+  if (a.category) {
+    const cat = el("span", "lib-tag cat"); cat.textContent = a.category;
+    tags.appendChild(cat);
+  }
+  meta.append(name, desc, tags);
+
+  const btn = el("button", "btn btn-sm " + (a.installed ? "ghost" : "primary"));
+  btn.textContent = a.installed ? "Remove" : "Add";
+  btn.addEventListener("click", async () => {
+    await post(`/api/apps/${a.id}/install`, { installed: !a.installed });
+    reopen(); loadApps();
+  });
+
+  row.append(icon, meta, btn);
+  if (!a.builtin) {
+    const dl = el("button", "btn btn-sm"); dl.textContent = "🗑"; dl.title = "Delete uploaded app";
+    dl.style.background = "var(--hi)";
+    dl.addEventListener("click", async () => {
+      if (!confirm(`Delete "${a.name}"? This removes the uploaded app for good.`)) return;
+      await fetch(`/api/apps/${encodeURIComponent(a.id)}`, { method: "DELETE" });
+      reopen(); loadApps();
+    });
+    row.appendChild(dl);
+  }
+  return row;
+}
+
 async function openLibrary() {
   const data = await api("/api/apps/available");
   const wrap = el("div");
@@ -675,34 +733,36 @@ async function openLibrary() {
   ub.addEventListener("click", () => uploadApp(inp, um));
   box.appendChild(urow); wrap.appendChild(box);
 
-  // Library list
-  const list = el("div"); list.style.marginTop = "12px";
-  data.apps.forEach((a) => {
-    const row = el("div", "lib-row");
-    const tag = a.builtin ? "" : ' <small style="color:var(--brand)">· uploaded</small>';
-    const i18nTag = a.i18n ? ' <span title="Multilingual — adapts to the global Language">🌐</span>' : "";
-    row.innerHTML = `<span class="app-icon" style="font-size:20px">${a.icon || "🧩"}</span>` +
-      `<div class="lib-meta"><div class="lib-name">${a.name}${i18nTag}${tag}</div><div class="lib-desc">${a.description || ""}</div></div>`;
-    const btn = el("button", "btn btn-sm " + (a.installed ? "ghost" : "primary"));
-    btn.textContent = a.installed ? "Remove" : "Add";
-    btn.addEventListener("click", async () => {
-      await post(`/api/apps/${a.id}/install`, { installed: !a.installed });
-      openLibrary(); loadApps();
-    });
-    row.appendChild(btn);
-    if (!a.builtin) {
-      const dl = el("button", "btn btn-sm"); dl.textContent = "🗑"; dl.title = "Delete uploaded app";
-      dl.style.background = "var(--hi)";
-      dl.addEventListener("click", async () => {
-        if (!confirm(`Delete "${a.name}"? This removes the uploaded app for good.`)) return;
-        await fetch(`/api/apps/${encodeURIComponent(a.id)}`, { method: "DELETE" });
-        openLibrary(); loadApps();
-      });
-      row.appendChild(dl);
-    }
-    list.appendChild(row);
+  // Search + category filter — the categories are only the ones actually on disk.
+  const cats = [...new Set(data.apps.map((a) => a.category).filter(Boolean))].sort();
+  if (LIB_CAT && !cats.includes(LIB_CAT)) LIB_CAT = "";
+  const search = el("input", "lib-search");
+  search.type = "search"; search.placeholder = "Search apps…"; search.value = LIB_Q;
+  const filters = el("div", "lib-filters");
+  const list = el("div", "lib-list");
+
+  const matches = (a) => {
+    if (LIB_CAT && a.category !== LIB_CAT) return false;
+    const q = LIB_Q.trim().toLowerCase();
+    if (!q) return true;
+    return [a.name, a.description, a.category, a.id].some((f) => (f || "").toLowerCase().includes(q));
+  };
+  const draw = () => {
+    list.innerHTML = "";
+    const shown = data.apps.filter(matches);
+    shown.forEach((a) => list.appendChild(libRow(a, openLibrary)));
+    if (!shown.length) list.innerHTML = '<span class="hint">No apps match.</span>';
+    [...filters.children].forEach((f) => f.classList.toggle("active", f.dataset.cat === LIB_CAT));
+  };
+  [["", "All"], ...cats.map((c) => [c, titleCase(c)])].forEach(([value, label]) => {
+    const f = el("button", "lib-filter");
+    f.type = "button"; f.dataset.cat = value; f.textContent = label;
+    f.addEventListener("click", () => { LIB_CAT = value; draw(); });
+    filters.appendChild(f);
   });
-  wrap.appendChild(list);
+  search.addEventListener("input", () => { LIB_Q = search.value; draw(); });
+  draw();
+  wrap.append(search, filters, list);
 
   const close = el("button", "btn ghost"); close.textContent = "Close"; close.addEventListener("click", closeModal);
   openModal("App Library", wrap, [close]);

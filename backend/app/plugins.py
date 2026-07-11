@@ -522,6 +522,7 @@ class PluginRuntime:
             "description": manifest.get("description", ""),
             "category": manifest.get("category", "other"),
             "type": manifest.get("type", "functional"),
+            "version": str(manifest.get("version", "")),
             "installed": installed,
             "loaded": app_id in self._registry,
             "animation": self.is_anim(app_id) if app_id in self._registry else app_id.startswith("anim_"),

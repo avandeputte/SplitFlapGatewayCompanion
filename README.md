@@ -35,7 +35,9 @@ modules), with a gateway-free `sim` mode for development. What's here:
   through a behavior-identical runtime and **drop-in compatible** (a conformance
   test asserts every app satisfies the contract). Tile grid, one-tap run, live
   "▶ running" state, and an **App Library** to add/remove apps or **upload your
-  own** (a `.zip` of the app folder) — persisted to the data volume.
+  own** (a `.zip` of the app folder) — persisted to the data volume. The library
+  shows each app's description, type, version and category, with a search box and
+  category filters, like the splitflap-os library.
 - **Manifest-driven settings** — full renderer: text/number/password/textarea/
   select/toggle, **search_chips** (live search for locations, stocks, crypto,
   timezones), stepper, inline-toggle, `visible_when`, `sync_values`, and computed

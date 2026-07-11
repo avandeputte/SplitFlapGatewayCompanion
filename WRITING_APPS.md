@@ -78,9 +78,9 @@ functional example:
 | `type` | `"functional"` \| `"channel"` | **yes** | Determines whether the app has `app.py` or `data.json`. |
 | `icon` | string (emoji) | no | Tile icon. Default `🧩`. |
 | `description` | string | no | One-line blurb on the tile / library. |
-| `category` | string | no | Grouping in the App Library. Common: `time`, `data`, `finance`, `sports`, `news`, `entertainment`, `education`, `lifestyle`, `animation`. Default `other`. |
+| `category` | string | no | Grouping in the App Library — shown as a badge, and one of the library's filter chips. Common: `time`, `data`, `finance`, `sports`, `news`, `entertainment`, `education`, `lifestyle`, `animation`. Default `other`. |
 | `id` | string | no | Overrides the id; normally leave it out and let the folder name win. |
-| `version` | string | no | Informational (e.g. `"1.0"`). |
+| `version` | string | no | Informational (e.g. `"1.0"`); shown next to the type in the App Library. |
 | `refresh_interval` | number (s) | no | How long `fetch()` output is cached before re-running. Default `300`. Use `0`/`1` for always-fresh (clocks, animations). Ignored for channel apps. |
 | `loop_delay` | number (s) | no | How long each page is shown before advancing. Default = the global loop delay (`5`). |
 | `min_rows` / `min_cols` | number | no | Hide/disable the app unless the grid is at least this size. |
