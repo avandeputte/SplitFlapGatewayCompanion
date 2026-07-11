@@ -64,10 +64,179 @@ async function pollStatus() {
   } catch { down(); }
 }
 
+// ---- compose ---------------------------------------------------------------
+// A cell holds one of: "" (blank), a typed character, or a COLOUR EMOJI.
+//
+// Colours are held as the emoji tile, not as the r/o/y/g/b/p/w code, and that is
+// load-bearing. The server's normalize() uppercases the text BEFORE mapping emoji
+// to colour codes, so a bare lowercase "r" would come back as the LETTER R and the
+// cell would show an R instead of turning red. Going through the emoji is the only
+// representation that survives the round trip -- and it is also what lets a typed
+// "r" stay a letter, which is the whole point of the case distinction the preview
+// relies on ('y' = yellow tile, 'Y' = the letter Y).
+let CMP = [];              // one entry per module, row-major
+let CMP_AT = 0;            // focused cell
+let EMOJI2CODE = {};       // 🟥 -> r      (from /api/grid)
+const isEmoji = (v) => Object.prototype.hasOwnProperty.call(EMOJI2CODE, v);
+
+// Uppercase the way the server will (renderer.cp1252_upper): never let a glyph
+// expand, so "ß" stays "ß" instead of becoming "SS" and silently eating a cell.
+function cmpUpper(ch) {
+  const u = ch.toUpperCase();
+  return u.length === 1 ? u : ch;
+}
+
+function cmpRender() {
+  const board = $("composeBoard");
+  CMP.forEach((v, i) => {
+    const cell = board.children[i];
+    if (!cell) return;
+    if (isEmoji(v)) {
+      cell.className = `flap color-${EMOJI2CODE[v]}`;
+      cell.textContent = "";
+    } else {
+      cell.className = "flap";
+      cell.textContent = v ? cmpUpper(v) : "";
+    }
+    cell.classList.add("cmp-cell");
+    if (i === CMP_AT) cell.classList.add("cmp-at");
+  });
+}
+
+function cmpFocus(i) {
+  const n = GRID.module_count;
+  CMP_AT = ((i % n) + n) % n;      // wrap, never go out of range
+  cmpRender();
+}
+
+function cmpSet(v, advance = true) {
+  CMP[CMP_AT] = v;
+  if (advance) cmpFocus(CMP_AT + 1); else cmpRender();
+}
+
+function cmpKey(e) {
+  const cols = GRID.cols;
+  const k = e.key;
+  if (k === "ArrowRight")      cmpFocus(CMP_AT + 1);
+  else if (k === "ArrowLeft")  cmpFocus(CMP_AT - 1);
+  else if (k === "ArrowDown")  cmpFocus(CMP_AT + cols);
+  else if (k === "ArrowUp")    cmpFocus(CMP_AT - cols);
+  else if (k === "Home")       cmpFocus(CMP_AT - (CMP_AT % cols));
+  else if (k === "End")        cmpFocus(CMP_AT - (CMP_AT % cols) + cols - 1);
+  else if (k === "Enter")      cmpFocus(CMP_AT - (CMP_AT % cols) + cols);
+  else if (k === "Backspace") { cmpFocus(CMP_AT - 1); CMP[CMP_AT] = ""; cmpRender(); }
+  else if (k === "Delete")     cmpSet("", false);
+  else if (k === " ")          cmpSet("");            // space blanks and advances
+  else if (k.length === 1)     cmpSet(k);             // any single printable char
+  else return;                                        // leave modifiers etc. alone
+  e.preventDefault();
+}
+
+// Flatten to the flat, row-major string the server expects: normalize() pads or
+// truncates to exactly module_count, so the grid maps 1:1 with no wrapping.
+function cmpText() {
+  const { rows, cols } = GRID;
+  const out = [];
+  for (let r = 0; r < rows; r++) {
+    let row = CMP.slice(r * cols, (r + 1) * cols).map((v) => v || " ");
+    if ($("cmpCenter").checked) {
+      // Centre what was typed within the row, without disturbing the grid itself.
+      let a = 0, b = row.length;
+      while (a < b && row[a] === " ") a++;
+      while (b > a && row[b - 1] === " ") b--;
+      const inner = row.slice(a, b);
+      if (inner.length) {
+        const pad = Math.floor((cols - inner.length) / 2);
+        row = Array(pad).fill(" ").concat(inner, Array(cols - pad - inner.length).fill(" "));
+      }
+    }
+    out.push(row.join(""));
+  }
+  return out.join("");
+}
+
+function cmpBuild() {
+  const board = $("composeBoard");
+  buildBoard(board, GRID.module_count, GRID.cols);
+  CMP = Array(GRID.module_count).fill("");
+  CMP_AT = 0;
+  [...board.children].forEach((cell, i) =>
+    cell.addEventListener("click", () => { board.focus(); cmpFocus(i); }));
+
+  // Swatches come from the server's COLOR_MAP so the two can never drift apart.
+  EMOJI2CODE = GRID.color_map || {};
+  const sw = $("cmpSwatches");
+  sw.innerHTML = "";
+  Object.keys(EMOJI2CODE).forEach((emoji) => {
+    const code = EMOJI2CODE[emoji];
+    const b = el("button", "swatch");
+    // The map's blank entry (⬛ -> " ") is a blank flap, not a colour.
+    const blank = code.trim() === "";
+    b.classList.add(blank ? "swatch-blank" : `color-${code}`);
+    b.title = blank ? "Blank" : `Colour ${code}`;
+    b.addEventListener("click", () => {
+      $("composeBoard").focus();
+      cmpSet(blank ? "" : emoji);
+    });
+    sw.appendChild(b);
+  });
+
+  // Style + speed default to the display's globals; "" means "let the server decide".
+  const sel = $("cmpStyle");
+  sel.innerHTML = "";
+  const d = el("option"); d.value = ""; d.textContent = "Default (global)";
+  sel.appendChild(d);
+  (GRID.styles || []).forEach((s) => {
+    const o = el("option"); o.value = s; o.textContent = s; sel.appendChild(o);
+  });
+  const disp = GRID.display || {};
+  $("cmpSpeed").value = disp.transition_speed ?? 15;
+  sel.addEventListener("change", () => {
+    // 'slot' is the spin effect and is paced by its own, much slower global.
+    $("cmpSpeed").value = sel.value === "slot"
+      ? (disp.slot_speed ?? 80)
+      : (disp.transition_speed ?? 15);
+  });
+
+  board.addEventListener("keydown", cmpKey);
+  cmpRender();
+}
+
+async function cmpPush() {
+  const msg = $("cmpMsg");
+  const btn = $("cmpPush");
+  const style = $("cmpStyle").value;
+  const speed = parseInt($("cmpSpeed").value, 10);
+  btn.disabled = true;
+  msg.textContent = "Sending…";
+  try {
+    // The engine renders this to frames and pushes the whole page in ONE call to
+    // the gateway's /api/rs485/batch, with speed as step_ms. That endpoint exists
+    // for exactly this: one request per page, not one per module.
+    await post("/api/compose/send", {
+      text: cmpText(),
+      style: style || null,
+      speed: Number.isFinite(speed) ? speed : null,
+    });
+    msg.textContent = "Sent.";
+  } catch (e) {
+    msg.textContent = `Failed: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { msg.textContent = ""; }, 2500);
+  }
+}
+
+function cmpClear() {
+  CMP = Array(GRID.module_count).fill("");
+  cmpFocus(0);
+}
+
 // ---- boot ------------------------------------------------------------------
 async function bootGrid() {
   GRID = await api("/api/grid");
   buildBoard($("preview"), GRID.module_count, GRID.cols);
+  cmpBuild();
 }
 
 function wireTabs() {
@@ -78,10 +247,11 @@ function wireTabs() {
       document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
       t.classList.add("active");
       const tab = t.dataset.tab;
-      ["apps", "playlists", "triggers"]
+      ["apps", "compose", "playlists", "triggers"]
         .forEach((p) => $("page-" + p).classList.toggle("hidden", p !== tab));
       const loaders = { apps: loadApps, playlists: loadPlaylists, triggers: loadTriggers };
       if (loaders[tab]) loaders[tab]();
+      if (tab === "compose") $("composeBoard").focus();
     })
   );
 }
@@ -777,6 +947,9 @@ async function init() {
   } catch { /* dev endpoint unavailable */ }
   $("modalClose").addEventListener("click", closeModal);
   $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+  // compose
+  $("cmpPush").addEventListener("click", cmpPush);
+  $("cmpClear").addEventListener("click", cmpClear);
   // playlists
   $("plAddApp").addEventListener("click", () => { PL_ENTRIES.push({ type: "app", app: APPS[0]?.id || "", duration: 30 }); plRender(); });
   $("plAddMsg").addEventListener("click", () => { PL_ENTRIES.push({ type: "compose", text: "", duration: 15 }); plRender(); });

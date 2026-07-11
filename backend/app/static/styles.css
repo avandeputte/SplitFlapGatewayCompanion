@@ -216,3 +216,29 @@ a.btn { text-decoration: none; display: inline-block; }
   /* Flaps keep the gateway's fixed size; the board scrolls horizontally instead. */
   .apps-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 }
+
+/* ---- Compose ------------------------------------------------------------- */
+/* The compose grid reuses .board/.flap so an authored cell looks exactly like the
+   flap it will become on the wall -- same size, same colours, same seam. Only the
+   editing affordances are new. */
+.compose-board { cursor: text; outline: none; }
+.compose-board:focus-visible { box-shadow: 0 0 0 2px var(--b); }
+.cmp-cell { cursor: pointer; }
+.cmp-cell:hover { box-shadow: inset 0 0 0 1px #555; }
+/* The caret. An outline rather than a fill, so it reads on a coloured flap too. */
+.cmp-at { box-shadow: inset 0 0 0 2px var(--b), 0 0 0 2px rgba(59, 111, 226, .35); }
+
+.swatches { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+  padding: 12px; margin-top: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; }
+.swatch { width: 34px; height: 34px; border-radius: 6px; border: 1px solid #3a3a3a;
+  cursor: pointer; padding: 0; transition: transform .08s ease; }
+.swatch:hover { transform: translateY(-2px); }
+.swatch.color-r { background: var(--r); } .swatch.color-o { background: var(--o); }
+.swatch.color-y { background: var(--y); } .swatch.color-g { background: var(--g); }
+.swatch.color-b { background: var(--b); } .swatch.color-p { background: var(--p); }
+.swatch.color-w { background: var(--w); }
+.swatch-blank { background: #0a0a0a; }
+
+.compose-controls { margin-top: 10px; }
+.cmp-speed { width: 84px; }
+.cmp-push { width: 100%; margin-top: 14px; padding: 14px; font-size: 1rem; font-weight: 700; }

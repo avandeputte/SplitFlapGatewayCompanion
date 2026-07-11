@@ -21,6 +21,7 @@
 
   <nav class="tabs" id="nav">
     <button class="tab active" data-tab="apps">Apps</button>
+    <button class="tab" data-tab="compose">Compose</button>
     <button class="tab" data-tab="playlists">Playlists</button>
     <button class="tab" data-tab="triggers">Triggers</button>
     <a class="tab gw" data-gw="modules" href="#" target="_top">Modules</a>
@@ -60,6 +61,31 @@
         <button class="btn ghost btn-sm" id="stopAppBtn">■ Stop</button>
       </div>
       <div class="apps-grid" id="appsGrid"></div>
+    </section>
+
+    <!-- COMPOSE -->
+    <section class="panel tabpage hidden" id="page-compose">
+      <div class="panel-head">
+        <h2>Compose</h2>
+        <span class="hint">click a cell to type · arrows to move · a swatch paints the cell</span>
+      </div>
+      <div class="board compose-board" id="composeBoard" tabindex="0"></div>
+      <div class="controls compose-controls">
+        <label class="field inline" style="margin:0"><input type="checkbox" id="cmpCenter" style="width:auto"><span style="min-width:0">Center</span></label>
+        <div class="spacer"></div>
+        <button class="btn ghost btn-sm" id="cmpClear">Clear</button>
+      </div>
+      <div class="swatches" id="cmpSwatches"></div>
+      <div class="controls compose-controls">
+        <label class="field inline" style="margin:0"><span style="min-width:0">↔</span></label>
+        <select id="cmpStyle"></select>
+        <label class="field inline" style="margin:0"><span style="min-width:0">⚡</span></label>
+        <input type="number" id="cmpSpeed" min="0" max="200" step="1" class="cmp-speed">
+        <span class="hint">ms</span>
+        <div class="spacer"></div>
+        <span class="hint" id="cmpMsg"></span>
+      </div>
+      <button class="btn primary cmp-push" id="cmpPush">Push to display</button>
     </section>
 
     <!-- PLAYLISTS -->
