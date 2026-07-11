@@ -14,6 +14,8 @@ from __future__ import annotations
 import logging
 import threading
 
+from .tabs import COMPANION_TABS, clean_tabs
+
 log = logging.getLogger("companion.gateway")
 
 # Set while a settings blob is being uploaded to / downloaded from the gateway. The
@@ -82,6 +84,17 @@ def detect_local_ip(gateway_url: str = "") -> str | None:
     return None
 
 
+# The tabs the gateway advertised in its last registration/heartbeat reply
+# (Gateway 3.4+). Empty = it hasn't told us — either an older firmware, or we
+# haven't reached it yet — and the UI then uses its own built-in list.
+_gateway_tabs: list[dict[str, str]] = []
+
+
+def gateway_tabs() -> list[dict[str, str]]:
+    """The gateway's own tabs, as it last advertised them ([] = it hasn't)."""
+    return list(_gateway_tabs)
+
+
 async def post_companion(gateway_url: str, *, url: str | None = None,
                          status: str | None = None, timeout: float = 5.0) -> bool:
     """Register / heartbeat / deregister with the gateway (v3.0+).
@@ -89,8 +102,15 @@ async def post_companion(gateway_url: str, *, url: str | None = None,
     ``url`` set → (re)register that URL; ``url=""`` → deregister; ``status`` →
     update the running-status the gateway shows on its status page. Best-effort:
     a transiently-unreachable gateway is simply retried on the next heartbeat.
+
+    Registering also advertises our tabs, and reads the gateway's own tabs back out
+    of the reply (Gateway 3.4+) so each side's nav links exactly what the other has
+    — see tabs.py. A gateway that answers without ``gwTabs`` is an older one: we
+    keep whatever we had (i.e. nothing), and the UI falls back to its built-in list.
     """
     import httpx
+
+    global _gateway_tabs
 
     if not gateway_url:
         return False
@@ -101,10 +121,24 @@ async def post_companion(gateway_url: str, *, url: str | None = None,
         body["status"] = status
     if not body:
         return False
+    # Only advertise alongside a registration — a deregister (url="") is us going
+    # away, and a status-only heartbeat has nothing to say about tabs.
+    if url:
+        body["tabs"] = COMPANION_TABS
     base = gateway_url.rstrip("/")
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.post(f"{base}/api/companion", json=body)
+            if r.status_code < 400:
+                try:
+                    tabs = clean_tabs(r.json().get("gwTabs"))
+                except Exception:
+                    tabs = []          # not JSON, or no gwTabs: a pre-3.4 gateway
+                if tabs and tabs != _gateway_tabs:
+                    log.info("gateway advertises %d tabs: %s", len(tabs),
+                             ", ".join(t["id"] for t in tabs))
+                if tabs:
+                    _gateway_tabs = tabs
             return r.status_code < 400
     except Exception as e:
         log.debug("companion post skipped: %s", e)

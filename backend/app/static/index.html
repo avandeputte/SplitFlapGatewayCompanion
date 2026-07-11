@@ -19,18 +19,14 @@
     </div>
   </header>
 
+  <!-- The gateway's tabs are appended here at runtime, from the list it advertises
+       when we register (Gateway 3.4+), or from GW_TABS_FALLBACK in app.js when it
+       advertises nothing. See backend/app/tabs.py. -->
   <nav class="tabs" id="nav">
     <button class="tab active" data-tab="apps">Apps</button>
     <button class="tab" data-tab="compose">Compose</button>
     <button class="tab" data-tab="playlists">Playlists</button>
     <button class="tab" data-tab="triggers">Triggers</button>
-    <a class="tab gw" data-gw="modules" href="#" target="_top">Modules</a>
-    <a class="tab gw" data-gw="display" href="#" target="_top">Display</a>
-    <a class="tab gw" data-gw="provision" href="#" target="_top">Provision</a>
-    <a class="tab gw" data-gw="calibration" href="#" target="_top">Calibration</a>
-    <a class="tab gw" data-gw="monitor" href="#" target="_top">Monitor</a>
-    <a class="tab gw" data-gw="settings" href="#" target="_top">Settings</a>
-    <a class="tab gw" data-gw="status" href="#" target="_top">Status</a>
   </nav>
 
   <main>

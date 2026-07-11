@@ -864,14 +864,53 @@ async function saveTriggers() {
 }
 
 // ---- gateway link-tabs (unified nav) ---------------------------------------
+// What a gateway that doesn't advertise its tabs (pre-3.4 firmware) has. Those
+// gateways still carry a Backup tab — 3.4 is what folded backup/restore into
+// Settings — so the fallback keeps it, and a 3.4+ gateway simply advertises a
+// list without it. See backend/app/tabs.py.
+const GW_TABS_FALLBACK = [
+  { id: "modules", label: "Modules" },
+  { id: "display", label: "Display" },
+  { id: "provision", label: "Provision" },
+  { id: "calibration", label: "Calibration" },
+  { id: "monitor", label: "Monitor" },
+  { id: "settings", label: "Settings" },
+  { id: "backup", label: "Backup" },
+  { id: "status", label: "Status" },
+];
+
+let GW_SIG = "";     // what the nav currently shows — don't rebuild it for nothing
+let GW_TRIES = 0;
+
 async function setupGatewayTabs() {
-  let url = "";
-  try { url = (await api("/api/gateway/status")).url || ""; } catch {}
+  let url = "", tabs = [];
+  try {
+    const st = await api("/api/gateway/status");
+    url = st.url || "";
+    if (Array.isArray(st.tabs)) tabs = st.tabs;
+  } catch {}
   const base = url.replace(/\/$/, "");
-  document.querySelectorAll(".tab.gw").forEach((a) => {
-    if (base) a.href = `${base}/#${a.dataset.gw}`;
-    else a.classList.add("disabled");
-  });
+  const shown = tabs.length ? tabs : GW_TABS_FALLBACK;
+
+  const sig = base + "|" + JSON.stringify(shown);
+  if (sig !== GW_SIG) {
+    GW_SIG = sig;
+    const nav = $("nav");
+    nav.querySelectorAll(".tab.gw").forEach((a) => a.remove());
+    shown.forEach((t) => {
+      const a = el("a", "tab gw");
+      a.dataset.gw = t.id;
+      a.target = "_top";
+      a.textContent = t.label;
+      if (base) a.href = `${base}/#${t.id}`;
+      else { a.href = "#"; a.classList.add("disabled"); }
+      nav.appendChild(a);
+    });
+  }
+  // The gateway advertises its tabs in reply to our registration, which races a
+  // page opened right after the companion starts. Re-ask a few times so a slow or
+  // briefly-unreachable gateway still swaps the fallback list out on its own.
+  if (!tabs.length && GW_TRIES < 4) { GW_TRIES++; setTimeout(setupGatewayTabs, 5000); }
 }
 
 // Deep-link: open the local tab named in the URL hash (e.g. companion/#playlists).

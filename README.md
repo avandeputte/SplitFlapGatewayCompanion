@@ -11,6 +11,13 @@ are meant to feel like **one integrated product** — both share the same look a
 unified tab bar that cross-links between them (with a ↗ marking the jump), and the
 companion registers itself so a **Companion** tab appears on the gateway.
 
+That tab bar is **negotiated, not hard-coded**: when the companion registers it tells
+the gateway which tabs it has, and the gateway answers with its own (Gateway 3.4+), so
+each side links exactly the tabs the other really has — a tab added or dropped on one
+side appears or disappears on the other without a matching release. Either side may stay
+silent (an older gateway, an older companion) and the other falls back to a built-in
+list, so every old/new pairing keeps working. See [backend/app/tabs.py](backend/app/tabs.py).
+
 > **Requires Gateway 3.0 or newer.** The companion uses 3.0 APIs (batch RS-485
 > send, `/api/companion` registration, schedule-driven quiet time). It targets
 > 3.0+ exclusively — there are no fallbacks for older firmware.

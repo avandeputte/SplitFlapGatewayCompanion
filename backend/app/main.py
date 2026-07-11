@@ -25,8 +25,8 @@ from . import __version__, helpers, renderer, weather
 from .config import Config
 from .engine import DisplayController
 from .gateway import (build_sync_patch, detect_local_ip, fetch_gateway_config,
-                      fetch_gateway_settings, post_companion, push_gateway_settings,
-                      supports_settings)
+                      fetch_gateway_settings, gateway_tabs, post_companion,
+                      push_gateway_settings, supports_settings)
 from .homeassistant import HomeAssistant
 from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
@@ -786,18 +786,25 @@ async def display_home():
 
 @app.get("/api/gateway/status")
 async def gateway_status():
-    """Probe the gateway's /api/status and return its URL (for the Display tab)."""
+    """Probe the gateway's /api/status and return its URL (for the Display tab).
+
+    ``tabs`` is the gateway's own tab list as it advertised it when we registered
+    (Gateway 3.4+); empty means it never did — an older firmware, or we haven't
+    reached it yet — and the UI falls back to its built-in list. See tabs.py.
+    """
     import httpx
 
+    tabs = gateway_tabs()
     url = config.transport.get("gateway_url", "").rstrip("/")
     if not url:
-        return {"ok": False, "url": "", "error": "no gateway_url configured"}
+        return {"ok": False, "url": "", "tabs": tabs, "error": "no gateway_url configured"}
     try:
         async with httpx.AsyncClient(timeout=4.0) as client:
             r = await client.get(f"{url}/api/status")
-            return {"ok": r.status_code < 400, "url": url, "status_code": r.status_code, "data": r.json()}
+            return {"ok": r.status_code < 400, "url": url, "tabs": tabs,
+                    "status_code": r.status_code, "data": r.json()}
     except Exception as e:
-        return {"ok": False, "url": url, "error": str(e)}
+        return {"ok": False, "url": url, "tabs": tabs, "error": str(e)}
 
 
 # ---------------------------------------------------------------------------
