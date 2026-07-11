@@ -19,10 +19,18 @@ Runs blocking httpx in the plugin threadpool (and via run_in_threadpool for the
 from __future__ import annotations
 
 import logging
+import time
 
 import httpx
 
+from . import location
+
 log = logging.getLogger("companion.weather")
+
+# Short-TTL cache so the provider is hit at most once per location per window,
+# regardless of how many apps call get_weather() or how often they refresh.
+_CACHE_TTL = 600  # seconds
+_cache: dict = {}   # (provider, key, lat, lon) -> (fetched_at, data)
 
 # Catalog globals the helper consumes — so the UI can credit weather-using apps
 # under these settings even though they read them via get_weather, not directly.
@@ -47,35 +55,15 @@ def _i(v):
         return None
 
 
-def _resolve_location(settings, client: httpx.Client):
-    """(lat, lon, city) from the global precise location, else a geocode of the
-    ZIP/postal code, else a Boston fallback."""
-    lat = str(settings.get("location_lat", "") or "").strip()
-    lon = str(settings.get("location_lon", "") or "").strip()
-    name = str(settings.get("location_name", "") or "").strip()
-    if lat and lon:
-        city = name.split(",")[0].strip().upper() if name else "LOCATION"
-        return float(lat), float(lon), city
+# Boston, so weather always has something to show if no location is configured.
+_FALLBACK_LOCATION = (42.3496, -71.0783, "BOSTON")
 
-    zip_code = str(settings.get("zip_code", "02118") or "02118").strip()
-    try:
-        import re
-        params = {"q": zip_code, "format": "json", "limit": 1, "addressdetails": 1}
-        if re.fullmatch(r"\d{5}", zip_code):   # a US ZIP — 02118 is also a valid postcode abroad
-            params["countrycodes"] = "us"
-        geo = client.get(
-            "https://nominatim.openstreetmap.org/search", params=params,
-            headers={"User-Agent": "SplitFlapGatewayCompanion/1.0"},
-        ).json()
-        if geo:
-            addr = geo[0].get("address", {})
-            city = (addr.get("city") or addr.get("town") or addr.get("village")
-                    or addr.get("municipality") or addr.get("county")
-                    or geo[0].get("display_name", zip_code).split(",")[0]).strip().upper()
-            return float(geo[0]["lat"]), float(geo[0]["lon"]), city
-    except Exception as e:  # noqa: BLE001
-        log.warning("geocode of %r failed: %s", zip_code, e)
-    return 42.3496, -71.0783, "BOSTON"
+
+def _resolve_location(settings):
+    """(lat, lon, city) for the configured location via the shared geocoder in
+    location.py (cached, one Nominatim lookup for weather + get_location), with a
+    Boston fallback so weather is never blank."""
+    return location.coordinates(settings) or _FALLBACK_LOCATION
 
 
 def _openmeteo(client, lat, lon, city, _key):
@@ -168,9 +156,13 @@ def fetch_current(settings) -> dict:
     key = str(settings.get("weather_api_key", "") or "").strip()
     if provider not in _PROVIDERS or (provider != "openmeteo" and not key):
         provider = "openmeteo"          # keyless default — weather works with no key
+    lat, lon, city = _resolve_location(settings)
+    cache_key = (provider, key, round(lat, 3), round(lon, 3))
+    hit = _cache.get(cache_key)
+    if hit and (time.time() - hit[0]) < _CACHE_TTL:
+        return hit[1]
     try:
         with httpx.Client(timeout=8.0) as client:
-            lat, lon, city = _resolve_location(settings, client)
             data = None
             if provider != "openmeteo":
                 try:
@@ -188,6 +180,7 @@ def fetch_current(settings) -> dict:
             if data is None:
                 data = _openmeteo(client, lat, lon, city, key)
         data.update(ok=True, provider=provider, lat=lat, lon=lon)
+        _cache[cache_key] = (time.time(), data)   # cache only successful fetches
         return data
     except Exception as e:  # noqa: BLE001
         log.warning("weather fetch failed: %s", e)

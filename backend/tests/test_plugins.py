@@ -506,9 +506,10 @@ def test_location_helper_and_currency_map(tmp_path):
     assert rt._wants_location.get("holidays") is True
     assert rt._wants_location.get("exchange-rates") is True
     assert rt._wants_location.get("date") is False           # date doesn't use it
-    assert location._CURRENCY["CA"] == "CAD"                 # French Canada -> CAD, not EUR
-    assert location._CURRENCY["CH"] == "CHF"                 # French Switzerland -> CHF
-    assert location._CURRENCY["FR"] == "EUR" and location._CURRENCY["DE"] == "EUR"
+    # country -> currency comes from babel's CLDR data (via _currency_for)
+    assert location._currency_for("CA") == "CAD"             # French Canada -> CAD, not EUR
+    assert location._currency_for("CH") == "CHF"             # French Switzerland -> CHF
+    assert location._currency_for("FR") == "EUR" and location._currency_for("DE") == "EUR"
     assert location.resolve({}).get("country") is None        # no location set -> nothing to resolve
 
 
