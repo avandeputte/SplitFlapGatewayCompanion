@@ -30,19 +30,14 @@ _META_KEYS = ("installed_apps", "saved_app_playlists", "triggers", "triggers_ena
 
 
 def _detect_timezone() -> str:
+    """The host's IANA timezone. tzlocal is the canonical resolver — it honors the
+    ``TZ`` env var (how a Docker container's zone is set), the systemd
+    ``/etc/localtime`` symlink, and Windows, falling back to ``US/Eastern`` here."""
     try:
-        tz = Path("/etc/timezone").read_text("utf-8").strip()
-        if tz:
-            return tz
-    except OSError:
-        pass
-    try:
-        link = os.readlink("/etc/localtime")
-        if "zoneinfo/" in link:
-            return link.split("zoneinfo/")[-1]
-    except OSError:
-        pass
-    return "US/Eastern"
+        from tzlocal import get_localzone_name
+        return get_localzone_name() or "US/Eastern"
+    except Exception:
+        return "US/Eastern"
 
 
 # Content-relevant defaults (the app-facing subset of the plugin settings).
