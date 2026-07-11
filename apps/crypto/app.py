@@ -1,17 +1,34 @@
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
     import requests
+
+    def t(s):
+        return i18n.t(s, "crypto") if i18n is not None else s
+
     coins = [s.strip() for s in settings.get('crypto_list', '').split(',') if s.strip()]
     if not coins:
-        return [format_lines('CRYPTO', 'NO COINS', 'CONFIGURE')]
-    currency = settings.get('currency_symbol', '$').strip() or '$'
+        return [format_lines('CRYPTO', t('NO COINS'), t('CONFIGURE'))]
+
+    # Price in the local currency: where you are (Location) -> your Language -> USD.
+    # CoinGecko quotes natively in the target currency, so no FX conversion is needed.
+    loc = get_location() if get_location is not None else None
+    ccy = loc.get('currency') if isinstance(loc, dict) and loc.get('ok') else None
+    if not ccy and i18n is not None:
+        ccy = i18n.base_currency()
+    ccy = (ccy or 'USD').upper()
+    vs = ccy.lower()
+    # With i18n the display can render € £ ¥ (Windows-1252); without it the modules
+    # are the basic charset, so use '$' for USD and the ASCII ISO code otherwise.
+    cur_sym = i18n.currency_symbol(ccy) if i18n is not None else ('$' if ccy == 'USD' else ccy)
+    sep = '' if cur_sym != ccy else ' '    # 3-letter-code fallback reads better spaced
+
     try:
         r = requests.get(
             'https://api.coingecko.com/api/v3/simple/price',
-            params={'ids': ','.join(coins), 'vs_currencies': 'usd', 'include_24hr_change': 'true'},
+            params={'ids': ','.join(coins), 'vs_currencies': vs, 'include_24hr_change': 'true'},
             timeout=10
         ).json()
     except Exception:
-        return [format_lines('CRYPTO', 'ERROR', 'API FAIL')]
+        return [format_lines('CRYPTO', t('ERROR'), t('API FAIL'))]
     rows, cols = get_rows(), get_cols()
     no_color = settings.get('disable_colors', 'no') == 'yes'
 
@@ -25,13 +42,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         return f"{'+' if v >= 0 else '-'}{n(abs(v), 1, grouping=False)}%"
 
     def price_str(price):
-        return f'{currency}{n(price, 0)}' if price >= 1 else f'{currency}{n(price, 4, grouping=False)}'
+        body = n(price, 0) if price >= 1 else n(price, 4, grouping=False)
+        return f'{cur_sym}{sep}{body}'
 
     def block(c):
         """The lines for one coin, sized to the display: price+change together on
         2+ row displays (with the name too when there are 3+ rows)."""
         d = r.get(c, {})
-        price, chg = d.get('usd'), d.get('usd_24h_change')
+        price, chg = d.get(vs), d.get(f'{vs}_24h_change')
         sym = c[:6].upper()
         if price is None:
             return [f'{sym} ERR']
@@ -56,7 +74,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             b = block(c)
             lines += b + [''] * (lines_per - len(b))   # pad each block so coins align
         pages.append(format_lines(*lines))
-    return pages or [format_lines('CRYPTO', 'NO DATA', '')]
+    return pages or [format_lines('CRYPTO', t('NO DATA'), '')]
 
 
 def trigger(settings, conditions):

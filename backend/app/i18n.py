@@ -196,6 +196,27 @@ def base_currency(lang):
     return _BASE_CURRENCY.get(code) or _BASE_CURRENCY.get(_base_lang(lang or "en"), "USD")
 
 
+def currency_symbol(code):
+    """Compact symbol for an ISO 4217 currency code ('EUR' -> '€', 'USD' -> '$',
+    'GBP' -> '£') from babel, using a neutral (English) locale so it's the short
+    universal form — not a locale-disambiguated one like '$US'/'£GB'. Falls back to
+    the ISO code when the symbol has characters the flap display (Windows-1252) can't
+    render — ₹, ₩, ฿ -> 'INR'/'KRW'/'THB'."""
+    if not code:
+        return ""
+    code = code.upper()
+    try:
+        from babel.numbers import get_currency_symbol
+        sym = get_currency_symbol(code, locale="en") or code
+    except Exception:
+        sym = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥"}.get(code, code)
+    try:
+        sym.encode("cp1252")
+    except UnicodeEncodeError:
+        return code
+    return sym
+
+
 def country(lang):
     """The country a language/region implies — for holidays (which calendar to show)
     and other country-scoped data. Regional variants split by country (``pt-BR`` ->
@@ -254,6 +275,9 @@ class Localizer:
 
     def base_currency(self):
         return base_currency(self.lang)
+
+    def currency_symbol(self, code):
+        return currency_symbol(code)
 
     def country(self):
         return country(self.lang)

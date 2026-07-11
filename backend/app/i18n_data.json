@@ -206,6 +206,34 @@
           "pt": "DATA INVALIDA",
           "nl": "ONGELDIGE DATUM"
         }
+      },
+      "API FAIL": {
+        "context": "Status: an upstream API call failed.",
+        "translations": {
+          "fr": "ECHEC API",
+          "de": "API-FEHLER",
+          "es": "FALLO API",
+          "it": "ERRORE API",
+          "pt": "FALHA API",
+          "nl": "API-FOUT",
+          "da": "API-FEJL",
+          "no": "API-FEIL",
+          "sv": "API-FEL"
+        }
+      },
+      "CONFIGURE": {
+        "context": "Prompt to configure the app in Settings.",
+        "translations": {
+          "fr": "CONFIGURER",
+          "de": "EINRICHTEN",
+          "es": "CONFIGURAR",
+          "it": "CONFIGURA",
+          "pt": "CONFIGURAR",
+          "nl": "INSTELLEN",
+          "da": "OPSÆT",
+          "no": "SETT OPP",
+          "sv": "KONFIGURERA"
+        }
       }
     },
     "time": {
@@ -1752,6 +1780,20 @@
           "no": "INGEN",
           "sv": "INGEN"
         }
+      },
+      "IN SPACE": {
+        "context": "Suffix after a count: 'N people in space'.",
+        "translations": {
+          "fr": "DANS L'ESPACE",
+          "de": "IM WELTALL",
+          "es": "EN EL ESPACIO",
+          "it": "NELLO SPAZIO",
+          "pt": "NO ESPAÇO",
+          "nl": "IN DE RUIMTE",
+          "da": "I RUMMET",
+          "no": "I ROMMET",
+          "sv": "I RYMDEN"
+        }
       }
     },
     "sports": {
@@ -1865,6 +1907,216 @@
           "pt": "PTS",
           "nl": "PNT"
         }
+      },
+      "FINAL": {
+        "context": "A finished game (final score).",
+        "translations": {
+          "fr": "TERMINÉ",
+          "de": "BEENDET",
+          "es": "FINAL",
+          "it": "FINALE",
+          "pt": "FINAL",
+          "nl": "AFGELOPEN",
+          "da": "SLUT",
+          "no": "SLUTT",
+          "sv": "SLUT"
+        }
+      },
+      "LIVE": {
+        "context": "A game in progress.",
+        "translations": {
+          "fr": "EN DIRECT",
+          "de": "LIVE",
+          "es": "EN VIVO",
+          "it": "IN DIRETTA",
+          "pt": "AO VIVO",
+          "nl": "LIVE",
+          "da": "LIVE",
+          "no": "DIREKTE",
+          "sv": "DIREKT"
+        }
+      },
+      "UPCOMING": {
+        "context": "A game not yet started.",
+        "translations": {
+          "fr": "À VENIR",
+          "de": "DEMNÄCHST",
+          "es": "PRÓXIMO",
+          "it": "IN ARRIVO",
+          "pt": "EM BREVE",
+          "nl": "BINNENKORT",
+          "da": "KOMMENDE",
+          "no": "KOMMENDE",
+          "sv": "KOMMANDE"
+        }
+      },
+      "SCHEDULED": {
+        "context": "A game/event scheduled for later.",
+        "translations": {
+          "fr": "PRÉVU",
+          "de": "GEPLANT",
+          "es": "PROGRAMADO",
+          "it": "PREVISTO",
+          "pt": "AGENDADO",
+          "nl": "GEPLAND",
+          "da": "PLANLAGT",
+          "no": "PLANLAGT",
+          "sv": "PLANERAD"
+        }
+      },
+      "NO GAMES": {
+        "context": "No games found.",
+        "translations": {
+          "fr": "AUCUN MATCH",
+          "de": "KEINE SPIELE",
+          "es": "SIN PARTIDOS",
+          "it": "NESSUNA PARTITA",
+          "pt": "SEM JOGOS",
+          "nl": "GEEN DUELS",
+          "da": "INGEN KAMPE",
+          "no": "INGEN KAMPER",
+          "sv": "INGA MATCHER"
+        }
+      },
+      "NO TEAMS": {
+        "context": "No teams configured.",
+        "translations": {
+          "fr": "AUCUNE ÉQUIPE",
+          "de": "KEINE TEAMS",
+          "es": "SIN EQUIPOS",
+          "it": "NESSUNA SQUADRA",
+          "pt": "SEM EQUIPES",
+          "nl": "GEEN TEAMS",
+          "da": "INGEN HOLD",
+          "no": "INGEN LAG",
+          "sv": "INGA LAG"
+        }
+      },
+      "NO EVENT": {
+        "context": "No event this week.",
+        "translations": {
+          "fr": "AUCUN EVENT",
+          "de": "KEIN EVENT",
+          "es": "SIN EVENTO",
+          "it": "NESSUN EVENTO",
+          "pt": "SEM EVENTO",
+          "nl": "GEEN EVENT",
+          "da": "INGEN EVENT",
+          "no": "INGEN EVENT",
+          "sv": "INGET EVENT"
+        }
+      },
+      "NO LEADERS": {
+        "context": "No leaderboard available.",
+        "translations": {
+          "fr": "AUCUN LEADER",
+          "de": "KEINE FÜHRENDEN",
+          "es": "SIN LÍDERES",
+          "it": "NESSUN LEADER",
+          "pt": "SEM LÍDERES",
+          "nl": "GEEN LEIDERS",
+          "da": "INGEN LEDERE",
+          "no": "INGEN LEDERE",
+          "sv": "INGA LEDARE"
+        }
+      },
+      "NO FIGHTS": {
+        "context": "No fights scheduled.",
+        "translations": {
+          "fr": "AUCUN COMBAT",
+          "de": "KEINE KÄMPFE",
+          "es": "SIN COMBATES",
+          "it": "NESSUN INCONTRO",
+          "pt": "SEM LUTAS",
+          "nl": "GEEN GEVECHTEN",
+          "da": "INGEN KAMPE",
+          "no": "INGEN KAMPER",
+          "sv": "INGA MATCHER"
+        }
+      },
+      "CONFIGURED": {
+        "context": "'... configured' (paired with NO TEAMS).",
+        "translations": {
+          "fr": "CONFIGURÉE",
+          "de": "EINGERICHTET",
+          "es": "CONFIGURADO",
+          "it": "CONFIGURATO",
+          "pt": "CONFIGURADO",
+          "nl": "INGESTELD",
+          "da": "OPSAT",
+          "no": "SATT OPP",
+          "sv": "KONFIG."
+        }
+      },
+      "FOUND": {
+        "context": "'... found' (paired with NO GAMES).",
+        "translations": {
+          "fr": "TROUVÉ",
+          "de": "GEFUNDEN",
+          "es": "ENCONTRADO",
+          "it": "TROVATO",
+          "pt": "ENCONTRADO",
+          "nl": "GEVONDEN",
+          "da": "FUNDET",
+          "no": "FUNNET",
+          "sv": "HITTAT"
+        }
+      },
+      "THIS WEEK": {
+        "context": "'this week' timeframe.",
+        "translations": {
+          "fr": "CETTE SEMAINE",
+          "de": "DIESE WOCHE",
+          "es": "ESTA SEMANA",
+          "it": "QUESTA SETT.",
+          "pt": "ESTA SEMANA",
+          "nl": "DEZE WEEK",
+          "da": "DENNE UGE",
+          "no": "DENNE UKEN",
+          "sv": "DENNA VECKA"
+        }
+      },
+      "ALL": {
+        "context": "Filter label: all games.",
+        "translations": {
+          "fr": "TOUS",
+          "de": "ALLE",
+          "es": "TODOS",
+          "it": "TUTTI",
+          "pt": "TODOS",
+          "nl": "ALLE",
+          "da": "ALLE",
+          "no": "ALLE",
+          "sv": "ALLA"
+        }
+      },
+      "NOTHING": {
+        "context": "'nothing followed' empty state.",
+        "translations": {
+          "fr": "RIEN",
+          "de": "NICHTS",
+          "es": "NADA",
+          "it": "NIENTE",
+          "pt": "NADA",
+          "nl": "NIETS",
+          "da": "INTET",
+          "no": "INGENTING",
+          "sv": "INGET"
+        }
+      },
+      "FOLLOWED": {
+        "context": "'... followed' (paired with NOTHING).",
+        "translations": {
+          "fr": "SUIVI",
+          "de": "GEFOLGT",
+          "es": "SEGUIDO",
+          "it": "SEGUITO",
+          "pt": "SEGUIDO",
+          "nl": "GEVOLGD",
+          "da": "FULGT",
+          "no": "FULGT",
+          "sv": "FÖLJT"
+        }
       }
     },
     "sentiment": {
@@ -1930,6 +2182,38 @@
           "it": "AVIDITA ESTREMA",
           "pt": "GANANCIA EXTREMA",
           "nl": "EXTREME HEBZUCHT"
+        }
+      }
+    },
+    "crypto": {
+      "NO COINS": {
+        "context": "No cryptocurrencies configured.",
+        "translations": {
+          "fr": "AUCUNE CRYPTO",
+          "de": "KEINE COINS",
+          "es": "SIN MONEDAS",
+          "it": "NESSUNA CRIPTO",
+          "pt": "SEM MOEDAS",
+          "nl": "GEEN MUNTEN",
+          "da": "INGEN MØNTER",
+          "no": "INGEN MYNTER",
+          "sv": "INGA MYNT"
+        }
+      }
+    },
+    "stocks": {
+      "NO TICKERS": {
+        "context": "No stock tickers configured.",
+        "translations": {
+          "fr": "AUCUN TITRE",
+          "de": "KEINE AKTIEN",
+          "es": "SIN VALORES",
+          "it": "NESSUN TITOLO",
+          "pt": "SEM AÇÕES",
+          "nl": "GEEN AANDELEN",
+          "da": "INGEN AKTIER",
+          "no": "INGEN AKSJER",
+          "sv": "INGA AKTIER"
         }
       }
     },

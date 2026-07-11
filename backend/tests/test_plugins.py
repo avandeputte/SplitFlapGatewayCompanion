@@ -527,7 +527,9 @@ def test_perapp_location_override(tmp_path):
     rt = _runtime(tmp_path, ["holidays", "exchange-rates", "metals"])
     present = {a: any(f["key"] == f"plugin_{a}_location" for f in rt.settings_schema(a)["fields"])
                for a in ["holidays", "exchange-rates", "metals"]}
-    assert present == {"holidays": True, "exchange-rates": True, "metals": False}
+    # metals now uses get_location too (to price in the local currency), so it also
+    # gets a per-app Location override.
+    assert present == {"holidays": True, "exchange-rates": True, "metals": True}
     rt.settings.set("plugin_holidays_location", "35.68,139.69|Tokyo")
     ps = rt._plugin_settings("holidays", rt.manifest("holidays"))
     assert ps["location_lat"] == "35.68" and ps["location_lon"] == "139.69"
