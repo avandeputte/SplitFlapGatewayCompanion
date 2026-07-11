@@ -11,6 +11,10 @@ services:
     container_name: splitflap-companion
     ports:
       - "8000:8000"
+      # Vestaboard-compatible API (COMPANION_VESTABOARD=1): a real board answers on
+      # port 7000, and some clients hard-code it. Publishing the SAME app on 7000 is
+      # all it takes — there is no second server inside the container.
+      # - "7000:8000"
     volumes:
       - companion-data:/data
     restart: unless-stopped
@@ -37,6 +41,11 @@ services:
       # COMPANION_LOG_LEVEL: "INFO"
       # Home Assistant: auto (follow the gateway) | true | false
       COMPANION_HA: "auto"
+      # Answer the Vestaboard Local API (off by default), so anything that speaks to
+      # a Vestaboard can drive this display. Leave the key blank and one is generated
+      # and kept with your settings — read it from the Dev menu. See README.
+      # COMPANION_VESTABOARD: "1"
+      # COMPANION_VESTABOARD_KEY: ""
       # --- Manual overrides (only if you do NOT want to read from the gateway) ---
       # COMPANION_GRID_ROWS: "3"
       # COMPANION_GRID_COLS: "15"

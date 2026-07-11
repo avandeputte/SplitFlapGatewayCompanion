@@ -25,8 +25,16 @@ from .catalog import GLOBAL_STORAGE_KEYS
 
 log = logging.getLogger("companion.settings")
 
-# Top-level (non-setting) keys — kept out of the global/shared/apps sections.
-_META_KEYS = ("installed_apps", "saved_app_playlists", "triggers", "triggers_enabled")
+# Top-level (non-setting) keys — kept out of the global/shared/apps sections. A key
+# NOT listed here is a "stray bare key" and is silently dropped by _to_nested, so
+# anything that must survive a restart belongs in this tuple.
+#
+# vestaboard_api_key: the generated Local API key (see main.vestaboard_key). It has
+# to outlive the process — a key that changed on every restart would silently break
+# an already-configured Home Assistant. Like the other secrets in this store (weather
+# and YouTube API keys), it rides along to the gateway's settings mirror.
+_META_KEYS = ("installed_apps", "saved_app_playlists", "triggers", "triggers_enabled",
+              "vestaboard_api_key")
 
 
 def _detect_timezone() -> str:
@@ -60,6 +68,9 @@ def _defaults() -> dict:
         "saved_app_playlists": {},
         "triggers": [],
         "triggers_enabled": True,
+        # Generated once, when the Vestaboard-compatible API is first used (blank
+        # until then, and unused entirely when COMPANION_VESTABOARD_KEY pins one).
+        "vestaboard_api_key": "",
         # Which apps are enabled (shown in the grid + loaded). The default app
         # set; the App Library manages this at runtime.
         "installed_apps": [

@@ -317,6 +317,75 @@ So an HA automation can start an app or run a playlist on any trigger, and
 dashboards can read which app/playlist is active from the select states. The
 option lists update automatically as you install apps or save playlists.
 
+### Vestaboard-compatible API
+
+A **[Vestaboard](https://www.vestaboard.com/)** is a commercial split-flap display
+with a widely-spoken [Local API](https://docs.vestaboard.com/docs/local-api/endpoints).
+Turn this on and the companion answers that API, so anything already written for a
+Vestaboard — a Home Assistant `rest_command`, the HACS integration, a script, a
+client library — drives *your* wall, unchanged. The fit is close: a **Vestaboard
+Note is 3 × 15**, exactly the default grid.
+
+```bash
+COMPANION_VESTABOARD=1          # off by default
+COMPANION_VESTABOARD_KEY=       # blank -> generated once, kept with your settings
+```
+
+It can also be flipped on from the **Dev menu** (`COMPANION_DEV_MODE=1`), which is
+where you read the generated key.
+
+| Endpoint | Does |
+|---|---|
+| `POST /local-api/message` | Show a message. Takes a bare character-code matrix, `{"characters": [[…]], "strategy": "…"}`, or `{"text": "…"}` (an extension of ours — the real Local API is matrix-only, but most HA setups send text). Takes the display over, like a Compose push |
+| `GET /local-api/message` | The board as it stands, as a character-code matrix |
+| `POST /local-api/enablement` | Vestaboard's key handshake — only if you set `COMPANION_VESTABOARD_ENABLEMENT_TOKEN` |
+
+Every call needs the `X-Vestaboard-Local-Api-Key` header. **That key guards these
+routes only** — the rest of the companion's API is unauthenticated, as it always was.
+
+A real board listens on **port 7000** and some clients hard-code it. Publishing the
+same app on that port is all it takes (`-p 7000:8000`, see `docker-compose.yml`) —
+there's no second server in the container.
+
+Home Assistant, pointed at the companion instead of a Vestaboard:
+
+```yaml
+rest_command:
+  splitflap_message:
+    url: "http://companion-host:8000/local-api/message"
+    method: POST
+    headers:
+      X-Vestaboard-Local-Api-Key: !secret splitflap_api_key
+    content_type: "application/json"
+    payload: '{"text": "{{ message }}"}'
+```
+```yaml
+action:
+  - service: rest_command.splitflap_message
+    data:
+      message: "Bin day tomorrow"
+```
+
+**Characters.** Codes follow Vestaboard's
+[table](https://docs.vestaboard.com/docs/charactercodes/): `0` blank, `1–26` A–Z,
+`27–35` 1–9, `36` 0, then punctuation, and `63–69` the colour chips — which are this
+display's colour flaps (`r o y g b p w`, violet → `p`). Two are lossy, because the
+flaps have no such tile: **black (70) → blank** (the same thing ⬛ means in Compose)
+and **filled (71) → white**. Neither survives a write-then-read round trip. Anything
+a module can't render is blanked by the module, as always.
+
+**Geometry.** A 3 × 15 message lands cell-for-cell. A **6 × 22 Flagship** message is
+*compacted*: Vestaboard clients centre text inside the full board, so the payload is
+mostly blank padding — that padding is trimmed and the real content is centred on
+your wall (a plain crop would show you the blank rows). The message's own relative
+alignment is preserved.
+
+**Animations.** Vestaboard's `strategy` maps onto the transition styles this project
+already has (`column` → `columns`, `edges-to-center` → `outside_in`, `row` → `ltr`,
+and so on). `step_interval_ms` / `step_size` are accepted and ignored: Vestaboard's
+default is 3 s *per step*, which here would stretch one message into a minutes-long
+crawl.
+
 ---
 
 ## Localization

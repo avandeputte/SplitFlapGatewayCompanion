@@ -959,6 +959,46 @@ async function openDevMenu() {
     });
     wrap.appendChild(simF);
 
+    // 1b) Vestaboard-compatible Local API
+    const vbF = el("div", "field");
+    const vbLbl = el("label"); vbLbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
+    const vb = el("input"); vb.type = "checkbox"; vb.checked = !!st.vestaboard; vb.style.width = "auto";
+    vbLbl.appendChild(vb);
+    vbLbl.appendChild(document.createTextNode("Vestaboard API"));
+    vbF.appendChild(vbLbl);
+    const vbNote = el("small", "field-note");
+    vbF.appendChild(vbNote);
+
+    // Details (the key + endpoint) only mean anything while it's on.
+    const showVb = async () => {
+      if (!vb.checked) {
+        vbNote.textContent = "Off. Turn on to accept Vestaboard Local API calls " +
+          "(Home Assistant, scripts) at /local-api/message — this display then answers like a Vestaboard.";
+        return;
+      }
+      vbNote.textContent = "Loading…";
+      try {
+        const d = await api("/api/dev/vestaboard");
+        vbNote.innerHTML = "";
+        const url = `${location.origin}${d.path}`;
+        const l1 = el("div"); l1.textContent = `POST ${url}`;
+        const l2 = el("div"); l2.style.marginTop = "2px";
+        l2.textContent = `X-Vestaboard-Local-Api-Key: ${d.key}`;
+        const l3 = el("div"); l3.style.marginTop = "2px";
+        l3.textContent = d.env_key
+          ? "Key pinned by COMPANION_VESTABOARD_KEY."
+          : "Key generated and stored with your settings. Pin your own with COMPANION_VESTABOARD_KEY.";
+        vbNote.append(l1, l2, l3);
+      } catch (e) { vbNote.textContent = "Failed: " + e.message; }
+    };
+    vb.addEventListener("change", async () => {
+      vb.disabled = true;
+      try { render(await post("/api/dev/vestaboard", { on: vb.checked })); }
+      catch (e) { vbNote.textContent = "Failed: " + e.message; vb.disabled = false; }
+    });
+    showVb();
+    wrap.appendChild(vbF);
+
     // 2) Force resync with the gateway
     const reF = el("div", "field");
     const reLbl = el("span"); reLbl.textContent = "Gateway sync"; reLbl.style.fontWeight = "600"; reF.appendChild(reLbl);

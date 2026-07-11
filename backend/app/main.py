@@ -13,15 +13,16 @@ import copy
 import hashlib
 import logging
 import os
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, helpers, renderer, weather
+from . import __version__, helpers, renderer, vestaboard, weather
 from .config import Config
 from .engine import DisplayController
 from .gateway import (build_sync_patch, detect_local_ip, fetch_gateway_config,
@@ -346,6 +347,10 @@ class DevSim(BaseModel):
     on: bool
 
 
+class DevVestaboard(BaseModel):
+    on: bool
+
+
 class DevGrid(BaseModel):
     rows: int
     cols: int
@@ -461,6 +466,33 @@ async def dev_sim(req: DevSim):
     controller.resize_grid()             # geometry may have reverted
     plugins.on_grid_changed()
     return config.dev_state()
+
+
+@app.post("/api/dev/vestaboard")
+async def dev_vestaboard(req: DevVestaboard):
+    """Turn the Vestaboard-compatible Local API on/off at runtime (see the block at
+    the bottom of this file). COMPANION_VESTABOARD sets where it starts."""
+    _require_dev()
+    config.set_vestaboard(req.on)
+    if req.on:
+        vestaboard_key()   # mint + persist the key now, so the menu can show it
+    log.info("Vestaboard API %s (dev menu)", "enabled" if req.on else "disabled")
+    return config.dev_state()
+
+
+@app.get("/api/dev/vestaboard")
+async def dev_vestaboard_state():
+    """The Vestaboard connection details, for the dev menu to display: the key a
+    client must send, and the endpoint it posts to. Dev-gated because it hands out
+    the key."""
+    _require_dev()
+    on = config.vestaboard_enabled
+    return {
+        "enabled": on,
+        "key": vestaboard_key() if on else "",
+        "path": "/local-api/message",
+        "env_key": bool(config.vestaboard.get("api_key")),   # pinned via env, not generated
+    }
 
 
 @app.post("/api/dev/resync")
@@ -805,6 +837,132 @@ async def gateway_status():
                     "status_code": r.status_code, "data": r.json()}
     except Exception as e:
         return {"ok": False, "url": url, "tabs": tabs, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Vestaboard-compatible Local API (off unless COMPANION_VESTABOARD=1, or the dev
+# menu turns it on). Anything that speaks to a Vestaboard — a Home Assistant
+# rest_command, the HACS integration, a script — can then drive this display by
+# URL alone. The codec is in vestaboard.py; these are the endpoints.
+#
+# The paths are Vestaboard's, so they sit at the root rather than under /api/*,
+# like the app-data helpers above — and so they must be declared BEFORE the SPA
+# is mounted at "/". A real board answers on port 7000; publish the container as
+# `-p 7000:8000` and clients that hard-code that port are satisfied too.
+#
+# NOTE: this key guards these routes ONLY. The rest of the companion's API is
+# unauthenticated, as it always was — the key is Vestaboard compatibility, not a
+# security boundary for the host.
+# ---------------------------------------------------------------------------
+VESTABOARD_KEY_SETTING = "vestaboard_api_key"
+
+
+def _require_vestaboard() -> dict:
+    """The Vestaboard config, or 404 when the layer is off — so the whole surface
+    genuinely vanishes rather than answering 401s nobody can satisfy."""
+    if not config.vestaboard_enabled:
+        raise HTTPException(404, "Vestaboard API is off (set COMPANION_VESTABOARD=1)")
+    return config.vestaboard
+
+
+def vestaboard_key() -> str:
+    """The Local API key: the env value if set, else one generated once and kept in
+    the settings store (which persists to /data and mirrors to the gateway). A key
+    that changed on every restart would silently break an already-configured client,
+    so it must outlive the process."""
+    env_key = config.vestaboard.get("api_key") or ""
+    if env_key:
+        return env_key
+    stored = plugin_settings.get(VESTABOARD_KEY_SETTING) or ""
+    if not stored:
+        stored = secrets.token_urlsafe(24)
+        plugin_settings.set(VESTABOARD_KEY_SETTING, stored)
+        log.info("Vestaboard API: generated an API key (see the Dev menu, or set "
+                 "COMPANION_VESTABOARD_KEY to pin your own)")
+    return stored
+
+
+def _check_key(request: Request) -> None:
+    key = request.headers.get("X-Vestaboard-Local-Api-Key", "")
+    if not key or not secrets.compare_digest(key, vestaboard_key()):
+        raise HTTPException(401, "invalid or missing X-Vestaboard-Local-Api-Key")
+
+
+@app.post("/local-api/enablement")
+async def vb_enablement(request: Request):
+    """Vestaboard's enablement handshake: present the token, get the API key back.
+    On a real board the token is emailed to the owner; here it is whatever you set
+    in COMPANION_VESTABOARD_ENABLEMENT_TOKEN. With no token set there is nothing to
+    verify, so the exchange is refused (the key is in the Dev menu instead)."""
+    vb = _require_vestaboard()
+    token = vb.get("enablement_token") or ""
+    if not token:
+        raise HTTPException(403, "no enablement token configured "
+                                 "(set COMPANION_VESTABOARD_ENABLEMENT_TOKEN)")
+    sent = request.headers.get("X-Vestaboard-Local-Api-Enablement-Token", "")
+    if not sent or not secrets.compare_digest(sent, token):
+        raise HTTPException(403, "invalid enablement token")
+    return {"message": "Local API enabled", "apiKey": vestaboard_key()}
+
+
+@app.get("/local-api/message")
+async def vb_read_message(request: Request):
+    """The board as it stands, as a character-code matrix — which is what this
+    endpoint means on real hardware: whatever the flaps are showing, including a
+    running app's output, not merely the last message someone posted."""
+    _require_vestaboard()
+    _check_key(request)
+    g = config.grid
+    rows, cols = int(g["rows"]), int(g["cols"])
+    return vestaboard.encode(state.current_chars, rows, cols)
+
+
+@app.post("/local-api/message")
+async def vb_send_message(request: Request):
+    """Post a message. Takes every shape a Vestaboard client sends:
+
+        [[0,8,5,...], ...]                        a bare character-code matrix
+        {"characters": [[...]], "strategy": ...}  ...with an animation
+        {"text": "HELLO"}                         an extension of ours, because most
+                                                  Home Assistant setups send text
+
+    Like a compose push, this takes the display over: any running app or playlist is
+    cancelled (send_text_bg), which is what posting to a Vestaboard implies.
+    """
+    _require_vestaboard()
+    _check_key(request)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "body must be JSON")
+
+    g = config.grid
+    rows, cols = int(g["rows"]), int(g["cols"])
+    strategy = None
+
+    try:
+        if isinstance(body, list):                       # the bare-matrix form
+            page = vestaboard.fit(vestaboard.decode(body), rows, cols)
+        elif isinstance(body, dict) and body.get("characters") is not None:
+            strategy = body.get("strategy")
+            page = vestaboard.fit(vestaboard.decode(body["characters"]), rows, cols)
+        elif isinstance(body, dict) and isinstance(body.get("text"), str):
+            strategy = body.get("strategy")
+            # The board has no lowercase flaps; uppercase exactly the way every other
+            # text path here does (cp1252-aware, so accents survive as one cell).
+            page = vestaboard.layout_text(renderer.cp1252_upper(body["text"]), rows, cols)
+        else:
+            raise HTTPException(422, "expected a character matrix, {\"characters\": [[...]]}, "
+                                     "or {\"text\": \"...\"}")
+    except vestaboard.VestaboardError as e:
+        raise HTTPException(422, str(e))
+
+    style = vestaboard.style_for(strategy, config.display.get("transition_style", "ltr"))
+    # raw=True: the codec already produced final characters, and uppercasing here
+    # would turn every colour chip (lowercase r/o/y/g/b/p/w) into a letter.
+    controller.send_text_bg(page, style=style, raw=True)
+    ha.publish_state()
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

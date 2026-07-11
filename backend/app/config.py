@@ -65,6 +65,17 @@ DEFAULTS: dict = {
     # Bind address + port (also used to build the auto-detected companion URL).
     "host": "0.0.0.0",
     "port": 8000,
+    # Vestaboard-compatible Local API (see vestaboard.py). OFF by default: it is an
+    # extra, key-authenticated HTTP surface, so it only exists when asked for. The
+    # api_key is normally left blank and generated once, then persisted with the app
+    # settings (a key regenerated on every restart would break a configured client).
+    # enablement_token mirrors Vestaboard's own flow: present it to
+    # POST /local-api/enablement and the key comes back.
+    "vestaboard": {
+        "enabled": False,
+        "api_key": "",
+        "enablement_token": "",
+    },
     # Home Assistant MQTT integration. "auto" follows the gateway's own HA
     # setting (haEnabled from its /api/config); true/false force it. Uses the
     # same MQTT broker as the transport (transport.mqtt).
@@ -112,6 +123,14 @@ def _env_overrides() -> dict:
         ov["host"] = e["COMPANION_HOST"]
     if "COMPANION_PORT" in e:
         ov["port"] = int(e["COMPANION_PORT"])
+    if "COMPANION_VESTABOARD" in e:
+        ov.setdefault("vestaboard", {})["enabled"] = \
+            e["COMPANION_VESTABOARD"].lower() in ("1", "true", "yes", "on")
+    if "COMPANION_VESTABOARD_KEY" in e:
+        ov.setdefault("vestaboard", {})["api_key"] = e["COMPANION_VESTABOARD_KEY"].strip()
+    if "COMPANION_VESTABOARD_ENABLEMENT_TOKEN" in e:
+        ov.setdefault("vestaboard", {})["enablement_token"] = \
+            e["COMPANION_VESTABOARD_ENABLEMENT_TOKEN"].strip()
     if "COMPANION_HA" in e:
         v = e["COMPANION_HA"].lower()
         ov.setdefault("ha", {})["enabled"] = True if v in ("1", "true", "yes", "on") \
@@ -162,6 +181,12 @@ class Config:
         self._sim = False
         self._grid_override: dict | None = None   # {rows, cols}; only honored in sim mode
         self._effective: dict = self._recompute()
+        # The Vestaboard layer starts wherever the env put it, and the dev menu can
+        # flip it at runtime from there (like sim mode). It is deliberately NOT read
+        # from self._effective on every call: a runtime toggle has to be able to win
+        # over the env value for the life of the process, and env always beats the
+        # config tree (see _recompute).
+        self._vestaboard = bool(self._effective["vestaboard"]["enabled"])
 
     def _recompute(self) -> dict:
         merged = _deep_merge(DEFAULTS, self._synced)
@@ -199,6 +224,22 @@ class Config:
         with self._lock:
             self._grid_override = None
 
+    # -- Vestaboard-compatible API ------------------------------------------
+    @property
+    def vestaboard_enabled(self) -> bool:
+        return self._vestaboard
+
+    def set_vestaboard(self, on: bool) -> None:
+        with self._lock:
+            self._vestaboard = bool(on)
+
+    @property
+    def vestaboard(self) -> dict:
+        """The Vestaboard block, with `enabled` reflecting any runtime toggle."""
+        vb = copy.deepcopy(self._effective["vestaboard"])
+        vb["enabled"] = self._vestaboard
+        return vb
+
     def dev_state(self) -> dict:
         """State for the developer menu (safe to expose regardless of dev_mode)."""
         return {
@@ -207,6 +248,9 @@ class Config:
             "grid": self.grid,
             "gateway_grid": copy.deepcopy(self._effective["grid"]),
             "grid_overridden": bool(self._sim and self._grid_override),
+            # Just the switch. The key lives in the settings store (Config can't see
+            # it), so the dev menu reads it from GET /api/dev/vestaboard instead.
+            "vestaboard": self._vestaboard,
         }
 
     @property

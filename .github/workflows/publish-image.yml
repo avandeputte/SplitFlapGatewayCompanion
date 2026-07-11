@@ -24,8 +24,17 @@ jobs:
       - name: Compute image coordinates
         id: meta
         run: |
-          echo "version=$(tr -d ' \t\n\r' < VERSION)" >> "$GITHUB_OUTPUT"
-          echo "owner=${GITHUB_REPOSITORY_OWNER,,}"    >> "$GITHUB_OUTPUT"
+          VERSION="$(tr -d ' \t\n\r' < VERSION)"
+          echo "version=$VERSION"                   >> "$GITHUB_OUTPUT"
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          # A prerelease (1.4.0-beta.1) publishes :beta and must NOT move :latest —
+          # that tag is what a plain `docker pull` and the installer get, so it stays
+          # on the newest stable release until a stable one ships.
+          if [ "${VERSION#*-}" != "$VERSION" ]; then
+            echo "channel=beta"   >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=latest" >> "$GITHUB_OUTPUT"
+          fi
 
       # QEMU lets the amd64 runner cross-build the arm64 layer.
       - uses: docker/setup-qemu-action@v4
@@ -44,7 +53,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ steps.meta.outputs.owner }}/splitflap-gateway-companion:${{ steps.meta.outputs.version }}
-            ghcr.io/${{ steps.meta.outputs.owner }}/splitflap-gateway-companion:latest
+            ghcr.io/${{ steps.meta.outputs.owner }}/splitflap-gateway-companion:${{ steps.meta.outputs.channel }}
           labels: |
             org.opencontainers.image.title=SplitFlap Gateway Companion
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
