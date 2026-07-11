@@ -69,7 +69,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     lang = i18n.lang_base if i18n is not None else "en"
     words = WORDS_BY_LANG.get(lang) or WORDS_BY_LANG["en"]
     word = words[date.today().toordinal() % len(words)]
-    header = i18n.t("WORD OF THE DAY") if i18n is not None else "WORD OF THE DAY"
+    header = i18n.t("WORD OF THE DAY", "vocab") if i18n is not None else "WORD OF THE DAY"
     if get_rows() == 1:
         return [format_lines(word)]
     return [format_lines(header, word)]

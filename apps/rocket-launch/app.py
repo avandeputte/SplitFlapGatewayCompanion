@@ -6,8 +6,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     from datetime import datetime, timezone
     rows, cols = get_rows(), get_cols()
 
-    def t(s):
-        return i18n.t(s) if i18n is not None else s
+    def t(s, ctx="space"):
+        return i18n.t(s, ctx) if i18n is not None else s
 
     def u(k):                                 # localized D/H/M duration suffix
         return i18n.unit(k) if i18n is not None else k
@@ -33,7 +33,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                     cd = t('IMMINENT')
                 else:
                     d, h, m = secs // 86400, (secs % 86400) // 3600, (secs % 3600) // 60
-                    in_ = t('IN')
+                    in_ = t('IN', 'time')
                     cd = (f'{in_} {d}{u("D")} {h}{u("H")}' if d
                           else (f'{in_} {h}{u("H")} {m}{u("M")}' if h
                                 else f'{in_} {m}{u("M")}'))

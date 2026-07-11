@@ -220,7 +220,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     lang = (i18n.lang.split('-')[0] if i18n is not None else 'en')
 
     def t(s):
-        return i18n.t(s) if i18n is not None else s
+        return i18n.t(s, "weather") if i18n is not None else s
 
     # --- Polling state (persists across calls on this plugin instance) ---
     state = getattr(fetch, '_state', None)

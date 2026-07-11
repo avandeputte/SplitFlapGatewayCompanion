@@ -6,7 +6,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     rows, cols = get_rows(), get_cols()
 
     def t(s):
-        return i18n.t(s) if i18n is not None else s
+        return i18n.t(s, "metals") if i18n is not None else s
 
     def n(v, d):        # locale decimal/grouping (2,345 vs 2.345 vs 2 345)
         return i18n.number(v, d) if i18n is not None else f'{v:,.{d}f}'

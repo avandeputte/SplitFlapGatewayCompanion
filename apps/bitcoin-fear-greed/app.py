@@ -5,7 +5,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import json
 
     def t(s):
-        return i18n.t(s) if i18n is not None else s
+        return i18n.t(s, "sentiment") if i18n is not None else s
 
     try:
         url = "https://api.alternative.me/fng/?limit=1"

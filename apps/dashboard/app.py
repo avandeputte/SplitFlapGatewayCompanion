@@ -32,7 +32,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
     feels = w.get('feels_like_f')
     desc = str(w.get('desc') or '').upper()
     if i18n is not None:                     # translate shared-helper condition text where we can
-        desc = i18n.t(desc)
+        desc = i18n.t(desc, "weather")
     high = w.get('hi_f')
     low = w.get('lo_f')
     now_t = i18n.time(dt, ampm_space=False) if i18n is not None else dt.strftime("%I:%M%p").lstrip("0")

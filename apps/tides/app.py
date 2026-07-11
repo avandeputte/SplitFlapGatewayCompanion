@@ -7,7 +7,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     rows, cols = get_rows(), get_cols()
 
     def t(s):
-        return i18n.t(s) if i18n is not None else s
+        return i18n.t(s, "tides") if i18n is not None else s
 
     def fmt_time(hhmm):                       # NOAA gives 24h local time ("15:48")
         try:

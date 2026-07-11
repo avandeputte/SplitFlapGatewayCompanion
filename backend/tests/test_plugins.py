@@ -401,10 +401,15 @@ def test_grid_change_clears_page_caches(tmp_path):
 def test_i18n_localizes_labels_and_dates():
     from datetime import date
     from app import i18n
-    assert i18n.translate("SUNRISE", "fr") == "LEVER"
-    assert i18n.translate("SUNRISE", "en") == "SUNRISE"      # English -> unchanged
-    assert i18n.translate("SUNRISE", "zz") == "SUNRISE"      # unknown language -> English
-    assert i18n.translate("NOT_A_KEY", "fr") == "NOT_A_KEY"  # unknown key -> English
+    # Strings are keyed by context/domain (like gettext msgctxt): SUNRISE lives in
+    # the 'sun' domain, and the same word can differ per domain.
+    assert i18n.translate("SUNRISE", "fr", "sun") == "LEVER"
+    assert i18n.translate("SUNRISE", "en", "sun") == "SUNRISE"      # English -> unchanged
+    assert i18n.translate("SUNRISE", "zz", "sun") == "SUNRISE"      # unknown language -> English
+    assert i18n.translate("NOT_A_KEY", "fr", "sun") == "NOT_A_KEY"  # unknown key -> English
+    assert i18n.translate("HIGH", "fr", "weather") == "ELEVE"       # a level
+    assert i18n.translate("HIGH", "fr", "tides") == "HAUTE"         # a tide -> distinct
+    assert i18n.translate("OFFLINE", "fr", "aurora") == "HORS LIGNE"  # 'common' fallback
     d = date(2026, 1, 5)                                     # a Monday
     assert i18n.weekday(d, "fr") == "LUNDI" and i18n.weekday(d, "de") == "MONTAG"
     assert i18n.month(d, "es") == "ENERO"

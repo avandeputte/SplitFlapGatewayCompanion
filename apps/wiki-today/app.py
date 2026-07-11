@@ -23,7 +23,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     rows, cols = get_rows(), get_cols()
 
     def t(s):
-        return i18n.t(s) if i18n is not None else s
+        return i18n.t(s, "content") if i18n is not None else s
 
     # Pull from the language's own Wikipedia edition (fr.wikipedia, de.wikipedia, …);
     # the English variants all use en.wikipedia. Defaults to (American) English.

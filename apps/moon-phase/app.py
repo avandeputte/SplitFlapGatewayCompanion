@@ -4,7 +4,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import math
 
     def t(s):
-        return i18n.t(s) if i18n is not None else s
+        return i18n.t(s, "moon") if i18n is not None else s
 
     def u(k):                       # localized D/H/M/S suffix (French J for jour, etc.)
         return i18n.unit(k) if i18n is not None else k

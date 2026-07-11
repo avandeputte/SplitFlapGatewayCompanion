@@ -49,22 +49,32 @@ def _translations(section):
     return out
 
 
+def _translations_by_domain(section):
+    """The ``strings`` section is grouped by context/domain
+    (``{domain: {NAME: {context, translations}}}``); flatten each domain to
+    ``{domain: {NAME: {lang: value}}}`` for lookup."""
+    return {domain: _translations(entries) for domain, entries in (section or {}).items()}
+
+
 def _load_i18n_data():
     try:
         with open(_DATA_PATH, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, ValueError):
         data = {}
-    return (_translations(data.get("strings")),
-            _translations(data.get("duration_units")),
+    return (_translations_by_domain(data.get("strings")),
             _translations(data.get("holidays")),
             data.get("base_currency", {}),
             data.get("country", {}),
             data.get("languages") or _DEFAULT_LANGUAGES)
 
 
-(_STRINGS, _DURATION_UNITS, _HOLIDAYS, _BASE_CURRENCY, _COUNTRY,
+(_STRINGS, _HOLIDAYS, _BASE_CURRENCY, _COUNTRY,
  LANGUAGE_OPTIONS) = _load_i18n_data()
+
+# The compact duration-unit suffixes (D/H/M/S/Y) live in the shared 'time' domain,
+# alongside the full-word forms (DAYS, HOURS, WEEKS, …) — one duration vocabulary.
+_DURATION_UNITS = _STRINGS.get("time", {})
 
 
 def _base_lang(lang):
@@ -88,11 +98,18 @@ def _localized(table, key, lang, default):
     return default
 
 
-def translate(text, lang):
-    """English UI string -> localized (or the English key if unknown/English)."""
+def translate(text, lang, ctx="common"):
+    """English UI string -> localized for a given context/domain (``ctx``), like
+    gettext's ``pgettext``. The same English text can differ per context (weather
+    ``HIGH`` = a level, tides ``HIGH`` = high tide). Resolution order: the given
+    domain, then the shared ``common`` domain, then the English text itself — so an
+    unknown or English language always returns ``text`` and nothing breaks."""
     if not lang or _base_lang(lang) == "en":
         return text
-    return _localized(_STRINGS, text, lang, text)
+    hit = _localized(_STRINGS.get(ctx) or {}, text, lang, None)
+    if hit is None and ctx != "common":
+        hit = _localized(_STRINGS.get("common") or {}, text, lang, None)
+    return text if hit is None else hit
 
 
 def _babel_locale(lang):
@@ -138,10 +155,9 @@ def date(dt, lang, short=False, year=False):
 
 
 def duration_unit(key, lang):
-    """Localized single-letter duration suffix (D/H/M/S) -> e.g. J/H/M/S in French."""
-    if not lang or _base_lang(lang) == "en":
-        return key
-    return _localized(_DURATION_UNITS, key, lang, key)
+    """Localized compact duration suffix (D/H/M/S/Y) -> e.g. J/H/M/S in French. The
+    duration vocabulary (abbreviations and full words) lives in the 'time' domain."""
+    return translate(key, lang, "time")
 
 
 def uses_24h(lang):
@@ -215,8 +231,8 @@ class Localizer:
     def is_24h(self):
         return uses_24h(self.lang)
 
-    def t(self, text):
-        return translate(text, self.lang)
+    def t(self, text, ctx="common"):
+        return translate(text, self.lang, ctx)
 
     def weekday(self, dt, short=False):
         return weekday(dt, self.lang, short)

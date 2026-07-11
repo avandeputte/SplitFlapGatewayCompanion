@@ -35,7 +35,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     rows, cols = get_rows(), get_cols()
 
     def t(s):
-        return i18n.t(s) if i18n is not None else s
+        return i18n.t(s, "sun") if i18n is not None else s
 
     def u(k):                               # localized H/M duration suffix (Dutch U for uur, etc.)
         return i18n.unit(k) if i18n is not None else k

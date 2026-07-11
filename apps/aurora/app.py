@@ -22,7 +22,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     rows = get_rows()
 
     def t(s):
-        return i18n.t(s) if i18n is not None else s
+        return i18n.t(s, "aurora") if i18n is not None else s
 
     def num(kp):                              # integer Kp shows no decimal
         whole = (kp == int(kp))

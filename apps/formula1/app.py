@@ -6,8 +6,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     from datetime import datetime, timezone
     rows, cols = get_rows(), get_cols()
 
-    def t(s):
-        return i18n.t(s) if i18n is not None else s
+    def t(s, ctx="sports"):
+        return i18n.t(s, ctx) if i18n is not None else s
 
     def u(k):                                 # localized D/H duration suffix
         return i18n.unit(k) if i18n is not None else k
@@ -26,7 +26,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 secs = int((dt - datetime.now(timezone.utc)).total_seconds())
                 if secs > 0:
                     d, h = secs // 86400, (secs % 86400) // 3600
-                    in_ = t('IN')
+                    in_ = t('IN', 'time')
                     cd = f'{in_} {d}{u("D")} {h}{u("H")}' if d else f'{in_} {h}{u("H")}'
                 else:
                     cd = t('RACE WEEKEND')
