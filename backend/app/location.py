@@ -13,36 +13,23 @@ import re
 # Catalog globals this helper draws on (named in the app dialog's "also uses" hint).
 GLOBAL_KEYS = ["location_precise", "zip_code"]
 
-# Country (ISO 3166-1 alpha-2) -> currency (ISO 4217). The authoritative mapping comes
-# from babel's CLDR data (already a project dependency); this small table is only a
-# fallback for when babel isn't installed. Unknown countries -> None (caller decides).
-_CURRENCY_FALLBACK = {
-    "US": "USD", "GB": "GBP", "CA": "CAD", "AU": "AUD", "CH": "CHF", "JP": "JPY",
-    "CN": "CNY", "IN": "INR", "BR": "BRL", "MX": "MXN", "ZA": "ZAR", "NZ": "NZD",
-    "SE": "SEK", "NO": "NOK", "DK": "DKK",
-    "AT": "EUR", "BE": "EUR", "DE": "EUR", "ES": "EUR", "FI": "EUR", "FR": "EUR",
-    "IE": "EUR", "IT": "EUR", "NL": "EUR", "PT": "EUR", "GR": "EUR",
-}
-
 _UA = {"User-Agent": "SplitFlapGatewayCompanion/1.0"}
 _geo_cache: dict = {}    # rounded (lat, lon) -> {"country", "subdivision"}
 _coord_cache: dict = {}  # geocode query string -> (lat, lon, CITY)
 
 
 def _currency_for(country):
-    """ISO 4217 currency for an ISO 3166 country, from babel's CLDR data (complete and
-    current); falls back to a small table when babel isn't available, else None."""
+    """ISO 4217 currency for an ISO 3166 country, from babel's CLDR data (a project
+    dependency). Returns None if unknown — callers then fall back to the language's
+    default currency (i18n.base_currency)."""
     if not country:
         return None
-    cc = country.upper()
     try:
         from babel.numbers import get_territory_currencies
-        cur = get_territory_currencies(cc)   # current tender currency(ies) per CLDR
-        if cur:
-            return cur[0]
+        cur = get_territory_currencies(country.upper())   # current tender per CLDR
+        return cur[0] if cur else None
     except Exception:
-        pass
-    return _CURRENCY_FALLBACK.get(cc)
+        return None
 
 
 def coordinates(settings):
