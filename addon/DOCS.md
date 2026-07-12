@@ -59,7 +59,7 @@ action:
       message: "Bin day tomorrow"
 ```
 
-Read the key from the add-on's Configuration tab (or the UI's Dev menu). Note this
+Read the key from the add-on's Configuration tab (or the UI's ⚙ menu). Note this
 uses **port 8000 directly**, not the sidebar URL: ingress serves the *UI*, while a
 `rest_command` is a separate client and needs the published port.
 

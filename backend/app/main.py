@@ -542,6 +542,11 @@ async def gateway_sync():
 # require dev mode to be on.
 # ---------------------------------------------------------------------------
 def _require_dev():
+    """Gate for SIMULATION MODE only. The ⚙ tools menu itself is permanent — the
+    Vestaboard/MCP switches, resync and settings sync are ordinary controls on an API
+    that is unauthenticated on the LAN anyway, so hiding them behind an env var never
+    added protection, just friction. Simulation stays dev-gated: silently not driving
+    the wall is a developer's tool, and a trap for anyone else."""
     if not config.dev_mode:
         raise HTTPException(404, "developer mode is off (set COMPANION_DEV_MODE=1)")
 
@@ -566,7 +571,6 @@ async def dev_sim(req: DevSim):
 async def dev_vestaboard(req: DevVestaboard):
     """Turn the Vestaboard-compatible Local API on/off at runtime (see the block at
     the bottom of this file). COMPANION_VESTABOARD sets where it starts."""
-    _require_dev()
     config.set_vestaboard(req.on)
     if req.on:
         vestaboard_key()   # mint + persist the key now, so the menu can show it
@@ -577,9 +581,9 @@ async def dev_vestaboard(req: DevVestaboard):
 @app.get("/api/dev/vestaboard")
 async def dev_vestaboard_state():
     """The Vestaboard connection details, for the dev menu to display: the key a
-    client must send, and the endpoint it posts to. Dev-gated because it hands out
-    the key."""
-    _require_dev()
+    client must send, and the endpoint it posts to. (Not gated: the key guards the
+    Vestaboard routes from OUTSIDE clients; anyone who can read this endpoint already
+    has the whole unauthenticated companion API.)"""
     on = config.vestaboard_enabled
     return {
         "enabled": on,
@@ -596,7 +600,6 @@ async def dev_vestaboard_state():
 async def dev_mcp(req: DevMCP):
     """Turn the MCP server on/off at runtime (see the block further down).
     COMPANION_MCP sets where it starts."""
-    _require_dev()
     config.set_mcp(req.on)
     if req.on:
         mcp_token()        # mint + persist the token now, so the menu can show it
@@ -607,9 +610,8 @@ async def dev_mcp(req: DevMCP):
 @app.get("/api/dev/mcp")
 async def dev_mcp_state():
     """The MCP connection details for the dev menu: the endpoint an LLM client
-    points at and the bearer token it must send. Dev-gated because it hands out
-    the token."""
-    _require_dev()
+    points at and the bearer token it must send. (Not gated — same reasoning as the
+    Vestaboard key above.)"""
     on = config.mcp_enabled
     return {
         "enabled": on,
@@ -640,7 +642,6 @@ async def _external_url(path: str) -> str:
 @app.post("/api/dev/resync")
 async def dev_resync():
     """Force a settings resync with the gateway."""
-    _require_dev()
     return await do_gateway_sync()
 
 
@@ -675,7 +676,6 @@ async def _gateway_settings_ready() -> tuple[str, dict] | dict:
 @app.post("/api/dev/settings/pull")
 async def dev_settings_pull():
     """Force-retrieve the settings blob from the gateway and apply it."""
-    _require_dev()
     ready = await _gateway_settings_ready()
     if isinstance(ready, dict):
         return ready
@@ -693,7 +693,6 @@ async def dev_settings_pull():
 @app.post("/api/dev/settings/push")
 async def dev_settings_push():
     """Force-write the current settings to the gateway now."""
-    _require_dev()
     ready = await _gateway_settings_ready()
     if isinstance(ready, dict):
         return ready

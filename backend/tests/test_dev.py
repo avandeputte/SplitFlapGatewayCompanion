@@ -29,14 +29,17 @@ def test_grid_override_only_applies_in_sim(tmp_path):
     assert c.dev_state()["grid_overridden"] is False
 
 
-def test_dev_endpoints_gated_off_by_default():
+def test_only_simulation_is_dev_gated():
+    """The ⚙ tools menu is permanent; COMPANION_DEV_MODE gates exactly one thing in it —
+    simulation mode (and the grid override, which belongs to simulation)."""
     from app import main
     client = TestClient(main.app)
     assert main.config.dev_mode is False
     assert client.get("/api/dev").json()["enabled"] is False   # GET is always safe
     assert client.post("/api/dev/sim", json={"on": True}).status_code == 404
     assert client.post("/api/dev/grid", json={"rows": 5, "cols": 5}).status_code == 404
-    assert client.post("/api/dev/resync").status_code == 404
+    # Everything else in the menu works without dev mode.
+    assert client.post("/api/dev/resync").status_code == 200
 
 
 def test_dev_endpoints_flow(monkeypatch):

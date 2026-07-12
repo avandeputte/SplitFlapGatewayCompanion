@@ -297,11 +297,17 @@ def test_dev_toggle_flips_the_layer(monkeypatch):
         main.config.set_vestaboard(False)
 
 
-def test_the_dev_toggle_is_dev_gated():
+def test_the_toggle_works_without_dev_mode():
+    """The ⚙ tools menu is permanent — the Vestaboard switch is an ordinary control,
+    not a developer one. (The key it hands out guards only the /local-api routes, and
+    anyone who can call this endpoint already has the whole unauthenticated API.)"""
     from app import main
     c = TestClient(main.app)                     # dev_mode off (no env var in tests)
-    assert c.post("/api/dev/vestaboard", json={"on": True}).status_code == 404
-    assert c.get("/api/dev/vestaboard").status_code == 404
+    try:
+        assert c.post("/api/dev/vestaboard", json={"on": True}).json()["vestaboard"] is True
+        assert c.get("/api/dev/vestaboard").json()["enabled"] is True
+    finally:
+        main.config.set_vestaboard(False)
 
 
 def test_the_generated_key_survives_a_restart(tmp_path):

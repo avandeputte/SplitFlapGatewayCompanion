@@ -18,7 +18,7 @@
 # is no run script to do it. The app reads /data/options.json itself — see
 # config._addon_overrides() — which is what lets one image serve both worlds.
 name: SplitFlap Gateway Companion
-version: "1.7.0"
+version: "1.8.0"
 slug: splitflap_companion
 description: >-
   Drive a SplitFlap wall from Home Assistant — apps, playlists, schedules and
@@ -78,7 +78,7 @@ schema:
   vestaboard_key: password?
   mcp: bool
   mcp_token: password?
-  # The ⚙ Dev menu (simulation mode, grid override, the Vestaboard/MCP switches + their
-  # keys). Env-only until now, which an add-on user has no way to set.
+  # Enables simulation mode in the ⚙ tools menu (run apps without driving the wall,
+  # with a grid override while simulating). The menu itself is always available.
   dev_mode: bool
   log_level: list(DEBUG|INFO|WARNING|ERROR|CRITICAL)

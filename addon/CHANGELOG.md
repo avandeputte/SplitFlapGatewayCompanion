@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.8.0
+
+- **The ⚙ menu is now always there** (it used to appear only in developer mode, labelled
+  "Dev"). It holds the Vestaboard and MCP switches with their keys, gateway resync, and
+  the settings sync buttons. `dev_mode` now controls exactly one thing: whether
+  **simulation mode** is offered in that menu — and the grid-size override appears
+  directly under simulation, only while it's on.
+
 ## 1.7.0
 
 - **The Home Assistant look is now the only look.** The companion (and, from their next

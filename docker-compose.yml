@@ -43,12 +43,12 @@ services:
       COMPANION_HA: "auto"
       # Answer the Vestaboard Local API (off by default), so anything that speaks to
       # a Vestaboard can drive this display. Leave the key blank and one is generated
-      # and kept with your settings — read it from the Dev menu. See README.
+      # and kept with your settings — read it from the ⚙ menu. See README.
       # COMPANION_VESTABOARD: "1"
       # COMPANION_VESTABOARD_KEY: ""
       # Expose the display as MCP tools at /mcp (off by default), so an LLM client can
       # show a message, run an app, or read the board. Token generated like the one
-      # above and shown in the Dev menu. See README.
+      # above and shown in the ⚙ menu. See README.
       # COMPANION_MCP: "1"
       # COMPANION_MCP_TOKEN: ""
       # --- Manual overrides (only if you do NOT want to read from the gateway) ---

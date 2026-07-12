@@ -203,11 +203,16 @@ def test_dev_toggle_flips_the_layer(monkeypatch):
         main.config.set_mcp(False)
 
 
-def test_the_dev_toggle_is_dev_gated():
+def test_the_toggle_works_without_dev_mode():
+    """The ⚙ tools menu is permanent — the MCP switch is an ordinary control, not a
+    developer one (same reasoning as the Vestaboard switch)."""
     from app import main
     c = TestClient(main.app)                    # dev_mode off (no env var in tests)
-    assert c.post("/api/dev/mcp", json={"on": True}).status_code == 404
-    assert c.get("/api/dev/mcp").status_code == 404
+    try:
+        assert c.post("/api/dev/mcp", json={"on": True}).json()["mcp"] is True
+        assert c.get("/api/dev/mcp").json()["enabled"] is True
+    finally:
+        main.config.set_mcp(False)
 
 
 def test_the_generated_token_survives_a_restart(tmp_path):

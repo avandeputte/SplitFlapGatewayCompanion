@@ -172,7 +172,7 @@ uploaded apps** — not any companion config, which is never persisted.
 | `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | Manual MQTT overrides | *(from gateway)* |
 | `COMPANION_SETTINGS_STORE` | Where settings live: `mirror` \| `local` \| `gateway` — see below | `mirror` |
 | `COMPANION_DATA_DIR` | Where app settings, playlists, triggers + uploaded apps live | `<repo>/data` |
-| `COMPANION_DEV_MODE` | Show a **⚙ Dev** menu (simulation, gateway resync, grid override, the Vestaboard/MCP switches) | `off` |
+| `COMPANION_DEV_MODE` | Enable **simulation mode** in the ⚙ tools menu — run apps without driving the wall, with a grid override while simulating | `off` |
 | `COMPANION_LOG_LEVEL` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR` \| `CRITICAL` | `INFO` |
 
 ### Settings storage
@@ -314,8 +314,7 @@ COMPANION_VESTABOARD=1          # off by default
 COMPANION_VESTABOARD_KEY=       # blank -> generated once, kept with your settings
 ```
 
-It's also toggleable from the **Dev menu** (`COMPANION_DEV_MODE=1`), where you read the
-generated key.
+It's also toggleable from the **⚙ tools menu**, where you read the generated key.
 
 | Endpoint | Does |
 |---|---|
@@ -360,8 +359,7 @@ COMPANION_MCP_TOKEN=            # blank -> generated once, kept with your settin
 ```
 
 Point a client at `http://<host>:8000/mcp` with `Authorization: Bearer <token>`. The
-token is shown in the **Dev menu** (`COMPANION_DEV_MODE=1`), which can also flip the
-server on at runtime.
+token is shown in the **⚙ tools menu**, which can also flip the server on at runtime.
 
 | Tool | Does |
 |---|---|
