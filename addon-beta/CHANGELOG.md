@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.5.2
+
+- **Fixed: the gateway's tabs (Modules, Calibration, Settings…) were missing from the
+  companion's menu.** A bug hid them entirely; they're back, and open the gateway inside
+  Home Assistant.
+- **Global settings:** Language, Location and Timezone are now pinned to the top, in that
+  order — the settings you set first, no longer buried under the weather options.
+
 ## 1.5.1
 
 - **Fixed: the Vestaboard-compatible API now works with the popular

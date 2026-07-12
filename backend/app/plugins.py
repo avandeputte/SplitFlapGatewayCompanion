@@ -791,9 +791,12 @@ class PluginRuntime:
                 values[c["key"]] = self._composite_value(c["_composite"])
             else:
                 values[c["key"]] = self.settings.get(c["key"], c.get("default", ""))
-        # Language is a headline feature — pin it to the very top (stable sort keeps
-        # the rest of the catalog order).
-        fields.sort(key=lambda f: 0 if f.get("key") == "language" else 1)
+        # The localization trio are the settings people reach for first, so pin them to
+        # the top in this order — Language, then Location, then Timezone — ahead of the
+        # weather/provider fields. A stable sort keeps the catalog order for everything
+        # else (which all shares priority 99).
+        _TOP = {"language": 0, "zip_code": 1, "location_precise": 2, "timezone": 3}
+        fields.sort(key=lambda f: _TOP.get(f.get("key"), 99))
         return {"fields": fields, "values": values}
 
     def _composite_value(self, comp: list) -> str:

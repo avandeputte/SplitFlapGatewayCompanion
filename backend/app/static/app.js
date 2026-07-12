@@ -914,13 +914,14 @@ let GW_SIG = "";     // what the nav currently shows — don't rebuild it for no
 let GW_TRIES = 0;
 
 async function setupGatewayTabs() {
-  let url = "", tabs = [];
+  // NB: not named `url` — that would shadow the global url() helper used just below.
+  let gwUrl = "", tabs = [];
   try {
     const st = await api("/api/gateway/status");
-    url = st.url || "";
+    gwUrl = st.url || "";
     if (Array.isArray(st.tabs)) tabs = st.tabs;
   } catch {}
-  const base = url.replace(/\/$/, "");
+  const base = gwUrl.replace(/\/$/, "");
   const shown = tabs.length ? tabs : GW_TABS_FALLBACK;
 
   const sig = base + "|" + JSON.stringify(shown);
@@ -936,6 +937,8 @@ async function setupGatewayTabs() {
       // sidebar, so the gateway can only appear in there if we serve it. Same origin, so
       // no target="_top" either: that used to break out of the ingress iframe.
       a.textContent = t.label;
+      // `base` (the gateway being registered) gates whether the link works; the href is
+      // our proxy path, which url() prefixes with the ingress base when under Home Assistant.
       if (base) a.href = `${url("/gw/")}#${t.id}`;
       else { a.href = "#"; a.classList.add("disabled"); }
       nav.appendChild(a);

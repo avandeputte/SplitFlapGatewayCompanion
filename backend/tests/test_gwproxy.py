@@ -168,3 +168,17 @@ def test_the_spa_links_gateway_tabs_through_the_proxy():
     js = (Path(__file__).resolve().parents[1] / "app" / "static" / "app.js").read_text()
     assert 'a.href = `${url("/gw/")}#${t.id}`' in js
     assert 'a.target = "_top"' not in js
+
+
+def test_setup_gateway_tabs_does_not_shadow_the_url_helper():
+    """A regression that hid every gateway tab: setupGatewayTabs called the global url()
+    helper for the proxy path, but a local `let url = ""` (the gateway's own URL) shadowed
+    it, so `url("/gw/")` threw "url is not a function" and the tab loop died silently — no
+    gateway tabs rendered at all. The href check above is a static string match and passed
+    right through it; only the shadow matters at runtime."""
+    import re
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "app" / "static" / "app.js").read_text()
+    body = re.search(r"function setupGatewayTabs\(\).*?\n}\n", js, re.S).group(0)
+    assert not re.search(r"\b(?:let|const|var)\s+url\b", body), \
+        "setupGatewayTabs declares a local `url`, shadowing the global url() helper it calls"

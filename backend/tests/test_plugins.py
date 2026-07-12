@@ -776,3 +776,19 @@ def test_an_unrelated_later_error_still_gets_reported(tmp_path):
     rt._first_error = {}
     rt._fetch_error_message("x", "x", RuntimeError("boom"))
     assert rt._fetch_error_message("x", "x", RuntimeError("network down")) == "network down"
+
+
+def test_global_settings_lead_with_language_location_timezone(tmp_path):
+    """The localization trio are what people configure first, so they're pinned to the top
+    of the Global settings in this order — ahead of the weather/provider fields."""
+    from pathlib import Path
+    from app.config import Config
+    from app.plugin_settings import PluginSettings
+    from app.plugins import PluginRuntime
+
+    rt = PluginRuntime(Config(), PluginSettings(tmp_path),
+                       Path(__file__).resolve().parents[2] / "apps", tmp_path / "apps")
+    rt.load()
+    order = [f["key"] for f in rt.global_settings_schema()["fields"]]
+    assert order[:4] == ["language", "zip_code", "location_precise", "timezone"], \
+        f"localization trio not pinned to the top: {order[:4]}"
