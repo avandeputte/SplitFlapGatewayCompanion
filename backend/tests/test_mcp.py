@@ -219,3 +219,68 @@ def test_the_generated_token_survives_a_restart(tmp_path):
     s.set("mcp_token", "sekrit-token")
 
     assert PluginSettings(tmp_path).get("mcp_token") == "sekrit-token"
+
+
+# --- observability: what is on the flaps, and where in a playlist ------------
+# The transcript that motivated this had the agent GUESS the on-screen app three times
+# ("almost certainly Word Clock"), because get_display could only say a playlist was
+# active — not which of its apps was up. current_app closes that.
+def test_get_display_names_the_driver(mcp_on):
+    out = call(mcp_on, "get_display")
+    assert out["driver"] in ("app", "playlist", "message", "idle")
+
+
+def test_a_standalone_app_shows_up_as_the_driver_and_the_showing_app(mcp_on):
+    mcp_on.state.active_app = "weather"
+    mcp_on.state.current_app = "weather"
+    try:
+        out = call(mcp_on, "get_display")
+        assert out["driver"] == "app"
+        assert out["showing"]["app_id"] == "weather"
+    finally:
+        mcp_on.state.active_app = mcp_on.state.current_app = None
+
+
+def test_a_playlist_reports_which_app_is_on_screen_and_where_in_the_rotation(mcp_on):
+    """The heart of it: active_app is null while a playlist drives, but one of its apps
+    is on screen. get_display must say which, and place it in the running order."""
+    st = mcp_on.state
+    st.active_playlist = "morning"
+    st.current_app = "word-clock"
+    st.playlist_entries = ["word-clock", "crypto", "date"]
+    st.playlist_index = 0
+    try:
+        out = call(mcp_on, "get_display")
+        assert out["driver"] == "playlist"
+        assert out["showing"]["app_id"] == "word-clock"
+        assert out["playlist"] == {
+            "name": "morning", "index": 0, "count": 3,
+            "apps": ["word-clock", "crypto", "date"], "next": "crypto",
+        }
+    finally:
+        st.active_playlist = st.current_app = st.playlist_entries = st.playlist_index = None
+
+
+def test_next_wraps_at_the_end_of_a_looping_playlist(mcp_on):
+    st = mcp_on.state
+    st.active_playlist = "morning"
+    st.playlist_entries = ["word-clock", "crypto", "date"]
+    st.playlist_index = 2
+    try:
+        assert call(mcp_on, "get_display")["playlist"]["next"] == "word-clock"
+    finally:
+        st.active_playlist = st.playlist_entries = st.playlist_index = None
+
+
+def test_list_playlists_shows_the_running_order(mcp_on):
+    """So a client can say what a playlist contains without running it — the agent could
+    only report a count before."""
+    mcp_on.plugin_settings.set("saved_app_playlists", {
+        "morning": {"entries": [{"app": "word-clock"}, {"app": "plugin_crypto"},
+                                {"type": "compose", "text": "HI"}], "loop": True},
+    })
+    try:
+        pls = call(mcp_on, "list_playlists")
+        assert pls[0]["apps"] == ["word-clock", "crypto", "(message)"]
+    finally:
+        mcp_on.plugin_settings.set("saved_app_playlists", {})

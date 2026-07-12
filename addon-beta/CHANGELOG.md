@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.5.0-beta.8
+
+- **The MCP server can now say which app is on screen.** While a playlist runs, an
+  assistant could see *that* a playlist was playing but not *which* of its apps was up,
+  so it had to guess from the flaps. `get_display` now reports the app on screen, what
+  kind of thing is driving the display, and the playlist's running order and position.
+  This also shows in the web UI's live view and in Home Assistant.
+
 ## 1.5.0-beta.7
 
 **The gateway's own UI now opens inside Home Assistant, and matches its look.**

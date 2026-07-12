@@ -28,6 +28,14 @@ class DisplayState:
         # Which app / playlist (if any) is currently driving the display.
         self.active_app: str | None = None
         self.active_playlist: str | None = None
+        # What is on the flaps *right now*, which active_app can't say: while a playlist
+        # runs, active_app is None (the playlist is the driver) but one of its apps is on
+        # screen. current_app is that app — or None during a composed message, or when a
+        # manual message holds the board. playlist_index/playlist_entries place it in the
+        # rotation. Set by the engine as it renders; see engine._show_current.
+        self.current_app: str | None = None
+        self.playlist_index: int | None = None
+        self.playlist_entries: list[str] | None = None
 
     def resize(self, module_count: int) -> None:
         with self._lock:
@@ -65,6 +73,9 @@ class DisplayState:
                 "is_homed": self.is_homed,
                 "active_app": self.active_app,
                 "active_playlist": self.active_playlist,
+                "current_app": self.current_app,
+                "playlist_index": self.playlist_index,
+                "playlist_entries": list(self.playlist_entries) if self.playlist_entries else None,
                 "transport": {
                     "type": self.transport_type,
                     "connected": self.transport_connected,

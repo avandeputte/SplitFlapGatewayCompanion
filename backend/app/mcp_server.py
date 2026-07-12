@@ -73,23 +73,56 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         g = config.grid
         return int(g["rows"]), int(g["cols"])
 
+    def _app_name(app_id: str | None) -> str | None:
+        if not app_id:
+            return None
+        m = plugins.manifest(app_id) or {}
+        return m.get("name", app_id)
+
     @mcp.tool()
     def get_display() -> dict:
         """What the split-flap display is showing right now.
 
-        Reports the actual flaps — including the output of a running app — as one
-        string per row, plus the grid size and whatever app or playlist is driving it.
+        `lines` is the actual flaps, a running app's output included. `driver` says what
+        is in control: "app", "playlist", "message" (a manual/one-off message), or "idle".
+        `showing` is the app whose output is on screen this moment — which is NOT the same
+        as the driver: while a playlist runs it cycles through several apps, and `showing`
+        is the one currently up (null during a composed message). When a playlist is
+        driving, `playlist` places it in the rotation: which entry, of how many, what's next.
         """
         rows, cols = _grid()
         snap = state.snapshot()
         chars = snap["chars"]
-        return {
+
+        if snap.get("active_playlist"):
+            driver = "playlist"
+        elif snap.get("active_app"):
+            driver = "app"
+        elif "".join(chars).strip():
+            driver = "message"           # something on the board, but no app/playlist owns it
+        else:
+            driver = "idle"
+
+        showing = snap.get("current_app")
+        out = {
             "rows": rows,
             "cols": cols,
             "lines": ["".join(chars[r * cols:(r + 1) * cols]) for r in range(rows)],
-            "active_app": snap.get("active_app"),
-            "active_playlist": snap.get("active_playlist"),
+            "driver": driver,
+            "showing": {"app_id": showing, "name": _app_name(showing)} if showing else None,
         }
+        if driver == "playlist":
+            labels = snap.get("playlist_entries") or []
+            idx = snap.get("playlist_index")
+            nxt = labels[(idx + 1) % len(labels)] if labels and idx is not None else None
+            out["playlist"] = {
+                "name": snap.get("active_playlist"),
+                "index": idx,
+                "count": len(labels),
+                "apps": labels,
+                "next": nxt,
+            }
+        return out
 
     @mcp.tool()
     async def show_message(text: str, style: str | None = None) -> dict:
@@ -150,11 +183,16 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
 
     @mcp.tool()
     def list_playlists() -> list[dict]:
-        """The saved playlists, by name (run one with run_playlist)."""
+        """The saved playlists (run one with run_playlist).
+
+        `apps` is the running order — the app ids in sequence, "(message)" for a composed
+        entry — so you can say what a playlist contains and in what order without running it.
+        """
+        from .engine import _entry_label
         saved = plugin_settings.get("saved_app_playlists", {}) or {}
         return [
             {"name": n,
-             "apps": len((p or {}).get("entries", [])),
+             "apps": [_entry_label(e) for e in (p or {}).get("entries", [])],
              "loop": bool((p or {}).get("loop"))}
             for n, p in saved.items()
         ]

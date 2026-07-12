@@ -20,6 +20,15 @@ from .transport import DisplayTransport, SimTransport, build_transport
 log = logging.getLogger("companion.engine")
 
 
+def _entry_label(entry: dict) -> str:
+    """A playlist entry as one word for the running-order view: the app id, or
+    "(message)" for a composed entry. Mirrors the id normalisation in the loop."""
+    if entry.get("type") == "compose":
+        return "(message)"
+    app_id = entry.get("app", "") or "(unknown)"
+    return app_id[7:] if app_id.startswith("plugin_") else app_id
+
+
 class DisplayController:
     def __init__(self, config: Config, state: DisplayState):
         self.config = config
@@ -138,6 +147,10 @@ class DisplayController:
         self.active_playlist = None
         self.state.active_app = None
         self.state.active_playlist = None
+        # Nothing is on the flaps that belongs to an app any more.
+        self.state.current_app = None
+        self.state.playlist_index = None
+        self.state.playlist_entries = None
 
     def send_text_bg(self, text: str, style: str | None = None,
                      speed: int | None = None, raw: bool = False) -> str:
@@ -263,6 +276,8 @@ class DisplayController:
     async def _app_loop(self, app_id: str) -> None:
         loop = asyncio.get_running_loop()
         last_sent: str | None = None
+        # A standalone app is the app on screen the whole time it runs.
+        self.state.current_app = app_id
         while self.active_app == app_id:
             try:
                 pages = await loop.run_in_executor(None, self.plugins.get_pages, app_id)
@@ -295,6 +310,11 @@ class DisplayController:
         self._clear_driver_flags()
         self.active_playlist = name or "(unsaved)"
         self.state.active_playlist = self.active_playlist
+        # The rotation, as one label per entry (an app id, or "(message)" for a composed
+        # entry), so a reader can see the whole running order and where it is in it —
+        # which the API could not say before, so a client had to guess from the flaps.
+        self.state.playlist_entries = [_entry_label(e) for e in entries]
+        self.state.playlist_index = None
         # Keep the entries, not just the name: a playlist can be run unsaved, and that
         # one has no name to look up on the way back.
         self._remember({"kind": "playlist", "name": name or "",
@@ -305,12 +325,14 @@ class DisplayController:
         rt_loop = asyncio.get_running_loop()
         want = self.active_playlist
         while self.active_playlist == want:
-            for entry in entries:
+            for i, entry in enumerate(entries):
                 if self.active_playlist != want:
                     return
+                self.state.playlist_index = i
                 etype = entry.get("type", "app")
                 duration = float(entry.get("duration", entry.get("delay", 30)))
                 if etype == "compose":
+                    self.state.current_app = None      # a composed entry, not an app
                     await self._wait_if_interrupted()
                     clean = self._normalize(entry.get("text", ""), raw=False)
                     await self._emit_page(clean, style=entry.get("style", "ltr"),
@@ -322,6 +344,7 @@ class DisplayController:
                         app_id = app_id[7:]
                     if not app_id or self.plugins.manifest(app_id) is None:
                         continue
+                    self.state.current_app = app_id    # this app is on the flaps now
                     # Per-entry setting overrides (own location/language/config), so
                     # the same app can appear twice with different configuration.
                     ov = entry.get("overrides") or None
