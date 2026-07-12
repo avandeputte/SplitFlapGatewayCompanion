@@ -87,6 +87,7 @@ class PluginRuntime:
         self._wants_location: dict[str, bool] = {}  # app_id -> fetch() accepts get_location
         self._wants_i18n: dict[str, bool] = {}     # app_id -> fetch() accepts i18n
         self._fetch_locks: dict[str, threading.Lock] = {}  # app_id -> serialize its fetches
+        self._first_error: dict[str, str] = {}     # cache key -> its first fetch error
 
     # -- helpers injected into plugins -------------------------------------
     def get_rows(self) -> int:
@@ -145,6 +146,7 @@ class PluginRuntime:
         self._wants_location.clear()
         self._wants_i18n.clear()
         self._fetch_locks.clear()
+        self._first_error.clear()
         # Scan the app dirs once and reuse it (discovery + per-app load).
         scan = self._scan()
         # Let the settings store nest per-app keys by app id when it persists.
@@ -347,6 +349,33 @@ class PluginRuntime:
                 pass
         return refresh
 
+    # A C extension built with single-phase init — numpy is the one that matters here —
+    # can only be initialised ONCE per process. If its first import dies (numpy 2.4+ on a
+    # CPU without the x86-64-v2 baseline, say — a Proxmox `kvm64` VM), the .so is already
+    # loaded but the module is gone from sys.modules, so every later import raises this
+    # instead. It is permanent until restart, and it names nothing useful.
+    _POISONED_IMPORT = "more than once per process"
+
+    def _fetch_error_message(self, ckey: str, app_id: str, e: Exception) -> str:
+        """The message to log and show for a failed fetch.
+
+        Keeps the FIRST error a plugin raised, because the one you get afterwards can be
+        a useless echo of it (see _POISONED_IMPORT): the real cause was in the first line
+        and the repeats then bury it, once every refresh, forever.
+        """
+        msg = str(e)
+        first = self._first_error.get(ckey)
+        if first and self._POISONED_IMPORT in msg:
+            # The echo. Report what actually broke, and stop shouting about it.
+            log.debug("plugin %s fetch error (unchanged): %s", app_id, first)
+            return first
+        if first != msg:
+            self._first_error[ckey] = msg
+            log.warning("plugin %s fetch error: %s", app_id, msg)
+        else:
+            log.debug("plugin %s fetch error (unchanged): %s", app_id, msg)
+        return msg
+
     # -- pages (faithful get_plugin_pages) --------------------------------
     def get_pages(self, app_id: str, overrides: dict | None = None) -> list[str]:
         cols = self.get_cols()
@@ -399,14 +428,14 @@ class PluginRuntime:
                     log.debug("fetched %s: %d page(s) (refresh %ss)", ckey, len(pages), refresh)
                     return pages
                 except Exception as e:
-                    log.warning("plugin %s fetch error: %s", app_id, e)
+                    msg = self._fetch_error_message(ckey, app_id, e)
                     cp = self._caches.get(ckey, {}).get("pages")
                     if cp:
                         return cp
-                    err = str(e).lower()
+                    err = msg.lower()
                     if "timeout" in err or "connection" in err or "network" in err:
                         return [self.format_lines(manifest.get("name", app_id).upper()[:cols], "OFFLINE", "")]
-                    return [self.format_lines("APP ERROR", app_id.upper()[:cols], str(e)[:cols])]
+                    return [self.format_lines("APP ERROR", app_id.upper()[:cols], msg[:cols])]
 
         return [self.format_lines("PLUGIN ERROR", "UNKNOWN TYPE", "")]
 

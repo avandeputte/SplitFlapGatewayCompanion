@@ -33,7 +33,10 @@ function glyph(ch) {
 }
 
 function buildBoard(el, count, cols) {
-  el.style.gridTemplateColumns = `repeat(${cols}, auto)`;
+  // The board lays itself out from --cols: CSS derives one --flap size from it and the
+  // width available, so a 15- (or 22-) wide wall fits a phone as well as a desk. See
+  // .board / .flap in styles.css.
+  el.style.setProperty("--cols", cols);
   el.innerHTML = "";
   for (let i = 0; i < count; i++) {
     const cell = document.createElement("div");
@@ -247,6 +250,23 @@ async function bootGrid() {
 }
 
 function wireTabs() {
+  const nav = $("nav"), toggle = $("navToggle"), current = $("navCurrent");
+  const closeMenu = () => {
+    nav.classList.remove("open");
+    toggle.setAttribute("aria-expanded", "false");
+  };
+
+  // On a phone the strip is collapsed behind ☰ (styles.css); on a wide screen the
+  // button is hidden and this never runs. The label carries the tab you're on, so the
+  // collapsed menu still says where you are.
+  toggle.addEventListener("click", () => {
+    const open = nav.classList.toggle("open");
+    toggle.setAttribute("aria-expanded", String(open));
+  });
+  // Delegated: the gateway's tabs are appended at runtime, after this wiring. They
+  // navigate away, but the menu should still shut behind them.
+  nav.addEventListener("click", (e) => { if (e.target.closest(".tab.gw")) closeMenu(); });
+
   // Only local button-tabs switch panes; the gateway link-tabs (.tab.gw)
   // navigate to the gateway via their href.
   document.querySelectorAll(".tab[data-tab]").forEach((t) =>
@@ -259,8 +279,12 @@ function wireTabs() {
       const loaders = { apps: loadApps, playlists: loadPlaylists, triggers: loadTriggers };
       if (loaders[tab]) loaders[tab]();
       if (tab === "compose") $("composeBoard").focus();
+      current.textContent = t.textContent;
+      closeMenu();
     })
   );
+  const active = document.querySelector(".tab[data-tab].active");
+  if (active) current.textContent = active.textContent;
 }
 
 // ---- apps ------------------------------------------------------------------

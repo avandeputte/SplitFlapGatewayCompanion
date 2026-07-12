@@ -744,3 +744,35 @@ def test_sports_league_dicts_in_sync(tmp_path):
     hk = set(re.findall(r'"(\w+)": \{"path": "', h[h.find("SPORTS_LEAGUES"):]))
     ak = set(re.findall(r"'(\w+)':\s*\{'path'", a[a.find("LEAGUES ="):a.find("def ")]))
     assert hk == ak and "ger" in hk   # includes Bundesliga
+
+
+# --- a poisoned C-extension import (the numpy case) ----------------------------
+def test_the_first_fetch_error_survives_the_import_echo(tmp_path):
+    """numpy's extension is single-phase-init: once its first import dies, the .so is
+    already loaded and every later import raises "cannot load module more than once per
+    process" instead. That echo repeats every refresh forever and buries the only line
+    that said what actually broke ("NumPy was built with baseline optimizations (X86_V2)
+    but your machine doesn't support (X86_V2)"). Keep reporting the real cause.
+    """
+    from app.plugins import PluginRuntime
+
+    rt = PluginRuntime.__new__(PluginRuntime)     # no disk, no apps — just the handler
+    rt._first_error = {}
+
+    real = "NumPy was built with baseline optimizations: (X86_V2) ..."
+    echo = "cannot load module more than once per process"
+
+    assert rt._fetch_error_message("stocks", "stocks", RuntimeError(real)) == real
+    # ...and from here on, the echo must not replace it.
+    for _ in range(3):
+        assert rt._fetch_error_message("stocks", "stocks", ImportError(echo)) == real
+
+
+def test_an_unrelated_later_error_still_gets_reported(tmp_path):
+    """Only the poisoned-import echo is suppressed — a genuinely new failure is not."""
+    from app.plugins import PluginRuntime
+
+    rt = PluginRuntime.__new__(PluginRuntime)
+    rt._first_error = {}
+    rt._fetch_error_message("x", "x", RuntimeError("boom"))
+    assert rt._fetch_error_message("x", "x", RuntimeError("network down")) == "network down"

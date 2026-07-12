@@ -14,6 +14,11 @@
       <span class="ver" id="version"></span>
     </div>
     <div class="hdr-right">
+      <!-- Narrow screens only (see styles.css): with the gateway's tabs appended the
+           strip runs to four rows on a phone, so it collapses behind this. -->
+      <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" title="Menu">
+        <span aria-hidden="true">☰</span><span id="navCurrent">Apps</span>
+      </button>
       <button class="btn ghost btn-sm hidden" id="devBtn" title="Developer tools">⚙ Dev</button>
       <span class="badge hidden" id="statusBadge" title="Connection status"></span>
     </div>

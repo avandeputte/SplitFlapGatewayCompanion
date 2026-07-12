@@ -137,3 +137,19 @@ fieldset { border-color: var(--acc); border-radius: 8px; }
 /* Badges/chips — HA keeps these low-contrast and rounded. */
 .badge { border-radius: 14px; font-weight: 500; }
 .chip { border-radius: 14px; }
+
+/* Narrow screens: styles.css collapses the tab strip into a vertical menu behind ☰.
+   An underline indicator (this theme's desktop tab) reads oddly stacked, so the active
+   row gets a left accent and a tint instead — which is how HA marks a selected list row. */
+@media (max-width: 720px) {
+  nav.tabs .tab {
+    border-bottom: none;
+    border-left: 3px solid transparent;
+    border-radius: 0 4px 4px 0;
+  }
+  nav.tabs .tab.active {
+    border-left-color: var(--brand);
+    background: var(--ha-hover);
+  }
+  .nav-toggle { border-color: var(--acc); color: var(--txt); }
+}
