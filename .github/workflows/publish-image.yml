@@ -25,16 +25,27 @@ jobs:
         id: meta
         run: |
           VERSION="$(tr -d ' \t\n\r' < VERSION)"
-          echo "version=$VERSION"                   >> "$GITHUB_OUTPUT"
-          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
-          # A prerelease (1.4.0-beta.1) publishes :beta and must NOT move :latest —
-          # that tag is what a plain `docker pull` and the installer get, so it stays
-          # on the newest stable release until a stable one ships.
-          if [ "${VERSION#*-}" != "$VERSION" ]; then
-            echo "channel=beta"   >> "$GITHUB_OUTPUT"
-          else
-            echo "channel=latest" >> "$GITHUB_OUTPUT"
-          fi
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/splitflap-gateway-companion"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "image=$IMAGE"     >> "$GITHUB_OUTPUT"
+          # Which channel tags move to this build (a newline-separated list, the form
+          # build-push-action wants):
+          #   prerelease (1.5.1-beta.1) -> :beta only. :latest stays on the newest
+          #     stable, which is what a plain `docker pull` and the stable add-on get.
+          #   stable     (1.5.1)        -> :latest AND :beta. A stable release is by
+          #     definition at least as new as any beta, so the beta channel should never
+          #     be left pointing at an OLDER prerelease — it tracks the newest build.
+          {
+            echo "tags<<TAGS"
+            echo "$IMAGE:$VERSION"
+            if [ "${VERSION#*-}" != "$VERSION" ]; then
+              echo "$IMAGE:beta"
+            else
+              echo "$IMAGE:latest"
+              echo "$IMAGE:beta"
+            fi
+            echo "TAGS"
+          } >> "$GITHUB_OUTPUT"
 
       # QEMU lets the amd64 runner cross-build the arm64 layer.
       - uses: docker/setup-qemu-action@v4
@@ -51,9 +62,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ghcr.io/${{ steps.meta.outputs.owner }}/splitflap-gateway-companion:${{ steps.meta.outputs.version }}
-            ghcr.io/${{ steps.meta.outputs.owner }}/splitflap-gateway-companion:${{ steps.meta.outputs.channel }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: |
             org.opencontainers.image.title=SplitFlap Gateway Companion
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
@@ -62,3 +71,17 @@ jobs:
             org.opencontainers.image.licenses=CC-BY-NC-SA-4.0
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Keep the registry tidy: after each publish, delete old versions of the image.
+      # `latest`, `beta` and the just-pushed `:<version>` are preserved; only superseded
+      # builds are removed. min-versions-to-keep is set so the CURRENT multi-arch image is
+      # never touched — one build is an index plus its per-arch child manifests (which
+      # appear as untagged versions), so a too-small keep would orphan the arch layers of
+      # the very image we just pushed and break `latest`/`beta`.
+      - name: Prune old image versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: splitflap-gateway-companion
+          package-type: container
+          min-versions-to-keep: 6
+          delete-only-untagged-versions: false
