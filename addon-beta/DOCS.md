@@ -34,7 +34,6 @@ settings are read from it, so its URL is normally the only thing you have to ent
 | `vestaboard_key` | *(generated)* | The key clients send as `X-Vestaboard-Local-Api-Key`. Leave blank and one is generated and kept with your settings. |
 | `mcp` | `false` | Expose an **MCP server**, so an LLM client can drive the display as tools. See below. |
 | `mcp_token` | *(generated)* | The bearer token MCP clients send. Leave blank and one is generated. |
-| `theme` | `ha` | `ha` restyles the UI in Home Assistant's design language. `default` is the SplitFlap look shared with the gateway. |
 | `log_level` | `INFO` | `DEBUG` adds the companion's own detail (gateway sync, settings mirror, app fetches). |
 
 ## Driving the board from an automation

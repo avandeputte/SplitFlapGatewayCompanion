@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.7.0
+
+- **The Home Assistant look is now the only look.** The companion (and, from their next
+  firmware releases, the gateways) use Home Assistant's design language everywhere — light
+  and dark following your system. The `theme` option and `COMPANION_THEME` variable are
+  gone; if you still have `theme` in your configuration it is ignored. The split-flap board
+  itself stays dark, as the physical flaps are.
+
 ## 1.6.0
 
 - **New: a native Home Assistant integration**, installable through HACS. It adds a

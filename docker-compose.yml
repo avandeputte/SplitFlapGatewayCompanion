@@ -51,9 +51,6 @@ services:
       # above and shown in the Dev menu. See README.
       # COMPANION_MCP: "1"
       # COMPANION_MCP_TOKEN: ""
-      # UI skin: default (the SplitFlap look) | ha (Home Assistant's). The HA add-on
-      # sets "ha"; it's a stylesheet swap, so the same image serves both.
-      # COMPANION_THEME: "default"
       # --- Manual overrides (only if you do NOT want to read from the gateway) ---
       # COMPANION_GRID_ROWS: "3"
       # COMPANION_GRID_COLS: "15"

@@ -91,11 +91,6 @@ DEFAULTS: dict = {
         "enabled": False,
         "token": "",
     },
-    # UI skin. "default" is the SplitFlap look (shared palette with the gateway);
-    # "ha" restyles the SPA in Home Assistant's own design language, so the add-on
-    # doesn't look like a foreign site inside the HA sidebar. Same image either way
-    # — it is a stylesheet swap, not a different build. Set via COMPANION_THEME.
-    "theme": "default",
     # Home Assistant MQTT integration. "auto" follows the gateway's own HA
     # setting (haEnabled from its /api/config); true/false force it. Uses the
     # same MQTT broker as the transport (transport.mqtt).
@@ -156,10 +151,6 @@ def _env_overrides() -> dict:
             e["COMPANION_MCP"].lower() in ("1", "true", "yes", "on")
     if "COMPANION_MCP_TOKEN" in e:
         ov.setdefault("mcp", {})["token"] = e["COMPANION_MCP_TOKEN"].strip()
-    if "COMPANION_THEME" in e:
-        v = e["COMPANION_THEME"].strip().lower()
-        if v in ("default", "ha"):
-            ov["theme"] = v
     if "COMPANION_HA" in e:
         v = e["COMPANION_HA"].lower()
         ov.setdefault("ha", {})["enabled"] = True if v in ("1", "true", "yes", "on") \
@@ -248,8 +239,6 @@ def _addon_overrides() -> dict:
         ov["mcp"] = {"enabled": bool(raw["mcp"])}
     if val("mcp_token"):
         ov.setdefault("mcp", {})["token"] = val("mcp_token")
-    if val("theme") in ("default", "ha"):
-        ov["theme"] = val("theme")
 
     ov["transport"] = {k: v for k, v in ov["transport"].items() if v != {}}
     return {k: v for k, v in ov.items() if v != {}}
@@ -361,11 +350,6 @@ class Config:
         m = copy.deepcopy(self._effective["mcp"])
         m["enabled"] = self._mcp
         return m
-
-    @property
-    def theme(self) -> str:
-        """UI skin: "default" (the SplitFlap look) or "ha" (Home Assistant's)."""
-        return self._effective.get("theme", "default")
 
     def dev_state(self) -> dict:
         """State for the developer menu (safe to expose regardless of dev_mode)."""

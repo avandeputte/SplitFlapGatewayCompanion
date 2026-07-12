@@ -43,11 +43,6 @@ configuration:
     description: >-
       The token MCP clients send as "Authorization: Bearer ...". Leave blank and one is
       generated on first use and kept with your settings.
-  theme:
-    name: Theme
-    description: >-
-      "ha" restyles the interface in Home Assistant's design language so it looks native
-      in the sidebar. "default" is the SplitFlap look shared with the gateway.
   log_level:
     name: Log level
     description: >-

@@ -1277,26 +1277,15 @@ def _cache_bust(html: str, static_dir: Path, base: str = "") -> str:
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index.html", response_class=HTMLResponse)
 async def spa_index(request: Request):
-    """Serve the SPA shell. Two things are stamped in here rather than baked into
-    the file, because neither is known until the request arrives:
-
-    * **The ingress prefix.** As a Home Assistant add-on the SPA is served from
-      ``/api/hassio_ingress/<token>/``, and Supervisor says so in ``X-Ingress-Path``.
-      A browser-side ``/api/...`` URL would resolve against the *HA* root and 404, so
-      every asset URL is prefixed here and the SPA reads the same prefix off
-      ``window.__BASE__`` for its fetches (see app.js).
-    * **The theme.** ``COMPANION_THEME=ha`` layers the Home Assistant skin over the
-      base stylesheet — same image, same app, just a different look, so the add-on
-      doesn't read as a foreign site inside the sidebar.
-    """
+    """Serve the SPA shell, stamping in the ingress prefix — which isn't known until
+    the request arrives. As a Home Assistant add-on the SPA is served from
+    ``/api/hassio_ingress/<token>/``, and Supervisor says so in ``X-Ingress-Path``.
+    A browser-side ``/api/...`` URL would resolve against the *HA* root and 404, so
+    every asset URL is prefixed here and the SPA reads the same prefix off
+    ``window.__BASE__`` for its fetches (see app.js)."""
     base = (request.headers.get("X-Ingress-Path") or "").rstrip("/")
     html = _cache_bust((STATIC_DIR / "index.html").read_text("utf-8"), STATIC_DIR, base)
-
     head = f"<script>window.__BASE__={json.dumps(base)};</script>"
-    if config.theme == "ha":
-        ver = _asset_version(STATIC_DIR / "theme-ha.css")
-        head += f'<link rel="stylesheet" href="{base}/theme-ha.css{f"?v={ver}" if ver else ""}" />'
-    # Last thing in <head>, so the theme wins over styles.css.
     html = html.replace("</head>", f"  {head}\n</head>", 1)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 

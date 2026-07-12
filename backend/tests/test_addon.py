@@ -117,10 +117,9 @@ def test_the_two_channels_stay_in_sync():
 
 
 def test_the_defaults_are_safe():
-    """The two write surfaces stay off until asked for, and the add-on ships HA-themed."""
+    """The two write surfaces stay off until asked for."""
     assert ADDON["options"]["vestaboard"] is False
     assert ADDON["options"]["mcp"] is False
-    assert ADDON["options"]["theme"] == "ha"
 
 
 # --- /data/options.json -------------------------------------------------------
@@ -139,13 +138,21 @@ def options(tmp_path, monkeypatch):
 
 def test_addon_options_become_config(options):
     cfg = options({"gateway_url": "http://gw.local", "mcp": True, "vestaboard": True,
-                   "theme": "ha", "mqtt_password": "sekrit"})
+                   "mqtt_password": "sekrit"})
     ov = cfg._addon_overrides()
     assert ov["transport"]["gateway_url"] == "http://gw.local"
     assert ov["transport"]["mqtt"]["password"] == "sekrit"
     assert ov["mcp"]["enabled"] is True
     assert ov["vestaboard"]["enabled"] is True
-    assert ov["theme"] == "ha"
+
+
+def test_a_stale_theme_option_is_ignored_not_fatal(options):
+    """`theme` was an option until the HA look became the only look. An existing install
+    still has it stored in options.json; it must be silently ignored."""
+    cfg = options({"gateway_url": "http://gw.local", "theme": "ha"})
+    ov = cfg._addon_overrides()
+    assert "theme" not in ov
+    assert ov["transport"]["gateway_url"] == "http://gw.local"
 
 
 def test_blank_optional_fields_do_not_clobber_defaults(options):
@@ -230,27 +237,24 @@ def test_without_ingress_the_urls_are_untouched():
     assert 'href="/styles.css' in html
 
 
-# --- the theme ----------------------------------------------------------------
-def test_the_ha_theme_is_layered_over_the_base_stylesheet(monkeypatch):
-    from app import main
-    monkeypatch.setitem(main.config._effective, "theme", "ha")
-    html = TestClient(main.app).get("/").text
-    # both, and in this order — the theme only overrides, it does not replace
-    assert html.index("styles.css") < html.index("theme-ha.css")
+# --- the look -------------------------------------------------------------------
+# The Home Assistant design language is the companion's only look now — there is no theme
+# option, no COMPANION_THEME, and no separate stylesheet to forget to load.
+def test_the_ha_look_is_baked_into_the_base_stylesheet():
+    css = (STATIC / "styles.css").read_text("utf-8")
+    assert "The Home Assistant design language" in css       # the merged section
+    assert "prefers-color-scheme: dark" in css               # follows the OS
+    assert not (STATIC / "theme-ha.css").exists()            # the old opt-in file is gone
 
 
-def test_the_default_theme_does_not_load_it():
-    from app import main
-    assert main.config.theme == "default"
-    assert "theme-ha.css" not in TestClient(main.app).get("/").text
-
-
-def test_the_theme_leaves_the_flaps_alone():
+def test_the_ha_section_leaves_the_flaps_alone():
     """.board/.flap are hardcoded darks because they depict physical flaps. Re-skinning
-    them in HA's palette would be a lie about the hardware."""
-    css = (STATIC / "theme-ha.css").read_text("utf-8")
-    assert not re.search(r"^\.flap\s*\{", css, re.M)
-    assert not re.search(r"^\.board\s*\{", css, re.M)
+    them in HA's palette would be a lie about the hardware — so the HA section (everything
+    after its marker) must not restyle them."""
+    css = (STATIC / "styles.css").read_text("utf-8")
+    ha_section = css.split("The Home Assistant design language", 1)[1]
+    assert not re.search(r"^\.flap\s*\{", ha_section, re.M)
+    assert not re.search(r"^\.board\s*\{", ha_section, re.M)
 
 
 # --- the URL we register with the gateway -------------------------------------

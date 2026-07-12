@@ -167,7 +167,6 @@ uploaded apps** — not any companion config, which is never persisted.
 | `COMPANION_HA` | Home Assistant MQTT device: `auto` (follow gateway) \| `true` \| `false` | `auto` |
 | `COMPANION_VESTABOARD` / `_KEY` | Enable the [Vestaboard API](#vestaboard-compatible-api) and pin its key | `off` |
 | `COMPANION_MCP` / `_TOKEN` | Enable the [MCP server](#mcp-server) and pin its token | `off` |
-| `COMPANION_THEME` | UI skin: `default` \| `ha` (Home Assistant's design language) | `default` |
 | `COMPANION_MODULE_ID_BASE` | Module id of grid index 0 | `0` |
 | `COMPANION_GRID_ROWS` / `_COLS` | Manual panel-size override | *(from gateway)* |
 | `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | Manual MQTT overrides | *(from gateway)* |
@@ -241,14 +240,15 @@ Pick the stable channel unless you want prereleases. Both run the same published
 
 **Options** (Configuration tab): `gateway_url` (required), `mqtt_password`,
 `companion_public_url`, `home_assistant`, `vestaboard` + `vestaboard_key`, `mcp` +
-`mcp_token`, `theme`, `dev_mode`, `log_level`.
+`mcp_token`, `dev_mode`, `log_level`.
 
 What makes it native:
 
 - **Sidebar (ingress).** The UI, and the gateway's own configuration UI, both open
   inside Home Assistant — no leaving to a separate tab.
-- **HA theme.** The interface is restyled in Home Assistant's design language. The
-  split-flap board itself stays dark — it depicts physical flaps.
+- **One design language.** The whole project — companion and gateway UIs alike — speaks
+  Home Assistant's design language, light and dark following your system. The split-flap
+  board itself stays dark: it depicts physical flaps.
 - **Finds itself.** It asks Supervisor for the host's real address and its published
   port, so the gateway can link back to it.
 

@@ -9,7 +9,7 @@
  * --dim, --grn, --ylw, --qt). Re-pointing those does most of the work; the rest is the
  * handful of places the gateway hardcodes a colour or a shape.
  *
- * Kept deliberately in step with theme-ha.css — same tokens, same reasoning. Dark mode
+ * Kept deliberately in step with the HA section of styles.css — same tokens, same reasoning. Dark mode
  * follows the browser/OS, which is the only signal an ingress page gets.
  */
 
@@ -50,7 +50,7 @@ header {
   color: var(--txt);
 }
 
-/* Nav — HA's underline tabs rather than pills (as in theme-ha.css). */
+/* Nav — HA's underline tabs rather than pills (as in the companion's own UI). */
 nav {
   background: var(--card);
   border-bottom: 1px solid var(--acc);

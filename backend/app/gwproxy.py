@@ -91,11 +91,11 @@ def build(config) -> APIRouter:
 
     def _rewrite_html(html: str, base: str, companion: str) -> str:
         shim = _SHIM % {"base": _js(base), "companion": _js(companion)}
-        head = shim
-        if config.theme == "ha":
-            # The gateway's CSS uses the same variables we do, so this is an override of a
-            # dozen values rather than a restyle. Served by us, not the gateway.
-            head += f'<link rel="stylesheet" href="{companion}/gateway-theme.css">'
+        # The Home Assistant look is the project's one look now. Newer gateway firmware
+        # ships it natively; injecting the override here keeps an OLDER gateway matching
+        # too. The gateway's CSS uses the same variables we do, so this re-points a dozen
+        # values rather than restyling — harmless when the firmware already has them.
+        head = shim + f'<link rel="stylesheet" href="{companion}/gateway-theme.css">'
         html = _ABS_URL.sub(rf'\1="{base}/', html)
         return html.replace("</head>", head + "</head>", 1)
 

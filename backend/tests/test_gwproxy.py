@@ -32,7 +32,6 @@ INGRESS = {"X-Ingress-Path": "/api/hassio_ingress/tok"}
 
 
 class _Cfg:
-    theme = "ha"
     transport = {"gateway_url": "http://192.168.1.229"}
 
 
@@ -111,17 +110,12 @@ def test_top_targets_are_defused(client):
     assert 'a[target="_top"]' in body       # the click interceptor is installed
 
 
-def test_the_ha_theme_is_injected(client):
+def test_the_ha_theme_is_always_injected(client):
+    """The HA look is the project's only look. New gateway firmware ships it natively;
+    the injection keeps an OLDER gateway matching, and is harmless on a new one."""
     c, _ = client()
     body = c.get("/gw/", headers=INGRESS).text
     assert 'href="/api/hassio_ingress/tok/gateway-theme.css"' in body
-
-
-def test_the_default_theme_injects_nothing(client, monkeypatch):
-    monkeypatch.setattr(_Cfg, "theme", "default")
-    c, _ = client()
-    assert "gateway-theme.css" not in c.get("/gw/").text
-    monkeypatch.setattr(_Cfg, "theme", "ha")
 
 
 def test_the_gateway_is_told_to_link_back_through_ingress(client):
