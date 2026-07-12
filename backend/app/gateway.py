@@ -49,6 +49,95 @@ def _host_of(url: str) -> str:
         return ""
 
 
+# Home Assistant's internal bridge, the one the add-on container lives on. An address
+# here is precisely the wrong answer — it is what we were already reporting.
+HA_INTERNAL_NET = "172.30.32.0/23"
+
+
+def _primary_ipv4(interfaces: list) -> str:
+    """The host's LAN address: the primary interface's, else any other real one.
+
+    Supervisor gives it in CIDR ("192.168.1.50/24"), and older versions used an `address`
+    list where newer ones use `ip_address`. Addresses on the internal bridge are skipped
+    in both passes — falling back to one would just re-report the container's own address
+    under a different name.
+    """
+    import ipaddress
+
+    internal = ipaddress.ip_network(HA_INTERNAL_NET)
+
+    def addr_of(iface: dict) -> str:
+        v4 = iface.get("ipv4") or {}
+        a = v4.get("ip_address") or ""
+        if not a:
+            lst = v4.get("address") or []
+            a = lst[0] if lst else ""
+        a = a.split("/")[0]
+        try:
+            return "" if ipaddress.ip_address(a) in internal else a
+        except ValueError:
+            return ""
+
+    for primary_only in (True, False):
+        for iface in interfaces:
+            if primary_only and not iface.get("primary"):
+                continue
+            if (a := addr_of(iface)):
+                return a
+    return ""
+
+
+async def addon_public_url(container_port: int = 8000) -> str:
+    """The URL a device on the LAN can actually reach us at, when we run as a Home
+    Assistant add-on. Empty when we don't.
+
+    Inside an add-on the container sits on Home Assistant's internal bridge, so
+    ``detect_local_ip()`` — which asks the OS which interface reaches the gateway —
+    truthfully answers with something like ``172.30.33.4``. That is right for the
+    container and useless to an ESP32 on the LAN, and it is what we were handing the
+    gateway to register and link back to.
+
+    Neither half of the real answer is visible from in here: the host's own address, and
+    the port our container is published on (the user can remap it). Supervisor knows both,
+    so ask it. Requires ``hassio_api: true`` in the add-on manifest.
+    """
+    import os
+
+    import httpx
+
+    token = os.environ.get("SUPERVISOR_TOKEN", "")
+    if not token:
+        return ""                       # not an add-on; the socket trick is right
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.get("http://supervisor/addons/self/info", headers=headers)
+            info = r.json()
+            info = info.get("data", info)
+            r = await c.get("http://supervisor/network/info", headers=headers)
+            net = r.json()
+            net = net.get("data", net)
+    except Exception as e:
+        log.warning("add-on: could not ask Supervisor for the host address (%s) — "
+                    "set the Companion URL option if the gateway can't reach us", e)
+        return ""
+
+    port = (info.get("network") or {}).get(f"{container_port}/tcp")
+    if not port:
+        log.warning("add-on: port %d/tcp is not published, so nothing on the LAN can "
+                    "reach the companion. Publish it in the add-on's Network settings, "
+                    "or set the Companion URL option.", container_port)
+        return ""
+    ip = _primary_ipv4(net.get("interfaces") or [])
+    if not ip:
+        log.warning("add-on: Supervisor reported no host IPv4 address")
+        return ""
+    url = f"http://{ip}:{port}"
+    log.info("add-on: registering with the gateway as %s (the host's address, not the "
+             "container's)", url)
+    return url
+
+
 def detect_local_ip(gateway_url: str = "") -> str | None:
     """Best-effort: the LAN IP of the interface that reaches the gateway.
 

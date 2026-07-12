@@ -28,7 +28,7 @@ settings are read from it, so its URL is normally the only thing you have to ent
 |---|---|---|
 | `gateway_url` | — | **Required.** Your SplitFlapGateway's URL. The add-on refuses to start without it. |
 | `mqtt_password` | *(unset)* | Only if your MQTT broker needs auth. The gateway publishes its broker/user/prefix but never the password, so it is set here. |
-| `companion_public_url` | *(unset)* | This add-on's own URL. Registered with the gateway (3.0+) so the gateway shows a "Companion" tab linking back. Leave blank to auto-detect. |
+| `companion_public_url` | *(auto)* | This add-on's own URL, registered with the gateway (3.0+) so the gateway shows a "Companion" tab linking back here. Leave blank: the add-on asks Supervisor for the **host's** address and the port it is published on. (It cannot work this out by itself — from inside the container the only address it can see is its own `172.30.x.x` on Home Assistant's internal bridge, which nothing on your LAN can reach.) Set it only if you front the add-on with a reverse proxy. |
 | `home_assistant` | `auto` | MQTT integration. `auto` follows the gateway's own HA setting. Publishes a *SplitFlap Companion* device with App/Playlist selects and a Stop button. |
 | `vestaboard` | `false` | Answer the [Vestaboard Local API](https://docs.vestaboard.com/docs/local-api/endpoints), so anything written for a Vestaboard drives this wall instead. See below. |
 | `vestaboard_key` | *(generated)* | The key clients send as `X-Vestaboard-Local-Api-Key`. Leave blank and one is generated and kept with your settings. |

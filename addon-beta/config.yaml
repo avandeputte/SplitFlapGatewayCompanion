@@ -25,7 +25,7 @@
 # is no run script to do it. The app reads /data/options.json itself — see
 # config._addon_overrides() — which is what lets one image serve both worlds.
 name: SplitFlap Gateway Companion (Beta)
-version: "1.5.0-beta.3"
+version: "1.5.0-beta.4"
 slug: splitflap_companion_beta
 description: >-
   Prerelease. Drive a SplitFlap wall from Home Assistant — apps, playlists, schedules
@@ -40,6 +40,13 @@ arch:
 init: false
 boot: auto
 startup: application
+
+# The container sits on Home Assistant's internal bridge, so it can only see its own
+# 172.30.x.x address — which is what it was handing the gateway to link back to, and
+# nothing on the LAN can reach that. The host's real address, and the port this add-on is
+# actually published on, are only knowable by asking Supervisor (/network/info and
+# /addons/self/info), which needs this. See gateway.addon_public_url().
+hassio_api: true
 
 # The UI is served straight into the HA sidebar. The app reads Supervisor's
 # X-Ingress-Path header and prefixes every asset/API URL with it (see main.spa_index),

@@ -213,3 +213,103 @@ def test_the_theme_leaves_the_flaps_alone():
     css = (STATIC / "theme-ha.css").read_text("utf-8")
     assert not re.search(r"^\.flap\s*\{", css, re.M)
     assert not re.search(r"^\.board\s*\{", css, re.M)
+
+
+# --- the URL we register with the gateway -------------------------------------
+# An add-on container sits on Home Assistant's internal bridge, so asking the OS which
+# interface reaches the gateway truthfully answers 172.30.33.x. That is the container's
+# address; no ESP32 on the LAN can reach it, and it is what we were registering.
+import asyncio
+
+
+class _FakeSupervisor:
+    """Answers /addons/self/info and /network/info like Supervisor does."""
+
+    def __init__(self, port=8000, ip="192.168.1.50/24", primary=True, fail=False):
+        self.port, self.ip, self.primary, self.fail = port, ip, primary, fail
+        self.seen = []
+
+    def __call__(self, *a, **kw):
+        return self
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    async def get(self, url, headers=None):
+        if self.fail:
+            raise OSError("supervisor unreachable")
+        self.seen.append((url, (headers or {}).get("Authorization")))
+        if url.endswith("/addons/self/info"):
+            body = {"data": {"network": {"8000/tcp": self.port} if self.port else {}}}
+        else:
+            body = {"data": {"interfaces": [
+                {"interface": "hassio", "primary": False, "ipv4": {"ip_address": "172.30.33.4/23"}},
+                {"interface": "eth0", "primary": self.primary, "ipv4": {"ip_address": self.ip}},
+            ]}}
+        return _Resp(body)
+
+
+class _Resp:
+    def __init__(self, body):
+        self._body = body
+
+    def json(self):
+        return self._body
+
+
+@pytest.fixture
+def supervisor(monkeypatch):
+    import httpx
+    from app import gateway
+
+    def install(**kw):
+        fake = _FakeSupervisor(**kw)
+        monkeypatch.setattr(httpx, "AsyncClient", fake)
+        monkeypatch.setenv("SUPERVISOR_TOKEN", "tok")
+        return fake, gateway
+    return install
+
+
+def test_we_register_the_hosts_address_not_the_containers(supervisor):
+    fake, gateway = supervisor()
+    assert asyncio.run(gateway.addon_public_url(8000)) == "http://192.168.1.50:8000"
+    # ...and it authenticated with the Supervisor token.
+    assert all(auth == "Bearer tok" for _, auth in fake.seen)
+
+
+def test_the_published_host_port_is_used_not_our_own(supervisor):
+    """The user can remap the add-on's port; the gateway must be told the one the LAN
+    can actually connect to, not the 8000 we listen on inside the container."""
+    _, gateway = supervisor(port=8123)
+    assert asyncio.run(gateway.addon_public_url(8000)) == "http://192.168.1.50:8123"
+
+
+def test_an_unpublished_port_registers_nothing(supervisor):
+    """With no host port there is no way in, and a URL would be a lie."""
+    _, gateway = supervisor(port=None)
+    assert asyncio.run(gateway.addon_public_url(8000)) == ""
+
+
+def test_a_non_primary_interface_still_beats_the_bridge(supervisor):
+    _, gateway = supervisor(primary=False)
+    assert asyncio.run(gateway.addon_public_url(8000)) == "http://192.168.1.50:8000"
+
+
+def test_an_unreachable_supervisor_is_not_fatal(supervisor):
+    _, gateway = supervisor(fail=True)
+    assert asyncio.run(gateway.addon_public_url(8000)) == ""
+
+
+def test_outside_an_addon_we_do_not_ask_supervisor(monkeypatch):
+    from app import gateway
+    monkeypatch.delenv("SUPERVISOR_TOKEN", raising=False)
+    assert asyncio.run(gateway.addon_public_url(8000)) == ""
+
+
+def test_the_addon_may_call_the_supervisor_api():
+    """/network/info is refused without this, and we would silently fall back to the
+    container's own address again."""
+    assert ADDON["hassio_api"] is True

@@ -26,9 +26,9 @@ from pydantic import BaseModel
 from . import __version__, helpers, mcp_server, renderer, vestaboard, weather
 from .config import Config, addon_option
 from .engine import DisplayController
-from .gateway import (build_sync_patch, detect_local_ip, fetch_gateway_config,
-                      fetch_gateway_settings, gateway_tabs, post_companion,
-                      push_gateway_settings, supports_settings)
+from .gateway import (addon_public_url, build_sync_patch, detect_local_ip,
+                      fetch_gateway_config, fetch_gateway_settings, gateway_tabs,
+                      post_companion, push_gateway_settings, supports_settings)
 from .homeassistant import HomeAssistant
 from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
@@ -132,14 +132,26 @@ async def do_gateway_sync() -> dict:
     }
 
 
-def resolve_companion_url() -> str:
-    """The URL to register with the gateway: explicit COMPANION_PUBLIC_URL, else
-    this host's detected LAN IP + port."""
+async def resolve_companion_url() -> str:
+    """The URL to register with the gateway.
+
+    In order: an explicit COMPANION_PUBLIC_URL (or the add-on's Companion URL option);
+    then, as an add-on, the host address + published port that Supervisor reports; then
+    this host's detected LAN IP + port.
+
+    The add-on step is not an optimisation — it is the only correct answer there. The
+    socket-based detection below sees the container's own address on Home Assistant's
+    internal bridge (172.30.33.x), which no device on the LAN can reach, so the gateway
+    was being handed a URL that could never work.
+    """
     explicit = (config.effective.get("companion_url") or "").strip()
     if explicit:
         return explicit
+    port = int(config.effective.get("port", 8000))
+    if (url := await addon_public_url(port)):
+        return url
     ip = detect_local_ip(config.transport.get("gateway_url", ""))
-    return f"http://{ip}:{int(config.effective.get('port', 8000))}" if ip else ""
+    return f"http://{ip}:{port}" if ip else ""
 
 
 async def setup_settings_sync() -> None:
@@ -291,7 +303,7 @@ async def lifespan(app: FastAPI):
     # Register with the gateway (v3.0) + status heartbeat, all in the background
     # so an unreachable gateway never delays startup.
     gw = config.transport.get("gateway_url", "")
-    companion_url = resolve_companion_url()
+    companion_url = await resolve_companion_url()
     tasks = []
     if ha_on:
         log.info("Home Assistant integration enabled")
@@ -300,8 +312,12 @@ async def lifespan(app: FastAPI):
         tasks.append(asyncio.create_task(ha.start()))
     if gw and companion_url:
         tasks.append(asyncio.create_task(_companion_heartbeat(gw, companion_url)))
-        # If we auto-detected our URL, verify it's actually reachable.
-        if not (config.effective.get("companion_url") or "").strip():
+        # If we auto-detected our URL, verify it's actually reachable. Skipped as an
+        # add-on: Supervisor already told us the host's address and our published port,
+        # and probing it from inside the container proves nothing about the LAN (and its
+        # "launch with python -m app" advice would be nonsense there).
+        if not (config.effective.get("companion_url") or "").strip() \
+                and not os.environ.get("SUPERVISOR_TOKEN"):
             tasks.append(asyncio.create_task(_verify_reachable(companion_url)))
     # Retry pending settings pushes if the gateway was briefly unreachable.
     tasks.append(asyncio.create_task(_settings_flush_loop()))
