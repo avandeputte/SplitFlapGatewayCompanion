@@ -398,5 +398,605 @@
   {
     "id": 100,
     "fortune": "TU PACIENCIA TIENE UNA BARRA. ATASCADA"
+  },
+  {
+    "id": 101,
+    "fortune": "TUS AMIGOS VALORAN TU FRANQUEZA. DE LEJOS"
+  },
+  {
+    "id": 102,
+    "fortune": "UN AMIGO TE LLAMARÁ. NECESITA AYUDA"
+  },
+  {
+    "id": 103,
+    "fortune": "ERES EL PEGAMENTO DEL GRUPO. NADIE LO NOTA"
+  },
+  {
+    "id": 104,
+    "fortune": "EL GRUPO DISFRUTA TU SILENCIO"
+  },
+  {
+    "id": 105,
+    "fortune": "BUENOS AMIGOS ESCASEAN. LOS TUYOS SE OCULTAN"
+  },
+  {
+    "id": 106,
+    "fortune": "GRAN LEALTAD. POCA PUNTUALIDAD"
+  },
+  {
+    "id": 107,
+    "fortune": "UNA FIESTA TRAE ALEGRÍA. IRSE TRAE MÁS"
+  },
+  {
+    "id": 108,
+    "fortune": "ERES EL GRACIOSO. SEGÚN TÚ"
+  },
+  {
+    "id": 109,
+    "fortune": "UN VIEJO AMIGO REGRESA. SE MUDA PRONTO"
+  },
+  {
+    "id": 110,
+    "fortune": "TU CONSEJO SE AGRADECE. NADIE LO PIDIÓ"
+  },
+  {
+    "id": 111,
+    "fortune": "ILUMINAS LA SALA. ALGUNOS QUIEREN REGULADOR"
+  },
+  {
+    "id": 112,
+    "fortune": "TU CUMPLEAÑOS SE RECORDARÁ. UN DÍA TARDE"
+  },
+  {
+    "id": 113,
+    "fortune": "TUS ANÉCDOTAS MEJORAN. LA VERDAD NO"
+  },
+  {
+    "id": 114,
+    "fortune": "LA GENTE GRAVITA HACIA TI. LUEGO SE ALEJA"
+  },
+  {
+    "id": 115,
+    "fortune": "SIEMPRE SABES QUÉ DECIR. RARA VEZ CUÁNDO"
+  },
+  {
+    "id": 116,
+    "fortune": "LOS AMIGOS VAN Y VIENEN. LOS TUYOS SE VAN"
+  },
+  {
+    "id": 117,
+    "fortune": "TU AGENDA ESTÁ LLENA. DE QUIZÁS"
+  },
+  {
+    "id": 118,
+    "fortune": "TUS CHISTES INTERNOS SON MONÓLOGOS"
+  },
+  {
+    "id": 119,
+    "fortune": "TUS FIESTAS SON LEGENDARIAS. LAS CANCELADAS"
+  },
+  {
+    "id": 120,
+    "fortune": "REÚNES A LA GENTE. COMO TEMA DE CHARLA"
+  },
+  {
+    "id": 121,
+    "fortune": "TU GENEROSIDAD TIENE HORARIO"
+  },
+  {
+    "id": 122,
+    "fortune": "NUNCA OLVIDAS UNA CARA. LOS NOMBRES SÍ"
+  },
+  {
+    "id": 123,
+    "fortune": "TUS ÁNIMOS REQUIEREN SEGUIMIENTO MÉDICO"
+  },
+  {
+    "id": 124,
+    "fortune": "ESTÁS CUANDO IMPORTA. PARA TI"
+  },
+  {
+    "id": 125,
+    "fortune": "TUS DESPEDIDAS SIEMPRE SE LLENAN"
+  },
+  {
+    "id": 126,
+    "fortune": "TE CUENTAN SECRETOS. TÚ SE LOS PASAS A OTROS"
+  },
+  {
+    "id": 127,
+    "fortune": "TU FRANQUEZA REFRESCA. COMO UN CUBO DE AGUA"
+  },
+  {
+    "id": 128,
+    "fortune": "NO GUARDAS RENCOR. LO ARCHIVAS CON FECHA"
+  },
+  {
+    "id": 129,
+    "fortune": "TUS MEMES LLEGAN AL AMANECER. SIN PEDIRLO"
+  },
+  {
+    "id": 130,
+    "fortune": "TU HOMBRO ESTÁ LIBRE. CON CITA PREVIA"
+  },
+  {
+    "id": 131,
+    "fortune": "MANTIENES A TODOS CON LOS PIES EN LA TIERRA"
+  },
+  {
+    "id": 132,
+    "fortune": "TU ENTUSIASMO CONTAGIA. USA MASCARILLA"
+  },
+  {
+    "id": 133,
+    "fortune": "UN AMIGO QUIERE TU OPINIÓN SINCERA. TRAMPA"
+  },
+  {
+    "id": 134,
+    "fortune": "DIVIDES LA CUENTA. TU CÁLCULO DISCREPA"
+  },
+  {
+    "id": 135,
+    "fortune": "TU PRESENCIA ES UN REGALO. SE PUEDE CAMBIAR"
+  },
+  {
+    "id": 136,
+    "fortune": "TU ESPÍRITU COMPETITIVO MATÓ LOS JUEGOS"
+  },
+  {
+    "id": 137,
+    "fortune": "TUS FIESTAS SORPRESA NO SORPRENDEN"
+  },
+  {
+    "id": 138,
+    "fortune": "LA GENTE ESTÁ CÓMODA CONTIGO. AL IRSE"
+  },
+  {
+    "id": 139,
+    "fortune": "DICES LO QUE TODOS PIENSAN. EN LOS FUNERALES"
+  },
+  {
+    "id": 140,
+    "fortune": "TU CARTA ANUAL TIENE LECTORES"
+  },
+  {
+    "id": 141,
+    "fortune": "TUS DISCULPAS SON SINCERAS. Y FRECUENTES"
+  },
+  {
+    "id": 142,
+    "fortune": "GUARDAS LA MEMORIA DEL GRUPO. YA REVISADA"
+  },
+  {
+    "id": 143,
+    "fortune": "NUNCA AYUDAS EN SILENCIO. LUEGO LO CUENTAS"
+  },
+  {
+    "id": 144,
+    "fortune": "TU FRANQUEZA ENCANTA. PALABRA APROBADA"
+  },
+  {
+    "id": 145,
+    "fortune": "LLEGAS TARDE CON ESTILO. SIN EL ESTILO"
+  },
+  {
+    "id": 146,
+    "fortune": "BUSCAN TU APROBACIÓN. PARA PODER IRSE"
+  },
+  {
+    "id": 147,
+    "fortune": "NUNCA CHISMEAS. INFORMAS DE LOS AUSENTES"
+  },
+  {
+    "id": 148,
+    "fortune": "LA INVITACIÓN DICE INFORMAL. TUS MENSAJES NO"
+  },
+  {
+    "id": 149,
+    "fortune": "UN AMIGO DE LA INFANCIA TE RECUERDA. DE LEJOS"
+  },
+  {
+    "id": 150,
+    "fortune": "NUNCA PIERDES UNA DISCUSIÓN. LA REUBICAS"
+  },
+  {
+    "id": 151,
+    "fortune": "LA RIQUEZA VIENE. A TU VIEJA DIRECCIÓN"
+  },
+  {
+    "id": 152,
+    "fortune": "EL DINERO FLUYE HACIA TI. Y SE VA"
+  },
+  {
+    "id": 153,
+    "fortune": "TU PRESUPUESTO ES ARTE. ABSTRACTO"
+  },
+  {
+    "id": 154,
+    "fortune": "AHORRA PARA UN MAL DÍA. VIENE UN MONZÓN"
+  },
+  {
+    "id": 155,
+    "fortune": "TU HISTORIAL BANCARIO ES UN THRILLER"
+  },
+  {
+    "id": 156,
+    "fortune": "TUS AHORROS CRECEN. EN CARÁCTER"
+  },
+  {
+    "id": 157,
+    "fortune": "EL DINERO HABLA. EL TUYO DICE ADIÓS"
+  },
+  {
+    "id": 158,
+    "fortune": "TU PENSIÓN ES UN BILLETE DE LOTERÍA"
+  },
+  {
+    "id": 159,
+    "fortune": "TIENES GUSTOS CAROS. Y UN SUELDO MODESTO"
+  },
+  {
+    "id": 160,
+    "fortune": "EL INTERÉS COMPUESTO ES MAGIA. TÚ USAS DEUDAS"
+  },
+  {
+    "id": 161,
+    "fortune": "TU FONDO CUBRE UNA EMERGENCIA PEQUEÑA"
+  },
+  {
+    "id": 162,
+    "fortune": "UN AUMENTO ES MERECIDO. Y SIN FECHA"
+  },
+  {
+    "id": 163,
+    "fortune": "TU CARRITO ES UN TABLERO CON CAJA"
+  },
+  {
+    "id": 164,
+    "fortune": "TU GENEROSIDAD ES FAMOSA. ENTRE VENDEDORES"
+  },
+  {
+    "id": 165,
+    "fortune": "LO MEJOR ES GRATIS. LO TUYO TIENE ENVÍO"
+  },
+  {
+    "id": 166,
+    "fortune": "TUS SUSCRIPCIONES SUPERAN A TUS AMIGOS"
+  },
+  {
+    "id": 167,
+    "fortune": "COMPRA BAJO VENDE ALTO. HACES LO CONTRARIO"
+  },
+  {
+    "id": 168,
+    "fortune": "TU BANCO TE ESCRIBE POR PREOCUPACIÓN"
+  },
+  {
+    "id": 169,
+    "fortune": "TU DEVOLUCIÓN DE IMPUESTOS TIENE PLANES"
+  },
+  {
+    "id": 170,
+    "fortune": "TUS CAPRICHOS SON ESTRATÉGICOS. SUPUESTAMENTE"
+  },
+  {
+    "id": 171,
+    "fortune": "HALLARÁS DINERO EN UN ABRIGO. ERA TUYO"
+  },
+  {
+    "id": 172,
+    "fortune": "TU CARTERA ESTÁ DIVERSIFICADA. EN LAMENTOS"
+  },
+  {
+    "id": 173,
+    "fortune": "EL DÍA DE PAGO TRAE 18 HORAS DE ALEGRÍA"
+  },
+  {
+    "id": 174,
+    "fortune": "TUS RECARGOS TIENEN RECARGOS"
+  },
+  {
+    "id": 175,
+    "fortune": "GRANO A GRANO SE HACE GRANERO. EL TUYO SECA"
+  },
+  {
+    "id": 176,
+    "fortune": "RICO DE ESPÍRITU. LA CAJA OPINA DISTINTO"
+  },
+  {
+    "id": 177,
+    "fortune": "TUS RECIBOS SON UNA BIOGRAFÍA"
+  },
+  {
+    "id": 178,
+    "fortune": "TU ENTRADA SE CONVIRTIÓ EN SUSHI. DOS VECES"
+  },
+  {
+    "id": 179,
+    "fortune": "TU PRESUPUESTO ES FICCIÓN HISTÓRICA"
+  },
+  {
+    "id": 180,
+    "fortune": "TUS PRUEBAS GRATIS VIVEN Y COBRAN"
+  },
+  {
+    "id": 181,
+    "fortune": "EL EFECTIVO ES REY. TU REINO VIVE A CRÉDITO"
+  },
+  {
+    "id": 182,
+    "fortune": "TU FRENO DE GASTOS DURÓ 40 MINUTOS"
+  },
+  {
+    "id": 183,
+    "fortune": "TUS FACTURAS SON PUNTUALES. TÚ NO"
+  },
+  {
+    "id": 184,
+    "fortune": "TU DINERO TRABAJA DURO. PARA OTROS"
+  },
+  {
+    "id": 185,
+    "fortune": "TUS CUPONES CADUCARON. TODOS. HOY"
+  },
+  {
+    "id": 186,
+    "fortune": "TU PLAN FINANCIERO TIENE FASES. LA NEGACIÓN"
+  },
+  {
+    "id": 187,
+    "fortune": "TUS REBAJAS FINANCIAN TUS ANTOJOS"
+  },
+  {
+    "id": 188,
+    "fortune": "TU FASE CRIPTO FUE EDUCATIVA. Y CARA"
+  },
+  {
+    "id": 189,
+    "fortune": "LA LOTERÍA GRAVA LA ESPERANZA. GENEROSO"
+  },
+  {
+    "id": 190,
+    "fortune": "TU META DE AHORRO SIGUE IGUAL DESDE MARZO"
+  },
+  {
+    "id": 191,
+    "fortune": "LA RIQUEZA SUSURRA. LA TUYA COLGÓ"
+  },
+  {
+    "id": 192,
+    "fortune": "ANOTAS CADA GASTO. LUEGO HACES MÁS"
+  },
+  {
+    "id": 193,
+    "fortune": "TU HUCHA TIENE PROBLEMAS DE CONFIANZA"
+  },
+  {
+    "id": 194,
+    "fortune": "TU REEMBOLSO LLEGÓ. YA SE FUE"
+  },
+  {
+    "id": 195,
+    "fortune": "EL DINERO NO DA FELICIDAD. EL TUYO SE RINDIÓ"
+  },
+  {
+    "id": 196,
+    "fortune": "TUS FACTURAS AÑEJAN COMO BUEN VINO"
+  },
+  {
+    "id": 197,
+    "fortune": "TU SALDO Y TU ÁNIMO CAYERON JUNTOS"
+  },
+  {
+    "id": 198,
+    "fortune": "LA PACIENCIA ES VIRTUD. ELEGISTE OTRA"
+  },
+  {
+    "id": 199,
+    "fortune": "EL SILENCIO ES ORO. EL TUYO ES UNA MINA"
+  },
+  {
+    "id": 200,
+    "fortune": "PIENSA ANTES DE HABLAR. PROYECTO PILOTO"
+  },
+  {
+    "id": 201,
+    "fortune": "AGUAS TRANQUILAS SON PROFUNDAS. LAS TUYAS NO"
+  },
+  {
+    "id": 202,
+    "fortune": "EL SABER ES PODER. EL TUYO EN REPOSO"
+  },
+  {
+    "id": 203,
+    "fortune": "MENTE ABIERTA ES UN TESORO. BUENA CORRIENTE"
+  },
+  {
+    "id": 204,
+    "fortune": "ESCUCHA DOS VECES HABLA UNA. INVIÉRTELO"
+  },
+  {
+    "id": 205,
+    "fortune": "LA VERDAD LIBERA. LA TUYA SIGUE SENTADA"
+  },
+  {
+    "id": 206,
+    "fortune": "MIRA ANTES DE SALTAR. O DESPUÉS. TÚ VERÁS"
+  },
+  {
+    "id": 207,
+    "fortune": "LOS HECHOS HABLAN MÁS. LOS TUYOS SUSURRAN"
+  },
+  {
+    "id": 208,
+    "fortune": "MIDE DOS VECES CORTA UNA. TÚ CORTAS YA"
+  },
+  {
+    "id": 209,
+    "fortune": "MÁS VALE TARDE QUE NUNCA. LO PRUEBAS A DIARIO"
+  },
+  {
+    "id": 210,
+    "fortune": "NO CUENTES LOS POLLOS. SE SINDICALIZARON"
+  },
+  {
+    "id": 211,
+    "fortune": "LA HIERBA ES MÁS VERDE DONDE SE RIEGA. RIEGA"
+  },
+  {
+    "id": 212,
+    "fortune": "CADA SANTO TIENE PASADO. EL TUYO CON FICHA"
+  },
+  {
+    "id": 213,
+    "fortune": "PREDICA CON EL EJEMPLO. O PREDICA MENOS"
+  },
+  {
+    "id": 214,
+    "fortune": "DOS ERRORES NO HACEN UN ACIERTO. PARA EN 9"
+  },
+  {
+    "id": 215,
+    "fortune": "NO ES ORO TODO LO QUE RELUCE. MIRA EL RECIBO"
+  },
+  {
+    "id": 216,
+    "fortune": "PIEDRA QUE RUEDA NO CRÍA MUSGO. EL TUYO SÍ"
+  },
+  {
+    "id": 217,
+    "fortune": "NO PONGAS TODO EN UNA CESTA. HALLA LA CESTA"
+  },
+  {
+    "id": 218,
+    "fortune": "EL RÍO SUENA. AGUA LLEVA. CONTIGO SIEMPRE HAY"
+  },
+  {
+    "id": 219,
+    "fortune": "QUIEN RÍE ÚLTIMO PENSÓ LENTO. HOLA"
+  },
+  {
+    "id": 220,
+    "fortune": "MÁS VALE PÁJARO EN MANO. EL TUYO VOLÓ"
+  },
+  {
+    "id": 221,
+    "fortune": "SI NO ESTÁ ROTO NO LO ARREGLES. TARDE"
+  },
+  {
+    "id": 222,
+    "fortune": "LLEVAS EL CABALLO AL AGUA. SE NIEGA"
+  },
+  {
+    "id": 223,
+    "fortune": "LA SOBERBIA VA ANTES DE LA CAÍDA. BUEN PULSO"
+  },
+  {
+    "id": 224,
+    "fortune": "EL TIEMPO CURA TODO. TÚ RASCAS LA HERIDA"
+  },
+  {
+    "id": 225,
+    "fortune": "LOS HÁBITOS MUEREN DURO. LOS TUYOS GANAN"
+  },
+  {
+    "id": 226,
+    "fortune": "HAY HUMO DONDE HAY FUEGO. Y DONDE HAY TÚ"
+  },
+  {
+    "id": 227,
+    "fortune": "LA MEJOR DEFENSA. LA DISTANCIA. LO PILLARON"
+  },
+  {
+    "id": 228,
+    "fortune": "EL DIABLO ESTÁ EN LOS DETALLES. LOS TUYOS NO"
+  },
+  {
+    "id": 229,
+    "fortune": "BASURA DE UNO ES TU GARAJE ENTERO"
+  },
+  {
+    "id": 230,
+    "fortune": "OLLA VIGILADA NUNCA HIERVE. LA TUYA SE FUE"
+  },
+  {
+    "id": 231,
+    "fortune": "QUIEN NADA SABE NADA TEME. PARECES SERENO"
+  },
+  {
+    "id": 232,
+    "fortune": "LA BELLEZA ESTÁ EN EL OJO. REVISA EL OJO"
+  },
+  {
+    "id": 233,
+    "fortune": "HACE FALTA UN PUEBLO. EL TUYO PIDE REFUERZOS"
+  },
+  {
+    "id": 234,
+    "fortune": "LAS GRANDES MENTES COINCIDEN. LA TUYA VA SOLA"
+  },
+  {
+    "id": 235,
+    "fortune": "LA PRUEBA ESTÁ EN EL FLAN. SIN COMENTARIOS"
+  },
+  {
+    "id": 236,
+    "fortune": "CADA PERRO TIENE SU DÍA. EL TUYO FUE MARTES"
+  },
+  {
+    "id": 237,
+    "fortune": "QUIEN NO ARRIESGA NO GANA. EMPATE PERFECTO"
+  },
+  {
+    "id": 238,
+    "fortune": "MUCHOS COCINEROS ARRUINAN EL CALDO. TÚ SOLO"
+  },
+  {
+    "id": 239,
+    "fortune": "COSECHAS LO QUE SIEMBRAS. COSECHA CURIOSA"
+  },
+  {
+    "id": 240,
+    "fortune": "PIDE Y RECIBIRÁS. TU TONO CREÓ UNA COLA"
+  },
+  {
+    "id": 241,
+    "fortune": "CAMINA EN ZAPATOS AJENOS. DEVUÉLVELOS"
+  },
+  {
+    "id": 242,
+    "fortune": "NO POR MUCHO MADRUGAR. TÚ NUNCA MADRUGAS"
+  },
+  {
+    "id": 243,
+    "fortune": "TODO LO BUENO ACABA. LO TUYO ACABA PRONTO"
+  },
+  {
+    "id": 244,
+    "fortune": "LAS PALABRAS VUELAN. LAS TUYAS SON GRATIS"
+  },
+  {
+    "id": 245,
+    "fortune": "NECESIDAD AGUZA EL INGENIO. EL TUYO OBSERVA"
+  },
+  {
+    "id": 246,
+    "fortune": "NO MUERDAS LA MANO QUE TE DA. USA GUANTES"
+  },
+  {
+    "id": 247,
+    "fortune": "COMPARARSE ROBA LA ALEGRÍA. LA TUYA LO SABE"
+  },
+  {
+    "id": 248,
+    "fortune": "MAR EN CALMA NO HACE MARINEROS. AL PUERTO"
+  },
+  {
+    "id": 249,
+    "fortune": "LA SABIDURÍA SUSURRA. LA TUYA EN SILENCIO"
+  },
+  {
+    "id": 250,
+    "fortune": "UN VIAJE DE MIL MILLAS. TÚ SIGUES ESTIRANDO"
   }
 ]

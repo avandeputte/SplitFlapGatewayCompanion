@@ -398,5 +398,605 @@
   {
     "id": 100,
     "fortune": "JE GEDULD HEEFT EEN BALK. VASTGELOPEN"
+  },
+  {
+    "id": 101,
+    "fortune": "JE VRIENDEN WAARDEREN JE EERLIJKHEID. VAN VER"
+  },
+  {
+    "id": 102,
+    "fortune": "EEN VRIEND BELT STRAKS. HIJ GAAT VERHUIZEN"
+  },
+  {
+    "id": 103,
+    "fortune": "JIJ BENT DE LIJM VAN DE GROEP. NIEMAND DANKT"
+  },
+  {
+    "id": 104,
+    "fortune": "DE GROEP GENIET VAN JE STILTE"
+  },
+  {
+    "id": 105,
+    "fortune": "ECHTE VRIENDEN ZIJN ZELDZAAM. DE JOUWE OOK"
+  },
+  {
+    "id": 106,
+    "fortune": "GROTE TROUW. WEINIG STIPTHEID"
+  },
+  {
+    "id": 107,
+    "fortune": "EEN FEEST GEEFT VREUGDE. WEGGAAN NOG MEER"
+  },
+  {
+    "id": 108,
+    "fortune": "JIJ BENT DE GRAPPIGE. VOLGENS JOU"
+  },
+  {
+    "id": 109,
+    "fortune": "EEN OUDE VRIEND KEERT TERUG. HIJ VERHUIST"
+  },
+  {
+    "id": 110,
+    "fortune": "JE ADVIES WORDT GEWAARDEERD. NOOIT GEVRAAGD"
+  },
+  {
+    "id": 111,
+    "fortune": "JE VERLICHT DE KAMER. SOMMIGEN WILLEN DIMMEN"
+  },
+  {
+    "id": 112,
+    "fortune": "JE VERJAARDAG WORDT ONTHOUDEN. NET TE LAAT"
+  },
+  {
+    "id": 113,
+    "fortune": "JE VERHALEN WORDEN BETER. DE WAARHEID NIET"
+  },
+  {
+    "id": 114,
+    "fortune": "MENSEN VOELEN ZICH AANGETROKKEN. DAN WEG"
+  },
+  {
+    "id": 115,
+    "fortune": "JE WEET ALTIJD WAT TE ZEGGEN. ZELDEN WANNEER"
+  },
+  {
+    "id": 116,
+    "fortune": "VRIENDEN KOMEN EN GAAN. DE JOUWE GAAN"
+  },
+  {
+    "id": 117,
+    "fortune": "JE AGENDA ZIT VOL. MET MISSCHIENS"
+  },
+  {
+    "id": 118,
+    "fortune": "JE INSIDE GRAPPEN ZIJN NU SOLO"
+  },
+  {
+    "id": 119,
+    "fortune": "JE FEESTEN ZIJN LEGENDARISCH. DE AFGELASTE"
+  },
+  {
+    "id": 120,
+    "fortune": "JE BRENGT MENSEN SAMEN. ALS GESPREKSSTOF"
+  },
+  {
+    "id": 121,
+    "fortune": "JE VRIJGEVIGHEID HEEFT OPENINGSTIJDEN"
+  },
+  {
+    "id": 122,
+    "fortune": "JE VERGEET NOOIT EEN GEZICHT. NAMEN WEL"
+  },
+  {
+    "id": 123,
+    "fortune": "JE OPPEPPERS VEREISEN NAZORG"
+  },
+  {
+    "id": 124,
+    "fortune": "JE BENT ER ALS HET ERTOE DOET. VOOR JOU"
+  },
+  {
+    "id": 125,
+    "fortune": "JE AFSCHEIDSFEESTEN ZITTEN ALTIJD VOL"
+  },
+  {
+    "id": 126,
+    "fortune": "MEN VERTELT JE GEHEIMEN. DAN VERTEL JIJ ZE"
+  },
+  {
+    "id": 127,
+    "fortune": "JE EERLIJKHEID VERFRIST. ALS EEN EMMER WATER"
+  },
+  {
+    "id": 128,
+    "fortune": "JE MEMES KOMEN BIJ DAGERAAD. ONGEVRAAGD"
+  },
+  {
+    "id": 129,
+    "fortune": "JE SCHOUDER IS VRIJ. OP AFSPRAAK"
+  },
+  {
+    "id": 130,
+    "fortune": "JE HOUDT IEDEREEN GEAARD. ALS MIST"
+  },
+  {
+    "id": 131,
+    "fortune": "JE ENTHOUSIASME IS BESMETTELIJK. DRAAG MASKER"
+  },
+  {
+    "id": 132,
+    "fortune": "EEN VRIEND WIL EERLIJKE MENING. EEN VALSTRIK"
+  },
+  {
+    "id": 133,
+    "fortune": "JE DEELT DE REKENING. JE REKENSOM WIJKT AF"
+  },
+  {
+    "id": 134,
+    "fortune": "JE AANWEZIGHEID IS EEN CADEAU. RUILEN MAG"
+  },
+  {
+    "id": 135,
+    "fortune": "JE COMPETITIEDRIFT DOODDE DE SPELLETJES"
+  },
+  {
+    "id": 136,
+    "fortune": "JE VERRASSINGSFEESTEN VERRASSEN NIEMAND"
+  },
+  {
+    "id": 137,
+    "fortune": "MENSEN VOELEN ZICH OP HUN GEMAK. BIJ HET GAAN"
+  },
+  {
+    "id": 138,
+    "fortune": "JE ZEGT WAT IEDEREEN DENKT. OP BEGRAFENISSEN"
+  },
+  {
+    "id": 139,
+    "fortune": "JE JAARLIJKSE BRIEF HEEFT LEZERS"
+  },
+  {
+    "id": 140,
+    "fortune": "JE EXCUSES ZIJN OPRECHT. EN FREQUENT"
+  },
+  {
+    "id": 141,
+    "fortune": "JE BEWAART HET GROEPSGEHEUGEN. HERZIEN"
+  },
+  {
+    "id": 142,
+    "fortune": "JE HELPT NOOIT IN STILTE. DAN VERTEL JE HET"
+  },
+  {
+    "id": 143,
+    "fortune": "JE OPRECHTHEID CHARMEERT. WOORD GOEDGEKEURD"
+  },
+  {
+    "id": 144,
+    "fortune": "JE KOMT MODIEUS TE LAAT. ZONDER HET MODIEUS"
+  },
+  {
+    "id": 145,
+    "fortune": "MEN ZOEKT JE GOEDKEURING. OM TE KUNNEN GAAN"
+  },
+  {
+    "id": 146,
+    "fortune": "JE RODDELT NOOIT. JE INFORMEERT AFWEZIGEN"
+  },
+  {
+    "id": 147,
+    "fortune": "DE UITNODIGING ZEGT CASUAL. JE BERICHTEN NIET"
+  },
+  {
+    "id": 148,
+    "fortune": "EEN JEUGDVRIEND HERINNERT ZICH JOU. VAN VER"
+  },
+  {
+    "id": 149,
+    "fortune": "JE VERLIEST NOOIT EEN RUZIE. JE VERPLAATST"
+  },
+  {
+    "id": 150,
+    "fortune": "DE RIJKDOM KOMT. NAAR JE OUDE ADRES"
+  },
+  {
+    "id": 151,
+    "fortune": "HET GELD STROOMT NAAR JE. EN WEG"
+  },
+  {
+    "id": 152,
+    "fortune": "JE BUDGET IS KUNST. ABSTRACTE KUNST"
+  },
+  {
+    "id": 153,
+    "fortune": "SPAAR VOOR EEN REGENDAG. ER KOMT EEN MOESSON"
+  },
+  {
+    "id": 154,
+    "fortune": "JE BANKAFSCHRIFT IS EEN THRILLER"
+  },
+  {
+    "id": 155,
+    "fortune": "JE SPAARGELD GROEIT. IN KARAKTER"
+  },
+  {
+    "id": 156,
+    "fortune": "GELD SPREEKT. HET JOUWE ZEGT VAARWEL"
+  },
+  {
+    "id": 157,
+    "fortune": "JE PENSIOEN IS EEN LOTERIJTICKET"
+  },
+  {
+    "id": 158,
+    "fortune": "JE HEBT DURE SMAAK. EN EEN BESCHEIDEN LOON"
+  },
+  {
+    "id": 159,
+    "fortune": "SAMENGESTELDE RENTE IS MAGIE. JIJ KOOS SCHULD"
+  },
+  {
+    "id": 160,
+    "fortune": "JE NOODFONDS DEKT EEN KLEINE NOOD"
+  },
+  {
+    "id": 161,
+    "fortune": "EEN OPSLAG IS VERDIEND. EN ZONDER DATUM"
+  },
+  {
+    "id": 162,
+    "fortune": "JE WINKELMAND IS EEN VISIEBORD MET KASSA"
+  },
+  {
+    "id": 163,
+    "fortune": "JE VRIJGEVIGHEID IS BEROEMD. BIJ VERKOPERS"
+  },
+  {
+    "id": 164,
+    "fortune": "HET BESTE IS GRATIS. HET JOUWE MET VERZENDING"
+  },
+  {
+    "id": 165,
+    "fortune": "JE ABONNEMENTEN OVERTREFFEN JE VRIENDEN"
+  },
+  {
+    "id": 166,
+    "fortune": "KOOP LAAG VERKOOP HOOG. JIJ ANDERSOM"
+  },
+  {
+    "id": 167,
+    "fortune": "JE BANK SCHRIJFT JE UIT BEZORGDHEID"
+  },
+  {
+    "id": 168,
+    "fortune": "JE BELASTINGTERUGGAAF HEEFT PLANNEN"
+  },
+  {
+    "id": 169,
+    "fortune": "JE UITSPATTINGEN ZIJN STRATEGISCH. ZOGENAAMD"
+  },
+  {
+    "id": 170,
+    "fortune": "JE VINDT GELD IN EEN JAS. HET WAS VAN JOU"
+  },
+  {
+    "id": 171,
+    "fortune": "JE PORTEFEUILLE IS GESPREID. OVER SPIJT"
+  },
+  {
+    "id": 172,
+    "fortune": "DE LOONDAG BRENGT 18 UUR VREUGDE"
+  },
+  {
+    "id": 173,
+    "fortune": "JE BOETES HEBBEN BOETES"
+  },
+  {
+    "id": 174,
+    "fortune": "VELE KLEINTJES MAKEN GROOT. DE JOUWE DROOGT"
+  },
+  {
+    "id": 175,
+    "fortune": "RIJK VAN GEEST. DE KASSA ZIET HET ANDERS"
+  },
+  {
+    "id": 176,
+    "fortune": "JE BONNETJES ZIJN EEN BIOGRAFIE"
+  },
+  {
+    "id": 177,
+    "fortune": "JE AANBETALING WERD SUSHI. TWEE KEER"
+  },
+  {
+    "id": 178,
+    "fortune": "JE BUDGET IS HISTORISCHE FICTIE"
+  },
+  {
+    "id": 179,
+    "fortune": "JE GRATIS PROEVEN LEVEN EN INCASSEREN"
+  },
+  {
+    "id": 180,
+    "fortune": "CONTANT IS KONING. JE RIJK DRAAIT OP KREDIET"
+  },
+  {
+    "id": 181,
+    "fortune": "JE UITGAVENSTOP DUURDE 40 MINUTEN"
+  },
+  {
+    "id": 182,
+    "fortune": "JE REKENINGEN ZIJN STIPT. JIJ NIET"
+  },
+  {
+    "id": 183,
+    "fortune": "JE GELD WERKT HARD. VOOR ANDEREN"
+  },
+  {
+    "id": 184,
+    "fortune": "JE BONNEN VERLIEPEN. ALLEMAAL. VANDAAG"
+  },
+  {
+    "id": 185,
+    "fortune": "JE FINANCIEEL PLAN HEEFT FASEN. EERST ONTKEN"
+  },
+  {
+    "id": 186,
+    "fortune": "JE KORTINGEN FINANCIEREN JE IMPULSAANKOPEN"
+  },
+  {
+    "id": 187,
+    "fortune": "JE CRYPTOFASE WAS LEERZAAM. EN DUUR"
+  },
+  {
+    "id": 188,
+    "fortune": "DE LOTERIJ BELAST HOOP. JIJ GEEFT GUL"
+  },
+  {
+    "id": 189,
+    "fortune": "JE SPAARDOEL STAAT STIL SINDS MAART"
+  },
+  {
+    "id": 190,
+    "fortune": "DE RIJKDOM FLUISTERT. DE JOUWE HING OP"
+  },
+  {
+    "id": 191,
+    "fortune": "JE NOTEERT ELKE UITGAVE. DAN DOE JE ER MEER"
+  },
+  {
+    "id": 192,
+    "fortune": "JE SPAARPOT HEEFT VERTROUWENSISSUES"
+  },
+  {
+    "id": 193,
+    "fortune": "JE TERUGGAVE KWAM. HIJ IS AL WEG"
+  },
+  {
+    "id": 194,
+    "fortune": "GELD MAAKT NIET GELUKKIG. HET JOUWE GAF OP"
+  },
+  {
+    "id": 195,
+    "fortune": "JE FACTUREN RIJPEN ALS GOEDE WIJN"
+  },
+  {
+    "id": 196,
+    "fortune": "JE SALDO EN JE MOED DAALDEN SAMEN"
+  },
+  {
+    "id": 197,
+    "fortune": "GEDULD IS EEN DEUGD. JIJ KOOS EEN ANDERE"
+  },
+  {
+    "id": 198,
+    "fortune": "ZWIJGEN IS GOUD. HET JOUWE IS EEN GOUDMIJN"
+  },
+  {
+    "id": 199,
+    "fortune": "DENK VOOR JE SPREEKT. EEN PROEFPROJECT"
+  },
+  {
+    "id": 200,
+    "fortune": "STILLE WATERS ZIJN DIEP. DE JOUWE NIET"
+  },
+  {
+    "id": 201,
+    "fortune": "KENNIS IS MACHT. DE JOUWE STAAT IN STAND BY"
+  },
+  {
+    "id": 202,
+    "fortune": "EEN OPEN GEEST IS EEN SCHAT. FIJNE TOCHT"
+  },
+  {
+    "id": 203,
+    "fortune": "LUISTER TWEE KEER SPREEK EEN. DRAAI HET OM"
+  },
+  {
+    "id": 204,
+    "fortune": "DE WAARHEID BEVRIJDT. DE JOUWE BLIJFT ZITTEN"
+  },
+  {
+    "id": 205,
+    "fortune": "KIJK VOOR JE SPRINGT. OF ERNA. JIJ BESLIST"
+  },
+  {
+    "id": 206,
+    "fortune": "DADEN SPREKEN LUIDER. DE JOUWE FLUISTEREN"
+  },
+  {
+    "id": 207,
+    "fortune": "METEN IS WETEN. JIJ KNIPT METEEN"
+  },
+  {
+    "id": 208,
+    "fortune": "BETER LAAT DAN NOOIT. JE TEST HET DAGELIJKS"
+  },
+  {
+    "id": 209,
+    "fortune": "TEL JE KUIKENS NIET. DE JOUWE STAKEN"
+  },
+  {
+    "id": 210,
+    "fortune": "GRAS IS GROENER WAAR JE GIET. KOOP EEN SLANG"
+  },
+  {
+    "id": 211,
+    "fortune": "ELKE HEILIGE HEEFT EEN VERLEDEN. JIJ DOSSIER"
+  },
+  {
+    "id": 212,
+    "fortune": "PREEK WAT JE DOET. OF PREEK MINDER"
+  },
+  {
+    "id": 213,
+    "fortune": "TWEE FOUTEN MAKEN GEEN GELIJK. STOP BIJ NEGEN"
+  },
+  {
+    "id": 214,
+    "fortune": "NIET AL WAT BLINKT IS GOUD. ZIE HET BONNETJE"
+  },
+  {
+    "id": 215,
+    "fortune": "ROLLENDE STEEN VANGT GEEN MOS. DE JOUWE WEL"
+  },
+  {
+    "id": 216,
+    "fortune": "LEG NIET ALLES IN EEN MAND. VIND DE MAND"
+  },
+  {
+    "id": 217,
+    "fortune": "WAAR ROOK IS BEN JIJ"
+  },
+  {
+    "id": 218,
+    "fortune": "DE BESTE VERDEDIGING. AFSTAND. ZE SNAPTEN HET"
+  },
+  {
+    "id": 219,
+    "fortune": "DE DUIVEL ZIT IN DE DETAILS. DE JOUWE LEEG"
+  },
+  {
+    "id": 220,
+    "fortune": "ANDERMANS AFVAL IS JOUW GARAGE"
+  },
+  {
+    "id": 221,
+    "fortune": "BEWAAKTE POT KOOKT NIET. DE JOUWE LIEP OVER"
+  },
+  {
+    "id": 222,
+    "fortune": "WIE NIETS WEET VREEST NIETS. JE LIJKT KALM"
+  },
+  {
+    "id": 223,
+    "fortune": "SCHOONHEID ZIT IN HET OOG. LAAT HET NAKIJKEN"
+  },
+  {
+    "id": 224,
+    "fortune": "HET VERGT EEN DORP. HET JOUWE VRAAGT HULP"
+  },
+  {
+    "id": 225,
+    "fortune": "GROTE GEESTEN DENKEN GELIJK. DE JOUWE ALLEEN"
+  },
+  {
+    "id": 226,
+    "fortune": "HET BEWIJS ZIT IN DE PUDDING. GEEN COMMENTAAR"
+  },
+  {
+    "id": 227,
+    "fortune": "ELKE HOND HEEFT ZIJN DAG. JIJ HAD DINSDAG"
+  },
+  {
+    "id": 228,
+    "fortune": "WIE NIET WAAGT DIE NIET WINT. PERFECT GELIJK"
+  },
+  {
+    "id": 229,
+    "fortune": "TE VEEL KOKS BEDERVEN DE BREI. JIJ ALLEEN OOK"
+  },
+  {
+    "id": 230,
+    "fortune": "JE OOGST WAT JE ZAAIT. VREEMDE OOGST"
+  },
+  {
+    "id": 231,
+    "fortune": "VRAAG EN JE ONTVANGT. JE TOON MAAKTE EEN RIJ"
+  },
+  {
+    "id": 232,
+    "fortune": "LOOP IN ANDERMANS SCHOENEN. GEEF ZE TERUG"
+  },
+  {
+    "id": 233,
+    "fortune": "DE VROEGE VOGEL VANGT DE WORM. JIJ SLIEP"
+  },
+  {
+    "id": 234,
+    "fortune": "AL HET GOEDE EINDIGT. HET JOUWE VROEG"
+  },
+  {
+    "id": 235,
+    "fortune": "WOORDEN VLIEGEN WEG. DE JOUWE ZIJN GRATIS"
+  },
+  {
+    "id": 236,
+    "fortune": "DE TIJD WACHT OP NIEMAND. OP JOU WEL"
+  },
+  {
+    "id": 237,
+    "fortune": "DE VOEDENDE HAND DRAAGT NU HANDSCHOENEN"
+  },
+  {
+    "id": 238,
+    "fortune": "VERGELIJKEN STEELT VREUGDE. DE JOUWE VOLTIJDS"
+  },
+  {
+    "id": 239,
+    "fortune": "HALF BROOD IS BETER DAN GEEN. JIJ BIEDT KRUIM"
+  },
+  {
+    "id": 240,
+    "fortune": "KALME ZEE MAAKT GEEN ZEEMAN. BLIJF AAN WAL"
+  },
+  {
+    "id": 241,
+    "fortune": "DE WAARHEID REPETEERT NIET. DE JOUWE WEL"
+  },
+  {
+    "id": 242,
+    "fortune": "ALLES MET MATE. OOK DAT. STOP"
+  },
+  {
+    "id": 243,
+    "fortune": "WAT ROND GAAT KOMT ROND. TRACK EN TRACE"
+  },
+  {
+    "id": 244,
+    "fortune": "RUZIE NIET MET EEN DWAAS. MEN VERWART JULLIE"
+  },
+  {
+    "id": 245,
+    "fortune": "WIJSHEID FLUISTERT. DE JOUWE STAAT OP STIL"
+  },
+  {
+    "id": 246,
+    "fortune": "EEN LANGE REIS BEGINT MET EEN STAP. JIJ REKT"
+  },
+  {
+    "id": 247,
+    "fortune": "NOOD MAAKT VINDINGRIJK. JIJ KIJKT TOE"
+  },
+  {
+    "id": 248,
+    "fortune": "ALLES OP ZIJN TIJD. JE TIJD TALMT"
+  },
+  {
+    "id": 249,
+    "fortune": "BETER ALLEEN DAN IN SLECHT GEZELSCHAP. ALLEEN"
+  },
+  {
+    "id": 250,
+    "fortune": "JONG GELEERD OUD GEDAAN. JIJ NOG NIET"
   }
 ]

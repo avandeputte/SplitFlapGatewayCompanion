@@ -398,5 +398,605 @@
   {
     "id": 100,
     "fortune": "DIN TÅLMODIGHED HAR EN BJÆLKE. LÅST FAST"
+  },
+  {
+    "id": 101,
+    "fortune": "VENNER VÆRDSÆTTER DIN ÆRLIGHED. PÅ AFSTAND"
+  },
+  {
+    "id": 102,
+    "fortune": "EN VEN RINGER SNART. HAN SKAL FLYTTE"
+  },
+  {
+    "id": 103,
+    "fortune": "DU ER GRUPPENS LIM. INGEN TAKKER LIMET"
+  },
+  {
+    "id": 104,
+    "fortune": "GRUPPEN NYDER DIN TAVSHED"
+  },
+  {
+    "id": 105,
+    "fortune": "ÆGTE VENNER ER SJÆLDNE. DINE GEMMER SIG"
+  },
+  {
+    "id": 106,
+    "fortune": "STOR LOYALITET. LIDT PUNKTLIGHED"
+  },
+  {
+    "id": 107,
+    "fortune": "EN FEST GIVER GLÆDE. AT GÅ GIVER MERE"
+  },
+  {
+    "id": 108,
+    "fortune": "DU ER DEN SJOVE. IFØLGE DIG"
+  },
+  {
+    "id": 109,
+    "fortune": "EN GAMMEL VEN VENDER TILBAGE. HAN FLYTTER"
+  },
+  {
+    "id": 110,
+    "fortune": "DIT RÅD VÆRDSÆTTES. ALDRIG ØNSKET"
+  },
+  {
+    "id": 111,
+    "fortune": "DU LYSER RUMMET OP. NOGLE VIL HA DÆMPER"
+  },
+  {
+    "id": 112,
+    "fortune": "DIN FØDSELSDAG HUSKES. EN DAG FOR SENT"
+  },
+  {
+    "id": 113,
+    "fortune": "DINE HISTORIER BLIVER BEDRE. SANDHEDEN IKKE"
+  },
+  {
+    "id": 114,
+    "fortune": "FOLK TILTRÆKKES AF DIG. SÅ DRIVER DE VIDERE"
+  },
+  {
+    "id": 115,
+    "fortune": "DU VED ALTID HVAD DU SKAL SIGE. SJÆLDENT HVOR"
+  },
+  {
+    "id": 116,
+    "fortune": "VENNER KOMMER OG GÅR. DINE GÅR"
+  },
+  {
+    "id": 117,
+    "fortune": "DIN KALENDER ER FULD. AF MÅSKE"
+  },
+  {
+    "id": 118,
+    "fortune": "DINE INTERNE JOKES ER NU SOLO"
+  },
+  {
+    "id": 119,
+    "fortune": "DINE FESTER ER LEGENDARISKE. DE AFLYSTE"
+  },
+  {
+    "id": 120,
+    "fortune": "DU SAMLER FOLK. SOM SAMTALEEMNE"
+  },
+  {
+    "id": 121,
+    "fortune": "DIN GAVMILDHED HAR ÅBNINGSTIDER"
+  },
+  {
+    "id": 122,
+    "fortune": "DU GLEMMER ALDRIG ET ANSIGT. NAVNE JA"
+  },
+  {
+    "id": 123,
+    "fortune": "DINE PEPTALKS KRÆVER EFTERPLEJE"
+  },
+  {
+    "id": 124,
+    "fortune": "DU ER DER NÅR DET GÆLDER. FOR DIG"
+  },
+  {
+    "id": 125,
+    "fortune": "DINE AFSKEDSFESTER BLIVER ALTID FYLDT"
+  },
+  {
+    "id": 126,
+    "fortune": "MAN BETROR DIG HEMMELIGHEDER. DU SPREDER DEM"
+  },
+  {
+    "id": 127,
+    "fortune": "DIN ÆRLIGHED FORFRISKER. SOM EN SPAND VAND"
+  },
+  {
+    "id": 128,
+    "fortune": "DINE MEMES KOMMER VED DAGGRY. UBEDT"
+  },
+  {
+    "id": 129,
+    "fortune": "DIN SKULDER ER LEDIG. EFTER AFTALE"
+  },
+  {
+    "id": 130,
+    "fortune": "DU HOLDER ALLE JORDNÆRE. SOM TÅGE"
+  },
+  {
+    "id": 131,
+    "fortune": "DIN BEGEJSTRING SMITTER. BRUG MUNDBIND"
+  },
+  {
+    "id": 132,
+    "fortune": "EN VEN VIL HAVE DIN ÆRLIGE MENING. EN FÆLDE"
+  },
+  {
+    "id": 133,
+    "fortune": "DU DELER REGNINGEN. DIT REGNESTYKKE ER UENIG"
+  },
+  {
+    "id": 134,
+    "fortune": "DIN TILSTEDEVÆRELSE ER EN GAVE. KAN BYTTES"
+  },
+  {
+    "id": 135,
+    "fortune": "DIN KONKURRENCEDRIFT DRÆBTE SPILLENE"
+  },
+  {
+    "id": 136,
+    "fortune": "DINE OVERRASKELSESFESTER OVERRASKER INGEN"
+  },
+  {
+    "id": 137,
+    "fortune": "FOLK ER TILPAS MED DIG. NÅR DE GÅR"
+  },
+  {
+    "id": 138,
+    "fortune": "DU SIGER HVAD ALLE TÆNKER. TIL BEGRAVELSER"
+  },
+  {
+    "id": 139,
+    "fortune": "DIT ÅRSBREV HAR LÆSERE"
+  },
+  {
+    "id": 140,
+    "fortune": "DINE UNDSKYLDNINGER ER OPRIGTIGE. OG HYPPIGE"
+  },
+  {
+    "id": 141,
+    "fortune": "DU VOGTER GRUPPENS HUKOMMELSE. REVIDERET"
+  },
+  {
+    "id": 142,
+    "fortune": "DU HJÆLPER ALDRIG I STILHED. SÅ FORTÆLLER DU"
+  },
+  {
+    "id": 143,
+    "fortune": "DIN OPRIGTIGHED CHARMERER. ORD GODKENDT"
+  },
+  {
+    "id": 144,
+    "fortune": "DU KOMMER MODERIGTIGT SENT. UDEN MODEN"
+  },
+  {
+    "id": 145,
+    "fortune": "MAN SØGER DIN GODKENDELSE. FOR AT KUNNE GÅ"
+  },
+  {
+    "id": 146,
+    "fortune": "DU SLADRER ALDRIG. DU ORIENTERER OM FOLK"
+  },
+  {
+    "id": 147,
+    "fortune": "INVITATIONEN SIGER AFSLAPPET. BESKEDERNE IKKE"
+  },
+  {
+    "id": 148,
+    "fortune": "EN BARNDOMSVEN HUSKER DIG. LANGT VÆK"
+  },
+  {
+    "id": 149,
+    "fortune": "DU TABER ALDRIG ET SKÆNDERI. DU FLYTTER DET"
+  },
+  {
+    "id": 150,
+    "fortune": "RIGDOMMEN KOMMER. TIL DIN GAMLE ADRESSE"
+  },
+  {
+    "id": 151,
+    "fortune": "PENGENE FLYDER TIL DIG. OG VÆK"
+  },
+  {
+    "id": 152,
+    "fortune": "DIT BUDGET ER KUNST. ABSTRAKT KUNST"
+  },
+  {
+    "id": 153,
+    "fortune": "SPAR TIL EN REGNVEJRSDAG. EN MONSUN KOMMER"
+  },
+  {
+    "id": 154,
+    "fortune": "DIN KONTOUDSKRIFT ER EN THRILLER"
+  },
+  {
+    "id": 155,
+    "fortune": "DIN OPSPARING VOKSER. I KARAKTER"
+  },
+  {
+    "id": 156,
+    "fortune": "PENGE TALER. DINE SIGER FARVEL"
+  },
+  {
+    "id": 157,
+    "fortune": "DIN PENSION ER EN LOTTOKUPON"
+  },
+  {
+    "id": 158,
+    "fortune": "DU HAR DYR SMAG. OG EN BESKEDEN LØN"
+  },
+  {
+    "id": 159,
+    "fortune": "RENTERS RENTE ER MAGI. DU VALGTE GÆLD"
+  },
+  {
+    "id": 160,
+    "fortune": "DIN BUFFER DÆKKER EN LILLE KRISE"
+  },
+  {
+    "id": 161,
+    "fortune": "EN LØNFORHØJELSE ER FORTJENT. OG UDATERET"
+  },
+  {
+    "id": 162,
+    "fortune": "DIN KURV ER EN VISIONSTAVLE MED KASSE"
+  },
+  {
+    "id": 163,
+    "fortune": "DIN GAVMILDHED ER KENDT. BLANDT SÆLGERE"
+  },
+  {
+    "id": 164,
+    "fortune": "DET BEDSTE ER GRATIS. DIT HAR FRAGT"
+  },
+  {
+    "id": 165,
+    "fortune": "DINE ABONNEMENTER SLÅR DINE VENNER"
+  },
+  {
+    "id": 166,
+    "fortune": "KØB LAVT SÆLG HØJT. DU GØR DET OMVENDT"
+  },
+  {
+    "id": 167,
+    "fortune": "BANKEN SKRIVER AF BEKYMRING"
+  },
+  {
+    "id": 168,
+    "fortune": "DIN SKATTERABAT HAR PLANER"
+  },
+  {
+    "id": 169,
+    "fortune": "DINE UDSKEJELSER ER STRATEGISKE. ANGIVELIGT"
+  },
+  {
+    "id": 170,
+    "fortune": "DU FINDER PENGE I EN FRAKKE. DE VAR DINE"
+  },
+  {
+    "id": 171,
+    "fortune": "DIN PORTEFØLJE ER SPREDT. OVER FORTRYDELSE"
+  },
+  {
+    "id": 172,
+    "fortune": "LØNNINGSDAGEN GIVER 18 TIMERS GLÆDE"
+  },
+  {
+    "id": 173,
+    "fortune": "DINE GEBYRER HAR GEBYRER"
+  },
+  {
+    "id": 174,
+    "fortune": "MANGE BÆKKE SMÅ. DINE TØRRER UD"
+  },
+  {
+    "id": 175,
+    "fortune": "RIG I ÅNDEN. KASSEN SER DET ANDERLEDES"
+  },
+  {
+    "id": 176,
+    "fortune": "DINE KVITTERINGER ER EN BIOGRAFI"
+  },
+  {
+    "id": 177,
+    "fortune": "DIN UDBETALING BLEV SUSHI. TO GANGE"
+  },
+  {
+    "id": 178,
+    "fortune": "DIT BUDGET ER HISTORISK FIKTION"
+  },
+  {
+    "id": 179,
+    "fortune": "DINE GRATIS PRØVER LEVER OG TRÆKKER PENGE"
+  },
+  {
+    "id": 180,
+    "fortune": "KONTANTER ER KONGE. DIT RIGE KØRER PÅ KREDIT"
+  },
+  {
+    "id": 181,
+    "fortune": "DIT KØBESTOP VAREDE 40 MINUTTER"
+  },
+  {
+    "id": 182,
+    "fortune": "DINE REGNINGER ER PRÆCISE. IKKE DIG"
+  },
+  {
+    "id": 183,
+    "fortune": "DINE PENGE ARBEJDER HÅRDT. FOR ANDRE"
+  },
+  {
+    "id": 184,
+    "fortune": "DINE KUPONER UDLØB. ALLE. I DAG"
+  },
+  {
+    "id": 185,
+    "fortune": "DIN ØKONOMIPLAN HAR FASER. FØRST FORNÆGTELSE"
+  },
+  {
+    "id": 186,
+    "fortune": "DINE RABATTER FINANSIERER IMPULSKØB"
+  },
+  {
+    "id": 187,
+    "fortune": "DIN KRYPTOFASE VAR LÆRERIG. OG DYR"
+  },
+  {
+    "id": 188,
+    "fortune": "LOTTO BESKATTER HÅBET. DU GIVER RUNDHÅNDET"
+  },
+  {
+    "id": 189,
+    "fortune": "DIT SPAREMÅL STÅR STILLE SIDEN MARTS"
+  },
+  {
+    "id": 190,
+    "fortune": "RIGDOMMEN HVISKER. DIN LAGDE PÅ"
+  },
+  {
+    "id": 191,
+    "fortune": "DU FØRER HVER UDGIFT. SÅ LAVER DU FLERE"
+  },
+  {
+    "id": 192,
+    "fortune": "DIN SPAREGRIS HAR TILLIDSPROBLEMER"
+  },
+  {
+    "id": 193,
+    "fortune": "DIN REFUSION KOM. DEN ER ALLEREDE VÆK"
+  },
+  {
+    "id": 194,
+    "fortune": "PENGE GIVER IKKE LYKKE. DINE GAV OP"
+  },
+  {
+    "id": 195,
+    "fortune": "DINE FAKTURAER MODNER SOM GOD VIN"
+  },
+  {
+    "id": 196,
+    "fortune": "DIN SALDO OG DIT MOD FALDT SAMMEN"
+  },
+  {
+    "id": 197,
+    "fortune": "TÅLMOD ER EN DYD. DU VALGTE EN ANDEN"
+  },
+  {
+    "id": 198,
+    "fortune": "TAVSHED ER GULD. DIN ER EN GULDMINE"
+  },
+  {
+    "id": 199,
+    "fortune": "TÆNK FØR DU TALER. ET PILOTPROJEKT"
+  },
+  {
+    "id": 200,
+    "fortune": "STILLE VANDE ER DYBE. DINE ER IKKE"
+  },
+  {
+    "id": 201,
+    "fortune": "VIDEN ER MAGT. DIN ER PÅ STANDBY"
+  },
+  {
+    "id": 202,
+    "fortune": "ET ÅBENT SIND ER EN SKAT. FIN TRÆK"
+  },
+  {
+    "id": 203,
+    "fortune": "LYT TO GANGE TAL EN. VEND DET OM"
+  },
+  {
+    "id": 204,
+    "fortune": "SANDHEDEN GØR FRI. DIN BLIVER SIDDENDE"
+  },
+  {
+    "id": 205,
+    "fortune": "SE DIG FOR FØR DU SPRINGER. ELLER EFTER"
+  },
+  {
+    "id": 206,
+    "fortune": "HANDLING TALER HØJERE. DINE HVISKER"
+  },
+  {
+    "id": 207,
+    "fortune": "MÅL TO GANGE SKÆR EN. DU SKÆRER STRAKS"
+  },
+  {
+    "id": 208,
+    "fortune": "BEDRE SENT END ALDRIG. DU TESTER DET DAGLIGT"
+  },
+  {
+    "id": 209,
+    "fortune": "TÆL IKKE DINE KYLLINGER. DINE STREJKER"
+  },
+  {
+    "id": 210,
+    "fortune": "GRÆSSET ER GRØNT HVOR DU VANDER. KØB SLANGE"
+  },
+  {
+    "id": 211,
+    "fortune": "HVER HELGEN HAR EN FORTID. DU EN SAG"
+  },
+  {
+    "id": 212,
+    "fortune": "PRÆDIK DET DU GØR. ELLER PRÆDIK MINDRE"
+  },
+  {
+    "id": 213,
+    "fortune": "TO FEJL GIVER IKKE RET. STOP VED NI"
+  },
+  {
+    "id": 214,
+    "fortune": "ALT DER GLIMTER ER IKKE GULD. SE KVITTERINGEN"
+  },
+  {
+    "id": 215,
+    "fortune": "EN RULLENDE STEN SAMLER IKKE MOS. DIN GØR"
+  },
+  {
+    "id": 216,
+    "fortune": "LÆG IKKE ALLE ÆG I EN KURV. FIND KURVEN"
+  },
+  {
+    "id": 217,
+    "fortune": "HVOR DER ER RØG ER DER DIG"
+  },
+  {
+    "id": 218,
+    "fortune": "DET BEDSTE FORSVAR. AFSTAND. DE FORSTOD DET"
+  },
+  {
+    "id": 219,
+    "fortune": "DJÆVELEN ER I DETALJEN. DINE ER TOMME"
+  },
+  {
+    "id": 220,
+    "fortune": "ANDENS SKRALD ER DIN GARAGE"
+  },
+  {
+    "id": 221,
+    "fortune": "OVERVÅGET GRYDE KOGER ALDRIG. DIN KOGTE OVER"
+  },
+  {
+    "id": 222,
+    "fortune": "DEN DER INTET VED FRYGTER INTET. DU ER ROLIG"
+  },
+  {
+    "id": 223,
+    "fortune": "SKØNHED ER I ØJET. FÅ ØJET TJEKKET"
+  },
+  {
+    "id": 224,
+    "fortune": "DER SKAL EN LANDSBY TIL. DIN BAD OM HJÆLP"
+  },
+  {
+    "id": 225,
+    "fortune": "STORE SIND TÆNKER ENS. DIT GÅR ALENE"
+  },
+  {
+    "id": 226,
+    "fortune": "BEVISET ER I BUDDINGEN. INGEN KOMMENTAR"
+  },
+  {
+    "id": 227,
+    "fortune": "HVER HUND HAR SIN DAG. DIN VAR EN TIRSDAG"
+  },
+  {
+    "id": 228,
+    "fortune": "DEN DER IKKE VOVER VINDER IKKE. UAFGJORT"
+  },
+  {
+    "id": 229,
+    "fortune": "FOR MANGE KOKKE. DU KLARER DET ALENE OGSÅ"
+  },
+  {
+    "id": 230,
+    "fortune": "DU HØSTER HVAD DU SÅR. UNDERLIG HØST"
+  },
+  {
+    "id": 231,
+    "fortune": "BED OG DU FÅR. DIN TONE SKABTE EN KØ"
+  },
+  {
+    "id": 232,
+    "fortune": "GÅ EN MIL I ANDENS SKO. AFLEVER DEM IGEN"
+  },
+  {
+    "id": 233,
+    "fortune": "DEN TIDLIGE FUGL FÅR ORMEN. DU SOV"
+  },
+  {
+    "id": 234,
+    "fortune": "ALT GODT FÅR EN ENDE. DIT ENDER TIDLIGT"
+  },
+  {
+    "id": 235,
+    "fortune": "ORD FLYVER VÆK. DINE ER GRATIS"
+  },
+  {
+    "id": 236,
+    "fortune": "TIDEN VENTER PÅ INGEN. PÅ DIG GØR DEN"
+  },
+  {
+    "id": 237,
+    "fortune": "BID IKKE HÅNDEN DER FODRER. DEN HAR HANDSKER"
+  },
+  {
+    "id": 238,
+    "fortune": "AT SAMMENLIGNE STJÆLER GLÆDE. DIN PÅ FULD TID"
+  },
+  {
+    "id": 239,
+    "fortune": "ET HALVT BRØD SLÅR INTET. DU BYDER KRUMMER"
+  },
+  {
+    "id": 240,
+    "fortune": "STILLE HAV GØR INGEN SØMAND. BLIV I HAVNEN"
+  },
+  {
+    "id": 241,
+    "fortune": "SANDHEDEN ØVER IKKE. DIN GØR"
+  },
+  {
+    "id": 242,
+    "fortune": "ALT MED MÅDE. OGSÅ DET. STOP"
+  },
+  {
+    "id": 243,
+    "fortune": "HVAD DER GÅR RUNDT KOMMER RUNDT. SPOR DET"
+  },
+  {
+    "id": 244,
+    "fortune": "SKÆND IKKE MED EN TÅBE. MAN FORVEKSLER JER"
+  },
+  {
+    "id": 245,
+    "fortune": "VISDOM HVISKER. DIN ER PÅ LYDLØS"
+  },
+  {
+    "id": 246,
+    "fortune": "LANG REJSE STARTER MED ET SKRIDT. DU STRÆKKER"
+  },
+  {
+    "id": 247,
+    "fortune": "NØD LÆRER NØGEN KVINDE AT SPINDE. DU SER TIL"
+  },
+  {
+    "id": 248,
+    "fortune": "ALT TIL SIN TID. DIN TID TRÆKKER UD"
+  },
+  {
+    "id": 249,
+    "fortune": "BEDRE ALENE END I DÅRLIGT SELSKAB. ALENE DA"
+  },
+  {
+    "id": 250,
+    "fortune": "SOM MAN REDER LIGGER MAN. DU LIGGER"
   }
 ]

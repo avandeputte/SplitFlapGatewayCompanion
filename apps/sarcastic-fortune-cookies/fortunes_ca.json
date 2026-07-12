@@ -398,5 +398,605 @@
   {
     "id": 100,
     "fortune": "LA TEVA PACIÈNCIA TÉ UNA BARRA. BLOCADA"
+  },
+  {
+    "id": 101,
+    "fortune": "ELS AMICS VALOREN LA TEVA FRANQUESA. DE LLUNY"
+  },
+  {
+    "id": 102,
+    "fortune": "UN AMIC TRUCARÀ. NECESSITA AJUDA"
+  },
+  {
+    "id": 103,
+    "fortune": "ETS EL PEGAMENT DEL GRUP. NINGÚ HO AGRAEIX"
+  },
+  {
+    "id": 104,
+    "fortune": "EL GRUP GAUDEIX DEL TEU SILENCI"
+  },
+  {
+    "id": 105,
+    "fortune": "ELS BONS AMICS ESCASSEGEN. ELS TEUS SAMAGUEN"
+  },
+  {
+    "id": 106,
+    "fortune": "GRAN LLEIALTAT. POCA PUNTUALITAT"
+  },
+  {
+    "id": 107,
+    "fortune": "UNA FESTA PORTA ALEGRIA. MARXAR EN PORTA MÉS"
+  },
+  {
+    "id": 108,
+    "fortune": "ETS EL GRACIÓS. SEGONS TU"
+  },
+  {
+    "id": 109,
+    "fortune": "UN VELL AMIC TORNA. ES MUDA AVIAT"
+  },
+  {
+    "id": 110,
+    "fortune": "EL TEU CONSELL SAGRAEIX. MAI SHA DEMANAT"
+  },
+  {
+    "id": 111,
+    "fortune": "IL LUMINES LA SALA. ALGUNS VOLEN UN REGULADOR"
+  },
+  {
+    "id": 112,
+    "fortune": "EL TEU ANIVERSARI ES RECORDARÀ. UN DIA TARD"
+  },
+  {
+    "id": 113,
+    "fortune": "LES TEVES HISTÒRIES MILLOREN. LA VERITAT NO"
+  },
+  {
+    "id": 114,
+    "fortune": "LA GENT GRAVITA CAP A TU. DESPRÉS SEN VA"
+  },
+  {
+    "id": 115,
+    "fortune": "SEMPRE SAPS QUÈ DIR. RARAMENT QUAN"
+  },
+  {
+    "id": 116,
+    "fortune": "ELS AMICS VÉNEN I MARXEN. ELS TEUS MARXEN"
+  },
+  {
+    "id": 117,
+    "fortune": "LA TEVA AGENDA ÉS PLENA. DE POTSERS"
+  },
+  {
+    "id": 118,
+    "fortune": "ELS TEUS ACUDITS INTERNS SÓN SOLOS"
+  },
+  {
+    "id": 119,
+    "fortune": "LES TEVES FESTES SÓN LLEGENDA. LES ANUL LADES"
+  },
+  {
+    "id": 120,
+    "fortune": "UNEIXES LA GENT. COM A TEMA"
+  },
+  {
+    "id": 121,
+    "fortune": "LA TEVA GENEROSITAT TÉ HORARI"
+  },
+  {
+    "id": 122,
+    "fortune": "NO OBLIDES UNA CARA. ELS NOMS SÍ"
+  },
+  {
+    "id": 123,
+    "fortune": "ELS TEUS ÀNIMS NECESSITEN SEGUIMENT"
+  },
+  {
+    "id": 124,
+    "fortune": "HI ETS QUAN CAL. PER A TU"
+  },
+  {
+    "id": 125,
+    "fortune": "ELS TEUS COMIATS SEMPRE SOMPLEN"
+  },
+  {
+    "id": 126,
+    "fortune": "ET CONFIEN SECRETS. DESPRÉS ELS EXPLIQUES"
+  },
+  {
+    "id": 127,
+    "fortune": "LA TEVA FRANQUESA REFRESCA. COM UN GALLEDA"
+  },
+  {
+    "id": 128,
+    "fortune": "ELS TEUS MEMES ARRIBEN A LALBA. SENSE DEMANAR"
+  },
+  {
+    "id": 129,
+    "fortune": "LA TEVA ESPATLLA ÉS LLIURE. AMB CITA"
+  },
+  {
+    "id": 130,
+    "fortune": "MANTENS TOTHOM A TERRA. COM LA BOIRA"
+  },
+  {
+    "id": 131,
+    "fortune": "EL TEU ENTUSIASME ENCOMANA. POSAT MASCARETA"
+  },
+  {
+    "id": 132,
+    "fortune": "UN AMIC VOL LA TEVA OPINIÓ SINCERA. PARANY"
+  },
+  {
+    "id": 133,
+    "fortune": "REPARTEIXES EL COMPTE. EL TEU CÀLCUL DISCREPA"
+  },
+  {
+    "id": 134,
+    "fortune": "LA TEVA PRESÈNCIA ÉS UN REGAL. ES POT CANVIAR"
+  },
+  {
+    "id": 135,
+    "fortune": "EL TEU ESPERIT COMPETITIU VA MATAR ELS JOCS"
+  },
+  {
+    "id": 136,
+    "fortune": "LES TEVES FESTES SORPRESA NO SORPRENEN"
+  },
+  {
+    "id": 137,
+    "fortune": "LA GENT ESTÀ CÒMODA AMB TU. EN MARXAR"
+  },
+  {
+    "id": 138,
+    "fortune": "DIUS EL QUE TOTHOM PENSA. ALS FUNERALS"
+  },
+  {
+    "id": 139,
+    "fortune": "LA TEVA CARTA ANUAL TÉ LECTORS"
+  },
+  {
+    "id": 140,
+    "fortune": "LES TEVES DISCULPES SÓN SINCERES. I FREQÜENTS"
+  },
+  {
+    "id": 141,
+    "fortune": "GUARDES LA MEMÒRIA DEL GRUP. VERSIÓ REVISADA"
+  },
+  {
+    "id": 142,
+    "fortune": "MAI AJUDES EN SILENCI. DESPRÉS HO EXPLIQUES"
+  },
+  {
+    "id": 143,
+    "fortune": "LA TEVA SINCERITAT ENCANTA. PARAULA APROVADA"
+  },
+  {
+    "id": 144,
+    "fortune": "ARRIBES TARD AMB ESTIL. SENSE LESTIL"
+  },
+  {
+    "id": 145,
+    "fortune": "BUSQUEN EL TEU VISTIPLAU. PER PODER MARXAR"
+  },
+  {
+    "id": 146,
+    "fortune": "MAI XAFARDEGES. INFORMES DELS ABSENTS"
+  },
+  {
+    "id": 147,
+    "fortune": "LA INVITACIÓ DIU INFORMAL. ELS MISSATGES NO"
+  },
+  {
+    "id": 148,
+    "fortune": "UN AMIC DINFÀNCIA ET RECORDA. DE LLUNY"
+  },
+  {
+    "id": 149,
+    "fortune": "MAI PERDS UNA DISCUSSIÓ. LA TRASLLADES"
+  },
+  {
+    "id": 150,
+    "fortune": "LA RIQUESA ARRIBA. A LA TEVA VELLA ADREÇA"
+  },
+  {
+    "id": 151,
+    "fortune": "ELS DINERS FLUEIXEN CAP A TU. I MARXEN"
+  },
+  {
+    "id": 152,
+    "fortune": "EL TEU PRESSUPOST ÉS ART. ABSTRACTE"
+  },
+  {
+    "id": 153,
+    "fortune": "ESTALVIA PER UN DIA DE PLUJA. VE UN MONSÓ"
+  },
+  {
+    "id": 154,
+    "fortune": "EL TEU EXTRACTE ÉS UN THRILLER"
+  },
+  {
+    "id": 155,
+    "fortune": "ELS TEUS ESTALVIS CREIXEN. EN CARÀCTER"
+  },
+  {
+    "id": 156,
+    "fortune": "ELS DINERS PARLEN. ELS TEUS DIUEN ADÉU"
+  },
+  {
+    "id": 157,
+    "fortune": "LA TEVA PENSIÓ ÉS UN BITLLET DE LOTERIA"
+  },
+  {
+    "id": 158,
+    "fortune": "TENS GUSTOS CARS. I UN SOU MODEST"
+  },
+  {
+    "id": 159,
+    "fortune": "LINTERÈS COMPOST ÉS MÀGIA. VAS TRIAR DEUTES"
+  },
+  {
+    "id": 160,
+    "fortune": "EL TEU FONS COBREIX UNA PETITA URGÈNCIA"
+  },
+  {
+    "id": 161,
+    "fortune": "UN AUGMENT ÉS MERESCUT. I SENSE DATA"
+  },
+  {
+    "id": 162,
+    "fortune": "EL TEU CARRO ÉS UN TAULER AMB CAIXA"
+  },
+  {
+    "id": 163,
+    "fortune": "LA TEVA GENEROSITAT ÉS FAMOSA. ENTRE VENEDORS"
+  },
+  {
+    "id": 164,
+    "fortune": "EL MILLOR ÉS GRATIS. EL TEU TÉ ENVIAMENT"
+  },
+  {
+    "id": 165,
+    "fortune": "ELS TEUS ABONAMENTS SUPEREN ELS AMICS"
+  },
+  {
+    "id": 166,
+    "fortune": "COMPRA BAIX VEN ALT. TU FAS EL CONTRARI"
+  },
+  {
+    "id": 167,
+    "fortune": "EL BANC TESCRIU PER PREOCUPACIÓ"
+  },
+  {
+    "id": 168,
+    "fortune": "LA TEVA DEVOLUCIÓ FISCAL TÉ PLANS"
+  },
+  {
+    "id": 169,
+    "fortune": "ELS TEUS CAPRICIS SÓN ESTRATÈGICS. SEMBLA"
+  },
+  {
+    "id": 170,
+    "fortune": "TROBARÀS DINERS EN UN ABRIC. EREN TEUS"
+  },
+  {
+    "id": 171,
+    "fortune": "LA CARTERA ESTÀ DIVERSIFICADA. EN PENEDIMENTS"
+  },
+  {
+    "id": 172,
+    "fortune": "EL DIA DE PAGA PORTA 18 HORES DALEGRIA"
+  },
+  {
+    "id": 173,
+    "fortune": "ELS TEUS RECÀRRECS TENEN RECÀRRECS"
+  },
+  {
+    "id": 174,
+    "fortune": "DE MICA EN MICA. EL TEU SEIXUGA"
+  },
+  {
+    "id": 175,
+    "fortune": "RIC DESPERIT. LA CAIXA HO VEU ALTRAMENT"
+  },
+  {
+    "id": 176,
+    "fortune": "ELS TEUS TIQUETS SÓN UNA BIOGRAFIA"
+  },
+  {
+    "id": 177,
+    "fortune": "LA TEVA ENTRADA ES VA FER SUSHI. DOS COPS"
+  },
+  {
+    "id": 178,
+    "fortune": "EL TEU PRESSUPOST ÉS FICCIÓ HISTÒRICA"
+  },
+  {
+    "id": 179,
+    "fortune": "LES TEVES PROVES GRATIS VIUEN I COBREN"
+  },
+  {
+    "id": 180,
+    "fortune": "EL BITLLET ÉS REI. EL TEU REGNE VIU A CRÈDIT"
+  },
+  {
+    "id": 181,
+    "fortune": "EL TEU FRE DE DESPESA VA DURAR 40 MINUTS"
+  },
+  {
+    "id": 182,
+    "fortune": "LES TEVES FACTURES SÓN PUNTUALS. TU NO"
+  },
+  {
+    "id": 183,
+    "fortune": "ELS TEUS DINERS TREBALLEN MOLT. PER A ALTRES"
+  },
+  {
+    "id": 184,
+    "fortune": "ELS TEUS CUPONS VAN CADUCAR. TOTS. AVUI"
+  },
+  {
+    "id": 185,
+    "fortune": "EL TEU PLA TÉ FASES. PRIMER LA NEGACIÓ"
+  },
+  {
+    "id": 186,
+    "fortune": "ELS DESCOMPTES FINANCEN ELS TEUS CAPRICIS"
+  },
+  {
+    "id": 187,
+    "fortune": "LA TEVA FASE CRIPTO VA SER EDUCATIVA. I CARA"
+  },
+  {
+    "id": 188,
+    "fortune": "LA LOTERIA GRAVA LESPERANÇA. DÓNES MOLT"
+  },
+  {
+    "id": 189,
+    "fortune": "EL TEU ESTALVI OBJECTIU NO ES MOU DES DE MARÇ"
+  },
+  {
+    "id": 190,
+    "fortune": "LA RIQUESA XIUXIUEJA. LA TEVA VA PENJAR"
+  },
+  {
+    "id": 191,
+    "fortune": "ANOTES CADA DESPESA. DESPRÉS EN FAS MÉS"
+  },
+  {
+    "id": 192,
+    "fortune": "LA TEVA GUARDIOLA TÉ PROBLEMES DE CONFIANÇA"
+  },
+  {
+    "id": 193,
+    "fortune": "EL TEU REEMBORS VA ARRIBAR. JA HA MARXAT"
+  },
+  {
+    "id": 194,
+    "fortune": "ELS DINERS NO FAN FELIÇ. EL TEU VA RENDIR SE"
+  },
+  {
+    "id": 195,
+    "fortune": "LES TEVES FACTURES ENVELLEIXEN COM EL VI"
+  },
+  {
+    "id": 196,
+    "fortune": "EL TEU SALDO I EL TEU ÀNIM VAN CAURE JUNTS"
+  },
+  {
+    "id": 197,
+    "fortune": "LA PACIÈNCIA ÉS VIRTUT. VAS TRIAR UNA ALTRA"
+  },
+  {
+    "id": 198,
+    "fortune": "EL SILENCI ÉS DOR. EL TEU VAL UNA FORTUNA"
+  },
+  {
+    "id": 199,
+    "fortune": "PENSA ABANS DE PARLAR. PROJECTE PILOT"
+  },
+  {
+    "id": 200,
+    "fortune": "LES AIGÜES CALMES SÓN FONDES. LES TEVES NO"
+  },
+  {
+    "id": 201,
+    "fortune": "EL SABER ÉS PODER. EL TEU ESTÀ EN REPÒS"
+  },
+  {
+    "id": 202,
+    "fortune": "UNA MENT OBERTA ÉS UN TRESOR. BON CORRENT"
+  },
+  {
+    "id": 203,
+    "fortune": "ESCOLTA DUES VEGADES PARLA UNA. INVERTEIX HO"
+  },
+  {
+    "id": 204,
+    "fortune": "LA VERITAT ALLIBERA. LA TEVA SEGUEIX ASSEGUDA"
+  },
+  {
+    "id": 205,
+    "fortune": "MIRA ABANS DE SALTAR. O DESPRÉS. TU DECIDEIX"
+  },
+  {
+    "id": 206,
+    "fortune": "ELS FETS PARLEN MÉS FORT. ELS TEUS XIUXIUEGEN"
+  },
+  {
+    "id": 207,
+    "fortune": "MESURA DUES VEGADES TALLA UNA. TU TALLES JA"
+  },
+  {
+    "id": 208,
+    "fortune": "MÉS VAL TARD QUE MAI. HO PROVES CADA DIA"
+  },
+  {
+    "id": 209,
+    "fortune": "NO COMPTIS ELS POLLETS. ELS TEUS FAN VAGA"
+  },
+  {
+    "id": 210,
+    "fortune": "LHERBA ÉS MÉS VERDA ON REGUES. COMPRA MÀNEGA"
+  },
+  {
+    "id": 211,
+    "fortune": "CADA SANT TÉ PASSAT. EL TEU TÉ EXPEDIENT"
+  },
+  {
+    "id": 212,
+    "fortune": "PREDICA EL QUE FAS. O PREDICA MENYS"
+  },
+  {
+    "id": 213,
+    "fortune": "DOS ERRORS NO FAN UN ENCERT. ATURAT AL NOU"
+  },
+  {
+    "id": 214,
+    "fortune": "NO TOT EL QUE LLUEIX ÉS OR. MIRA EL TIQUET"
+  },
+  {
+    "id": 215,
+    "fortune": "PEDRA QUE ROLA NO CRIA MOLSA. LA TEVA SÍ"
+  },
+  {
+    "id": 216,
+    "fortune": "NO POSIS TOTS ELS OUS EN UN CISTELL. TROBAL"
+  },
+  {
+    "id": 217,
+    "fortune": "ON HI HA FUM HI HA TU"
+  },
+  {
+    "id": 218,
+    "fortune": "LA MILLOR DEFENSA. LA DISTÀNCIA. HO VAN VEURE"
+  },
+  {
+    "id": 219,
+    "fortune": "EL DIMONI ÉS EN ELS DETALLS. ELS TEUS BUITS"
+  },
+  {
+    "id": 220,
+    "fortune": "LA BROSSA DUN ALTRE ÉS EL TEU GARATGE"
+  },
+  {
+    "id": 221,
+    "fortune": "OLLA VIGILADA MAI BULL. LA TEVA VA VESSAR"
+  },
+  {
+    "id": 222,
+    "fortune": "QUI NO SAP RES NO TEM RES. SEMBLES SERÈ"
+  },
+  {
+    "id": 223,
+    "fortune": "LA BELLESA ÉS ALS ULLS. FES REVISAR LULL"
+  },
+  {
+    "id": 224,
+    "fortune": "CAL UN POBLE. EL TEU DEMANA REFORÇOS"
+  },
+  {
+    "id": 225,
+    "fortune": "LES GRANS MENTS COINCIDEIXEN. LA TEVA VA SOLA"
+  },
+  {
+    "id": 226,
+    "fortune": "LA PROVA ÉS AL FLAM. SENSE COMENTARIS"
+  },
+  {
+    "id": 227,
+    "fortune": "CADA GOS TÉ EL SEU DIA. EL TEU VA SER DIMARTS"
+  },
+  {
+    "id": 228,
+    "fortune": "QUI NO ARRISCA NO PISCA. EMPAT PERFECTE"
+  },
+  {
+    "id": 229,
+    "fortune": "MASSA CUINERS FAN MALBÉ EL BROU. TU SOL TAMBÉ"
+  },
+  {
+    "id": 230,
+    "fortune": "COLLES EL QUE SEMBRES. COLLITA CURIOSA"
+  },
+  {
+    "id": 231,
+    "fortune": "DEMANA I REBRÀS. EL TEU TO VA FER CUA"
+  },
+  {
+    "id": 232,
+    "fortune": "CAMINA AMB SABATES ALIENES. TORNA LES"
+  },
+  {
+    "id": 233,
+    "fortune": "TOT EL BO SACABA. EL TEU SACABA AVIAT"
+  },
+  {
+    "id": 234,
+    "fortune": "LES PARAULES VOLEN. LES TEVES SÓN GRATIS"
+  },
+  {
+    "id": 235,
+    "fortune": "EL TEMPS NO ESPERA NINGÚ. A TU SÍ"
+  },
+  {
+    "id": 236,
+    "fortune": "NO MOSSEGUIS LA MÀ QUE ET DÓNA. DU GUANTS"
+  },
+  {
+    "id": 237,
+    "fortune": "COMPARAR ROBA ALEGRIA. LA TEVA A TEMPS PLE"
+  },
+  {
+    "id": 238,
+    "fortune": "MIG PA ÉS MILLOR QUE RES. TU OFEREIXES MOLLES"
+  },
+  {
+    "id": 239,
+    "fortune": "MAR CALMA NO FA MARINERS. QUEDAT AL PORT"
+  },
+  {
+    "id": 240,
+    "fortune": "LA VERITAT NO ASSAJA. LA TEVA SÍ"
+  },
+  {
+    "id": 241,
+    "fortune": "TOT AMB MESURA. TAMBÉ AIXÒ. PROU"
+  },
+  {
+    "id": 242,
+    "fortune": "EL QUE VOLTA TORNA. SEGUIMENT DISPONIBLE"
+  },
+  {
+    "id": 243,
+    "fortune": "NO DISCUTEIXIS AMB UN BENEIT. US CONFONEN"
+  },
+  {
+    "id": 244,
+    "fortune": "LA SAVIESA XIUXIUEJA. LA TEVA ESTÀ MUDA"
+  },
+  {
+    "id": 245,
+    "fortune": "UN LLARG VIATGE COMENÇA AMB UN PAS. TESTIRES"
+  },
+  {
+    "id": 246,
+    "fortune": "LA NECESSITAT AGUSA LENGINY. TU MIRES"
+  },
+  {
+    "id": 247,
+    "fortune": "CADA COSA AL SEU TEMPS. EL TEU TEMPS TRIGA"
+  },
+  {
+    "id": 248,
+    "fortune": "MÉS VAL SOL QUE MAL ACOMPANYAT. SOL DONCS"
+  },
+  {
+    "id": 249,
+    "fortune": "QUI NO VULGUI POLS QUE NO VAGI A LERA"
+  },
+  {
+    "id": 250,
+    "fortune": "AIGUA PASSADA NO MOU MOLÍ. LA TEVA HO INTENTA"
   }
 ]
