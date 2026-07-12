@@ -32,12 +32,35 @@ class DisplayController:
         self.active_app: str | None = None
         self.active_playlist: str | None = None
         self.plugins = None  # set via attach_plugins()
+        # Told what is driving the display whenever that changes, so it can outlive the
+        # process (see attach_persist). Set via attach_persist().
+        self._persist = None
         # Trigger interrupts briefly take over the display, then the driver resumes.
         self._interrupt_lock = asyncio.Lock()
         self._interrupting = False
 
     def attach_plugins(self, plugins) -> None:
         self.plugins = plugins
+
+    def attach_persist(self, cb) -> None:
+        """Register a callback told what is now driving the display — an app, a playlist,
+        or nothing. It is what lets a restart pick up where it left off (a container
+        updating itself used to silently stop whatever was playing).
+
+        It lives here rather than in the endpoints because the display gets driven from
+        four places — the API, the scheduler, triggers and MCP — and only the engine sees
+        all of them.
+        """
+        self._persist = cb
+
+    def _remember(self, doc: dict | None) -> None:
+        """What is driving the display now. None = nothing."""
+        if not self._persist:
+            return
+        try:
+            self._persist(doc)
+        except Exception as e:                    # never let bookkeeping break playback
+            log.debug("could not record what is running: %s", e)
 
     # -- lifecycle ----------------------------------------------------------
     async def start(self) -> None:
@@ -121,6 +144,9 @@ class DisplayController:
         """Stop any app/playlist and show ``text`` (background). Returns target."""
         clean = self._normalize(text, raw=raw)
         self._clear_driver_flags()
+        # A manual message replaces whatever was playing, so there is nothing to come
+        # back to — a restart should leave the board alone, not resurrect the old app.
+        self._remember(None)
         old = self._task
         if old and not old.done():
             old.cancel()  # releases the lock at its next await
@@ -132,6 +158,7 @@ class DisplayController:
         """Send and await completion (used by tests / synchronous callers)."""
         await self._cancel_task()
         self._clear_driver_flags()
+        self._remember(None)                       # as send_text_bg — a manual takeover
         clean = self._normalize(text, raw=raw)
         await self._run_manual(clean, style=style, speed=speed)
         return clean
@@ -225,11 +252,13 @@ class DisplayController:
         self._clear_driver_flags()
         self.active_app = app_id
         self.state.active_app = app_id
+        self._remember({"kind": "app", "app": app_id})
         self._task = asyncio.create_task(self._app_loop(app_id))
 
     async def stop_app(self) -> None:
         await self._cancel_task()
         self._clear_driver_flags()
+        self._remember(None)
 
     async def _app_loop(self, app_id: str) -> None:
         loop = asyncio.get_running_loop()
@@ -266,6 +295,10 @@ class DisplayController:
         self._clear_driver_flags()
         self.active_playlist = name or "(unsaved)"
         self.state.active_playlist = self.active_playlist
+        # Keep the entries, not just the name: a playlist can be run unsaved, and that
+        # one has no name to look up on the way back.
+        self._remember({"kind": "playlist", "name": name or "",
+                        "entries": entries, "loop": bool(loop)})
         self._task = asyncio.create_task(self._playlist_loop(entries, loop))
 
     async def _playlist_loop(self, entries: list[dict], loop: bool) -> None:

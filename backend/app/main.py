@@ -154,6 +154,54 @@ async def resolve_companion_url() -> str:
     return f"http://{ip}:{port}" if ip else ""
 
 
+LAST_RUN_SETTING = "last_run"
+
+
+def _remember_driver(doc: dict | None) -> None:
+    """Record what is driving the display, so a restart can pick it up again.
+
+    Wired into the engine (attach_persist), which is the one place that sees every way
+    the display gets driven — the API, the scheduler, a trigger, MCP.
+
+    Only writes on a *change*: this fires on every manual message too, and the settings
+    store writes to disk and mirrors to the gateway.
+    """
+    doc = doc or {}
+    if (plugin_settings.get(LAST_RUN_SETTING) or {}) == doc:
+        return
+    plugin_settings.set(LAST_RUN_SETTING, doc)
+
+
+async def resume_last_run() -> None:
+    """Start whatever was playing when we were last shut down.
+
+    A container that updates itself (the Home Assistant add-on does) used to come back to
+    a dead display: the playlist that had been running simply stopped. Nothing else knows
+    to restart it — the gateway holds the hardware config, not what the companion was
+    doing — so it has to be remembered here.
+    """
+    doc = plugin_settings.get(LAST_RUN_SETTING) or {}
+    kind = doc.get("kind")
+    if not kind:
+        return
+    try:
+        if kind == "app":
+            await controller.run_app(doc["app"])
+            log.info("resumed app %s after restart", doc["app"])
+        elif kind == "playlist":
+            entries = doc.get("entries") or []
+            if not entries:
+                raise ValueError("no entries")
+            name = doc.get("name") or None
+            await controller.run_playlist(entries, doc.get("loop", True), name)
+            log.info("resumed playlist %s after restart", name or "(unsaved)")
+        ha.publish_state()
+    except Exception as e:
+        # An app uninstalled since the last run, a playlist emptied — don't keep trying.
+        log.warning("could not resume the %s that was running (%s); forgetting it", kind, e)
+        plugin_settings.set(LAST_RUN_SETTING, {})
+
+
 async def setup_settings_sync() -> None:
     """Wire settings storage per COMPANION_SETTINGS_STORE (needs Gateway 3.1+):
       * local   — nothing to do (the default local file is authoritative).
@@ -295,6 +343,13 @@ async def lifespan(app: FastAPI):
     plugins.load()
     log.info("loaded %d app plugins", len(plugins.app_list()))
     scheduler.start()
+
+    # Pick up whatever was playing before we went down. After plugins.load(), because an
+    # app has to exist before it can be resumed; before the heartbeat, so the status the
+    # gateway is told is the one we are actually in. Recording is wired here too — the
+    # engine is what knows when the driver changes.
+    controller.attach_persist(_remember_driver)
+    await resume_last_run()
 
     # Home Assistant: "auto" follows the gateway's haEnabled; true/false force it.
     # Started in the background so a slow/unreachable broker never delays startup.

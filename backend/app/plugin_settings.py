@@ -36,8 +36,11 @@ log = logging.getLogger("companion.settings")
 # mcp_token: the generated MCP bearer token (see main.mcp_token), persisted for the
 # same reason — a token regenerated on every restart would silently break a configured
 # LLM client.
+# last_run: what was driving the display when we last shut down (see main.resume_last_run).
+# It has to persist for the same reason the keys above do — a container that updates itself
+# would otherwise come back to a dead board, having forgotten the playlist it was running.
 _META_KEYS = ("installed_apps", "saved_app_playlists", "triggers", "triggers_enabled",
-              "vestaboard_api_key", "mcp_token")
+              "vestaboard_api_key", "mcp_token", "last_run")
 
 
 def _detect_timezone() -> str:
