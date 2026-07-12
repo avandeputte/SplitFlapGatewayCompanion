@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.5.0
+
+Promoted to stable — the beta channel and the stable channel are the same build at this
+release. See the stable add-on's changelog. New prereleases will appear here as
+1.5.x-beta.N.
+
 ## 1.5.0-beta.8
 
 - **The MCP server can now say which app is on screen.** While a playlist runs, an

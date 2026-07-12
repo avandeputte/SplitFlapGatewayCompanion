@@ -323,8 +323,7 @@ This repository is also a **Home Assistant add-on repository**, so the companion
 installed from the HA Add-on Store and lives in the sidebar:
 
 1. **Settings → Add-ons → Add-on Store → ⋮ → Repositories**, add this repo's URL.
-2. Install **SplitFlap Gateway Companion (Beta)**, set `gateway_url` in its
-   Configuration tab.
+2. Install **SplitFlap Gateway Companion**, set `gateway_url` in its Configuration tab.
 3. **Start**, then **Open Web UI**.
 
 **Channels.** The add-on ships on two, side by side, each its own store entry with its own
@@ -332,13 +331,11 @@ slug so they install and update independently:
 
 | Folder | Store entry | Image |
 |---|---|---|
+| [addon/](addon/) | SplitFlap Gateway Companion | the stable tag (also `:latest`) |
 | [addon-beta/](addon-beta/) | SplitFlap Gateway Companion **(Beta)** | the prerelease tag |
-| `addon/` | SplitFlap Gateway Companion | the stable tag — **lands with v1.5.0** |
 
-Only the beta exists today, on purpose: add-on support (reading `/data/options.json`, the
-ingress path handling, the theme) arrived in 1.5.0-beta.1, and the newest *stable* image is
-still 1.3.0. A stable entry pointed at that would install and then refuse to start, because
-without the options.json reader `gateway_url` never gets set. It appears when v1.5.0 does.
+Pick the stable channel unless you want to try prereleases early. Both run the same
+published image — there is no add-on-specific build — so the store install is fast on a Pi.
 
 It runs the **same image** every release publishes — there is no separate add-on build,
 so the two can't drift. Three things make it feel native rather than bolted on:

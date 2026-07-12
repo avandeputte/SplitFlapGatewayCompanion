@@ -23,52 +23,77 @@ from fastapi.testclient import TestClient
 ROOT = Path(__file__).resolve().parents[2]
 STATIC = ROOT / "backend" / "app" / "static"
 
-# Every add-on this repository publishes: any directory with a config.yaml. Today that
-# is the beta channel alone; the stable one (addon/) joins it at v1.5.0, and these tests
-# then cover it too without being edited.
+# Every add-on this repository publishes: any directory with a config.yaml. There are two
+# — addon/ (stable) and addon-beta/ (prerelease) — and these tests cover each. ADDON is the
+# stable one, used for the channel-neutral structural checks.
 CHANNELS = {p.parent.name: yaml.safe_load(p.read_text("utf-8"))
             for p in sorted(ROOT.glob("*/config.yaml"))}
-ADDON = CHANNELS["addon-beta"]
+ADDON = CHANNELS["addon"]
+CHANNEL_IDS = sorted(CHANNELS)
+
+
+def _git_tags():
+    import subprocess
+    return set(subprocess.run(["git", "tag"], cwd=ROOT, capture_output=True, text=True)
+               .stdout.split())
 
 
 # --- the manifest -------------------------------------------------------------
-def test_the_beta_addon_version_matches_the_release():
-    """`image` has no build, so Supervisor pulls ghcr...:<version>. If this drifts from
-    VERSION, the tag it asks for was never published and the install just fails."""
-    assert ADDON["version"] == (ROOT / "VERSION").read_text().strip()
+@pytest.mark.parametrize("chan", CHANNEL_IDS)
+def test_each_channel_pins_a_real_image(chan):
+    """`image` has no build, so Supervisor pulls ghcr...:<version>. That tag must exist,
+    or the install fails — so a channel's version has to be the release being cut now
+    (VERSION) or one already tagged."""
+    version = CHANNELS[chan]["version"]
+    current = (ROOT / "VERSION").read_text().strip()
+    assert version == current or f"v{version}" in _git_tags(), \
+        f"{chan} pins {version}, which is neither VERSION nor a tagged release"
 
 
 def test_each_channel_has_its_own_slug():
-    """A slug is the add-on's identity. If the stable channel ever shared the beta's, it
-    would collide with an installed beta instead of sitting beside it."""
+    """A slug is the add-on's identity. Two channels sharing one would collide instead of
+    sitting beside each other in the store."""
     slugs = [c["slug"] for c in CHANNELS.values()]
     assert len(slugs) == len(set(slugs)), f"duplicate slug across channels: {slugs}"
 
 
 def test_the_beta_channel_is_flagged_as_such():
-    assert ADDON["slug"].endswith("_beta")
-    assert ADDON["stage"] == "experimental"
-    assert "beta" in ADDON["name"].lower()
+    beta = CHANNELS["addon-beta"]
+    assert beta["slug"].endswith("_beta")
+    assert beta["stage"] == "experimental"
+    assert "beta" in beta["name"].lower()
 
 
-def test_the_manifest_has_what_supervisor_requires():
+def test_the_stable_channel_is_not_flagged_experimental():
+    stable = CHANNELS["addon"]
+    assert not stable["slug"].endswith("_beta")
+    assert stable.get("stage") != "experimental"
+
+
+@pytest.mark.parametrize("chan", CHANNEL_IDS)
+def test_the_manifest_has_what_supervisor_requires(chan):
+    addon = CHANNELS[chan]
     for key in ("name", "version", "slug", "description", "arch"):
-        assert ADDON.get(key), f"missing required key: {key}"
-    assert set(ADDON["arch"]) <= {"aarch64", "amd64", "armv7", "armhf", "i386"}
+        assert addon.get(key), f"{chan}: missing required key: {key}"
+    assert set(addon["arch"]) <= {"aarch64", "amd64", "armv7", "armhf", "i386"}
 
 
-def test_ingress_is_on_and_points_at_the_app_port():
-    assert ADDON["ingress"] is True
-    assert ADDON["ingress_port"] == 8000
+@pytest.mark.parametrize("chan", CHANNEL_IDS)
+def test_ingress_is_on_and_points_at_the_app_port(chan):
+    addon = CHANNELS[chan]
+    assert addon["ingress"] is True
+    assert addon["ingress_port"] == 8000
 
 
-def test_the_port_is_published_for_the_non_browser_clients():
+@pytest.mark.parametrize("chan", CHANNEL_IDS)
+def test_the_port_is_published_for_the_non_browser_clients(chan):
     """Ingress serves the UI, but a Vestaboard rest_command and an MCP client are not the
     HA frontend — they need a real port or they cannot reach us at all."""
-    assert ADDON["ports"]["8000/tcp"] == 8000
+    assert CHANNELS[chan]["ports"]["8000/tcp"] == 8000
 
 
-def test_every_option_is_actually_read_by_the_app():
+@pytest.mark.parametrize("chan", CHANNEL_IDS)
+def test_every_option_is_actually_read_by_the_app(chan):
     """An option nothing reads is a switch that does nothing — worse than no switch."""
     from app import config as cfg
 
@@ -77,8 +102,18 @@ def test_every_option_is_actually_read_by_the_app():
     known = set(cfg.DEFAULTS) | {"gateway_url", "mqtt_password", "companion_public_url",
                                  "home_assistant", "vestaboard_key", "mcp_token",
                                  "dev_mode", "log_level"}
-    for opt in set(ADDON["options"]) | set(ADDON["schema"]):
-        assert opt in known, f"config.yaml offers {opt!r}, but nothing reads it"
+    addon = CHANNELS[chan]
+    for opt in set(addon["options"]) | set(addon["schema"]):
+        assert opt in known, f"{chan}: config.yaml offers {opt!r}, but nothing reads it"
+
+
+def test_the_two_channels_stay_in_sync():
+    """The stable and beta channels are the same app — only identity (slug/name/stage) and
+    version differ. If their options or schema drift, one channel is quietly missing a
+    setting the other has."""
+    a, b = CHANNELS["addon"], CHANNELS["addon-beta"]
+    assert a["options"] == b["options"]
+    assert a["schema"] == b["schema"]
 
 
 def test_the_defaults_are_safe():
@@ -331,25 +366,25 @@ def test_dev_mode_is_off_unless_asked_for(options):
 
 
 # --- the changelog ------------------------------------------------------------
-def test_the_changelog_has_an_entry_for_this_version():
+@pytest.mark.parametrize("chan", CHANNEL_IDS)
+def test_the_channel_changelog_has_an_entry_for_its_version(chan):
     """Home Assistant shows CHANGELOG.md when an update is offered, matching on the
     version heading. A release with no heading gives the user a blank update notice —
     which is exactly what a changelog that quietly goes stale looks like."""
-    version = (ROOT / "VERSION").read_text().strip()
-    changelog = (ROOT / "addon-beta" / "CHANGELOG.md").read_text("utf-8")
+    version = CHANNELS[chan]["version"]
+    changelog = (ROOT / chan / "CHANGELOG.md").read_text("utf-8")
     assert f"## {version}" in changelog, \
-        f"CHANGELOG.md has no '## {version}' heading — the update notice would be empty"
+        f"{chan}/CHANGELOG.md has no '## {version}' heading — the update notice would be empty"
 
 
-def test_every_changelog_entry_is_a_real_release():
+@pytest.mark.parametrize("chan", CHANNEL_IDS)
+def test_every_changelog_entry_is_a_real_release(chan):
     """A heading for a version that was never tagged means the notes name a build nobody
     can install."""
-    import subprocess
-
-    changelog = (ROOT / "addon-beta" / "CHANGELOG.md").read_text("utf-8")
+    changelog = (ROOT / chan / "CHANGELOG.md").read_text("utf-8")
     listed = set(re.findall(r"^## (\S+)", changelog, re.M))
-    tags = set(subprocess.run(["git", "tag"], cwd=ROOT, capture_output=True, text=True)
-               .stdout.split())
+    tags = _git_tags()
     current = (ROOT / "VERSION").read_text().strip()
     for v in listed:
-        assert f"v{v}" in tags or v == current, f"CHANGELOG names {v}, which was never tagged"
+        assert f"v{v}" in tags or v == current, \
+            f"{chan}/CHANGELOG names {v}, which was never tagged"
