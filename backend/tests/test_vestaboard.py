@@ -176,7 +176,9 @@ AUTH = {"X-Vestaboard-Local-Api-Key": "test-key"}
 def test_post_a_matrix_takes_over_the_display(client):
     rows = ["HELLO WORLD    ", "               ", "               "]
     r = client.post("/local-api/message", json=_matrix(rows, COLS), headers=AUTH)
-    assert r.status_code == 200 and r.json() == {"ok": True}
+    # 201, not 200: the real Local API returns 201 Created, and clients treat anything
+    # else as a failed write (see the compat test below).
+    assert r.status_code == 201 and r.json() == {"ok": True}
     # send_text_bg is the same call a compose push makes: it cancels any running app.
     assert client.sent["text"] == "".join(rows)
     assert client.sent["raw"] is True        # or every colour chip becomes a letter
@@ -185,13 +187,13 @@ def test_post_a_matrix_takes_over_the_display(client):
 def test_post_characters_with_a_strategy(client):
     body = {"characters": _matrix(["HI"], COLS), "strategy": "edges-to-center",
             "step_interval_ms": 3000, "step_size": 2}   # timing fields accepted + ignored
-    assert client.post("/local-api/message", json=body, headers=AUTH).status_code == 200
+    assert client.post("/local-api/message", json=body, headers=AUTH).status_code == 201
     assert client.sent["style"] == "outside_in"
 
 
 def test_post_text_the_home_assistant_way(client):
     r = client.post("/local-api/message", json={"text": "hello world"}, headers=AUTH)
-    assert r.status_code == 200
+    assert r.status_code == 201
     assert "HELLO WORLD" in client.sent["text"]     # uppercased: there are no lowercase flaps
 
 
@@ -204,8 +206,36 @@ def test_read_back_the_live_board(client, monkeypatch):
     from app import main
     monkeypatch.setattr(main.state, "current_chars", list("HI".ljust(ROWS * COLS)))
     body = client.get("/local-api/message", headers=AUTH).json()
-    assert len(body) == ROWS and len(body[0]) == COLS
-    assert body[0][:2] == [8, 9]                   # H, I
+    # Wrapped in {"message": [[...]]}, matching the real API — a client reads it as
+    # response["message"]. A bare array made every client crash on .get("message").
+    matrix = body["message"]
+    assert len(matrix) == ROWS and len(matrix[0]) == COLS
+    assert matrix[0][:2] == [8, 9]                  # H, I
+
+
+def test_it_speaks_what_a_real_vestaboard_client_expects(client, monkeypatch):
+    """Reproduce, exactly, what the reference integration's client (ha-vestaboard's
+    VestaboardLocalClient) does — this is what the user could not get to work.
+
+    Its read is `json.loads(text).get("message")` and its write success test is
+    `status == 201`. A bare-array read crashes on `.get`, and a 200 write is treated as a
+    failure; both were true of our endpoint, so the integration never set up."""
+    from app import main
+    monkeypatch.setattr(main.state, "current_chars", list("HI".ljust(ROWS * COLS)))
+
+    # read_message(): the client does exactly this
+    r = client.get("/local-api/message", headers=AUTH)
+    payload = r.json()
+    assert isinstance(payload, dict), "read must be an object, or .get('message') crashes"
+    assert isinstance(payload.get("message"), list) and payload["message"][0][:2] == [8, 9]
+
+    # write_message(): returns `resp.status == 201`
+    r = client.post("/local-api/message", json={"characters": _matrix(["HI"], COLS)}, headers=AUTH)
+    assert r.status_code == 201, "a non-201 write is a failure to every Vestaboard client"
+
+    # a bad key: `resp.status == 401 and resp.text == "Invalid API key"` drives re-auth
+    r = client.get("/local-api/message", headers={"X-Vestaboard-Local-Api-Key": "wrong"})
+    assert r.status_code == 401 and r.text == "Invalid API key"
 
 
 def test_a_bad_code_is_422(client):

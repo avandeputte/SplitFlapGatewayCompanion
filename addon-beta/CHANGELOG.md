@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.5.1
+
+- **Fixed: the Vestaboard-compatible API now works with the popular
+  [ha-vestaboard](https://github.com/natekspencer/ha-vestaboard) integration** (and other
+  real Vestaboard clients). Two responses didn't match a real board — the read wasn't
+  wrapped in `{"message": …}`, and a successful write returned `200` instead of `201` — so
+  the integration failed to set up and every message it sent reported failure. Verified by
+  driving that integration's own client against the companion.
+
 ## 1.5.0
 
 Promoted to stable — the beta channel and the stable channel are the same build at this

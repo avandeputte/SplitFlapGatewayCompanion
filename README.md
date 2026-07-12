@@ -375,8 +375,8 @@ where you read the generated key.
 
 | Endpoint | Does |
 |---|---|
-| `POST /local-api/message` | Show a message. Takes a bare character-code matrix, `{"characters": [[…]], "strategy": "…"}`, or `{"text": "…"}` (an extension of ours — the real Local API is matrix-only, but most HA setups send text). Takes the display over, like a Compose push |
-| `GET /local-api/message` | The board as it stands, as a character-code matrix |
+| `POST /local-api/message` | Show a message. Takes a bare character-code matrix, `{"characters": [[…]], "strategy": "…"}`, or `{"text": "…"}` (an extension of ours — the real Local API is matrix-only, but most HA setups send text). Returns **201** on success, like a real board. Takes the display over, like a Compose push |
+| `GET /local-api/message` | The board as it stands, as `{"message": [[…]]}` — the matrix wrapped exactly as the real Local API returns it, so clients that read `response["message"]` (the [ha-vestaboard](https://github.com/natekspencer/ha-vestaboard) integration, others) work unchanged |
 | `POST /local-api/enablement` | Vestaboard's key handshake — only if you set `COMPANION_VESTABOARD_ENABLEMENT_TOKEN` |
 
 Every call needs the `X-Vestaboard-Local-Api-Key` header. **That key guards these

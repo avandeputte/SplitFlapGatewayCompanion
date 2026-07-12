@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -1018,10 +1018,20 @@ def vestaboard_key() -> str:
     return stored
 
 
-def _check_key(request: Request) -> None:
+# A wrong key must answer exactly this — plain text, this string — because that is what a
+# real Vestaboard returns and what clients test for verbatim (the popular ha-vestaboard
+# does `resp.status == 401 and resp.text() == "Invalid API key"` to offer re-auth; a JSON
+# {"detail": ...} body instead just reads as an unknown error).
+VB_INVALID_KEY = "Invalid API key"
+
+
+def _key_error(request: Request) -> PlainTextResponse | None:
+    """The 401 to return if the Vestaboard key is missing/wrong, else None. Returns the
+    response rather than raising so the caller controls the exact body (see VB_INVALID_KEY)."""
     key = request.headers.get("X-Vestaboard-Local-Api-Key", "")
     if not key or not secrets.compare_digest(key, vestaboard_key()):
-        raise HTTPException(401, "invalid or missing X-Vestaboard-Local-Api-Key")
+        return PlainTextResponse(VB_INVALID_KEY, status_code=401)
+    return None
 
 
 @app.post("/local-api/enablement")
@@ -1043,14 +1053,20 @@ async def vb_enablement(request: Request):
 
 @app.get("/local-api/message")
 async def vb_read_message(request: Request):
-    """The board as it stands, as a character-code matrix — which is what this
-    endpoint means on real hardware: whatever the flaps are showing, including a
-    running app's output, not merely the last message someone posted."""
+    """The board as it stands — whatever the flaps are showing (a running app's output
+    included), not merely the last message someone posted, which is what this endpoint
+    means on real hardware.
+
+    The matrix is wrapped in ``{"message": [[...]]}``, matching the real Local API: every
+    Vestaboard client reads it back as ``response["message"]``. Returning a bare array
+    (as we did) makes a client crash the moment it does ``.get("message")`` on a list —
+    which is why the reference integration would not even finish setup against us."""
     _require_vestaboard()
-    _check_key(request)
+    if err := _key_error(request):
+        return err
     g = config.grid
     rows, cols = int(g["rows"]), int(g["cols"])
-    return vestaboard.encode(state.current_chars, rows, cols)
+    return {"message": vestaboard.encode(state.current_chars, rows, cols)}
 
 
 @app.post("/local-api/message")
@@ -1066,7 +1082,8 @@ async def vb_send_message(request: Request):
     cancelled (send_text_bg), which is what posting to a Vestaboard implies.
     """
     _require_vestaboard()
-    _check_key(request)
+    if err := _key_error(request):
+        return err
     try:
         body = await request.json()
     except Exception:
@@ -1098,7 +1115,10 @@ async def vb_send_message(request: Request):
     # would turn every colour chip (lowercase r/o/y/g/b/p/w) into a letter.
     controller.send_text_bg(page, style=style, raw=True)
     ha.publish_state()
-    return {"ok": True}
+    # 201, not 200: the real Local API returns 201 Created on a successful write, and
+    # clients treat anything else as failure (ha-vestaboard's coordinator raises
+    # UpdateFailed unless the write returns 201, so a 200 broke every message it sent).
+    return JSONResponse({"ok": True}, status_code=201)
 
 
 # ---------------------------------------------------------------------------
