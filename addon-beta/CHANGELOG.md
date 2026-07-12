@@ -3,6 +3,17 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.6.0
+
+- **New: a native Home Assistant integration**, installable through HACS. It adds a
+  SplitFlap device with App and Playlist selects, sensors for what's on the flaps and
+  which app is showing, Clear/Stop/Home buttons, and a `splitflap.message` service (with a
+  timed auto-revert). Talks to this companion directly — no MQTT required.
+- **The Vestaboard/MCP message tools can now show a message temporarily** — for a set
+  number of seconds, after which the display returns to whatever was playing.
+- **MCP: assistants can configure apps** (set a location, stock tickers, etc.) and read an
+  app's settings, not just run it.
+
 ## 1.5.2
 
 - **Fixed: the gateway's tabs (Modules, Calibration, Settings…) were missing from the

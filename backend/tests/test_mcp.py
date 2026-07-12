@@ -129,8 +129,9 @@ def call(main, name, args=None):
 
 def test_tools_are_all_registered(mcp_on):
     names = sorted(t.name for t in asyncio.run(mcp_on.mcp.list_tools()))
-    assert names == ["clear_display", "get_display", "list_apps", "list_playlists",
-                     "list_styles", "run_app", "run_playlist", "show_message", "stop"]
+    assert names == ["clear_display", "configure_app", "get_app_settings", "get_display",
+                     "list_apps", "list_playlists", "list_styles", "run_app",
+                     "run_playlist", "show_message", "stop"]
 
 
 def test_show_message_centres_the_text_on_the_board(mcp_on):
@@ -284,3 +285,59 @@ def test_list_playlists_shows_the_running_order(mcp_on):
         assert pls[0]["apps"] == ["word-clock", "crypto", "(message)"]
     finally:
         mcp_on.plugin_settings.set("saved_app_playlists", {})
+
+
+# --- configure_app / get_app_settings ----------------------------------------
+def test_get_app_settings_lists_settings_with_short_names(mcp_on):
+    """The storage keys are plugin_<id>_<name>; a client shouldn't have to know that."""
+    out = call(mcp_on, "get_app_settings", {"app_id": "stocks"})
+    names = {s["name"] for s in out["settings"]}
+    assert "stocks_list" in names           # not plugin_stocks_stocks_list
+    assert all("plugin_" not in s["name"] for s in out["settings"])
+
+
+def test_configure_app_writes_a_setting(mcp_on):
+    call(mcp_on, "configure_app", {"app_id": "stocks", "settings": {"stocks_list": "AAPL,MSFT"}})
+    assert mcp_on.plugin_settings.get("plugin_stocks_stocks_list") == "AAPL,MSFT"
+
+
+def test_configure_app_rejects_an_unknown_setting(mcp_on):
+    with pytest.raises(Exception):
+        call(mcp_on, "configure_app", {"app_id": "stocks", "settings": {"nope": 1}})
+
+
+def test_configure_app_rejects_an_unknown_app(mcp_on):
+    with pytest.raises(Exception):
+        call(mcp_on, "configure_app", {"app_id": "does_not_exist", "settings": {"x": 1}})
+
+
+def test_list_apps_flags_configurable_apps(mcp_on):
+    apps = call(mcp_on, "list_apps")
+    assert apps, "no apps installed to check"
+    assert all(isinstance(a["configurable"], bool) for a in apps)
+    # stocks has settings; confirm the flag matches what get_app_settings reports for it
+    # (via the registry, which sees it whether or not it's in the installed list).
+    has = bool(call(mcp_on, "get_app_settings", {"app_id": "stocks"})["settings"])
+    assert has is True
+    entry = next((a for a in apps if a["id"] == "stocks"), None)
+    if entry:                                    # only asserted when stocks is installed
+        assert entry["configurable"] is True
+
+
+# --- timed-revert show_message ------------------------------------------------
+def test_a_timed_message_does_not_stop_a_running_app(mcp_on):
+    """The point of `seconds`: a heads-up that leaves the rotation running underneath.
+    show_temporary interrupts rather than taking over, so active_app must be untouched."""
+    mcp_on.state.active_app = "weather"
+    mcp_on.controller.active_app = "weather"
+    try:
+        out = call(mcp_on, "show_message", {"text": "DINNER", "seconds": 2})
+        assert out["seconds"] == 2
+        assert out["reverts_to"] == "the running app/playlist"
+        # the app is still the driver — a permanent show_message would have cleared it
+        assert mcp_on.controller.active_app == "weather"
+    finally:
+        mcp_on.state.active_app = mcp_on.controller.active_app = None
+        t = getattr(mcp_on.controller, "_temp_task", None)
+        if t:
+            t.cancel()

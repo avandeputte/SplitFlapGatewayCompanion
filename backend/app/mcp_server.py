@@ -125,14 +125,19 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         return out
 
     @mcp.tool()
-    async def show_message(text: str, style: str | None = None) -> dict:
-        """Show text on the display. Stops any running app or playlist.
+    async def show_message(text: str, style: str | None = None,
+                           seconds: int | None = None) -> dict:
+        """Show text on the display, centred and word-wrapped (newlines force a line break).
 
-        The text is centred on the board and word-wrapped to fit; newlines force a
-        line break. `style` is the flap transition (see list_styles) — omit it for the
-        display's configured default.
+        `style` is the flap transition (see list_styles); omit it for the display's default.
 
-        Returns once the flaps have actually landed on the message.
+        `seconds`: leave unset to take the display over until something else changes it. Set
+        it to show the message *temporarily* — after that many seconds the display reverts to
+        whatever was playing before (an app or playlist keeps running underneath and comes
+        back on its own; if nothing was playing, the board blanks). Use this for a heads-up
+        that shouldn't clobber the running rotation — "dinner's ready", a doorbell, an alert.
+
+        Without `seconds`, returns once the flaps have landed on the message.
         """
         if style and style not in renderer.ALL_STYLES:
             raise ValueError(
@@ -144,13 +149,23 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         # final characters, so it must go out raw — otherwise a colour flap (lowercase
         # r/o/y/g/b/p/w) would be uppercased into a letter.
         page = vestaboard.layout_text(renderer.cp1252_upper(text), rows, cols)
+        lines = [page[r * cols:(r + 1) * cols] for r in range(rows)]
+
+        if seconds and seconds > 0:
+            # A temporary takeover: the running app/playlist parks and resumes after. Runs
+            # in the background (the message can last minutes) so the tool returns at once.
+            running = controller.show_temporary(page, seconds, style=style or "ltr")
+            ha.publish_state()
+            return {"ok": True, "lines": lines, "seconds": seconds,
+                    "reverts_to": "the running app/playlist" if running else "blank"}
+
         # send_text, not send_text_bg: both stop the running app, but this one awaits
         # the transition. A Compose push can return early because a human is watching
         # the wall — an agent is not, and it will call get_display next. If the tool
         # returned while the flaps were still turning, it would read back the OLD board.
         await controller.send_text(page, style=style, raw=True)
         ha.publish_state()
-        return {"ok": True, "lines": [page[r * cols:(r + 1) * cols] for r in range(rows)]}
+        return {"ok": True, "lines": lines}
 
     @mcp.tool()
     async def clear_display() -> dict:
@@ -163,12 +178,18 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
     def list_apps() -> list[dict]:
         """The apps installed on this display (weather, clock, stocks, ...).
 
-        Pass an `id` to run_app. These are the apps the web UI's Apps tab lists.
+        Pass an `id` to run_app. `configurable` marks apps with their own settings — use
+        get_app_settings / configure_app on those. These are the web UI's Apps tab list.
         """
-        return [
-            {"id": a["id"], "name": a["name"], "description": a.get("description", "")}
-            for a in plugins.app_list()
-        ]
+        out = []
+        for a in plugins.app_list():
+            try:
+                configurable = bool(_app_fields(a["id"]))
+            except Exception:
+                configurable = False        # a broken/odd app must not sink the whole list
+            out.append({"id": a["id"], "name": a["name"],
+                        "description": a.get("description", ""), "configurable": configurable})
+        return out
 
     @mcp.tool()
     async def run_app(app_id: str) -> dict:
@@ -180,6 +201,77 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
             raise ValueError(f"app not installed: {app_id}")
         ha.publish_state()
         return {"ok": True, "active_app": app_id}
+
+    def _norm_id(app_id: str) -> str:
+        return app_id[7:] if app_id.startswith("plugin_") else app_id
+
+    def _app_fields(app_id: str) -> list[dict]:
+        """This app's own settings as {name, label, type, value, options?}, with the
+        storage prefix (plugin_<id>_) stripped off the name for a client to use. Skips the
+        notice rows and the pointer to the global settings."""
+        schema = plugins.settings_schema(app_id)
+        values = schema.get("values", {})
+        prefix = f"plugin_{app_id}_"
+        out = []
+        for f in schema.get("fields", []):
+            key = f.get("key", "")
+            if f.get("type") == "notice" or not key.startswith(prefix):
+                continue
+            name = key[len(prefix):]
+            item = {"name": name, "label": f.get("label", name), "type": f.get("type"),
+                    "value": values.get(key, f.get("default", ""))}
+            if f.get("options"):
+                item["options"] = [o.get("value") for o in f["options"]]
+            out.append(item)
+        return out
+
+    @mcp.tool()
+    def get_app_settings(app_id: str) -> dict:
+        """An app's settings and their current values — what configure_app can change.
+
+        Names are short (e.g. "stocks_list", "location"); pass those same names back to
+        configure_app. `type` tells you the shape ("number", "toggle", "select" with
+        `options`, "search_chips" for a place/ticker list, "text"/"password").
+        """
+        app_id = _norm_id(app_id)
+        try:
+            return {"app_id": app_id, "settings": _app_fields(app_id)}
+        except KeyError:
+            raise ValueError(f"app not installed: {app_id}")
+
+    @mcp.tool()
+    async def configure_app(app_id: str, settings: dict) -> dict:
+        """Change an app's settings (see get_app_settings for the names and current values).
+
+        `settings` maps short names to values, e.g. {"stocks_list": "AAPL,MSFT"} or
+        {"location": "Paris, France"}. If the app is on the display now, it restarts so the
+        change shows immediately. Only that app's own settings are accepted — display-wide
+        options (Language, Location, Timezone) live in the global settings, not here.
+        """
+        app_id = _norm_id(app_id)
+        try:
+            valid = {f["name"] for f in _app_fields(app_id)}
+        except KeyError:
+            raise ValueError(f"app not installed: {app_id}")
+        if not isinstance(settings, dict) or not settings:
+            raise ValueError("settings must be a non-empty object of name -> value")
+
+        unknown = [k for k in settings if k.lstrip("_") not in valid
+                   and k.replace(f"plugin_{app_id}_", "") not in valid]
+        if unknown:
+            raise ValueError(f"unknown setting(s) for {app_id}: {', '.join(unknown)} — "
+                             f"valid names: {', '.join(sorted(valid))}")
+
+        # Store under the plugin_<id>_ keys the settings store expects.
+        prefixed = {f"plugin_{app_id}_{k.replace(f'plugin_{app_id}_', '')}": v
+                    for k, v in settings.items()}
+        plugins.save_settings(app_id, prefixed)
+        # Restart it if it's the one on screen, so the change takes effect now (page dwell,
+        # refresh cadence, content) — the same thing the web UI's settings dialog does.
+        if controller.active_app == app_id:
+            await controller.run_app(app_id)
+        ha.publish_state()
+        return {"ok": True, "app_id": app_id, "settings": _app_fields(app_id)}
 
     @mcp.tool()
     def list_playlists() -> list[dict]:

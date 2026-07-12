@@ -1,0 +1,40 @@
+message:
+  name: Show message
+  description: Show text on the split-flap display.
+  fields:
+    text:
+      name: Text
+      description: The message. It is centred and word-wrapped to fit the board.
+      required: true
+      example: Bin day tomorrow
+      selector:
+        text:
+    style:
+      name: Style
+      description: Flap transition. Leave blank for the display's default.
+      example: columns
+      selector:
+        select:
+          mode: dropdown
+          custom_value: true
+          options:
+            - ltr
+            - rtl
+            - center_out
+            - outside_in
+            - columns
+            - columns_rtl
+            - diagonal
+            - random
+    seconds:
+      name: Seconds
+      description: >-
+        Show temporarily: after this many seconds the display returns to whatever was
+        playing. Leave at 0 to keep the message up.
+      example: 30
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: s
+          mode: box

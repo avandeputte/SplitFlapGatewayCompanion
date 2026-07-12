@@ -439,6 +439,12 @@ class DevMCP(BaseModel):
     on: bool
 
 
+class MessageRequest(BaseModel):
+    text: str
+    style: str | None = None
+    seconds: int | None = None      # >0 = temporary, then revert to what was playing
+
+
 class DevGrid(BaseModel):
     rows: int
     cols: int
@@ -932,6 +938,30 @@ async def compose_send(req: ComposeRequest):
         raise HTTPException(400, f"unknown style: {req.style}")
     target = controller.send_text_bg(req.text, style=req.style, speed=req.speed, raw=req.raw)
     return {"ok": True, "target": target}
+
+
+@app.post("/api/message")
+async def show_message(req: MessageRequest):
+    """Show a plain-text message, centred and word-wrapped onto the grid — the same layout
+    the apps and the Vestaboard endpoint use. Unlike /api/compose/send (which takes a raw
+    grid string from the click-to-type editor), this takes ordinary text.
+
+    `seconds` makes it temporary: after that long the display reverts to whatever was
+    playing (or blanks if nothing was). This is what the Home Assistant integration and a
+    `rest_command` use — no Vestaboard key needed."""
+    if req.style and req.style not in renderer.ALL_STYLES:
+        raise HTTPException(400, f"unknown style: {req.style}")
+    g = config.grid
+    rows, cols = int(g["rows"]), int(g["cols"])
+    page = vestaboard.layout_text(renderer.cp1252_upper(req.text), rows, cols)
+    if req.seconds and req.seconds > 0:
+        running = controller.show_temporary(page, req.seconds, style=req.style or "ltr")
+        ha.publish_state()
+        return {"ok": True, "seconds": req.seconds,
+                "reverts_to": "app/playlist" if running else "blank"}
+    controller.send_text_bg(page, style=req.style, raw=True)
+    ha.publish_state()
+    return {"ok": True}
 
 
 @app.post("/api/display/clear")

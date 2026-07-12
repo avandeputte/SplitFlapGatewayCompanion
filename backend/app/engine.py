@@ -47,6 +47,7 @@ class DisplayController:
         # Trigger interrupts briefly take over the display, then the driver resumes.
         self._interrupt_lock = asyncio.Lock()
         self._interrupting = False
+        self._temp_task: asyncio.Task | None = None   # a timed show_temporary() message
 
     def attach_plugins(self, plugins) -> None:
         self.plugins = plugins
@@ -380,14 +381,36 @@ class DisplayController:
         while self._interrupting:
             await asyncio.sleep(0.1)
 
-    async def fire_interrupt(self, text: str, seconds: float) -> None:
-        """Briefly show ``text`` over whatever is running, then let it resume."""
+    async def fire_interrupt(self, text: str, seconds: float, *, style: str = "ltr",
+                             raw: bool = True, blank_if_idle: bool = False) -> None:
+        """Briefly show ``text`` over whatever is running, then let it resume.
+
+        While interrupting, the app/playlist loops park on ``_wait_if_interrupted`` and pick
+        back up the moment it clears — that is what makes this a *temporary* takeover rather
+        than a permanent one. ``blank_if_idle`` covers the case where nothing was running to
+        redraw: the message would otherwise just linger, so blank the board instead."""
         async with self._interrupt_lock:
             self._interrupting = True
             try:
-                clean = self._normalize(text, raw=True)  # already a grid string
-                await self._emit_page(clean, style="ltr",
+                clean = self._normalize(text, raw=raw)
+                await self._emit_page(clean, style=style,
                                       speed=int(self.config.display.get("transition_speed", 15)))
                 await asyncio.sleep(max(0.0, seconds))
             finally:
                 self._interrupting = False
+        # A running app/playlist redraws itself now the interrupt is over; if there is none,
+        # the message would just sit there, so revert to blank.
+        if blank_if_idle and not (self.active_app or self.active_playlist):
+            await self.clear()
+
+    def show_temporary(self, text: str, seconds: float, *, style: str = "ltr",
+                       raw: bool = True) -> bool:
+        """Show ``text`` for ``seconds``, then revert — to whatever was running, or to
+        blank if nothing was. Runs in the background (a message can last minutes; the
+        caller shouldn't block on it) and returns whether something was playing to come
+        back to."""
+        running = bool(self.active_app or self.active_playlist)
+        # Keep a reference: a bare create_task() can be garbage-collected mid-sleep.
+        self._temp_task = asyncio.create_task(
+            self.fire_interrupt(text, seconds, style=style, raw=raw, blank_if_idle=True))
+        return running
