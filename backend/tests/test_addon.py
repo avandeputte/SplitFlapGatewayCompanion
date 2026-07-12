@@ -328,3 +328,28 @@ def test_dev_mode_can_be_ticked_in_the_addon_config(options):
 def test_dev_mode_is_off_unless_asked_for(options):
     cfg = options({"gateway_url": "http://gw"})
     assert cfg.Config().dev_mode is False
+
+
+# --- the changelog ------------------------------------------------------------
+def test_the_changelog_has_an_entry_for_this_version():
+    """Home Assistant shows CHANGELOG.md when an update is offered, matching on the
+    version heading. A release with no heading gives the user a blank update notice —
+    which is exactly what a changelog that quietly goes stale looks like."""
+    version = (ROOT / "VERSION").read_text().strip()
+    changelog = (ROOT / "addon-beta" / "CHANGELOG.md").read_text("utf-8")
+    assert f"## {version}" in changelog, \
+        f"CHANGELOG.md has no '## {version}' heading — the update notice would be empty"
+
+
+def test_every_changelog_entry_is_a_real_release():
+    """A heading for a version that was never tagged means the notes name a build nobody
+    can install."""
+    import subprocess
+
+    changelog = (ROOT / "addon-beta" / "CHANGELOG.md").read_text("utf-8")
+    listed = set(re.findall(r"^## (\S+)", changelog, re.M))
+    tags = set(subprocess.run(["git", "tag"], cwd=ROOT, capture_output=True, text=True)
+               .stdout.split())
+    current = (ROOT / "VERSION").read_text().strip()
+    for v in listed:
+        assert f"v{v}" in tags or v == current, f"CHANGELOG names {v}, which was never tagged"
