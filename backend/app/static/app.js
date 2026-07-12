@@ -8,8 +8,15 @@ const $ = (id) => document.getElementById(id);
 
 let GRID = { rows: 3, cols: 15, module_count: 45, styles: [] };
 
+// Every server URL goes through url(). As a Home Assistant add-on the SPA is served
+// under an ingress prefix (/api/hassio_ingress/<token>/), which the server stamps
+// into the shell as window.__BASE__ — a bare "/api/..." would resolve against the HA
+// root and 404. Empty (so a no-op) everywhere else.
+const BASE = window.__BASE__ || "";
+const url = (path) => BASE + path;
+
 async function api(path, opts) {
-  const r = await fetch(path, opts);
+  const r = await fetch(url(path), opts);
   if (!r.ok) throw new Error(`${path} → ${r.status}`);
   return r.status === 204 ? null : r.json();
 }
@@ -650,7 +657,7 @@ async function uploadApp(fileInput, msgEl) {
   msgEl.textContent = "Uploading…";
   try {
     const fd = new FormData(); fd.append("file", f);
-    const r = await fetch("/api/apps/upload", { method: "POST", body: fd });
+    const r = await fetch(url("/api/apps/upload"), { method: "POST", body: fd });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { msgEl.textContent = "Error: " + (j.detail || r.status); return; }
     fileInput.value = "";
@@ -708,7 +715,7 @@ function libRow(a, reopen) {
     dl.style.background = "var(--hi)";
     dl.addEventListener("click", async () => {
       if (!confirm(`Delete "${a.name}"? This removes the uploaded app for good.`)) return;
-      await fetch(`/api/apps/${encodeURIComponent(a.id)}`, { method: "DELETE" });
+      await fetch(url(`/api/apps/${encodeURIComponent(a.id)}`), { method: "DELETE" });
       reopen(); loadApps();
     });
     row.appendChild(dl);
@@ -813,7 +820,7 @@ async function loadPlaylists() {
     const nm = el("span", "grow"); nm.textContent = n; row.appendChild(nm);
     const run = el("button", "btn btn-sm primary"); run.textContent = "Run"; run.onclick = () => post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n }); row.appendChild(run);
     const load = el("button", "btn btn-sm ghost"); load.textContent = "Load"; load.onclick = () => { PL_ENTRIES = JSON.parse(JSON.stringify(SAVED_PL[n].entries)); $("plLoop").checked = SAVED_PL[n].loop !== false; plRender(); }; row.appendChild(load);
-    const del = el("button", "btn btn-sm ghost"); del.textContent = "Delete"; del.onclick = async () => { await fetch("/api/playlists/" + encodeURIComponent(n), { method: "DELETE" }); loadPlaylists(); }; row.appendChild(del);
+    const del = el("button", "btn btn-sm ghost"); del.textContent = "Delete"; del.onclick = async () => { await fetch(url("/api/playlists/" + encodeURIComponent(n)), { method: "DELETE" }); loadPlaylists(); }; row.appendChild(del);
     saved.appendChild(row);
   });
   if (!PL_ENTRIES.length) plRender();
@@ -980,8 +987,8 @@ async function openDevMenu() {
       try {
         const d = await api("/api/dev/vestaboard");
         vbNote.innerHTML = "";
-        const url = `${location.origin}${d.path}`;
-        const l1 = el("div"); l1.textContent = `POST ${url}`;
+        const endpoint = `${location.origin}${d.path}`;
+        const l1 = el("div"); l1.textContent = `POST ${endpoint}`;
         const l2 = el("div"); l2.style.marginTop = "2px";
         l2.textContent = `X-Vestaboard-Local-Api-Key: ${d.key}`;
         const l3 = el("div"); l3.style.marginTop = "2px";
@@ -998,6 +1005,45 @@ async function openDevMenu() {
     });
     showVb();
     wrap.appendChild(vbF);
+
+    // 1c) MCP server — same shape as the Vestaboard switch above.
+    const mcF = el("div", "field");
+    const mcLbl = el("label"); mcLbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
+    const mc = el("input"); mc.type = "checkbox"; mc.checked = !!st.mcp; mc.style.width = "auto";
+    mcLbl.appendChild(mc);
+    mcLbl.appendChild(document.createTextNode("MCP server"));
+    mcF.appendChild(mcLbl);
+    const mcNote = el("small", "field-note");
+    mcF.appendChild(mcNote);
+
+    // The token + endpoint only mean anything while it's on.
+    const showMcp = async () => {
+      if (!mc.checked) {
+        mcNote.textContent = "Off. Turn on to let an LLM client (Claude, an agent) drive " +
+          "the display as tools at /mcp — show a message, run an app, read the board.";
+        return;
+      }
+      mcNote.textContent = "Loading…";
+      try {
+        const d = await api("/api/dev/mcp");
+        mcNote.innerHTML = "";
+        const l1 = el("div"); l1.textContent = `${location.origin}${d.path}`;
+        const l2 = el("div"); l2.style.marginTop = "2px";
+        l2.textContent = `Authorization: Bearer ${d.token}`;
+        const l3 = el("div"); l3.style.marginTop = "2px";
+        l3.textContent = d.env_token
+          ? "Token pinned by COMPANION_MCP_TOKEN."
+          : "Token generated and stored with your settings. Pin your own with COMPANION_MCP_TOKEN.";
+        mcNote.append(l1, l2, l3);
+      } catch (e) { mcNote.textContent = "Failed: " + e.message; }
+    };
+    mc.addEventListener("change", async () => {
+      mc.disabled = true;
+      try { render(await post("/api/dev/mcp", { on: mc.checked })); }
+      catch (e) { mcNote.textContent = "Failed: " + e.message; mc.disabled = false; }
+    });
+    showMcp();
+    wrap.appendChild(mcF);
 
     // 2) Force resync with the gateway
     const reF = el("div", "field");

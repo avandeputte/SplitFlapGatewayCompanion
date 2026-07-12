@@ -4,13 +4,18 @@ config.py — companion configuration from defaults, the gateway, and env vars.
 **Nothing is persisted.** Grid geometry and the MQTT broker are pulled from the
 gateway's ``/api/config`` at runtime; the gateway URL and (optional) MQTT
 password come from the environment. On restart everything is re-derived, so there
-is no config file to manage. Precedence: ``defaults <- gateway sync <- env``, so
-env vars always win and a gateway-synced value never gets written to disk.
+is no config file to manage.
+
+Precedence: ``defaults <- gateway sync <- add-on options <- env``. Env vars always
+win, and a gateway-synced value never gets written to disk. The add-on layer reads
+``/data/options.json``, which exists only when we run as a Home Assistant add-on —
+see ``_addon_overrides``.
 """
 
 from __future__ import annotations
 
 import copy
+import json
 import os
 import threading
 from pathlib import Path
@@ -76,6 +81,21 @@ DEFAULTS: dict = {
         "api_key": "",
         "enablement_token": "",
     },
+    # MCP server (see mcp_server.py) — lets an LLM client drive the display as a
+    # set of tools. OFF by default and bearer-authenticated, for the same reason
+    # the Vestaboard layer is: it is an extra write surface, so it only exists when
+    # asked for. `token` is normally blank and generated once, then persisted with
+    # the app settings — a token regenerated on every restart would silently break
+    # a configured client.
+    "mcp": {
+        "enabled": False,
+        "token": "",
+    },
+    # UI skin. "default" is the SplitFlap look (shared palette with the gateway);
+    # "ha" restyles the SPA in Home Assistant's own design language, so the add-on
+    # doesn't look like a foreign site inside the HA sidebar. Same image either way
+    # — it is a stylesheet swap, not a different build. Set via COMPANION_THEME.
+    "theme": "default",
     # Home Assistant MQTT integration. "auto" follows the gateway's own HA
     # setting (haEnabled from its /api/config); true/false force it. Uses the
     # same MQTT broker as the transport (transport.mqtt).
@@ -131,6 +151,15 @@ def _env_overrides() -> dict:
     if "COMPANION_VESTABOARD_ENABLEMENT_TOKEN" in e:
         ov.setdefault("vestaboard", {})["enablement_token"] = \
             e["COMPANION_VESTABOARD_ENABLEMENT_TOKEN"].strip()
+    if "COMPANION_MCP" in e:
+        ov.setdefault("mcp", {})["enabled"] = \
+            e["COMPANION_MCP"].lower() in ("1", "true", "yes", "on")
+    if "COMPANION_MCP_TOKEN" in e:
+        ov.setdefault("mcp", {})["token"] = e["COMPANION_MCP_TOKEN"].strip()
+    if "COMPANION_THEME" in e:
+        v = e["COMPANION_THEME"].strip().lower()
+        if v in ("default", "ha"):
+            ov["theme"] = v
     if "COMPANION_HA" in e:
         v = e["COMPANION_HA"].lower()
         ov.setdefault("ha", {})["enabled"] = True if v in ("1", "true", "yes", "on") \
@@ -152,6 +181,76 @@ def _env_overrides() -> dict:
         ov["transport"]["mqtt"]["password"] = e["COMPANION_MQTT_PASSWORD"]
 
     # Drop empty branches so they don't clobber nested defaults.
+    ov["transport"] = {k: v for k, v in ov["transport"].items() if v != {}}
+    return {k: v for k, v in ov.items() if v != {}}
+
+
+# Where the Home Assistant Supervisor writes an add-on's configuration. It exists
+# only when we ARE an add-on, which is exactly how we detect that we are one.
+ADDON_OPTIONS = Path("/data/options.json")
+
+
+def addon_options() -> dict:
+    """The raw Home Assistant add-on options, or {} when we aren't an add-on.
+
+    As an add-on there are no environment variables to set: the user fills in the
+    Configuration tab and Supervisor writes the result to ``/data/options.json``.
+    We read that file directly rather than shipping a *second* image whose only job
+    is to translate it into env vars — same image everywhere, one less thing to keep
+    in sync (see addon/config.yaml).
+    """
+    try:
+        raw = json.loads(ADDON_OPTIONS.read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def addon_option(key: str, default: str = "") -> str:
+    """One add-on option, for the settings read before Config exists (the log level
+    is configured at import time, so it can't go through the merge below)."""
+    v = addon_options().get(key)
+    return v.strip() if isinstance(v, str) and v.strip() else default
+
+
+def _addon_overrides() -> dict:
+    """The add-on options as an override tree.
+
+    Keys mirror the env vars one-for-one, minus the ``COMPANION_`` prefix. Empty
+    strings mean "not set" and are skipped, so a blank optional field in the HA UI
+    doesn't clobber a default. Precedence keeps env above this, so a `docker run -e`
+    still wins when debugging an add-on image by hand.
+    """
+    raw = addon_options()
+    if not raw:
+        return {}
+
+    def val(key):
+        v = raw.get(key)
+        return v.strip() if isinstance(v, str) else v
+
+    ov: dict = {"transport": {"mqtt": {}}}
+    if val("gateway_url"):
+        ov["transport"]["gateway_url"] = val("gateway_url")
+    if val("mqtt_password"):
+        ov["transport"]["mqtt"]["password"] = val("mqtt_password")
+    if val("companion_public_url"):
+        ov["companion_url"] = val("companion_public_url")
+    if raw.get("home_assistant") is not None:
+        v = str(val("home_assistant")).lower()
+        ov["ha"] = {"enabled": True if v in ("1", "true", "yes", "on")
+                    else False if v in ("0", "false", "no", "off") else "auto"}
+    if raw.get("vestaboard") is not None:
+        ov["vestaboard"] = {"enabled": bool(raw["vestaboard"])}
+    if val("vestaboard_key"):
+        ov.setdefault("vestaboard", {})["api_key"] = val("vestaboard_key")
+    if raw.get("mcp") is not None:
+        ov["mcp"] = {"enabled": bool(raw["mcp"])}
+    if val("mcp_token"):
+        ov.setdefault("mcp", {})["token"] = val("mcp_token")
+    if val("theme") in ("default", "ha"):
+        ov["theme"] = val("theme")
+
     ov["transport"] = {k: v for k, v in ov["transport"].items() if v != {}}
     return {k: v for k, v in ov.items() if v != {}}
 
@@ -187,9 +286,14 @@ class Config:
         # over the env value for the life of the process, and env always beats the
         # config tree (see _recompute).
         self._vestaboard = bool(self._effective["vestaboard"]["enabled"])
+        # Same deal for the MCP server (see mcp_server.py).
+        self._mcp = bool(self._effective["mcp"]["enabled"])
 
     def _recompute(self) -> dict:
+        # defaults <- gateway sync <- add-on options <- env. Env stays on top so a
+        # hand-run container can override anything, add-on or not.
         merged = _deep_merge(DEFAULTS, self._synced)
+        merged = _deep_merge(merged, _addon_overrides())
         return _deep_merge(merged, _env_overrides())
 
     # -- access -------------------------------------------------------------
@@ -240,6 +344,26 @@ class Config:
         vb["enabled"] = self._vestaboard
         return vb
 
+    @property
+    def mcp_enabled(self) -> bool:
+        return self._mcp
+
+    def set_mcp(self, on: bool) -> None:
+        with self._lock:
+            self._mcp = bool(on)
+
+    @property
+    def mcp(self) -> dict:
+        """The MCP block, with `enabled` reflecting any runtime toggle."""
+        m = copy.deepcopy(self._effective["mcp"])
+        m["enabled"] = self._mcp
+        return m
+
+    @property
+    def theme(self) -> str:
+        """UI skin: "default" (the SplitFlap look) or "ha" (Home Assistant's)."""
+        return self._effective.get("theme", "default")
+
     def dev_state(self) -> dict:
         """State for the developer menu (safe to expose regardless of dev_mode)."""
         return {
@@ -251,6 +375,8 @@ class Config:
             # Just the switch. The key lives in the settings store (Config can't see
             # it), so the dev menu reads it from GET /api/dev/vestaboard instead.
             "vestaboard": self._vestaboard,
+            # Same for the MCP token — GET /api/dev/mcp has it.
+            "mcp": self._mcp,
         }
 
     @property

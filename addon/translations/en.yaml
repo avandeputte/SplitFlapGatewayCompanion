@@ -1,0 +1,59 @@
+# Labels + help text for the add-on's Configuration tab. Without this HA falls back
+# to the raw option keys, which read like a config file rather than a settings page.
+configuration:
+  gateway_url:
+    name: Gateway URL
+    description: >-
+      Your SplitFlapGateway, e.g. http://192.168.1.50. Required — the add-on will not
+      start without it. Grid size and MQTT settings are read from the gateway, so this
+      is normally the only thing you need to set.
+  mqtt_password:
+    name: MQTT password
+    description: >-
+      Only if your MQTT broker needs authentication. The gateway publishes its broker,
+      user and prefix, but never the password — so it is set here.
+  companion_public_url:
+    name: Companion URL
+    description: >-
+      This add-on's own URL, registered with the gateway (3.0+) so the gateway shows a
+      "Companion" tab linking back here. Leave blank to auto-detect.
+  home_assistant:
+    name: Home Assistant integration
+    description: >-
+      Publishes a "SplitFlap Companion" MQTT device with App/Playlist selects and a Stop
+      button. "auto" follows the gateway's own Home Assistant setting.
+  vestaboard:
+    name: Vestaboard-compatible API
+    description: >-
+      Answer the Vestaboard Local API, so anything already written for a Vestaboard — a
+      rest_command, a script, the HACS integration — drives this wall unchanged. Uses
+      port 8000 directly, not the sidebar.
+  vestaboard_key:
+    name: Vestaboard API key
+    description: >-
+      The key clients send as X-Vestaboard-Local-Api-Key. Leave blank and one is
+      generated on first use and kept with your settings.
+  mcp:
+    name: MCP server
+    description: >-
+      Expose the display as MCP tools, so an LLM client (Claude, an agent) can show a
+      message, run an app, or read the board. Served at /mcp on port 8000.
+  mcp_token:
+    name: MCP bearer token
+    description: >-
+      The token MCP clients send as "Authorization: Bearer ...". Leave blank and one is
+      generated on first use and kept with your settings.
+  theme:
+    name: Theme
+    description: >-
+      "ha" restyles the interface in Home Assistant's design language so it looks native
+      in the sidebar. "default" is the SplitFlap look shared with the gateway.
+  log_level:
+    name: Log level
+    description: >-
+      DEBUG adds the companion's own detail (gateway sync, settings mirror, app fetches)
+      without the noisy third-party wire logs.
+network:
+  8000/tcp: >-
+    Direct access. Needed only for the Vestaboard-compatible API and the MCP server —
+    the web UI is served through the sidebar and does not use this port.

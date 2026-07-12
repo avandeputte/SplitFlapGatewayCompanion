@@ -317,6 +317,34 @@ So an HA automation can start an app or run a playlist on any trigger, and
 dashboards can read which app/playlist is active from the select states. The
 option lists update automatically as you install apps or save playlists.
 
+### Home Assistant add-on
+
+This repository is also a **Home Assistant add-on repository**, so the companion can be
+installed from the HA Add-on Store and lives in the sidebar:
+
+1. **Settings → Add-ons → Add-on Store → ⋮ → Repositories**, add this repo's URL.
+2. Install **SplitFlap Gateway Companion**, set `gateway_url` in its Configuration tab.
+3. **Start**, then **Open Web UI**.
+
+It runs the **same image** every release publishes — there is no separate add-on build,
+so the two can't drift. Three things make it feel native rather than bolted on:
+
+- **Ingress.** The UI is served inside HA, under `/api/hassio_ingress/<token>/`. The app
+  reads Supervisor's `X-Ingress-Path` header and prefixes every asset and API URL with it
+  ([main.py](backend/app/main.py) `spa_index`), which is what stops the SPA from firing
+  its requests at the Home Assistant root.
+- **The HA theme.** `COMPANION_THEME=ha` (which the add-on sets) layers
+  [theme-ha.css](backend/app/static/theme-ha.css) over the base stylesheet, restyling the
+  chrome in HA's design language. The split-flap board itself stays dark — it depicts
+  physical flaps, and recolouring it would misrepresent the hardware.
+- **Options, not env vars.** Supervisor writes the Configuration tab to
+  `/data/options.json`; the app reads that file directly (`config._addon_overrides`) rather
+  than shipping a second image whose only job is to translate it. Env vars still win, so a
+  hand-run container can override anything.
+
+Ingress covers the *UI*. The Vestaboard API and the MCP server are hit by clients that
+aren't the HA frontend, so the add-on also publishes port **8000** for them.
+
 ### Vestaboard-compatible API
 
 A **[Vestaboard](https://www.vestaboard.com/)** is a commercial split-flap display
@@ -385,6 +413,37 @@ already has (`column` → `columns`, `edges-to-center` → `outside_in`, `row` �
 and so on). `step_interval_ms` / `step_size` are accepted and ignored: Vestaboard's
 default is 3 s *per step*, which here would stretch one message into a minutes-long
 crawl.
+
+### MCP server
+
+Turn this on and the display becomes a set of **[MCP](https://modelcontextprotocol.io)
+tools**, so an LLM client — Claude, an agent, an IDE — can drive the wall in words:
+*"put the standup time on the board"*, *"what's showing right now?"*
+
+```bash
+COMPANION_MCP=1                 # off by default
+COMPANION_MCP_TOKEN=            # blank -> generated once, kept with your settings
+```
+
+Point a client at `http://<host>:8000/mcp` with `Authorization: Bearer <token>`. As with
+the Vestaboard key, the token is shown in the **Dev menu** (`COMPANION_DEV_MODE=1`), which
+can also flip the server on at runtime.
+
+| Tool | Does |
+|---|---|
+| `get_display` | What's on the flaps right now, row by row — a running app's output included |
+| `show_message` | Put text on the board, centred and word-wrapped. Stops any running app, and **returns once the flaps have landed** — so a client that reads straight after sees the new board, not the old one |
+| `clear_display` | Blank every module |
+| `list_apps` / `run_app` | The installed apps, and run one |
+| `list_playlists` / `run_playlist` | The saved playlists, and run one |
+| `stop` | Stop the running app or playlist |
+| `list_styles` | The transition styles `show_message` accepts |
+
+**The token guards `/mcp` only** — the rest of the companion's API is unauthenticated,
+as it always was. It is a credential for this endpoint, not a security boundary for the
+host. DNS-rebinding protection is deliberately off, because a companion is reached by
+whatever name its LAN gives it (`homeassistant.local:8000`, an IP, a reverse proxy); the
+bearer token is what does the guarding, and it is not a cookie a hostile page could replay.
 
 ---
 

@@ -33,8 +33,11 @@ log = logging.getLogger("companion.settings")
 # to outlive the process — a key that changed on every restart would silently break
 # an already-configured Home Assistant. Like the other secrets in this store (weather
 # and YouTube API keys), it rides along to the gateway's settings mirror.
+# mcp_token: the generated MCP bearer token (see main.mcp_token), persisted for the
+# same reason — a token regenerated on every restart would silently break a configured
+# LLM client.
 _META_KEYS = ("installed_apps", "saved_app_playlists", "triggers", "triggers_enabled",
-              "vestaboard_api_key")
+              "vestaboard_api_key", "mcp_token")
 
 
 def _detect_timezone() -> str:

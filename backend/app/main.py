@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import hashlib
+import json
 import logging
 import os
 import secrets
@@ -22,8 +23,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, helpers, renderer, vestaboard, weather
-from .config import Config
+from . import __version__, helpers, mcp_server, renderer, vestaboard, weather
+from .config import Config, addon_option
 from .engine import DisplayController
 from .gateway import (build_sync_patch, detect_local_ip, fetch_gateway_config,
                       fetch_gateway_settings, gateway_tabs, post_companion,
@@ -35,7 +36,10 @@ from .scheduler import Scheduler
 from .state import DisplayState
 
 # Log level from COMPANION_LOG_LEVEL (DEBUG/INFO/WARNING/ERROR/CRITICAL); default INFO.
-_LEVEL = getattr(logging, os.environ.get("COMPANION_LOG_LEVEL", "INFO").strip().upper(), None)
+# Configured at import, before Config exists, so the add-on's own `log_level` option
+# is read straight from /data/options.json rather than through the config merge.
+_LEVEL_NAME = os.environ.get("COMPANION_LOG_LEVEL") or addon_option("log_level", "INFO")
+_LEVEL = getattr(logging, _LEVEL_NAME.strip().upper(), None)
 if not isinstance(_LEVEL, int):
     _LEVEL = logging.INFO
 logging.basicConfig(level=_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -71,6 +75,11 @@ plugins = PluginRuntime(config, plugin_settings, APPS_DIR, config.data_dir / "ap
 controller.attach_plugins(plugins)
 scheduler = Scheduler(controller, plugins)
 ha = HomeAssistant(config, plugins, controller)
+
+# The MCP server is built unconditionally, even when the layer is off: the Dev-menu
+# switch has to be able to turn it on without a restart, and an ASGI app can't be
+# mounted after startup. _MCPGuard below is what makes the surface exist or 404.
+mcp = mcp_server.build(config, state, controller, plugins, plugin_settings, ha)
 
 
 def _redact(cfg: dict) -> dict:
@@ -297,7 +306,11 @@ async def lifespan(app: FastAPI):
     # Retry pending settings pushes if the gateway was briefly unreachable.
     tasks.append(asyncio.create_task(_settings_flush_loop()))
 
-    yield
+    # Mounting an MCP app disables its own lifespan, so the host owns its session
+    # manager — without this the first /mcp request fails. Cheap, and harmless when
+    # the layer is off (the guard 404s before anything reaches it).
+    async with mcp.session_manager.run():
+        yield
 
     # Flush any pending settings to the gateway before shutting down.
     try:
@@ -348,6 +361,10 @@ class DevSim(BaseModel):
 
 
 class DevVestaboard(BaseModel):
+    on: bool
+
+
+class DevMCP(BaseModel):
     on: bool
 
 
@@ -492,6 +509,33 @@ async def dev_vestaboard_state():
         "key": vestaboard_key() if on else "",
         "path": "/local-api/message",
         "env_key": bool(config.vestaboard.get("api_key")),   # pinned via env, not generated
+    }
+
+
+@app.post("/api/dev/mcp")
+async def dev_mcp(req: DevMCP):
+    """Turn the MCP server on/off at runtime (see the block further down).
+    COMPANION_MCP sets where it starts."""
+    _require_dev()
+    config.set_mcp(req.on)
+    if req.on:
+        mcp_token()        # mint + persist the token now, so the menu can show it
+    log.info("MCP server %s (dev menu)", "enabled" if req.on else "disabled")
+    return config.dev_state()
+
+
+@app.get("/api/dev/mcp")
+async def dev_mcp_state():
+    """The MCP connection details for the dev menu: the endpoint an LLM client
+    points at and the bearer token it must send. Dev-gated because it hands out
+    the token."""
+    _require_dev()
+    on = config.mcp_enabled
+    return {
+        "enabled": on,
+        "token": mcp_token() if on else "",
+        "path": "/mcp",
+        "env_token": bool(config.mcp.get("token")),          # pinned via env, not generated
     }
 
 
@@ -966,6 +1010,92 @@ async def vb_send_message(request: Request):
 
 
 # ---------------------------------------------------------------------------
+# MCP server (off unless COMPANION_MCP=1, or the dev menu turns it on). Lets an
+# LLM client drive the display as tools; the tools are in mcp_server.py, and this
+# is the gate in front of them.
+#
+# NOTE: like the Vestaboard key, this token guards ONLY /mcp. The rest of the
+# companion's API is unauthenticated, as it always was.
+# ---------------------------------------------------------------------------
+MCP_TOKEN_SETTING = "mcp_token"
+
+
+def mcp_token() -> str:
+    """The MCP bearer token: the env value if set, else one generated once and kept
+    in the settings store. A token that changed on every restart would silently break
+    an already-configured client, so it has to outlive the process."""
+    env_token = config.mcp.get("token") or ""
+    if env_token:
+        return env_token
+    stored = plugin_settings.get(MCP_TOKEN_SETTING) or ""
+    if not stored:
+        stored = secrets.token_urlsafe(24)
+        plugin_settings.set(MCP_TOKEN_SETTING, stored)
+        log.info("MCP: generated a bearer token (see the Dev menu, or set "
+                 "COMPANION_MCP_TOKEN to pin your own)")
+    return stored
+
+
+async def _asgi_json(send, status: int, detail: str) -> None:
+    body = json.dumps({"detail": detail}).encode()
+    await send({"type": "http.response.start", "status": status,
+                "headers": [(b"content-type", b"application/json"),
+                            (b"content-length", str(len(body)).encode())]})
+    await send({"type": "http.response.body", "body": body})
+
+
+class _MCPGuard:
+    """The gate in front of the mounted MCP app: 404 as a whole when the layer is
+    off, 401 without the bearer token.
+
+    It is an ASGI wrapper rather than a FastAPI dependency because a Mounted app is
+    handed the request whole — route dependencies never run for it.
+    """
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            if not config.mcp_enabled:
+                await _asgi_json(send, 404, "MCP server is off (set COMPANION_MCP=1)")
+                return
+            headers = dict(scope.get("headers") or [])
+            auth = headers.get(b"authorization", b"").decode("latin-1")
+            sent = auth[7:].strip() if auth[:7].lower() == "bearer " else ""
+            if not sent or not secrets.compare_digest(sent, mcp_token()):
+                await _asgi_json(send, 401, "invalid or missing bearer token")
+                return
+        await self.inner(scope, receive, send)
+
+
+class _MCPPathFix:
+    """Make a bare ``/mcp`` reach the mount below.
+
+    Starlette's ``Mount("/mcp")`` only matches ``/mcp/<something>`` — a request to
+    ``/mcp`` itself is a partial match, and because the SPA is mounted at ``/`` it
+    gets claimed by StaticFiles instead (which answers 405 to a POST, since it only
+    serves GET). But ``/mcp`` with no trailing slash is exactly what every MCP client
+    posts to, so normalise the path before routing rather than telling users to add a
+    slash no other MCP server needs.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope.get("path") == "/mcp":
+            scope = dict(scope, path="/mcp/", raw_path=b"/mcp/")
+        await self.app(scope, receive, send)
+
+
+# Before the SPA mount below, for the same reason /local-api/* is: "/" swallows
+# everything that hasn't already been claimed.
+app.mount("/mcp", _MCPGuard(mcp.streamable_http_app()))
+app.add_middleware(_MCPPathFix)
+
+
+# ---------------------------------------------------------------------------
 # Static SPA (mounted last so /api/* wins)
 # ---------------------------------------------------------------------------
 _asset_ver_cache: dict[str, tuple[float, str]] = {}   # asset -> (mtime, hash)
@@ -986,24 +1116,43 @@ def _asset_version(p: Path) -> str | None:
     return ver
 
 
-def _cache_bust(html: str, static_dir: Path) -> str:
+def _cache_bust(html: str, static_dir: Path, base: str = "") -> str:
     """Append ``?v=<content-hash>`` to each SPA asset URL so an updated CSS/JS is
     fetched fresh without a manual browser cache purge. The query changes only
-    when the file's bytes change, so unchanged assets still cache."""
+    when the file's bytes change, so unchanged assets still cache. ``base`` prefixes
+    them with the ingress path (see spa_index)."""
     for asset in ("styles.css", "app.js"):
         ver = _asset_version(static_dir / asset)
-        if ver:
-            html = html.replace(f'"/{asset}"', f'"/{asset}?v={ver}"')
+        query = f"?v={ver}" if ver else ""
+        html = html.replace(f'"/{asset}"', f'"{base}/{asset}{query}"')
     return html
 
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index.html", response_class=HTMLResponse)
-async def spa_index():
-    """Serve the SPA shell with cache-busted asset URLs. The shell is tiny and
-    served no-cache, so the current asset hashes are always seen on reload."""
-    html = (STATIC_DIR / "index.html").read_text("utf-8")
-    return HTMLResponse(_cache_bust(html, STATIC_DIR), headers={"Cache-Control": "no-cache"})
+async def spa_index(request: Request):
+    """Serve the SPA shell. Two things are stamped in here rather than baked into
+    the file, because neither is known until the request arrives:
+
+    * **The ingress prefix.** As a Home Assistant add-on the SPA is served from
+      ``/api/hassio_ingress/<token>/``, and Supervisor says so in ``X-Ingress-Path``.
+      A browser-side ``/api/...`` URL would resolve against the *HA* root and 404, so
+      every asset URL is prefixed here and the SPA reads the same prefix off
+      ``window.__BASE__`` for its fetches (see app.js).
+    * **The theme.** ``COMPANION_THEME=ha`` layers the Home Assistant skin over the
+      base stylesheet — same image, same app, just a different look, so the add-on
+      doesn't read as a foreign site inside the sidebar.
+    """
+    base = (request.headers.get("X-Ingress-Path") or "").rstrip("/")
+    html = _cache_bust((STATIC_DIR / "index.html").read_text("utf-8"), STATIC_DIR, base)
+
+    head = f"<script>window.__BASE__={json.dumps(base)};</script>"
+    if config.theme == "ha":
+        ver = _asset_version(STATIC_DIR / "theme-ha.css")
+        head += f'<link rel="stylesheet" href="{base}/theme-ha.css{f"?v={ver}" if ver else ""}" />'
+    # Last thing in <head>, so the theme wins over styles.css.
+    html = html.replace("</head>", f"  {head}\n</head>", 1)
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 
 if STATIC_DIR.exists():

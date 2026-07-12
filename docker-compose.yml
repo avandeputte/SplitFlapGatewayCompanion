@@ -46,6 +46,14 @@ services:
       # and kept with your settings — read it from the Dev menu. See README.
       # COMPANION_VESTABOARD: "1"
       # COMPANION_VESTABOARD_KEY: ""
+      # Expose the display as MCP tools at /mcp (off by default), so an LLM client can
+      # show a message, run an app, or read the board. Token generated like the one
+      # above and shown in the Dev menu. See README.
+      # COMPANION_MCP: "1"
+      # COMPANION_MCP_TOKEN: ""
+      # UI skin: default (the SplitFlap look) | ha (Home Assistant's). The HA add-on
+      # sets "ha"; it's a stylesheet swap, so the same image serves both.
+      # COMPANION_THEME: "default"
       # --- Manual overrides (only if you do NOT want to read from the gateway) ---
       # COMPANION_GRID_ROWS: "3"
       # COMPANION_GRID_COLS: "15"
