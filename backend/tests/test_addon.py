@@ -21,15 +21,34 @@ import yaml
 from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[2]
-ADDON = yaml.safe_load((ROOT / "addon" / "config.yaml").read_text("utf-8"))
 STATIC = ROOT / "backend" / "app" / "static"
+
+# Every add-on this repository publishes: any directory with a config.yaml. Today that
+# is the beta channel alone; the stable one (addon/) joins it at v1.5.0, and these tests
+# then cover it too without being edited.
+CHANNELS = {p.parent.name: yaml.safe_load(p.read_text("utf-8"))
+            for p in sorted(ROOT.glob("*/config.yaml"))}
+ADDON = CHANNELS["addon-beta"]
 
 
 # --- the manifest -------------------------------------------------------------
-def test_the_addon_version_matches_the_release():
+def test_the_beta_addon_version_matches_the_release():
     """`image` has no build, so Supervisor pulls ghcr...:<version>. If this drifts from
     VERSION, the tag it asks for was never published and the install just fails."""
     assert ADDON["version"] == (ROOT / "VERSION").read_text().strip()
+
+
+def test_each_channel_has_its_own_slug():
+    """A slug is the add-on's identity. If the stable channel ever shared the beta's, it
+    would collide with an installed beta instead of sitting beside it."""
+    slugs = [c["slug"] for c in CHANNELS.values()]
+    assert len(slugs) == len(set(slugs)), f"duplicate slug across channels: {slugs}"
+
+
+def test_the_beta_channel_is_flagged_as_such():
+    assert ADDON["slug"].endswith("_beta")
+    assert ADDON["stage"] == "experimental"
+    assert "beta" in ADDON["name"].lower()
 
 
 def test_the_manifest_has_what_supervisor_requires():
@@ -118,6 +137,31 @@ def test_the_log_level_option_is_honoured(options):
     which is exactly how it would end up silently ignored."""
     cfg = options({"log_level": "DEBUG"})
     assert cfg.addon_option("log_level", "INFO") == "DEBUG"
+
+
+# --- the startup preflight ----------------------------------------------------
+# The container's CMD is `python -m app`, and its guard ran on os.environ alone. An
+# add-on has NO env vars — the URL is typed into the Configuration tab and lands in
+# /data/options.json — so a correctly-configured add-on died at startup with
+# "GATEWAY_URL is not set", before Config (which does read that file) was ever built.
+def test_the_preflight_accepts_a_gateway_url_from_the_addon_options(options):
+    from app.__main__ import gateway_url
+    options({"gateway_url": "http://gw.local"})
+    assert gateway_url() == "http://gw.local"
+
+
+def test_the_preflight_still_prefers_the_environment(options, monkeypatch):
+    from app.__main__ import gateway_url
+    options({"gateway_url": "http://from-addon"})
+    monkeypatch.setenv("GATEWAY_URL", "http://from-env")
+    assert gateway_url() == "http://from-env"
+
+
+def test_the_preflight_still_refuses_when_nothing_is_set(options, monkeypatch):
+    from app.__main__ import gateway_url
+    options({})
+    monkeypatch.delenv("GATEWAY_URL", raising=False)
+    assert gateway_url() == ""
 
 
 # --- ingress ------------------------------------------------------------------
