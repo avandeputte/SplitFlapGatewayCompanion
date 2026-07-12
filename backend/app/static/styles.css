@@ -63,7 +63,6 @@ a { color: var(--brand); }
 }
 .tab:hover, .tab.active { background: var(--brand); color: #fff; border-color: var(--brand); }
 .tab.gw { color: var(--dim); }
-.tab.gw::after { content: " \2197"; font-size: .7em; opacity: .6; }
 .tab.gw.disabled { opacity: .4; pointer-events: none; }
 
 main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }

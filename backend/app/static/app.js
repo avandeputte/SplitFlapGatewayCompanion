@@ -931,9 +931,12 @@ async function setupGatewayTabs() {
     shown.forEach((t) => {
       const a = el("a", "tab gw");
       a.dataset.gw = t.id;
-      a.target = "_top";
+      // Through the proxy (/gw/), not straight at the gateway's own address. A direct
+      // link leaves Home Assistant altogether — HA can only put THIS add-on's port in the
+      // sidebar, so the gateway can only appear in there if we serve it. Same origin, so
+      // no target="_top" either: that used to break out of the ingress iframe.
       a.textContent = t.label;
-      if (base) a.href = `${base}/#${t.id}`;
+      if (base) a.href = `${url("/gw/")}#${t.id}`;
       else { a.href = "#"; a.classList.add("disabled"); }
       nav.appendChild(a);
     });
@@ -1011,7 +1014,9 @@ async function openDevMenu() {
       try {
         const d = await api("/api/dev/vestaboard");
         vbNote.innerHTML = "";
-        const endpoint = `${location.origin}${d.path}`;
+        // d.url is the address a client OUTSIDE the browser must use. As an add-on our
+        // own origin is Home Assistant's (ingress), which does not reach this endpoint.
+        const endpoint = d.url || `${location.origin}${d.path}`;
         const l1 = el("div"); l1.textContent = `POST ${endpoint}`;
         const l2 = el("div"); l2.style.marginTop = "2px";
         l2.textContent = `X-Vestaboard-Local-Api-Key: ${d.key}`;
@@ -1051,7 +1056,7 @@ async function openDevMenu() {
       try {
         const d = await api("/api/dev/mcp");
         mcNote.innerHTML = "";
-        const l1 = el("div"); l1.textContent = `${location.origin}${d.path}`;
+        const l1 = el("div"); l1.textContent = d.url || `${location.origin}${d.path}`;
         const l2 = el("div"); l2.style.marginTop = "2px";
         l2.textContent = `Authorization: Bearer ${d.token}`;
         const l3 = el("div"); l3.style.marginTop = "2px";

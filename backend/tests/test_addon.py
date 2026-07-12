@@ -72,8 +72,11 @@ def test_every_option_is_actually_read_by_the_app():
     """An option nothing reads is a switch that does nothing — worse than no switch."""
     from app import config as cfg
 
+    # DEFAULTS covers the config tree; these are read outside it (Config.__init__, or
+    # before Config exists at all — see addon_option).
     known = set(cfg.DEFAULTS) | {"gateway_url", "mqtt_password", "companion_public_url",
-                                 "home_assistant", "vestaboard_key", "mcp_token", "log_level"}
+                                 "home_assistant", "vestaboard_key", "mcp_token",
+                                 "dev_mode", "log_level"}
     for opt in set(ADDON["options"]) | set(ADDON["schema"]):
         assert opt in known, f"config.yaml offers {opt!r}, but nothing reads it"
 
@@ -313,3 +316,15 @@ def test_the_addon_may_call_the_supervisor_api():
     """/network/info is refused without this, and we would silently fall back to the
     container's own address again."""
     assert ADDON["hassio_api"] is True
+
+
+def test_dev_mode_can_be_ticked_in_the_addon_config(options):
+    """It was env-only (COMPANION_DEV_MODE), and an add-on user has no way to set an
+    environment variable — so the Dev menu was simply unreachable there."""
+    cfg = options({"dev_mode": True, "gateway_url": "http://gw"})
+    assert cfg.Config().dev_mode is True
+
+
+def test_dev_mode_is_off_unless_asked_for(options):
+    cfg = options({"gateway_url": "http://gw"})
+    assert cfg.Config().dev_mode is False

@@ -23,7 +23,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, helpers, mcp_server, renderer, vestaboard, weather
+from . import __version__, gwproxy, helpers, mcp_server, renderer, vestaboard, weather
 from .config import Config, addon_option
 from .engine import DisplayController
 from .gateway import (addon_public_url, build_sync_patch, detect_local_ip,
@@ -579,6 +579,9 @@ async def dev_vestaboard_state():
         "enabled": on,
         "key": vestaboard_key() if on else "",
         "path": "/local-api/message",
+        # Same as MCP: a rest_command is not the browser, and under ingress the browser's
+        # own origin is Home Assistant's, which does not reach this endpoint.
+        "url": await _external_url("/local-api/message"),
         "env_key": bool(config.vestaboard.get("api_key")),   # pinned via env, not generated
     }
 
@@ -606,8 +609,26 @@ async def dev_mcp_state():
         "enabled": on,
         "token": mcp_token() if on else "",
         "path": "/mcp",
+        "url": await _external_url("/mcp"),
         "env_token": bool(config.mcp.get("token")),          # pinned via env, not generated
     }
+
+
+async def _external_url(path: str) -> str:
+    """The address a client OUTSIDE the browser has to use — an MCP client, a Home
+    Assistant rest_command.
+
+    The UI can't work this out for itself. As an add-on it is served through ingress, so
+    its own `location.origin` is Home Assistant's host and its path is
+    /api/hassio_ingress/<token>/ — neither of which reaches /mcp. The way in is the host
+    address and the published port, which only Supervisor knows (resolve_companion_url).
+    Empty if we can't tell, and the UI falls back to its own origin.
+    """
+    try:
+        base = (await resolve_companion_url()).rstrip("/")
+    except Exception:
+        base = ""
+    return f"{base}{path}" if base else ""
 
 
 @app.post("/api/dev/resync")
@@ -1164,6 +1185,10 @@ class _MCPPathFix:
 # everything that hasn't already been claimed.
 app.mount("/mcp", _MCPGuard(mcp.streamable_http_app()))
 app.add_middleware(_MCPPathFix)
+
+# The gateway's own UI, served through us at /gw/ — the only way it can appear inside
+# Home Assistant, which can only put this add-on's port in the sidebar. See gwproxy.py.
+app.include_router(gwproxy.build(config))
 
 
 # ---------------------------------------------------------------------------

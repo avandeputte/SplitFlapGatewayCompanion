@@ -276,7 +276,10 @@ class Config:
         # Developer mode (env-gated). When on, the UI exposes a dev menu that can
         # toggle a "simulation" transport (nothing reaches the display) and, while
         # simulating, override the grid geometry for layout testing.
-        self.dev_mode = os.environ.get("COMPANION_DEV_MODE", "").lower() in ("1", "true", "yes", "on")
+        # Also an add-on option, so it can be ticked on the Configuration tab: an add-on
+        # user has no way to set an environment variable.
+        self.dev_mode = (os.environ.get("COMPANION_DEV_MODE", "").lower() in ("1", "true", "yes", "on")
+                         or bool(addon_options().get("dev_mode")))
         self._sim = False
         self._grid_override: dict | None = None   # {rows, cols}; only honored in sim mode
         self._effective: dict = self._recompute()
