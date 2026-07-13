@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.6
+
+Groundwork for driving **several gateways from one companion** (Phase 0). There is
+**no new feature here and nothing changes**: the companion still drives one gateway,
+every URL still means what it meant, and the UI is untouched. What changed is the
+plumbing underneath — the geometry, settings store, app loop and Home Assistant device
+that were global now belong to a *display* object, so a second one can exist.
+
+Shipping it as a beta on its own, rather than folded into the feature, so that if
+anything did shift you know exactly which change to blame.
+
+One real fix fell out of it: the tabs a gateway advertises were stored globally, which
+with two gateways would have shown whichever one answered most recently.
+
 ## 1.9.0-beta.5
 
 Tall walls (a 5x15 MatrixPortal) now actually use the space.
