@@ -52,9 +52,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             except Exception:
                 price_lines.append(f'{sym} ERR')
                 change_lines.append(f'{sym} ERR')
-        pad = [''] * (rows - len(chunk))
-        pages.append(format_lines(*(price_lines + pad)))
-        pages.append(format_lines(*(change_lines + pad)))
+        # No padding: two tickers on a five-row wall are centred by format_lines.
+        pages.append(format_lines(*price_lines))
+        pages.append(format_lines(*change_lines))
     return pages or [format_lines('STOCKS', t('NO DATA'), '')]
 
 

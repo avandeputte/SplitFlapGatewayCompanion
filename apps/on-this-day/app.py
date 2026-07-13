@@ -72,5 +72,5 @@ def fetch(settings, format_lines, get_rows, get_cols):
             text = t
             break
     lines = _split(text, cols)[:rows]
-    top = (rows - len(lines)) // 2
-    return [format_lines(*([''] * top + lines))]
+    # format_lines centres it; doing it here as well lands it below the middle.
+    return [format_lines(*lines)]

@@ -21,7 +21,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         lines.append(f'{city[:avail]} {t}')
     if not lines:
         lines = ['NO VALID', 'TIMEZONES']
-    lines += [''] * max(0, get_rows() - len(lines))
+    # No bottom padding: format_lines centres what it is given. Filling the page here
+    # would pin three zones to the top of a five-row wall.
     return [format_lines(*lines)]
 
 

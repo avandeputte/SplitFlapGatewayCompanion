@@ -3,6 +3,24 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.9
+
+Vertical centring, properly this time.
+
+- **World Clock, Stocks and YouTube Comments** filled the page with blank rows themselves,
+  which left nothing for the layout to centre — so three world clocks sat pinned to the top
+  of a five-row wall. They now hand over only the lines they have. Two tickers, three zones
+  or a single clock are centred on whatever wall they land on, including one line on a
+  three-row display.
+- **Cat Facts, On This Day and Sarcastic Fortune Cookies** had the opposite bug, introduced
+  in beta.5: they centred themselves, and then got centred a *second* time, leaving them a
+  row below the middle. Fixed.
+- Crypto no longer leaves its alignment padding as trailing blank rows on the last page.
+
+The rule is now one line of code in one place — an app hands over the lines it has, and the
+layout decides where they sit — and a test enforces it across all 60 apps, in both
+directions.
+
 ## 1.9.0-beta.8
 
 **One companion, several displays.** Drive more than one gateway at once — each with its

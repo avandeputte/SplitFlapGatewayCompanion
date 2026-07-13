@@ -147,7 +147,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         lines = _wrap(text, rows, cols)
         # Vertically centre when the board has spare rows (format_lines centres
         # each line horizontally and pads the remaining rows at the bottom).
-        top = (rows - len(lines)) // 2
-        page = format_lines(*([""] * top + lines))
+        # format_lines centres it; doing it here as well lands it below the middle.
+        page = format_lines(*lines)
         fetch._state = {"at": now, "lang": lang, "pages": [page]}
     return fetch._state["pages"]

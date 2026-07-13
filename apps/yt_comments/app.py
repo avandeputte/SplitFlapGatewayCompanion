@@ -21,7 +21,6 @@ def fetch(settings, format_lines, get_rows, get_cols):
             text_lines = [text[j:j+cols] for j in range(0, len(text), cols)]
             text_lines = text_lines[:rows - 1]  # leave room for author
             lines = [author] + text_lines
-            lines += [''] * (rows - len(lines))
             pages.append(format_lines(*lines[:rows]))
         return pages or [format_lines('COMMENTS', 'NONE FOUND', '')]
     except Exception:

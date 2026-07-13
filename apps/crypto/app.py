@@ -73,6 +73,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         for c in coins[i:i + per_page]:
             b = block(c)
             lines += b + [''] * (lines_per - len(b))   # pad each block so coins align
+        # The alignment padding is between coins; trailing blanks are not alignment,
+        # they are just an off-centre page. Drop them and let format_lines centre.
+        while lines and not lines[-1].strip():
+            lines.pop()
         pages.append(format_lines(*lines))
     return pages or [format_lines('CRYPTO', t('NO DATA'), '')]
 

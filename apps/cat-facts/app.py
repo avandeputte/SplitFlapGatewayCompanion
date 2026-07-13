@@ -86,8 +86,9 @@ def _pages(format_lines, title, text, rows, cols):
             if bal is not None:
                 if title:
                     return [format_lines(title, *bal)]
-                top = (rows - len(bal)) // 2
-                return [format_lines(*([''] * top + bal))]
+                # format_lines centres it. Centring here too would centre it TWICE
+                # and leave it sitting below the middle.
+                return [format_lines(*bal)]
     lines = _greedy(words, cols)
     pages, i = ([format_lines(title, *lines[:body])], body) if title else ([], 0)
     while i < len(lines):

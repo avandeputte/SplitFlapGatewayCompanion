@@ -45,11 +45,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
         return name[:max_len]
 
     def vcenter(text, rows):
-        """Vertically center a single line of text in a rows-tall display."""
-        mid = rows // 2
-        lines = [''] * rows
-        lines[mid] = text
-        return format_lines(*lines)
+        """One line, centred. format_lines does the centring now — building the full
+        page here would only take that job away from it."""
+        return format_lines(text)
 
     rows = get_rows()
     cols = get_cols()
