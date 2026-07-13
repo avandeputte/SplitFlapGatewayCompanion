@@ -1306,8 +1306,17 @@ async def spa_index(request: Request):
     base = (request.headers.get("X-Ingress-Path") or "").rstrip("/")
     html = _cache_bust((STATIC_DIR / "index.html").read_text("utf-8"), STATIC_DIR, base)
     lang = _ui_lang(request)
+    # __LOCKED__ says levels 1-3 (URL / saved setting / ui_language) already decided,
+    # so the client must not second-guess it. Unlocked means the server only had the
+    # browser to go on, and the SPA may upgrade that to Home Assistant's own language
+    # — which is per-user and only reachable from inside HA's iframe. __LANGS__ is the
+    # offered list, so the client can validate whatever it finds there.
+    locked = uilang.resolve_locked(
+        request.query_params.get("lang"), plugins.settings, config.ui_language)
     head = (f"<script>window.__BASE__={json.dumps(base)};"
-            f"window.__LANG__={json.dumps(lang)};</script>")
+            f"window.__LANG__={json.dumps(lang)};"
+            f"window.__LOCKED__={json.dumps(bool(locked))};"
+            f"window.__LANGS__={json.dumps(uilang.OFFERED)};</script>")
     html = html.replace("</head>", f"  {head}\n</head>", 1)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 

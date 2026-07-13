@@ -55,6 +55,7 @@ network:
   ui_language:
     name: UI language
     description: >-
-      Language for the web UI itself (menus, buttons). Leave blank to follow each
-      viewer's browser. The flap content language is the Language setting inside
-      the app, not this. Example values: fr, de, es, pt-BR.
+      Language for the web UI itself (menus, buttons). "auto" follows your Home
+      Assistant language (per user, from your HA profile) and, outside Home
+      Assistant, the browser's. Pick a value to pin it instead. This is not the
+      flap content language — that is the Language setting inside the app.

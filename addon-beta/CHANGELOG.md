@@ -3,6 +3,17 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.2
+
+- **The UI follows your Home Assistant language.** If your HA profile is in French,
+  the add-on is in French — whatever your browser's language happens to be. Home
+  Assistant doesn't expose a user's profile language to add-ons through any API, so
+  the UI reads it from the HA frontend it is embedded in (same origin, per user,
+  exact). Outside Home Assistant nothing changes: the browser still decides.
+- **UI language is now a dropdown**, not a free-text box — a typo used to fall back
+  to English silently. `auto` (the default) means "follow Home Assistant, then the
+  browser"; pick a language to pin it for everyone.
+
 ## 1.9.0-beta.1
 
 - **The UI speaks your language.** The web interface (menus, buttons, forms, the

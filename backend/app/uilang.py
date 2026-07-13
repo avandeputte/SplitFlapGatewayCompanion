@@ -8,11 +8,22 @@ request, highest priority first:
     2. the global Language setting      — but ONLY once explicitly saved
     3. COMPANION_UI_LANGUAGE env /      — the deployment's default
        ``ui_language`` add-on option
-    4. the request's Accept-Language    — the viewer's browser
+    4. Home Assistant's own language    — the signed-in HA user's profile language,
+                                          when we are embedded in HA (see below)
+    5. the request's Accept-Language    — the viewer's browser
 
 Any level that is unset (or names a language we don't offer) passes to the
 next; the final fallback is en-US. "Explicitly saved" needs care because the
 settings store is seeded with ``language: en-US`` — see :func:`setting_is_explicit`.
+
+Level 4 cannot be done on the server: Home Assistant exposes the *system*
+language to add-ons at best, never a given user's profile language, and no
+ingress header carries it. But the ingress page is served from Home Assistant's
+own origin, so the SPA — running inside HA's iframe — can simply read HA's active
+language off the parent document (see haLanguage() in app.js). That is per-user
+and exact. The server therefore reports whether levels 1–3 already decided the
+matter (``locked``): if they did, the client leaves it alone; if they didn't, the
+client may substitute Home Assistant's language for the browser's guess.
 
 Whatever wins here names a *catalog*; the catalogs themselves degrade exact
 locale -> base language -> English (see loadI18n in app.js), the same chain the
@@ -93,8 +104,10 @@ def setting_is_explicit(settings) -> bool:
     return bool(saved) and saved != DEFAULT
 
 
-def resolve(query_lang, settings, env_lang, accept_language) -> str:
-    """The UI language for one request. See the module docstring for the chain."""
+def resolve_locked(query_lang, settings, env_lang) -> str | None:
+    """Levels 1-3 only: an explicit choice that no client-side signal may override.
+    None when nothing at that level applies (so HA's language, then the browser,
+    get their say)."""
     hit = normalize(query_lang)
     if hit:
         return hit
@@ -102,7 +115,14 @@ def resolve(query_lang, settings, env_lang, accept_language) -> str:
         hit = normalize(settings.get("language"))
         if hit:
             return hit
-    hit = normalize(env_lang)
+    return normalize(env_lang)
+
+
+def resolve(query_lang, settings, env_lang, accept_language) -> str:
+    """The UI language for one request, server-side (levels 1-3, then the browser).
+    The client may still upgrade the browser's guess to Home Assistant's language
+    when it isn't locked — see resolve_locked and haLanguage() in app.js."""
+    hit = resolve_locked(query_lang, settings, env_lang)
     if hit:
         return hit
     for code in parse_accept_language(accept_language):

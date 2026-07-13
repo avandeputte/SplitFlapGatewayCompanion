@@ -93,6 +93,21 @@ def test_the_port_is_published_for_the_non_browser_clients(chan):
 
 
 @pytest.mark.parametrize("chan", CHANNEL_IDS)
+def test_ui_language_is_a_dropdown_of_the_real_languages(chan):
+    """A free-text language field invites typos that silently fall back to English.
+    The schema must offer exactly the languages the app knows, plus the "auto"
+    sentinel (a list() cannot have a blank option, so "auto" carries "not set")."""
+    from app import i18n
+
+    schema = CHANNELS[chan]["schema"]["ui_language"]
+    assert schema.startswith("list(") and schema.endswith(")"), schema
+    choices = schema[len("list("):-1].split("|")
+    assert choices[0] == "auto"
+    assert choices[1:] == [o["value"] for o in i18n.LANGUAGE_OPTIONS]
+    assert CHANNELS[chan]["options"]["ui_language"] == "auto"
+
+
+@pytest.mark.parametrize("chan", CHANNEL_IDS)
 def test_every_option_is_actually_read_by_the_app(chan):
     """An option nothing reads is a switch that does nothing — worse than no switch."""
     from app import config as cfg

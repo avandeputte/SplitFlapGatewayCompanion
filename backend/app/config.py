@@ -270,10 +270,13 @@ class Config:
         self.dev_mode = (os.environ.get("COMPANION_DEV_MODE", "").lower() in ("1", "true", "yes", "on")
                          or bool(addon_options().get("dev_mode")))
         # Deployment-level default for the UI (chrome) language — level 3 of the
-        # resolution chain in uilang.py. Blank = unset, fall through to the
-        # browser's Accept-Language. Never affects the flap *content* language.
-        self.ui_language = (os.environ.get("COMPANION_UI_LANGUAGE", "").strip()
-                            or str(addon_options().get("ui_language") or "").strip())
+        # resolution chain in uilang.py. Unset (blank, or the add-on's "auto"
+        # sentinel: a list() option cannot offer a blank choice) falls through to
+        # Home Assistant's language and then the browser's. Never affects the flap
+        # *content* language.
+        ui = (os.environ.get("COMPANION_UI_LANGUAGE", "").strip()
+              or str(addon_options().get("ui_language") or "").strip())
+        self.ui_language = "" if ui.lower() == "auto" else ui
         self._sim = False
         self._grid_override: dict | None = None   # {rows, cols}; only honored in sim mode
         self._effective: dict = self._recompute()

@@ -55,6 +55,33 @@ def test_resolution_chain(query, settings, env, accept, expected):
     assert uilang.resolve(query, s, env, accept) == expected
 
 
+@pytest.mark.parametrize("query,settings,env,expected", [
+    ("fr", None, None, "fr"),                                  # URL locks it
+    (None, {"language": "de", "language_explicit": True}, None, "de"),   # setting locks it
+    (None, None, "es", "es"),                                  # ui_language locks it
+    (None, {"language": "en-US"}, "", None),                   # nothing explicit -> unlocked
+    (None, None, "auto", None),                                # the add-on sentinel is not a choice
+])
+def test_locked_levels_are_exactly_1_to_3(query, settings, env, expected):
+    """Locked = the client must not substitute Home Assistant's language. Only an
+    explicit choice locks; the browser (level 5) never does."""
+    s = S(settings) if settings is not None else None
+    # config.py maps the add-on's "auto" sentinel to unset before it reaches here
+    env = "" if env == "auto" else env
+    assert uilang.resolve_locked(query, s, env) == expected
+
+
+def test_auto_sentinel_means_unset(monkeypatch, tmp_path):
+    """The add-on's ui_language is a dropdown, which cannot offer a blank option, so
+    "auto" carries "not set" — it must not be treated as a language."""
+    from app.config import Config
+    monkeypatch.setattr("app.config.addon_options", lambda: {"ui_language": "auto"})
+    monkeypatch.delenv("COMPANION_UI_LANGUAGE", raising=False)
+    assert Config(tmp_path).ui_language == ""
+    monkeypatch.setattr("app.config.addon_options", lambda: {"ui_language": "fr"})
+    assert Config(tmp_path).ui_language == "fr"
+
+
 def test_normalize_exact_beats_base_and_is_case_insensitive():
     assert uilang.normalize("PT-br") == "pt-BR"      # exact variant, any case
     assert uilang.normalize("pt_PT") == "pt"         # underscore + base match

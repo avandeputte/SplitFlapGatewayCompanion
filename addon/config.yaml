@@ -63,7 +63,7 @@ options:
   home_assistant: auto
   vestaboard: false
   mcp: false
-  ui_language: ""
+  ui_language: auto
   dev_mode: false
   log_level: INFO
 
@@ -79,10 +79,11 @@ schema:
   vestaboard_key: password?
   mcp: bool
   mcp_token: password?
-  # UI (chrome) language for this deployment — level 3 of the resolution chain
-  # (URL param > saved Language setting > this > the browser). Blank = follow
-  # each viewer's browser. Never affects what the flaps show.
-  ui_language: str?
+  # UI (chrome) language for this deployment. "auto" (the default) follows Home
+  # Assistant's own language for the signed-in user, and the browser outside HA.
+  # A pinned value here beats both. Never affects what the flaps show — that is
+  # the Language setting inside the app.
+  ui_language: list(auto|en-US|en-GB|en-AU|en-CA|fr|fr-CA|fr-BE|fr-CH|de|de-AT|de-CH|es|es-MX|es-AR|it|it-CH|pt|pt-BR|nl|nl-BE|da|no|sv|fi|is|ga|ca|gl|eu|et|af|id|ms|sw)
   # Enables simulation mode in the ⚙ tools menu (run apps without driving the wall,
   # with a grid override while simulating). The menu itself is always available.
   dev_mode: bool

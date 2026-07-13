@@ -22,8 +22,46 @@ const url = (path) => BASE + path;
 // returns "Enregistrer" when /i18n/fr.json carries it and "Save" itself otherwise,
 // so a missing translation can never break the UI. Catalogs degrade exact locale
 // -> base language ("fr-BE" -> fr.json); English skips the fetch entirely.
-const LANG = window.__LANG__ || "en-US";
+// The server picked this from the URL param, an explicitly-saved Language setting,
+// the ui_language option, or (failing all three) the browser. __LOCKED__ says one of
+// the first three decided it, so nothing here may override it.
+let LANG = window.__LANG__ || "en-US";
+const LANGS = window.__LANGS__ || [];
 let STR = {};
+
+// Home Assistant's own language, for the signed-in HA user.
+//
+// HA never gives an add-on the user's profile language: no Supervisor endpoint has
+// it, no ingress header carries it, and the core API knows only the *system*
+// language. But the ingress page is served from HA's own origin, so the parent
+// document (the HA frontend) is same-origin and readable — and it advertises the
+// active language on <html lang> (and keeps it in localStorage). That is the real,
+// per-user answer. Everything here is guarded: outside HA there is no parent frame,
+// and a future HA that isolates the iframe just throws, which lands us back on the
+// browser's language.
+function haLanguage() {
+  try {
+    if (window.parent === window) return "";        // not embedded — nothing to ask
+    const doc = window.parent.document;             // throws if not same-origin
+    const attr = doc.documentElement.getAttribute("lang");
+    if (attr) return attr;
+    const saved = window.parent.localStorage.getItem("selectedLanguage");
+    return saved ? String(JSON.parse(saved)) : "";
+  } catch {
+    return "";                                      // cross-origin / blocked: fine
+  }
+}
+
+// Map any language code onto one we actually offer: exact match first, then the base
+// language (HA's "fr" -> our "fr"; HA's "pt-BR" -> "pt-BR"; HA's "nb" -> nothing).
+function offered(code) {
+  if (!code) return "";
+  const c = String(code).replace("_", "-").toLowerCase();
+  const exact = LANGS.find((l) => l.toLowerCase() === c);
+  if (exact) return exact;
+  const base = c.split("-")[0];
+  return LANGS.find((l) => l.toLowerCase().split("-")[0] === base) || "";
+}
 const esc = (s) => String(s).replace(/[&<>"']/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 function t(s, ...args) {
@@ -1184,6 +1222,13 @@ async function openDevMenu() {
 }
 
 async function init() {
+  // Unless an explicit choice was made, prefer Home Assistant's language over the
+  // browser's: someone whose HA is in French wants a French add-on, whatever their
+  // browser was configured with years ago.
+  if (!window.__LOCKED__) {
+    const ha = offered(haLanguage());
+    if (ha) LANG = ha;
+  }
   await loadI18n();
   translateDom();
   const h = await api("/api/health"); $("version").textContent = "v" + h.version;

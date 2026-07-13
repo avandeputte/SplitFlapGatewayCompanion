@@ -29,7 +29,16 @@ the work is mostly discipline, not volume.
    | 1 | `?lang=fr` URL parameter | whoever crafts the link | that tab |
    | 2 | the global **Language** setting, *when explicitly saved* | the user, in Settings | the install |
    | 3 | `COMPANION_UI_LANGUAGE` env var / `ui_language` add-on option | the operator | the deployment |
-   | 4 | `Accept-Language` / `navigator.languages` | the browser | that viewer |
+   | 4 | **Home Assistant's own language** (the signed-in user's HA profile) | the HA user | that viewer, inside HA |
+   | 5 | `Accept-Language` / `navigator.languages` | the browser | that viewer |
+
+   Level 4 is client-side by necessity: HA exposes no per-user language to add-ons —
+   no Supervisor endpoint, no ingress header, and the core API knows only the *system*
+   language. But the ingress page is served from HA's own origin, so the SPA can read
+   HA's active language straight off the parent frame (`<html lang>`, then
+   `localStorage.selectedLanguage`). Per-user and exact. The server therefore reports
+   whether levels 1–3 already locked the choice; only when they haven't may the client
+   upgrade the browser's guess to HA's language.
 
    Unset means "pass to the next level." One wrinkle, verified in the code: the settings
    store is *seeded* with `language: "en-US"` (`plugin_settings._defaults()`) and the
