@@ -124,6 +124,10 @@ class Display:
             "module_count": self.config.module_count(),
             "active_app": self.controller.active_app,
             "active_playlist": self.controller.active_playlist,
+            # Whether this wall can show lowercase, accents and pictographs (a Matrix
+            # Portal can; a physical reel cannot). Per display: one companion can drive
+            # both, and they do not have the same alphabet.
+            "rich": self.controller.rich,
         }
 
 

@@ -32,6 +32,53 @@ COLOR_MAP = {
     "⬛": " ",      # ⬛
 }
 
+# ---------------------------------------------------------------------------
+# The seven colour flaps, and why they are not simply the letters r o y g b p w.
+#
+# The legacy wire carries ONE BYTE per character, and it spent seven of its letters on
+# colours: the byte for lowercase `r` MEANS RED. That is fine as long as everything is
+# uppercased on the way out — which it was, so a lowercase letter could never occur and
+# `r` was unambiguous.
+#
+# The Matrix Portal's index-addressed API (POST /api/display/cells) breaks that deal open:
+# it can show lowercase, so `r` has to be allowed to mean the LETTER r, and colours are
+# NAMED instead. Which means a page must now say which one it meant — and a bare `r` in a
+# string cannot.
+#
+# So colours become their own codepoints inside the companion, in the Unicode private-use
+# area. They are produced where a colour is unambiguously intended (an emoji tile; a
+# lowercase colour code in a RAW page, which is the splitflap-os animation convention) and
+# consumed by the transport, which renders them as a colour flap however its wall wants:
+# the legacy byte `r`, or {"color": "red"}. Nothing else in the pipeline has to care.
+COLOR_NAMES = ("red", "orange", "yellow", "green", "blue", "purple", "white")
+COLOR_CODES = "roygbpw"                       # the legacy bytes, in the same order
+COLOR_PUA = {c: chr(0xE000 + i) for i, c in enumerate(COLOR_CODES)}   # 'r' -> U+E000
+PUA_TO_CODE = {v: k for k, v in COLOR_PUA.items()}                    # U+E000 -> 'r'
+PUA_TO_NAME = {chr(0xE000 + i): n for i, n in enumerate(COLOR_NAMES)}
+
+
+def is_color(ch: str) -> bool:
+    return ch in PUA_TO_CODE
+
+
+# The fourteen pictographs the Matrix Portal's reel carries beyond Windows-1252 (they have
+# no CP1252 byte, so they are reachable only by index — see the firmware's reel.h). A wall
+# that cannot show them gets the fallback instead, rather than a rejected page.
+PICTOGRAPHS = {
+    "\u2665": "heart", "\u2666": "diamond", "\u2663": "club", "\u2660": "spade",
+    "\u263a": "smiley", "\u266a": "note", "\u25cf": "circle", "\u25a0": "square",
+    "\u2302": "house", "\u2190": "left", "\u2191": "up", "\u2192": "right",
+    "\u2193": "down", "\u2600": "sun",
+}
+# What each becomes on a wall that has no flap for it. The arrows have honest CP1252
+# stand-ins; the rest degrade to a character that at least occupies the cell.
+PICTOGRAPH_FALLBACK = {
+    "\u2190": "<", "\u2191": "^", "\u2192": ">", "\u2193": "v",
+    "\u2665": "*", "\u2666": "*", "\u2663": "*", "\u2660": "*",
+    "\u263a": ":", "\u266a": "*", "\u25cf": "*", "\u25a0": "#",
+    "\u2302": "^", "\u2600": "*",
+}
+
 # Styles handled by the generic "one module per step" ordering path.
 ORDERED_STYLES = (
     "ltr", "rtl", "center_out", "outside_in", "spiral", "diagonal",
@@ -47,7 +94,7 @@ ALL_STYLES = ORDERED_STYLES + SPECIAL_STYLES
 _SPIN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 
-def _in_cp1252(s: str) -> bool:
+def in_cp1252(s: str) -> bool:
     try:
         s.encode("cp1252")
         return True
@@ -68,32 +115,67 @@ def cp1252_upper(text: str) -> str:
     out = []
     for c in text:
         u = c.upper()
-        if len(u) == 1 and _in_cp1252(u):
+        if len(u) == 1 and in_cp1252(u):
             out.append(u)
-        elif _in_cp1252(c):
+        elif in_cp1252(c):
             out.append(c)
         else:
             out.append(u)
     return "".join(out)
 
 
-def normalize(text: str, n: int, *, raw: bool = False) -> str:
+def normalize(text: str, n: int, *, raw: bool = False, keep_case: bool = False) -> str:
     """Normalize display text to exactly ``n`` module characters.
 
-    Uppercase (unless ``raw`` — animation pages keep their lowercase colour
-    codes), map emoji tiles to colour codes, then pad/truncate to ``n``.
+    Uppercase (unless ``raw`` — animation pages keep their lowercase colour codes — or
+    ``keep_case``, on a wall that can actually show lowercase), turn colour tiles into
+    colour cells, then pad/truncate to ``n``.
 
-    The companion does NOT police characters: every other character — accents,
-    punctuation, quotes, currency symbols, anything — is passed through verbatim.
-    Modules carry their own (possibly per-module) char maps and render a blank
-    for anything they lack, so there's nothing to validate or substitute here.
-    Uppercasing is Windows-1252-aware (see ``cp1252_upper``) so single-byte
-    accents and ``ß`` survive intact.
+    ``keep_case`` is what the Matrix Portal's index-addressed API buys: text the user
+    actually typed keeps the case they typed it in. It is deliberately NOT used for app
+    output — 34 of the 60 apps call .upper() on their own strings, so there is nothing left
+    to preserve there, and an app that emits a lowercase colour code means the COLOUR.
+
+    The companion does NOT police characters: accents, punctuation, quotes, currency
+    symbols are passed through verbatim. Uppercasing is Windows-1252-aware (see
+    ``cp1252_upper``) so single-byte accents and ``ß`` survive intact.
     """
-    clean = text if raw else cp1252_upper(text)
+    clean = text if (raw or keep_case) else cp1252_upper(text)
     for emoji, code in COLOR_MAP.items():
-        clean = clean.replace(emoji, code)
+        # Only when the case is being kept does a colour need its own codepoint: there a
+        # lowercase `r` is the LETTER r, so a colour tile cannot be carried as one. On every
+        # other path nothing is lowercase except a colour code, exactly as before — so those
+        # pages come out byte-for-byte identical to what they have always been.
+        clean = clean.replace(emoji, COLOR_PUA[code] if (keep_case and code in COLOR_PUA) else code)
     return clean.ljust(n)[:n]
+
+
+def colorize(page: str) -> str:
+    """Make a legacy page say what it means.
+
+    In a page that was uppercased (or is a RAW animation frame), a lowercase colour code IS
+    a colour — nothing else in it can be lowercase. That was fine while the wall could only
+    show uppercase. It is NOT fine now: a Matrix Portal can show a lowercase `o`, so a
+    transport handed a bare `o` has no way to know whether the page meant the LETTER o or
+    the ORANGE FLAP. Guessing is how "Hello" comes out as "Hell<orange>".
+
+    So the ambiguity is resolved HERE, at the one place that still knows which kind of page
+    this is, and every page reaching a transport is explicit about its colours.
+    """
+    return "".join(COLOR_PUA.get(c, c) if c in COLOR_CODES else c for c in page)
+
+
+def for_legacy(ch: str) -> str:
+    """One cell, as the legacy one-byte protocol wants it: a colour becomes its letter, and
+    a pictograph — which has no byte at all — becomes the nearest thing that does."""
+    return PUA_TO_CODE.get(ch, PICTOGRAPH_FALLBACK.get(ch, ch))
+
+
+def for_state(ch: str) -> str:
+    """One cell, as the live preview wants it. A colour goes back to its letter code (the
+    SPA colours a flap from that), but a pictograph stays ITSELF — a browser can draw a
+    heart, so there is no reason to show it the fallback the wall would have needed."""
+    return PUA_TO_CODE.get(ch, ch)
 
 
 def get_animation_order(style: str = "ltr", rows: int = 3, cols: int = 15) -> list[int]:

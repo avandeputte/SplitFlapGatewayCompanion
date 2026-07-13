@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 
+from .. import renderer
 from .base import DisplayTransport, frame_for
 
 log = logging.getLogger("companion.transport.rest")
@@ -43,6 +44,14 @@ class RestTransport(DisplayTransport):
         self._client = None
         self._connected = False
         self._last_error: str | None = None
+        # Does this wall have the index-addressed API (lowercase, pictographs, named
+        # colours)? Probed on connect — it is a property of the gateway on the other end,
+        # not a setting, and with several displays the answer differs per wall.
+        self.cells = False
+        # What we last put in each module. Lets us send `skip` for the cells that did not
+        # change: a clock repainting 75 modules every second to move one digit is traffic
+        # the wall does not need, and flaps that should not be moving.
+        self._shown: dict[int, str] = {}
 
     async def connect(self) -> None:
         import httpx
@@ -52,6 +61,8 @@ class RestTransport(DisplayTransport):
             timeout=self.timeout,
             headers={"Content-Type": "application/json"},
         )
+        # We do not know what is on the wall until we have put it there.
+        self._shown.clear()
         # Probe the gateway so the UI can show a truthful status pill.
         try:
             r = await self._client.get("/api/status")
@@ -61,6 +72,16 @@ class RestTransport(DisplayTransport):
             self._connected = False
             self._last_error = f"gateway unreachable: {e}"
             log.warning("REST %s", self._last_error)
+        # …and ask what it CAN do.
+        try:
+            from ..gateway import supports_cells
+            cfg = (await self._client.get("/api/config")).json()
+            self.cells = supports_cells(cfg)
+            if self.cells:
+                log.info("gateway %s: index-addressed display API — lowercase, "
+                         "pictographs and named colours are available", self.base)
+        except Exception:
+            self.cells = False
 
     async def close(self) -> None:
         if self._client is not None:
@@ -92,15 +113,76 @@ class RestTransport(DisplayTransport):
             self._last_error = str(e)
             raise
 
-    async def send_batch(self, frames: list[tuple[int, str]], step_ms: int) -> None:
-        """Draw a whole page in one request via /api/rs485/batch (Gateway 3.0+).
+    # -- the index-addressed path (Matrix Portal) -----------------------------
+    def _cell(self, ch: str):
+        """One character as a cell for POST /api/display/cells.
 
-        step_ms paces the cascade device-side (the gateway sleeps between frames),
-        so this call blocks for roughly the page's animation duration — one
-        round-trip for the whole page. Raises on failure (the caller logs it)."""
+        The firmware REJECTS the whole page if any character has no flap ("a half-written
+        wall is worse than a rejected request"), which is the right call for it and a trap
+        for us: one stray glyph from an app would blank the wall. So anything the reel
+        cannot show is turned into something it can, HERE, before it is sent.
+        """
+        # A colour is a colour because the PAGE said so (renderer.colorize), never because
+        # the character happens to be one of the seven letters. Guessing here is how "Hello"
+        # comes out as "Hell<orange>".
+        if renderer.is_color(ch):
+            return {"color": renderer.PUA_TO_NAME[ch]}
+        if ch in renderer.PICTOGRAPHS or renderer.in_cp1252(ch):
+            return {"ch": ch}
+        return {"ch": " "}                      # no flap for it: a blank, not a 400
+
+    async def _send_cells(self, frames: list[tuple[int, str]], step_ms: int) -> None:
+        base = min(m for m, _ in frames)
+        by_id = dict(frames)
+        cells, sent = [], 0
+        for mid in range(base, max(by_id) + 1):
+            ch = by_id.get(mid)
+            if ch is None:
+                cells.append({"skip": True})            # not ours to touch
+            elif self._shown.get(mid) == ch:
+                cells.append({"skip": True})            # already showing it — leave it alone
+            else:
+                cells.append(self._cell(ch))
+                sent += 1
+        if not sent:
+            return                                       # the wall already says this
+        payload = {"start": base, "step_ms": int(step_ms), "cells": cells}
+        import json
+        r = await self._client.post(
+            "/api/display/cells",
+            content=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json; charset=utf-8"},
+            timeout=30.0)
+        r.raise_for_status()
+        self._shown.update(by_id)
+
+    async def send_batch(self, frames: list[tuple[int, str]], step_ms: int) -> None:
+        """Draw a whole page in one request.
+
+        On a Matrix Portal this goes to /api/display/cells, which addresses flaps by INDEX:
+        lowercase and accents survive, pictographs are reachable at all, colours are named
+        rather than stealing seven letters — and unchanged cells are skipped, so moving one
+        digit of a clock no longer repaints seventy-five modules.
+
+        Everywhere else it is /api/rs485/batch exactly as before (Gateway 3.0+). step_ms
+        paces the cascade device-side, so the call blocks for roughly the page's animation
+        duration — one round-trip for the whole page. Raises on failure (the caller logs it).
+        """
         if self._client is None:
             raise RuntimeError("REST transport not connected")
-        payload = {"frames": [frame_for(mid, ch) for mid, ch in frames],
+        if self.cells:
+            try:
+                await self._send_cells(frames, step_ms)
+                self._connected = True
+                self._last_error = None
+                return
+            except Exception as e:
+                # The wall is now in an unknown state, so the next page must be sent whole.
+                self._shown.clear()
+                self._connected = False
+                self._last_error = str(e)
+                raise
+        payload = {"frames": [frame_for(mid, renderer.for_legacy(ch)) for mid, ch in frames],
                    "step_ms": int(step_ms)}
         try:
             # allow the gateway to pace a long page without a client timeout

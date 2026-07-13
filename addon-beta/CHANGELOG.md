@@ -3,6 +3,24 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.12
+
+**Matrix Portal walls get their full alphabet.** The Matrix Portal Gateway (firmware 1.6+)
+has an index-addressed display API, and the companion now uses it automatically when it
+finds one — a physical split-flap keeps the protocol it has always had.
+
+- **Lowercase and accents in the text you type.** Compose, the Vestaboard API and the MCP
+  `show_message` tool now show your message the way you wrote it, instead of SHOUTING IT
+  BACK AT YOU. (Apps still uppercase their own output — 34 of the 60 do it themselves.)
+- **Pictographs**: ♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀ — none of which has a Windows-1252 byte, so
+  none of which could be sent at all before.
+- **Colours are named**, not smuggled through the letters `r o y g b p w`. That is *why*
+  lowercase was impossible: the byte for `r` already meant RED.
+- **Only what changed is redrawn.** A clock moving one digit moves one flap instead of
+  repainting seventy-five modules.
+
+Nothing changes on a physical wall, and nothing changes for apps.
+
 ## 1.9.0-beta.11
 
 **Fixes the gateway tabs disappearing from the top bar** (a regression in beta.8). A local

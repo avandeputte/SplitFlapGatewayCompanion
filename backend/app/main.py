@@ -637,6 +637,17 @@ class DisplayPatch(BaseModel):
     order: int | None = None
 
 
+def _cased(d, text: str) -> str:
+    """User text, in the case the wall can actually show it in.
+
+    A physical split-flap has no lowercase flaps to turn to, and the one-byte protocol has
+    no lowercase byte to send — the byte for `r` means RED. A Matrix Portal has both, so
+    text a person typed is shown as they typed it instead of being SHOUTED BACK AT THEM.
+    cp1252_upper (rather than str.upper) is what keeps an accent a single cell wide.
+    """
+    return text if d.controller.rich else renderer.cp1252_upper(text)
+
+
 # ---------------------------------------------------------------------------
 # API
 # ---------------------------------------------------------------------------
@@ -1265,7 +1276,10 @@ async def compose_send(request: Request, req: ComposeRequest):
     d = display_for(request)
     if req.style and req.style not in renderer.ALL_STYLES:
         raise HTTPException(400, f"unknown style: {req.style}")
-    target = d.controller.send_text_bg(req.text, style=req.style, speed=req.speed, raw=req.raw)
+    # A person typed this. On a wall that can show lowercase, show it as they typed it —
+    # rather than SHOUTING IT BACK AT THEM, which is all the one-byte protocol could do.
+    target = d.controller.send_text_bg(req.text, style=req.style, speed=req.speed,
+                                       raw=req.raw, keep_case=True)
     return {"ok": True, "target": target}
 
 
@@ -1283,7 +1297,7 @@ async def show_message(request: Request, req: MessageRequest):
         raise HTTPException(400, f"unknown style: {req.style}")
     g = d.config.grid
     rows, cols = int(g["rows"]), int(g["cols"])
-    page = vestaboard.layout_text(renderer.cp1252_upper(req.text), rows, cols)
+    page = vestaboard.layout_text(_cased(d, req.text), rows, cols)
     if req.seconds and req.seconds > 0:
         running = d.controller.show_temporary(page, req.seconds, style=req.style or "ltr")
         d.ha.publish_state()
@@ -1477,7 +1491,7 @@ async def vb_send_message(request: Request, display_id: str | None = None):
             strategy = body.get("strategy")
             # The board has no lowercase flaps; uppercase exactly the way every other
             # text path here does (cp1252-aware, so accents survive as one cell).
-            page = vestaboard.layout_text(renderer.cp1252_upper(body["text"]), rows, cols)
+            page = vestaboard.layout_text(_cased(d, body["text"]), rows, cols)
         else:
             raise HTTPException(422, "expected a character matrix, {\"characters\": [[...]]}, "
                                      "or {\"text\": \"...\"}")

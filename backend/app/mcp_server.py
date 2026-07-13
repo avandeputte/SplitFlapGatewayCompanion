@@ -187,11 +187,13 @@ def build(displays) -> FastMCP:
         d = _res(display)
         rows, cols = _grid(d)
         # The same two steps a Vestaboard text write makes, and for the same reasons:
-        # the board has no lowercase flaps (cp1252_upper keeps accents one cell wide),
+        # a physical board has no lowercase flaps (cp1252_upper keeps accents one cell wide;
+        # a Matrix Portal has them, and keeps the text as written),
         # and layout_text is the shared "centre it on the wall" layout. The result is
         # final characters, so it must go out raw — otherwise a colour flap (lowercase
         # r/o/y/g/b/p/w) would be uppercased into a letter.
-        page = vestaboard.layout_text(renderer.cp1252_upper(text), rows, cols)
+        page = vestaboard.layout_text(
+            text if d.controller.rich else renderer.cp1252_upper(text), rows, cols)
         lines = [page[r * cols:(r + 1) * cols] for r in range(rows)]
 
         if seconds and seconds > 0:

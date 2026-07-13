@@ -154,9 +154,13 @@ class DisplayController:
         self.state.playlist_entries = None
 
     def send_text_bg(self, text: str, style: str | None = None,
-                     speed: int | None = None, raw: bool = False) -> str:
-        """Stop any app/playlist and show ``text`` (background). Returns target."""
-        clean = self._normalize(text, raw=raw)
+                     speed: int | None = None, raw: bool = False,
+                     keep_case: bool = False) -> str:
+        """Stop any app/playlist and show ``text`` (background). Returns target.
+
+        ``keep_case`` is for text a PERSON typed: on a wall that can show lowercase, it is
+        shown as they typed it. Ignored on a wall that cannot."""
+        clean = self._normalize(text, raw=raw, keep_case=keep_case)
         self._clear_driver_flags()
         # A manual message replaces whatever was playing, so there is nothing to come
         # back to — a restart should leave the board alone, not resurrect the old app.
@@ -168,17 +172,35 @@ class DisplayController:
         return clean
 
     async def send_text(self, text: str, style: str | None = None,
-                        speed: int | None = None, raw: bool = False) -> str:
+                        speed: int | None = None, raw: bool = False,
+                        keep_case: bool = False) -> str:
         """Send and await completion (used by tests / synchronous callers)."""
         await self._cancel_task()
         self._clear_driver_flags()
         self._remember(None)                       # as send_text_bg — a manual takeover
-        clean = self._normalize(text, raw=raw)
+        clean = self._normalize(text, raw=raw, keep_case=keep_case)
         await self._run_manual(clean, style=style, speed=speed)
         return clean
 
-    def _normalize(self, text: str, *, raw: bool) -> str:
-        return renderer.normalize(text, self.config.module_count(), raw=raw)
+    @property
+    def rich(self) -> bool:
+        """Whether THIS wall can show lowercase, accents and pictographs — i.e. whether its
+        gateway has the index-addressed display API. That is a property of the gateway on
+        the other end, so with several displays the answer differs per wall."""
+        return bool(getattr(self.transport, "cells", False))
+
+    def _normalize(self, text: str, *, raw: bool, keep_case: bool = False) -> str:
+        # Case is kept only for text a PERSON typed, and only on a wall that can show it.
+        # Never for app output: 34 of the 60 apps call .upper() on their own strings, so
+        # there is nothing left to preserve — and a `raw` app page uses lowercase to mean a
+        # COLOUR, which is the one thing keeping the case would break.
+        keep = keep_case and self.rich and not raw
+        clean = renderer.normalize(text, self.config.module_count(), raw=raw, keep_case=keep)
+        # Every page handed to a transport says explicitly which cells are COLOURS. When the
+        # case is kept, normalize already did that (a lowercase letter is a letter there);
+        # otherwise the lowercase colour codes are colours, and saying so here is what stops
+        # the transport from having to guess.
+        return clean if keep else renderer.colorize(clean)
 
     async def _run_manual(self, clean: str, *, style: str | None, speed: int | None) -> None:
         disp = self.config.display
@@ -214,12 +236,12 @@ class DisplayController:
                     ordered = [(base + gi, ch, gi) for step in plan for (gi, ch) in step.frames]
                     await self.transport.send_batch([(m, c) for m, c, _ in ordered], int(speed))
                     for _, char, gi in ordered:
-                        self.state.set_module(gi, char)
+                        self.state.set_module(gi, renderer.for_state(char))
                     return
                 for step in plan:
                     for grid_index, char in step.frames:
-                        await self.transport.send_frame(base + grid_index, char)
-                        self.state.set_module(grid_index, char)
+                        await self.transport.send_frame(base + grid_index, renderer.for_legacy(char))
+                        self.state.set_module(grid_index, renderer.for_state(char))
                     if step.delay_after > 0:
                         await asyncio.sleep(step.delay_after)
             except asyncio.CancelledError:
