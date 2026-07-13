@@ -75,14 +75,23 @@ class Display:
 
     @classmethod
     def build(cls, *, apps_dir: Path, id: str = DEFAULT_ID, name: str = "",
-              config: Config | None = None, data_dir: Path | None = None) -> "Display":
+              config: Config | None = None, data_dir: Path | None = None,
+              gateway_url: str = "", shared=None, own_settings: bool = False) -> "Display":
         """Construct a display and everything it owns, in the order they depend on
-        each other — the same order main.py used at import time."""
-        cfg = config or Config(data_dir)
+        each other — the same order main.py used at import time.
+
+        `own_settings` puts this display's store in ``data/displays/<id>/`` (Phase 1).
+        Off by default so a bare Display.build() still reads the single-display file,
+        which is what the pre-registry tests and callers mean.
+        """
+        cfg = config or Config(data_dir, gateway_url=gateway_url)
         state = DisplayState(cfg.module_count())
         controller = DisplayController(cfg, state)
-        settings = PluginSettings(cfg.data_dir)
-        # User-uploaded apps live in the persistent data volume, not the image's apps/.
+        settings = PluginSettings(cfg.data_dir,
+                                  display_id=id if own_settings else None,
+                                  shared=shared)
+        # Uploaded apps are SHARED across displays (data/apps/): which apps a wall has
+        # *installed* is per display, but the same zip should not live on disk twice.
         plugins = PluginRuntime(cfg, settings, apps_dir, cfg.data_dir / "apps")
         controller.attach_plugins(plugins)
         return cls(
@@ -123,8 +132,11 @@ class DisplayManager:
     this one method rather than 51 call sites.
     """
 
-    def __init__(self, apps_dir: Path):
+    def __init__(self, apps_dir: Path, *, registry=None, shared=None, data_dir: Path | None = None):
         self.apps_dir = Path(apps_dir)
+        self.registry = registry          # registry.DisplayRegistry, when one is in play
+        self.shared = shared              # plugin_settings.SharedSettings
+        self.data_dir = Path(data_dir) if data_dir else None
         self._displays: dict[str, Display] = {}
         self._default_id: str = DEFAULT_ID
 
@@ -141,6 +153,36 @@ class DisplayManager:
         return self.add(Display.build(apps_dir=self.apps_dir, id=DEFAULT_ID,
                                       name=name, config=config))
 
+    def build_from(self, record) -> Display:
+        """Build the runtime Display for one registry record."""
+        return self.add(Display.build(
+            apps_dir=self.apps_dir,
+            id=record.id,
+            name=record.name,
+            data_dir=self.data_dir,
+            gateway_url=record.gateway_url,
+            shared=self.shared,
+            own_settings=True,
+        ))
+
+    def load_registry(self) -> list[Display]:
+        """Build one Display per *enabled* record, and take the persisted default.
+
+        A disabled display is deliberately not built: it keeps its settings on disk but
+        costs no sync loop, no MQTT connection and no app task.
+        """
+        if self.registry is None:
+            raise LookupError("no registry attached")
+        self._displays.clear()
+        for rec in self.registry.enabled():
+            self.build_from(rec)
+        if not self._displays:
+            raise LookupError("the registry lists no enabled displays")
+        # The default is whatever the user chose and we persisted — never inferred.
+        wanted = self.registry.default_id
+        self._default_id = wanted if wanted in self._displays else next(iter(self._displays))
+        return self.all()
+
     def all(self) -> list[Display]:
         return list(self._displays.values())
 
@@ -151,6 +193,15 @@ class DisplayManager:
         if not display_id:
             return None
         return self._displays.get(str(display_id))
+
+    def remove(self, display_id: str) -> Display | None:
+        """Drop a display from the running set. The caller stops it first — this only
+        forgets it. Never leaves the default pointing at a display that is gone."""
+        d = self._displays.pop(str(display_id), None)
+        if d is not None and self._default_id == display_id and self._displays:
+            self._default_id = next(iter(self._displays))
+            log.info("default display was removed; it is now %r", self._default_id)
+        return d
 
     # -- the default is a CHOICE, never an inference ---------------------------
     @property
@@ -174,8 +225,25 @@ class DisplayManager:
         if display_id not in self._displays:
             raise KeyError(display_id)
         self._default_id = display_id
+        if self.registry is not None:      # a choice this deliberate must survive a restart
+            self.registry.set_default(display_id)
         log.info("default display is now %r", display_id)
         return self._displays[display_id]
+
+    def adopt_default(self, display_id: str) -> None:
+        """Follow the registry's stored default, without writing it back. Used after a
+        removal, where the registry has already picked the survivor — the two must not
+        pick differently, or the runtime would drive a different wall from the one the
+        file says is the default."""
+        if display_id in self._displays:
+            self._default_id = display_id
+
+    def status(self) -> dict:
+        """Everything the UI's display switcher needs, in registry order."""
+        return {
+            "default": self.default_id,
+            "displays": [d.status() for d in self.all()],
+        }
 
     # -- the resolution seam ---------------------------------------------------
     def current(self, request=None) -> Display:

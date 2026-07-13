@@ -255,13 +255,20 @@ def default_data_dir() -> Path:
 class Config:
     """Loads, merges and persists companion configuration."""
 
-    def __init__(self, data_dir: Path | None = None):
+    def __init__(self, data_dir: Path | None = None, *, gateway_url: str = ""):
         # data_dir still holds app_settings.json + uploaded apps; the companion
         # config itself is never written there (or anywhere).
         self.data_dir = Path(data_dir) if data_dir else default_data_dir()
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._synced: dict = {}     # values pulled from the gateway at runtime
+        # A display's gateway URL IS its identity, so it outranks even the env var —
+        # otherwise GATEWAY_URL would drag every display onto the same gateway and the
+        # second wall would quietly drive the first. Blank means "no display registry
+        # in play": fall through to the env/add-on value, which is the single-display
+        # case and every existing install.
+        self._identity: dict = ({"transport": {"gateway_url": gateway_url.strip()}}
+                                if str(gateway_url or "").strip() else {})
         # Developer mode (env-gated). When on, the UI exposes a dev menu that can
         # toggle a "simulation" transport (nothing reaches the display) and, while
         # simulating, override the grid geometry for layout testing.
@@ -290,11 +297,14 @@ class Config:
         self._mcp = bool(self._effective["mcp"]["enabled"])
 
     def _recompute(self) -> dict:
-        # defaults <- gateway sync <- add-on options <- env. Env stays on top so a
-        # hand-run container can override anything, add-on or not.
+        # defaults <- gateway sync <- add-on options <- env <- this display's identity.
+        # Env stays above the add-on so a hand-run container can override anything; the
+        # display's own gateway_url sits above even that, because it is not a preference
+        # — it is which wall this object IS.
         merged = _deep_merge(DEFAULTS, self._synced)
         merged = _deep_merge(merged, _addon_overrides())
-        return _deep_merge(merged, _env_overrides())
+        merged = _deep_merge(merged, _env_overrides())
+        return _deep_merge(merged, self._identity)
 
     # -- access -------------------------------------------------------------
     @property

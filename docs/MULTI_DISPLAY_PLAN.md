@@ -106,17 +106,55 @@ Two things deliberately still resolve to the default and want a decision in Phas
 the **UI chrome language** (level 2 of the uilang chain reads a settings store — which
 display's?) and the **MCP/Vestaboard** surfaces (Phase 3 gives them an explicit display).
 
-### Phase 1 — storage and identity
+### Phase 1 — storage and identity ✅ DONE
 
 - `data/displays/<id>/app_settings.json` per display; `data/globals.json` for the
   shared credentials. Migration on first boot: an existing `app_settings.json` becomes
-  display `default` (named from the gateway's product string), credentials lifted out.
-- `data/displays.json`: the registry (`id`, `name`, `gateway_url`, `enabled`, `order`).
+  display `default`, credentials lifted out.
+- `data/displays.json`: the registry (`id`, `name`, `gateway_url`, `enabled`, `order`,
+  and the persisted `default_display`).
 - `GATEWAY_URL` env / `gateway_url` add-on option stays, and *seeds* display `default`
   when the registry is empty — so an existing install upgrades with zero config and
-  the add-on's single required option keeps working. Adding displays 2..n is a UI job.
+  the add-on's single required option keeps working.
 - Per-display uploaded apps? **No.** Uploads stay shared (`data/apps/`); which apps are
   *installed* is per display. Otherwise the same zip lives twice.
+
+**Landed.** `registry.py` holds `DisplayRecord` + `DisplayRegistry` + the migration;
+`plugin_settings.py` gains `SharedSettings` (globals.json) and a per-display settings
+path. `DisplayManager.load_registry()` builds one Display per *enabled* record — a
+disabled one keeps its settings but costs no sync loop, no MQTT device and no app task.
+
+**The shared/per-display split** (chosen deliberately): only credentials are shared —
+`weather_api_key`, `yt_api_key`, `weather_provider`. Location, timezone, language, loop
+delay, installed apps, playlists, triggers and every per-app setting belong to the wall.
+The kitchen may legitimately show a different city from the office; nobody should have
+to paste the same API key twice.
+
+**The migration does not destroy anything.** The old `app_settings.json` is *copied*,
+never moved — this is one-way, and a 1.x companion cannot read the new layout, so the
+one unforgivable bug would be losing the only copy of settings someone spent an evening
+building. It is idempotent, and seeding globals.json fills blanks only.
+
+**The add-on option still owns display `default`.** `GATEWAY_URL` / the add-on's
+`gateway_url` is re-adopted on every boot (`adopt_env_gateway`), because that
+Configuration tab is where a Home Assistant user has always set their gateway: if the
+registry silently outranked it, someone correcting a typo'd IP there would watch nothing
+happen and have no way to tell why. Displays 2..n are the registry's (and the UI's).
+
+A display's `gateway_url` outranks even the env inside its own `Config`, because it is
+not a preference — it is *which wall this object is*. Otherwise `GATEWAY_URL` would drag
+every display onto one gateway and the second wall would drive the first.
+
+**Adding a display brings it up immediately** — no restart. `POST /api/displays` builds
+it and starts its runtime; `DELETE` stops it and forgets it, leaving its settings on
+disk so re-adding the same id gets its playlists back. Registry API: `GET /api/displays`,
+`POST /api/displays`, `PATCH /api/displays/<id>`, `DELETE /api/displays/<id>`,
+`POST /api/displays/<id>/default`.
+
+Re-pointing a *running* display at a different gateway is the one thing still deferred to
+a restart: the settings mirror, the HA device and the heartbeat are all bound to the old
+URL, and swapping it underneath them is how you mirror one wall's playlists onto
+another's box.
 
 ### Phase 2 — routing and the switcher
 

@@ -24,15 +24,16 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import __version__, gwproxy, helpers, mcp_server, renderer, uilang, vestaboard, weather
-from .config import Config, addon_option
+from .config import Config, addon_option, default_data_dir
 from .display import DisplayManager
 from .engine import DisplayController
 from .gateway import (addon_public_url, build_sync_patch, detect_local_ip,
                       fetch_gateway_config, fetch_gateway_settings,
                       post_companion, push_gateway_settings, supports_settings)
 from .homeassistant import HomeAssistant
-from .plugin_settings import PluginSettings
+from .plugin_settings import PluginSettings, SharedSettings
 from .plugins import PluginRuntime
+from .registry import DisplayRegistry
 from .scheduler import Scheduler
 from .state import DisplayState
 
@@ -67,19 +68,37 @@ logging.getLogger("uvicorn.access").addFilter(_SuppressStatePolling())
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
 
-# One companion, N displays (docs/MULTI_DISPLAY_PLAN.md). Phase 0 builds exactly one
-# and every existing URL resolves to it, so nothing about the API changes — what moves
-# is OWNERSHIP: a Display now owns the geometry, the settings store, the app loop and
-# the HA device that used to be module-level globals here. displays.current(request) is
-# the one place that decides which wall an endpoint is talking to.
-displays = DisplayManager(APPS_DIR)
-_default = displays.build_default()
+# One companion, N displays (docs/MULTI_DISPLAY_PLAN.md).
+#
+# Phase 0 gave a Display ownership of what used to be module globals here: the geometry,
+# the settings store, the app loop, the HA device. Phase 1 gives the SET of them an
+# identity on disk:
+#
+#   data/displays.json                    which walls exist; which one is the default
+#   data/displays/<id>/app_settings.json  one settings store per wall
+#   data/globals.json                     the credentials they all share
+#
+# The registry seeds itself from the GATEWAY_URL the companion was already configured
+# with, so an existing install upgrades with no configuration at all and the add-on's
+# one required option keeps meaning what it meant.
+DATA_DIR = default_data_dir()
+_seed_url = (Config(DATA_DIR).transport.get("gateway_url") or "").strip()
+registry = DisplayRegistry(DATA_DIR).ensure(gateway_url=_seed_url)
+# GATEWAY_URL / the add-on's gateway_url option keeps owning display `default`: it is
+# where a Home Assistant user has always set their gateway, and someone fixing a typo'd
+# IP on the Configuration tab must not find that the registry silently ignored them.
+registry.adopt_env_gateway(_seed_url)
+shared_settings = SharedSettings(DATA_DIR)
+
+displays = DisplayManager(APPS_DIR, registry=registry, shared=shared_settings, data_dir=DATA_DIR)
+displays.load_registry()
+_default = displays.default
 
 # Names kept for the module-level consumers that are not per-request: the lifespan, the
 # background loops, and the import-time wiring below (an ASGI app cannot be mounted
 # after startup). They are the DEFAULT display's objects -- the same instances the
 # manager hands out -- so patching one patches both, and there is a single source of
-# truth while there is a single display.
+# truth for the display the display-less surfaces mean.
 config = _default.config
 state = _default.state
 controller = _default.controller
@@ -379,81 +398,72 @@ async def _verify_reachable(companion_url: str):
         companion_url)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Hard requirement: without a gateway there is nothing to drive. Refuse to
-    # start (rather than silently retrying a phantom host). __main__.py catches
-    # this earlier with a friendlier message; this also covers `uvicorn app.main:app`.
-    if not (config.transport.get("gateway_url") or "").strip():
-        raise RuntimeError(
-            "GATEWAY_URL is not set. Set it to your SplitFlapGateway's URL "
-            "(e.g. GATEWAY_URL=http://192.168.1.50) and restart."
-        )
-    log.info("SplitFlapGatewayCompanion v%s starting (transport=REST %s, grid=%sx%s)",
-             __version__, config.transport.get("gateway_url"),
-             config.grid["rows"], config.grid["cols"])
-    await controller.start()
+# The background tasks each display owns (heartbeat, HA, settings flush), by display id.
+# Module-level because a display can now be added at RUNTIME, not just at boot: the
+# /api/displays route needs somewhere to hand its tasks so shutdown can still stop them.
+_display_tasks: dict[str, list] = {}
+_companion_url: str = ""
+
+
+async def start_display(d, companion_url: str = "") -> list:
+    """Bring ONE display up, and return the background tasks it owns.
+
+    Everything in here is per-wall: its gateway's geometry, its settings mirror, its
+    app loop, its Home Assistant device, its heartbeat. Two displays run two of each,
+    and neither may touch the other's.
+    """
+    tasks: list = []
+    cfg, ctl, plg = d.config, d.controller, d.plugins
+    url = d.gateway_url
+    log.info("display %r starting (gateway=%s, grid=%sx%s)",
+             d.id, url or "none", cfg.grid["rows"], cfg.grid["cols"])
+
+    await ctl.start()
     gw_ha = None
-    if config.effective.get("sync_from_gateway") and config.transport.get("gateway_url"):
-        res = await do_gateway_sync(_default)
+    if cfg.effective.get("sync_from_gateway") and url:
+        res = await do_gateway_sync(d)
         if res.get("ok"):
-            log.info("synced config from gateway: %s", res.get("applied"))
+            log.info("display %r synced config from gateway: %s", d.id, res.get("applied"))
             gw_ha = res.get("gateway", {}).get("haEnabled")
         else:
-            log.info("gateway sync skipped at startup: %s", res.get("error"))
+            log.info("display %r gateway sync skipped at startup: %s", d.id, res.get("error"))
+
     # Settings storage (mirror / gateway-only) — before plugins.load() so a list of
-    # installed apps restored from the gateway drives what gets loaded.
-    await setup_settings_sync(_default)
-    plugins.load()
-    log.info("loaded %d app plugins", len(plugins.app_list()))
-    scheduler.start()
+    # installed apps restored from THIS gateway drives what gets loaded for it.
+    await setup_settings_sync(d)
+    plg.load()
+    log.info("display %r loaded %d app plugins", d.id, len(plg.app_list()))
+    d.scheduler.start()
 
     # Pick up whatever was playing before we went down. After plugins.load(), because an
     # app has to exist before it can be resumed; before the heartbeat, so the status the
     # gateway is told is the one we are actually in. Recording is wired here too — the
     # engine is what knows when the driver changes.
-    _default.controller.attach_persist(
-        lambda doc, _d=_default: _remember_driver(doc, _d))
-    await resume_last_run(_default)
+    ctl.attach_persist(lambda doc, _d=d: _remember_driver(doc, _d))
+    await resume_last_run(d)
 
     # Home Assistant: "auto" follows the gateway's haEnabled; true/false force it.
     # Started in the background so a slow/unreachable broker never delays startup.
-    ha_mode = config.effective.get("ha", {}).get("enabled", "auto")
+    ha_mode = cfg.effective.get("ha", {}).get("enabled", "auto")
     ha_on = ha_mode is True if isinstance(ha_mode, bool) else bool(gw_ha)
-    # Register with the gateway (v3.0) + status heartbeat, all in the background
-    # so an unreachable gateway never delays startup.
-    gw = config.transport.get("gateway_url", "")
-    companion_url = await resolve_companion_url()
-    tasks = []
     if ha_on:
-        log.info("Home Assistant integration enabled")
-        # Keep a strong reference (a bare create_task() can be GC'd mid-await,
-        # and its exception would go unretrieved) and cancel it at shutdown.
-        tasks.append(asyncio.create_task(ha.start()))
-    if gw and companion_url:
-        tasks.append(asyncio.create_task(_companion_heartbeat(gw, companion_url, _default)))
-        # If we auto-detected our URL, verify it's actually reachable. Skipped as an
-        # add-on: Supervisor already told us the host's address and our published port,
-        # and probing it from inside the container proves nothing about the LAN (and its
-        # "launch with python -m app" advice would be nonsense there).
-        if not (config.effective.get("companion_url") or "").strip() \
-                and not os.environ.get("SUPERVISOR_TOKEN"):
-            tasks.append(asyncio.create_task(_verify_reachable(companion_url)))
-    # Retry pending settings pushes if the gateway was briefly unreachable.
-    tasks.append(asyncio.create_task(_settings_flush_loop(_default)))
+        log.info("display %r: Home Assistant integration enabled", d.id)
+        # Keep a strong reference (a bare create_task() can be GC'd mid-await, and its
+        # exception would go unretrieved) and cancel it at shutdown.
+        tasks.append(asyncio.create_task(d.ha.start()))
+    if url and companion_url:
+        tasks.append(asyncio.create_task(_companion_heartbeat(url, companion_url, d)))
+    # Retry pending settings pushes if this gateway was briefly unreachable.
+    tasks.append(asyncio.create_task(_settings_flush_loop(d)))
+    return tasks
 
-    # Mounting an MCP app disables its own lifespan, so the host owns its session
-    # manager — without this the first /mcp request fails. Cheap, and harmless when
-    # the layer is off (the guard 404s before anything reaches it).
-    async with mcp.session_manager.run():
-        yield
 
-    # Flush any pending settings to the gateway before shutting down.
+async def stop_display(d, tasks: list) -> None:
+    """Take ONE display down: flush what it owes its gateway, then unwind."""
     try:
-        await asyncio.to_thread(plugin_settings.flush)
+        await asyncio.to_thread(d.settings.flush)
     except Exception:
         pass
-    # Deregister on shutdown; cancel background tasks and let them unwind.
     for t in tasks:
         t.cancel()
     for t in tasks:
@@ -461,15 +471,57 @@ async def lifespan(app: FastAPI):
             await t
         except (asyncio.CancelledError, Exception):
             pass
-    if gw and companion_url:
+    if d.gateway_url:
         try:
-            await post_companion(gw, url="")
-            log.info("companion deregistered from gateway")
+            await post_companion(d.gateway_url, url="")
+            log.info("companion deregistered from display %r", d.id)
         except Exception:
             pass
-    await ha.stop()
-    await scheduler.stop()
-    await controller.stop()
+    await d.ha.stop()
+    await d.scheduler.stop()
+    await d.controller.stop()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Hard requirement: without a gateway there is nothing to drive. Refuse to
+    # start (rather than silently retrying a phantom host). __main__.py catches
+    # this earlier with a friendlier message; this also covers `uvicorn app.main:app`.
+    # Checked on the DEFAULT display: it is the one an unconfigured install has, and
+    # the one every display-less URL resolves to.
+    if not _default.gateway_url:
+        raise RuntimeError(
+            "GATEWAY_URL is not set. Set it to your SplitFlapGateway's URL "
+            "(e.g. GATEWAY_URL=http://192.168.1.50) and restart."
+        )
+    log.info("SplitFlapGatewayCompanion v%s starting (%d display(s), default=%r)",
+             __version__, len(displays.all()), displays.default_id)
+
+    global _companion_url
+    _companion_url = await resolve_companion_url()
+    companion_url = _companion_url
+    for d in displays.all():
+        _display_tasks[d.id] = await start_display(d, companion_url)
+
+    # If we auto-detected our URL, verify it's actually reachable. Once, not per display
+    # — it is the same companion either way. Skipped as an add-on: Supervisor already
+    # told us the host's address and our published port, and probing it from inside the
+    # container proves nothing about the LAN.
+    verify: list = []
+    if companion_url and not (config.effective.get("companion_url") or "").strip() \
+            and not os.environ.get("SUPERVISOR_TOKEN"):
+        verify.append(asyncio.create_task(_verify_reachable(companion_url)))
+
+    # Mounting an MCP app disables its own lifespan, so the host owns its session
+    # manager — without this the first /mcp request fails. Cheap, and harmless when
+    # the layer is off (the guard 404s before anything reaches it).
+    async with mcp.session_manager.run():
+        yield
+
+    for t in verify:
+        t.cancel()
+    for d in displays.all():
+        await stop_display(d, _display_tasks.get(d.id, []))
 
 
 app = FastAPI(title="SplitFlapGatewayCompanion", version=__version__, lifespan=lifespan)
@@ -544,12 +596,132 @@ class TriggersPatch(BaseModel):
     triggers_enabled: bool | None = None
 
 
+class DisplayCreate(BaseModel):
+    name: str
+    gateway_url: str
+    id: str | None = None
+
+
+class DisplayPatch(BaseModel):
+    name: str | None = None
+    gateway_url: str | None = None
+    enabled: bool | None = None
+    order: int | None = None
+
+
 # ---------------------------------------------------------------------------
 # API
 # ---------------------------------------------------------------------------
 @app.get("/api/health")
 async def health():
     return {"ok": True, "version": __version__}
+
+
+# ---------------------------------------------------------------------------
+# Displays — the registry (Phase 1). These are the only routes that are ABOUT the
+# set of displays rather than about one of them, so they talk to the manager and
+# the registry directly instead of resolving through display_for().
+# ---------------------------------------------------------------------------
+@app.get("/api/displays")
+async def list_displays():
+    """Every wall we drive, plus which one is the default. The UI's switcher reads this;
+    so does anything that wants to address a display explicitly."""
+    out = displays.status()
+    known = {d["id"] for d in out["displays"]}
+    # Registered but disabled displays have no runtime object — say so rather than
+    # hiding them, or the UI could not offer to turn one back on.
+    for rec in registry.all():
+        if rec.id not in known:
+            out["displays"].append({
+                "id": rec.id, "name": rec.name, "gateway_url": rec.gateway_url,
+                "enabled": False, "grid": None, "module_count": 0,
+                "active_app": None, "active_playlist": None,
+            })
+    for d in out["displays"]:
+        d.setdefault("enabled", True)
+    return out
+
+
+@app.post("/api/displays")
+async def add_display(body: DisplayCreate):
+    """Register a second gateway — and bring it up now, not on the next restart.
+
+    Adding a wall you then cannot use until you restart the add-on is a poor trade, and
+    everything a display needs to start is already per-display (Phase 0). If its gateway
+    happens to be unreachable, it comes up anyway and its heartbeat keeps trying, which
+    is exactly what the first display does.
+    """
+    url = (body.gateway_url or "").strip()
+    if not url:
+        raise HTTPException(400, "gateway_url is required")
+    if any(r.gateway_url == url for r in registry.all()):
+        raise HTTPException(409, f"a display already points at {url}")
+
+    rec = registry.add(name=body.name, gateway_url=url, display_id=body.id or "")
+    d = displays.build_from(rec)
+    _display_tasks[d.id] = await start_display(d, _companion_url)
+    return {"ok": True, "display": rec.to_dict(), "status": d.status()}
+
+
+@app.patch("/api/displays/{display_id}")
+async def patch_display(display_id: str, body: DisplayPatch):
+    try:
+        rec = registry.update(display_id, **body.model_dump(exclude_none=True))
+    except KeyError:
+        raise HTTPException(404, f"no such display: {display_id}")
+
+    live = displays.get(display_id)
+    if live is not None and body.name:
+        live.name = rec.name
+
+    # Enabling/disabling starts and stops the wall's whole runtime — its app loop,
+    # settings mirror, HA device and heartbeat.
+    if body.enabled is True and live is None:
+        d = displays.build_from(rec)
+        _display_tasks[d.id] = await start_display(d, _companion_url)
+    elif body.enabled is False and live is not None:
+        await stop_display(live, _display_tasks.pop(display_id, []))
+        displays.remove(display_id)
+
+    # Re-pointing a running display at a different gateway is the one thing we don't do
+    # in place: the settings mirror, the HA device and the heartbeat are all bound to the
+    # old URL, and swapping it underneath them is how you end up mirroring one wall's
+    # playlists onto another's box.
+    restart = body.gateway_url is not None and live is not None
+    return {"ok": True, "display": rec.to_dict(), "restart_required": restart}
+
+
+@app.delete("/api/displays/{display_id}")
+async def remove_display(display_id: str):
+    """Deregister a wall. Its settings directory is deliberately left on disk: removing
+    a display should not silently destroy the playlists and triggers built for it."""
+    try:
+        rec = registry.remove(display_id)
+    except KeyError:
+        raise HTTPException(404, f"no such display: {display_id}")
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+
+    live = displays.get(display_id)
+    if live is not None:
+        await stop_display(live, _display_tasks.pop(display_id, []))
+        displays.remove(display_id)
+    # The registry decides which display is the default; keep the runtime in step.
+    displays.adopt_default(registry.default_id)
+    return {"ok": True, "removed": rec.to_dict()}
+
+
+@app.post("/api/displays/{display_id}/default")
+async def make_default(display_id: str):
+    """Choose which display the display-less surfaces mean: the bare /api/... routes,
+    /local-api/message (a Vestaboard client sends no display id), an MCP call with no
+    display argument, an existing HACS entry. A choice, never an inference — and it is
+    persisted, so a restart does not quietly hand it back."""
+    try:
+        displays.set_default(display_id)
+    except KeyError:
+        raise HTTPException(404, f"no such display: {display_id}")
+    return {"ok": True, "default": displays.default_id}
 
 
 @app.get("/api/current_state")
