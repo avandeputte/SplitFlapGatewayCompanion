@@ -769,9 +769,9 @@ async def apps_save_settings(app_id: str, patch: AppSettingsPatch):
 
 
 @app.get("/api/global-settings")
-async def global_settings_get():
+async def global_settings_get(request: Request):
     """Shared settings apps rely on (weather_api_key, timezone, location, …)."""
-    return plugins.global_settings_schema()
+    return plugins.global_settings_schema(lang=_ui_lang(request))
 
 
 @app.post("/api/global-settings")

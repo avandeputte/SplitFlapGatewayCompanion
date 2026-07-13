@@ -51,6 +51,8 @@ keys |= {
     "Override the global Language for this app only.",
     "Override the global Location for this app only (place search).",
     "Also uses global settings: %s — set these under Global settings.",
+    # Assembled server-side in global_settings_schema (the composed note is no key)
+    "Used by %s",
     "Used by this app (auto-detected — not in the app's manifest)",
     "On", "Off", "Yes", "No",
     # gateway fallback tab labels (GW_TABS_FALLBACK + what 3.4 advertises)
@@ -66,6 +68,29 @@ for mf in (ROOT / "apps").glob("*/manifest.json"):
     except Exception:
         pass
 keys |= {c[:1].upper() + c[1:] for c in cats if c}
+
+# Manifest-declared settings labels/notes/placeholders and their option labels: the
+# settings form renders every one of them through t(), so they belong in the chrome
+# catalog. Doing it here covers the whole vendored library at once; a third-party app
+# can still override any of them from its own i18n/<lang>.json "settings" map.
+for mf in (ROOT / "apps").glob("*/manifest.json"):
+    try:
+        m = json.loads(mf.read_text("utf-8"))
+    except Exception:
+        continue
+    for s in m.get("settings") or []:
+        if not isinstance(s, dict):
+            continue
+        for k in ("label", "note", "ph", "text"):
+            if s.get(k):
+                keys.add(s[k])
+        for o in s.get("options") or []:
+            if isinstance(o, dict) and o.get("label"):
+                keys.add(str(o["label"]))
+        it = s.get("inline_toggle") or {}
+        for o in it.get("options") or []:
+            if isinstance(o, dict) and o.get("label"):
+                keys.add(str(o["label"]))
 
 # A chrome string worth translating contains letters; bare numbers,
 # separators and selector-ish fragments are extraction noise or non-language.

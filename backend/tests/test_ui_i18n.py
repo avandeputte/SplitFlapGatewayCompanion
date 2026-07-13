@@ -133,22 +133,63 @@ def test_language_catalogs_are_subsets_of_en():
             assert k.count("%s") == v.count("%s"), (f.name, k)
 
 
-def test_fr_de_es_cover_the_translatable_surface():
-    """The intentionally-untranslated keys are language self-names and brand
-    names; everything else must be covered in the shipped catalogs."""
-    en = set(json.loads((I18N / "en.json").read_text("utf-8")))
-    brands = {"Open-Meteo", "OpenWeather", "QWeather", "WeatherAPI.com", "Companion"}
+# Left in English deliberately: product names, unit symbols/codes, and the language
+# self-names in the Language dropdown (a French speaker still picks "Deutsch").
+DO_NOT_TRANSLATE = {
+    "Open-Meteo", "OpenWeather", "QWeather", "WeatherAPI.com", "Companion",
+    "FR24", "FlightAware", "AirLabs*", "AStack*", "OpenSky*",
+    "Aviationstack API Key", "AirLabs API Key", "FlightAware AeroAPI Key",
+    "FR24 RapidAPI Host", "FR24 RapidAPI Key", "BirdNET-Pi Host",
+    "OpenSky Client ID (optional; leave blank for free API)",
+    "OpenSky Client Secret (optional; higher limits with free account)",
+    "C", "F", "K", "KM", "MI", "NM", "KT", "KMH", "MPH", "Flight Level",
+    # Attribution wording the providers require verbatim.
+    "Powered by WeatherAPI.com", "Powered by QWeather",
+}
+
+
+def _translatable(en: set) -> set:
     selfnames = {k for k in en if "(" in k and any(
         n in k for n in ("English", "Français", "Deutsch", "Español", "Italiano",
                          "Português", "Nederlands", "Dansk", "Norsk", "Svenska",
                          "Suomi", "Íslenska", "Gaeilge", "Català", "Galego",
                          "Euskara", "Eesti", "Malay", "Swahili"))}
     selfnames |= {"Afrikaans", "Bahasa Indonesia"}
-    translatable = en - brands - selfnames
+    return en - DO_NOT_TRANSLATE - selfnames
+
+
+def test_fr_de_es_cover_the_translatable_surface():
+    """Everything a user reads must be covered — including the labels the apps
+    declare in their manifests, which the settings form renders through t()."""
+    en = set(json.loads((I18N / "en.json").read_text("utf-8")))
     for code in ("fr", "de", "es"):
         cat = set(json.loads((I18N / f"{code}.json").read_text("utf-8")))
-        missing = translatable - cat
+        missing = _translatable(en) - cat
         assert not missing, f"{code}.json missing: {sorted(missing)[:5]}"
+
+
+def test_manifest_settings_labels_are_in_the_catalog():
+    """The settings dialog was English because the manifest labels never reached
+    the catalog. Every declared label/note/option must be a key."""
+    en = set(json.loads((I18N / "en.json").read_text("utf-8")))
+    # A label with no letters ("1", "30") is a number, not language — the extractor
+    # skips those and so must this.
+    def wanted(s):
+        return s and any(ch.isalpha() for ch in s) and s not in en
+
+    missing = set()
+    for mf in sorted((ROOT / "apps").glob("*/manifest.json")):
+        m = json.loads(mf.read_text("utf-8"))
+        for s in m.get("settings") or []:
+            if not isinstance(s, dict):
+                continue
+            for k in ("label", "note", "ph"):
+                if wanted(s.get(k)):
+                    missing.add(s[k])
+            for o in s.get("options") or []:
+                if isinstance(o, dict) and wanted(str(o.get("label") or "")):
+                    missing.add(str(o["label"]))
+    assert not missing, f"run scripts/extract_ui_strings.py — missing: {sorted(missing)[:5]}"
 
 
 def test_server_side_ui_t_reads_the_same_catalogs():

@@ -719,7 +719,7 @@ async function openEntrySettings(entry) {
 }
 
 async function openGlobalSettings() {
-  const schema = await api("/api/global-settings");
+  const schema = await api(`/api/global-settings?lang=${LANG}`);
   const form = el("div", "gsettings");
   if (!schema.fields.length) {
     const p = el("p", "hint"); p.textContent = t("No global settings yet — install apps that use shared settings (weather, stocks, …).");

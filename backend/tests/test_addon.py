@@ -108,6 +108,32 @@ def test_ui_language_is_a_dropdown_of_the_real_languages(chan):
 
 
 @pytest.mark.parametrize("chan", CHANNEL_IDS)
+def test_home_assistant_is_optional_and_off_the_config_page(chan):
+    """As an add-on, the MQTT device follows the gateway's own Home Assistant switch
+    ("auto"), so the option is noise on the Configuration page. Keeping it OUT of
+    `options:` while leaving it optional in `schema:` parks it under HA's "unused
+    optional configuration options" — still settable, no longer in the way. Absent
+    must mean the app's own default, not a behaviour change."""
+    from app import config as cfg
+
+    addon = CHANNELS[chan]
+    assert "home_assistant" not in addon["options"]
+    assert addon["schema"]["home_assistant"] == "list(auto|true|false)?"
+    assert cfg.DEFAULTS["ha"]["enabled"] == "auto"
+
+
+def test_absent_home_assistant_option_changes_nothing(monkeypatch, tmp_path):
+    """The override tree must not carry an `ha` key when the option isn't set."""
+    from app import config as cfg
+
+    monkeypatch.setattr(cfg, "addon_options", lambda: {"gateway_url": "http://g"})
+    assert "ha" not in cfg._addon_overrides()
+    monkeypatch.setattr(cfg, "addon_options",
+                        lambda: {"gateway_url": "http://g", "home_assistant": "false"})
+    assert cfg._addon_overrides()["ha"] == {"enabled": False}
+
+
+@pytest.mark.parametrize("chan", CHANNEL_IDS)
 def test_every_option_is_actually_read_by_the_app(chan):
     """An option nothing reads is a switch that does nothing — worse than no switch."""
     from app import config as cfg

@@ -3,6 +3,24 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.3
+
+- **The settings dialogs are actually translated now.** Labels were, but the
+  descriptions under them were not — the server assembles each one ("…  ·  Used by
+  Weather, Dashboard"), and an assembled string is no catalog key, so it fell back
+  to English whole. Both halves are translated server-side now, app names included
+  ("Utilisé par Météo, Tableau de bord").
+- **App settings dialogs too**: the labels apps declare in their manifests
+  (Temperature Unit, Polling Rate, Countdown 1 Target…) are now in the catalogs —
+  about 170 more strings across fr/de/es.
+- **Fixed**: the weather app's settings printed a raw key
+  ("weatherapi_attribution_notice") where its attribution line should be. A notice
+  has no label, and the key was standing in for one.
+- The **Home Assistant** option moved off the Configuration page into Home
+  Assistant's "unused optional configuration options" — as an add-on it follows the
+  gateway's own Home Assistant switch, so it was noise. Still settable there if you
+  want to force it on or off.
+
 ## 1.9.0-beta.2
 
 - **The UI follows your Home Assistant language.** If your HA profile is in French,

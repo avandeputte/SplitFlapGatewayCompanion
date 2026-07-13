@@ -729,7 +729,12 @@ class PluginRuntime:
         def map_key(rk):
             return resolved.get(rk) or self._resolve_key(app_id, rk, False)
 
-        field = {"key": key, "label": setting.get("label", raw), "type": ftype}
+        # A notice is a block of prose whose content is `text`; it has no label. The
+        # key was being used as a stand-in when the manifest declared none, so the
+        # weather form literally printed "weatherapi_attribution_notice" at the user.
+        # Fall back to the key ONLY where a label is actually rendered as a label.
+        label = setting.get("label") or ("" if ftype == "notice" else raw)
+        field = {"key": key, "label": label, "type": ftype}
         if "options" in setting:
             field["options"] = setting["options"]
         for pk in _PASSTHROUGH:
@@ -872,13 +877,14 @@ class PluginRuntime:
 
     # -- global (shared) settings editor ----------------------------------
     def _global_usage(self, keys) -> dict[str, set[str]]:
-        """App names that USE each given global key — whether they declare it OR
+        """App IDS that USE each given global key — whether they declare it OR
         just read it in their code (settings.get). For the Global editor's
-        'Used by' note."""
+        'Used by' note. Ids, not names: the caller renders the name, which is
+        itself translated (Weather -> Météo)."""
         keys = set(keys)
         usage: dict[str, set[str]] = collections.defaultdict(set)
         for app_id, manifest in self._registry.items():
-            name = manifest.get("name", app_id)
+            name = app_id
             for st in manifest.get("settings", []):
                 if st.get("key") in keys:
                     usage[st["key"]].add(name)
@@ -911,23 +917,45 @@ class PluginRuntime:
             f.update(type="text", default=(default if isinstance(default, str) else ""))
         return f
 
-    def global_settings_schema(self) -> dict:
+    def global_settings_schema(self, lang=None) -> dict:
         """The built-in catalog of well-known reusable global settings — the ONLY
         settings shown in the Global editor. They render from the catalog (so a
         key looks right even if the declaring app isn't installed); a 'Used by'
-        note lists the installed apps that declare or read each one."""
+        note lists the installed apps that declare or read each one.
+
+        The note is ASSEMBLED here (catalog text + the app list), so it cannot be
+        translated by the client the way a plain label is — the composed string is
+        no catalog key. Both halves are therefore translated here, app names
+        included."""
+        from . import uilang
+
         comp_keys = {k for c in CATALOG for k in c.get("_composite", [])}
         usage = self._global_usage(CATALOG_KEYS | comp_keys)
         resolved = {c["key"]: c["key"] for c in CATALOG}
+        scan = self._scan()
         fields, values = [], {}
+
+        def app_name(app_id: str) -> str:
+            meta = self.app_meta_i18n(app_id, scan.get(app_id), lang) if lang else {}
+            return meta.get("name") or \
+                (self._registry.get(app_id) or {}).get("name", app_id)
+
         for c in CATALOG:
             f = self._field("", c, resolved)
+            f["label"] = uilang.ui_t(lang, f["label"])
             used_apps = set()
             for k in [c["key"], *c.get("_composite", [])]:
                 used_apps |= usage.get(k, set())
-            base = c.get("note", "")
-            used = ("Used by " + ", ".join(sorted(used_apps))) if used_apps else ""
+            base = uilang.ui_t(lang, c.get("note", "")) if c.get("note") else ""
+            used = (uilang.ui_t(lang, "Used by %s")
+                    .replace("%s", ", ".join(sorted(app_name(a) for a in used_apps)))
+                    if used_apps else "")
             f["note"] = "  ·  ".join(x for x in (base, used) if x)
+            for o in f.get("options") or []:
+                if isinstance(o, dict) and o.get("label"):
+                    o["label"] = uilang.ui_t(lang, o["label"])
+            if f.get("ph"):
+                f["ph"] = uilang.ui_t(lang, f["ph"])
             fields.append(f)
             if c.get("_composite"):
                 values[c["key"]] = self._composite_value(c["_composite"])

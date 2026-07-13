@@ -25,7 +25,7 @@
 # is no run script to do it. The app reads /data/options.json itself — see
 # config._addon_overrides() — which is what lets one image serve both worlds.
 name: SplitFlap Gateway Companion (Beta)
-version: "1.9.0-beta.2"
+version: "1.9.0-beta.3"
 slug: splitflap_companion_beta
 description: >-
   Prerelease. Drive a SplitFlap wall from Home Assistant — apps, playlists, schedules
@@ -71,7 +71,6 @@ ports_description:
 
 options:
   gateway_url: ""
-  home_assistant: auto
   vestaboard: false
   mcp: false
   ui_language: auto
@@ -85,7 +84,12 @@ schema:
   mqtt_password: password?
   # This add-on's own URL, registered with the gateway so it shows a "Companion" tab.
   companion_public_url: str?
-  home_assistant: list(auto|true|false)
+  # Optional, and deliberately NOT in `options:` above: with no default set,
+  # Home Assistant files it under "unused optional configuration options"
+  # instead of putting it on the page. Absent = the app's own default,
+  # "auto" — follow the gateway's Home Assistant switch. Set it only to
+  # force the MQTT device on or off against the gateway's wishes.
+  home_assistant: list(auto|true|false)?
   vestaboard: bool
   vestaboard_key: password?
   mcp: bool
