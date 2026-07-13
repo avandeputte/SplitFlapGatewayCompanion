@@ -77,11 +77,40 @@ the work is mostly discipline, not volume.
   `i18n_data.json` is already the home for translated display text (holidays live
   there today). These must respect the flap character set, so translations here stay
   A–Z where possible ("HORS LIGNE", "FEHLER").
-- **Settings catalog** (`catalog.py` labels + option labels, and manifest-declared
-  app settings): the API that serves the settings form gains a `lang` pass that maps
-  labels through the same catalog before returning JSON. App manifests may add
-  optional `label_<lang>` keys; absent ones fall back — third-party apps stay valid
-  unchanged, same contract philosophy as the `data_<lang>.json` sidecars.
+- **App-store metadata** (names, descriptions, settings labels) — **not in
+  `manifest.json`**, for three reasons. First, compatibility is load-bearing: the
+  manifest contract is "drops into splitflap-os unchanged," and splitflap-os reads
+  `manifest.get("description", "")[:30]` — a plain string, sliced — so turning
+  `description` into a per-language object breaks it outright, and flat
+  `description_fr` keys mean editing 60 vendored manifests × N languages, churn that
+  collides with every future re-vendor. Second, translators shouldn't touch app code
+  to contribute a language. Third, we already have a working idiom: sidecars.
+
+  Two layers, same shape:
+  1. **Central catalog** `backend/app/app_i18n/<lang>.json` —
+     `{"<app_id>": {"name": …, "description": …, "settings": {"<key>": "<label>"}}}`.
+     Covers the whole vendored library in one reviewable file per language; coverage
+     is CI-measurable; vendored app folders stay byte-identical to upstream.
+  2. **Per-app sidecar** `apps/<id>/i18n/<lang>.json` (same shape, minus the app-id
+     level) — wins over the central file, travels inside an uploaded `.zip`, and is
+     validated at upload like the `data_<lang>.json` sidecars. This is how a
+     third-party app ships its own translations.
+
+  Lookup happens at the single serving point (the registry serializer,
+  `plugins.py` `"description": manifest.get(...)`): app sidecar → central catalog →
+  manifest English. The language is the **viewer's chrome language** — the store is
+  chrome, so it uses the same resolver as `spa_index`, not the content Language.
+  Names are translated too — "Weather" should read "Météo"/"Wetter"/"El Temps" in the
+  grid and the store, and the schema carries `name` for exactly that. The only names a
+  translator should leave alone are true brands ("Star Wars"), which is an editorial
+  call made per entry in the language file, not a mechanism limit. Anything that
+  *renders a name onto the flaps* (the NO DATA / OFFLINE fallback pages format
+  `manifest["name"].upper()` into the page) resolves against the **content Language**
+  — the wall is shared, unlike the store — and must stay within the flap character
+  set;
+  that's the one place a translated name can be overridden by a `flap_name` key if the
+  pretty name doesn't survive the reel. `catalog.py`'s global settings labels are
+  ordinary chrome strings and go through the Phase-1 UI catalog instead.
 
 ## Phase 3 — Home Assistant surfaces (native mechanisms, not ours)
 
