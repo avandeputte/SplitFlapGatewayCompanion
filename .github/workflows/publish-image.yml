@@ -72,21 +72,23 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Keep the registry tidy: after each publish, delete old versions of the image.
+      # There is deliberately NO prune step here. There was one, and it broke the stable
+      # channel twice — deleting :latest and the 1.8.0 image the stable add-on pulls.
       #
-      # min-versions-to-keep counts REGISTRY VERSIONS, not releases, and one multi-arch
-      # build is worth several: the index, one child manifest per architecture, and the
-      # attestation manifests buildx attaches. It was 6 — nominally "two builds" — which
-      # in practice retained barely ONE, and a beta publish deleted the stable image that
-      # :latest and the stable add-on point at. The channels must survive a publish of the
-      # OTHER channel, so keep enough versions for several builds of each.
-      - name: Prune old image versions
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: splitflap-gateway-companion
-          package-type: container
-          min-versions-to-keep: 30
-          delete-only-untagged-versions: false
+      # It cannot be made safe by tuning it:
+      #
+      #   * min-versions-to-keep counts REGISTRY VERSIONS (index + one child manifest per
+      #     arch + attestations ≈ 5 per multi-arch build) and keeps the N newest REGARDLESS
+      #     OF TAGS. Betas are published far more often than stables, so the keep-window
+      #     fills with betas and pushes the stable image off the end. Raising N only buys
+      #     a few more builds before the same deletion; the channel that is NOT being
+      #     rebuilt is always the one that dies.
+      #   * delete-only-untagged-versions is not a fix either: in a multi-arch image only
+      #     the INDEX carries the tag, so the per-arch child manifests are untagged and
+      #     the "safe" setting deletes the innards of the image the tag points at.
+      #
+      # The upside was tidiness; the downside is a broken install for everyone on the
+      # channel. GHCR storage for public packages is free. Old versions stay.
 
       # A publish that leaves a channel tag dangling is a broken install for anyone on it
       # (Supervisor pulls :<version> and gets nothing). Prove both channels still resolve
