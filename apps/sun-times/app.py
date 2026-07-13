@@ -29,6 +29,20 @@ def _latlon(settings, requests):
     return 42.3601, -71.0589
 
 
+def _row(left, right, cols):
+    """One full-width line: `left` flush left, `right` flush right.
+
+    format_lines centres each line horizontally, so a line that is ALREADY `cols` wide
+    passes through untouched — that is what pins these columns. The left part is trimmed
+    to make room, never the right: the number is the thing you are reading.
+    """
+    left, right = str(left), str(right)
+    if len(right) >= cols:
+        return right[:cols]
+    left = left[:cols - len(right) - 1]
+    return left + ' ' * (cols - len(left) - len(right)) + right
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import requests
     from datetime import datetime
@@ -40,8 +54,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     def u(k):                               # localized H/M duration suffix (Dutch U for uur, etc.)
         return i18n.unit(k) if i18n is not None else k
 
-    def line(label, value):                 # label trimmed to fit — never the time
-        return f'{label[:max(1, cols - len(value) - 1)]} {value}'
+    def line(label, value):                 # label left, time right — they line up
+        return _row(label, value, cols)
 
     def fmt_time(iso):                       # ISO is already the location's local time
         if not iso:

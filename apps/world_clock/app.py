@@ -1,3 +1,17 @@
+def _row(left, right, cols):
+    """One full-width line: `left` flush left, `right` flush right.
+
+    format_lines centres each line horizontally, so a line that is ALREADY `cols` wide
+    passes through untouched — that is what pins these columns. The left part is trimmed
+    to make room, never the right: the number is the thing you are reading.
+    """
+    left, right = str(left), str(right)
+    if len(right) >= cols:
+        return right[:cols]
+    left = left[:cols - len(right) - 1]
+    return left + ' ' * (cols - len(left) - len(right)) + right
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     from datetime import datetime
     import pytz
@@ -17,8 +31,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         else:
             t = now.strftime('%I:%M%p').lstrip('0')
         city = z.split('/')[-1].replace('_', ' ').upper()
-        avail = max(1, cols - len(t) - 1)
-        lines.append(f'{city[:avail]} {t}')
+        # City flush left, time flush right: the times line up in a column, which is
+        # the whole point of putting several clocks on a wall.
+        lines.append(_row(city, t, cols))
     if not lines:
         lines = ['NO VALID', 'TIMEZONES']
     # No bottom padding: format_lines centres what it is given. Filling the page here

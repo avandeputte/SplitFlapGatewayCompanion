@@ -1,3 +1,17 @@
+def _row(left, right, cols):
+    """One full-width line: `left` flush left, `right` flush right.
+
+    format_lines centres each line horizontally, so a line that is ALREADY `cols` wide
+    passes through untouched — that is what pins these columns. The left part is trimmed
+    to make room, never the right: the number is the thing you are reading.
+    """
+    left, right = str(left), str(right)
+    if len(right) >= cols:
+        return right[:cols]
+    left = left[:cols - len(right) - 1]
+    return left + ' ' * (cols - len(left) - len(right)) + right
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import yfinance as yf
 
@@ -8,7 +22,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     if not tickers:
         return [format_lines('STOCKS', t('NO TICKERS'), t('CONFIGURE'))]
     no_color = settings.get('disable_colors', 'no') == 'yes'
-    rows = get_rows()
+    rows, cols = get_rows(), get_cols()
 
     # Each ticker is quoted in its exchange's own currency (AAPL->USD, VOD.L->GBP,
     # SAP.DE->EUR); show that currency's symbol, not a single hardcoded one.
@@ -47,11 +61,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 cs = sym_for(cur)
                 sep = '' if cs != cur else ' '   # 3-letter-code fallback reads better spaced
                 icon = '' if no_color else ('🟩' if chg >= 0 else '🟥')
-                price_lines.append(f'{sym} {cs}{sep}{n(price, 2)}')
-                change_lines.append(f'{sym} {icon}{pct(chg)}')
+                # Ticker flush left, price flush right: prices line up in a column and
+                # you can read down them, which is what a list of stocks is for.
+                price_lines.append(_row(sym, f'{cs}{sep}{n(price, 2)}', cols))
+                change_lines.append(_row(sym, f'{icon}{pct(chg)}', cols))
             except Exception:
-                price_lines.append(f'{sym} ERR')
-                change_lines.append(f'{sym} ERR')
+                price_lines.append(_row(sym, 'ERR', cols))
+                change_lines.append(_row(sym, 'ERR', cols))
         # No padding: two tickers on a five-row wall are centred by format_lines.
         pages.append(format_lines(*price_lines))
         pages.append(format_lines(*change_lines))

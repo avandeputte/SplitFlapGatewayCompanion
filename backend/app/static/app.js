@@ -121,16 +121,20 @@ function glyph(ch) {
   return COLOR_CODES.includes(ch) ? "" : (ch || "");
 }
 
-function buildBoard(el, count, cols) {
+function buildBoard(board, count, cols) {
+  // Not named `el`: that is the global element-builder helper, and a parameter of the same
+  // name shadows it — harmless here only because nothing inside calls el(), which makes it
+  // a trap for whoever writes the next line rather than a bug today.
+  //
   // The board lays itself out from --cols: CSS derives one --flap size from it and the
   // width available, so a 15- (or 22-) wide wall fits a phone as well as a desk. See
   // .board / .flap in styles.css.
-  el.style.setProperty("--cols", cols);
-  el.innerHTML = "";
+  board.style.setProperty("--cols", cols);
+  board.innerHTML = "";
   for (let i = 0; i < count; i++) {
     const cell = document.createElement("div");
     cell.className = "flap";
-    el.appendChild(cell);
+    board.appendChild(cell);
   }
 }
 
@@ -1058,14 +1062,17 @@ let GW_SIG = "";     // what the nav currently shows — don't rebuild it for no
 let GW_TRIES = 0;
 
 async function setupGatewayTabs() {
-  // NB: not named `url` — that would shadow the global url() helper used just below.
-  let gwUrl = "", tabs = [];
+  // NB: named neither `url` nor `gwUrl` — both are global helpers used below, and a local
+  // of the same name shadows them. `gwUrl` did exactly that once: it was a STRING here, so
+  // the gwUrl() call below threw "gwUrl is not a function", the whole tab render aborted,
+  // and the gateway's tabs simply never appeared.
+  let gwAddr = "", tabs = [];
   try {
     const st = await api("/api/gateway/status");
-    gwUrl = st.url || "";
+    gwAddr = st.url || "";
     if (Array.isArray(st.tabs)) tabs = st.tabs;
   } catch {}
-  const base = gwUrl.replace(/\/$/, "");
+  const base = gwAddr.replace(/\/$/, "");
   const shown = tabs.length ? tabs : GW_TABS_FALLBACK;
 
   const sig = base + "|" + JSON.stringify(shown);

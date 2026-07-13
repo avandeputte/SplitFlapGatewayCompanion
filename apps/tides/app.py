@@ -1,6 +1,17 @@
 """Today's tide predictions for a NOAA station (keyless: NOAA CO-OPS)."""
 
 
+def _row(left, right, cols):
+    """One full-width line: `left` flush left, `right` flush right. format_lines centres
+    each line, so a line already `cols` wide passes through untouched — which is what makes
+    the heights line up in a column."""
+    left, right = str(left), str(right)
+    if len(right) >= cols:
+        return right[:cols]
+    left = left[:cols - len(right) - 1]
+    return left + ' ' * (cols - len(left) - len(right)) + right
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import requests
     from datetime import datetime
@@ -30,6 +41,22 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         preds = data.get('predictions') or []
         if not preds:
             return [format_lines(t('TIDES'), t('NO DATA'), t('CHECK STATION'))]
+        # Four rows or more: today's tides are a LIST, and a list belongs on one page.
+        # One tide per page meant waiting through four page turns to answer "when is high
+        # tide?" — a question the whole app exists to answer at a glance.
+        if rows >= 4:
+            lines = [t('TIDES')]
+            for p in preds[:rows - 1]:
+                raw = str(p.get('t', ''))
+                hhmm = fmt_time(raw.split(' ')[-1] if ' ' in raw else raw)
+                kind = t('HIGH') if p.get('type') == 'H' else t('LOW')
+                height = f"{p.get('v', '')}FT"
+                left = f'{kind} {hhmm}'
+                if len(left) + len(height) + 1 > cols:   # narrow wall: initial will do
+                    left = f'{kind[:1]} {hhmm}'
+                lines.append(_row(left, height, cols))
+            return [format_lines(*lines)]
+
         pages = []
         for p in preds[:6]:
             raw = str(p.get('t', ''))

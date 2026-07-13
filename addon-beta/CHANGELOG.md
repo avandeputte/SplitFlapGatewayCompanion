@@ -3,6 +3,26 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.11
+
+**Fixes the gateway tabs disappearing from the top bar** (a regression in beta.8). A local
+variable in the tab code was called `gwUrl`, and beta.8 added a global helper of the same
+name — the local shadowed it, so the call threw and the whole tab strip failed to render.
+A guard now checks every global helper for shadowing, which is what would have caught it;
+it found a third, latent one while it was at it.
+
+**Apps that lay out for the wall they are on.**
+
+- **Stocks**: ticker flush left, price flush right — the prices line up in a column and you
+  can read down them.
+- **World Clock** and **Sun Times**: same, city/label left and the time right.
+- **Tides**: the day's tides are a *list*, so on a 4+ row wall they are one page instead of
+  one page per tide. Heights line up in a column.
+- **Next Launch**: fits on one page on a tall wall, instead of splitting the rocket from its
+  mission across a page turn. A five-row wall also gets the launch time, in your timezone.
+- **Art Clock**: a taller pixel font on a 5-row wall, and it is now centred on any wall — it
+  used to be drawn raw at 3×15, so on any other geometry it sat in the top-left corner.
+
 ## 1.9.0-beta.10
 
 **Editing a playlist no longer means retyping its name.** The editor was an anonymous

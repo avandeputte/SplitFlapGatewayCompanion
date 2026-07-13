@@ -22,23 +22,46 @@ APP_JS = (Path(__file__).resolve().parents[1] / "app" / "static" / "app.js").rea
 # ---------------------------------------------------------------------------
 # 1. nothing may shadow t()
 # ---------------------------------------------------------------------------
-def test_nothing_shadows_the_translate_function():
-    """No callback parameter, const, let or var may be named `t`: t() is global, and a
-    shadow turns every t("...") inside that scope into a TypeError at runtime."""
+# Every global helper the SPA calls from inside other functions. A LOCAL of the same name
+# shadows it, and the call becomes "X is not a function" — at runtime, in one code path,
+# usually the one a unit test does not take.
+#
+# This has now bitten twice:
+#   t()     — shadowed in four callbacks; updateActiveUI only threw WHEN AN APP WAS
+#             RUNNING, so it passed every smoke test and killed init() in the field.
+#   gwUrl() — setupGatewayTabs had a local `let gwUrl = ""` (the gateway's address) long
+#             before gwUrl() existed. Adding the global silently turned the tab render
+#             into a TypeError and the gateway's tabs vanished from the nav.
+#
+# A test that asserts the SOURCE TEXT of the call site cannot see this — the text is
+# right there, and it still throws. Only a shadow check catches it.
+GLOBAL_HELPERS = ("t", "url", "gwUrl", "api", "post", "el")
+
+
+@pytest.mark.parametrize("name", GLOBAL_HELPERS)
+def test_nothing_shadows_a_global_helper(name):
     offenders = []
     patterns = [
-        (r"\(\s*t\s*\)\s*=>", "arrow param (t) =>"),
-        (r"\(\s*t\s*,", "arrow/function param (t, ...)"),
-        (r"function\s*\(\s*t\s*[,)]", "function (t)"),
-        (r"\b(?:const|let|var)\s+t\s*=", "local variable named t"),
+        (rf"\(\s*{name}\s*\)\s*=>", f"arrow param ({name}) =>"),
+        (rf"\(\s*{name}\s*,", f"arrow/function param ({name}, ...)"),
+        (rf"function\s*\(\s*{name}\s*[,)]", f"function ({name})"),
+        (rf"\b(?:const|let|var)\s+{name}\s*=", f"local variable named {name}"),
     ]
     for i, line in enumerate(APP_JS.splitlines(), 1):
-        if line.lstrip().startswith("//"):
+        stripped = line.lstrip()
+        if stripped.startswith("//") or stripped.startswith("*"):
             continue
         for pat, what in patterns:
-            if re.search(pat, line):
-                offenders.append(f"line {i}: {what} — {line.strip()[:70]}")
-    assert not offenders, "these shadow the translate function t():\n" + "\n".join(offenders)
+            m = re.search(pat, line)
+            if not m:
+                continue
+            # the global's own declaration is not a shadow of itself
+            if re.match(rf"\s*(?:const|let|var|async function|function)\s+{name}\b", line):
+                continue
+            offenders.append(f"line {i}: {what} — {stripped[:70]}")
+    assert not offenders, (
+        f"these shadow the global helper {name}(), which makes every {name}(...) call in "
+        f"that scope a TypeError at runtime:\n" + "\n".join(offenders))
 
 
 def test_the_running_app_badge_still_translates():
