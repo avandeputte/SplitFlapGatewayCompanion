@@ -15,10 +15,27 @@ the work is mostly discipline, not volume.
 
 ## Principles
 
-1. **One Language setting rules everything.** The UI follows the existing global
-   Language (`i18n_data.json` list) — no separate "UI language" knob unless a user asks.
-   Fallback chain everywhere: exact locale → base language → English. Same rule the
-   channel apps and fortunes already use, so the whole product degrades identically.
+1. **Chrome is per-viewer; content is per-display.** The flap content language must stay
+   a single server-side setting — the wall is shared hardware, and two browsers can't
+   each have it render in their own language. The UI chrome has no such constraint, so
+   it follows **the viewer's browser by default**, with three explicit overrides:
+
+   | Wins | Source | Set by | Scope |
+   |---|---|---|---|
+   | 1 | `?lang=fr` URL parameter | whoever crafts the link | that tab |
+   | 2 | the global **Language** setting, *when explicitly saved* | the user, in Settings | the install |
+   | 3 | `COMPANION_UI_LANGUAGE` env var / `ui_language` add-on option | the operator | the deployment |
+   | 4 | `Accept-Language` / `navigator.languages` | the browser | that viewer |
+
+   Blank means "pass to the next level": the Language setting only participates once the
+   user has actually saved one (the store persists only saved values, so "never touched"
+   is detectable — same blank-means-follow convention as the per-app Language override).
+   Whatever level wins, the resolved code then degrades exact locale → base language →
+   English, the same chain the channel apps and fortunes already use.
+
+   A French wall viewed from a German phone therefore shows German chrome over French
+   content until the owner saves a Language — which is correct: the setting describes
+   the display, the browser describes the reader.
 2. **No build step.** The SPA is vanilla JS served statically; i18n must be too: a JSON
    string catalog fetched at boot, not a framework.
 3. **English lives in the code.** The English string *is* the key
@@ -32,9 +49,14 @@ the work is mostly discipline, not volume.
 
 - `backend/app/static/i18n/<lang>.json`: flat `{"English string": "Übersetzung"}` maps.
 - A ~20-line `t(s, ...args)` helper in `app.js`; boot fetches the catalog for the
-  effective language (exact → base) and falls through to English on any miss. The
-  companion already stamps `window.__BASE__`; stamp `window.__LANG__` the same way from
-  `spa_index`, so the UI language is decided server-side with the same precedence rules.
+  effective language (exact → base) and falls through to English on any miss.
+- **Resolution happens in `spa_index`**, which already stamps `window.__BASE__` per
+  request: it also stamps `window.__LANG__` by walking the chain above — the `?lang=`
+  query param (the SPA index request carries it), the saved Language setting, the
+  `COMPANION_UI_LANGUAGE` env var (surfaced as an add-on option like every other env),
+  then the request's `Accept-Language` header, best-match against the offered list.
+  One resolver, server-side, so ingress, curl and the browser all agree; the client
+  never needs its own logic beyond reading `window.__LANG__`.
 - `index.html`: static strings get `data-i18n` attributes, translated in one DOM pass at
   boot (the file is 141 lines; there are ~14 such strings).
 - Interpolation via `t("Delete %s?", name)` — positional only, keep it dumb.
