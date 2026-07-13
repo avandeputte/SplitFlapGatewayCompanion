@@ -3,6 +3,31 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.14
+
+**Nothing shouts any more.** Every joke, quote, fortune and holiday name in the apps' data
+was stored in CAPITALS, because the old hardware had no lowercase flaps. All 21,561 strings
+across 12 languages are now written the way the words actually are — and a physical
+split-flap still renders exactly what it always did, because the companion folds the case
+for the walls that need it.
+
+    PHYSICAL WALL          MATRIX PORTAL
+    |  WHY DID THE  |      |  Why did the  |
+    | SCARECROW WIN?|      | scarecrow win?|
+
+German capitalises its nouns (*Was macht ein Pirat am Computer?*), French and Dutch do not,
+and a line that continues the sentence above it stays lowercase — the data is hand-wrapped
+to fit a 15-column wall, so a joke's second line is usually mid-sentence.
+
+**Fixes the live display showing mixed case wrongly.** A composed message's page was sent
+"raw", which also meant "a lowercase letter is a colour flap" — so the o, r and w of
+"Hello world" were being turned into orange, red and white flaps. Reading the board back
+through the Vestaboard API had the mirror-image bug.
+
+**New app: Forecast Ribbon.** The day's temperature as a colour bar chart — each column an
+hour, the bar's height how warm it gets, its colour the actual temperature. A cold morning
+is a low blue foothill; a warm afternoon a tall orange ridge. A sibling of Art Clock.
+
 ## 1.9.0-beta.13
 
 **The apps stopped shouting.** They no longer uppercase their own text — the companion
