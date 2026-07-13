@@ -3,6 +3,27 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.8
+
+**One companion, several displays.** Drive more than one gateway at once — each with its
+own geometry, apps, playlists, triggers and settings — and switch between them in the UI.
+
+- **Add displays** from the Tools menu (⚙ → Displays), or list them in the `gateway_url`
+  option separated by commas: `http://192.168.1.218,http://192.168.1.50`. The first is the
+  **default display**: the one Home Assistant, the Vestaboard API and anything else that
+  doesn't name a display will drive.
+- A **display switcher** appears in the header once you have more than one. Everything
+  follows it — the live preview, Compose, Playlists, Triggers, and the gateway's own tabs.
+- **Each wall gets its own Home Assistant device**, so its App/Playlist controls drive that
+  wall and not another.
+- Every setting belongs to a display and is stored on **that display's gateway**, so each
+  wall's settings can be recovered from its own box. A new display copies the global
+  settings from an existing one, so you don't retype an API key.
+
+**If you have one gateway, nothing changes.** The switcher stays hidden, every URL means
+what it meant, your Home Assistant entities keep their ids, and your existing settings are
+migrated across (the old file is kept as a backup, untouched).
+
 ## 1.9.0-beta.7
 
 Three apps that were laid out for a three-row wall, on a five-row one.
