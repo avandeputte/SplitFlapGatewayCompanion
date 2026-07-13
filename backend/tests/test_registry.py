@@ -1,18 +1,24 @@
 """Phase 1 of multi-display: the walls get an identity on disk.
 
     data/displays.json                    which walls exist; which one is the default
-    data/displays/<id>/app_settings.json  one settings store per wall
-    data/globals.json                     the credentials they all share
+    data/displays/<id>/app_settings.json  one settings store per wall, ENTIRELY its own
     data/app_settings.json                the pre-migration file, kept as a backup
+
+EVERY setting is per display, credentials included. That is forced, not chosen: the
+gateway is the BACKUP for its wall's settings (main.setup_settings_sync mirrors the whole
+doc onto it, and a rebuilt host restores from it), so anything held in a companion-local
+file shared across displays would have no gateway to live on and could never be recovered.
+The cost — entering an API key once per wall — is the price of every wall's settings being
+recoverable from its own box.
 
 What these pin, in rough order of how badly each would hurt to get wrong:
 
   * the migration DOES NOT DESTROY the old settings file — it is one-way, and someone's
     playlists and triggers are in there;
+  * NOTHING a display owns lives outside its own store, so its gateway can hold all of it;
   * an existing install upgrades with ZERO configuration (GATEWAY_URL still seeds it);
   * the add-on's gateway_url option still owns display `default`, so a user fixing a
     typo'd IP on the Configuration tab is not silently ignored;
-  * two displays share credentials but NOTHING else;
   * the default display is a stored choice that survives a restart.
 """
 import json
@@ -22,7 +28,7 @@ import pytest
 
 from app.config import Config
 from app.display import DisplayManager
-from app.plugin_settings import SHARED_KEYS, PluginSettings, SharedSettings
+from app.plugin_settings import PluginSettings
 from app.registry import DEFAULT_ID, DisplayRegistry, migrate_settings, slugify
 
 APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
@@ -66,17 +72,6 @@ def test_migration_copies_and_never_moves(legacy_data):
     assert json.loads(migrated.read_text()) == LEGACY
 
 
-def test_migration_lifts_the_credentials_into_globals(legacy_data):
-    migrate_settings(legacy_data)
-    glob = json.loads((legacy_data / "globals.json").read_text())
-    assert glob["weather_api_key"] == "SECRET-WEATHER"
-    assert glob["yt_api_key"] == "SECRET-YT"
-    assert glob["weather_provider"] == "weatherapi"
-    # …and only the credentials. A location is per wall: the kitchen may show home
-    # while the office shows the office.
-    assert "zip_code" not in glob and "timezone" not in glob
-
-
 def test_migration_is_idempotent(legacy_data):
     """It runs on every boot that finds no registry; running twice must not clobber a
     display's settings with the stale backup."""
@@ -91,14 +86,6 @@ def test_migration_is_idempotent(legacy_data):
 def test_a_fresh_install_has_nothing_to_migrate(tmp_path):
     assert migrate_settings(tmp_path) is False
     assert not (tmp_path / "displays").exists()
-
-
-def test_seeding_never_clobbers_a_key_already_set(legacy_data):
-    """seed() fills blanks. A key set deliberately (or recovered from a gateway) must
-    not be overwritten by an older display's copy of it."""
-    SharedSettings(legacy_data).set("weather_api_key", "THE-NEW-ONE")
-    migrate_settings(legacy_data)
-    assert SharedSettings(legacy_data).get("weather_api_key") == "THE-NEW-ONE"
 
 
 # ---------------------------------------------------------------------------
@@ -195,83 +182,77 @@ def test_slugify(name, expected):
 
 
 # ---------------------------------------------------------------------------
-# shared credentials, per-display everything-else
+# everything is per display, and everything can go to that display's gateway
 # ---------------------------------------------------------------------------
-def test_two_displays_share_credentials_and_nothing_else(tmp_path):
-    shared = SharedSettings(tmp_path)
-    kitchen = PluginSettings(tmp_path, display_id="kitchen", shared=shared)
-    office = PluginSettings(tmp_path, display_id="office", shared=shared)
+def test_migration_keeps_the_credentials_with_the_display(legacy_data):
+    """They are not lifted anywhere. The whole doc goes to display `default`, so the
+    whole doc can be mirrored to `default`'s gateway and restored from it."""
+    migrate_settings(legacy_data)
+    assert not (legacy_data / "globals.json").exists(), "a store with no gateway to live on"
 
-    # A credential is entered once and every wall has it.
-    kitchen.set("weather_api_key", "ABC123")
-    assert office.get("weather_api_key") == "ABC123"
+    doc = json.loads((legacy_data / "displays" / DEFAULT_ID / "app_settings.json").read_text())
+    assert doc["global"]["weather_api_key"] == "SECRET-WEATHER"
+    assert doc["global"]["weather_provider"] == "weatherapi"
 
-    # A location is not a credential: these walls are in different rooms.
+
+def test_two_displays_share_nothing_at_all(tmp_path):
+    kitchen = PluginSettings(tmp_path, display_id="kitchen")
+    office = PluginSettings(tmp_path, display_id="office")
+
+    # credentials included: each wall's key is its own, and rides to its own gateway
+    kitchen.set("weather_api_key", "KEY-A")
+    office.set("weather_api_key", "KEY-B")
+    assert kitchen.get("weather_api_key") == "KEY-A"
+    assert office.get("weather_api_key") == "KEY-B"
+
     kitchen.set("zip_code", "02118")
     office.set("zip_code", "10001")
     assert kitchen.get("zip_code") == "02118"
-    assert office.get("zip_code") == "10001"
 
-    # Installed apps, playlists and triggers are the display's own.
     kitchen.set_installed(["time", "weather"])
     office.set_installed(["stocks"])
     assert kitchen.installed_apps == ["time", "weather"]
     assert office.installed_apps == ["stocks"]
 
 
-def test_credentials_outlive_the_process(tmp_path):
-    SharedSettings(tmp_path).set("yt_api_key", "YT-KEY")
-    assert SharedSettings(tmp_path).get("yt_api_key") == "YT-KEY"
+def test_a_displays_whole_store_fits_in_its_gateway_blob(tmp_path):
+    """The point of the rule: snapshot() is what gets pushed to the gateway, so every
+    setting a display has must appear in it. A value that is not in here is a value that
+    cannot be backed up or restored."""
+    st = PluginSettings(tmp_path, display_id="kitchen")
+    st.update({"weather_api_key": "ABC123", "yt_api_key": "YT", "zip_code": "02118",
+               "weather_provider": "weatherapi"})
+    st.set_installed(["time"])
+
+    doc = st.snapshot()
+    assert doc["global"]["weather_api_key"] == "ABC123"
+    assert doc["global"]["yt_api_key"] == "YT"
+    assert doc["global"]["zip_code"] == "02118"
+    assert doc["global"]["weather_provider"] == "weatherapi"
+    assert doc["installed_apps"] == ["time"]
 
 
-def test_a_rotated_key_reaches_every_wall(tmp_path):
-    """Rotating a credential should fix every display at once, not one at a time."""
-    shared = SharedSettings(tmp_path)
-    a = PluginSettings(tmp_path, display_id="a", shared=shared)
-    b = PluginSettings(tmp_path, display_id="b", shared=shared)
-    a.set("weather_api_key", "OLD")
-    b.set("weather_api_key", "NEW")
-    assert a.get("weather_api_key") == "NEW"
+def test_a_gateway_restore_brings_a_displays_credentials_back(tmp_path):
+    """A rebuilt host restores each wall from its own gateway — the whole store, keys
+    and all. This is precisely what a shared globals.json would have broken."""
+    st = PluginSettings(tmp_path, display_id="kitchen")
+    st.restore_from_doc({"global": {"weather_api_key": "FROM-GATEWAY", "zip_code": "1000"},
+                         "apps": {}, "installed_apps": ["time"]})
+    assert st.get("weather_api_key") == "FROM-GATEWAY"
+    assert st.get("zip_code") == "1000"
+    assert st.installed_apps == ["time"]
+
+    # …and a second wall is untouched by it
+    assert PluginSettings(tmp_path, display_id="office").get("weather_api_key") == ""
 
 
 def test_each_display_writes_its_own_file(tmp_path):
-    shared = SharedSettings(tmp_path)
-    PluginSettings(tmp_path, display_id="kitchen", shared=shared).set("zip_code", "02118")
-    PluginSettings(tmp_path, display_id="office", shared=shared).set("zip_code", "10001")
+    PluginSettings(tmp_path, display_id="kitchen").set("zip_code", "02118")
+    PluginSettings(tmp_path, display_id="office").set("zip_code", "10001")
     assert (tmp_path / "displays" / "kitchen" / "app_settings.json").exists()
     assert (tmp_path / "displays" / "office" / "app_settings.json").exists()
     # the single-display path is untouched — it is the backup
     assert not (tmp_path / "app_settings.json").exists()
-
-
-def test_the_credentials_still_ride_along_to_the_gateway(tmp_path):
-    """Each gateway mirrors its display's settings blob, and the keys travel in it —
-    that is how a rebuilt host recovers them. Moving them to globals.json must not
-    quietly drop them from the wire format."""
-    shared = SharedSettings(tmp_path)
-    st = PluginSettings(tmp_path, display_id="kitchen", shared=shared)
-    st.set("weather_api_key", "ABC123")
-    assert st.snapshot()["global"]["weather_api_key"] == "ABC123"
-
-
-def test_a_gateway_restore_reseeds_the_shared_credentials(tmp_path):
-    """A fresh host restoring from its gateway is how the keys come back after a rebuild.
-    The other displays must get them too, rather than coming up asking for a key this
-    one just recovered."""
-    shared = SharedSettings(tmp_path)
-    st = PluginSettings(tmp_path, display_id="kitchen", shared=shared)
-    st.restore_from_doc({"global": {"weather_api_key": "FROM-GATEWAY"}, "apps": {}})
-
-    assert shared.get("weather_api_key") == "FROM-GATEWAY"
-    other = PluginSettings(tmp_path, display_id="office", shared=shared)
-    assert other.get("weather_api_key") == "FROM-GATEWAY"
-
-
-@pytest.mark.parametrize("key", SHARED_KEYS)
-def test_the_shared_keys_are_only_credentials(key):
-    """If a location or a language ever lands in here, two walls in two rooms would be
-    forced to show the same thing."""
-    assert key in ("weather_api_key", "yt_api_key", "weather_provider")
 
 
 # ---------------------------------------------------------------------------
@@ -298,7 +279,7 @@ def test_no_gateway_url_still_falls_through_to_the_env(tmp_path, monkeypatch):
 def _manager(tmp_path):
     reg = DisplayRegistry(tmp_path).ensure(gateway_url="http://kitchen")
     reg.add(name="Office", gateway_url="http://office")
-    m = DisplayManager(APPS_DIR, registry=reg, shared=SharedSettings(tmp_path), data_dir=tmp_path)
+    m = DisplayManager(APPS_DIR, registry=reg, data_dir=tmp_path)
     m.load_registry()
     return reg, m
 

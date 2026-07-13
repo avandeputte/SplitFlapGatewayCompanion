@@ -50,26 +50,35 @@ start, stop, resync). `main.py` keeps *one* module-level name: `displays`.
 
 ### What is per-display and what is shared
 
-This is the decision that shapes everything else. Grounded in the current code:
+**Every setting is per display. There is no shared settings store.** This is forced by
+the storage model, not chosen for tidiness, and it is the decision that shapes the rest:
 
-| Per display | Shared across displays |
+> The **gateway is the backup** for its wall's settings. `setup_settings_sync` mirrors a
+> display's whole settings doc onto its gateway (3.1+), and a rebuilt host with no local
+> file **restores from it**. So a setting that does not live in a display's own store has
+> no gateway to live on — it can never be backed up, and never recovered.
+
+A `globals.json` holding the credentials for all displays was tried and reverted for
+exactly this reason: it was a companion-local file with no home on any gateway, i.e. an
+invisible hole in the recovery story. The cost of the rule is entering an API key once
+per wall. That is the price of every wall's settings being recoverable from its own box.
+
+| Per display (its own store → its own gateway) | Shared |
 |---|---|
 | `gateway_url`, MQTT broker/password | the **app library on disk** (`apps/`, uploads) |
 | `grid` (rows/cols/module_id_base) | the **UI language** and its catalogs |
-| `display` (transition style/speed) | provider **API keys**? (see below) |
-| `installed_apps` | `app_i18n` catalogs |
+| `display` (transition style/speed) | `app_i18n` catalogs |
+| `installed_apps` | |
 | `saved_app_playlists`, `triggers` | |
 | all `plugin_<id>_<key>` app settings | |
 | `active_app`, `active_playlist`, `last_run` | |
 | Vestaboard key, MCP token | |
+| **every catalog global** — `zip_code`, `timezone`, `language`, `global_loop_delay`, **and the credentials** (`weather_api_key`, `yt_api_key`, `weather_provider`) | |
 
-The catalog globals (`zip_code`, `timezone`, `language`, `weather_api_key`,
-`yt_api_key`, `weather_provider`, `global_loop_delay`) are the interesting case. A
-weather API key is genuinely account-level; a *location* plausibly differs per wall
-(kitchen shows home, office shows the office). **Proposal:** keep one
-`globals.json` for credentials (`weather_api_key`, `yt_api_key`, `weather_provider`)
-and make the rest per-display, with a per-display "follow global" blank — the exact
-convention the per-app Language override already uses, so it needs no new UI idiom.
+Adding a display **copies** the global settings from an existing one so nobody retypes an
+API key — but it is a copy, not a link: from that moment they are the new display's own,
+and they ride to the new display's gateway like everything else it has. (Skipped when the
+new gateway already holds a settings blob of its own; that blob wins.)
 
 ## Phases
 
@@ -108,9 +117,10 @@ display's?) and the **MCP/Vestaboard** surfaces (Phase 3 gives them an explicit 
 
 ### Phase 1 — storage and identity ✅ DONE
 
-- `data/displays/<id>/app_settings.json` per display; `data/globals.json` for the
-  shared credentials. Migration on first boot: an existing `app_settings.json` becomes
-  display `default`, credentials lifted out.
+- `data/displays/<id>/app_settings.json` per display — the whole store, credentials
+  included, so all of it can be mirrored to (and restored from) that display's gateway.
+  Migration on first boot: an existing `app_settings.json` becomes display `default`,
+  wholesale, with nothing split out.
 - `data/displays.json`: the registry (`id`, `name`, `gateway_url`, `enabled`, `order`,
   and the persisted `default_display`).
 - `GATEWAY_URL` env / `gateway_url` add-on option stays, and *seeds* display `default`
@@ -120,15 +130,15 @@ display's?) and the **MCP/Vestaboard** surfaces (Phase 3 gives them an explicit 
   *installed* is per display. Otherwise the same zip lives twice.
 
 **Landed.** `registry.py` holds `DisplayRecord` + `DisplayRegistry` + the migration;
-`plugin_settings.py` gains `SharedSettings` (globals.json) and a per-display settings
-path. `DisplayManager.load_registry()` builds one Display per *enabled* record — a
-disabled one keeps its settings but costs no sync loop, no MQTT device and no app task.
+`plugin_settings.py` gains a per-display settings path. `DisplayManager.load_registry()`
+builds one Display per *enabled* record — a disabled one keeps its settings but costs no
+sync loop, no MQTT device and no app task.
 
-**The shared/per-display split** (chosen deliberately): only credentials are shared —
-`weather_api_key`, `yt_api_key`, `weather_provider`. Location, timezone, language, loop
-delay, installed apps, playlists, triggers and every per-app setting belong to the wall.
-The kitchen may legitimately show a different city from the office; nobody should have
-to paste the same API key twice.
+**Everything is per display, credentials included** — see the storage rule above. A
+`globals.json` for shared credentials was built and then reverted: a companion-local file
+has no gateway to live on, so nothing in it could ever be backed up or restored, which
+would have been an invisible hole in the recovery story. Adding a display copies the
+globals from an existing wall (a copy, not a link) so nobody retypes an API key.
 
 **The migration does not destroy anything.** The old `app_settings.json` is *copied*,
 never moved — this is one-way, and a 1.x companion cannot read the new layout, so the

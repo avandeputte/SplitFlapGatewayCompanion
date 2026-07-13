@@ -76,7 +76,7 @@ class Display:
     @classmethod
     def build(cls, *, apps_dir: Path, id: str = DEFAULT_ID, name: str = "",
               config: Config | None = None, data_dir: Path | None = None,
-              gateway_url: str = "", shared=None, own_settings: bool = False) -> "Display":
+              gateway_url: str = "", own_settings: bool = False) -> "Display":
         """Construct a display and everything it owns, in the order they depend on
         each other — the same order main.py used at import time.
 
@@ -87,9 +87,10 @@ class Display:
         cfg = config or Config(data_dir, gateway_url=gateway_url)
         state = DisplayState(cfg.module_count())
         controller = DisplayController(cfg, state)
+        # Wholly this display's own — and therefore wholly mirrorable to its gateway,
+        # which is what makes it recoverable. There is no shared store (see plugin_settings).
         settings = PluginSettings(cfg.data_dir,
-                                  display_id=id if own_settings else None,
-                                  shared=shared)
+                                  display_id=id if own_settings else None)
         # Uploaded apps are SHARED across displays (data/apps/): which apps a wall has
         # *installed* is per display, but the same zip should not live on disk twice.
         plugins = PluginRuntime(cfg, settings, apps_dir, cfg.data_dir / "apps")
@@ -132,10 +133,9 @@ class DisplayManager:
     this one method rather than 51 call sites.
     """
 
-    def __init__(self, apps_dir: Path, *, registry=None, shared=None, data_dir: Path | None = None):
+    def __init__(self, apps_dir: Path, *, registry=None, data_dir: Path | None = None):
         self.apps_dir = Path(apps_dir)
         self.registry = registry          # registry.DisplayRegistry, when one is in play
-        self.shared = shared              # plugin_settings.SharedSettings
         self.data_dir = Path(data_dir) if data_dir else None
         self._displays: dict[str, Display] = {}
         self._default_id: str = DEFAULT_ID
@@ -161,7 +161,6 @@ class DisplayManager:
             name=record.name,
             data_dir=self.data_dir,
             gateway_url=record.gateway_url,
-            shared=self.shared,
             own_settings=True,
         ))
 

@@ -24,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import __version__, gwproxy, helpers, mcp_server, renderer, uilang, vestaboard, weather
+from .catalog import GLOBAL_STORAGE_KEYS
 from .config import Config, addon_option, default_data_dir
 from .display import DisplayManager
 from .engine import DisplayController
@@ -31,7 +32,7 @@ from .gateway import (addon_public_url, build_sync_patch, detect_local_ip,
                       fetch_gateway_config, fetch_gateway_settings,
                       post_companion, push_gateway_settings, supports_settings)
 from .homeassistant import HomeAssistant
-from .plugin_settings import PluginSettings, SharedSettings
+from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
 from .registry import DisplayRegistry
 from .scheduler import Scheduler
@@ -75,8 +76,13 @@ APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
 # identity on disk:
 #
 #   data/displays.json                    which walls exist; which one is the default
-#   data/displays/<id>/app_settings.json  one settings store per wall
-#   data/globals.json                     the credentials they all share
+#   data/displays/<id>/app_settings.json  one settings store per wall, ENTIRELY its own
+#
+# Every setting a display has is per display, credentials included. That is not a
+# preference: the gateway is the BACKUP for its wall's settings (setup_settings_sync
+# mirrors the whole doc onto it, and a rebuilt host restores from it), so anything held
+# in a companion-local file shared across displays would have no gateway to live on and
+# could never be recovered. The cost is entering an API key once per wall.
 #
 # The registry seeds itself from the GATEWAY_URL the companion was already configured
 # with, so an existing install upgrades with no configuration at all and the add-on's
@@ -88,9 +94,8 @@ registry = DisplayRegistry(DATA_DIR).ensure(gateway_url=_seed_url)
 # where a Home Assistant user has always set their gateway, and someone fixing a typo'd
 # IP on the Configuration tab must not find that the registry silently ignored them.
 registry.adopt_env_gateway(_seed_url)
-shared_settings = SharedSettings(DATA_DIR)
 
-displays = DisplayManager(APPS_DIR, registry=registry, shared=shared_settings, data_dir=DATA_DIR)
+displays = DisplayManager(APPS_DIR, registry=registry, data_dir=DATA_DIR)
 displays.load_registry()
 _default = displays.default
 
@@ -600,6 +605,12 @@ class DisplayCreate(BaseModel):
     name: str
     gateway_url: str
     id: str | None = None
+    # Start this wall from another one's global settings (location, timezone, language,
+    # API keys, provider). A one-time COPY, not a link: the values then belong to the new
+    # display and mirror to its own gateway, like everything else it has. It exists only
+    # so that adding a second wall does not mean retyping an API key by hand.
+    copy_settings_from: str | None = None      # display id; None = the current default
+    copy_settings: bool = True
 
 
 class DisplayPatch(BaseModel):
@@ -659,6 +670,18 @@ async def add_display(body: DisplayCreate):
 
     rec = registry.add(name=body.name, gateway_url=url, display_id=body.id or "")
     d = displays.build_from(rec)
+
+    # If the new gateway already holds a settings blob (it was driven by a companion
+    # before), that blob wins — start_display restores it, and we must not scribble over
+    # it first. Only a gateway with nothing to say gets seeded from an existing wall.
+    remote = await asyncio.to_thread(fetch_gateway_settings, url)
+    if body.copy_settings and remote is None:
+        src = displays.get(body.copy_settings_from) if body.copy_settings_from else displays.default
+        if src is not None and src is not d:
+            seed = {k: v for k, v in src.settings.all().items() if k in GLOBAL_STORAGE_KEYS}
+            d.settings.update(seed)      # a copy — it is this display's own from here on
+            log.info("display %r seeded its global settings from %r", d.id, src.id)
+
     _display_tasks[d.id] = await start_display(d, _companion_url)
     return {"ok": True, "display": rec.to_dict(), "status": d.status()}
 

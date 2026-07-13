@@ -4,11 +4,19 @@ Phase 1 of multi-display support (docs/MULTI_DISPLAY_PLAN.md). Phase 0 made a
 Display an object; this gives the set of them an identity and somewhere to live:
 
     data/displays.json              the registry (below)
-    data/displays/<id>/app_settings.json    one settings store per display
-    data/globals.json               the credentials every display shares
+    data/displays/<id>/app_settings.json    one settings store per display, ENTIRELY its own
     data/app_settings.json          the pre-migration file, left untouched as a backup
 
-Two decisions are worth spelling out, because both are easy to get quietly wrong:
+Three decisions are worth spelling out, because all three are easy to get quietly wrong:
+
+**Every setting is per display — credentials included.** Not a preference: the gateway is
+the *backup* for its wall's settings (main.setup_settings_sync mirrors the whole doc onto
+it, and a rebuilt host restores from it). A companion-local file holding values shared
+across displays would have no gateway to live on, so it could never be backed up or
+restored — an invisible hole in the recovery story. The cost is entering an API key once
+per wall; the alternative is a wall whose settings cannot be recovered from its own box.
+(Adding a display copies the global settings from an existing one as a convenience, but it
+is a COPY: from then on they are that display's, and they ride to that display's gateway.)
 
 **The default is stored, not inferred.** `default_display` is a field in this file,
 set by the user. It is what the display-less surfaces resolve to — the bare
@@ -251,16 +259,17 @@ class DisplayRegistry:
 # ---------------------------------------------------------------------------
 # migration
 # ---------------------------------------------------------------------------
-# Shared by every display: an account-level credential is not a property of a wall,
-# and you should not have to paste your weather API key again for each one you add.
-# Location, timezone and language deliberately do NOT live here — the kitchen wall may
-# legitimately show a different city from the office one.
-SHARED_KEYS = ("weather_api_key", "yt_api_key", "weather_provider")
-
-
 def migrate_settings(data_dir: Path) -> bool:
     """Move a single-display install into the per-display layout. Returns True if
     there was anything to migrate.
+
+    Everything comes across into display `default` and nothing is split out. A settings
+    store that is not wholly per-display cannot work here: the gateway is the BACKUP for
+    its wall's settings (main.setup_settings_sync mirrors the whole doc there, and a
+    rebuilt host restores from it), so a companion-local file holding values for all
+    displays would have no gateway to live on and could never be restored. Credentials
+    included — the cost is entering an API key once per wall, which is the price of every
+    wall's settings being recoverable from its own box.
 
     The old file is COPIED, never moved. This migration is one-way — a 1.x companion
     cannot read the new layout — so the thing it must not do is destroy the only copy
@@ -276,17 +285,4 @@ def migrate_settings(data_dir: Path) -> bool:
     if not target.exists():
         shutil.copy2(legacy, target)
         log.info("migrated %s -> %s (the original is kept as a backup)", legacy, target)
-
-    # Lift the shared credentials out into globals.json, so a second display inherits
-    # them instead of asking for the same API key again.
-    try:
-        doc = json.loads(legacy.read_text("utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return True
-    glob = doc.get("global") if isinstance(doc.get("global"), dict) else doc
-    lifted = {k: glob[k] for k in SHARED_KEYS if isinstance(glob, dict) and glob.get(k)}
-    if lifted:
-        from .plugin_settings import SharedSettings
-        SharedSettings(data_dir).seed(lifted)
-        log.info("lifted %s into globals.json", ", ".join(sorted(lifted)))
     return True

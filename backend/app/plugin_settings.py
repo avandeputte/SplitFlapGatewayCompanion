@@ -94,91 +94,24 @@ def _defaults() -> dict:
     }
 
 
-# Settings that belong to the ACCOUNT rather than to a wall (see registry.SHARED_KEYS).
-# You should not have to paste the same weather API key into every display you add.
-# Location, timezone and language are deliberately not here: the kitchen wall may
-# legitimately show a different city from the office one.
-SHARED_KEYS = ("weather_api_key", "yt_api_key", "weather_provider")
-
-
-class SharedSettings:
-    """The credentials every display shares — ``<data_dir>/globals.json``.
-
-    Small on purpose. It exists so that adding a second wall does not mean re-entering
-    the keys the first one already has, and so that rotating a key fixes every wall at
-    once instead of one at a time.
-    """
-
-    def __init__(self, data_dir: Path):
-        self.path = Path(data_dir) / "globals.json"
-        self._lock = threading.Lock()
-        # Only what has actually been SET lives here. Holding the defaults in the same
-        # dict would make "never configured" indistinguishable from "chose the default"
-        # — and the migration, which fills blanks, would then refuse to carry over a
-        # user's weather_provider because the default already looked like a value.
-        self._data: dict = {}
-        if self.path.exists():
-            try:
-                doc = json.loads(self.path.read_text("utf-8"))
-                self._data.update({k: v for k, v in doc.items() if k in SHARED_KEYS})
-            except (json.JSONDecodeError, OSError) as e:
-                log.warning("could not read %s: %s", self.path, e)
-
-    def _write(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_name(self.path.name + ".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(self._data, f, indent=2, ensure_ascii=False)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, self.path)
-
-    def present(self) -> dict:
-        """Only the keys actually set here. A display overlays these onto its own store;
-        the ones we have nothing for must fall through to the display's value rather
-        than to a default that would overwrite it."""
-        with self._lock:
-            return dict(self._data)
-
-    def all(self) -> dict:
-        d = _defaults()
-        merged = {k: d[k] for k in SHARED_KEYS}
-        merged.update(self.present())
-        return merged
-
-    def get(self, key: str, default=None):
-        with self._lock:
-            return self._data.get(key, default)
-
-    def set(self, key: str, value) -> None:
-        with self._lock:
-            self._data[key] = value
-            self._write()
-
-    def seed(self, mapping: dict) -> None:
-        """Fill blanks only — used by the migration. A value already set here was set
-        deliberately and must not be clobbered by an older display's copy of it."""
-        with self._lock:
-            changed = False
-            for k, v in mapping.items():
-                if k in SHARED_KEYS and k not in self._data:
-                    self._data[k] = v
-                    changed = True
-            if changed:
-                self._write()
-
-
 class PluginSettings:
     def __init__(self, data_dir: Path, *, display_id: str | None = None,
-                 shared: "SharedSettings | None" = None, local_persist: bool = True):
-        # Each display owns its settings file. `display_id=None` keeps the pre-1.9
-        # single-display path, which is what a bare PluginSettings(data_dir) means.
+                 local_persist: bool = True):
+        # Each display owns its settings file, wholly. `display_id=None` keeps the
+        # pre-1.9 single-display path, which is what a bare PluginSettings(data_dir)
+        # means.
+        #
+        # There is deliberately NO shared/global store. Every setting a display has must
+        # be able to live on that display's gateway: the gateway IS the backup for its
+        # wall (see main.setup_settings_sync -- the whole doc is mirrored there, and a
+        # rebuilt host restores from it). A companion-local file holding settings for
+        # all displays would have no gateway to live on, so it could never be backed up
+        # or restored -- which is why credentials are per display too, even though it
+        # means entering an API key once per wall.
         base = Path(data_dir)
         self.path = (base / "displays" / display_id / "app_settings.json") if display_id \
             else base / "app_settings.json"
         self.display_id = display_id
-        # Credentials come from (and go to) the shared store, so all walls see one copy.
-        self._shared = shared
         self._lock = threading.Lock()
         self._data = _defaults()
         self._app_ids: set[str] = set()    # set by the runtime for tidy per-app nesting
@@ -196,12 +129,6 @@ class PluginSettings:
                     self._data.update(self._from_nested(json.loads(self.path.read_text("utf-8"))))
                 except (json.JSONDecodeError, OSError) as e:
                     log.warning("could not read %s: %s", self.path, e)
-        # Whatever the display file said about the shared keys, the shared store is
-        # the authority — it is the one place a rotated key gets written. Only the keys
-        # it actually HAS: an empty store must not overwrite the display's own values
-        # with defaults.
-        if self._shared is not None:
-            self._data.update(self._shared.present())
 
     def set_known_apps(self, app_ids) -> None:
         """The runtime supplies the known app ids so per-app keys can nest by app
@@ -332,15 +259,6 @@ class PluginSettings:
                     self._write_raw_doc(doc)
                 except OSError as e:
                     log.warning("could not cache restored settings locally: %s", e)
-        # A fresh host restoring from its gateway is how the credentials come back after
-        # a rebuild. Seed the shared store from them, or the other displays would come
-        # up asking for an API key this one just recovered.
-        if self._shared is not None:
-            with self._lock:
-                found = {k: self._data[k] for k in SHARED_KEYS if self._data.get(k)}
-            self._shared.seed(found)
-            with self._lock:
-                self._data.update(self._shared.all())
 
     def snapshot(self) -> dict:
         """The current settings as the nested doc (for a manual export/gateway push)."""
@@ -402,26 +320,14 @@ class PluginSettings:
 
     def get(self, key: str, default=None):
         with self._lock:
-            local = copy.deepcopy(self._data.get(key, default))
-        if self._shared is not None and key in SHARED_KEYS:
-            return self._shared.get(key, local)     # unset there -> this display's own
-        return local
+            return copy.deepcopy(self._data.get(key, default))
 
     def set(self, key: str, value) -> None:
-        # A credential is written once and every wall sees it. It is still kept in the
-        # local doc as well, because that doc is what gets mirrored to this display's
-        # gateway — the wire format to the gateway does not change.
-        if self._shared is not None and key in SHARED_KEYS:
-            self._shared.set(key, value)
         with self._lock:
             self._data[key] = value
             self._save()
 
     def update(self, mapping: dict) -> None:
-        if self._shared is not None:
-            for k in SHARED_KEYS:
-                if k in mapping:
-                    self._shared.set(k, mapping[k])
         with self._lock:
             self._data.update(mapping)
             self._save()
