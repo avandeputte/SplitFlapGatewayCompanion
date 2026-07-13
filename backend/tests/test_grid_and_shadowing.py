@@ -56,8 +56,10 @@ def test_heartbeat_resyncs_the_gateway_config():
     main = (Path(__file__).resolve().parents[1] / "app" / "main.py").read_text("utf-8")
     hb = main[main.index("async def _companion_heartbeat"):]
     hb = hb[:hb.index("\nasync def ", 10)]
-    assert "do_gateway_sync()" in hb, "the heartbeat must re-sync the gateway config"
+    assert "do_gateway_sync(" in hb, "the heartbeat must re-sync the gateway config"
     assert "sync_from_gateway" in hb, "…and must honour the sync_from_gateway switch"
+    # …for the display it heartbeats for: a second gateway must not resize the first.
+    assert "do_gateway_sync(display)" in hb
 
 
 def test_sync_only_resizes_when_the_geometry_actually_moved():

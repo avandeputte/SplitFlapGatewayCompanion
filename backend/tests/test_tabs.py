@@ -20,12 +20,18 @@ INDEX_HTML = Path(__file__).resolve().parents[1] / "app" / "static" / "index.htm
 run = asyncio.run
 
 
-@pytest.fixture(autouse=True)
-def _reset_cache():
-    """The advertised-tabs cache is module state; don't leak it between tests."""
-    gw._gateway_tabs = []
-    yield
-    gw._gateway_tabs = []
+class FakeDisplay:
+    """Stands in for a Display: post_companion only needs somewhere to put the tabs
+    the gateway advertised. They used to live in a module global, which with two
+    gateways was last-writer-wins — see display.py."""
+
+    def __init__(self):
+        self.gateway_tabs = []
+
+
+@pytest.fixture
+def disp():
+    return FakeDisplay()
 
 
 def test_companion_tabs_match_the_ui():
@@ -105,47 +111,48 @@ def fake_gateway(monkeypatch):
     return _install
 
 
-def test_registration_advertises_our_tabs_and_stores_theirs(fake_gateway):
+def test_registration_advertises_our_tabs_and_stores_theirs(fake_gateway, disp):
     theirs = [{"id": "modules", "label": "Modules"}, {"id": "settings", "label": "Settings"}]
     client = fake_gateway({"url": "http://c", "status": "", "gwTabs": theirs})
 
-    assert run(gw.post_companion("http://gw", url="http://c", status="idle")) is True
+    assert run(gw.post_companion("http://gw", url="http://c", status="idle",
+                                 display=disp)) is True
     assert client.body["tabs"] == COMPANION_TABS
-    assert gw.gateway_tabs() == theirs
+    assert disp.gateway_tabs == theirs
 
 
-def test_old_gateway_without_gwtabs_leaves_us_with_no_advertisement(fake_gateway):
+def test_old_gateway_without_gwtabs_leaves_us_with_no_advertisement(fake_gateway, disp):
     """A pre-3.4 gateway just echoes url/status. We keep nothing, and the UI falls
     back to its built-in list — including the Backup tab such a gateway still has."""
     client = fake_gateway({"url": "http://c", "status": ""})
 
-    assert run(gw.post_companion("http://gw", url="http://c")) is True
+    assert run(gw.post_companion("http://gw", url="http://c", display=disp)) is True
     assert client.body["tabs"] == COMPANION_TABS   # harmless: it ignores the field
-    assert gw.gateway_tabs() == []
+    assert disp.gateway_tabs == []
 
 
-def test_junk_gwtabs_is_ignored(fake_gateway):
+def test_junk_gwtabs_is_ignored(fake_gateway, disp):
     fake_gateway({"url": "http://c", "gwTabs": [{"id": "../evil", "label": "X"}]})
-    run(gw.post_companion("http://gw", url="http://c"))
-    assert gw.gateway_tabs() == []
+    run(gw.post_companion("http://gw", url="http://c", display=disp))
+    assert disp.gateway_tabs == []
 
 
-def test_non_json_reply_is_ignored(fake_gateway):
+def test_non_json_reply_is_ignored(fake_gateway, disp):
     fake_gateway(ValueError("not json"))
-    assert run(gw.post_companion("http://gw", url="http://c")) is True
-    assert gw.gateway_tabs() == []
+    assert run(gw.post_companion("http://gw", url="http://c", display=disp)) is True
+    assert disp.gateway_tabs == []
 
 
-def test_advertisement_survives_a_status_only_heartbeat(fake_gateway):
+def test_advertisement_survives_a_status_only_heartbeat(fake_gateway, disp):
     """A heartbeat with no url carries no tabs — it must not wipe what we know."""
     fake_gateway({"url": "http://c", "gwTabs": [{"id": "modules", "label": "Modules"}]})
-    run(gw.post_companion("http://gw", url="http://c"))
-    assert gw.gateway_tabs() == [{"id": "modules", "label": "Modules"}]
+    run(gw.post_companion("http://gw", url="http://c", display=disp))
+    assert disp.gateway_tabs == [{"id": "modules", "label": "Modules"}]
 
     client = fake_gateway({"url": "http://c", "status": "Running"})
-    run(gw.post_companion("http://gw", status="Running: Weather"))
+    run(gw.post_companion("http://gw", status="Running: Weather", display=disp))
     assert "tabs" not in client.body           # nothing to say about tabs
-    assert gw.gateway_tabs() == [{"id": "modules", "label": "Modules"}]
+    assert disp.gateway_tabs == [{"id": "modules", "label": "Modules"}]
 
 
 def test_deregister_does_not_advertise(fake_gateway):

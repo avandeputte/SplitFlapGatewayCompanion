@@ -173,19 +173,16 @@ def detect_local_ip(gateway_url: str = "") -> str | None:
     return None
 
 
-# The tabs the gateway advertised in its last registration/heartbeat reply
-# (Gateway 3.4+). Empty = it hasn't told us — either an older firmware, or we
-# haven't reached it yet — and the UI then uses its own built-in list.
-_gateway_tabs: list[dict[str, str]] = []
-
-
-def gateway_tabs() -> list[dict[str, str]]:
-    """The gateway's own tabs, as it last advertised them ([] = it hasn't)."""
-    return list(_gateway_tabs)
+# The tabs a gateway advertises about itself (Gateway 3.4+) belong to THAT gateway,
+# so they live on its Display (display.gateway_tabs) — not here. As a module global
+# this was last-writer-wins the moment a second gateway registered: the nav would
+# show whichever one had most recently answered. post_companion() hands the tabs it
+# learned to the display it was called for.
 
 
 async def post_companion(gateway_url: str, *, url: str | None = None,
-                         status: str | None = None, timeout: float = 5.0) -> bool:
+                         status: str | None = None, timeout: float = 5.0,
+                         display=None) -> bool:
     """Register / heartbeat / deregister with the gateway (v3.0+).
 
     ``url`` set → (re)register that URL; ``url=""`` → deregister; ``status`` →
@@ -196,10 +193,12 @@ async def post_companion(gateway_url: str, *, url: str | None = None,
     of the reply (Gateway 3.4+) so each side's nav links exactly what the other has
     — see tabs.py. A gateway that answers without ``gwTabs`` is an older one: we
     keep whatever we had (i.e. nothing), and the UI falls back to its built-in list.
+
+    ``display`` is the Display this gateway belongs to; the tabs it advertises are
+    stored there. Omit it and the reply's tabs are simply not recorded (which is what
+    a caller that only wants to heartbeat, or a test, wants).
     """
     import httpx
-
-    global _gateway_tabs
 
     if not gateway_url:
         return False
@@ -223,11 +222,11 @@ async def post_companion(gateway_url: str, *, url: str | None = None,
                     tabs = clean_tabs(r.json().get("gwTabs"))
                 except Exception:
                     tabs = []          # not JSON, or no gwTabs: a pre-3.4 gateway
-                if tabs and tabs != _gateway_tabs:
+                if tabs and display is not None and tabs != display.gateway_tabs:
                     log.info("gateway advertises %d tabs: %s", len(tabs),
-                             ", ".join(t["id"] for t in tabs))
-                if tabs:
-                    _gateway_tabs = tabs
+                             ", ".join(x["id"] for x in tabs))
+                if tabs and display is not None:
+                    display.gateway_tabs = tabs
             return r.status_code < 400
     except Exception as e:
         log.debug("companion post skipped: %s", e)

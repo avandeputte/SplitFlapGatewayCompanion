@@ -76,7 +76,7 @@ class _Recorder:
 def test_the_engine_records_the_app_it_starts(monkeypatch):
     from app import main
     rec = _Recorder()
-    monkeypatch.setattr(main, "plugin_settings", rec)
+    monkeypatch.setattr(main.displays.default, "settings", rec)
     main.controller.attach_persist(main._remember_driver)
     try:
         main.controller._remember({"kind": "app", "app": "weather"})
@@ -90,7 +90,7 @@ def test_a_playlist_keeps_its_entries_not_just_its_name(monkeypatch):
     back — so the entries have to travel with it."""
     from app import main
     rec = _Recorder()
-    monkeypatch.setattr(main, "plugin_settings", rec)
+    monkeypatch.setattr(main.displays.default, "settings", rec)
     main.controller.attach_persist(main._remember_driver)
     try:
         entries = [{"app": "weather"}, {"app": "time"}]
@@ -106,7 +106,7 @@ def test_an_unchanged_driver_is_not_rewritten(monkeypatch):
     to the gateway."""
     from app import main
     rec = _Recorder()
-    monkeypatch.setattr(main, "plugin_settings", rec)
+    monkeypatch.setattr(main.displays.default, "settings", rec)
     main._remember_driver({"kind": "app", "app": "weather"})
     main._remember_driver({"kind": "app", "app": "weather"})
     main._remember_driver({"kind": "app", "app": "weather"})
@@ -117,7 +117,7 @@ def test_resume_restarts_the_playlist_that_was_running(monkeypatch):
     from app import main
     entries = [{"app": "weather"}]
     rec = _Recorder({"kind": "playlist", "name": "morning", "entries": entries, "loop": True})
-    monkeypatch.setattr(main, "plugin_settings", rec)
+    monkeypatch.setattr(main.displays.default, "settings", rec)
 
     started = {}
 
@@ -134,7 +134,7 @@ def test_resume_restarts_the_playlist_that_was_running(monkeypatch):
 def test_resume_restarts_the_app_that_was_running(monkeypatch):
     from app import main
     rec = _Recorder({"kind": "app", "app": "weather"})
-    monkeypatch.setattr(main, "plugin_settings", rec)
+    monkeypatch.setattr(main.displays.default, "settings", rec)
 
     started = {}
 
@@ -152,7 +152,7 @@ def test_nothing_running_resumes_nothing(monkeypatch):
     """A manual message clears the record, so a restart leaves the board alone rather
     than resurrecting the app it replaced."""
     from app import main
-    monkeypatch.setattr(main, "plugin_settings", _Recorder({}))
+    monkeypatch.setattr(main.displays.default, "settings", _Recorder({}))
 
     async def boom(*a, **kw):
         raise AssertionError("should not have started anything")
@@ -166,7 +166,7 @@ def test_an_app_uninstalled_since_the_last_run_is_forgotten(monkeypatch):
     """Otherwise it would fail on every boot forever."""
     from app import main
     rec = _Recorder({"kind": "app", "app": "gone"})
-    monkeypatch.setattr(main, "plugin_settings", rec)
+    monkeypatch.setattr(main.displays.default, "settings", rec)
 
     async def missing(app_id):
         raise KeyError(app_id)

@@ -75,7 +75,7 @@ convention the per-app Language override already uses, so it needs no new UI idi
 
 Each phase ships and is useful on its own. Nothing here is a big-bang rewrite.
 
-### Phase 0 — make one display an object (no behaviour change)
+### Phase 0 — make one display an object (no behaviour change) ✅ DONE
 
 Move the six singletons into `Display`, instantiate exactly one, and have `main.py`
 resolve it per request. Endpoints change from `controller.run_app(...)` to
@@ -84,6 +84,27 @@ tests are unchanged, and nothing in the UI moves. **This is the whole risk of th
 project, taken once, with a green suite either side.**
 
 Also here: `gateway.py`'s module-level `_gateway_tabs` becomes per-display state.
+
+**Landed.** `display.py` holds `Display` (config, state, controller, settings, plugins,
+scheduler, ha, gateway_tabs) and `DisplayManager`. `main.py` builds exactly one through
+the manager and keeps the old module names as aliases *to that display's objects* — the
+lifespan and background loops still need them, and they are the same instances, so there
+is one source of truth. All 39 display-touching routes now resolve through
+`display_for(request)`; a test walks main.py's AST and fails if any route reaches for a
+module global instead. The per-wall lifecycle went with it: `do_gateway_sync`,
+`resume_last_run`, `_remember_driver`, `_companion_heartbeat`, `setup_settings_sync` and
+`_settings_flush_loop` all take a display.
+
+**The settings blob is per gateway** — each display mirrors its own store to its own box
+(`url = d.gateway_url`), so a second wall can never overwrite the first's installed apps,
+playlists or triggers.
+
+**The default is explicit** (`DisplayManager.set_default`), never inferred from what is
+currently on screen. Phase 1 persists it.
+
+Two things deliberately still resolve to the default and want a decision in Phase 2:
+the **UI chrome language** (level 2 of the uilang chain reads a settings store — which
+display's?) and the **MCP/Vestaboard** surfaces (Phase 3 gives them an explicit display).
 
 ### Phase 1 — storage and identity
 
