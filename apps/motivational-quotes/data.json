@@ -1,21 +1,354 @@
 {
   "pages": [
-    {"lines": ["THE ONLY WAY", "TO DO GREAT WRK", "IS TO LOVE IT"]},
-    {"lines": ["BELIEVE YOU CAN", "AND YOURE", "HALFWAY THERE"]},
-    {"lines": ["IT DOES NOT", "MATTER HOW SLOW", "YOU GO"]},
-    {"lines": ["AS LONG AS YOU", "DO NOT STOP", ""]},
-    {"lines": ["THE BEST TIME", "TO PLANT A TREE", "WAS 20 YRS AGO"]},
-    {"lines": ["THE SECOND BEST", "TIME IS NOW", ""]},
-    {"lines": ["EVERYTHING YOU", "CAN IMAGINE", "IS REAL"]},
-    {"lines": ["STAY HUNGRY", "STAY FOOLISH", ""]},
-    {"lines": ["IN THE MIDDLE", "OF DIFFICULTY", "LIES"]},
-    {"lines": ["OPPORTUNITY", "", ""]},
-    {"lines": ["WHAT WE THINK", "WE BECOME", ""]},
-    {"lines": ["THE FUTURE", "BELONGS TO THEM", "WHO BELIEVE IN"]},
-    {"lines": ["THE BEAUTY OF", "THEIR DREAMS", ""]},
-    {"lines": ["DO WHAT YOU CAN", "WITH WHAT YOU", "HAVE"]},
-    {"lines": ["WHERE YOU ARE", "", ""]},
-    {"lines": ["SUCCESS IS NOT", "FINAL FAILURE", "IS NOT FATAL"]},
-    {"lines": ["IT IS COURAGE", "TO CONTINUE", "THAT COUNTS"]}
+    {
+      "lines": [
+        "THE ONLY WAY",
+        "TO DO GREAT WRK",
+        "IS TO LOVE IT"
+      ]
+    },
+    {
+      "lines": [
+        "BELIEVE YOU CAN",
+        "AND YOURE",
+        "HALFWAY THERE"
+      ]
+    },
+    {
+      "lines": [
+        "IT DOES NOT",
+        "MATTER HOW SLOW",
+        "YOU GO"
+      ]
+    },
+    {
+      "lines": [
+        "AS LONG AS YOU",
+        "DO NOT STOP",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "THE BEST TIME",
+        "TO PLANT A TREE",
+        "WAS 20 YRS AGO"
+      ]
+    },
+    {
+      "lines": [
+        "THE SECOND BEST",
+        "TIME IS NOW",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "EVERYTHING YOU",
+        "CAN IMAGINE",
+        "IS REAL"
+      ]
+    },
+    {
+      "lines": [
+        "STAY HUNGRY",
+        "STAY FOOLISH",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "IN THE MIDDLE",
+        "OF DIFFICULTY",
+        "LIES"
+      ]
+    },
+    {
+      "lines": [
+        "OPPORTUNITY",
+        "",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "WHAT WE THINK",
+        "WE BECOME",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "THE FUTURE",
+        "BELONGS TO THEM",
+        "WHO BELIEVE IN"
+      ]
+    },
+    {
+      "lines": [
+        "THE BEAUTY OF",
+        "THEIR DREAMS",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "DO WHAT YOU CAN",
+        "WITH WHAT YOU",
+        "HAVE"
+      ]
+    },
+    {
+      "lines": [
+        "WHERE YOU ARE",
+        "",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "SUCCESS IS NOT",
+        "FINAL FAILURE",
+        "IS NOT FATAL"
+      ]
+    },
+    {
+      "lines": [
+        "IT IS COURAGE",
+        "TO CONTINUE",
+        "THAT COUNTS"
+      ]
+    },
+    {
+      "lines": [
+        "DREAM BIG",
+        "START SMALL",
+        "ACT NOW"
+      ]
+    },
+    {
+      "lines": [
+        "FALL SEVEN",
+        "TIMES STAND",
+        "UP EIGHT"
+      ]
+    },
+    {
+      "lines": [
+        "DONE IS BETTER",
+        "THAN PERFECT",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "MAKE EACH DAY",
+        "YOUR",
+        "MASTERPIECE"
+      ]
+    },
+    {
+      "lines": [
+        "SMALL STEPS",
+        "EVERY DAY",
+        "ADD UP"
+      ]
+    },
+    {
+      "lines": [
+        "IF YOU CAN",
+        "DREAM IT YOU",
+        "CAN DO IT"
+      ]
+    },
+    {
+      "lines": [
+        "THE HARDER I",
+        "WORK THE",
+        "LUCKIER I GET"
+      ]
+    },
+    {
+      "lines": [
+        "DONT COUNT THE",
+        "DAYS MAKE THE",
+        "DAYS COUNT"
+      ]
+    },
+    {
+      "lines": [
+        "QUALITY IS NOT",
+        "AN ACT IT IS",
+        "A HABIT"
+      ]
+    },
+    {
+      "lines": [
+        "WELL BEGUN IS",
+        "HALF DONE",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "NO PRESSURE",
+        "NO DIAMONDS",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "LITTLE BY",
+        "LITTLE ONE",
+        "TRAVELS FAR"
+      ]
+    },
+    {
+      "lines": [
+        "COURAGE IS",
+        "GRACE UNDER",
+        "PRESSURE"
+      ]
+    },
+    {
+      "lines": [
+        "A GOAL WITHOUT",
+        "A PLAN IS",
+        "JUST A WISH"
+      ]
+    },
+    {
+      "lines": [
+        "MOTIVATION",
+        "STARTS HABIT",
+        "KEEPS YOU GOING"
+      ]
+    },
+    {
+      "lines": [
+        "THE BEST WAY",
+        "OUT IS ALWAYS",
+        "THROUGH"
+      ]
+    },
+    {
+      "lines": [
+        "YOU MISS 100%",
+        "OF SHOTS YOU",
+        "DONT TAKE"
+      ]
+    },
+    {
+      "lines": [
+        "ENERGY AND",
+        "PERSISTENCE",
+        "CONQUER ALL"
+      ]
+    },
+    {
+      "lines": [
+        "GREAT THINGS",
+        "NEVER CAME",
+        "FROM COMFORT"
+      ]
+    },
+    {
+      "lines": [
+        "STRIVE FOR",
+        "PROGRESS NOT",
+        "PERFECTION"
+      ]
+    },
+    {
+      "lines": [
+        "IT SEEMS",
+        "IMPOSSIBLE",
+        "UNTIL ITS DONE"
+      ]
+    },
+    {
+      "lines": [
+        "CHANCE FAVORS",
+        "THE PREPARED",
+        "MIND"
+      ]
+    },
+    {
+      "lines": [
+        "DO IT WITH",
+        "PASSION OR NOT",
+        "AT ALL"
+      ]
+    },
+    {
+      "lines": [
+        "EITHER I WILL",
+        "FIND A WAY OR",
+        "MAKE ONE"
+      ]
+    },
+    {
+      "lines": [
+        "WHAT YOU DO",
+        "TODAY CAN",
+        "IMPROVE ALL"
+      ]
+    },
+    {
+      "lines": [
+        "YOUR TOMORROWS",
+        "",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "STARS CANT",
+        "SHINE WITHOUT",
+        "DARKNESS"
+      ]
+    },
+    {
+      "lines": [
+        "THE SECRET OF",
+        "GETTING AHEAD",
+        "IS GETTING"
+      ]
+    },
+    {
+      "lines": [
+        "STARTED",
+        "",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "BE SO GOOD",
+        "THEY CANT",
+        "IGNORE YOU"
+      ]
+    },
+    {
+      "lines": [
+        "HARD WORK",
+        "BEATS IDLE",
+        "TALENT"
+      ]
+    },
+    {
+      "lines": [
+        "EVERY EXPERT",
+        "WAS ONCE A",
+        "BEGINNER"
+      ]
+    },
+    {
+      "lines": [
+        "THE JOURNEY IS",
+        "THE REWARD",
+        ""
+      ]
+    }
   ]
 }

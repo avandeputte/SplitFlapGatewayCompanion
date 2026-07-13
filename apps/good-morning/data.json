@@ -1,24 +1,354 @@
 {
   "pages": [
-    {"lines": ["GOOD MORNING!", "TODAY IS FULL", "OF POTENTIAL"]},
-    {"lines": ["RISE AND SHINE", "MAKE TODAY", "AMAZING"]},
-    {"lines": ["GOOD MORNING", "YOU ARE ENOUGH", ""]},
-    {"lines": ["EVERY MORNING", "IS A CHANCE TO", "BEGIN AGAIN"]},
-    {"lines": ["WAKE UP WITH", "DETERMINATION", ""]},
-    {"lines": ["TODAY IS A", "BRAND NEW DAY", ""]},
-    {"lines": ["GOOD MORNING", "BE THE REASON", "SOMEONE SMILES"]},
-    {"lines": ["MAKE IT HAPPEN", "SHOCK EVERYONE", ""]},
-    {"lines": ["GOOD MORNING", "YOUR ONLY LIMIT", "IS YOU"]},
-    {"lines": ["BELIEVE IN", "YOURSELF TODAY", "AND EVERY DAY"]},
-    {"lines": ["GOOD MORNING", "CHASE YOUR", "DREAMS TODAY"]},
-    {"lines": ["TODAY IS YOURS", "OWN IT", ""]},
-    {"lines": ["GOOD MORNING", "STAY POSITIVE", "WORK HARD"]},
-    {"lines": ["RISE UP AND", "ATTACK THE DAY", "WITH ENTHUSIASM"]},
-    {"lines": ["GOOD MORNING", "GREAT THINGS", "ARE COMING"]},
-    {"lines": ["YOU ARE", "STRONGER THAN", "YOU THINK"]},
-    {"lines": ["GOOD MORNING", "MAKE YOURSELF", "PROUD TODAY"]},
-    {"lines": ["NEW DAY", "NEW STRENGTH", "NEW THOUGHTS"]},
-    {"lines": ["GOOD MORNING", "SPREAD KINDNESS", "EVERYWHERE"]},
-    {"lines": ["THE BEST TIME", "FOR NEW", "BEGINNINGS IS"]}
+    {
+      "lines": [
+        "GOOD MORNING!",
+        "TODAY IS FULL",
+        "OF POTENTIAL"
+      ]
+    },
+    {
+      "lines": [
+        "RISE AND SHINE",
+        "MAKE TODAY",
+        "AMAZING"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "YOU ARE ENOUGH",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "EVERY MORNING",
+        "IS A CHANCE TO",
+        "BEGIN AGAIN"
+      ]
+    },
+    {
+      "lines": [
+        "WAKE UP WITH",
+        "DETERMINATION",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "TODAY IS A",
+        "BRAND NEW DAY",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "BE THE REASON",
+        "SOMEONE SMILES"
+      ]
+    },
+    {
+      "lines": [
+        "MAKE IT HAPPEN",
+        "SHOCK EVERYONE",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "YOUR ONLY LIMIT",
+        "IS YOU"
+      ]
+    },
+    {
+      "lines": [
+        "BELIEVE IN",
+        "YOURSELF TODAY",
+        "AND EVERY DAY"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "CHASE YOUR",
+        "DREAMS TODAY"
+      ]
+    },
+    {
+      "lines": [
+        "TODAY IS YOURS",
+        "OWN IT",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "STAY POSITIVE",
+        "WORK HARD"
+      ]
+    },
+    {
+      "lines": [
+        "RISE UP AND",
+        "ATTACK THE DAY",
+        "WITH ENTHUSIASM"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "GREAT THINGS",
+        "ARE COMING"
+      ]
+    },
+    {
+      "lines": [
+        "YOU ARE",
+        "STRONGER THAN",
+        "YOU THINK"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "MAKE YOURSELF",
+        "PROUD TODAY"
+      ]
+    },
+    {
+      "lines": [
+        "NEW DAY",
+        "NEW STRENGTH",
+        "NEW THOUGHTS"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "SPREAD KINDNESS",
+        "EVERYWHERE"
+      ]
+    },
+    {
+      "lines": [
+        "THE BEST TIME",
+        "FOR NEW",
+        "BEGINNINGS IS"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "THE SUN ROSE",
+        "FOR YOU TOO"
+      ]
+    },
+    {
+      "lines": [
+        "SMILE FIRST",
+        "COFFEE SECOND",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "TODAY ONLY",
+        "AIRS ONCE"
+      ]
+    },
+    {
+      "lines": [
+        "ONE KIND WORD",
+        "CAN CHANGE",
+        "SOMEONES DAY"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "START WHERE",
+        "YOU ARE"
+      ]
+    },
+    {
+      "lines": [
+        "EAT THE FROG",
+        "FIRST",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "DO ONE BRAVE",
+        "THING TODAY"
+      ]
+    },
+    {
+      "lines": [
+        "MORNINGS ARE",
+        "FRESH STARTS",
+        "ON REPEAT"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "LET YESTERDAY",
+        "GO"
+      ]
+    },
+    {
+      "lines": [
+        "TODAY IS A",
+        "GOOD DAY FOR",
+        "A GOOD DAY"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "WATER YOUR",
+        "DREAMS TODAY"
+      ]
+    },
+    {
+      "lines": [
+        "BE THE ENERGY",
+        "YOU WANT TO",
+        "ATTRACT"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "SMALL STEPS",
+        "STILL COUNT"
+      ]
+    },
+    {
+      "lines": [
+        "WAKE UP AND",
+        "BE AWESOME",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "YOUR FUTURE IS",
+        "WATCHING"
+      ]
+    },
+    {
+      "lines": [
+        "DO IT TODAY",
+        "NOT TOMORROW",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "BREATHE IN",
+        "COURAGE"
+      ]
+    },
+    {
+      "lines": [
+        "THE EARLY BIRD",
+        "GETS THE",
+        "COFFEE"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "MAKE TODAY",
+        "COUNT"
+      ]
+    },
+    {
+      "lines": [
+        "A NEW DAY A",
+        "NEW CHANCE A",
+        "NEW YOU"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "LEAD WITH",
+        "GRATITUDE"
+      ]
+    },
+    {
+      "lines": [
+        "SHINE LIKE THE",
+        "MORNING SUN",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "TODAY IS A",
+        "GIFT"
+      ]
+    },
+    {
+      "lines": [
+        "START THE DAY",
+        "WITH A THANK",
+        "YOU"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "PLANT SEEDS OF",
+        "KINDNESS"
+      ]
+    },
+    {
+      "lines": [
+        "YOU WOKE UP",
+        "THAT IS A WIN",
+        "ALREADY"
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "AIM HIGH",
+        "START NOW"
+      ]
+    },
+    {
+      "lines": [
+        "LET THE LIGHT",
+        "IN",
+        ""
+      ]
+    },
+    {
+      "lines": [
+        "GOOD MORNING",
+        "WRITE A GREAT",
+        "STORY TODAY"
+      ]
+    },
+    {
+      "lines": [
+        "TODAY THE SUN",
+        "SHINES FOR",
+        "YOU"
+      ]
+    }
   ]
 }
