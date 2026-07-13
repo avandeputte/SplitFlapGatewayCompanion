@@ -116,9 +116,18 @@ async def do_gateway_sync() -> dict:
         return {"ok": False, "error": str(last_err)}
     patch = build_sync_patch(gw)
     log.debug("gateway sync: config=%s -> patch=%s", {k: gw.get(k) for k in ("gridRows", "gridCols", "version")}, patch)
+    before = dict(config.grid)
+    changed = False
     if patch:
         config.update(patch)
-        if "grid" in patch:
+        # The gateway reports its geometry every time, so "grid in patch" says nothing
+        # about whether it MOVED. Compare the effective grid instead: without this the
+        # periodic resync below would re-render every channel app every 30 seconds.
+        if config.grid != before:
+            changed = True
+            log.info("gateway geometry changed: %sx%s -> %sx%s (%d modules)",
+                     before.get("rows"), before.get("cols"),
+                     config.grid["rows"], config.grid["cols"], config.module_count())
             controller.resize_grid()
             plugins.on_grid_changed()   # cached/channel pages were sized for the old grid
         # A sync only touches grid (resized above) and the HA MQTT broker; the
@@ -127,6 +136,7 @@ async def do_gateway_sync() -> dict:
     return {
         "ok": True,
         "applied": patch,
+        "grid_changed": changed,
         "gateway": {k: gw.get(k) for k in
                     ("gridRows", "gridCols", "mqHost", "mqPort", "mqUser", "mqPfx", "haEnabled")},
     }
@@ -292,6 +302,16 @@ async def _companion_heartbeat(gateway_url: str, companion_url: str):
             await post_companion(gateway_url, url=companion_url, status=companion_status_string())
         except Exception as e:
             log.debug("companion heartbeat error: %s", e)
+        # Re-read the gateway's config on every heartbeat. Sync used to run ONCE, at
+        # startup: a gateway that was still booting (or briefly busy) left the companion
+        # on its default 3x15 forever, and a wall whose geometry changed on the gateway
+        # -- a bigger panel, a swapped board -- was never noticed. do_gateway_sync only
+        # acts when something actually moved, so this is a cheap GET the rest of the time.
+        if config.effective.get("sync_from_gateway"):
+            try:
+                await do_gateway_sync()
+            except Exception as e:
+                log.debug("periodic gateway sync error: %s", e)
 
 
 async def _verify_reachable(companion_url: str):

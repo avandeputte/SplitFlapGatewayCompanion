@@ -121,6 +121,13 @@ async function pollState() {
   try {
     const st = await api("/api/current_state");
     const board = $("preview");
+    // The wall can change shape under us: the gateway may have been unreachable at
+    // boot, or its Display Layout edited since. Re-read the geometry rather than
+    // reusing a stale GRID.cols, which would lay 75 cells out 15-wide by luck alone.
+    if (st.module_count && st.module_count !== GRID.module_count) {
+      await bootGrid();          // refetches rows/cols and rebuilds both boards
+      loadApps();                // min_rows/min_cols gating changes with the grid
+    }
     if (board.children.length !== st.chars.length) buildBoard(board, st.chars.length, GRID.cols);
     st.chars.forEach((ch, i) => {
       const cell = board.children[i];
@@ -140,8 +147,8 @@ async function pollStatus() {
   const down = () => { badge.className = "badge err"; badge.textContent = t("⚠ Display offline"); };
   const ok = () => { badge.className = "badge hidden"; badge.textContent = ""; };
   try {
-    const t = (await api("/api/current_state")).transport;
-    if (t.connected || t.type === "sim") ok(); else down();
+    const tr = (await api("/api/current_state")).transport;
+    if (tr.connected || tr.type === "sim") ok(); else down();
   } catch { down(); }
 }
 
@@ -340,17 +347,17 @@ function wireTabs() {
 
   // Only local button-tabs switch panes; the gateway link-tabs (.tab.gw)
   // navigate to the gateway via their href.
-  document.querySelectorAll(".tab[data-tab]").forEach((t) =>
-    t.addEventListener("click", () => {
+  document.querySelectorAll(".tab[data-tab]").forEach((btn) =>
+    btn.addEventListener("click", () => {
       document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
-      t.classList.add("active");
-      const tab = t.dataset.tab;
+      btn.classList.add("active");
+      const tab = btn.dataset.tab;
       ["apps", "compose", "playlists", "triggers"]
         .forEach((p) => $("page-" + p).classList.toggle("hidden", p !== tab));
       const loaders = { apps: loadApps, playlists: loadPlaylists, triggers: loadTriggers };
       if (loaders[tab]) loaders[tab]();
       if (tab === "compose") $("composeBoard").focus();
-      current.textContent = t.textContent;
+      current.textContent = btn.textContent;
       closeMenu();
     })
   );
@@ -420,10 +427,10 @@ function updateActiveUI(activeApp, activePlaylist) {
   } else {
     banner.classList.add("hidden");
   }
-  document.querySelectorAll(".app-tile").forEach((t) => {
-    const on = t.dataset.appId === activeApp;
-    t.classList.toggle("running", on);
-    const badge = t.querySelector(".app-badge");
+  document.querySelectorAll(".app-tile").forEach((tile) => {
+    const on = tile.dataset.appId === activeApp;
+    tile.classList.toggle("running", on);
+    const badge = tile.querySelector(".app-badge");
     if (badge) badge.textContent = on ? t("▶ RUNNING") : "";
   });
 }
@@ -936,14 +943,14 @@ let TRIGS = [], TRIG_APPS = [];
 function trigRender() {
   const box = $("trigList"); box.innerHTML = "";
   if (!TRIGS.length) box.innerHTML = `<span class="hint">${t("No triggers yet.")}</span>`;
-  TRIGS.forEach((t, i) => {
+  TRIGS.forEach((trig, i) => {
     const row = el("div", "row-card");
-    const en = el("input"); en.type = "checkbox"; en.checked = t.enabled !== false; en.onchange = () => (t.enabled = en.checked); row.appendChild(en);
-    const app = TRIG_APPS.find((a) => a.id === t.app);
-    const info = el("span", "grow"); info.textContent = app ? `${app.icon} ${app.name}` : t.app; row.appendChild(info);
-    const nm = el("input"); nm.placeholder = t("Label"); nm.value = t.name || ""; nm.oninput = () => (t.name = nm.value); row.appendChild(nm);
-    const cd = el("input"); cd.type = "number"; cd.style.width = "76px"; cd.title = t("cooldown (s)"); cd.value = t.cooldown || 300; cd.oninput = () => (t.cooldown = Number(cd.value)); row.appendChild(cd);
-    const ds = el("input"); ds.type = "number"; ds.style.width = "68px"; ds.title = t("show (s)"); ds.value = t.display_seconds || 30; ds.oninput = () => (t.display_seconds = Number(ds.value)); row.appendChild(ds);
+    const en = el("input"); en.type = "checkbox"; en.checked = trig.enabled !== false; en.onchange = () => (trig.enabled = en.checked); row.appendChild(en);
+    const app = TRIG_APPS.find((a) => a.id === trig.app);
+    const info = el("span", "grow"); info.textContent = app ? `${app.icon} ${app.name}` : trig.app; row.appendChild(info);
+    const nm = el("input"); nm.placeholder = t("Label"); nm.value = trig.name || ""; nm.oninput = () => (trig.name = nm.value); row.appendChild(nm);
+    const cd = el("input"); cd.type = "number"; cd.style.width = "76px"; cd.title = t("cooldown (s)"); cd.value = trig.cooldown || 300; cd.oninput = () => (trig.cooldown = Number(cd.value)); row.appendChild(cd);
+    const ds = el("input"); ds.type = "number"; ds.style.width = "68px"; ds.title = t("show (s)"); ds.value = trig.display_seconds || 30; ds.oninput = () => (trig.display_seconds = Number(ds.value)); row.appendChild(ds);
     const del = el("button", "del"); del.textContent = "✕"; del.onclick = () => { TRIGS.splice(i, 1); trigRender(); }; row.appendChild(del);
     box.appendChild(row);
   });
@@ -1254,7 +1261,9 @@ async function init() {
   // triggers
   $("trigAdd").addEventListener("click", addTrigger);
   $("trigSave").addEventListener("click", saveTriggers);
-  await loadApps();
+  // Guarded: a throw here used to abort init() and take everything after it with it —
+  // the gateway tabs never appeared, and the only symptom was a console error.
+  try { await loadApps(); } catch (e) { console.error("loadApps failed:", e); }
   setupGatewayTabs();
   openTabFromHash();
   window.addEventListener("hashchange", openTabFromHash);

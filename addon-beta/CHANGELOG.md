@@ -3,6 +3,23 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.4
+
+Two bugs found on a 5x15 MatrixPortal (75 modules).
+
+- **The gateway's tabs were missing, and a JavaScript error was the cause.** The
+  translation work added a global `t()` function, and three callbacks already used
+  `t` as a variable name — so inside them `t("…")` called a DOM element and threw.
+  The worst one only threw **while an app was running**, which is why it passed
+  testing and broke in the field: it aborted the UI's startup, and everything after
+  it (including the gateway tab strip) never ran.
+- **The companion never noticed the wall had changed shape.** It read the gateway's
+  geometry once, at startup: a gateway that was still booting then — or one whose
+  layout changed later, or a swap to a bigger panel — left the companion stuck on its
+  default 3x15, rendering 75 modules as 45. It now re-reads the gateway on every
+  heartbeat and resizes when the geometry actually moves, and the web UI follows the
+  new shape without a reload.
+
 ## 1.9.0-beta.3
 
 - **The settings dialogs are actually translated now.** Labels were, but the
