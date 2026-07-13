@@ -41,4 +41,14 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
     pfx = f"{temp}F ({feels}F) "
     l2 = (pfx + desc[:max(0, c - len(pfx))]).center(c)
     l3 = f"H:{high}F L:{low}F".center(c)
+    if get_rows() >= 4:
+        # The shared helper already returns these; a 3-row wall just had no room.
+        hum, wind = w.get('humidity'), w.get('wind_mph')
+        bits = []
+        if hum is not None:
+            bits.append(f"{int(hum)}% HUM")
+        if wind is not None:
+            bits.append(f"{int(wind)}MPH")
+        l4 = "  ".join(bits).center(c) if bits else ""
+        return [time_page, format_lines(l1, l2, l3, l4)]
     return [time_page, format_lines(l1, l2, l3)]

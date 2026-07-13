@@ -96,3 +96,72 @@ def test_build_sync_patch_carries_any_geometry(rows, cols, modules):
     c = Config()
     c.update(patch)
     assert (c.grid["rows"], c.grid["cols"], c.module_count()) == (rows, cols, modules)
+
+
+# ---------------------------------------------------------------------------
+# tall walls: centre the block, and let apps use the room
+# ---------------------------------------------------------------------------
+def _runtime(rows, cols, tmp_path, **settings):
+    from pathlib import Path as P
+
+    from app.config import Config
+    from app.plugin_settings import PluginSettings
+    from app.plugins import PluginRuntime
+
+    cfg = Config(tmp_path)
+    cfg.update({"grid": {"rows": rows, "cols": cols}})
+    st = PluginSettings(cfg.data_dir)
+    for k, v in settings.items():
+        st.set(k, v)
+    apps = P(__file__).resolve().parents[2] / "apps"
+    rt = PluginRuntime(cfg, st, apps, cfg.data_dir / "apps")
+    rt.load()
+    return rt
+
+
+def _rows_of(page, rows, cols):
+    return [page[r * cols:(r + 1) * cols] for r in range(rows)]
+
+
+def test_format_lines_centres_a_short_block_vertically(tmp_path):
+    """A 3-line app on a 5-row wall must not sit at the top with two dead rows —
+    it is centred. This is our documented divergence from splitflap-os."""
+    rt = _runtime(5, 15, tmp_path)
+    page = rt.format_lines("ONE", "TWO", "THREE")
+    lines = _rows_of(page, 5, 15)
+    assert lines[0].strip() == ""            # padding above
+    assert [l.strip() for l in lines[1:4]] == ["ONE", "TWO", "THREE"]
+    assert lines[4].strip() == ""            # …and below
+
+
+def test_format_lines_is_unchanged_when_the_app_fills_the_wall(tmp_path):
+    """The 3-row wall — what everyone has — must render byte-for-byte as before."""
+    rt = _runtime(3, 15, tmp_path)
+    assert rt.format_lines("A", "B", "C") == "A".center(15) + "B".center(15) + "C".center(15)
+
+
+def test_odd_padding_falls_to_the_bottom(tmp_path):
+    rt = _runtime(5, 15, tmp_path)
+    lines = _rows_of(rt.format_lines("X", "Y"), 5, 15)
+    assert lines[0].strip() == "" and lines[1].strip() == "X"
+    assert lines[2].strip() == "Y"
+    assert lines[3].strip() == "" and lines[4].strip() == ""
+
+
+@pytest.mark.parametrize("app_id,setting,value", [
+    ("world_clock", "plugin_world_clock_world_clock_zones",
+     "US/Eastern,US/Pacific,Europe/London,Europe/Paris,Asia/Tokyo"),
+])
+def test_apps_use_the_extra_rows(tmp_path, app_id, setting, value):
+    """world_clock already sliced zones[:get_rows()]; its MANIFEST capped it at 3."""
+    rt = _runtime(5, 15, tmp_path, **{setting: value})
+    page = rt.get_pages(app_id)[0]
+    used = sum(1 for line in _rows_of(page, 5, 15) if line.strip())
+    assert used == 5, f"{app_id} filled only {used}/5 rows"
+
+
+def test_date_gains_the_year_on_a_tall_wall_and_keeps_3_row_layout(tmp_path):
+    tall = _rows_of(_runtime(5, 15, tmp_path / "a").get_pages("date")[0], 5, 15)
+    assert any(str(__import__("datetime").datetime.now().year) in l for l in tall)
+    short = _rows_of(_runtime(3, 15, tmp_path / "b").get_pages("date")[0], 3, 15)
+    assert sum(1 for l in short if l.strip()) == 3     # unchanged: time / date / weekday

@@ -131,9 +131,20 @@ class PluginRuntime:
         return int(self.config.grid["cols"])
 
     def format_lines(self, *lines, cols=None) -> str:
+        """Build one page from up to `rows` lines: each centred horizontally, and the
+        block centred VERTICALLY when the app gives fewer lines than the wall is tall.
+
+        splitflap-os pads only at the bottom, which is invisible on the 3-row walls it
+        targets but leaves a 3-line app stranded at the top of a 5-row wall with two
+        dead rows under it. This is a deliberate, documented divergence — see
+        COMPATIBILITY.md. Nothing changes when an app fills the wall exactly.
+        """
         cols = cols or self.get_cols()
         rows = self.get_rows()
-        padded = list(lines) + [""] * (rows - len(lines))
+        given = list(lines)[:rows]
+        pad = rows - len(given)
+        top = pad // 2                      # odd remainder falls to the bottom
+        padded = [""] * top + given + [""] * (pad - top)
         return "".join(l.center(cols)[:cols] for l in padded[:rows])
 
     # -- discovery / loading ----------------------------------------------

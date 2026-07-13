@@ -14,4 +14,4 @@ def _read_version() -> str:
         return "1.0.0"
 
 
-__version__ = "1.9.0-beta.4"
+__version__ = "1.9.0-beta.5"

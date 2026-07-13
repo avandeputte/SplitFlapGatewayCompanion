@@ -48,6 +48,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     bar = 'w' * filled + ' ' * (cols - filled)
 
     name = t(phase_name)
+    if get_rows() >= 4:
+        # Everything is already computed; a 3-row wall just couldn't show it at once.
+        return [
+            format_lines(name, bar, f'{illum_pct}% {t("LIT")}',
+                         f'{t("FULL IN")} {int(days_to_full)}{u("D")}',
+                         f'{t("NEW IN")} {int(days_to_new)}{u("D")}'),
+        ]
     pages = [
         format_lines(name, f'{illum_pct}% {t("LIT")}', f'{t("FULL IN")} {int(days_to_full)}{u("D")}'),
         format_lines(name, bar, f'{t("NEW IN")} {int(days_to_new)}{u("D")}'),

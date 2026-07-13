@@ -12,6 +12,13 @@ def fetch(settings, format_lines, get_rows, get_cols):
         name = root.find('a:title', ns).text.upper()
         entries = root.findall('a:entry', ns)
         count = f'{len(entries)} VIDEOS'
+        rows = get_rows()
+        if rows >= 4 and entries:
+            # The feed carries the latest upload — worth a line when the wall is tall.
+            latest = entries[0].find('a:title', ns)
+            title = (latest.text or '').upper() if latest is not None else ''
+            extra = ['LATEST', title[:get_cols()]] if title else []
+            return [format_lines('YOUTUBE', name, count, *extra[:rows - 3])]
         return [format_lines('YOUTUBE', name, count)]
     except Exception:
         return [format_lines('YOUTUBE', 'ERROR', 'CHECK ID')]

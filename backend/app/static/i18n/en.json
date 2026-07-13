@@ -292,7 +292,7 @@
   "Time Format",
   "Timezone",
   "Timezone (override global)",
-  "Timezones (max 3)",
+  "Timezones (as many as the wall has rows)",
   "Token generated and stored with your settings. Pin your own with COMPANION_MCP_TOKEN.",
   "Token pinned by COMPANION_MCP_TOKEN.",
   "Tools",

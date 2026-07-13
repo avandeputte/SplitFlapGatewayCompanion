@@ -15,4 +15,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     rows = get_rows()
     if rows == 1:
         return [format_lines(time_str)]
+    if rows >= 4:
+        # Room to spare: a wall clock that also says what day it is.
+        if i18n is not None:
+            weekday, date_line = i18n.weekday(now), i18n.date(now)
+        else:
+            weekday = now.strftime('%A').upper()
+            date_line = f"{now.strftime('%B').upper()} {now.day}"
+        return [format_lines(time_str, '', weekday, date_line)]
     return [format_lines('', time_str, '')]

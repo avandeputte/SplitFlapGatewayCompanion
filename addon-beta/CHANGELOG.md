@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.5
+
+Tall walls (a 5x15 MatrixPortal) now actually use the space.
+
+- **Content is centred vertically.** A three-line app used to sit at the top of a
+  five-row wall with two dead rows under it. This is a deliberate divergence from
+  splitflap-os, which pads only at the bottom — invisible on the 3-row walls it
+  targets. Nothing changes on a 3-row wall.
+- **Apps use the extra rows**: World Clock shows as many zones as you have rows (it
+  was capped at three by its own settings), Date adds the year, Time adds the day and
+  date, Moon Phase fits the whole reading on one page, ISS lists who is aboard, and
+  Dashboard adds humidity and wind. Stocks, Crypto, Sports and Countdown already
+  adapted — they simply need more tickers/teams/slots configured to fill the wall.
+
 ## 1.9.0-beta.4
 
 Two bugs found on a 5x15 MatrixPortal (75 modules).

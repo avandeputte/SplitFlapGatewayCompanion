@@ -19,4 +19,6 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     rows = get_rows()
     if rows == 2:
         return [format_lines(month_day, weekday)]
+    if rows >= 4:
+        return [format_lines(time_str, weekday, month_day, str(now.year))]
     return [format_lines(time_str, month_day, weekday)]

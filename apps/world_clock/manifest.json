@@ -18,19 +18,25 @@
       "type": "toggle",
       "default": "open",
       "options": [
-        {"value": "open",  "label": "Business opens (9am)"},
-        {"value": "close", "label": "Business closes (5pm)"}
+        {
+          "value": "open",
+          "label": "Business opens (9am)"
+        },
+        {
+          "value": "close",
+          "label": "Business closes (5pm)"
+        }
       ]
     }
   ],
   "settings": [
     {
       "key": "world_clock_zones",
-      "label": "Timezones (max 3)",
+      "label": "Timezones (as many as the wall has rows)",
       "type": "search_chips",
       "searchUrl": "/timezones",
       "resultKey": "zones",
-      "maxItems": 3,
+      "maxItems": 6,
       "default": "US/Eastern,US/Pacific,Europe/London"
     }
   ],

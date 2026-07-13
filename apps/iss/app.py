@@ -15,6 +15,18 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             return [format_lines(f'ISS LAT{lat} LON{lon}')]
         if rows == 2:
             return [format_lines('ISS TRACKER', f'LAT{lat} LON{lon}')]
+        if rows >= 4:
+            # astros.json is already fetched above and carries who is aboard — the
+            # position API has nothing else to give (no altitude, no velocity).
+            cols = get_cols()
+            crew = [str(pp.get('name', '')).upper()[:cols]
+                    for pp in (ppl.get('people') or []) if pp.get('craft') == 'ISS']
+            # "LAT -41.0050 LON 123.4" does not fit 15 columns; with rows to spare,
+            # give latitude and longitude a line each instead of truncating both.
+            def trim(v):
+                return f'{float(v):.2f}'
+            body = [f'LAT {trim(lat)}', f'LON {trim(lon)}', f'{num} ' + t('IN SPACE')]
+            return [format_lines('ISS TRACKER', *body, *crew[:max(0, rows - 4)])]
         return [format_lines('ISS TRACKER', f'LAT {lat} LON {lon}', f'{num} ' + t('IN SPACE'))]
     except Exception:
         return [format_lines('ISS TRACKER', t('ERROR'), t('API FAIL'))]

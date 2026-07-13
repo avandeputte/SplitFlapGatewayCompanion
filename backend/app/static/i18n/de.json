@@ -230,7 +230,7 @@
   "Time Format": "Zeitformat",
   "Timezone": "Zeitzone",
   "Timezone (override global)": "Zeitzone (überschreibt global)",
-  "Timezones (max 3)": "Zeitzonen (max. 3)",
+  "Timezones (as many as the wall has rows)": "Zeitzonen (so viele wie Zeilen)",
   "Token generated and stored with your settings. Pin your own with COMPANION_MCP_TOKEN.": "Token generiert und mit deinen Einstellungen gespeichert. Eigenen mit COMPANION_MCP_TOKEN festlegen.",
   "Token pinned by COMPANION_MCP_TOKEN.": "Token durch COMPANION_MCP_TOKEN festgelegt.",
   "Tools": "Werkzeuge",

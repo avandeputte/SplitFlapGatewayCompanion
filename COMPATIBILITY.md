@@ -19,7 +19,14 @@ coincidence, and this document is the contract we hold it to.
 - **`fetch(settings, format_lines, get_rows, get_cols) -> list[str]`** — same
   argument order and semantics. `format_lines(*lines, cols=None)`,
   `get_rows()`, `get_cols()` are behaviour copies (padding/centering/width; each
-  page is `rows × cols` chars).
+  page is `rows × cols` chars), with **one deliberate divergence**:
+
+  > **Vertical centering.** When an app returns fewer lines than the wall is tall,
+  > splitflap-os pads only at the bottom; we pad above and below. On a 3-row wall —
+  > what splitflap-os targets — the two are identical, because apps fill it. On a
+  > taller wall (a 5×15 MatrixPortal, say) bottom-padding strands a 3-line app at the
+  > top with two dead rows beneath it. An app is unaffected either way: it still
+  > returns the same lines, and `get_rows()` still tells it how much room it has.
 - **`settings` dict** — manifest defaults merged with saved user values, same key
   resolution, including any global keys apps read (e.g. `currency_symbol`).
 - **Triggers** — `trigger(settings, conditions) -> bool` on a

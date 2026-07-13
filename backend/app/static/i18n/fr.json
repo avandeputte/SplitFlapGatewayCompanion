@@ -230,7 +230,7 @@
   "Time Format": "Format de l'heure",
   "Timezone": "Fuseau horaire",
   "Timezone (override global)": "Fuseau horaire (remplace le global)",
-  "Timezones (max 3)": "Fuseaux horaires (3 max)",
+  "Timezones (as many as the wall has rows)": "Fuseaux horaires (autant que de lignes)",
   "Token generated and stored with your settings. Pin your own with COMPANION_MCP_TOKEN.": "Jeton généré et enregistré avec vos réglages. Fixez le vôtre avec COMPANION_MCP_TOKEN.",
   "Token pinned by COMPANION_MCP_TOKEN.": "Jeton fixé par COMPANION_MCP_TOKEN.",
   "Tools": "Outils",
