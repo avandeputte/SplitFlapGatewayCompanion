@@ -27,11 +27,16 @@ the work is mostly discipline, not volume.
    | 3 | `COMPANION_UI_LANGUAGE` env var / `ui_language` add-on option | the operator | the deployment |
    | 4 | `Accept-Language` / `navigator.languages` | the browser | that viewer |
 
-   Blank means "pass to the next level": the Language setting only participates once the
-   user has actually saved one (the store persists only saved values, so "never touched"
-   is detectable — same blank-means-follow convention as the per-app Language override).
-   Whatever level wins, the resolved code then degrades exact locale → base language →
-   English, the same chain the channel apps and fortunes already use.
+   Unset means "pass to the next level." One wrinkle, verified in the code: the settings
+   store is *seeded* with `language: "en-US"` (`plugin_settings._defaults()`) and the
+   save path persists catalog keys wholesale — so today "never touched" is
+   indistinguishable from "chose en-US." Phase 1 therefore adds a `language_explicit`
+   flag, set the first time the Language control is actually saved; the settings level
+   participates only when it's true. Migration for existing installs: a stored language
+   that differs from the default also counts as explicit (someone picked it), so only
+   the harmless case — an old install that explicitly saved en-US — falls through to
+   the browser. Whatever level wins, the resolved code then degrades exact locale →
+   base language → English, the same chain the channel apps and fortunes already use.
 
    A French wall viewed from a German phone therefore shows German chrome over French
    content until the owner saves a Language — which is correct: the setting describes
