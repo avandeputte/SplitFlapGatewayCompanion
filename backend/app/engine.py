@@ -190,17 +190,38 @@ class DisplayController:
         return bool(getattr(self.transport, "cells", False))
 
     def _normalize(self, text: str, *, raw: bool, keep_case: bool = False) -> str:
-        # Case is kept only for text a PERSON typed, and only on a wall that can show it.
-        # Never for app output: 34 of the 60 apps call .upper() on their own strings, so
-        # there is nothing left to preserve — and a `raw` app page uses lowercase to mean a
-        # COLOUR, which is the one thing keeping the case would break.
-        keep = keep_case and self.rich and not raw
+        """Two INDEPENDENT questions, which `raw` used to answer at once — and that is what
+        turned the o, r and w of "Hello world" into colour flaps.
+
+          raw        — the text is already laid out; do not re-wrap or fold it.
+          keep_case  — a lowercase letter is a LETTER.
+
+        A composed message is both: laid out by the caller, and made of words. An ANIMATION
+        is raw and NOT keep_case: its lowercase r/o/y/g/b/p/w are the COLOUR FLAPS, which is
+        the only way an animation can ask for one. Conflating the two meant every message
+        containing an `o` grew an orange flap in the middle of it.
+        """
+        # keep_case is the CALLER's statement that this text is made of WORDS — so a
+        # lowercase r is the letter r, not the red flap. It is not the wall's business, and
+        # gating it on the wall was a bug: on a physical wall the intent was discarded and
+        # "Hello world" had its o, r and w eaten by colorize below. The wall decides only
+        # the final fold.
+        keep = keep_case
         clean = renderer.normalize(text, self.config.module_count(), raw=raw, keep_case=keep)
-        # Every page handed to a transport says explicitly which cells are COLOURS. When the
-        # case is kept, normalize already did that (a lowercase letter is a letter there);
-        # otherwise the lowercase colour codes are colours, and saying so here is what stops
+        # Every page reaching a transport says explicitly which cells are COLOURS. Where the
+        # case is kept, normalize already did it (a colour tile became its own codepoint);
+        # otherwise the lowercase colour codes ARE colours, and saying so here is what stops
         # the transport from having to guess.
-        return clean if keep else renderer.colorize(clean)
+        clean = clean if keep else renderer.colorize(clean)
+
+        # THE LAST WORD ON CASE. A wall with no lowercase flaps gets uppercase, whatever the
+        # caller passed — `raw` skips the fold, so without this a composed message could go
+        # out lowercase to a wall that cannot show it. Colours are exempt: they are no longer
+        # letters, so there is nothing to fold.
+        if not self.rich:
+            clean = "".join(c if renderer.is_color(c) else renderer.cp1252_upper(c)
+                            for c in clean)
+        return clean
 
     async def _run_manual(self, clean: str, *, style: str | None, speed: int | None) -> None:
         disp = self.config.display
@@ -236,12 +257,12 @@ class DisplayController:
                     ordered = [(base + gi, ch, gi) for step in plan for (gi, ch) in step.frames]
                     await self.transport.send_batch([(m, c) for m, c, _ in ordered], int(speed))
                     for _, char, gi in ordered:
-                        self.state.set_module(gi, renderer.for_state(char))
+                        self.state.set_module(gi, char)
                     return
                 for step in plan:
                     for grid_index, char in step.frames:
                         await self.transport.send_frame(base + grid_index, renderer.for_legacy(char))
-                        self.state.set_module(grid_index, renderer.for_state(char))
+                        self.state.set_module(grid_index, char)
                     if step.delay_after > 0:
                         await asyncio.sleep(step.delay_after)
             except asyncio.CancelledError:
@@ -320,7 +341,7 @@ class DisplayController:
                 text = page if isinstance(page, str) else str(page.get("text", ""))
                 # Non-anim apps skip re-sending an unchanged page.
                 if t["is_anim"] or text != last_sent:
-                    clean = self._normalize(text, raw=t["is_anim"], keep_case=True)
+                    clean = self._normalize(text, raw=t["is_anim"], keep_case=not t["is_anim"])
                     await self._emit_page(clean, style=t["style"], speed=t["speed"])
                     last_sent = text
                 await asyncio.sleep(max(0.0, float(t["loop_delay"])))
@@ -390,7 +411,7 @@ class DisplayController:
                             await self._wait_if_interrupted()
                             text = page if isinstance(page, str) else str(page.get("text", ""))
                             if t["is_anim"] or text != last_sent:
-                                clean = self._normalize(text, raw=t["is_anim"], keep_case=True)
+                                clean = self._normalize(text, raw=t["is_anim"], keep_case=not t["is_anim"])
                                 await self._emit_page(clean, style=t["style"], speed=t["speed"])
                                 last_sent = text
                             await asyncio.sleep(max(0.0, float(t["loop_delay"])))

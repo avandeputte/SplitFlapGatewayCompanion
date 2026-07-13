@@ -489,9 +489,10 @@ def test_fortune_cookies_have_english_region_variants():
         assert len(data) > 100
         for e in data:
             e["fortune"].encode("cp1252")   # must render on the Windows-1252 modules
-    # the region files really differ from the American source
-    us = (d / "fortunes_en.json").read_text("utf-8")
-    gb = (d / "fortunes_en-gb.json").read_text("utf-8")
+    # The region files really differ from the American source. Case-insensitively, because
+    # the data is no longer shouted — the SPELLING is the point, not the case.
+    us = (d / "fortunes_en.json").read_text("utf-8").upper()
+    gb = (d / "fortunes_en-gb.json").read_text("utf-8").upper()
     assert "FAVOUR" in gb and "FAVOUR" not in us
 
 

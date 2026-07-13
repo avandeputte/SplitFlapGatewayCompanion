@@ -3,7 +3,13 @@
 
 // Lowercase r/o/y/g/b/p/w are COLOUR flaps; uppercase letters are letters.
 // Case-sensitive in the preview: 'y' = yellow tile, 'Y' = the letter Y.
+// A colour flap is its own codepoint (U+E000..U+E006), not the letter r/o/y/g/b/p/w.
+// It has to be: a wall that can show lowercase can show the LETTER r, and colouring every
+// `o` was how "Hello" came out with an orange flap in the middle of it. The server sends
+// the same sentinel it sends the wall (renderer.COLOR_PUA).
 const COLOR_CODES = ["r", "o", "y", "g", "b", "p", "w"];
+const COLOR_PUA = {};
+COLOR_CODES.forEach((c, i) => { COLOR_PUA[String.fromCharCode(0xe000 + i)] = c; });
 const $ = (id) => document.getElementById(id);
 
 let GRID = { rows: 3, cols: 15, module_count: 45, styles: [] };
@@ -114,11 +120,12 @@ const post = (path, body) =>
 
 // ---- rendering helpers -----------------------------------------------------
 function classForChar(ch) {
-  return COLOR_CODES.includes(ch) ? `flap color-${ch}` : "flap";
+  const c = COLOR_PUA[ch];
+  return c ? `flap color-${c}` : "flap";
 }
 function glyph(ch) {
   // colour codes (lowercase) render as an empty coloured tile
-  return COLOR_CODES.includes(ch) ? "" : (ch || "");
+  return COLOR_PUA[ch] ? "" : (ch || "");
 }
 
 function buildBoard(board, count, cols) {

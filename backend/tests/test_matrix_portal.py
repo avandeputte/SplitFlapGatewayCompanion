@@ -269,3 +269,59 @@ def test_animation_apps_still_uppercase_their_own_text(app_id):
     src = (Path(__file__).resolve().parents[2] / "apps" / app_id / "app.py").read_text("utf-8")
     # they draw with lowercase colour codes, so nothing may fold their pages for them
     assert ".upper()" in src or "font" in src
+
+
+# ---------------------------------------------------------------------------
+# "raw" and "keep case" are two questions, not one
+# ---------------------------------------------------------------------------
+# `raw` used to mean BOTH "already laid out, do not fold it" AND "a lowercase letter is a
+# colour". They are independent, and conflating them is what put an orange flap in the
+# middle of "Hello world": a composed message is laid out by the caller (raw) and made of
+# words (keep_case), while an ANIMATION is laid out and made of COLOURS.
+def _controller(rich: bool):
+    import tempfile
+    from pathlib import Path
+
+    from app.config import Config
+    from app.engine import DisplayController
+    from app.state import DisplayState
+
+    cfg = Config(Path(tempfile.mkdtemp()))
+    cfg.update({"grid": {"rows": 1, "cols": 16}})
+    c = DisplayController(cfg, DisplayState(16))
+
+    class T:
+        cells = rich
+    c.transport = T()
+    return c
+
+
+def test_a_composed_message_keeps_its_letters():
+    """The reported bug. Every o, r and w in "Hello world" was becoming a colour flap."""
+    from app import renderer
+    c = _controller(rich=True)
+    page = c._normalize("Hello world", raw=True, keep_case=True)
+    assert page.startswith("Hello world")
+    assert not any(renderer.is_color(ch) for ch in page), "a letter became a colour flap"
+
+
+def test_a_colour_tile_in_a_message_is_still_a_colour():
+    from app import renderer
+    c = _controller(rich=True)
+    page = c._normalize("Hi 🟥", raw=True, keep_case=True)
+    assert page[:2] == "Hi"
+    assert renderer.is_color(page[3])
+
+
+def test_an_animation_still_paints_with_lowercase():
+    """art-clock and the anim_* apps draw colours as lowercase r/o/y/g/b/p/w. Keeping the
+    case there would turn a red flap into the letter r — the exact inverse of the bug."""
+    from app import renderer
+    c = _controller(rich=True)
+    page = c._normalize("rgb", raw=True, keep_case=False)
+    assert [renderer.PUA_TO_NAME[ch] for ch in page[:3]] == ["red", "green", "blue"]
+
+
+def test_a_physical_wall_ignores_all_of_this():
+    c = _controller(rich=False)
+    assert c._normalize("Hello world", raw=True, keep_case=True).startswith("HELLO WORLD")

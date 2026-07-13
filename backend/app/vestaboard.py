@@ -25,6 +25,9 @@ Two house rules this module has to respect:
 
 from __future__ import annotations
 
+from . import renderer
+
+
 # The published table (docs.vestaboard.com/docs/charactercodes). Codes 43, 45, 51,
 # 57, 58 and 61 are absent there — a real board has no flap for them — so they are
 # simply not in this map and decode to a blank, like any other gap.
@@ -37,13 +40,18 @@ CODE_TO_CHAR: dict[int, str] = {
     44: "-", 46: "+", 47: "&", 48: "=", 49: ";", 50: ":",
     52: "'", 53: '"', 54: "%", 55: ",", 56: ".", 59: "/", 60: "?",
     62: "°",                                                   # Flagship degree (a Note shows a heart)
-    # Colour chips -> the firmware's colour flaps. Violet is the companion's `p`.
-    63: "r", 64: "o", 65: "y", 66: "g", 67: "b", 68: "p", 69: "w",
+    # Colour chips -> the firmware's COLOUR FLAPS, as their own codepoints. They used to be
+    # the letters r/o/y/g/b/p/w, which was fine while no wall could show a lowercase letter.
+    # It is not fine now: decoding a red chip to "r" would write the LETTER r on a Matrix
+    # Portal, and encoding the r of "Hello" would read back as a red chip. Violet is `p`.
+    63: renderer.COLOR_PUA["r"], 64: renderer.COLOR_PUA["o"], 65: renderer.COLOR_PUA["y"],
+    66: renderer.COLOR_PUA["g"], 67: renderer.COLOR_PUA["b"], 68: renderer.COLOR_PUA["p"],
+    69: renderer.COLOR_PUA["w"],
     # Two chips the flaps don't have. Black is already spelled "blank" here — see
     # the ⬛ -> " " entry in renderer.COLOR_MAP — and `filled` is a solid tile, so
     # it lands on white. Both are lossy: they do NOT survive a write->read round trip.
     70: " ",
-    71: "w",
+    71: renderer.COLOR_PUA["w"],
 }
 
 MAX_CODE = 71   # a real board rejects anything outside 0..71, and so do we
@@ -200,8 +208,9 @@ def encode(chars: list[str], rows: int, cols: int) -> list[list[int]]:
         for c in range(cols):
             i = r * cols + c
             ch = chars[i] if i < len(chars) else " "
-            # Letters are the only case-insensitive cells: a module shows `A` for
-            # either, but a lowercase colour code must NOT fall through to a letter.
+            # A Vestaboard has no lowercase flaps, so a letter reads back as its capital.
+            # A COLOUR is not a letter — it is its own codepoint — so it can never be
+            # confused with the r of "Hello", which is exactly what used to happen.
             row.append(CHAR_TO_CODE.get(ch, CHAR_TO_CODE.get(ch.upper(), BLANK)))
         out.append(row)
     return out

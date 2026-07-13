@@ -17,7 +17,7 @@ def client(monkeypatch):
 
     calls = {}
 
-    def fake_send(text, style=None, speed=None, raw=False):
+    def fake_send(text, style=None, speed=None, raw=False, keep_case=False):
         calls["send"] = {"text": text, "style": style, "raw": raw}
         return text
 

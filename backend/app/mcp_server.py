@@ -147,7 +147,10 @@ def build(displays) -> FastMCP:
         out = {
             "rows": rows,
             "cols": cols,
-            "lines": ["".join(chars[r * cols:(r + 1) * cols]) for r in range(rows)],
+            # A colour flap has no letter to be reported as (the letter r is now the
+            # letter r), so it comes back as the tile a person would have typed.
+            "lines": ["".join(renderer.for_text(c) for c in chars[r * cols:(r + 1) * cols])
+                      for r in range(rows)],
             "driver": driver,
             "showing": {"app_id": showing, "name": _app_name(d, showing)} if showing else None,
         }

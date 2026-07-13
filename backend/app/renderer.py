@@ -171,11 +171,12 @@ def for_legacy(ch: str) -> str:
     return PUA_TO_CODE.get(ch, PICTOGRAPH_FALLBACK.get(ch, ch))
 
 
-def for_state(ch: str) -> str:
-    """One cell, as the live preview wants it. A colour goes back to its letter code (the
-    SPA colours a flap from that), but a pictograph stays ITSELF — a browser can draw a
-    heart, so there is no reason to show it the fallback the wall would have needed."""
-    return PUA_TO_CODE.get(ch, ch)
+def for_text(ch: str) -> str:
+    """One cell, as READABLE TEXT (an MCP tool's `lines`, a log line). A colour has no
+    letter now — using one would be a lie, since `r` is the letter r — so it comes back as
+    the tile a person would have typed."""
+    tile = {v: k for k, v in COLOR_MAP.items() if k in COLOR_CODES}
+    return tile.get(PUA_TO_CODE.get(ch, ""), ch)
 
 
 def get_animation_order(style: str = "ltr", rows: int = 3, cols: int = 15) -> list[int]:

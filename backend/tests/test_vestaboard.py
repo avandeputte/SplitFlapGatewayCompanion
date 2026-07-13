@@ -21,8 +21,12 @@ def test_code_table_matches_the_published_one():
     assert vb.CODE_TO_CHAR[36] == "0"          # zero comes AFTER the nines
     assert vb.CODE_TO_CHAR[37] == "!" and vb.CODE_TO_CHAR[60] == "?"
     assert vb.CODE_TO_CHAR[62] == "°"
-    # colour chips -> the firmware's colour flaps; violet is `p`
-    assert [vb.CODE_TO_CHAR[c] for c in range(63, 70)] == ["r", "o", "y", "g", "b", "p", "w"]
+    # Colour chips -> the firmware's COLOUR FLAPS, each its own codepoint rather than the
+    # letter that used to stand in for it. Violet is `p`. Spelling a chip as `r` was only
+    # ever safe because no wall could show a lowercase letter; one now can.
+    from app import renderer
+    assert [vb.CODE_TO_CHAR[c] for c in range(63, 70)] == \
+        [renderer.COLOR_PUA[c] for c in "roygbpw"]
 
 
 @pytest.mark.parametrize("code", [43, 45, 51, 57, 58, 61])
@@ -32,11 +36,13 @@ def test_codes_absent_from_the_table_decode_to_a_blank(code):
 
 
 def test_black_and_filled_are_the_lossy_pair():
+    from app import renderer
+    white = renderer.COLOR_PUA["w"]
     assert vb.decode([[70]]) == [" "]     # no black flap; blank is the convention (⬛ -> " ")
-    assert vb.decode([[71]]) == ["w"]     # `filled` is a solid tile -> white
+    assert vb.decode([[71]]) == [white]   # `filled` is a solid tile -> the white flap
     # ...and they do not round-trip, by construction:
     assert vb.encode([" "], 1, 1) == [[0]]
-    assert vb.encode(["w"], 1, 1) == [[69]]
+    assert vb.encode([white], 1, 1) == [[69]]
 
 
 def test_every_valid_code_round_trips_except_the_lossy_aliases():
@@ -54,9 +60,15 @@ def test_encode_maps_unrepresentable_characters_to_blank():
 
 
 def test_encode_does_not_mistake_a_colour_flap_for_a_letter():
-    """`y` is a yellow tile and `Y` is the letter Y — the case rule must survive a read."""
-    assert vb.encode(["y"], 1, 1) == [[65]]   # yellow chip
-    assert vb.encode(["Y"], 1, 1) == [[25]]   # letter Y
+    """A colour is its own codepoint, not the letter `y`.
+
+    It HAS to be. While no wall could show lowercase, spelling yellow as `y` was safe. Once
+    one can, `y` is the letter y — and reading the board back would have turned the y of
+    "Hello you" into a yellow chip, while a real yellow chip round-tripped into a letter."""
+    from app import renderer
+    assert vb.encode([renderer.COLOR_PUA["y"]], 1, 1) == [[65]]   # yellow chip
+    assert vb.encode(["y"], 1, 1) == [[25]]                       # the LETTER y
+    assert vb.encode(["Y"], 1, 1) == [[25]]                       # …and its capital
 
 
 # --- decode validation (a real board rejects these too) -----------------------
@@ -153,7 +165,7 @@ def client(monkeypatch):
 
     sent = {}
 
-    def fake_send(text, style=None, speed=None, raw=False):
+    def fake_send(text, style=None, speed=None, raw=False, keep_case=False):
         sent.update(text=text, style=style, raw=raw)
         return text
 
@@ -197,9 +209,14 @@ def test_post_text_the_home_assistant_way(client):
     assert "HELLO WORLD" in client.sent["text"]     # uppercased: there are no lowercase flaps
 
 
-def test_colour_chips_survive_as_lowercase_flaps(client):
+def test_colour_chips_become_colour_flaps(client):
+    """A Vestaboard colour chip must reach the wall as a COLOUR. It used to be spelled as
+    the letter `r`, which on a wall that can show lowercase would have written the letter."""
+    from app import renderer
     client.post("/local-api/message", json=[[63, 64, 65, 66, 67, 68, 69]], headers=AUTH)
-    assert "roygbpw" in client.sent["text"]
+    sent = client.sent["text"]
+    assert all(renderer.COLOR_PUA[c] in sent for c in "roygbpw")
+    assert "roygbpw" not in sent, "a colour chip must not be spelled as letters"
 
 
 def test_read_back_the_live_board(client, monkeypatch):

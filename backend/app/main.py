@@ -1276,10 +1276,13 @@ async def compose_send(request: Request, req: ComposeRequest):
     d = display_for(request)
     if req.style and req.style not in renderer.ALL_STYLES:
         raise HTTPException(400, f"unknown style: {req.style}")
-    # A person typed this. On a wall that can show lowercase, show it as they typed it —
-    # rather than SHOUTING IT BACK AT THEM, which is all the one-byte protocol could do.
+    # A person typed this: on a wall that can show lowercase, show it as they typed it,
+    # rather than SHOUTING IT BACK AT THEM — which was all the one-byte protocol could do.
+    #
+    # …unless it is `raw`, which is the click-to-type GRID: there a lowercase r/o/y/g/b/p/w
+    # is a COLOUR CELL the user placed, not a letter they typed.
     target = d.controller.send_text_bg(req.text, style=req.style, speed=req.speed,
-                                       raw=req.raw, keep_case=True)
+                                       raw=req.raw, keep_case=not req.raw)
     return {"ok": True, "target": target}
 
 
@@ -1303,7 +1306,9 @@ async def show_message(request: Request, req: MessageRequest):
         d.ha.publish_state()
         return {"ok": True, "seconds": req.seconds,
                 "reverts_to": "app/playlist" if running else "blank"}
-    d.controller.send_text_bg(page, style=req.style, raw=True)
+    # raw: the page is already laid out. keep_case: it is made of WORDS — its `o` is the
+    # letter o, not an orange flap.
+    d.controller.send_text_bg(page, style=req.style, raw=True, keep_case=True)
     d.ha.publish_state()
     return {"ok": True}
 
@@ -1480,6 +1485,9 @@ async def vb_send_message(request: Request, display_id: str | None = None):
     g = d.config.grid
     rows, cols = int(g["rows"]), int(g["cols"])
     strategy = None
+    # Only the {"text": ...} shape is WORDS, and only words need their case kept. The matrix
+    # shapes are decoded cells, in which a colour is already its own codepoint.
+    is_text = isinstance(body, dict) and isinstance(body.get("text"), str)
 
     try:
         if isinstance(body, list):                       # the bare-matrix form
@@ -1501,7 +1509,7 @@ async def vb_send_message(request: Request, display_id: str | None = None):
     style = vestaboard.style_for(strategy, d.config.display.get("transition_style", "ltr"))
     # raw=True: the codec already produced final characters, and uppercasing here
     # would turn every colour chip (lowercase r/o/y/g/b/p/w) into a letter.
-    d.controller.send_text_bg(page, style=style, raw=True)
+    d.controller.send_text_bg(page, style=style, raw=True, keep_case=is_text)
     d.ha.publish_state()
     # 201, not 200: the real Local API returns 201 Created on a successful write, and
     # clients treat anything else as failure (ha-vestaboard's coordinator raises
