@@ -13,8 +13,8 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
         date_line = i18n.date(dt, short=True, year=True)
         time_str = i18n.time(dt)
     else:
-        weekday = dt.strftime("%A").upper()
-        date_line = dt.strftime("%b %d %Y").upper()
+        weekday = dt.strftime("%A")
+        date_line = dt.strftime("%b %d %Y")
         time_str = dt.strftime("%I:%M %p").lstrip("0")
     time_page = format_lines(weekday, date_line, time_str)
 
@@ -27,10 +27,10 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
         return [time_page, format_lines("NO WEATHER", "DATA", "TRY LATER")]
 
     c = get_cols()
-    city = str(w.get('city') or 'LOCATION').upper()
+    city = str(w.get('city') or 'Location')
     temp = w.get('temp_f')
     feels = w.get('feels_like_f')
-    desc = str(w.get('desc') or '').upper()
+    desc = str(w.get('desc') or '')
     if i18n is not None:                     # translate shared-helper condition text where we can
         desc = i18n.t(desc, "weather")
     high = w.get('hi_f')

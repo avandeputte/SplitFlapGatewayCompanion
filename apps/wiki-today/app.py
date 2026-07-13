@@ -38,13 +38,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                          headers={'User-Agent': 'SplitFlapGatewayCompanion/1.0'}, timeout=10).json()
         pages = []
         tfa = d.get('tfa') or {}
-        title = str(tfa.get('normalizedtitle', '') or '').upper()
+        title = str(tfa.get('normalizedtitle', '') or '')
         if title:
             if rows == 1:
                 pages.append(f'WIKI {title}'[:cols].center(cols))
             else:
                 pages.append(format_lines(f'WIKI {t("FEATURED")}', *_wrap(title, cols, rows - 1)))
-        mostread = [str(a.get('normalizedtitle', '') or '').upper()
+        mostread = [str(a.get('normalizedtitle', '') or '')
                     for a in ((d.get('mostread') or {}).get('articles', []) or [])]
         mostread = [a for a in mostread if a]
 

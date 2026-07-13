@@ -16,7 +16,10 @@ _ALLOWED = set(" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*")
 
 
 def _clean(s):
-    return ''.join(c if c in _ALLOWED else ' ' for c in s.upper()).strip()
+    # Validate on the uppercased form (the allow-set is uppercase) but emit the
+    # character as written: a wall that can show lowercase should get it, and one
+    # that cannot has the companion fold it on the way out.
+    return ''.join(c if c.upper() in _ALLOWED else ' ' for c in s).strip()
 
 
 def _split(text, width):

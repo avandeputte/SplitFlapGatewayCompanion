@@ -284,7 +284,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         if app_location and ',' in app_location:
             if '|' in app_location:
                 coords, _city = app_location.split('|', 1)
-                _city = _city.strip().upper()
+                _city = _city.strip()
             else:
                 coords = app_location
                 _city = 'LOCATION'
@@ -292,7 +292,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             _lat, _lon = float(parts[0]), float(parts[1])
         elif loc_lat and loc_lon:
             _lat, _lon = float(loc_lat), float(loc_lon)
-            _city = loc_name.split(',')[0].strip().upper() if loc_name else 'LOCATION'
+            _city = loc_name.split(',')[0].strip() if loc_name else 'Location'
         else:
             import re
             _geo_params = {'q': zip_code, 'format': 'json', 'limit': 1}
@@ -304,7 +304,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             ).json()
             if geo:
                 _lat, _lon = float(geo[0]['lat']), float(geo[0]['lon'])
-                _city = geo[0].get('display_name', zip_code).split(',')[0].strip().upper()
+                _city = geo[0].get('display_name', zip_code).split(',')[0].strip()
     except (ValueError, KeyError, IndexError, TypeError, requests.RequestException):
         _lat, _lon, _city = 42.3496, -71.0783, 'BOSTON'
 
@@ -342,12 +342,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             timeout=10
         ).json()
         return {
-            'city': payload.get('name', _city).upper(),
+            'city': payload.get('name', _city),
             'temp': int(payload['main']['temp']),
             'feels_like': int(payload['main']['feels_like']),
             'hi': int(payload['main']['temp_max']),
             'lo': int(payload['main']['temp_min']),
-            'desc': payload['weather'][0]['description'].upper(),
+            'desc': payload['weather'][0]['description'],
             'lat': _lat,
             'lon': _lon,
         }
@@ -401,12 +401,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         day = forecast.get('day', {})
         pollen = forecast.get('pollen') or current.get('pollen') or day.get('pollen') or {}
         return {
-            'city': str(location.get('name', _city)).upper(),
+            'city': str(location.get('name', _city)),
             'temp': int(round(current.get('temp_f', 0))),
             'feels_like': int(round(current.get('feelslike_f', current.get('temp_f', 0)))),
             'hi': int(round(day.get('maxtemp_f', current.get('temp_f', 0)))),
             'lo': int(round(day.get('mintemp_f', current.get('temp_f', 0)))),
-            'desc': str((current.get('condition') or {}).get('text', t('CURRENT CONDITIONS'))).upper(),
+            'desc': str((current.get('condition') or {}).get('text', t('CURRENT CONDITIONS'))),
             'lat': location.get('lat'),
             'lon': location.get('lon'),
             'uv': current.get('uv'),
@@ -440,7 +440,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             'feels_like': _to_int(now.get('feelsLike'), _to_int(now.get('temp'))),
             'hi': _to_int(first_day.get('tempMax'), _to_int(now.get('temp'))),
             'lo': _to_int(first_day.get('tempMin'), _to_int(now.get('temp'))),
-            'desc': str(now.get('text', t('CURRENT CONDITIONS'))).upper(),
+            'desc': str(now.get('text', t('CURRENT CONDITIONS'))),
             'lat': _lat,
             'lon': _lon,
         }

@@ -14,8 +14,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         month_day = i18n.date(now)
     else:
         time_str = now.strftime('%I:%M %p').lstrip('0')
-        weekday = now.strftime('%A').upper()
-        month_day = f"{now.strftime('%B').upper()} {now.day}"
+        weekday = now.strftime('%A')
+        month_day = f"{now.strftime('%B')} {now.day}"
     rows = get_rows()
     if rows == 2:
         return [format_lines(month_day, weekday)]

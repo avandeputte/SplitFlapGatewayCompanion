@@ -3,6 +3,24 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.13
+
+**The apps stopped shouting.** They no longer uppercase their own text — the companion
+folds it, and only for a wall that needs it. A physical split-flap renders exactly what it
+always did; a Matrix Portal shows the words as they were written.
+
+    PHYSICAL WALL          MATRIX PORTAL
+    | WIKI FEATURED |      | WIKI FEATURED |
+    | MANUFACTURERS |      | Manufacturers |
+    | TRUST COMPANY |      | Trust Company |
+    |    BUILDING   |      |    Building   |
+
+Article titles, holiday names, quotes, headlines, city names, weekdays and months all keep
+their case now. The apps' own labels (NEXT HOLIDAY, WIKI FEATURED) stay uppercase — that is
+authored text, not automatic folding, and it reads as a split-flap ought to.
+
+Nothing changes on a physical wall.
+
 ## 1.9.0-beta.12
 
 **Matrix Portal walls get their full alphabet.** The Matrix Portal Gateway (firmware 1.6+)

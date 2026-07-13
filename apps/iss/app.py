@@ -19,7 +19,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             # astros.json is already fetched above and carries who is aboard — the
             # position API has nothing else to give (no altitude, no velocity).
             cols = get_cols()
-            crew = [str(pp.get('name', '')).upper()[:cols]
+            crew = [str(pp.get('name', ''))[:cols]
                     for pp in (ppl.get('people') or []) if pp.get('craft') == 'ISS']
             # "LAT -41.0050 LON 123.4" does not fit 15 columns; with rows to spare,
             # give latitude and longitude a line each instead of truncating both.

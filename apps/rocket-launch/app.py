@@ -19,7 +19,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         if not res:
             return [format_lines(t('NEXT LAUNCH'), t('NONE'), t('SCHEDULED'))]
         r = res[0]
-        name = str(r.get('name', '')).upper()
+        name = str(r.get('name', ''))
         rocket, _, mission = name.partition('|')
         rocket = rocket.strip() or 'ROCKET'
         mission = mission.strip() or rocket
@@ -39,7 +39,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 if i18n is not None:
                     when = f'{i18n.weekday(local, short=True)} {i18n.time(local, ampm_space=False)}'
                 else:
-                    when = local.strftime('%a %I:%M%p').upper().lstrip('0')
+                    when = local.strftime('%a %I:%M%p').lstrip('0')
                 secs = int((dt - datetime.now(timezone.utc)).total_seconds())
                 if secs <= 0:
                     cd = t('IMMINENT')

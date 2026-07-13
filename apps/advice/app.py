@@ -97,7 +97,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
     rows, cols = get_rows(), get_cols()
     try:
         d = requests.get('https://api.adviceslip.com/advice', timeout=8).json()
-        text = str((d.get('slip') or {}).get('advice', '') or '').strip().upper()
+        text = str((d.get('slip') or {}).get('advice', '') or '').strip()
         if not text:
             return [format_lines('ADVICE', 'NO DATA', '')]
         return _pages(format_lines, '', f'ADVICE: {text}', rows, cols)

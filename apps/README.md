@@ -6,6 +6,30 @@ behavior-identical port of splitflap-os** so that **any splitflap-os app folder
 drops in here unmodified and works** (and apps authored here run on splitflap-os).
 See [`../COMPATIBILITY.md`](../COMPATIBILITY.md).
 
+## Do not uppercase your own text
+
+Return the text **as written**. The companion folds it to uppercase on a wall that needs it
+— a physical split-flap has no lowercase flaps, and its one-byte protocol has no lowercase
+byte to send (the byte for `r` already means RED). A Matrix Portal has both, and shows your
+text as you wrote it.
+
+Calling `.upper()` yourself was always redundant, because a non-raw page is folded anyway.
+Once a wall could show lowercase it became actively harmful: the case was destroyed before
+the display ever got a say.
+
+```python
+title = article["title"]           # "Manufacturers Trust Company Building"
+# NOT: title = article["title"].upper()
+```
+
+Two exceptions, both real:
+
+* **Animations** (`"animation": true` in the manifest) are sent RAW and are *not* folded —
+  their lowercase `r o y g b p w` mean the COLOUR FLAPS, not letters. An animation that
+  shows text must uppercase it itself.
+* **Codes, not prose.** A currency code, a team abbreviation, a country code or a string
+  you compare against is not display text. Keep `.upper()` there; it is logic.
+
 ## Where your lines land on the wall
 
 Return only the lines you actually have — `format_lines` places them. Given fewer lines

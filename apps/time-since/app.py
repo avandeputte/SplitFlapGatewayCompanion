@@ -10,7 +10,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
     tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
     now = datetime.now(tz)
-    event = settings.get('event_name', 'THE START').upper()
+    event = settings.get('event_name', 'The start')
     date_str = settings.get('event_date', '2024-01-01')
     try:
         start = datetime.strptime(date_str, '%Y-%m-%d')

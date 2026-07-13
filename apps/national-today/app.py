@@ -21,7 +21,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
     names = holidays.get(key, ['A GREAT DAY'])
     pages = []
     for name in names:
-        name = name.upper()
+        name = name
         cols = get_cols()
         if len(name) <= cols:
             pages.append(format_lines('TODAY IS', name, ''))

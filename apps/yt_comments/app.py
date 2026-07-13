@@ -15,8 +15,8 @@ def fetch(settings, format_lines, get_rows, get_cols):
         rows = get_rows()
         for item in r.get('items', []):
             s = item['snippet']['topLevelComment']['snippet']
-            author = s['authorDisplayName'].upper()[:cols]
-            text = s['textDisplay'].upper()
+            author = s['authorDisplayName'][:cols]
+            text = s['textDisplay']
             # split text into lines that fit the display
             text_lines = [text[j:j+cols] for j in range(0, len(text), cols)]
             text_lines = text_lines[:rows - 1]  # leave room for author

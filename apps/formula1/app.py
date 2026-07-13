@@ -18,7 +18,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         races = nxt.get('MRData', {}).get('RaceTable', {}).get('Races', [])
         if races:
             r = races[0]
-            name = str(r.get('raceName', '')).upper().replace('GRAND PRIX', 'GP')
+            name = str(r.get('raceName', '')).replace('Grand Prix', 'GP')
             cd = ''
             try:
                 dt = datetime.fromisoformat(
@@ -50,7 +50,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         ds = lists[0].get('DriverStandings', []) if lists else []
         if ds:
             top = ds[0]
-            nm = str(top.get('Driver', {}).get('familyName', '')).upper()
+            nm = str(top.get('Driver', {}).get('familyName', ''))
             pts = top.get('points', '')
             if rows == 1:
                 pages.append(f'{t("LEADER")} {nm} {pts}'[:cols].center(cols))

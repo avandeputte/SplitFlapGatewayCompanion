@@ -230,12 +230,12 @@ def test_the_holiday_name_survives_a_tall_wall_intact(stub_net, tmp_path):
     cut; now it wraps, and every word of it is on the page."""
     rt = _runtime(5, 15, tmp_path, "holidays", country="US")
     pages = rt.get_pages("holidays")
-    mlk = [p for p in pages if "MARTIN" in p]
+    mlk = [p for p in pages if "Martin" in p]
     assert mlk, "the long-named holiday is missing entirely"
 
     body = _body(mlk[0], 5, 15)
     text = " ".join(body)
-    for word in ("MARTIN", "LUTHER", "KING"):
+    for word in ("Martin", "Luther", "King"):
         assert word in text, f"{word} was truncated away"
     assert all(len(l) <= 15 for l in body)
 
@@ -243,9 +243,9 @@ def test_the_holiday_name_survives_a_tall_wall_intact(stub_net, tmp_path):
 def test_a_tall_wall_spends_its_spare_row_on_the_date(stub_net, tmp_path):
     """A short name (LABOR DAY) leaves a row over: say WHEN, don't show blank flaps."""
     rt = _runtime(5, 15, tmp_path, "holidays", country="US")
-    labor = [p for p in rt.get_pages("holidays") if "LABOR" in p][0]
+    labor = [p for p in rt.get_pages("holidays") if "Labor" in p][0]
     body = _body(labor, 5, 15)
-    assert any("SEP" in l.upper() for l in body), f"no date line in {body}"
+    assert any("Sep" in l for l in body), f"no date line in {body}"
     assert any(l.startswith("IN ") for l in body), "the countdown is the point"
 
 
@@ -256,10 +256,10 @@ def test_three_row_wall_gives_up_the_header_before_it_truncates(stub_net, tmp_pa
     rt = _runtime(3, 15, tmp_path, "holidays", country="US")
     pages = rt.get_pages("holidays")
 
-    short = [p for p in pages if "LABOR" in p][0]
+    short = [p for p in pages if "Labor" in p][0]
     assert "NEXT HOLIDAY" in short
 
-    long = [p for p in pages if "MARTIN" in p][0]
+    long = [p for p in pages if "Martin" in p][0]
     assert "NEXT HOLIDAY" not in long, "the header must yield to the name"
     body = _body(long, 3, 15)
-    assert "MARTIN" in " ".join(body) and "KING" in " ".join(body)
+    assert "Martin" in " ".join(body) and "King" in " ".join(body)

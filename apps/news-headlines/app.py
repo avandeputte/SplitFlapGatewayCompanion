@@ -39,7 +39,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
             if title_el is None:
                 title_el = item.find('{http://www.w3.org/2005/Atom}title')
             if title_el is not None and title_el.text:
-                titles.append(title_el.text.strip().upper())
+                titles.append(title_el.text.strip())
     except Exception:
         titles = ['NEWS UNAVAILABLE', 'CHECK FEED URL']
 
@@ -84,7 +84,7 @@ def trigger(settings, conditions):
                 title_el = item.find('{http://www.w3.org/2005/Atom}title')
             if title_el is None or not title_el.text:
                 continue
-            title = title_el.text.strip().upper()
+            title = title_el.text.strip()
             if title in state['seen_titles']:
                 continue
             state['seen_titles'].add(title)

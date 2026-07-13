@@ -18,7 +18,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 body = resp.read().decode()
             import re
             name = re.search(r'<name>(.+?)</name>', body)
-            name = name.group(1).upper() if name else cid[:15]
+            name = name.group(1) if name else cid[:15]
             pages.append({'text': format_lines(time_str, name[:15], "YOUTUBE"), 'style': 'ltr'})
         except Exception:
             pass

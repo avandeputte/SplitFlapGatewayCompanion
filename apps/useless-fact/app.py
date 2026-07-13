@@ -120,6 +120,6 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 best = t
         if not best:
             return [format_lines('RANDOM FACT', 'NO DATA', '')]
-        return _pages(format_lines, 'DID YOU KNOW', best.upper(), rows, cols)
+        return _pages(format_lines, 'DID YOU KNOW', best, rows, cols)
     except Exception:
         return [format_lines('RANDOM FACT', 'OFFLINE', '')]

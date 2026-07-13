@@ -121,7 +121,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
         if not best:
             return [format_lines('QUOTE', 'NO DATA', '')]
         q, a = best
-        text = f'{q.upper()}  - {a.upper()}' if a else q.upper()
+        text = f'{q}  - {a}' if a else q
         return _pages(format_lines, '', f'QUOTE: {text}', rows, cols)
     except Exception:
         return [format_lines('QUOTE', 'OFFLINE', '')]

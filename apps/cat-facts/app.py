@@ -108,7 +108,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
         # catfact.ninja honors max_length, so we can ask for a display-friendly fact.
         d = requests.get('https://catfact.ninja/fact',
                          params={'max_length': max_len}, timeout=8).json()
-        text = str(d.get('fact', '') or '').strip().upper()
+        text = str(d.get('fact', '') or '').strip()
         if not text:
             return [format_lines('CAT FACT', 'NO DATA', '')]
         return _pages(format_lines, '', text, rows, cols)   # no title — just the fact

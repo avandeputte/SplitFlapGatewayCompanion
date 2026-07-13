@@ -28,6 +28,13 @@ coincidence, and this document is the contract we hold it to.
   > top with two dead rows beneath it. An app is unaffected either way: it still
   > returns the same lines, and `get_rows()` still tells it how much room it has.
   >
+  > **Case is the display's business, not the app's.** The vendored apps no longer call
+  > `.upper()` on the text they show. `normalize()` folds a non-raw page for a wall that
+  > cannot show lowercase — which every split-flap is — so the flaps are unchanged; a
+  > Matrix Portal (whose index-addressed API *can* show lowercase) gets the text as
+  > written. A splitflap-os app that still uppercases its own strings is unaffected: it is
+  > simply folding text that was already folded.
+  >
   > **The divergence is opt-out.** An app that wants the original behaviour — or that
   > builds its own layout and needs its rows left where it put them — declares it in
   > its manifest:

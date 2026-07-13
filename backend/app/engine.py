@@ -320,7 +320,7 @@ class DisplayController:
                 text = page if isinstance(page, str) else str(page.get("text", ""))
                 # Non-anim apps skip re-sending an unchanged page.
                 if t["is_anim"] or text != last_sent:
-                    clean = self._normalize(text, raw=t["is_anim"])
+                    clean = self._normalize(text, raw=t["is_anim"], keep_case=True)
                     await self._emit_page(clean, style=t["style"], speed=t["speed"])
                     last_sent = text
                 await asyncio.sleep(max(0.0, float(t["loop_delay"])))
@@ -357,7 +357,7 @@ class DisplayController:
                 if etype == "compose":
                     self.state.current_app = None      # a composed entry, not an app
                     await self._wait_if_interrupted()
-                    clean = self._normalize(entry.get("text", ""), raw=False)
+                    clean = self._normalize(entry.get("text", ""), raw=False, keep_case=True)
                     await self._emit_page(clean, style=entry.get("style", "ltr"),
                                           speed=int(entry.get("speed", 15)))
                     await asyncio.sleep(duration)
@@ -390,7 +390,7 @@ class DisplayController:
                             await self._wait_if_interrupted()
                             text = page if isinstance(page, str) else str(page.get("text", ""))
                             if t["is_anim"] or text != last_sent:
-                                clean = self._normalize(text, raw=t["is_anim"])
+                                clean = self._normalize(text, raw=t["is_anim"], keep_case=True)
                                 await self._emit_page(clean, style=t["style"], speed=t["speed"])
                                 last_sent = text
                             await asyncio.sleep(max(0.0, float(t["loop_delay"])))

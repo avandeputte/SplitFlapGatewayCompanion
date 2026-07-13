@@ -55,7 +55,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         pages, today = [], date.today()
         for h in data[:4]:
             localized = i18n.holiday(h.get('name')) if i18n is not None else None
-            name = str(localized or h.get('localName') or h.get('name') or '').upper()
+            name = str(localized or h.get('localName') or h.get('name') or '')
             cd, when = '', ''
             try:
                 dt = datetime.strptime(h.get('date', ''), '%Y-%m-%d').date()
@@ -72,7 +72,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
                     if len(when) > cols:
                         when = f'{dow} {i18n.date(dt, short=True)}'
                 else:
-                    when = dt.strftime('%a %b %d').upper()
+                    when = dt.strftime('%a %b %d')
             except ValueError:
                 pass
 

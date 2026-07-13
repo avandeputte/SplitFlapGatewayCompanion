@@ -156,7 +156,8 @@ def test_clock_times_line_up_in_a_column():
         assert len(l) == 15, "the line was re-centred, so the times will not line up"
         assert l[0] != " ", "the city must be flush left"
         assert l[-1] != " ", "the time must be flush right"
-    assert body[0].startswith("EASTERN") and body[1].startswith("PARIS")
+    # The app no longer uppercases — the wall does, if it needs to.
+    assert body[0].startswith("Eastern") and body[1].startswith("Paris")
 
 
 # ---------------------------------------------------------------------------

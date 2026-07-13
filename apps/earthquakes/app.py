@@ -31,7 +31,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
         for ft in feats[:5]:
             p = ft.get('properties', {}) or {}
             mag = p.get('mag')
-            place = str(p.get('place', '') or 'UNKNOWN').upper()
+            place = str(p.get('place', '') or 'Unknown')
             mags = f'M{mag:.1f}' if isinstance(mag, (int, float)) else 'M?'
             ago = ''
             ms = p.get('time')

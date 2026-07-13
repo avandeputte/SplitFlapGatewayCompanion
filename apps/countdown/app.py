@@ -28,9 +28,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             return default
         return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
 
-    def clean_event(value, fallback='COUNTDOWN'):
-        text = str(value or '').strip().upper()
-        sanitized = ''.join(ch if ch in allowed_chars else ' ' for ch in text)
+    def clean_event(value, fallback='Countdown'):
+        text = str(value or '').strip()
+        # The flap set is uppercase, so check against the folded character but keep
+        # the one the user typed — the companion uppercases it later if the wall needs.
+        sanitized = ''.join(ch if ch.upper() in allowed_chars else ' ' for ch in text)
         return sanitized.strip() or fallback
 
     def clean_target(value):

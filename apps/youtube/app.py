@@ -9,14 +9,14 @@ def fetch(settings, format_lines, get_rows, get_cols):
         r = requests.get(url, timeout=10)
         root = ET.fromstring(r.content)
         ns = {'a': 'http://www.w3.org/2005/Atom', 'yt': 'http://www.youtube.com/xml/schemas/2015'}
-        name = root.find('a:title', ns).text.upper()
+        name = root.find('a:title', ns).text
         entries = root.findall('a:entry', ns)
         count = f'{len(entries)} VIDEOS'
         rows = get_rows()
         if rows >= 4 and entries:
             # The feed carries the latest upload — worth a line when the wall is tall.
             latest = entries[0].find('a:title', ns)
-            title = (latest.text or '').upper() if latest is not None else ''
+            title = (latest.text or '') if latest is not None else ''
             extra = ['LATEST', title[:get_cols()]] if title else []
             return [format_lines('YOUTUBE', name, count, *extra[:rows - 3])]
         return [format_lines('YOUTUBE', name, count)]

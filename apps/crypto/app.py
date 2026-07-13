@@ -63,7 +63,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
             return [f'{sym} {price_str(price)}']
         if rows == 2:
             return [f'{sym} {price_str(price)}', chg_str]
-        return [c.upper()[:cols], price_str(price), chg_str]   # name / price / change
+        return [c[:cols], price_str(price), chg_str]   # name / price / change
 
     lines_per = 1 if rows == 1 else (2 if rows == 2 else 3)
     per_page = max(1, rows // lines_per)   # how many coins fit on one page

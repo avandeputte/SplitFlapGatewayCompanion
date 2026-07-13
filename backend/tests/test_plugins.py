@@ -411,8 +411,13 @@ def test_i18n_localizes_labels_and_dates():
     assert i18n.translate("HIGH", "fr", "tides") == "HAUTE"         # a tide -> distinct
     assert i18n.translate("OFFLINE", "fr", "aurora") == "HORS LIGNE"  # 'common' fallback
     d = date(2026, 1, 5)                                     # a Monday
-    assert i18n.weekday(d, "fr") == "LUNDI" and i18n.weekday(d, "de") == "MONTAG"
-    assert i18n.month(d, "es") == "ENERO"
+    # Natural case now — a wall that cannot show lowercase has the companion fold it on
+    # the way out (renderer.normalize), so the flaps are unchanged. "lundi" is lowercase
+    # in French and "Montag" capitalised in German because that is what the languages do.
+    assert i18n.weekday(d, "fr") == "lundi" and i18n.weekday(d, "de") == "Montag"
+    from app.renderer import cp1252_upper
+    assert cp1252_upper(i18n.weekday(d, "fr")) == "LUNDI"   # what a split-flap still shows
+    assert i18n.month(d, "es") == "enero"
 
 
 def test_i18n_date_order_and_time_format():
@@ -420,9 +425,9 @@ def test_i18n_date_order_and_time_format():
     from datetime import datetime
     from app import i18n
     dt = datetime(2026, 7, 9, 15, 5)                         # July 9, 15:05
-    assert i18n.date(dt, "en") == "JULY 9"                   # month-first
-    assert i18n.date(dt, "fr") == "9 JUILLET"                # day-first
-    assert i18n.date(dt, "de") == "9. JULI"
+    assert i18n.date(dt, "en") == "July 9"                   # month-first
+    assert i18n.date(dt, "fr") == "9 juillet"                # day-first
+    assert i18n.date(dt, "de") == "9. Juli"
     assert i18n.clock(dt, "en") == "3:05 PM"                 # 12h + meridiem
     assert i18n.clock(dt, "fr") == "15:05"                   # 24h everywhere else
     assert i18n.clock(dt, "de", ampm_space=False) == "15:05"
@@ -464,10 +469,10 @@ def test_english_variants_differ_by_region():
     from datetime import datetime
     from app import i18n
     dt = datetime(2026, 7, 9)
-    assert i18n.Localizer("en-US").date(dt) == "JULY 9"     # month-first
-    assert i18n.Localizer("en-GB").date(dt) == "9 JULY"     # day-first
-    assert i18n.Localizer("en-AU").date(dt) == "9 JULY"
-    assert i18n.Localizer("en").date(dt) == "JULY 9"        # legacy 'en' == American
+    assert i18n.Localizer("en-US").date(dt) == "July 9"     # month-first
+    assert i18n.Localizer("en-GB").date(dt) == "9 July"     # day-first
+    assert i18n.Localizer("en-AU").date(dt) == "9 July"
+    assert i18n.Localizer("en").date(dt) == "July 9"        # legacy 'en' == American
     assert i18n.base_currency("en-US") == "USD"
     assert i18n.base_currency("en-GB") == "GBP"
     assert i18n.base_currency("en-AU") == "AUD"
@@ -713,7 +718,7 @@ def test_i18n_injected_by_param_name(tmp_path):
     rt.settings.set("language", "de")
     from datetime import datetime
     wd = datetime.now().strftime("%A")
-    de = {"Monday": "MONTAG", "Tuesday": "DIENSTAG", "Wednesday": "MITTWOCH",
+    de = {"Monday": "Montag", "Tuesday": "DIENSTAG", "Wednesday": "MITTWOCH",
           "Thursday": "DONNERSTAG", "Friday": "FREITAG", "Saturday": "SAMSTAG",
           "Sunday": "SONNTAG"}[wd]
     assert any(de in p for p in rt.get_pages("date"))   # weekday shows in German

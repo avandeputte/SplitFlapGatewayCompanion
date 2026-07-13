@@ -221,3 +221,51 @@ async def test_an_animations_colour_codes_survive():
 
     _, body = t._client.posts[0]
     assert body["cells"] == [{"color": "red"}, {"color": "green"}, {"color": "blue"}]
+
+
+# ---------------------------------------------------------------------------
+# apps no longer shout; the WALL decides
+# ---------------------------------------------------------------------------
+# An app used to call .upper() on everything it displayed. That was always redundant — the
+# companion folds a non-raw page anyway (renderer.normalize) — and once a wall could show
+# lowercase it became actively harmful: the case was destroyed before the display ever got
+# a say. So the apps hand over the text as written, and the fold happens at the one place
+# that knows what the wall can do.
+#
+# The consequence to protect: a PHYSICAL wall must render byte-for-byte what it did before.
+def test_a_physical_wall_still_gets_uppercase():
+    from app import renderer
+    page = "Martin Luther King Jr. Day"
+    assert renderer.normalize(page, 26) == "MARTIN LUTHER KING JR. DAY"
+
+
+def test_a_matrix_portal_gets_it_as_written():
+    from app import renderer
+    page = "Martin Luther King Jr. Day"
+    assert renderer.normalize(page, 26, keep_case=True) == "Martin Luther King Jr. Day"
+
+
+def test_folding_is_the_only_difference():
+    """Whatever an app emits, the physical wall's page is exactly the rich page uppercased.
+    If that ever stops being true, an app has started doing something other than case."""
+    from app import renderer
+    for page in ("Manufacturers Trust Company Building", "Eastern  6:33PM", "July 13"):
+        rich = renderer.normalize(page, 40, keep_case=True)
+        legacy = renderer.normalize(page, 40)
+        assert renderer.cp1252_upper(rich) == legacy
+
+
+def test_an_animation_is_never_touched():
+    """Animations are sent RAW — the companion does not fold them, because their lowercase
+    is a COLOUR, not a letter. So they must keep uppercasing their own text, and this is the
+    one place where an app doing it itself is still right."""
+    from app import renderer
+    assert renderer.normalize("www rgb", 7, raw=True) == "www rgb"
+
+
+@pytest.mark.parametrize("app_id", ["anim_matrix", "art-clock"])
+def test_animation_apps_still_uppercase_their_own_text(app_id):
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[2] / "apps" / app_id / "app.py").read_text("utf-8")
+    # they draw with lowercase colour codes, so nothing may fold their pages for them
+    assert ".upper()" in src or "font" in src

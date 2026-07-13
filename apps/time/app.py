@@ -20,7 +20,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         if i18n is not None:
             weekday, date_line = i18n.weekday(now), i18n.date(now)
         else:
-            weekday = now.strftime('%A').upper()
-            date_line = f"{now.strftime('%B').upper()} {now.day}"
+            weekday = now.strftime('%A')
+            date_line = f"{now.strftime('%B')} {now.day}"
         return [format_lines(time_str, '', weekday, date_line)]
     return [format_lines('', time_str, '')]

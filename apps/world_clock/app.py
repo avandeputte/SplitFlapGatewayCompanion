@@ -30,7 +30,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             t = i18n.time(now, ampm_space=False)
         else:
             t = now.strftime('%I:%M%p').lstrip('0')
-        city = z.split('/')[-1].replace('_', ' ').upper()
+        city = z.split('/')[-1].replace('_', ' ')
         # City flush left, time flush right: the times line up in a column, which is
         # the whole point of putting several clocks on a wall.
         lines.append(_row(city, t, cols))

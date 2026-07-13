@@ -41,7 +41,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
         req = urllib.request.Request(url, headers={"User-Agent": "SplitFlap/1.0"})
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read().decode())
-        text = data["value"].upper()
+        text = data["value"]
     except Exception:
         text = random.choice(fallback)
 

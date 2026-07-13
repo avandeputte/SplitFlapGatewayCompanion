@@ -129,17 +129,17 @@ def _babel_locale(lang):
 def _cldr(dt, fmt, lang):
     try:
         from babel.dates import format_date
-        return format_date(dt, fmt, locale=_babel_locale(lang)).upper()
+        return format_date(dt, fmt, locale=_babel_locale(lang))
     except Exception:
         return None
 
 
 def weekday(dt, lang, short=False):
-    return _cldr(dt, "EEE" if short else "EEEE", lang) or dt.strftime("%a" if short else "%A").upper()
+    return _cldr(dt, "EEE" if short else "EEEE", lang) or dt.strftime("%a" if short else "%A")
 
 
 def month(dt, lang, short=False):
-    return _cldr(dt, "MMM" if short else "MMMM", lang) or dt.strftime("%b" if short else "%B").upper()
+    return _cldr(dt, "MMM" if short else "MMMM", lang) or dt.strftime("%b" if short else "%B")
 
 
 def date(dt, lang, short=False, year=False):
@@ -148,7 +148,7 @@ def date(dt, lang, short=False, year=False):
     skeleton = ("MMM" if short else "MMMM") + "d" + ("y" if year else "")
     try:
         from babel.dates import format_skeleton
-        return format_skeleton(skeleton, dt, locale=_babel_locale(lang)).upper()
+        return format_skeleton(skeleton, dt, locale=_babel_locale(lang))
     except Exception:
         base = f"{month(dt, lang, short)} {dt.day}"
         return f"{base} {dt.year}" if year else base

@@ -44,8 +44,8 @@ def fetch(settings, format_lines, get_rows, get_cols):
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read().decode())
         result = data["results"][0]
-        question = html.unescape(result["question"]).upper()
-        answer = html.unescape(result["correct_answer"]).upper()
+        question = html.unescape(result["question"])
+        answer = html.unescape(result["correct_answer"])
     except Exception:
         q, a = random.choice(fallback_qa)
         question, answer = q, a
