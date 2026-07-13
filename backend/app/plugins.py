@@ -20,6 +20,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -37,6 +38,11 @@ _PASSTHROUGH = (
     "maxItems", "compute", "watches", "variant", "title", "text", "items",
     "icon", "linkText", "linkHref", "default", "note",
 )
+
+
+# A channel app's translated page set: data_fr.json, data_pt-BR.json. The default
+# (untranslated) pages stay in data.json, which is also the fallback.
+LANG_DATA_FILE = re.compile(r"^data_([A-Za-z]{2}(?:-[A-Za-z]{2})?)\.json$")
 
 
 class _SettingsOverlay:
@@ -79,7 +85,7 @@ class PluginRuntime:
         self.user_apps_dir = Path(user_apps_dir) if user_apps_dir else self.apps_dir / "_user"
         self._registry: dict[str, dict] = {}   # app_id -> manifest
         self._modules: dict[str, object] = {}   # app_id -> imported module
-        self._channel: dict[str, list] = {}     # app_id -> pages
+        self._channel: dict[str, dict[str, list]] = {}  # app_id -> {lang: pages} ("" = data.json)
         self._triggers: dict[str, object] = {}  # app_id -> trigger fn
         self._caches: dict[str, dict] = {}       # app_id -> {pages, fetched_at}
         self._reads: dict[str, dict] = {}        # app_id -> {settings key it reads: default}
@@ -199,21 +205,62 @@ class PluginRuntime:
             self._load_functional(app_id, app_dir)
         log.info("plugin loaded: %s (%s)", app_id, kind)
 
-    def _load_channel(self, app_id: str, app_dir: Path) -> None:
-        data_path = app_dir / "data.json"
-        if not data_path.is_file():
-            return
+    def _read_pages(self, app_id: str, path: Path) -> list | None:
+        """The 'pages' of one channel data file, rendered to display lines."""
         try:
-            data = json.loads(data_path.read_text("utf-8"))
-            pages = []
-            for page in data.get("pages", []):
-                if isinstance(page, str):
-                    pages.append(page)
-                elif isinstance(page, dict) and "lines" in page:
-                    pages.append(self.format_lines(*page["lines"]))
-            self._channel[app_id] = pages
+            data = json.loads(path.read_text("utf-8"))
         except Exception as e:
-            log.error("plugin %s: data.json error: %s", app_id, e)
+            log.error("plugin %s: %s error: %s", app_id, path.name, e)
+            return None
+        pages = []
+        for page in data.get("pages", []):
+            if isinstance(page, str):
+                pages.append(page)
+            elif isinstance(page, dict) and "lines" in page:
+                pages.append(self.format_lines(*page["lines"]))
+        return pages
+
+    def _load_channel(self, app_id: str, app_dir: Path) -> None:
+        """Load a channel app's pages. ``data.json`` is the default set; an app may
+        also ship translations as ``data_<lang>.json`` sidecars (``data_fr.json``,
+        ``data_fr-BE.json``), which are picked at render time from the effective
+        Language. Keeping data.json as the fallback means a translated app still
+        runs unchanged anywhere that ignores the sidecars."""
+        by_lang: dict[str, list] = {}
+        default = app_dir / "data.json"
+        if default.is_file():
+            pages = self._read_pages(app_id, default)
+            if pages is not None:
+                by_lang[""] = pages
+        for f in sorted(app_dir.glob("data_*.json")):
+            m = LANG_DATA_FILE.match(f.name)
+            if not m:
+                continue
+            pages = self._read_pages(app_id, f)
+            if pages:
+                by_lang[m.group(1).lower()] = pages
+        if not by_lang:
+            return
+        self._channel[app_id] = by_lang
+        # An app that ships translations adapts to Language whether or not its
+        # manifest declares i18n -- that flag drives the 🌐 badge and the per-app
+        # Language override, and it would be a lie in either direction to ignore
+        # the files that are actually there.
+        manifest = self._registry.get(app_id)
+        if manifest is not None:
+            manifest["i18n"] = len(by_lang) > 1 or bool(manifest.get("i18n"))
+
+    def _channel_pages(self, app_id: str, lang: str) -> list:
+        """Pages for a channel app in the effective language: an exact locale match
+        (``fr-BE``) wins, then the base language (``fr``), then data.json. Same
+        precedence a Localizer gives a functional app, so both kinds of app answer
+        a Language change the same way."""
+        by_lang = self._channel.get(app_id) or {}
+        code = str(lang or "").replace("_", "-").lower()
+        for key in (code, code.split("-")[0], ""):
+            if by_lang.get(key):
+                return by_lang[key]
+        return next((p for p in by_lang.values() if p), [])
 
     def _load_functional(self, app_id: str, app_dir: Path) -> None:
         module_path = app_dir / "app.py"
@@ -391,7 +438,10 @@ class PluginRuntime:
         refresh = self._refresh_secs(app_id, manifest, settings)
 
         if app_type == "channel":
-            pages = self._channel.get(app_id, [])
+            # A per-app Language override (plugin_<id>_language) wins over the global
+            # Language; blank/unset = follow global. Same rule as a functional app.
+            lang = self._perapp_value(app_id, "language", settings) or settings.get("language", "en-US")
+            pages = self._channel_pages(app_id, lang)
             return pages or [self.format_lines(manifest.get("name", app_id).upper()[:cols], "NO DATA", "")]
 
         if app_type == "functional":
@@ -961,12 +1011,17 @@ class PluginRuntime:
         dp = root / "data.json"
         if not dp.is_file():
             raise ValueError("channel app is missing data.json")
-        try:
-            data = json.loads(dp.read_text("utf-8"))
-        except Exception as e:
-            raise ValueError(f"invalid data.json: {e}")
-        if not isinstance(data, dict) or not data.get("pages"):
-            raise ValueError("channel app's data.json must have a non-empty 'pages' list")
+        # data.json is required (it is the fallback for any language that has no
+        # translation); data_<lang>.json sidecars are optional and held to the same
+        # shape, so a broken translation is rejected at upload rather than at render.
+        files = [dp] + sorted(f for f in root.glob("data_*.json") if LANG_DATA_FILE.match(f.name))
+        for f in files:
+            try:
+                data = json.loads(f.read_text("utf-8"))
+            except Exception as e:
+                raise ValueError(f"invalid {f.name}: {e}")
+            if not isinstance(data, dict) or not data.get("pages"):
+                raise ValueError(f"channel app's {f.name} must have a non-empty 'pages' list")
 
     def _scope_manifest_settings(self, manifest: dict, src: str) -> bool:
         """Ensure every non-global setting the app reads is declared as an app-level

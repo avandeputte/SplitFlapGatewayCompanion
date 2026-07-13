@@ -317,6 +317,48 @@ Each entry in `pages` is either:
 The manifest `type` must be `"channel"`, and channel apps ignore
 `refresh_interval` (the pages are static). Pages rotate at `loop_delay`.
 
+### Localizing a channel app
+
+Channel apps have no code, so they can't call the [`i18n`](#optional-localization-i18n)
+helper a functional app gets. Instead they ship **one data file per language**,
+alongside `data.json`:
+
+```
+apps/good-morning/
+  manifest.json
+  data.json          ← the default pages, and the fallback
+  data_fr.json       ← French
+  data_de.json       ← German
+  data_pt-BR.json    ← Brazilian Portuguese specifically
+```
+
+The filename is `data_<lang>.json`, where `<lang>` is a language code from the
+Language setting (`fr`, `de`, `pt-BR`, `fr-CA` …). Each file has exactly the same
+shape as `data.json` — a `pages` list — and should have the same number of pages,
+though nothing enforces that.
+
+At render time the companion picks the file from the **effective Language** (the
+per-app override if set, otherwise the global one), with this precedence:
+
+1. **exact locale** — `fr-BE` → `data_fr-BE.json`
+2. **base language** — `fr-BE` → `data_fr.json`
+3. **`data.json`** — any language you haven't translated
+
+So you only translate as far as you care to: ship `data_fr.json` and every French
+locale is covered; add `data_fr-CA.json` later and Québec gets its own text while
+the rest of the French-speaking world keeps the shared file. A language with no
+file renders `data.json` rather than blanking.
+
+Keeping `data.json` as the fallback also means a localized app still runs
+unchanged anywhere that ignores the sidecars, including splitflap-os.
+
+You do **not** need `"i18n": true` in the manifest — an app that ships translations
+is detected as localizable automatically, which is what puts the 🌐 badge on it and
+gives it a per-app **Language** override. (Setting the flag by hand does no harm.)
+
+Mind the width: translations are centred and truncated to the grid like any other
+page, and a word that fits in English often doesn't in German.
+
 ---
 
 ## 6. Animations
