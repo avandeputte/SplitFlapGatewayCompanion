@@ -3,6 +3,25 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.10
+
+**Editing a playlist no longer means retyping its name.** The editor was an anonymous
+scratch buffer: "Load" copied a playlist's entries in and forgot where they came from, so
+"Save" had to ask — and you had to reproduce the name exactly, or you silently made a
+second playlist beside the one you meant to change.
+
+- The list's **Load** button is now **Edit**, and it brings the name with it. **Save**
+  writes straight back — no prompt.
+- Change the name and Save becomes **Rename & save**, so you can't rename by accident
+  while reaching for a copy. The old name is not left behind as a stale duplicate.
+- **New** clears the editor, and the playlist you're editing is marked in the list.
+
+**Apps can now opt out of auto-centring.** An app that builds its own layout declares
+`"vertical_align": "top"` (or `"bottom"`) in its manifest and its rows are left exactly
+where it put them. The key is additive — absent means `"center"`, so every existing app is
+untouched — and `"top"` is byte-for-byte the original splitflap-os padding, so it doubles
+as the compatibility switch. See COMPATIBILITY.md.
+
 ## 1.9.0-beta.9
 
 Vertical centring, properly this time.

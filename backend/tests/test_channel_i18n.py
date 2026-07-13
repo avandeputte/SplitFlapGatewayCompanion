@@ -28,7 +28,7 @@ def _runtime(tmp_path, files, settings=None):
     rt._registry, rt._channel, rt._modules, rt._caches = {}, {}, {}, {}
     rt.settings = settings or {}
     rt.get_cols, rt.get_rows = (lambda: 15), (lambda: 3)
-    rt.format_lines = lambda *lines: lines[0]
+    rt.format_lines = lambda *lines, cols=None, align="center": lines[0]
     rt._registry["demo"] = json.loads((app_dir / "manifest.json").read_text())
     rt._load_channel("demo", app_dir)
     return rt

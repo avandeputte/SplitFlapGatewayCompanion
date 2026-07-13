@@ -516,3 +516,20 @@ fieldset { border-color: var(--acc); border-radius: 8px; }
 .display-row .input { flex: 1 1 140px; min-width: 120px; }
 .display-row .btn { flex: 0 0 auto; }
 .warn.sm { color: var(--warn, #e0a33e); font-size: 12px; }
+
+/* ---- playlists ------------------------------------------------------------
+   The editor has a name, so saving an edit no longer means retyping it. */
+.pl-name { max-width: 190px; }
+.saved-row.editing {
+  outline: 1px solid var(--brand, #4b8bf5);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.pill.sm {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--brand, #4b8bf5);
+  color: #fff;
+  white-space: nowrap;
+}

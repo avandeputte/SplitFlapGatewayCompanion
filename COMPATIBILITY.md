@@ -27,6 +27,24 @@ coincidence, and this document is the contract we hold it to.
   > taller wall (a 5×15 MatrixPortal, say) bottom-padding strands a 3-line app at the
   > top with two dead rows beneath it. An app is unaffected either way: it still
   > returns the same lines, and `get_rows()` still tells it how much room it has.
+  >
+  > **The divergence is opt-out.** An app that wants the original behaviour — or that
+  > builds its own layout and needs its rows left where it put them — declares it in
+  > its manifest:
+  >
+  > ```json
+  > { "vertical_align": "top" }      // "center" (default) | "top" | "bottom"
+  > ```
+  >
+  > `"top"` is byte-for-byte splitflap-os padding. The key is additive: absent means
+  > `"center"`, so every existing app — and every unmodified splitflap-os app — behaves
+  > exactly as it does today without being touched. `format_lines`'s **signature does not
+  > change**: the runtime hands each app a `format_lines` already bound to that app's
+  > alignment, so apps keep calling `format_lines(*lines)`.
+  >
+  > Declaring `"top"` is what an app needs if it places its own blank rows. Without it,
+  > an app that centres its own block gets centred a *second* time and drifts below the
+  > middle — which is exactly what happened to three vendored apps in 1.9.0-beta.5.
 - **`settings` dict** — manifest defaults merged with saved user values, same key
   resolution, including any global keys apps read (e.g. `currency_symbol`).
 - **Triggers** — `trigger(settings, conditions) -> bool` on a

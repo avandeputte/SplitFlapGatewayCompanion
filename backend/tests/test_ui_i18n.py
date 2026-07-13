@@ -209,7 +209,7 @@ def _runtime(tmp_path, settings=None):
     rt._registry, rt._channel, rt._modules, rt._caches = {}, {}, {}, {}
     rt.settings = S(settings or {})
     rt.get_cols, rt.get_rows = (lambda: 15), (lambda: 3)
-    rt.format_lines = lambda *l, cols=None: "|".join(x for x in l)
+    rt.format_lines = lambda *l, cols=None, align="center": "|".join(x for x in l)
     return rt
 
 

@@ -107,6 +107,10 @@
       <div class="controls">
         <button class="btn ghost btn-sm" id="plAddApp" data-i18n="＋ App">＋ App</button>
         <button class="btn ghost btn-sm" id="plAddMsg" data-i18n="＋ Message">＋ Message</button>
+        <!-- The editor's identity. Without it, saving an edit meant retyping the exact
+             name you had just loaded, and a typo silently made a second playlist. -->
+        <input class="input pl-name" id="plName" placeholder="Playlist name" data-i18n-placeholder="Playlist name" aria-label="Playlist name" data-i18n-label="Playlist name">
+        <button class="btn ghost btn-sm" id="plNew" data-i18n="New">New</button>
         <label class="field inline" style="margin:0"><input type="checkbox" id="plLoop" checked style="width:auto"><span style="min-width:0" data-i18n="Loop">Loop</span></label>
         <div class="spacer"></div>
         <button class="btn ghost btn-sm" id="plSave" data-i18n="Save…">Save…</button>

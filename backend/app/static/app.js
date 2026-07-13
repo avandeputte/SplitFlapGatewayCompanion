@@ -101,6 +101,7 @@ function translateDom() {
   document.querySelectorAll("[data-i18n]").forEach((n) => { n.textContent = t(n.dataset.i18n); });
   document.querySelectorAll("[data-i18n-title]").forEach((n) => { n.title = t(n.dataset.i18nTitle); });
   document.querySelectorAll("[data-i18n-label]").forEach((n) => n.setAttribute("aria-label", t(n.dataset.i18nLabel)));
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((n) => { n.placeholder = t(n.dataset.i18nPlaceholder); });
 }
 
 async function api(path, opts) {
@@ -900,6 +901,11 @@ async function openLibrary() {
 const rid = (p) => p + Math.random().toString(36).slice(2, 8);
 let PL_ENTRIES = [];
 let SAVED_PL = {};
+// Which saved playlist the editor is EDITING ("" = a new, unsaved one). The editor used
+// to be an anonymous scratch buffer: "Load" copied a playlist's entries and forgot where
+// they came from, so saving an edit meant retyping the name by hand — and a typo quietly
+// made a second playlist instead of updating the one you meant.
+let PL_NAME = "";
 
 function plRender() {
   const box = $("plEntries"); box.innerHTML = "";
@@ -929,6 +935,7 @@ function plRender() {
     const del = el("button", "del"); del.textContent = "✕"; del.onclick = () => { PL_ENTRIES.splice(i, 1); plRender(); }; row.appendChild(del);
     box.appendChild(row);
   });
+  plSaveLabel();          // an empty editor has nothing to save
 }
 async function loadPlaylists() {
   if (!APPS.length) await loadApps();
@@ -937,22 +944,62 @@ async function loadPlaylists() {
   const names = Object.keys(SAVED_PL);
   if (!names.length) { saved.innerHTML = `<span class="hint">${t("None yet.")}</span>`; }
   names.forEach((n) => {
-    const row = el("div", "saved-row");
+    const row = el("div", "saved-row" + (n === PL_NAME ? " editing" : ""));
     const nm = el("span", "grow"); nm.textContent = n; row.appendChild(nm);
+    if (n === PL_NAME) { const tag = el("span", "pill sm"); tag.textContent = t("editing"); row.appendChild(tag); }
     const run = el("button", "btn btn-sm primary"); run.textContent = t("Run"); run.onclick = () => post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n }); row.appendChild(run);
-    const load = el("button", "btn btn-sm ghost"); load.textContent = t("Load"); load.onclick = () => { PL_ENTRIES = JSON.parse(JSON.stringify(SAVED_PL[n].entries)); $("plLoop").checked = SAVED_PL[n].loop !== false; plRender(); }; row.appendChild(load);
+    const load = el("button", "btn btn-sm ghost"); load.textContent = t("Edit"); load.onclick = () => plEdit(n); row.appendChild(load);
     const del = el("button", "btn btn-sm ghost"); del.textContent = t("Delete"); del.onclick = async () => { await fetch(url("/api/playlists/" + encodeURIComponent(n)), { method: "DELETE" }); loadPlaylists(); }; row.appendChild(del);
     saved.appendChild(row);
   });
   if (!PL_ENTRIES.length) plRender();
+  plSaveLabel();
 }
 async function runPlaylistNow() {
   if (!PL_ENTRIES.length) { $("plSaved"); return; }
-  await post("/api/playlists/run", { entries: PL_ENTRIES, loop: $("plLoop").checked, name: "(unsaved)" });
+  await post("/api/playlists/run", { entries: PL_ENTRIES, loop: $("plLoop").checked, name: PL_NAME || "(unsaved)" });
 }
+// The editor's name field IS the identity. Saving writes to whatever it says: unchanged,
+// that updates the playlist you loaded; changed, it renames it (and the button says so, so
+// nobody renames by accident while reaching for a copy).
+function plSaveLabel() {
+  const typed = $("plName").value.trim();
+  const btn = $("plSave");
+  btn.textContent = (PL_NAME && typed && typed !== PL_NAME) ? t("Rename & save") : t("Save");
+  btn.disabled = !typed || !PL_ENTRIES.length;
+  btn.title = PL_NAME ? t("Update “%s”", PL_NAME) : t("Save as a new playlist");
+}
+
+function plEdit(name) {
+  PL_ENTRIES = JSON.parse(JSON.stringify(SAVED_PL[name].entries));
+  PL_NAME = name;
+  $("plName").value = name;
+  $("plLoop").checked = SAVED_PL[name].loop !== false;
+  plRender();
+  loadPlaylists();          // re-render the list so the edited row is marked
+}
+
+function plNew() {
+  PL_ENTRIES = [];
+  PL_NAME = "";
+  $("plName").value = "";
+  $("plLoop").checked = true;
+  plRender();
+  loadPlaylists();
+}
+
 async function savePlaylist() {
-  const name = prompt(t("Playlist name:")); if (!name) return;
-  await post("/api/playlists", { name, entries: PL_ENTRIES, loop: $("plLoop").checked }); loadPlaylists();
+  const name = $("plName").value.trim();
+  if (!name) { $("plName").focus(); return; }
+  if (!PL_ENTRIES.length) return;
+  await post("/api/playlists", { name, entries: PL_ENTRIES, loop: $("plLoop").checked });
+  // A rename is a save under the new name plus a delete of the old — otherwise the one
+  // you renamed away from lingers as a stale duplicate of what you just edited.
+  if (PL_NAME && PL_NAME !== name) {
+    await fetch(url("/api/playlists/" + encodeURIComponent(PL_NAME)), { method: "DELETE" });
+  }
+  PL_NAME = name;
+  await loadPlaylists();
 }
 
 // ---- triggers --------------------------------------------------------------
@@ -1442,6 +1489,8 @@ async function init() {
   $("plAddMsg").addEventListener("click", () => { PL_ENTRIES.push({ type: "compose", text: "", duration: 15 }); plRender(); });
   $("plRun").addEventListener("click", runPlaylistNow);
   $("plSave").addEventListener("click", savePlaylist);
+  $("plNew").addEventListener("click", plNew);
+  $("plName").addEventListener("input", plSaveLabel);
   // triggers
   $("trigAdd").addEventListener("click", addTrigger);
   $("trigSave").addEventListener("click", saveTriggers);

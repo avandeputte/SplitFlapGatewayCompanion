@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ast
 import collections
+import functools
 import importlib.util
 import inspect
 import json
@@ -130,20 +131,57 @@ class PluginRuntime:
     def get_cols(self) -> int:
         return int(self.config.grid["cols"])
 
-    def format_lines(self, *lines, cols=None) -> str:
+    # An app may declare where its block sits, with "vertical_align" in its manifest:
+    #
+    #   center  (default)  the block is centred on the wall
+    #   top                the block starts at the top; spare rows fall to the bottom
+    #   bottom             the block is pushed to the bottom
+    #
+    # Absent means "center", so every existing app and every splitflap-os app keeps
+    # working untouched — the key is additive, and an app that never heard of it gets the
+    # behaviour it already had.
+    #
+    # `top` is the escape hatch: it is exactly splitflap-os's padding, so an app that wants
+    # to place its own rows (a fixed header, a hand-built layout) declares `top` and emits
+    # blank lines wherever it wants them. Without it, an app doing its own vertical
+    # placement gets centred a SECOND time and drifts below the middle — which is precisely
+    # what happened to cat-facts, on-this-day and sarcastic-fortune-cookies.
+    ALIGNMENTS = ("center", "top", "bottom")
+
+    def vertical_align(self, app_id: str | None) -> str:
+        """Where this app's block sits. Unknown values fall back to centring rather than
+        failing the app: a typo in a manifest should not take the wall down."""
+        if not app_id:
+            return "center"
+        want = str((self._registry.get(app_id) or {}).get("vertical_align") or "center").lower()
+        if want not in self.ALIGNMENTS:
+            log.warning("plugin %s: unknown vertical_align %r — using center (one of: %s)",
+                        app_id, want, ", ".join(self.ALIGNMENTS))
+            return "center"
+        return want
+
+    def format_lines(self, *lines, cols=None, align="center") -> str:
         """Build one page from up to `rows` lines: each centred horizontally, and the
-        block centred VERTICALLY when the app gives fewer lines than the wall is tall.
+        block placed VERTICALLY when the app gives fewer lines than the wall is tall.
 
         splitflap-os pads only at the bottom, which is invisible on the 3-row walls it
         targets but leaves a 3-line app stranded at the top of a 5-row wall with two
-        dead rows under it. This is a deliberate, documented divergence — see
-        COMPATIBILITY.md. Nothing changes when an app fills the wall exactly.
+        dead rows under it. So we centre by default — a deliberate, documented divergence
+        (COMPATIBILITY.md) — and an app that wants the old behaviour, or wants to place its
+        own rows, says so with "vertical_align": "top" in its manifest.
+
+        Nothing changes when an app fills the wall exactly.
         """
         cols = cols or self.get_cols()
         rows = self.get_rows()
         given = list(lines)[:rows]
         pad = rows - len(given)
-        top = pad // 2                      # odd remainder falls to the bottom
+        if align == "top":
+            top = 0                         # splitflap-os: everything falls to the bottom
+        elif align == "bottom":
+            top = pad
+        else:
+            top = pad // 2                  # centred; an odd remainder falls to the bottom
         padded = [""] * top + given + [""] * (pad - top)
         return "".join(l.center(cols)[:cols] for l in padded[:rows])
 
@@ -256,7 +294,8 @@ class PluginRuntime:
             if isinstance(page, str):
                 pages.append(page)
             elif isinstance(page, dict) and "lines" in page:
-                pages.append(self.format_lines(*page["lines"]))
+                pages.append(self.format_lines(*page["lines"],
+                                               align=self.vertical_align(app_id)))
         return pages
 
     def _load_channel(self, app_id: str, app_dir: Path) -> None:
@@ -551,7 +590,11 @@ class PluginRuntime:
                         # the global Language; blank/unset = follow global.
                         lang = self._perapp_value(app_id, "language", settings) or settings.get("language", "en-US")
                         kwargs["i18n"] = i18n.Localizer(lang)
-                    pages = mod.fetch(ps, self.format_lines, self.get_rows, self.get_cols, **kwargs)
+                    # Bound to THIS app's alignment, so the app calls format_lines(*lines)
+                    # exactly as it always has — the signature splitflap-os apps expect.
+                    fmt = functools.partial(self.format_lines,
+                                            align=self.vertical_align(app_id))
+                    pages = mod.fetch(ps, fmt, self.get_rows, self.get_cols, **kwargs)
                     if not isinstance(pages, list):
                         pages = [str(pages)]
                     self._caches[ckey] = {"pages": pages, "fetched_at": now}

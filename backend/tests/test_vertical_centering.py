@@ -132,3 +132,61 @@ def test_no_app_centres_itself():
     assert not offenders, (
         "format_lines already centres; centring here too lands the block BELOW the "
         f"middle: {offenders}")
+
+
+# ---------------------------------------------------------------------------
+# the opt-out: an app may declare where its block sits
+# ---------------------------------------------------------------------------
+# Centring is right for almost every app, but it is a POLICY, and an app that builds its
+# own layout (a fixed header, hand-placed rows) needs to be able to say so — otherwise its
+# placement gets centred a second time and drifts. "vertical_align": "top" is also exactly
+# splitflap-os's padding, so it doubles as the compatibility switch.
+def test_vertical_align_defaults_to_centre_when_the_manifest_says_nothing():
+    """Additive by construction: every existing app, and every splitflap-os app, has no
+    such key and must keep the behaviour it already has."""
+    rt = _runtime(5, 15, "time")
+    assert rt.vertical_align("time") == "center"
+    assert rt.vertical_align(None) == "center"
+    assert rt.vertical_align("no-such-app") == "center"
+
+
+@pytest.mark.parametrize("align,expected", [
+    ("center", (1, 1)),      # blank above, blank below
+    ("top", (0, 2)),         # splitflap-os: everything falls to the bottom
+    ("bottom", (2, 0)),
+])
+def test_vertical_align_places_the_block(align, expected):
+    rt = _runtime(5, 15, "time")
+    page = rt.format_lines("A", "B", "C", align=align)
+    assert _blanks(_rows(page, 5, 15)) == expected
+
+
+def test_top_is_byte_for_byte_splitflap_os():
+    """The escape hatch has to be the ORIGINAL behaviour, or it is not an escape hatch."""
+    rt = _runtime(5, 15, "time")
+    page = rt.format_lines("A", "B", "C", align="top")
+    assert page == "A".center(15) + "B".center(15) + "C".center(15) + " " * 30
+
+
+def test_an_app_that_declares_top_can_place_its_own_rows(tmp_path):
+    """The point of the opt-out: emit blanks where you want them and they are respected,
+    rather than being re-centred into somewhere else."""
+    rt = _runtime(5, 15, "time")
+    page = rt.format_lines("", "HEADER", "", "BODY", align="top")
+    lines = [l.strip() for l in _rows(page, 5, 15)]
+    assert lines == ["", "HEADER", "", "BODY", ""]
+
+
+def test_a_typo_in_the_manifest_does_not_take_the_wall_down(tmp_path, caplog):
+    rt = _runtime(5, 15, "time")
+    rt._registry["time"] = dict(rt._registry["time"], vertical_align="middle")
+    assert rt.vertical_align("time") == "center"      # falls back rather than raising
+
+
+def test_the_app_gets_a_format_lines_bound_to_its_alignment():
+    """Apps call format_lines(*lines) — the signature splitflap-os apps expect. The
+    alignment has to reach it WITHOUT changing that signature, or drop-in compatibility
+    (a hard requirement, see COMPATIBILITY.md) is gone."""
+    src = (Path(__file__).resolve().parents[1] / "app" / "plugins.py").read_text("utf-8")
+    assert "functools.partial(self.format_lines," in src
+    assert "align=self.vertical_align(app_id)" in src
