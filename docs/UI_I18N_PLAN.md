@@ -1,5 +1,9 @@
 # Plan: a fully multi-lingual companion UI
 
+> **Status: implemented in 1.9.0-beta.1** (phases 1–3 plus the fr/de/es data;
+> the remaining languages are data-only follow-ups). This document stays as the
+> design record.
+
 Where the project stands: the *content* pipeline is localized — functional apps get a
 `Localizer`, channel apps pick `data_<lang>.json` sidecars, and locale drives dates,
 numbers, currency and holidays. What still speaks English regardless of the Language

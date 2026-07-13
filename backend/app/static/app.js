@@ -15,6 +15,39 @@ let GRID = { rows: 3, cols: 15, module_count: 45, styles: [] };
 const BASE = window.__BASE__ || "";
 const url = (path) => BASE + path;
 
+// ---- i18n (chrome language) --------------------------------------------------
+// The server resolves the viewer's UI language per request (uilang.py: URL param >
+// explicitly-saved Language setting > COMPANION_UI_LANGUAGE > Accept-Language) and
+// stamps it as window.__LANG__. The English string IS the catalog key: t("Save")
+// returns "Enregistrer" when /i18n/fr.json carries it and "Save" itself otherwise,
+// so a missing translation can never break the UI. Catalogs degrade exact locale
+// -> base language ("fr-BE" -> fr.json); English skips the fetch entirely.
+const LANG = window.__LANG__ || "en-US";
+let STR = {};
+const esc = (s) => String(s).replace(/[&<>"']/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function t(s, ...args) {
+  let out = STR[s] || s;
+  args.forEach((a) => { out = out.replace("%s", a); });
+  return out;
+}
+async function loadI18n() {
+  const base = LANG.split("-")[0].toLowerCase();
+  if (base === "en") return;
+  for (const code of [...new Set([LANG, base])]) {
+    try {
+      const r = await fetch(url(`/i18n/${code}.json`));
+      if (r.ok) { STR = await r.json(); return; }
+    } catch { /* try the next */ }
+  }
+}
+// One pass over the static shell: data-i18n (text), data-i18n-title, data-i18n-label.
+function translateDom() {
+  document.querySelectorAll("[data-i18n]").forEach((n) => { n.textContent = t(n.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-title]").forEach((n) => { n.title = t(n.dataset.i18nTitle); });
+  document.querySelectorAll("[data-i18n-label]").forEach((n) => n.setAttribute("aria-label", t(n.dataset.i18nLabel)));
+}
+
 async function api(path, opts) {
   const r = await fetch(url(path), opts);
   if (!r.ok) throw new Error(`${path} → ${r.status}`);
@@ -57,7 +90,7 @@ async function pollState() {
       cell.className = classForChar(ch);
       cell.textContent = glyph(ch);
     });
-    $("previewMeta").textContent = `${GRID.rows}×${GRID.cols} · ${st.module_count} modules`;
+    $("previewMeta").textContent = `${GRID.rows}×${GRID.cols} · ${st.module_count} ${t("modules")}`;
     if (APPS.length) updateActiveUI(st.active_app, st.active_playlist);
   } catch (e) { /* transient */ }
 }
@@ -66,7 +99,7 @@ async function pollStatus() {
   // Nothing is shown while the display is reachable -- only a red banner if the
   // connection drops. No transport/technical wording surfaces in the UI.
   const badge = $("statusBadge");
-  const down = () => { badge.className = "badge err"; badge.textContent = "⚠ Display offline"; };
+  const down = () => { badge.className = "badge err"; badge.textContent = t("⚠ Display offline"); };
   const ok = () => { badge.className = "badge hidden"; badge.textContent = ""; };
   try {
     const t = (await api("/api/current_state")).transport;
@@ -183,7 +216,7 @@ function cmpBuild() {
     // The map's blank entry (⬛ -> " ") is a blank flap, not a colour.
     const blank = code.trim() === "";
     b.classList.add(blank ? "swatch-blank" : `color-${code}`);
-    b.title = blank ? "Blank" : `Colour ${code}`;
+    b.title = blank ? t("Blank") : t("Colour %s", code);
     b.addEventListener("click", () => {
       $("composeBoard").focus();
       cmpSet(blank ? "" : emoji);
@@ -194,7 +227,7 @@ function cmpBuild() {
   // Style + speed default to the display's globals; "" means "let the server decide".
   const sel = $("cmpStyle");
   sel.innerHTML = "";
-  const d = el("option"); d.value = ""; d.textContent = "Default (global)";
+  const d = el("option"); d.value = ""; d.textContent = t("Default (global)");
   sel.appendChild(d);
   (GRID.styles || []).forEach((s) => {
     const o = el("option"); o.value = s; o.textContent = s; sel.appendChild(o);
@@ -218,7 +251,7 @@ async function cmpPush() {
   const style = $("cmpStyle").value;
   const speed = parseInt($("cmpSpeed").value, 10);
   btn.disabled = true;
-  msg.textContent = "Sending…";
+  msg.textContent = t("Sending…");
   try {
     // The engine renders this to frames and pushes the whole page in ONE call to
     // the gateway's /api/rs485/batch, with speed as step_ms. That endpoint exists
@@ -228,9 +261,9 @@ async function cmpPush() {
       style: style || null,
       speed: Number.isFinite(speed) ? speed : null,
     });
-    msg.textContent = "Sent.";
+    msg.textContent = t("Sent.");
   } catch (e) {
-    msg.textContent = `Failed: ${e.message}`;
+    msg.textContent = t("Failed: %s", e.message);
   } finally {
     btn.disabled = false;
     setTimeout(() => { msg.textContent = ""; }, 2500);
@@ -299,12 +332,12 @@ function appFits(a) {
 
 // Short human label for an app's display requirement (shown on a disabled tile).
 function appReq(a) {
-  if (a.min_modules) return `${a.min_modules} modules`;
+  if (a.min_modules) return t("%s modules", a.min_modules);
   return `${a.min_rows || 1}×${a.min_cols || 1}`;
 }
 
 async function loadApps() {
-  const data = await api("/api/apps");
+  const data = await api(`/api/apps?lang=${LANG}`);
   APPS = data.apps;
   const grid = $("appsGrid");
   grid.innerHTML = "";
@@ -312,14 +345,14 @@ async function loadApps() {
     const fits = appFits(a);
     const tile = el("div", "app-tile" + (fits ? "" : " disabled"));
     tile.dataset.appId = a.id;
-    if (!fits) tile.title = `Needs at least ${appReq(a)}`;
+    if (!fits) tile.title = t("Needs at least %s", appReq(a));
     tile.innerHTML =
       `<div class="app-icon">${a.icon || "🧩"}</div>` +
       `<div class="app-name">${a.name}</div>` +
       `<div class="app-desc">${a.description || ""}</div>` +
-      (a.has_settings ? `<button class="app-gear" title="Settings">⚙</button>` : "") +
+      (a.has_settings ? `<button class="app-gear" title="${t("Settings")}">⚙</button>` : "") +
       `<div class="app-foot">` +
-        (a.i18n ? `<span class="app-i18n" title="Multilingual — adapts to the global Language">🌐</span>` : "") +
+        (a.i18n ? `<span class="app-i18n" title="${t("Multilingual — adapts to the global Language")}">🌐</span>` : "") +
         `<span class="app-badge"></span>` +
         (fits ? "" : `<span class="app-req">${appReq(a)}</span>`) +
       `</div>`;
@@ -335,13 +368,17 @@ async function loadApps() {
 
 function updateActiveUI(activeApp, activePlaylist) {
   const banner = $("activeBanner");
+  // Word order differs per language ("X is running" / "X läuft"), so the whole
+  // sentence is one catalog key with the app name spliced in bold.
+  const showRunning = (label) => {
+    $("activeText").innerHTML = t("▶ %s is running").replace("%s", `<b>${esc(label)}</b>`);
+    banner.classList.remove("hidden");
+  };
   if (activeApp) {
     const a = APPS.find((x) => x.id === activeApp);
-    $("activeAppName").textContent = a ? a.name : activeApp;
-    banner.classList.remove("hidden");
+    showRunning(a ? a.name : activeApp);
   } else if (activePlaylist) {
-    $("activeAppName").textContent = "Playlist · " + activePlaylist;
-    banner.classList.remove("hidden");
+    showRunning(t("Playlist · %s", activePlaylist));
   } else {
     banner.classList.add("hidden");
   }
@@ -349,7 +386,7 @@ function updateActiveUI(activeApp, activePlaylist) {
     const on = t.dataset.appId === activeApp;
     t.classList.toggle("running", on);
     const badge = t.querySelector(".app-badge");
-    if (badge) badge.textContent = on ? "▶ RUNNING" : "";
+    if (badge) badge.textContent = on ? t("▶ RUNNING") : "";
   });
 }
 
@@ -359,18 +396,18 @@ async function stopApp() { await post("/api/apps/stop"); updateActiveUI(null, nu
 // Physically home every module (stops whatever is playing, blanks the wall).
 async function homeAll() {
   const btn = $("homeAllBtn");
-  if (!confirm("Home all modules?\n\nThis returns the whole display to its blank home position and stops anything currently playing.")) return;
+  if (!confirm(t("Home all modules?") + "\n\n" + t("This returns the whole display to its blank home position and stops anything currently playing."))) return;
   const label = btn.textContent;
-  btn.disabled = true; btn.textContent = "Homing…";
+  btn.disabled = true; btn.textContent = t("Homing…");
   let restore = 1500;
   try {
     const r = await post("/api/display/home");
     if (r && r.ok === false) throw new Error(r.error || "home failed");
     updateActiveUI(null, null);
     await pollState();
-    btn.textContent = "Homed ✓";
+    btn.textContent = t("Homed ✓");
   } catch (e) {
-    btn.textContent = "Home failed";
+    btn.textContent = t("Home failed");
     console.error("home all:", e);
     restore = 2500;
   } finally {
@@ -405,9 +442,9 @@ const COMPUTES = {
   polling_usage_estimate(cur) {
     const k = Object.keys(cur).find((x) => x.endsWith("polling_rate"));
     const r = Number(cur[k]) || 0;
-    if (!r) return "Set a polling rate to estimate API usage.";
+    if (!r) return t("Set a polling rate to estimate API usage.");
     const d = Math.round(86400 / r);
-    return `≈ ${d.toLocaleString()} requests/day · ${(d * 30 / 1000).toFixed(1)}k/month`;
+    return t("≈ %s requests/day · %sk/month", d.toLocaleString(), (d * 30 / 1000).toFixed(1));
   },
 };
 
@@ -452,14 +489,14 @@ function applySync(f, newVal) {
 function mkField(f, values) {
   const wrap = el("div", "field"); wrap._field = f; wrap._getValue = () => undefined;
   const val = values[f.key];
-  if (f.type === "notice") { const n = el("div", "notice"); n.textContent = f.label || f.text || ""; wrap.appendChild(n); return wrap; }
+  if (f.type === "notice") { const n = el("div", "notice"); n.textContent = t(f.label || f.text || ""); wrap.appendChild(n); return wrap; }
   if (f.type === "computed") {
-    if (f.label) { const l = el("span"); l.textContent = f.label; wrap.appendChild(l); }
+    if (f.label) { const l = el("span"); l.textContent = t(f.label); wrap.appendChild(l); }
     const n = el("div", "notice"); wrap.appendChild(n); wrap._computeEl = n; return wrap;
   }
-  const label = el("span"); label.innerHTML = f.label || f.key; wrap.appendChild(label);
-  if (f.shared) { const b = el("span", "shared-badge"); b.textContent = "shared"; b.title = "Global setting — shared across apps"; label.appendChild(b); }
-  if (f.note) { const nt = el("small", "field-note"); nt.textContent = f.note; wrap.appendChild(nt); }
+  const label = el("span"); label.innerHTML = t(f.label || f.key); wrap.appendChild(label);
+  if (f.shared) { const b = el("span", "shared-badge"); b.textContent = t("shared"); b.title = t("Global setting — shared across apps"); label.appendChild(b); }
+  if (f.note) { const nt = el("small", "field-note"); nt.textContent = t(f.note); wrap.appendChild(nt); }
 
   if (f.type === "toggle" || f.type === "select") {
     const opts = normOpts(f.options);
@@ -467,7 +504,7 @@ function mkField(f, values) {
       const seg = el("div", "seg");
       const setOn = (v) => [...seg.children].forEach((c) => c.classList.toggle("on", c.dataset.value === String(v)));
       opts.forEach((o) => {
-        const b = el("button"); b.type = "button"; b.textContent = o.label; b.dataset.value = o.value;
+        const b = el("button"); b.type = "button"; b.textContent = t(o.label); b.dataset.value = o.value;
         b.addEventListener("click", () => { seg.dataset.value = o.value; setOn(o.value); applySync(f, o.value); onFormChange(); });
         seg.appendChild(b);
       });
@@ -477,7 +514,7 @@ function mkField(f, values) {
       wrap._setValue = (v) => { seg.dataset.value = v; setOn(v); };
     } else {
       const sel = el("select");
-      opts.forEach((o) => { const op = el("option"); op.value = o.value; op.textContent = o.label; sel.appendChild(op); });
+      opts.forEach((o) => { const op = el("option"); op.value = o.value; op.textContent = t(o.label); sel.appendChild(op); });
       sel.value = val != null ? val : (opts[0]?.value ?? "");
       sel.addEventListener("change", () => { applySync(f, sel.value); onFormChange(); });
       wrap.appendChild(sel);
@@ -501,7 +538,7 @@ function mkField(f, values) {
         ch.appendChild(x); chipsDiv.appendChild(ch);
       });
     };
-    const search = el("input"); search.placeholder = "Search…";
+    const search = el("input"); search.placeholder = t("Search…");
     const results = el("div", "chip-results"); results.style.display = "none";
     // The results dropdown floats as a fixed overlay anchored under the input, so
     // it doesn't inflate the modal body's scroll height (which caused a second,
@@ -556,7 +593,7 @@ function mkField(f, values) {
     if (f.min != null) inp.min = f.min;
     if (f.max != null) inp.max = f.max;
     if (f.step != null) inp.step = f.step;
-    if (f.ph) inp.placeholder = f.ph;
+    if (f.ph) inp.placeholder = t(f.ph);
     inp.value = val != null && val !== "" ? val : "";
     inp.addEventListener("input", onFormChange);
     wrap._getValue = () => (f.type === "number" ? Number(inp.value) : inp.value);
@@ -577,7 +614,7 @@ function mkField(f, values) {
 }
 
 async function openAppSettings(id, name) {
-  const schema = await api(`/api/apps/${id}/settings`);
+  const schema = await api(`/api/apps/${id}/settings?lang=${LANG}`);
   const form = el("div");
   _formFields = [];
   schema.fields.forEach((f) => {
@@ -589,16 +626,16 @@ async function openAppSettings(id, name) {
     }
   });
   onFormChange();
-  const save = el("button", "btn primary"); save.textContent = "Save";
+  const save = el("button", "btn primary"); save.textContent = t("Save");
   const msg = el("span", "hint"); msg.style.marginRight = "auto";
   save.addEventListener("click", async () => {
     const values = {};
     _formFields.forEach((w) => { const v = w._getValue && w._getValue(); if (v !== undefined) values[w._field.key] = v; });
-    msg.textContent = "Saving…";
+    msg.textContent = t("Saving…");
     try { await post(`/api/apps/${id}/settings`, { values }); closeModal(); }
-    catch (e) { msg.textContent = "Error: " + e.message; }
+    catch (e) { msg.textContent = t("Error: %s", e.message); }
   });
-  const close = el("button", "btn ghost"); close.textContent = "Close"; close.addEventListener("click", closeModal);
+  const close = el("button", "btn ghost"); close.textContent = t("Close"); close.addEventListener("click", closeModal);
   openModal(`${schema.icon} ${name || schema.name}`, form, [msg, close, save]);
 }
 
@@ -607,11 +644,11 @@ async function openAppSettings(id, name) {
 // so the same app can appear multiple times configured differently.
 async function openEntrySettings(entry) {
   const app = APPS.find((a) => a.id === entry.app);
-  const schema = await api(`/api/apps/${entry.app}/settings`);
+  const schema = await api(`/api/apps/${entry.app}/settings?lang=${LANG}`);
   const base = Object.assign({}, schema.values, entry.overrides || {});   // entry values win in the form
   const form = el("div");
   const note = el("p", "hint");
-  note.textContent = "These apply to this playlist entry only. Unchanged fields follow the app's own settings.";
+  note.textContent = t("These apply to this playlist entry only. Unchanged fields follow the app's own settings.");
   form.appendChild(note);
   _formFields = [];
   schema.fields.forEach((f) => {
@@ -624,9 +661,9 @@ async function openEntrySettings(entry) {
     }
   });
   onFormChange();
-  const save = el("button", "btn primary"); save.textContent = "Save for this entry";
-  const clear = el("button", "btn ghost"); clear.textContent = "Clear";
-  clear.title = "Remove all per-entry overrides (follow the app's settings)";
+  const save = el("button", "btn primary"); save.textContent = t("Save for this entry");
+  const clear = el("button", "btn ghost"); clear.textContent = t("Clear");
+  clear.title = t("Remove all per-entry overrides (follow the app's settings)");
   const msg = el("span", "hint"); msg.style.marginRight = "auto";
   clear.addEventListener("click", () => { entry.overrides = {}; closeModal(); plRender(); });
   save.addEventListener("click", () => {
@@ -640,14 +677,14 @@ async function openEntrySettings(entry) {
     entry.overrides = ov;
     closeModal(); plRender();
   });
-  openModal(`${app ? app.icon + " " : ""}${app ? app.name : entry.app} — entry settings`, form, [msg, clear, save]);
+  openModal(t("%s — entry settings", `${app ? app.icon + " " : ""}${app ? app.name : entry.app}`), form, [msg, clear, save]);
 }
 
 async function openGlobalSettings() {
   const schema = await api("/api/global-settings");
   const form = el("div", "gsettings");
   if (!schema.fields.length) {
-    const p = el("p", "hint"); p.textContent = "No global settings yet — install apps that use shared settings (weather, stocks, …).";
+    const p = el("p", "hint"); p.textContent = t("No global settings yet — install apps that use shared settings (weather, stocks, …).");
     form.appendChild(p);
   }
   _formFields = [];
@@ -660,33 +697,33 @@ async function openGlobalSettings() {
     }
   });
   onFormChange();
-  const save = el("button", "btn primary"); save.textContent = "Save";
+  const save = el("button", "btn primary"); save.textContent = t("Save");
   const msg = el("span", "hint"); msg.style.marginRight = "auto";
   save.addEventListener("click", async () => {
     const values = {};
     _formFields.forEach((w) => { const v = w._getValue && w._getValue(); if (v !== undefined) values[w._field.key] = v; });
-    msg.textContent = "Saving…";
+    msg.textContent = t("Saving…");
     try { await post("/api/global-settings", { values }); closeModal(); }
-    catch (e) { msg.textContent = "Error: " + e.message; }
+    catch (e) { msg.textContent = t("Error: %s", e.message); }
   });
-  const close = el("button", "btn ghost"); close.textContent = "Close"; close.addEventListener("click", closeModal);
-  openModal("⚙ Global settings", form, [msg, close, save]);
+  const close = el("button", "btn ghost"); close.textContent = t("Close"); close.addEventListener("click", closeModal);
+  openModal(t("⚙ Global settings"), form, [msg, close, save]);
 }
 
 // ---- app library -----------------------------------------------------------
 async function uploadApp(fileInput, msgEl) {
   const f = fileInput.files[0];
   msgEl.style.whiteSpace = "pre-wrap";   // keep line breaks in rejection reasons
-  if (!f) { msgEl.textContent = "Choose a .zip first."; return; }
-  msgEl.textContent = "Uploading…";
+  if (!f) { msgEl.textContent = t("Choose a .zip first."); return; }
+  msgEl.textContent = t("Uploading…");
   try {
     const fd = new FormData(); fd.append("file", f);
     const r = await fetch(url("/api/apps/upload"), { method: "POST", body: fd });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { msgEl.textContent = "Error: " + (j.detail || r.status); return; }
+    if (!r.ok) { msgEl.textContent = t("Error: %s", j.detail || r.status); return; }
     fileInput.value = "";
     openLibrary(); loadApps();
-  } catch (e) { msgEl.textContent = "Error: " + e.message; }
+  } catch (e) { msgEl.textContent = t("Error: %s", e.message); }
 }
 
 const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -705,11 +742,11 @@ function libRow(a, reopen) {
   const name = el("div", "lib-name"); name.textContent = a.name;
   if (a.i18n) {
     const globe = el("span"); globe.textContent = " 🌐";
-    globe.title = "Multilingual — adapts to the global Language";
+    globe.title = t("Multilingual — adapts to the global Language");
     name.appendChild(globe);
   }
   if (!a.builtin) {
-    const up = el("small", "lib-uploaded"); up.textContent = " · uploaded";
+    const up = el("small", "lib-uploaded"); up.textContent = " · " + t("uploaded");
     name.appendChild(up);
   }
   const desc = el("div", "lib-desc"); desc.textContent = a.description || "";
@@ -718,16 +755,16 @@ function libRow(a, reopen) {
   // what kind of app it is, its version, and its category.
   const tags = el("div", "lib-tags");
   const kind = el("span", "lib-tag");
-  kind.textContent = a.type + (a.version ? ` · v${a.version}` : "");
+  kind.textContent = t(a.type) + (a.version ? ` · v${a.version}` : "");
   tags.appendChild(kind);
   if (a.category) {
-    const cat = el("span", "lib-tag cat"); cat.textContent = a.category;
+    const cat = el("span", "lib-tag cat"); cat.textContent = t(titleCase(a.category));
     tags.appendChild(cat);
   }
   meta.append(name, desc, tags);
 
   const btn = el("button", "btn btn-sm " + (a.installed ? "ghost" : "primary"));
-  btn.textContent = a.installed ? "Remove" : "Add";
+  btn.textContent = a.installed ? t("Remove") : t("Add");
   btn.addEventListener("click", async () => {
     await post(`/api/apps/${a.id}/install`, { installed: !a.installed });
     reopen(); loadApps();
@@ -735,10 +772,10 @@ function libRow(a, reopen) {
 
   row.append(icon, meta, btn);
   if (!a.builtin) {
-    const dl = el("button", "btn btn-sm"); dl.textContent = "🗑"; dl.title = "Delete uploaded app";
+    const dl = el("button", "btn btn-sm"); dl.textContent = "🗑"; dl.title = t("Delete uploaded app");
     dl.style.background = "var(--hi)";
     dl.addEventListener("click", async () => {
-      if (!confirm(`Delete "${a.name}"? This removes the uploaded app for good.`)) return;
+      if (!confirm(t('Delete "%s"? This removes the uploaded app for good.', a.name))) return;
       await fetch(url(`/api/apps/${encodeURIComponent(a.id)}`), { method: "DELETE" });
       reopen(); loadApps();
     });
@@ -748,17 +785,15 @@ function libRow(a, reopen) {
 }
 
 async function openLibrary() {
-  const data = await api("/api/apps/available");
+  const data = await api(`/api/apps/available?lang=${LANG}`);
   const wrap = el("div");
 
   // Upload a new app
   const box = el("div", "upload-box");
-  box.innerHTML = '<div class="lib-name">Upload an app</div>' +
-    '<div class="hint" style="margin:3px 0 8px">A <b>.zip</b> containing the app folder ' +
-    '(<code>manifest.json</code> + <code>app.py</code>, or <code>data.json</code> for a channel app). ' +
-    'Functional apps run Python on this host — only upload apps you trust.</div>';
+  box.innerHTML = `<div class="lib-name">${t("Upload an app")}</div>` +
+    `<div class="hint" style="margin:3px 0 8px">${t("A <b>.zip</b> containing the app folder (<code>manifest.json</code> + <code>app.py</code>, or <code>data.json</code> for a channel app). Functional apps run Python on this host — only upload apps you trust.")}</div>`;
   const inp = el("input"); inp.type = "file"; inp.accept = ".zip"; inp.style.width = "auto";
-  const ub = el("button", "btn btn-sm primary"); ub.textContent = "Upload";
+  const ub = el("button", "btn btn-sm primary"); ub.textContent = t("Upload");
   const um = el("span", "hint");
   const urow = el("div", "inline-row"); urow.append(inp, ub, um);
   ub.addEventListener("click", () => uploadApp(inp, um));
@@ -768,7 +803,7 @@ async function openLibrary() {
   const cats = [...new Set(data.apps.map((a) => a.category).filter(Boolean))].sort();
   if (LIB_CAT && !cats.includes(LIB_CAT)) LIB_CAT = "";
   const search = el("input", "lib-search");
-  search.type = "search"; search.placeholder = "Search apps…"; search.value = LIB_Q;
+  search.type = "search"; search.placeholder = t("Search apps…"); search.value = LIB_Q;
   const filters = el("div", "lib-filters");
   const list = el("div", "lib-list");
 
@@ -782,10 +817,10 @@ async function openLibrary() {
     list.innerHTML = "";
     const shown = data.apps.filter(matches);
     shown.forEach((a) => list.appendChild(libRow(a, openLibrary)));
-    if (!shown.length) list.innerHTML = '<span class="hint">No apps match.</span>';
+    if (!shown.length) list.innerHTML = `<span class="hint">${t("No apps match.")}</span>`;
     [...filters.children].forEach((f) => f.classList.toggle("active", f.dataset.cat === LIB_CAT));
   };
-  [["", "All"], ...cats.map((c) => [c, titleCase(c)])].forEach(([value, label]) => {
+  [["", t("All")], ...cats.map((c) => [c, t(titleCase(c))])].forEach(([value, label]) => {
     const f = el("button", "lib-filter");
     f.type = "button"; f.dataset.cat = value; f.textContent = label;
     f.addEventListener("click", () => { LIB_CAT = value; draw(); });
@@ -795,8 +830,8 @@ async function openLibrary() {
   draw();
   wrap.append(search, filters, list);
 
-  const close = el("button", "btn ghost"); close.textContent = "Close"; close.addEventListener("click", closeModal);
-  openModal("App Library", wrap, [close]);
+  const close = el("button", "btn ghost"); close.textContent = t("Close"); close.addEventListener("click", closeModal);
+  openModal(t("App Library"), wrap, [close]);
 }
 
 // ---- playlists -------------------------------------------------------------
@@ -806,10 +841,10 @@ let SAVED_PL = {};
 
 function plRender() {
   const box = $("plEntries"); box.innerHTML = "";
-  if (!PL_ENTRIES.length) box.innerHTML = '<span class="hint">Add an app or message.</span>';
+  if (!PL_ENTRIES.length) box.innerHTML = `<span class="hint">${t("Add an app or message.")}</span>`;
   PL_ENTRIES.forEach((e, i) => {
     const row = el("div", "row-card");
-    const tag = el("span", "handle"); tag.textContent = e.type === "app" ? "▸ App" : "▸ Msg"; row.appendChild(tag);
+    const tag = el("span", "handle"); tag.textContent = e.type === "app" ? t("▸ App") : t("▸ Msg"); row.appendChild(tag);
     if (e.type === "app") {
       const sel = el("select"); sel.className = "grow";
       APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}${a.i18n ? " 🌐" : ""}`; if (a.id === e.app) o.selected = true; sel.appendChild(o); });
@@ -819,15 +854,15 @@ function plRender() {
       // independently, so the same app can appear more than once configured differently.
       const nOv = Object.keys(e.overrides || {}).length;
       const cfg = el("button", "del"); cfg.textContent = nOv ? `⚙ ${nOv}` : "⚙";
-      cfg.title = nOv ? `${nOv} setting(s) overridden for this entry` : "Settings for this entry";
+      cfg.title = nOv ? t("%s setting(s) overridden for this entry", nOv) : t("Settings for this entry");
       if (nOv) cfg.style.color = "var(--brand)";
       cfg.onclick = () => openEntrySettings(e);
       row.appendChild(cfg);
     } else {
-      const inp = el("input"); inp.className = "grow"; inp.placeholder = "MESSAGE"; inp.value = e.text || "";
+      const inp = el("input"); inp.className = "grow"; inp.placeholder = t("MESSAGE"); inp.value = e.text || "";
       inp.oninput = () => (e.text = inp.value); row.appendChild(inp);
     }
-    const dur = el("input"); dur.type = "number"; dur.min = 1; dur.style.width = "70px"; dur.title = "seconds";
+    const dur = el("input"); dur.type = "number"; dur.min = 1; dur.style.width = "70px"; dur.title = t("seconds");
     dur.value = e.duration || 30; dur.oninput = () => (e.duration = Number(dur.value)); row.appendChild(dur);
     const del = el("button", "del"); del.textContent = "✕"; del.onclick = () => { PL_ENTRIES.splice(i, 1); plRender(); }; row.appendChild(del);
     box.appendChild(row);
@@ -838,13 +873,13 @@ async function loadPlaylists() {
   SAVED_PL = (await api("/api/playlists")).playlists || {};
   const saved = $("plSaved"); saved.innerHTML = "";
   const names = Object.keys(SAVED_PL);
-  if (!names.length) { saved.innerHTML = '<span class="hint">None yet.</span>'; }
+  if (!names.length) { saved.innerHTML = `<span class="hint">${t("None yet.")}</span>`; }
   names.forEach((n) => {
     const row = el("div", "saved-row");
     const nm = el("span", "grow"); nm.textContent = n; row.appendChild(nm);
-    const run = el("button", "btn btn-sm primary"); run.textContent = "Run"; run.onclick = () => post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n }); row.appendChild(run);
-    const load = el("button", "btn btn-sm ghost"); load.textContent = "Load"; load.onclick = () => { PL_ENTRIES = JSON.parse(JSON.stringify(SAVED_PL[n].entries)); $("plLoop").checked = SAVED_PL[n].loop !== false; plRender(); }; row.appendChild(load);
-    const del = el("button", "btn btn-sm ghost"); del.textContent = "Delete"; del.onclick = async () => { await fetch(url("/api/playlists/" + encodeURIComponent(n)), { method: "DELETE" }); loadPlaylists(); }; row.appendChild(del);
+    const run = el("button", "btn btn-sm primary"); run.textContent = t("Run"); run.onclick = () => post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n }); row.appendChild(run);
+    const load = el("button", "btn btn-sm ghost"); load.textContent = t("Load"); load.onclick = () => { PL_ENTRIES = JSON.parse(JSON.stringify(SAVED_PL[n].entries)); $("plLoop").checked = SAVED_PL[n].loop !== false; plRender(); }; row.appendChild(load);
+    const del = el("button", "btn btn-sm ghost"); del.textContent = t("Delete"); del.onclick = async () => { await fetch(url("/api/playlists/" + encodeURIComponent(n)), { method: "DELETE" }); loadPlaylists(); }; row.appendChild(del);
     saved.appendChild(row);
   });
   if (!PL_ENTRIES.length) plRender();
@@ -854,7 +889,7 @@ async function runPlaylistNow() {
   await post("/api/playlists/run", { entries: PL_ENTRIES, loop: $("plLoop").checked, name: "(unsaved)" });
 }
 async function savePlaylist() {
-  const name = prompt("Playlist name:"); if (!name) return;
+  const name = prompt(t("Playlist name:")); if (!name) return;
   await post("/api/playlists", { name, entries: PL_ENTRIES, loop: $("plLoop").checked }); loadPlaylists();
 }
 
@@ -862,15 +897,15 @@ async function savePlaylist() {
 let TRIGS = [], TRIG_APPS = [];
 function trigRender() {
   const box = $("trigList"); box.innerHTML = "";
-  if (!TRIGS.length) box.innerHTML = '<span class="hint">No triggers yet.</span>';
+  if (!TRIGS.length) box.innerHTML = `<span class="hint">${t("No triggers yet.")}</span>`;
   TRIGS.forEach((t, i) => {
     const row = el("div", "row-card");
     const en = el("input"); en.type = "checkbox"; en.checked = t.enabled !== false; en.onchange = () => (t.enabled = en.checked); row.appendChild(en);
     const app = TRIG_APPS.find((a) => a.id === t.app);
     const info = el("span", "grow"); info.textContent = app ? `${app.icon} ${app.name}` : t.app; row.appendChild(info);
-    const nm = el("input"); nm.placeholder = "Label"; nm.value = t.name || ""; nm.oninput = () => (t.name = nm.value); row.appendChild(nm);
-    const cd = el("input"); cd.type = "number"; cd.style.width = "76px"; cd.title = "cooldown (s)"; cd.value = t.cooldown || 300; cd.oninput = () => (t.cooldown = Number(cd.value)); row.appendChild(cd);
-    const ds = el("input"); ds.type = "number"; ds.style.width = "68px"; ds.title = "show (s)"; ds.value = t.display_seconds || 30; ds.oninput = () => (t.display_seconds = Number(ds.value)); row.appendChild(ds);
+    const nm = el("input"); nm.placeholder = t("Label"); nm.value = t.name || ""; nm.oninput = () => (t.name = nm.value); row.appendChild(nm);
+    const cd = el("input"); cd.type = "number"; cd.style.width = "76px"; cd.title = t("cooldown (s)"); cd.value = t.cooldown || 300; cd.oninput = () => (t.cooldown = Number(cd.value)); row.appendChild(cd);
+    const ds = el("input"); ds.type = "number"; ds.style.width = "68px"; ds.title = t("show (s)"); ds.value = t.display_seconds || 30; ds.oninput = () => (t.display_seconds = Number(ds.value)); row.appendChild(ds);
     const del = el("button", "del"); del.textContent = "✕"; del.onclick = () => { TRIGS.splice(i, 1); trigRender(); }; row.appendChild(del);
     box.appendChild(row);
   });
@@ -891,7 +926,7 @@ function addTrigger() {
 }
 async function saveTriggers() {
   await post("/api/triggers", { triggers: TRIGS, triggers_enabled: $("trigEnabled").checked });
-  $("trigMsg").textContent = "Saved ✓"; setTimeout(() => ($("trigMsg").textContent = ""), 2000);
+  $("trigMsg").textContent = t("Saved ✓"); setTimeout(() => ($("trigMsg").textContent = ""), 2000);
 }
 
 // ---- gateway link-tabs (unified nav) ---------------------------------------
@@ -929,17 +964,17 @@ async function setupGatewayTabs() {
     GW_SIG = sig;
     const nav = $("nav");
     nav.querySelectorAll(".tab.gw").forEach((a) => a.remove());
-    shown.forEach((t) => {
+    shown.forEach((tab) => {
       const a = el("a", "tab gw");
-      a.dataset.gw = t.id;
+      a.dataset.gw = tab.id;
       // Through the proxy (/gw/), not straight at the gateway's own address. A direct
       // link leaves Home Assistant altogether — HA can only put THIS add-on's port in the
       // sidebar, so the gateway can only appear in there if we serve it. Same origin, so
       // no target="_top" either: that used to break out of the ingress iframe.
-      a.textContent = t.label;
+      a.textContent = t(tab.label);
       // `base` (the gateway being registered) gates whether the link works; the href is
       // our proxy path, which url() prefixes with the ingress base when under Home Assistant.
-      if (base) a.href = `${url("/gw/")}#${t.id}`;
+      if (base) a.href = `${url("/gw/")}#${tab.id}`;
       else { a.href = "#"; a.classList.add("disabled"); }
       nav.appendChild(a);
     });
@@ -985,17 +1020,17 @@ async function openDevMenu() {
       const simLbl = el("label"); simLbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
       const sim = el("input"); sim.type = "checkbox"; sim.checked = st.sim_mode; sim.style.width = "auto";
       simLbl.appendChild(sim);
-      simLbl.appendChild(document.createTextNode("Simulation mode"));
+      simLbl.appendChild(document.createTextNode(t("Simulation mode")));
       simF.appendChild(simLbl);
       const simNote = el("small", "field-note");
       simNote.textContent = st.sim_mode
-        ? "Simulating — nothing is sent to the physical display (the live preview still updates)."
-        : "Live — frames are sent to the display. Turn on to test apps without touching the wall.";
+        ? t("Simulating — nothing is sent to the physical display (the live preview still updates).")
+        : t("Live — frames are sent to the display. Turn on to test apps without touching the wall.");
       simF.appendChild(simNote);
       sim.addEventListener("change", async () => {
         sim.disabled = true;
         try { render(await post("/api/dev/sim", { on: sim.checked })); await refreshGridUI(); }
-        catch (e) { simNote.textContent = "Failed: " + e.message; sim.disabled = false; }
+        catch (e) { simNote.textContent = t("Failed: %s", e.message); sim.disabled = false; }
       });
 
       // Grid geometry override — belongs to simulation, so it lives right here and
@@ -1003,21 +1038,21 @@ async function openDevMenu() {
       if (st.sim_mode) {
         const gNote = el("small", "field-note");
         gNote.style.marginLeft = "24px";
-        gNote.textContent = `Grid override: now ${st.grid.rows}×${st.grid.cols}` +
-          (st.grid_overridden ? " (overridden)" : "") +
-          ` · gateway is ${st.gateway_grid.rows}×${st.gateway_grid.cols}.`;
+        gNote.textContent = t("Grid override: now %s", `${st.grid.rows}×${st.grid.cols}`) +
+          (st.grid_overridden ? t(" (overridden)") : "") +
+          t(" · gateway is %s.", `${st.gateway_grid.rows}×${st.gateway_grid.cols}`);
         simF.appendChild(gNote);
         const gRow = el("div"); gRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:6px 0 0 24px";
         const rows = el("input"); rows.type = "number"; rows.min = 1; rows.max = 20; rows.value = st.grid.rows; rows.style.width = "64px";
         const cols = el("input"); cols.type = "number"; cols.min = 1; cols.max = 40; cols.value = st.grid.cols; cols.style.width = "64px";
-        const applyBtn = el("button", "btn ghost btn-sm"); applyBtn.textContent = "Apply";
-        gRow.appendChild(document.createTextNode("Rows")); gRow.appendChild(rows);
-        gRow.appendChild(document.createTextNode("Cols")); gRow.appendChild(cols);
+        const applyBtn = el("button", "btn ghost btn-sm"); applyBtn.textContent = t("Apply");
+        gRow.appendChild(document.createTextNode(t("Rows"))); gRow.appendChild(rows);
+        gRow.appendChild(document.createTextNode(t("Cols"))); gRow.appendChild(cols);
         gRow.appendChild(applyBtn);
         applyBtn.addEventListener("click", async () => {
           applyBtn.disabled = true;
           try { render(await post("/api/dev/grid", { rows: Number(rows.value), cols: Number(cols.value) })); await refreshGridUI(); }
-          catch (e) { gNote.textContent = "Failed: " + e.message; applyBtn.disabled = false; }
+          catch (e) { gNote.textContent = t("Failed: %s", e.message); applyBtn.disabled = false; }
         });
         simF.appendChild(gRow);
       }
@@ -1029,7 +1064,7 @@ async function openDevMenu() {
     const vbLbl = el("label"); vbLbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
     const vb = el("input"); vb.type = "checkbox"; vb.checked = !!st.vestaboard; vb.style.width = "auto";
     vbLbl.appendChild(vb);
-    vbLbl.appendChild(document.createTextNode("Vestaboard API"));
+    vbLbl.appendChild(document.createTextNode(t("Vestaboard API"))); 
     vbF.appendChild(vbLbl);
     const vbNote = el("small", "field-note");
     vbF.appendChild(vbNote);
@@ -1037,11 +1072,10 @@ async function openDevMenu() {
     // Details (the key + endpoint) only mean anything while it's on.
     const showVb = async () => {
       if (!vb.checked) {
-        vbNote.textContent = "Off. Turn on to accept Vestaboard Local API calls " +
-          "(Home Assistant, scripts) at /local-api/message — this display then answers like a Vestaboard.";
+        vbNote.textContent = t("Off. Turn on to accept Vestaboard Local API calls (Home Assistant, scripts) at /local-api/message — this display then answers like a Vestaboard.");
         return;
       }
-      vbNote.textContent = "Loading…";
+      vbNote.textContent = t("Loading…");
       try {
         const d = await api("/api/dev/vestaboard");
         vbNote.innerHTML = "";
@@ -1053,15 +1087,15 @@ async function openDevMenu() {
         l2.textContent = `X-Vestaboard-Local-Api-Key: ${d.key}`;
         const l3 = el("div"); l3.style.marginTop = "2px";
         l3.textContent = d.env_key
-          ? "Key pinned by COMPANION_VESTABOARD_KEY."
-          : "Key generated and stored with your settings. Pin your own with COMPANION_VESTABOARD_KEY.";
+          ? t("Key pinned by COMPANION_VESTABOARD_KEY.")
+          : t("Key generated and stored with your settings. Pin your own with COMPANION_VESTABOARD_KEY.");
         vbNote.append(l1, l2, l3);
-      } catch (e) { vbNote.textContent = "Failed: " + e.message; }
+      } catch (e) { vbNote.textContent = t("Failed: %s", e.message); }
     };
     vb.addEventListener("change", async () => {
       vb.disabled = true;
       try { render(await post("/api/dev/vestaboard", { on: vb.checked })); }
-      catch (e) { vbNote.textContent = "Failed: " + e.message; vb.disabled = false; }
+      catch (e) { vbNote.textContent = t("Failed: %s", e.message); vb.disabled = false; }
     });
     showVb();
     wrap.appendChild(vbF);
@@ -1071,7 +1105,7 @@ async function openDevMenu() {
     const mcLbl = el("label"); mcLbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
     const mc = el("input"); mc.type = "checkbox"; mc.checked = !!st.mcp; mc.style.width = "auto";
     mcLbl.appendChild(mc);
-    mcLbl.appendChild(document.createTextNode("MCP server"));
+    mcLbl.appendChild(document.createTextNode(t("MCP server")));
     mcF.appendChild(mcLbl);
     const mcNote = el("small", "field-note");
     mcF.appendChild(mcNote);
@@ -1079,11 +1113,10 @@ async function openDevMenu() {
     // The token + endpoint only mean anything while it's on.
     const showMcp = async () => {
       if (!mc.checked) {
-        mcNote.textContent = "Off. Turn on to let an LLM client (Claude, an agent) drive " +
-          "the display as tools at /mcp — show a message, run an app, read the board.";
+        mcNote.textContent = t("Off. Turn on to let an LLM client (Claude, an agent) drive the display as tools at /mcp — show a message, run an app, read the board.");
         return;
       }
-      mcNote.textContent = "Loading…";
+      mcNote.textContent = t("Loading…");
       try {
         const d = await api("/api/dev/mcp");
         mcNote.innerHTML = "";
@@ -1092,29 +1125,29 @@ async function openDevMenu() {
         l2.textContent = `Authorization: Bearer ${d.token}`;
         const l3 = el("div"); l3.style.marginTop = "2px";
         l3.textContent = d.env_token
-          ? "Token pinned by COMPANION_MCP_TOKEN."
-          : "Token generated and stored with your settings. Pin your own with COMPANION_MCP_TOKEN.";
+          ? t("Token pinned by COMPANION_MCP_TOKEN.")
+          : t("Token generated and stored with your settings. Pin your own with COMPANION_MCP_TOKEN.");
         mcNote.append(l1, l2, l3);
-      } catch (e) { mcNote.textContent = "Failed: " + e.message; }
+      } catch (e) { mcNote.textContent = t("Failed: %s", e.message); }
     };
     mc.addEventListener("change", async () => {
       mc.disabled = true;
       try { render(await post("/api/dev/mcp", { on: mc.checked })); }
-      catch (e) { mcNote.textContent = "Failed: " + e.message; mc.disabled = false; }
+      catch (e) { mcNote.textContent = t("Failed: %s", e.message); mc.disabled = false; }
     });
     showMcp();
     wrap.appendChild(mcF);
 
     // 2) Force resync with the gateway
     const reF = el("div", "field");
-    const reLbl = el("span"); reLbl.textContent = "Gateway sync"; reLbl.style.fontWeight = "600"; reF.appendChild(reLbl);
+    const reLbl = el("span"); reLbl.textContent = t("Gateway sync"); reLbl.style.fontWeight = "600"; reF.appendChild(reLbl);
     const reRow = el("div"); reRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:6px";
-    const reBtn = el("button", "btn ghost btn-sm"); reBtn.textContent = "↻ Force resync";
-    const reMsg = el("small", "field-note"); reMsg.textContent = "Pull grid geometry + MQTT settings from the gateway now.";
+    const reBtn = el("button", "btn ghost btn-sm"); reBtn.textContent = t("↻ Force resync");
+    const reMsg = el("small", "field-note"); reMsg.textContent = t("Pull grid geometry + MQTT settings from the gateway now.");
     reBtn.addEventListener("click", async () => {
-      reBtn.disabled = true; reMsg.textContent = "Syncing…";
-      try { const r = await post("/api/dev/resync", {}); reMsg.textContent = r.ok ? "Resynced ✓" : "Failed: " + (r.error || "unknown"); }
-      catch (e) { reMsg.textContent = "Failed: " + e.message; }
+      reBtn.disabled = true; reMsg.textContent = t("Syncing…");
+      try { const r = await post("/api/dev/resync", {}); reMsg.textContent = r.ok ? t("Resynced ✓") : t("Failed: %s", r.error || "unknown"); }
+      catch (e) { reMsg.textContent = t("Failed: %s", e.message); }
       reBtn.disabled = false;
       render(await api("/api/dev")); await refreshGridUI();
     });
@@ -1123,21 +1156,21 @@ async function openDevMenu() {
 
     // 2b) Gateway-stored settings (Gateway 3.1+)
     const gsF = el("div", "field");
-    const gsLbl = el("span"); gsLbl.textContent = "Gateway-stored settings"; gsLbl.style.fontWeight = "600"; gsF.appendChild(gsLbl);
+    const gsLbl = el("span"); gsLbl.textContent = t("Gateway-stored settings"); gsLbl.style.fontWeight = "600"; gsF.appendChild(gsLbl);
     const gsRow = el("div"); gsRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap";
-    const pullBtn = el("button", "btn ghost btn-sm"); pullBtn.textContent = "⭳ Retrieve from gateway";
-    const pushBtn = el("button", "btn ghost btn-sm"); pushBtn.textContent = "⭱ Write to gateway";
-    const gsMsg = el("small", "field-note"); gsMsg.textContent = "Manually sync this companion's settings with the gateway (needs Gateway 3.1+).";
+    const pullBtn = el("button", "btn ghost btn-sm"); pullBtn.textContent = t("⭳ Retrieve from gateway");
+    const pushBtn = el("button", "btn ghost btn-sm"); pushBtn.textContent = t("⭱ Write to gateway");
+    const gsMsg = el("small", "field-note"); gsMsg.textContent = t("Manually sync this companion's settings with the gateway (needs Gateway 3.1+).");
     pullBtn.addEventListener("click", async () => {
-      pullBtn.disabled = pushBtn.disabled = true; gsMsg.textContent = "Retrieving…";
-      try { const r = await post("/api/dev/settings/pull", {}); gsMsg.textContent = r.ok ? `Retrieved ✓ (${r.installed} apps)` : "Failed: " + (r.error || "unknown"); if (r.ok) await loadApps(); }
-      catch (e) { gsMsg.textContent = "Failed: " + e.message; }
+      pullBtn.disabled = pushBtn.disabled = true; gsMsg.textContent = t("Retrieving…");
+      try { const r = await post("/api/dev/settings/pull", {}); gsMsg.textContent = r.ok ? t("Retrieved ✓ (%s apps)", r.installed) : t("Failed: %s", r.error || "unknown"); if (r.ok) await loadApps(); }
+      catch (e) { gsMsg.textContent = t("Failed: %s", e.message); }
       pullBtn.disabled = pushBtn.disabled = false;
     });
     pushBtn.addEventListener("click", async () => {
-      pullBtn.disabled = pushBtn.disabled = true; gsMsg.textContent = "Writing…";
-      try { const r = await post("/api/dev/settings/push", {}); gsMsg.textContent = r.ok ? "Written ✓" : "Failed: " + (r.error || "unknown"); }
-      catch (e) { gsMsg.textContent = "Failed: " + e.message; }
+      pullBtn.disabled = pushBtn.disabled = true; gsMsg.textContent = t("Writing…");
+      try { const r = await post("/api/dev/settings/push", {}); gsMsg.textContent = r.ok ? t("Written ✓") : t("Failed: %s", r.error || "unknown"); }
+      catch (e) { gsMsg.textContent = t("Failed: %s", e.message); }
       pullBtn.disabled = pushBtn.disabled = false;
     });
     gsRow.appendChild(pullBtn); gsRow.appendChild(pushBtn); gsF.appendChild(gsRow); gsF.appendChild(gsMsg);
@@ -1146,11 +1179,13 @@ async function openDevMenu() {
   };
 
   render(await api("/api/dev"));
-  const close = el("button", "btn"); close.textContent = "Close"; close.addEventListener("click", closeModal);
-  openModal("Tools", wrap, [close]);
+  const close = el("button", "btn"); close.textContent = t("Close"); close.addEventListener("click", closeModal);
+  openModal(t("Tools"), wrap, [close]);
 }
 
 async function init() {
+  await loadI18n();
+  translateDom();
   const h = await api("/api/health"); $("version").textContent = "v" + h.version;
   wireTabs();
   await bootGrid();

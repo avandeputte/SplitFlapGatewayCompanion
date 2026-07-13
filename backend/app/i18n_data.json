@@ -234,6 +234,76 @@
           "no": "SETT OPP",
           "sv": "KONFIGURERA"
         }
+      },
+      "APP ERROR": {
+        "context": "Fallback page on the flaps: the app raised an error.",
+        "translations": {
+          "fr": "ERREUR APPLI",
+          "de": "APP FEHLER",
+          "es": "ERROR DE APP",
+          "it": "ERRORE APP",
+          "pt": "ERRO DA APP",
+          "nl": "APP FOUT",
+          "da": "APP FEJL",
+          "no": "APP FEIL",
+          "sv": "APP FEL"
+        }
+      },
+      "PLUGIN ERROR": {
+        "context": "Fallback page on the flaps: the plugin could not be served.",
+        "translations": {
+          "fr": "ERREUR PLUGIN",
+          "de": "PLUGIN FEHLER",
+          "es": "ERROR DE PLUGIN",
+          "it": "ERRORE PLUGIN",
+          "pt": "ERRO DE PLUGIN",
+          "nl": "PLUGIN FOUT",
+          "da": "PLUGIN FEJL",
+          "no": "PLUGIN FEIL",
+          "sv": "PLUGIN FEL"
+        }
+      },
+      "NOT LOADED": {
+        "context": "Fallback page on the flaps: the app failed to import.",
+        "translations": {
+          "fr": "NON CHARGE",
+          "de": "NICHT GELADEN",
+          "es": "NO CARGADA",
+          "it": "NON CARICATA",
+          "pt": "NAO CARREGADA",
+          "nl": "NIET GELADEN",
+          "da": "IKKE INDLAEST",
+          "no": "IKKE LASTET",
+          "sv": "EJ LADDAD"
+        }
+      },
+      "NOT FOUND": {
+        "context": "Fallback page on the flaps: no such app id.",
+        "translations": {
+          "fr": "INTROUVABLE",
+          "de": "NICHT GEFUNDEN",
+          "es": "NO ENCONTRADA",
+          "it": "NON TROVATA",
+          "pt": "NAO ENCONTRADA",
+          "nl": "NIET GEVONDEN",
+          "da": "IKKE FUNDET",
+          "no": "IKKE FUNNET",
+          "sv": "HITTAS EJ"
+        }
+      },
+      "UNKNOWN TYPE": {
+        "context": "Fallback page on the flaps: manifest type is neither channel nor functional.",
+        "translations": {
+          "fr": "TYPE INCONNU",
+          "de": "TYP UNBEKANNT",
+          "es": "TIPO DESCONOCIDO",
+          "it": "TIPO IGNOTO",
+          "pt": "TIPO INVALIDO",
+          "nl": "ONBEKEND TYPE",
+          "da": "UKENDT TYPE",
+          "no": "UKJENT TYPE",
+          "sv": "OKAND TYP"
+        }
       }
     },
     "time": {

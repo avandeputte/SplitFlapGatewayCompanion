@@ -356,6 +356,29 @@ You do **not** need `"i18n": true` in the manifest — an app that ships transla
 is detected as localizable automatically, which is what puts the 🌐 badge on it and
 gives it a per-app **Language** override. (Setting the flag by hand does no harm.)
 
+### Localizing your app's name, description and settings labels
+
+The store metadata translates through a sidecar too — **never through
+`manifest.json`**, which must stay a plain splitflap-os manifest:
+
+```
+apps/my-app/
+  manifest.json        ← name/description stay English here
+  i18n/fr.json         ← {"name": "Mon appli", "description": "…",
+                          "settings": {"api_key": "Clé API"}}
+  i18n/pt-BR.json
+```
+
+Recognised keys: `name`, `description`, `flap_name`, and `settings` (a map of
+your manifest setting keys to translated labels). The App Library and the
+settings form pick the file matching the **viewer's UI language** (exact locale,
+then base, then the manifest's English). `flap_name` exists for the fallback
+pages rendered *onto the flaps* ("NO DATA"…), which follow the content Language
+and the reel's character set — set it when the pretty translated name can't
+survive the reel. Files are validated at upload; a broken one is rejected with
+the reason. The vendored library is covered centrally in
+`backend/app/app_i18n/<lang>.json` — a sidecar in your app wins over it.
+
 Mind the width: translations are centred and truncated to the grid like any other
 page, and a word that fits in English often doesn't in German.
 

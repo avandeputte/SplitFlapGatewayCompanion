@@ -101,7 +101,7 @@ def test_every_option_is_actually_read_by_the_app(chan):
     # before Config exists at all — see addon_option).
     known = set(cfg.DEFAULTS) | {"gateway_url", "mqtt_password", "companion_public_url",
                                  "home_assistant", "vestaboard_key", "mcp_token",
-                                 "dev_mode", "log_level"}
+                                 "dev_mode", "ui_language", "log_level"}
     addon = CHANNELS[chan]
     for opt in set(addon["options"]) | set(addon["schema"]):
         assert opt in known, f"{chan}: config.yaml offers {opt!r}, but nothing reads it"

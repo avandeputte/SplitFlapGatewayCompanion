@@ -23,7 +23,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, gwproxy, helpers, mcp_server, renderer, vestaboard, weather
+from . import __version__, gwproxy, helpers, mcp_server, renderer, uilang, vestaboard, weather
 from .config import Config, addon_option
 from .engine import DisplayController
 from .gateway import (addon_public_url, build_sync_patch, detect_local_ip,
@@ -705,14 +705,28 @@ async def dev_settings_push():
 # ---------------------------------------------------------------------------
 # Apps / plugins
 # ---------------------------------------------------------------------------
+def _ui_lang(request: Request) -> str:
+    """The UI (chrome) language for this request — URL param, then the
+    explicitly-saved Language setting, then COMPANION_UI_LANGUAGE, then the
+    browser's Accept-Language. Chrome only: the flap content language stays
+    the single global Language setting."""
+    return uilang.resolve(
+        request.query_params.get("lang"),
+        plugins.settings,
+        config.ui_language,
+        request.headers.get("accept-language"),
+    )
+
+
 @app.get("/api/apps")
-async def apps_list():
-    return {"apps": plugins.app_list(), "active_app": controller.active_app}
+async def apps_list(request: Request):
+    return {"apps": plugins.app_list(lang=_ui_lang(request)),
+            "active_app": controller.active_app}
 
 
 @app.get("/api/apps/available")
-async def apps_available():
-    return {"apps": plugins.available_list()}
+async def apps_available(request: Request):
+    return {"apps": plugins.available_list(lang=_ui_lang(request))}
 
 
 @app.post("/api/apps/run")
@@ -734,9 +748,9 @@ async def apps_stop():
 
 
 @app.get("/api/apps/{app_id}/settings")
-async def apps_get_settings(app_id: str):
+async def apps_get_settings(app_id: str, request: Request):
     try:
-        return plugins.settings_schema(app_id)
+        return plugins.settings_schema(app_id, lang=_ui_lang(request))
     except KeyError:
         raise HTTPException(404, f"app not installed: {app_id}")
 
@@ -762,6 +776,13 @@ async def global_settings_get():
 
 @app.post("/api/global-settings")
 async def global_settings_save(patch: AppSettingsPatch):
+    # A person changing the Language control marks it explicit, which is what
+    # lets it beat the browser's language in the UI-chrome chain (uilang.py).
+    # Compared against the stored value, not just presence: the form posts every
+    # field, so an untouched seeded en-US must not count as a choice.
+    if "language" in patch.values and \
+            str(patch.values["language"]) != str(plugins.settings.get("language")):
+        plugins.settings.set("language_explicit", True)
     plugins.save_global_settings(patch.values)
     # Globals (location, provider, page dwell, …) can change what the running app
     # shows or how fast it cycles — restart it so the change is visible at once.
@@ -1284,7 +1305,9 @@ async def spa_index(request: Request):
     ``window.__BASE__`` for its fetches (see app.js)."""
     base = (request.headers.get("X-Ingress-Path") or "").rstrip("/")
     html = _cache_bust((STATIC_DIR / "index.html").read_text("utf-8"), STATIC_DIR, base)
-    head = f"<script>window.__BASE__={json.dumps(base)};</script>"
+    lang = _ui_lang(request)
+    head = (f"<script>window.__BASE__={json.dumps(base)};"
+            f"window.__LANG__={json.dumps(lang)};</script>")
     html = html.replace("</head>", f"  {head}\n</head>", 1)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 

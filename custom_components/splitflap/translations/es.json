@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SplitFlap Gateway Companion",
+        "description": "Introduce la URL de tu SplitFlap Gateway Companion en marcha.",
+        "data": {
+          "url": "URL del companion"
+        },
+        "data_description": {
+          "url": "Por ejemplo http://homeassistant.local:8000, o la IP y el puerto del companion."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No se encontró un companion en esa URL. Comprueba que está en marcha y que la dirección es correcta."
+    },
+    "abort": {
+      "already_configured": "Este companion ya está configurado."
+    }
+  },
+  "entity": {
+    "select": {
+      "app": {
+        "name": "App"
+      },
+      "playlist": {
+        "name": "Playlist"
+      }
+    },
+    "sensor": {
+      "message": {
+        "name": "Mensaje"
+      },
+      "showing": {
+        "name": "En pantalla"
+      }
+    },
+    "button": {
+      "clear": {
+        "name": "Borrar"
+      },
+      "stop": {
+        "name": "Parar"
+      },
+      "home": {
+        "name": "Inicializar todo"
+      }
+    }
+  },
+  "services": {
+    "message": {
+      "name": "Mostrar mensaje",
+      "description": "Muestra texto en la pantalla split-flap.",
+      "fields": {
+        "text": {
+          "name": "Texto",
+          "description": "El mensaje. Se centra y se ajusta por palabras al tablero."
+        },
+        "style": {
+          "name": "Estilo",
+          "description": "Transición de las aletas (ltr, columns, outside_in…). En blanco = la predeterminada."
+        },
+        "seconds": {
+          "name": "Segundos",
+          "description": "Mostrar temporalmente: pasado ese tiempo la pantalla vuelve a lo que se reproducía. 0 = mantener el mensaje."
+        }
+      }
+    }
+  }
+}

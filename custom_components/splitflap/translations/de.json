@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SplitFlap Gateway Companion",
+        "description": "Gib die URL deines laufenden SplitFlap Gateway Companion ein.",
+        "data": {
+          "url": "Companion-URL"
+        },
+        "data_description": {
+          "url": "Zum Beispiel http://homeassistant.local:8000, oder IP und Port des Companions."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unter dieser URL ist kein Companion erreichbar. Prüfe, ob er läuft und die Adresse stimmt."
+    },
+    "abort": {
+      "already_configured": "Dieser Companion ist bereits eingerichtet."
+    }
+  },
+  "entity": {
+    "select": {
+      "app": {
+        "name": "App"
+      },
+      "playlist": {
+        "name": "Playlist"
+      }
+    },
+    "sensor": {
+      "message": {
+        "name": "Nachricht"
+      },
+      "showing": {
+        "name": "Läuft gerade"
+      }
+    },
+    "button": {
+      "clear": {
+        "name": "Leeren"
+      },
+      "stop": {
+        "name": "Stopp"
+      },
+      "home": {
+        "name": "Alle in Grundstellung"
+      }
+    }
+  },
+  "services": {
+    "message": {
+      "name": "Nachricht anzeigen",
+      "description": "Zeigt Text auf der Split-Flap-Anzeige.",
+      "fields": {
+        "text": {
+          "name": "Text",
+          "description": "Die Nachricht. Sie wird zentriert und wortweise umbrochen."
+        },
+        "style": {
+          "name": "Stil",
+          "description": "Klappen-Übergang (z. B. ltr, columns, outside_in). Leer = Standard."
+        },
+        "seconds": {
+          "name": "Sekunden",
+          "description": "Nur vorübergehend zeigen: danach kehrt die Anzeige zum vorherigen Inhalt zurück. 0 = Nachricht stehen lassen."
+        }
+      }
+    }
+  }
+}

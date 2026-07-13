@@ -40,7 +40,11 @@ log = logging.getLogger("companion.settings")
 # It has to persist for the same reason the keys above do — a container that updates itself
 # would otherwise come back to a dead board, having forgotten the playlist it was running.
 _META_KEYS = ("installed_apps", "saved_app_playlists", "triggers", "triggers_enabled",
-              "vestaboard_api_key", "mcp_token", "last_run")
+              "vestaboard_api_key", "mcp_token", "last_run",
+              # True once the user has actually saved the Language control; lets
+              # the UI-language chain tell "chose en-US" from "never touched"
+              # (the store is seeded with en-US). See uilang.setting_is_explicit.
+              "language_explicit")
 
 
 def _detect_timezone() -> str:

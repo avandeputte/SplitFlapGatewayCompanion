@@ -1,0 +1,233 @@
+{
+  "advice": {
+    "description": "Un conseil au hasard",
+    "name": "Conseil"
+  },
+  "anim_checker": {
+    "description": "Damier animé",
+    "name": "Damier"
+  },
+  "anim_matrix": {
+    "description": "Révélation en cascade",
+    "name": "Matrix"
+  },
+  "anim_rainbow": {
+    "description": "Vague de couleurs",
+    "name": "Arc-en-ciel"
+  },
+  "anim_random_spin": {
+    "description": "Volets aléatoires en continu",
+    "name": "Rotation folle"
+  },
+  "anim_sweep": {
+    "description": "Balayage de couleurs",
+    "name": "Balayage"
+  },
+  "anim_twinkle": {
+    "description": "Effet étincelles",
+    "name": "Scintillement"
+  },
+  "art-clock": {
+    "description": "L'heure en art coloré",
+    "name": "Horloge d'art"
+  },
+  "aurora": {
+    "description": "Activité géomagnétique (indice Kp)",
+    "name": "Aurores boréales"
+  },
+  "birdnet": {
+    "description": "Détections d'oiseaux en direct via BirdNET-Pi"
+  },
+  "bitcoin-fear-greed": {
+    "description": "Indice Bitcoin Fear & Greed",
+    "name": "BTC Peur & Avidité"
+  },
+  "cat-facts": {
+    "description": "Un fait félin concis",
+    "name": "Le saviez-vous : chats"
+  },
+  "chuck-norris": {
+    "description": "Les faits Chuck Norris"
+  },
+  "countdown": {
+    "description": "Compte à rebours vers un événement",
+    "name": "Compte à rebours"
+  },
+  "crypto": {
+    "description": "Cours des cryptomonnaies",
+    "name": "Crypto"
+  },
+  "dad-jokes": {
+    "description": "Un peu de légèreté avec des blagues de papa",
+    "name": "Blagues de papa"
+  },
+  "dashboard": {
+    "description": "Heure + météo",
+    "name": "Tableau de bord"
+  },
+  "date": {
+    "description": "La date complète"
+  },
+  "earthquakes": {
+    "description": "Séismes récents notables (USGS)",
+    "name": "Séismes"
+  },
+  "exchange-rates": {
+    "description": "Taux de change en direct (BCE)",
+    "name": "Taux de change"
+  },
+  "formula1": {
+    "description": "Prochain Grand Prix et leader du championnat"
+  },
+  "fortune-cookie": {
+    "description": "Un biscuit de fortune mural",
+    "name": "Biscuit de fortune"
+  },
+  "funny-one-liners": {
+    "description": "Des rires en une ligne",
+    "name": "Bons mots"
+  },
+  "good-morning": {
+    "description": "Un remontant matinal",
+    "name": "Bonjour"
+  },
+  "good-night": {
+    "description": "Une descente en douceur le soir",
+    "name": "Bonne nuit"
+  },
+  "harry-potter-quotes": {
+    "description": "Sagesse de sorciers"
+  },
+  "holidays": {
+    "description": "Prochains jours fériés",
+    "name": "Jours fériés"
+  },
+  "iss": {
+    "description": "La station spatiale",
+    "name": "Suivi ISS"
+  },
+  "livestream": {
+    "description": "Rotation les jours de lancement",
+    "name": "Direct"
+  },
+  "magic-8-ball": {
+    "description": "Interrogez la boule magique",
+    "name": "Boule magique 8"
+  },
+  "metals": {
+    "description": "Cours de l'or et de l'argent",
+    "name": "Métaux précieux"
+  },
+  "metro": {
+    "description": "Passages MBTA",
+    "name": "Métro"
+  },
+  "moon-phase": {
+    "description": "La phase lunaire actuelle",
+    "name": "Phase de lune"
+  },
+  "motivational-quotes": {
+    "description": "Votre motivation quotidienne",
+    "name": "Citations motivantes"
+  },
+  "national-today": {
+    "description": "La journée célébrée aujourd'hui",
+    "name": "Journée mondiale"
+  },
+  "news-headlines": {
+    "description": "Dernières actualités via RSS",
+    "name": "Gros titres"
+  },
+  "office-quotes": {
+    "description": "That's what she said"
+  },
+  "on-this-day": {
+    "description": "Événements historiques du jour",
+    "name": "Ce jour-là"
+  },
+  "planes_overhead": {
+    "description": "Aéronefs à proximité",
+    "name": "Avions au-dessus"
+  },
+  "quote": {
+    "description": "Une citation inspirante",
+    "name": "Citation"
+  },
+  "rocket-launch": {
+    "description": "Prochain lancement orbital",
+    "name": "Lancement fusée"
+  },
+  "sarcastic-fortune-cookies": {
+    "description": "Sagesse de biscuit, version cynique",
+    "name": "Biscuits sarcastiques"
+  },
+  "shower-thoughts": {
+    "description": "Des idées qui retournent le cerveau",
+    "name": "Pensées de douche"
+  },
+  "sports": {
+    "description": "Scores et calendriers"
+  },
+  "star-wars-quotes": {
+    "description": "Que la Force soit avec vous"
+  },
+  "stocks": {
+    "description": "Cours en direct",
+    "name": "Bourse"
+  },
+  "stoic-quotes": {
+    "description": "Sagesse antique",
+    "name": "Citations stoïques"
+  },
+  "sun-times": {
+    "description": "Lever, coucher et durée du jour",
+    "name": "Soleil"
+  },
+  "tides": {
+    "description": "Marées hautes et basses du jour (NOAA)",
+    "name": "Marées"
+  },
+  "time": {
+    "description": "Horloge en direct",
+    "name": "Heure"
+  },
+  "time-since": {
+    "description": "Suivez le temps écoulé",
+    "name": "Temps écoulé"
+  },
+  "trivia": {
+    "description": "Questions de culture générale",
+    "name": "Quiz"
+  },
+  "useless-fact": {
+    "description": "Un fait bref et aléatoire",
+    "name": "Fait au hasard"
+  },
+  "weather": {
+    "description": "Conditions actuelles",
+    "name": "Météo"
+  },
+  "wiki-today": {
+    "description": "Article vedette et plus lus de Wikipédia",
+    "name": "Wikipédia du jour"
+  },
+  "word-clock": {
+    "description": "L'heure en toutes lettres",
+    "name": "Horloge en mots"
+  },
+  "word-of-the-day": {
+    "description": "Enrichissez votre vocabulaire",
+    "name": "Mot du jour"
+  },
+  "world_clock": {
+    "description": "3 fuseaux horaires",
+    "name": "Horloge mondiale"
+  },
+  "youtube": {
+    "description": "Compteur d'abonnés"
+  },
+  "yt_comments": {
+    "description": "Commentaires YouTube",
+    "name": "Commentaires"
+  }
+}

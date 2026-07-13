@@ -25,7 +25,7 @@
 # is no run script to do it. The app reads /data/options.json itself — see
 # config._addon_overrides() — which is what lets one image serve both worlds.
 name: SplitFlap Gateway Companion (Beta)
-version: "1.8.0"
+version: "1.9.0-beta.1"
 slug: splitflap_companion_beta
 description: >-
   Prerelease. Drive a SplitFlap wall from Home Assistant — apps, playlists, schedules
@@ -74,6 +74,7 @@ options:
   home_assistant: auto
   vestaboard: false
   mcp: false
+  ui_language: ""
   dev_mode: false
   log_level: INFO
 
@@ -89,6 +90,10 @@ schema:
   vestaboard_key: password?
   mcp: bool
   mcp_token: password?
+  # UI (chrome) language for this deployment — level 3 of the resolution chain
+  # (URL param > saved Language setting > this > the browser). Blank = follow
+  # each viewer's browser. Never affects what the flaps show.
+  ui_language: str?
   # Enables simulation mode in the ⚙ tools menu (run apps without driving the wall,
   # with a grid override while simulating). The menu itself is always available.
   dev_mode: bool

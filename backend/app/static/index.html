@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
+  <!-- Static chrome carries data-i18n attributes (the English text is the catalog
+       key); translateDom() in app.js rewrites them once the catalog for
+       window.__LANG__ is loaded. English needs no pass at all. -->
   <header class="topbar">
     <div class="brand">
       <span class="logo-tiles"><b>S</b><b>P</b><b>L</b><b>I</b><b>T</b><b>-</b><b>F</b><b>L</b><b>A</b><b>P</b></span>
@@ -16,11 +19,11 @@
     <div class="hdr-right">
       <!-- Narrow screens only (see styles.css): with the gateway's tabs appended the
            strip runs to four rows on a phone, so it collapses behind this. -->
-      <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" title="Menu">
-        <span aria-hidden="true">☰</span><span id="navCurrent">Apps</span>
+      <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" title="Menu" data-i18n-title="Menu">
+        <span aria-hidden="true">☰</span><span id="navCurrent" data-i18n="Apps">Apps</span>
       </button>
-      <button class="btn ghost btn-sm" id="devBtn" title="Tools">⚙</button>
-      <span class="badge hidden" id="statusBadge" title="Connection status"></span>
+      <button class="btn ghost btn-sm" id="devBtn" title="Tools" data-i18n-title="Tools">⚙</button>
+      <span class="badge hidden" id="statusBadge" title="Connection status" data-i18n-title="Connection status"></span>
     </div>
   </header>
 
@@ -28,20 +31,22 @@
        when we register (Gateway 3.4+), or from GW_TABS_FALLBACK in app.js when it
        advertises nothing. See backend/app/tabs.py. -->
   <nav class="tabs" id="nav">
-    <button class="tab active" data-tab="apps">Apps</button>
-    <button class="tab" data-tab="compose">Compose</button>
-    <button class="tab" data-tab="playlists">Playlists</button>
-    <button class="tab" data-tab="triggers">Triggers</button>
+    <button class="tab active" data-tab="apps" data-i18n="Apps">Apps</button>
+    <button class="tab" data-tab="compose" data-i18n="Compose">Compose</button>
+    <button class="tab" data-tab="playlists" data-i18n="Playlists">Playlists</button>
+    <button class="tab" data-tab="triggers" data-i18n="Triggers">Triggers</button>
   </nav>
 
   <main>
     <!-- LIVE DISPLAY -->
     <section class="panel preview-panel">
       <div class="panel-head">
-        <h2>Live Display</h2>
+        <h2 data-i18n="Live Display">Live Display</h2>
         <div class="preview-actions">
           <span class="hint" id="previewMeta"></span>
-          <button class="btn ghost btn-sm" id="homeAllBtn" title="Home every module — returns the whole display to its blank home position and stops anything playing">⌂ Home all</button>
+          <button class="btn ghost btn-sm" id="homeAllBtn" data-i18n="⌂ Home all"
+                  title="Home every module — returns the whole display to its blank home position and stops anything playing"
+                  data-i18n-title="Home every module — returns the whole display to its blank home position and stops anything playing">⌂ Home all</button>
         </div>
       </div>
       <div class="board" id="preview"></div>
@@ -50,15 +55,18 @@
     <!-- APPS -->
     <section class="panel tabpage" id="page-apps">
       <div class="panel-head">
-        <h2>Apps</h2>
+        <h2 data-i18n="Apps">Apps</h2>
         <div class="apps-actions">
-          <button class="btn ghost btn-sm" id="globalSettingsBtn" title="Edit shared settings apps rely on (API keys, location, timezone…)">⚙ Global settings</button>
-          <button class="btn ghost btn-sm" id="manageAppsBtn" title="Install / remove apps">＋ Library</button>
+          <button class="btn ghost btn-sm" id="globalSettingsBtn" data-i18n="⚙ Global settings"
+                  title="Edit shared settings apps rely on (API keys, location, timezone…)"
+                  data-i18n-title="Edit shared settings apps rely on (API keys, location, timezone…)">⚙ Global settings</button>
+          <button class="btn ghost btn-sm" id="manageAppsBtn" data-i18n="＋ Library"
+                  title="Install / remove apps" data-i18n-title="Install / remove apps">＋ Library</button>
         </div>
       </div>
       <div class="active-banner hidden" id="activeBanner">
-        <span>▶ <b id="activeAppName"></b> is running</span>
-        <button class="btn ghost btn-sm" id="stopAppBtn">■ Stop</button>
+        <span id="activeText">▶ <b></b> is running</span>
+        <button class="btn ghost btn-sm" id="stopAppBtn" data-i18n="■ Stop">■ Stop</button>
       </div>
       <div class="apps-grid" id="appsGrid"></div>
     </section>
@@ -66,14 +74,14 @@
     <!-- COMPOSE -->
     <section class="panel tabpage hidden" id="page-compose">
       <div class="panel-head">
-        <h2>Compose</h2>
-        <span class="hint">click a cell to type · arrows to move · a swatch paints the cell</span>
+        <h2 data-i18n="Compose">Compose</h2>
+        <span class="hint" data-i18n="click a cell to type · arrows to move · a swatch paints the cell">click a cell to type · arrows to move · a swatch paints the cell</span>
       </div>
       <div class="board compose-board" id="composeBoard" tabindex="0"></div>
       <div class="controls compose-controls">
-        <label class="field inline" style="margin:0"><input type="checkbox" id="cmpCenter" style="width:auto"><span style="min-width:0">Center</span></label>
+        <label class="field inline" style="margin:0"><input type="checkbox" id="cmpCenter" style="width:auto"><span style="min-width:0" data-i18n="Center">Center</span></label>
         <div class="spacer"></div>
-        <button class="btn ghost btn-sm" id="cmpClear">Clear</button>
+        <button class="btn ghost btn-sm" id="cmpClear" data-i18n="Clear">Clear</button>
       </div>
       <div class="swatches" id="cmpSwatches"></div>
       <div class="controls compose-controls">
@@ -85,40 +93,40 @@
         <div class="spacer"></div>
         <span class="hint" id="cmpMsg"></span>
       </div>
-      <button class="btn primary cmp-push" id="cmpPush">Push to display</button>
+      <button class="btn primary cmp-push" id="cmpPush" data-i18n="Push to display">Push to display</button>
     </section>
 
     <!-- PLAYLISTS -->
     <section class="panel tabpage hidden" id="page-playlists">
-      <div class="panel-head"><h2>Playlists</h2></div>
-      <p class="hint">Sequence apps and composed messages, each shown for its own duration.</p>
+      <div class="panel-head"><h2 data-i18n="Playlists">Playlists</h2></div>
+      <p class="hint" data-i18n="Sequence apps and composed messages, each shown for its own duration.">Sequence apps and composed messages, each shown for its own duration.</p>
       <div id="plEntries" class="pl-entries"></div>
       <div class="controls">
-        <button class="btn ghost btn-sm" id="plAddApp">＋ App</button>
-        <button class="btn ghost btn-sm" id="plAddMsg">＋ Message</button>
-        <label class="field inline" style="margin:0"><input type="checkbox" id="plLoop" checked style="width:auto"><span style="min-width:0">Loop</span></label>
+        <button class="btn ghost btn-sm" id="plAddApp" data-i18n="＋ App">＋ App</button>
+        <button class="btn ghost btn-sm" id="plAddMsg" data-i18n="＋ Message">＋ Message</button>
+        <label class="field inline" style="margin:0"><input type="checkbox" id="plLoop" checked style="width:auto"><span style="min-width:0" data-i18n="Loop">Loop</span></label>
         <div class="spacer"></div>
-        <button class="btn ghost btn-sm" id="plSave">Save…</button>
-        <button class="btn primary btn-sm" id="plRun">Run ▶</button>
+        <button class="btn ghost btn-sm" id="plSave" data-i18n="Save…">Save…</button>
+        <button class="btn primary btn-sm" id="plRun" data-i18n="Run ▶">Run ▶</button>
       </div>
-      <h3 style="margin:16px 0 8px;font-size:.95rem">Saved playlists</h3>
-      <div id="plSaved"><span class="hint">None yet.</span></div>
+      <h3 style="margin:16px 0 8px;font-size:.95rem" data-i18n="Saved playlists">Saved playlists</h3>
+      <div id="plSaved"><span class="hint" data-i18n="None yet.">None yet.</span></div>
     </section>
 
     <!-- TRIGGERS -->
     <section class="panel tabpage hidden" id="page-triggers">
       <div class="panel-head">
-        <h2>Triggers</h2>
-        <label class="field inline" style="margin:0"><input type="checkbox" id="trigEnabled" style="width:auto"><span style="min-width:0">Enable all</span></label>
+        <h2 data-i18n="Triggers">Triggers</h2>
+        <label class="field inline" style="margin:0"><input type="checkbox" id="trigEnabled" style="width:auto"><span style="min-width:0" data-i18n="Enable all">Enable all</span></label>
       </div>
-      <p class="hint">Apps watch for events and briefly interrupt the display when something happens.</p>
+      <p class="hint" data-i18n="Apps watch for events and briefly interrupt the display when something happens.">Apps watch for events and briefly interrupt the display when something happens.</p>
       <div id="trigList"></div>
       <div class="controls">
         <select id="trigAddApp"></select>
-        <button class="btn ghost btn-sm" id="trigAdd">＋ Add trigger</button>
+        <button class="btn ghost btn-sm" id="trigAdd" data-i18n="＋ Add trigger">＋ Add trigger</button>
         <div class="spacer"></div>
         <span class="hint" id="trigMsg"></span>
-        <button class="btn primary" id="trigSave">Save</button>
+        <button class="btn primary" id="trigSave" data-i18n="Save">Save</button>
       </div>
     </section>
 
@@ -129,7 +137,7 @@
     <div class="modal-card">
       <div class="modal-head">
         <h3 id="modalTitle">…</h3>
-        <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+        <button class="modal-close" id="modalClose" aria-label="Close" data-i18n-label="Close">✕</button>
       </div>
       <div class="modal-body" id="modalBody"></div>
       <div class="modal-foot" id="modalFoot"></div>

@@ -1,0 +1,235 @@
+{
+  "advice": {
+    "description": "Un consejo al azar",
+    "name": "Consejo"
+  },
+  "anim_checker": {
+    "description": "Tablero de ajedrez",
+    "name": "Tablero"
+  },
+  "anim_matrix": {
+    "description": "Revelado en cascada",
+    "name": "Matrix"
+  },
+  "anim_rainbow": {
+    "description": "Ola de colores",
+    "name": "Arcoíris"
+  },
+  "anim_random_spin": {
+    "description": "Aletas aleatorias continuas",
+    "name": "Giro aleatorio"
+  },
+  "anim_sweep": {
+    "description": "Barrido de color",
+    "name": "Barrido"
+  },
+  "anim_twinkle": {
+    "description": "Efecto de chispas",
+    "name": "Destellos"
+  },
+  "art-clock": {
+    "description": "La hora como arte de color",
+    "name": "Reloj artístico"
+  },
+  "aurora": {
+    "description": "Actividad geomagnética (índice Kp)",
+    "name": "Auroras boreales"
+  },
+  "birdnet": {
+    "description": "Detección de aves en vivo con BirdNET-Pi"
+  },
+  "bitcoin-fear-greed": {
+    "description": "Índice de miedo y codicia de Bitcoin",
+    "name": "BTC Miedo y Codicia"
+  },
+  "cat-facts": {
+    "description": "Un dato felino conciso",
+    "name": "Datos de gatos"
+  },
+  "chuck-norris": {
+    "description": "Hechos de Chuck Norris"
+  },
+  "countdown": {
+    "description": "Temporizador hasta un evento",
+    "name": "Cuenta atrás"
+  },
+  "crypto": {
+    "description": "Precios de criptomonedas",
+    "name": "Cripto"
+  },
+  "dad-jokes": {
+    "description": "Un poco de humor con chistes de papá",
+    "name": "Chistes de papá"
+  },
+  "dashboard": {
+    "description": "Hora + tiempo",
+    "name": "Panel"
+  },
+  "date": {
+    "description": "Vista de fecha completa",
+    "name": "Fecha"
+  },
+  "earthquakes": {
+    "description": "Terremotos recientes destacados (USGS)",
+    "name": "Terremotos"
+  },
+  "exchange-rates": {
+    "description": "Tipos de cambio en vivo (BCE)",
+    "name": "Tipos de cambio"
+  },
+  "formula1": {
+    "description": "Próximo Gran Premio y líder del campeonato"
+  },
+  "fortune-cookie": {
+    "description": "Galleta de la fortuna de pared",
+    "name": "Galleta de la fortuna"
+  },
+  "funny-one-liners": {
+    "description": "Risas rápidas en una línea",
+    "name": "Frases ingeniosas"
+  },
+  "good-morning": {
+    "description": "Un impulso mañanero",
+    "name": "Buenos días"
+  },
+  "good-night": {
+    "description": "Relajación vespertina",
+    "name": "Buenas noches"
+  },
+  "harry-potter-quotes": {
+    "description": "Sabiduría de magos"
+  },
+  "holidays": {
+    "description": "Próximos días festivos",
+    "name": "Festivos"
+  },
+  "iss": {
+    "description": "La estación espacial",
+    "name": "Rastreador ISS"
+  },
+  "livestream": {
+    "description": "Rotación en día de lanzamiento",
+    "name": "Directo"
+  },
+  "magic-8-ball": {
+    "description": "Pregunta a la bola 8",
+    "name": "Bola 8 mágica"
+  },
+  "metals": {
+    "description": "Precios del oro y la plata",
+    "name": "Metales preciosos"
+  },
+  "metro": {
+    "description": "Llegadas del MBTA",
+    "name": "Metro"
+  },
+  "moon-phase": {
+    "description": "Fase lunar actual",
+    "name": "Fase lunar"
+  },
+  "motivational-quotes": {
+    "description": "Motivación diaria en tu pantalla",
+    "name": "Frases motivadoras"
+  },
+  "national-today": {
+    "description": "La celebración de hoy",
+    "name": "Día mundial"
+  },
+  "news-headlines": {
+    "description": "Últimas noticias vía RSS",
+    "name": "Titulares"
+  },
+  "office-quotes": {
+    "description": "That's what she said"
+  },
+  "on-this-day": {
+    "description": "Hechos históricos de hoy",
+    "name": "Tal día como hoy"
+  },
+  "planes_overhead": {
+    "description": "Aeronaves cercanas",
+    "name": "Aviones cercanos"
+  },
+  "quote": {
+    "description": "Una cita inspiradora",
+    "name": "Cita"
+  },
+  "rocket-launch": {
+    "description": "Próximo lanzamiento orbital",
+    "name": "Lanzamiento"
+  },
+  "sarcastic-fortune-cookies": {
+    "description": "Sabiduría de galleta, en cínico",
+    "name": "Galletas sarcásticas"
+  },
+  "shower-thoughts": {
+    "description": "Pensamientos que dan vueltas",
+    "name": "Ideas de ducha"
+  },
+  "sports": {
+    "description": "Resultados y calendarios",
+    "name": "Deportes"
+  },
+  "star-wars-quotes": {
+    "description": "Que la Fuerza te acompañe"
+  },
+  "stocks": {
+    "description": "Precios en vivo",
+    "name": "Bolsa"
+  },
+  "stoic-quotes": {
+    "description": "Sabiduría antigua",
+    "name": "Citas estoicas"
+  },
+  "sun-times": {
+    "description": "Amanecer, atardecer y duración del día",
+    "name": "Horas de sol"
+  },
+  "tides": {
+    "description": "Mareas altas y bajas de hoy (NOAA)",
+    "name": "Mareas"
+  },
+  "time": {
+    "description": "Reloj en vivo",
+    "name": "Hora"
+  },
+  "time-since": {
+    "description": "Controla el tiempo transcurrido",
+    "name": "Tiempo desde"
+  },
+  "trivia": {
+    "description": "Preguntas de cultura general",
+    "name": "Trivial"
+  },
+  "useless-fact": {
+    "description": "Un dato breve al azar",
+    "name": "Dato aleatorio"
+  },
+  "weather": {
+    "description": "Condiciones actuales",
+    "name": "El tiempo"
+  },
+  "wiki-today": {
+    "description": "Artículo destacado y lo más leído",
+    "name": "Wikipedia hoy"
+  },
+  "word-clock": {
+    "description": "La hora escrita con palabras",
+    "name": "Reloj de palabras"
+  },
+  "word-of-the-day": {
+    "description": "Amplía tu vocabulario a diario",
+    "name": "Palabra del día"
+  },
+  "world_clock": {
+    "description": "3 zonas horarias",
+    "name": "Reloj mundial"
+  },
+  "youtube": {
+    "description": "Contador de suscriptores"
+  },
+  "yt_comments": {
+    "description": "Comentarios de YouTube",
+    "name": "Comentarios"
+  }
+}

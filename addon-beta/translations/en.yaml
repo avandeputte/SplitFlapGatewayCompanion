@@ -52,3 +52,9 @@ network:
   8000/tcp: >-
     Direct access. Needed only for the Vestaboard-compatible API and the MCP server —
     the web UI is served through the sidebar and does not use this port.
+  ui_language:
+    name: UI language
+    description: >-
+      Language for the web UI itself (menus, buttons). Leave blank to follow each
+      viewer's browser. The flap content language is the Language setting inside
+      the app, not this. Example values: fr, de, es, pt-BR.

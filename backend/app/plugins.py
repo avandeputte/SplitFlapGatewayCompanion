@@ -44,6 +44,34 @@ _PASSTHROUGH = (
 # (untranslated) pages stay in data.json, which is also the fallback.
 LANG_DATA_FILE = re.compile(r"^data_([A-Za-z]{2}(?:-[A-Za-z]{2})?)\.json$")
 
+# Translated app-store metadata (names, descriptions, settings labels) lives
+# OUTSIDE manifest.json — the manifest must stay a byte-compatible splitflap-os
+# manifest (its description is read as a plain string there). Two layers:
+#   backend/app/app_i18n/<lang>.json   central catalog for the vendored library
+#   apps/<id>/i18n/<lang>.json         per-app sidecar; travels in uploaded zips
+# The sidecar wins. See docs/UI_I18N_PLAN.md.
+I18N_META_FILE = re.compile(r"^([A-Za-z]{2}(?:-[A-Za-z]{2})?)\.json$")
+APP_I18N_DIR = Path(__file__).parent / "app_i18n"
+_META_STR_KEYS = ("name", "flap_name", "description")
+
+
+def _read_meta_file(path: Path) -> dict:
+    try:
+        d = json.loads(path.read_text("utf-8"))
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _merge_meta(into: dict, entry: dict) -> None:
+    for k in _META_STR_KEYS:
+        v = entry.get(k)
+        if isinstance(v, str) and v.strip():
+            into[k] = v
+    s = entry.get("settings")
+    if isinstance(s, dict):
+        into.setdefault("settings", {}).update(s)
+
 
 class _SettingsOverlay:
     """A read-through view of the settings store with a transient override layer,
@@ -250,6 +278,44 @@ class PluginRuntime:
         if manifest is not None:
             manifest["i18n"] = len(by_lang) > 1 or bool(manifest.get("i18n"))
 
+    def app_meta_i18n(self, app_id: str, app_dir: Path | None, lang) -> dict:
+        """Translated metadata for one app in one language ({} for English or
+        unset): the central catalog first, the app's own sidecar on top — each
+        read base-then-exact, so a pt-BR viewer gets pt plus any pt-BR extras."""
+        code = str(lang or "").replace("_", "-")
+        base = code.split("-")[0].lower()
+        if not base or base == "en":
+            return {}
+        out: dict = {}
+        for c in dict.fromkeys([base, code]):        # base first, exact wins
+            entry = _read_meta_file(APP_I18N_DIR / f"{c}.json").get(app_id)
+            if isinstance(entry, dict):
+                _merge_meta(out, entry)
+        if app_dir:
+            for c in dict.fromkeys([base, code]):
+                _merge_meta(out, _read_meta_file(app_dir / "i18n" / f"{c}.json"))
+        return out
+
+    def _flap_fallback(self, app_id: str, manifest: dict | None, settings,
+                       *lines) -> str:
+        """A fallback page rendered TO THE FLAPS ("NO DATA", "APP ERROR", ...),
+        localized to the CONTENT language — the wall is shared, so this follows
+        the global Language, not the viewer's browser. The app's display name
+        may come from its i18n sidecar (flap_name beats name: it exists for
+        reels whose character set can't show the pretty translated name)."""
+        lang = settings.get("language", "en-US") if settings else "en-US"
+        cols = self.get_cols()
+        meta = self.app_meta_i18n(app_id, self._scan().get(app_id), lang) if manifest else {}
+        name = meta.get("flap_name") or meta.get("name") or \
+            (manifest or {}).get("name", app_id)
+        out = []
+        for ln in lines:
+            if ln == "{name}":
+                out.append(str(name).upper()[:cols])
+            else:
+                out.append(i18n.translate(ln, lang) if ln else ln)
+        return self.format_lines(*out)
+
     def _channel_pages(self, app_id: str, lang: str) -> list:
         """Pages for a channel app in the effective language: an exact locale match
         (``fr-BE``) wins, then the base language (``fr``), then data.json. Same
@@ -428,7 +494,8 @@ class PluginRuntime:
         cols = self.get_cols()
         manifest = self._registry.get(app_id)
         if not manifest:
-            return [self.format_lines("PLUGIN ERROR", app_id.upper()[:cols], "NOT FOUND")]
+            return [self._flap_fallback(app_id, None, self.settings,
+                                        "PLUGIN ERROR", app_id.upper()[:cols], "NOT FOUND")]
         app_type = manifest.get("type")
         # Per-entry overrides (playlist) render this app with its own config without
         # disturbing the saved settings; the cache/lock key includes them so two
@@ -442,12 +509,14 @@ class PluginRuntime:
             # Language; blank/unset = follow global. Same rule as a functional app.
             lang = self._perapp_value(app_id, "language", settings) or settings.get("language", "en-US")
             pages = self._channel_pages(app_id, lang)
-            return pages or [self.format_lines(manifest.get("name", app_id).upper()[:cols], "NO DATA", "")]
+            return pages or [self._flap_fallback(app_id, manifest, settings,
+                                                 "{name}", "NO DATA", "")]
 
         if app_type == "functional":
             mod = self._modules.get(app_id)
             if not mod:
-                return [self.format_lines("PLUGIN ERROR", app_id.upper()[:cols], "NOT LOADED")]
+                return [self._flap_fallback(app_id, manifest, settings,
+                                            "PLUGIN ERROR", "{name}", "NOT LOADED")]
             # Serialize fetches for this app: get_pages runs in executor threads
             # (app loop + a preview can hit the same app at once), so this
             # coalesces duplicate fetches and protects non-reentrant app state.
@@ -484,10 +553,13 @@ class PluginRuntime:
                         return cp
                     err = msg.lower()
                     if "timeout" in err or "connection" in err or "network" in err:
-                        return [self.format_lines(manifest.get("name", app_id).upper()[:cols], "OFFLINE", "")]
-                    return [self.format_lines("APP ERROR", app_id.upper()[:cols], msg[:cols])]
+                        return [self._flap_fallback(app_id, manifest, settings,
+                                                    "{name}", "OFFLINE", "")]
+                    return [self._flap_fallback(app_id, manifest, settings,
+                                                "APP ERROR", "{name}", msg[:cols])]
 
-        return [self.format_lines("PLUGIN ERROR", "UNKNOWN TYPE", "")]
+        return [self._flap_fallback(app_id, manifest, settings,
+                                    "PLUGIN ERROR", "UNKNOWN TYPE", "")]
 
     # -- triggers ----------------------------------------------------------
     def has_trigger(self, app_id: str) -> bool:
@@ -593,12 +665,14 @@ class PluginRuntime:
                 "skip_rotation": bool(m.get("skip_rotation_wait"))}
 
     # -- listings ----------------------------------------------------------
-    def _entry(self, app_id: str, manifest: dict, installed: bool, builtin: bool) -> dict:
+    def _entry(self, app_id: str, manifest: dict, installed: bool, builtin: bool,
+               lang=None, app_dir: Path | None = None) -> dict:
+        meta = self.app_meta_i18n(app_id, app_dir, lang) if lang else {}
         return {
             "id": app_id,
-            "name": manifest.get("name", app_id),
+            "name": meta.get("name") or manifest.get("name", app_id),
             "icon": manifest.get("icon", "🧩"),
-            "description": manifest.get("description", ""),
+            "description": meta.get("description") or manifest.get("description", ""),
             "category": manifest.get("category", "other"),
             "type": manifest.get("type", "functional"),
             "version": str(manifest.get("version", "")),
@@ -613,15 +687,18 @@ class PluginRuntime:
             "builtin": builtin,
         }
 
-    def app_list(self) -> list[dict]:
-        """Installed (loaded) apps, sorted by name — powers the Apps grid."""
+    def app_list(self, lang=None) -> list[dict]:
+        """Installed (loaded) apps, sorted by name — powers the Apps grid.
+        ``lang`` is the viewer's chrome language: names/descriptions come back
+        translated when a catalog or sidecar covers them."""
         scan = self._scan()   # scan once; don't re-scan per app for builtin-ness
-        out = [self._entry(i, m, True, self._builtin_in(i, scan))
+        out = [self._entry(i, m, True, self._builtin_in(i, scan),
+                           lang=lang, app_dir=scan.get(i))
                for i, m in self._registry.items()]
         out.sort(key=lambda a: a["name"].lower())
         return out
 
-    def available_list(self) -> list[dict]:
+    def available_list(self, lang=None) -> list[dict]:
         """Every app on disk, with an ``installed`` flag (for the library)."""
         enabled = set(self.settings.installed_apps)
         out = []
@@ -633,7 +710,8 @@ class PluginRuntime:
                 except Exception:
                     continue
             out.append(self._entry(app_id, manifest, app_id in enabled,
-                                   app_dir.parent == self.apps_dir))
+                                   app_dir.parent == self.apps_dir,
+                                   lang=lang, app_dir=app_dir))
         out.sort(key=lambda a: a["name"].lower())
         return out
 
@@ -666,10 +744,15 @@ class PluginRuntime:
             field["inline_toggle"] = it
         return field
 
-    def settings_schema(self, app_id: str) -> dict:
+    def settings_schema(self, app_id: str, lang=None) -> dict:
         manifest = self._registry.get(app_id)
         if not manifest:
             raise KeyError(app_id)
+        # Manifest-declared labels can carry translations via the app's i18n
+        # sidecar / the central catalog ({"settings": {key: label}}). Catalog
+        # (global) labels are chrome strings, translated client-side by t().
+        _tr_settings = (self.app_meta_i18n(app_id, self._scan().get(app_id), lang)
+                        .get("settings") or {}) if lang else {}
         raw_settings = [s for s in manifest.get("settings", []) if s.get("key")]
         resolved = {
             s["key"]: self._resolve_key(app_id, s["key"], s.get("global_key", False))
@@ -721,6 +804,14 @@ class PluginRuntime:
                 continue
             f = self._field(app_id, s, resolved)
             f["label"] = f["label"].replace(" (override global)", "")
+            tr = _tr_settings.get(s["key"])
+            if isinstance(tr, str) and tr.strip():
+                f["label"] = tr
+            elif isinstance(tr, dict):
+                if tr.get("label"):
+                    f["label"] = tr["label"]
+                if tr.get("note"):
+                    f["note"] = tr["note"]
             fields.append(f)
 
         # Settings the app READS but never declares are per-app too — surface them
@@ -745,9 +836,10 @@ class PluginRuntime:
         if used_global:
             names = ", ".join(CATALOG_BY_KEY[k]["label"]
                               for k in sorted(used_global, key=lambda x: CATALOG_BY_KEY[x]["label"]))
+            from . import uilang
             fields.append({"key": f"_globals_note_{app_id}", "type": "notice",
-                           "label": "Also uses global settings: " + names
-                                    + " — set these under Global settings."})
+                           "label": uilang.ui_t(lang, "Also uses global settings: %s — set these under Global settings.")
+                                    .replace("%s", names)})
 
         values = {}
         for s in raw_settings:
@@ -975,6 +1067,7 @@ class PluginRuntime:
                 self._validate_fetch(app_py)
             elif kind == "channel":
                 self._validate_channel(root)
+            self._validate_i18n_sidecars(root)
 
             self.user_apps_dir.mkdir(parents=True, exist_ok=True)
             dest = self.user_apps_dir / app_id
@@ -1005,6 +1098,28 @@ class PluginRuntime:
             for i, st in enumerate(settings):
                 if not isinstance(st, dict) or not st.get("key"):
                     raise ValueError(f"manifest setting #{i + 1} must be an object with a 'key'")
+
+    @staticmethod
+    def _validate_i18n_sidecars(root: Path) -> None:
+        """Reject a broken i18n/<lang>.json at upload rather than at render.
+        Optional; only files matching the language pattern are held to shape."""
+        i18n_dir = root / "i18n"
+        if not i18n_dir.is_dir():
+            return
+        for f in sorted(i18n_dir.glob("*.json")):
+            if not I18N_META_FILE.match(f.name):
+                continue
+            try:
+                d = json.loads(f.read_text("utf-8"))
+            except Exception as e:
+                raise ValueError(f"invalid i18n/{f.name}: {e}")
+            if not isinstance(d, dict):
+                raise ValueError(f"i18n/{f.name} must be a JSON object")
+            for k in _META_STR_KEYS:
+                if k in d and not isinstance(d[k], str):
+                    raise ValueError(f"i18n/{f.name}: '{k}' must be a string")
+            if "settings" in d and not isinstance(d["settings"], dict):
+                raise ValueError(f"i18n/{f.name}: 'settings' must be an object")
 
     @staticmethod
     def _validate_channel(root: Path) -> None:

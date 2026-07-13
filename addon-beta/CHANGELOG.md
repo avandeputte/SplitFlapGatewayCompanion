@@ -3,6 +3,24 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.1
+
+- **The UI speaks your language.** The web interface (menus, buttons, forms, the
+  settings dialogs) now follows the viewer's browser language, with overrides:
+  a `?lang=` URL parameter always wins, then an explicitly saved Language
+  setting, then the new `ui_language` option here, then the browser. French,
+  German and Spanish ship first; anything untranslated falls back to English.
+- **The App Library is localized too**: app names and descriptions show in the
+  UI language ("Weather" → "Météo"/"Wetter"), and uploaded apps can bundle their
+  own translations as `i18n/<lang>.json` inside the zip.
+- **Error pages on the flaps follow the content Language** ("NO DATA" → "PAS DE
+  DONNEES" on a French wall).
+- Channel apps ship translations as `data_<lang>.json` sidecars, and four
+  built-ins (motivational quotes, good morning, good night, dad jokes) now carry
+  50 pages in 11 languages — dad jokes are native puns per language, not
+  translations.
+- The HACS integration and this configuration page are translated (fr/de/es).
+
 ## 1.8.0
 
 - **The ⚙ menu is now always there** (it used to appear only in developer mode, labelled

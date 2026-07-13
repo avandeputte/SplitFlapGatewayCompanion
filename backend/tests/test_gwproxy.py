@@ -160,7 +160,7 @@ def test_the_spa_links_gateway_tabs_through_the_proxy():
     """A direct link to the gateway's own address leaves Home Assistant."""
     from pathlib import Path
     js = (Path(__file__).resolve().parents[1] / "app" / "static" / "app.js").read_text()
-    assert 'a.href = `${url("/gw/")}#${t.id}`' in js
+    assert 'a.href = `${url("/gw/")}#${tab.id}`' in js
     assert 'a.target = "_top"' not in js
 
 
