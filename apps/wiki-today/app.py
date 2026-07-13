@@ -44,14 +44,23 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 pages.append(f'WIKI {title}'[:cols].center(cols))
             else:
                 pages.append(format_lines(f'WIKI {t("FEATURED")}', *_wrap(title, cols, rows - 1)))
-        for a in ((d.get('mostread') or {}).get('articles', []) or [])[:3]:
-            art = str(a.get('normalizedtitle', '') or '').upper()
-            if not art:
-                continue
-            if rows == 1:
-                pages.append(f'WIKI {art}'[:cols].center(cols))
-            else:
-                pages.append(format_lines(f'WIKI {t("MOST READ")}', *_wrap(art, cols, rows - 1)))
+        mostread = [str(a.get('normalizedtitle', '') or '').upper()
+                    for a in ((d.get('mostread') or {}).get('articles', []) or [])]
+        mostread = [a for a in mostread if a]
+
+        if rows >= 4 and mostread:
+            # A tall wall shows the whole list at once. One article per page spent
+            # four rows on a title that fits in one, and made you wait through three
+            # page turns to read what is really just a three-line list.
+            slots = rows - 1                      # one row is the header
+            pages.append(format_lines(f'WIKI {t("MOST READ")}',
+                                      *[_wrap(a, cols, 1)[0] for a in mostread[:slots]]))
+        else:
+            for art in mostread[:3]:
+                if rows == 1:
+                    pages.append(f'WIKI {art}'[:cols].center(cols))
+                else:
+                    pages.append(format_lines(f'WIKI {t("MOST READ")}', *_wrap(art, cols, rows - 1)))
         return pages or [format_lines('WIKIPEDIA', 'NO DATA', '')]
     except Exception:
         return [format_lines('WIKIPEDIA', 'OFFLINE', '')]

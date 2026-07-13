@@ -9,6 +9,24 @@ An explicit Country setting overrides the location; the Language is the last res
 """
 
 
+def _wrap(text, cols, maxlines):
+    """Word-wrap, because a holiday name is the whole point of the app and cutting
+    it in half ("MARTIN LUTHER KING J") is worse than using another row."""
+    words, lines, cur = str(text or '').split(), [], ''
+    for w in words:
+        if len(cur) + len(w) + (1 if cur else 0) <= cols:
+            cur = f'{cur} {w}'.strip()
+        else:
+            if cur:
+                lines.append(cur)
+            cur = w[:cols]
+            if len(lines) >= maxlines:
+                break
+    if cur and len(lines) < maxlines:
+        lines.append(cur)
+    return lines[:maxlines] or ['']
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
     import requests
     from datetime import datetime, date
@@ -38,21 +56,46 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         for h in data[:4]:
             localized = i18n.holiday(h.get('name')) if i18n is not None else None
             name = str(localized or h.get('localName') or h.get('name') or '').upper()
-            cd = ''
+            cd, when = '', ''
             try:
-                days = (datetime.strptime(h.get('date', ''), '%Y-%m-%d').date() - today).days
+                dt = datetime.strptime(h.get('date', ''), '%Y-%m-%d').date()
+                days = (dt - today).days
                 if days == 0:
                     cd = t('TODAY')
                 elif days > 0:
                     cd = f'{t("IN")} {days} {t("DAYS")}'
+                if i18n is not None:
+                    dow = i18n.weekday(dt, short=True)
+                    # "MON SEPTEMBER 7" is already 15 — one more letter and the wall
+                    # would truncate it. Shorten the month rather than lose the day.
+                    when = f'{dow} {i18n.date(dt)}'
+                    if len(when) > cols:
+                        when = f'{dow} {i18n.date(dt, short=True)}'
+                else:
+                    when = dt.strftime('%a %b %d').upper()
             except ValueError:
                 pass
+
+            head = t('NEXT HOLIDAY', 'holidays')
             if rows == 1:
                 pages.append(f'{name} {cd}'[:cols].center(cols))
             elif rows == 2:
                 pages.append(format_lines(name, cd))
+            elif rows == 3:
+                # Three rows is the common wall, and it has exactly one to spare. A name
+                # that fits keeps the header; one that doesn't takes the header's row
+                # rather than being truncated — "NEXT HOLIDAY" says less than the name.
+                if len(name) <= cols:
+                    pages.append(format_lines(head, name, cd))
+                else:
+                    pages.append(format_lines(*_wrap(name, cols, 2), cd))
             else:
-                pages.append(format_lines(t('NEXT HOLIDAY', 'holidays'), name, cd))
+                # A tall wall gives the name as many rows as it needs, and spends what's
+                # left on the date rather than on blank flaps.
+                lines = [head] + _wrap(name, cols, rows - 2) + [cd]
+                if when and len(lines) < rows:
+                    lines.insert(-1, when)
+                pages.append(format_lines(*lines))
         return pages or [format_lines('HOLIDAYS', 'NONE', '')]
     except Exception:
         return [format_lines('HOLIDAYS', 'OFFLINE', '')]

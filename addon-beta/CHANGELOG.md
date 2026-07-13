@@ -3,6 +3,23 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.7
+
+Three apps that were laid out for a three-row wall, on a five-row one.
+
+- **Weather** paged through as many as five near-empty screens — conditions, air
+  quality, UV, pollen, pollen detail — several of them padded out with a
+  "PROV OPENMETEO" line nobody asked for. The provider name is gone, and each metric
+  is now a single row (`AQI 42 GOOD`), so a tall wall shows the lot at once.
+- **Wikipedia** showed the three most-read articles as three separate pages, each
+  spending one row on a title and leaving the rest blank. It is a list, so it is now
+  a list: one page, one article per row (four of them on a five-row wall).
+- **Next holiday** *truncated* long names — "MARTIN LUTHER KING J". It wraps them now,
+  and spends the spare row on the date. On a three-row wall a name that doesn't fit
+  takes the "NEXT HOLIDAY" header's row rather than losing half of itself.
+
+Three-row walls render exactly as before.
+
 ## 1.9.0-beta.6
 
 Groundwork for driving **several gateways from one companion** (Phase 0). There is

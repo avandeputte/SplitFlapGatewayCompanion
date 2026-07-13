@@ -208,6 +208,34 @@ def _decorate_status(label, color, cols, mono=False):
     return swatch
 
 
+def _metric_line(word, value, label, color, cols, mono=False):
+    """One metric on one line: `AQI 42 GOOD 🟩`, degraded to whatever fits.
+
+    A tall wall can afford a row per metric; it cannot afford a whole PAGE per
+    metric, which is what the three-row layout had to do.
+    """
+    swatch = '' if mono else _compact_color(color)
+    head = f'{word} {value}' if value is not None else str(word)
+    for candidate in (f'{head} {label} {swatch}'.rstrip(), f'{head} {label}', head):
+        if len(candidate) <= cols:
+            return candidate
+    return head[:cols]
+
+
+def _paginate(lines, rows):
+    """Split lines over as few pages as possible, balanced.
+
+    Balanced matters: 6 lines on a 5-row wall chunked greedily gives a full page
+    and then one lonely line on an otherwise blank screen, which reads as a bug.
+    Split it 3/3 instead.
+    """
+    if not lines:
+        return []
+    pages = max(1, -(-len(lines) // rows))          # ceil: fewest pages that fit
+    per = max(1, -(-len(lines) // pages))           # ceil: spread evenly over them
+    return [lines[i:i + per] for i in range(0, len(lines), per)]
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import time
     import requests
@@ -464,17 +492,15 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             weather = _fetch_openweather_weather()
 
         cols = get_cols()
+        rows = get_rows()
         narrow = cols <= 12
         feels_word = t('FLS') if narrow else t('FEELS')
         pollen_word = t('POL') if narrow else t('POLLEN')
-        overall_word = t('OVR') if narrow else t('OVERALL')
-        provider_word = t('PRV') if narrow else t('PROV')
         sun_exposure_text = t('SUN UV') if narrow else t('SUN EXPOSURE')
         grass_word = t('GRS') if narrow else t('GRASS')
         tree_word = t('TRE') if narrow else t('TREE')
         weed_word = t('WED') if narrow else t('WEED')
 
-        city = weather['city']
         temp = _format_temp(weather.get('temp'), temp_unit)
         feels = f"{feels_word} {_format_temp(weather.get('feels_like'), temp_unit)}"
         desc = weather['desc']
@@ -483,30 +509,15 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         lat = weather['lat']
         lon = weather['lon']
 
-        # Only one location is supported, so we don't repeat it on every page —
-        # the current conditions fit on a single consolidated page.
-        rows = get_rows()
-        if rows == 1:
-            pages = [format_lines(f'{temp} {desc}')]
-        elif rows == 2:
-            pages = [
-                format_lines(f'{temp} {feels}', desc),
-                format_lines(f'{hi} {lo}', desc),
-            ]
-        elif rows == 3:
-            pages = [format_lines(f'{temp} {feels}', f'{hi} {lo}', desc)]
-        else:
-            pages = [format_lines(f'{temp} {feels}', f'{hi} {lo}', desc,
-                                  f'{provider_word} {weather_provider.upper()}')]
-
+        # --- gather the optional metrics BEFORE laying anything out -------------
+        # How many of AQI / UV / pollen the provider actually gave us decides how
+        # many pages we need, so none of them can be known too late.
+        aqi_num = aqi_label = aqi_color = None
         if show_aqi:
             try:
                 if weather_provider == 'openmeteo':
                     raw_aqi = _get_openmeteo_air(lat, lon).get('us_aqi')
-                    if raw_aqi is None:
-                        aqi_num = None
-                    else:
-                        aqi_num = int(round(float(raw_aqi)))
+                    aqi_num = None if raw_aqi is None else int(round(float(raw_aqi)))
                     aqi_label = _us_aqi_level(aqi_num)
                     aqi_color = _aqi_color_from_us(aqi_num)
                 elif weather_provider == 'weatherapi':
@@ -522,53 +533,30 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                     aqi_num = _fetch_openweather_aqi(lat, lon)
                     aqi_label = AQI_LABELS.get(aqi_num, 'UNKNOWN')
                     aqi_color = _aqi_color_from_openweather(aqi_num)
-
-                # Missing/invalid provider value: skip AQI page for this cycle.
-                if aqi_num is None or aqi_num <= 0:
-                    raise ValueError('AQI unavailable')
-
-                aqi_display = _decorate_status(t(aqi_label), aqi_color, cols, no_color)
-                if rows == 1:
-                    pages.append(format_lines(f'AQI {aqi_display}'))
-                elif rows == 2:
-                    pages.append(format_lines(f'AQI {aqi_num}', aqi_display))
-                elif rows == 3:
-                    pages.append(format_lines(t('AIR QUALITY'), f'AQI {aqi_num}', aqi_display))
-                else:
-                    pages.append(format_lines(t('AIR QUALITY'), f'AQI {aqi_num}', aqi_display, f'{provider_word} {weather_provider.upper()}'))
+                if aqi_num is None or aqi_num <= 0:      # provider had nothing usable
+                    aqi_num = None
             except Exception:
-                pass
+                aqi_num = None
 
+        uv_num = uv_label = uv_color = None
         if show_uv:
             try:
-                uv_value = None
-                if weather_provider in ('openmeteo', 'weatherapi'):
-                    uv_value = weather.get('uv')
-
+                uv_value = weather.get('uv') if weather_provider in ('openmeteo', 'weatherapi') else None
                 if uv_value is not None:
                     uv_num = int(round(float(uv_value)))
                     uv_label = _uv_level(float(uv_value))
                     uv_color = _uv_color(float(uv_value))
-                    uv_display = _decorate_status(t(uv_label), uv_color, cols, no_color)
-                    if rows == 1:
-                        pages.append(format_lines(f'UV {uv_display}'))
-                    elif rows == 2:
-                        pages.append(format_lines(f'UV {uv_num}', uv_display))
-                    elif rows == 3:
-                        pages.append(format_lines(sun_exposure_text, f'UV {uv_num}', uv_display))
-                    else:
-                        pages.append(format_lines(sun_exposure_text, f'UV {uv_num}', uv_display, ''))
             except Exception:
-                pass
+                uv_num = None
 
+        pollen_overall = None
+        pollen_parts = []            # 'GRASS LOW 🟩' — one per component we got
         if show_pollen:
             try:
                 if weather_provider == 'weatherapi':
                     pollen = weather.get('pollen') or {}
-                    grass = pollen.get('grass')
-                    birch = pollen.get('tree')
-                    ragweed = pollen.get('weed')
-                    weed = pollen.get('weed')
+                    grass, birch = pollen.get('grass'), pollen.get('tree')
+                    ragweed = weed = pollen.get('weed')
                 elif weather_provider == 'openmeteo':
                     curr = _get_openmeteo_air(lat, lon)
                     grass = curr.get('grass_pollen')
@@ -576,52 +564,75 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                     ragweed = curr.get('ragweed_pollen')
                     weed = curr.get('weed_pollen')
                 else:
-                    grass = None
-                    birch = None
-                    ragweed = None
-                    weed = None
+                    grass = birch = ragweed = weed = None
 
-                vals = [v for v in [grass, birch, ragweed, weed] if v is not None]
-                if not vals:
-                    raise ValueError('Pollen unavailable')
+                vals = [v for v in (grass, birch, ragweed, weed) if v is not None]
+                if vals:
+                    pollen_overall = max(vals)
+                    for word, val in ((grass_word, grass), (tree_word, birch),
+                                      (weed_word, weed or ragweed)):
+                        if val is not None:
+                            pollen_parts.append(_metric_line(
+                                word, None, t(_pollen_level(val)), _pollen_color(val), cols, no_color))
+            except Exception:
+                pollen_overall, pollen_parts = None, []
 
-                overall = max(vals) if vals else None
-                overall_label = t(_pollen_level(overall))
-                overall_color = _pollen_color(overall)
-                grass_label = t(_pollen_level(grass))
-                tree_label = t(_pollen_level(birch))
-                weed_label = t(_pollen_level(weed or ragweed))
-                overall_display = _decorate_status(overall_label, overall_color, cols, no_color)
-                component_displays = []
-                if grass is not None:
-                    grass_display = f'{grass_word} {grass_label} {_compact_color(_pollen_color(grass), no_color)}'.rstrip()
-                    component_displays.append(grass_display)
-                if birch is not None:
-                    tree_display = f'{tree_word} {tree_label} {_compact_color(_pollen_color(birch), no_color)}'.rstrip()
-                    component_displays.append(tree_display)
-                weed_value = weed or ragweed
-                if weed_value is not None:
-                    weed_display = f'{weed_word} {weed_label} {_compact_color(_pollen_color(weed_value), no_color)}'.rstrip()
-                    component_displays.append(weed_display)
+        # --- the pages ----------------------------------------------------------
+        # Only one location is supported, so we don't repeat it on every page.
+        if rows >= 4:
+            # A tall wall can say all of this at once. It used to page through up to
+            # five near-empty screens instead, each padded out with a "PROV OPENMETEO"
+            # line nobody asked for — burning exactly the room the wall was bought
+            # for. One row per metric, over as few pages as they fit on.
+            lines = [f'{temp} {feels}', f'{hi} {lo}', desc]
+            if aqi_num is not None:
+                lines.append(_metric_line('AQI', aqi_num, t(aqi_label), aqi_color, cols, no_color))
+            if uv_num is not None:
+                lines.append(_metric_line('UV', uv_num, t(uv_label), uv_color, cols, no_color))
+            if pollen_overall is not None:
+                lines.append(_metric_line(pollen_word, None, t(_pollen_level(pollen_overall)),
+                                          _pollen_color(pollen_overall), cols, no_color))
+                if len(lines) + len(pollen_parts) <= rows:     # room for the breakdown too
+                    lines.extend(pollen_parts)
+            pages = [format_lines(*chunk) for chunk in _paginate(lines, rows)]
+        else:
+            if rows == 1:
+                pages = [format_lines(f'{temp} {desc}')]
+            elif rows == 2:
+                pages = [
+                    format_lines(f'{temp} {feels}', desc),
+                    format_lines(f'{hi} {lo}', desc),
+                ]
+            else:
+                pages = [format_lines(f'{temp} {feels}', f'{hi} {lo}', desc)]
 
+            if aqi_num is not None:
+                aqi_display = _decorate_status(t(aqi_label), aqi_color, cols, no_color)
+                if rows == 1:
+                    pages.append(format_lines(f'AQI {aqi_display}'))
+                elif rows == 2:
+                    pages.append(format_lines(f'AQI {aqi_num}', aqi_display))
+                else:
+                    pages.append(format_lines(t('AIR QUALITY'), f'AQI {aqi_num}', aqi_display))
+
+            if uv_num is not None:
+                uv_display = _decorate_status(t(uv_label), uv_color, cols, no_color)
+                if rows == 1:
+                    pages.append(format_lines(f'UV {uv_display}'))
+                elif rows == 2:
+                    pages.append(format_lines(f'UV {uv_num}', uv_display))
+                else:
+                    pages.append(format_lines(sun_exposure_text, f'UV {uv_num}', uv_display))
+
+            if pollen_overall is not None:
+                overall_display = _decorate_status(t(_pollen_level(pollen_overall)),
+                                                   _pollen_color(pollen_overall), cols, no_color)
                 if rows == 1:
                     pages.append(format_lines(f'{pollen_word} {overall_display}'))
-                elif rows == 2:
-                    pages.append(format_lines(pollen_word, overall_display))
-                    if component_displays:
-                        pages.append(format_lines(*component_displays))
-                elif rows == 3:
-                    pages.append(format_lines(pollen_word, overall_display))
-                    if component_displays:
-                        pages.append(format_lines(*component_displays))
                 else:
-                    pages.append(format_lines(pollen_word, overall_display, f'{provider_word} {weather_provider.upper()}'))
-                    detail_lines = list(component_displays)
-                    if rows >= 5:
-                        detail_lines.append(f'{overall_word} {overall_display}')
-                    pages.append(format_lines(*detail_lines))
-            except Exception:
-                pass
+                    pages.append(format_lines(pollen_word, overall_display))
+                    if pollen_parts:
+                        pages.append(format_lines(*pollen_parts))
 
         state['last_pages'] = pages
         state['last_polled_at'] = now_ts
