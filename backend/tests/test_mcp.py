@@ -130,8 +130,22 @@ def call(main, name, args=None):
 def test_tools_are_all_registered(mcp_on):
     names = sorted(t.name for t in asyncio.run(mcp_on.mcp.list_tools()))
     assert names == ["clear_display", "configure_app", "get_app_settings", "get_display",
-                     "list_apps", "list_playlists", "list_styles", "run_app",
-                     "run_playlist", "show_message", "stop"]
+                     "list_apps", "list_displays", "list_playlists", "list_styles",
+                     "run_app", "run_playlist", "show_message", "stop"]
+
+
+def test_every_tool_takes_an_optional_display(mcp_on):
+    """Existing prompts and clients were written when there was one wall and send no
+    display id. A tool that REQUIRED the argument would regress every one of them, so it
+    must be optional everywhere — and default to the default display."""
+    tools = asyncio.run(mcp_on.mcp.list_tools())
+    for t in tools:
+        if t.name in ("list_displays", "list_styles"):
+            continue
+        props = (t.inputSchema or {}).get("properties", {})
+        required = (t.inputSchema or {}).get("required", [])
+        assert "display" in props, f"{t.name} cannot address a second wall"
+        assert "display" not in required, f"{t.name} made display mandatory"
 
 
 def test_show_message_centres_the_text_on_the_board(mcp_on):

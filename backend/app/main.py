@@ -88,12 +88,20 @@ APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
 # with, so an existing install upgrades with no configuration at all and the add-on's
 # one required option keeps meaning what it meant.
 DATA_DIR = default_data_dir()
-_seed_url = (Config(DATA_DIR).transport.get("gateway_url") or "").strip()
+# GATEWAY_URL (and the add-on's gateway_url option) takes a COMMA-DELIMITED list, so two
+# walls can be configured from the single option a Home Assistant user already has:
+#   GATEWAY_URL=http://192.168.1.218,http://192.168.1.50
+_seed_urls = [u.strip() for u in
+              (Config(DATA_DIR).transport.get("gateway_url") or "").split(",") if u.strip()]
+_seed_url = _seed_urls[0] if _seed_urls else ""
+
 registry = DisplayRegistry(DATA_DIR).ensure(gateway_url=_seed_url)
-# GATEWAY_URL / the add-on's gateway_url option keeps owning display `default`: it is
-# where a Home Assistant user has always set their gateway, and someone fixing a typo'd
-# IP on the Configuration tab must not find that the registry silently ignored them.
+# The first entry keeps owning display `default`: that Configuration tab is where a Home
+# Assistant user has always set their gateway, and someone fixing a typo'd IP there must
+# not find the registry silently ignored them. Later entries only ever ADD displays —
+# a wall added in the UI is never removed because it stopped appearing in the env.
 registry.adopt_env_gateway(_seed_url)
+registry.adopt_env_gateways(_seed_urls)
 
 displays = DisplayManager(APPS_DIR, registry=registry, data_dir=DATA_DIR)
 displays.load_registry()
@@ -113,6 +121,15 @@ scheduler = _default.scheduler
 ha = _default.ha
 
 
+def display_by_id(display_id: str):
+    """The display a PATH names. Used where the caller cannot send `?display=` — a
+    Vestaboard client posts to a fixed URL and knows nothing about our displays."""
+    d = displays.get(display_id)
+    if d is None:
+        raise HTTPException(404, f"no such display: {display_id}")
+    return d
+
+
 def display_for(request: Request | None = None):
     """The display this request is about — the seam every endpoint resolves through.
 
@@ -128,7 +145,7 @@ def display_for(request: Request | None = None):
 # The MCP server is built unconditionally, even when the layer is off: the Dev-menu
 # switch has to be able to turn it on without a restart, and an ASGI app can't be
 # mounted after startup. _MCPGuard below is what makes the surface exist or 404.
-mcp = mcp_server.build(config, state, controller, plugins, plugin_settings, ha)
+mcp = mcp_server.build(displays)
 
 
 def _redact(cfg: dict) -> dict:
@@ -1397,8 +1414,9 @@ async def vb_enablement(request: Request):
     return {"message": "Local API enabled", "apiKey": vestaboard_key()}
 
 
+@app.get("/local-api/{display_id}/message")
 @app.get("/local-api/message")
-async def vb_read_message(request: Request):
+async def vb_read_message(request: Request, display_id: str | None = None):
     """The board as it stands — whatever the flaps are showing (a running app's output
     included), not merely the last message someone posted, which is what this endpoint
     means on real hardware.
@@ -1406,8 +1424,12 @@ async def vb_read_message(request: Request):
     The matrix is wrapped in ``{"message": [[...]]}``, matching the real Local API: every
     Vestaboard client reads it back as ``response["message"]``. Returning a bare array
     (as we did) makes a client crash the moment it does ``.get("message")`` on a list —
-    which is why the reference integration would not even finish setup against us."""
-    d = display_for(request)
+    which is why the reference integration would not even finish setup against us.
+
+    /local-api/message stays bound to the DEFAULT display: a Vestaboard IS one board, and
+    every existing client (ha-vestaboard included) posts to that fixed path with no way to
+    name a wall. /local-api/<display-id>/message addresses the others."""
+    d = display_by_id(display_id) if display_id else display_for(request)
     _require_vestaboard()
     if err := _key_error(request):
         return err
@@ -1416,8 +1438,9 @@ async def vb_read_message(request: Request):
     return {"message": vestaboard.encode(d.state.current_chars, rows, cols)}
 
 
+@app.post("/local-api/{display_id}/message")
 @app.post("/local-api/message")
-async def vb_send_message(request: Request):
+async def vb_send_message(request: Request, display_id: str | None = None):
     """Post a message. Takes every shape a Vestaboard client sends:
 
         [[0,8,5,...], ...]                        a bare character-code matrix
@@ -1427,8 +1450,11 @@ async def vb_send_message(request: Request):
 
     Like a compose push, this takes the display over: any running app or playlist is
     cancelled (send_text_bg), which is what posting to a Vestaboard implies.
+
+    The bare path drives the DEFAULT display, because that is the only one an existing
+    Vestaboard client can reach; /local-api/<display-id>/message drives a named wall.
     """
-    d = display_for(request)
+    d = display_by_id(display_id) if display_id else display_for(request)
     _require_vestaboard()
     if err := _key_error(request):
         return err
@@ -1556,7 +1582,7 @@ app.add_middleware(_MCPPathFix)
 
 # The gateway's own UI, served through us at /gw/ — the only way it can appear inside
 # Home Assistant, which can only put this add-on's port in the sidebar. See gwproxy.py.
-app.include_router(gwproxy.build(config))
+app.include_router(gwproxy.build(displays))
 
 
 # ---------------------------------------------------------------------------

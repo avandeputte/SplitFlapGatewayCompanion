@@ -13,7 +13,24 @@ let GRID = { rows: 3, cols: 15, module_count: 45, styles: [] };
 // into the shell as window.__BASE__ — a bare "/api/..." would resolve against the HA
 // root and 404. Empty (so a no-op) everywhere else.
 const BASE = window.__BASE__ || "";
-const url = (path) => BASE + path;
+// ---- which wall are we driving? ---------------------------------------------
+// The client-side twin of the server's display_for(): every /api/ call carries the
+// active display, so switching walls is ONE variable rather than a change at each of
+// the ~40 call sites. Anything not under /api/ is left alone — the gateway proxy
+// addresses a display by PATH (/gw/<id>/), because it rewrites the proxied page's own
+// links and a query param would be lost on the first click inside it.
+let DISPLAY = "";                 // active display id ("" until we've loaded them)
+let DISPLAYS = [];                // [{id, name, grid, module_count, ...}]
+let DEFAULT_DISPLAY = "default";
+
+const url = (path) => {
+  const u = BASE + path;
+  if (!DISPLAY || !path.startsWith("/api/")) return u;
+  return u + (u.includes("?") ? "&" : "?") + "display=" + encodeURIComponent(DISPLAY);
+};
+
+// The gateway proxy for the wall we are on (see gwproxy.py).
+const gwUrl = () => url("/gw/" + (DISPLAY && DISPLAY !== DEFAULT_DISPLAY ? DISPLAY + "/" : ""));
 
 // ---- i18n (chrome language) --------------------------------------------------
 // The server resolves the viewer's UI language per request (uilang.py: URL param >
@@ -1019,7 +1036,7 @@ async function setupGatewayTabs() {
       a.textContent = t(tab.label);
       // `base` (the gateway being registered) gates whether the link works; the href is
       // our proxy path, which url() prefixes with the ingress base when under Home Assistant.
-      if (base) a.href = `${url("/gw/")}#${tab.id}`;
+      if (base) a.href = `${gwUrl()}#${tab.id}`;
       else { a.href = "#"; a.classList.add("disabled"); }
       nav.appendChild(a);
     });
@@ -1058,6 +1075,20 @@ async function openDevMenu() {
   const render = (st) => {
     updateDevBtn(st);
     wrap.innerHTML = "";
+
+    // 0) Displays. First, because "which wall" is the outermost question the rest of
+    // this dialog is scoped by.
+    const dF = el("div", "field");
+    const dLbl = el("label"); dLbl.textContent = t("Displays");
+    const dBtn = el("button", "btn btn-sm");
+    dBtn.textContent = DISPLAYS.length > 1
+      ? t("Manage %s displays", String(DISPLAYS.length))
+      : t("Add a display");
+    dBtn.onclick = () => { closeModal(); openDisplays(); };
+    const dNote = el("small", "field-note");
+    dNote.textContent = t("Drive several gateways from one companion. Each has its own geometry, apps, playlists and settings.");
+    dF.append(dLbl, dBtn, dNote);
+    wrap.appendChild(dF);
 
     // 1) Simulation mode — the one dev-gated control (COMPANION_DEV_MODE).
     if (st.enabled) {
@@ -1228,6 +1259,157 @@ async function openDevMenu() {
   openModal(t("Tools"), wrap, [close]);
 }
 
+// ---- displays (the wall switcher) -------------------------------------------
+// Loaded before anything else, because DISPLAY decides what every /api/ call below is
+// even ABOUT. The chosen wall is remembered per browser: someone who works on the
+// office display does not want to re-pick it on every page load.
+async function loadDisplays() {
+  let doc;
+  try {
+    doc = await api("/api/displays");
+  } catch {
+    return;                       // an older server: one wall, no switcher, carry on
+  }
+  DISPLAYS = doc.displays || [];
+  DEFAULT_DISPLAY = doc.default || "default";
+
+  const remembered = localStorage.getItem("splitflap.display");
+  const known = (id) => DISPLAYS.some((d) => d.id === id && d.enabled !== false);
+  DISPLAY = known(remembered) ? remembered : DEFAULT_DISPLAY;
+
+  const sel = $("displaySel");
+  sel.innerHTML = "";
+  DISPLAYS.filter((d) => d.enabled !== false).forEach((d) => {
+    const o = el("option");
+    o.value = d.id;
+    o.textContent = d.name + (d.module_count ? ` · ${d.module_count}` : "");
+    sel.appendChild(o);
+  });
+  sel.value = DISPLAY;
+  // One wall is the overwhelmingly common case, and it should look exactly as it did
+  // before any of this existed.
+  sel.classList.toggle("hidden", DISPLAYS.length < 2);
+  sel.onchange = () => switchDisplay(sel.value);
+}
+
+async function switchDisplay(id) {
+  if (!id || id === DISPLAY) return;
+  DISPLAY = id;
+  localStorage.setItem("splitflap.display", id);
+  // Everything on screen belongs to the OLD wall — its geometry, its apps, its
+  // playlists, its triggers, its gateway's tabs. Re-read the lot rather than trying to
+  // patch it, which is how you end up showing one wall's apps on another's grid.
+  await bootGrid();
+  try { await loadApps(); } catch { /* the rest must still come up */ }
+  await loadPlaylists();
+  await loadTriggers();
+  setupGatewayTabs();
+}
+
+// ---- Displays: add, rename, re-point, remove, choose the default -------------
+async function openDisplays() {
+  const body = el("div", "stack");
+  const list = el("div", "stack");
+  body.appendChild(list);
+
+  const render = async () => {
+    const doc = await api("/api/displays");
+    DISPLAYS = doc.displays || [];
+    DEFAULT_DISPLAY = doc.default;
+    list.innerHTML = "";
+
+    DISPLAYS.forEach((d) => {
+      const row = el("div", "row display-row");
+      const isDefault = d.id === doc.default;
+
+      const name = el("input", "input");
+      name.value = d.name;
+      name.setAttribute("aria-label", t("Name"));
+      const gw = el("input", "input");
+      gw.value = d.gateway_url || "";
+      gw.placeholder = "http://192.168.1.50";
+      gw.setAttribute("aria-label", t("Gateway URL"));
+
+      const info = el("span", "muted sm");
+      info.textContent = d.grid ? `${d.grid.rows}×${d.grid.cols}` : t("not running");
+
+      const save = el("button", "btn btn-sm");
+      save.textContent = t("Save");
+      // PATCH, not POST — a rename lands at once, a re-point needs a restart.
+      save.onclick = async () => {
+        const res = await fetch(url(`/api/displays/${encodeURIComponent(d.id)}`), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name.value.trim(), gateway_url: gw.value.trim() }),
+        });
+        const doc2 = await res.json();
+        if (doc2.restart_required) {
+          info.textContent = t("Restart the add-on to re-point this display");
+          info.className = "warn sm";
+        }
+        await render();
+        await loadDisplays();
+      };
+
+      const mkDefault = el("button", "btn btn-sm ghost");
+      mkDefault.textContent = isDefault ? t("Default") : t("Make default");
+      mkDefault.disabled = isDefault;
+      mkDefault.title = t("The display that anything not naming one drives — Home Assistant, the Vestaboard API, an MCP call");
+      mkDefault.onclick = async () => {
+        await post(`/api/displays/${encodeURIComponent(d.id)}/default`, {});
+        await render();
+        await loadDisplays();
+      };
+
+      const del = el("button", "btn btn-sm danger");
+      del.textContent = t("Remove");
+      del.disabled = DISPLAYS.length < 2;
+      del.onclick = async () => {
+        if (!confirm(t("Remove this display? Its settings, playlists and triggers are kept.")))
+          return;
+        const res = await fetch(url(`/api/displays/${encodeURIComponent(d.id)}`), { method: "DELETE" });
+        if (!res.ok) { alert((await res.json()).detail || t("Could not remove it")); return; }
+        if (DISPLAY === d.id) { DISPLAY = ""; localStorage.removeItem("splitflap.display"); }
+        await render();
+        await loadDisplays();
+        await switchDisplay(DEFAULT_DISPLAY);
+      };
+
+      row.append(name, gw, info, save, mkDefault, del);
+      list.appendChild(row);
+    });
+
+    // add a wall
+    const add = el("div", "row display-row");
+    const an = el("input", "input"); an.placeholder = t("Office wall");
+    const ag = el("input", "input"); ag.placeholder = "http://192.168.1.50";
+    const btn = el("button", "btn btn-sm primary");
+    btn.textContent = t("Add display");
+    btn.onclick = async () => {
+      if (!ag.value.trim()) { ag.focus(); return; }
+      const res = await fetch(url("/api/displays"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: an.value.trim() || ag.value.trim(), gateway_url: ag.value.trim() }),
+      });
+      if (!res.ok) { alert((await res.json()).detail || t("Could not add it")); return; }
+      an.value = ""; ag.value = "";
+      await render();
+      await loadDisplays();
+    };
+    add.append(an, ag, btn);
+    list.appendChild(add);
+
+    const note = el("p", "muted sm");
+    note.textContent = t("A new display starts from this one's global settings — location, language and API keys are copied so you don't retype them. They become its own from then on, and are stored on its own gateway.");
+    list.appendChild(note);
+  };
+
+  await render();
+  openModal(t("Displays"), body, []);
+}
+
+
 async function init() {
   // Unless an explicit choice was made, prefer Home Assistant's language over the
   // browser's: someone whose HA is in French wants a French add-on, whatever their
@@ -1239,6 +1421,8 @@ async function init() {
   await loadI18n();
   translateDom();
   const h = await api("/api/health"); $("version").textContent = "v" + h.version;
+  // Before ANY other /api call: DISPLAY decides which wall they are about.
+  await loadDisplays();
   wireTabs();
   await bootGrid();
   $("stopAppBtn").addEventListener("click", stopApp);

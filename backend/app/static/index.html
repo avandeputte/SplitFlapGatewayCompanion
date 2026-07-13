@@ -17,6 +17,9 @@
       <span class="ver" id="version"></span>
     </div>
     <div class="hdr-right">
+      <!-- The wall we are driving. Hidden entirely while there is only one display, so a
+           single-gateway setup — which is nearly everyone — sees no new chrome at all. -->
+      <select class="display-switch hidden" id="displaySel" title="Display" data-i18n-title="Display" aria-label="Display" data-i18n-label="Display"></select>
       <!-- Narrow screens only (see styles.css): with the gateway's tabs appended the
            strip runs to four rows on a phone, so it collapses behind this. -->
       <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" title="Menu" data-i18n-title="Menu">

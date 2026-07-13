@@ -166,7 +166,7 @@ a restart: the settings mirror, the HA device and the heartbeat are all bound to
 URL, and swapping it underneath them is how you mirror one wall's playlists onto
 another's box.
 
-### Phase 2 — routing and the switcher
+### Phase 2 — routing and the switcher ✅ DONE
 
 - Every display-scoped endpoint takes the display id. Two options, and the choice
   matters for the HACS integration and any scripts people have:
@@ -180,7 +180,7 @@ another's box.
   active display, re-fetches grid/apps/state, and re-points the gateway proxy tabs.
 - `/gw/` proxy becomes `/gw/<display-id>/`, since it targets *that* gateway.
 
-### Phase 3 — the surfaces that assume one wall
+### Phase 3 — the surfaces that assume one wall ✅ DONE
 
 Each needs a deliberate decision, and each is a place a naive implementation breaks:
 
@@ -203,7 +203,7 @@ Each needs a deliberate decision, and each is a place a naive implementation bre
   scheduler task per display, not one global one.
 - **Resume after restart**: `last_run` is per display already once settings split.
 
-### Phase 4 — the UI
+### Phase 4 — the UI ✅ DONE
 
 - Header switcher; the live preview, Compose, Playlists and Triggers all follow the
   active display. Compose's grid comes from *that* display's geometry.
@@ -240,3 +240,70 @@ Each needs a deliberate decision, and each is a place a naive implementation bre
 
 Phase 0+1 is the point of no return; 2 is where it becomes a feature; 3 is where it
 stops surprising anyone's existing automation.
+
+
+---
+
+## What landed (Phases 2-4)
+
+**Routing.** `?display=<id>` on any `/api/…` route, resolved by the one seam
+(`display_for`). Omitted, it means the default display, so every existing URL, script,
+Vestaboard client and HACS entry keeps working untouched. An unknown id is a **404**, not
+a silent fallback — driving the wrong wall is worse than failing.
+
+**The SPA follows one variable.** `url()` appends the active display to every `/api/` call
+— the client-side twin of `display_for`, so switching walls is one variable rather than a
+change at ~40 call sites. Switching re-reads the grid, apps, playlists, triggers and the
+gateway's tabs, because all of them belong to a wall. The chosen wall is remembered per
+browser. **With one display the switcher is hidden entirely**, so the overwhelming
+majority of installs see no new chrome at all.
+
+**The gateway proxy is addressed by PATH** (`/gw/<id>/…`), not a query param: it rewrites
+the proxied page's own links to a base, so `?display=` would be dropped on the first click
+*inside* the gateway's page and the next request would land on the default wall. A bare
+`/gw/…` stays the default display, so existing bookmarks and the gateway's own absolute
+links keep working.
+
+**MQTT / Home Assistant: one device per wall.** `node_id` and `topic_prefix` come from
+config, which is identical for every display — two walls would have published to the same
+topics under the same device identifier and the second one's discovery would have
+overwritten the first's. Each display now gets its own, **except the default, which keeps
+the historic unsuffixed ids**: suffixing it would orphan every existing entity and
+silently break any automation pointing at `select.splitflap_companion_app`.
+
+**Vestaboard.** `/local-api/message` stays bound to the default display — a Vestaboard *is*
+one board, and every existing client (ha-vestaboard included) posts to that fixed path with
+no way to name a wall. `/local-api/<display-id>/message` addresses the others.
+
+**MCP.** Every tool takes an optional `display`; omitted, it is the default. Requiring it
+would have regressed every prompt ever written against this server. A new `list_displays`
+tool is how an agent finds the others.
+
+**`GATEWAY_URL` takes a comma-delimited list** — `http://kitchen,http://office` — so a Home
+Assistant user configures both walls from the single Configuration-tab option they already
+have. The first entry owns display `default`. Entries only ever **add**: a display created
+in the UI is never removed because it stopped appearing in the env, which would take its
+playlists and triggers with it. (The add-on schema had to move from `url` to `str`; the
+`url` validator rejects a list outright.)
+
+**Displays page** in the Tools menu: add, rename, re-point, remove, choose the default.
+Adding a wall starts it immediately — no restart — and copies the global settings from an
+existing one so nobody retypes an API key. Removing one leaves its settings on disk.
+
+### Still open
+
+- **The HACS integration lives in another repo** and is unchanged. Its existing config
+  entries keep working: they address no display, so they drive the default one. Giving it a
+  device per display means teaching its coordinator to fan out over `/api/displays` and
+  adding an optional `display` target to `splitflap.message` — a change to make there, not
+  here.
+- **Re-pointing a running display at a different gateway needs a restart.** The settings
+  mirror, the HA device and the heartbeat are all bound to the old URL, and swapping it
+  underneath them is how you mirror one wall's playlists onto another's box. Add/remove and
+  enable/disable are all live.
+- **UI chrome language** still resolves from the default display's settings (level 2 of the
+  uilang chain). With N walls there is no obviously right answer, and it is one language for
+  one browser, so it stays as it is until someone asks.
+- **Shared fetch caches.** Two displays running Weather fetch it twice; each `PluginRuntime`
+  holds its own caches. Worth a shared cache keyed by (app, resolved settings) only if it
+  bites.

@@ -491,3 +491,28 @@ fieldset { border-color: var(--acc); border-radius: 8px; }
   }
   .nav-toggle { border-color: var(--acc); color: var(--txt); }
 }
+
+/* ---- displays -------------------------------------------------------------
+   The header switcher only exists when there is more than one wall (app.js hides
+   it otherwise), so a single-gateway setup — nearly everyone — sees no new chrome. */
+.display-switch {
+  background: var(--panel, #1b1f27);
+  color: inherit;
+  border: 1px solid var(--line, #2c313c);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 13px;
+  max-width: 170px;
+}
+.display-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line, #2c313c);
+}
+.display-row .input { flex: 1 1 140px; min-width: 120px; }
+.display-row .btn { flex: 0 0 auto; }
+.warn.sm { color: var(--warn, #e0a33e); font-size: 12px; }

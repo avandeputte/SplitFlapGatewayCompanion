@@ -32,15 +32,34 @@ import time
 log = logging.getLogger("companion.ha")
 
 
+# The display whose HA entities keep the historic, unsuffixed ids. Suffixing the
+# default would orphan every existing entity and silently break any automation
+# pointing at select.splitflap_companion_app.
+DEFAULT_DISPLAY_ID = "default"
+
+
 class HomeAssistant:
-    def __init__(self, config, plugins, controller):
+    def __init__(self, config, plugins, controller, display_id: str = "", display_name: str = ""):
         self.config = config
         self.plugins = plugins
         self.controller = controller
         self.settings = plugins.settings
         ha = config.effective.get("ha", {})
-        self.node = ha.get("node_id", "splitflap-companion")
-        self.tp = ha.get("topic_prefix", "splitflap-companion")
+        node = ha.get("node_id", "splitflap-companion")
+        tp = ha.get("topic_prefix", "splitflap-companion")
+        # One HA device per DISPLAY. The node id and topic prefix come from config, which
+        # is the same for every display, so two walls would otherwise publish to the same
+        # topics under the same device identifier and fight over it — the second wall's
+        # discovery would overwrite the first's, and its state would clobber it.
+        #
+        # The DEFAULT display keeps the unsuffixed ids it has always had, so an existing
+        # Home Assistant install keeps its entities (a suffix here would orphan them and
+        # silently break every automation pointing at select.splitflap_companion_app).
+        suffix = f"_{display_id}" if display_id and display_id != DEFAULT_DISPLAY_ID else ""
+        self.display_id = display_id or DEFAULT_DISPLAY_ID
+        self.display_name = display_name or "SplitFlap"
+        self.node = f"{node}{suffix}"
+        self.tp = f"{tp}{suffix}"
         self.dp = ha.get("discovery_prefix", "homeassistant")
         self._client = None
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -62,7 +81,13 @@ class HomeAssistant:
         return f"{self.dp}/{comp}/{self.node}/{obj}/config"
 
     def _device(self) -> dict:
-        return {"identifiers": [self.node], "name": "SplitFlap Companion",
+        # One device per wall, named after it, so a Home Assistant user with two displays
+        # sees "SplitFlap Companion (Kitchen)" and "(Office)" rather than one device whose
+        # controls drive whichever wall registered last.
+        name = "SplitFlap Companion"
+        if self.display_id != DEFAULT_DISPLAY_ID:
+            name = f"{name} ({self.display_name})"
+        return {"identifiers": [self.node], "name": name,
                 "manufacturer": "SplitFlap", "model": "Gateway Companion"}
 
     # -- discovery + state --------------------------------------------------

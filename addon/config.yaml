@@ -68,7 +68,13 @@ options:
 
 schema:
   # Required: the app refuses to start without it.
-  gateway_url: url
+  #
+  # `str`, not `url`: from 1.9 this takes a COMMA-DELIMITED LIST, one entry per gateway
+  # (http://192.168.1.218,http://192.168.1.50), and the `url` validator rejects a list
+  # outright. The two channels are the same app and their schemas must not drift (a test
+  # pins that), so stable carries it too — it is only ever a single URL here until 1.9
+  # goes stable, which is what this channel's docs describe.
+  gateway_url: str
   # The gateway never exposes the MQTT password; set it here if your broker needs auth.
   mqtt_password: password?
   # This add-on's own URL, registered with the gateway so it shows a "Companion" tab.

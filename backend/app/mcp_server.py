@@ -37,8 +37,13 @@ from . import renderer, vestaboard
 log = logging.getLogger("companion.mcp")
 
 
-def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
-    """Wire the tools onto the app's live singletons and return the server.
+def build(displays) -> FastMCP:
+    """Wire the tools onto the live DisplayManager and return the server.
+
+    Every tool takes an optional `display`. Omitted, it means the DEFAULT display — which
+    is what keeps existing prompts and clients working: they were written when there was
+    one wall and send no display id. Requiring the argument would have regressed all of
+    them. `list_displays` is how an agent finds the others.
 
     ``stateless_http`` keeps every call self-contained: there is no per-client session
     held on the server, so a plain POST works and a client that reconnects has nothing
@@ -69,19 +74,53 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
     )
 
-    def _grid() -> tuple[int, int]:
-        g = config.grid
+    def _res(display: str = ""):
+        """The wall a call is about. No id -> the default one."""
+        if not display:
+            return displays.default
+        d = displays.get(display)
+        if d is None:
+            known = ", ".join(displays.ids())
+            raise ValueError(f"no such display: {display!r} (known: {known})")
+        return d
+
+    def _grid(d) -> tuple[int, int]:
+        g = d.config.grid
         return int(g["rows"]), int(g["cols"])
 
-    def _app_name(app_id: str | None) -> str | None:
+    def _app_name(d, app_id: str | None) -> str | None:
         if not app_id:
             return None
-        m = plugins.manifest(app_id) or {}
+        m = d.plugins.manifest(app_id) or {}
         return m.get("name", app_id)
 
     @mcp.tool()
-    def get_display() -> dict:
+    def list_displays() -> list[dict]:
+        """The split-flap displays this companion drives.
+
+        Most setups have one, and every other tool defaults to it, so you only need this
+        when the user talks about a particular wall ("what's on the kitchen display?").
+        Pass an `id` from here as the `display` argument to any other tool. `is_default`
+        marks the one used when no display is given.
+        """
+        out = []
+        for d in displays.all():
+            st = d.status()
+            out.append({
+                "id": st["id"],
+                "name": st["name"],
+                "rows": (st["grid"] or {}).get("rows"),
+                "cols": (st["grid"] or {}).get("cols"),
+                "is_default": st["id"] == displays.default_id,
+                "showing": st["active_app"] or st["active_playlist"] or None,
+            })
+        return out
+
+    @mcp.tool()
+    def get_display(display: str = "") -> dict:
         """What the split-flap display is showing right now.
+
+        `display` picks the wall (see list_displays); omit it for the default one.
 
         `lines` is the actual flaps, a running app's output included. `driver` says what
         is in control: "app", "playlist", "message" (a manual/one-off message), or "idle".
@@ -90,8 +129,9 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         is the one currently up (null during a composed message). When a playlist is
         driving, `playlist` places it in the rotation: which entry, of how many, what's next.
         """
-        rows, cols = _grid()
-        snap = state.snapshot()
+        d = _res(display)
+        rows, cols = _grid(d)
+        snap = d.state.snapshot()
         chars = snap["chars"]
 
         if snap.get("active_playlist"):
@@ -109,7 +149,7 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
             "cols": cols,
             "lines": ["".join(chars[r * cols:(r + 1) * cols]) for r in range(rows)],
             "driver": driver,
-            "showing": {"app_id": showing, "name": _app_name(showing)} if showing else None,
+            "showing": {"app_id": showing, "name": _app_name(d, showing)} if showing else None,
         }
         if driver == "playlist":
             labels = snap.get("playlist_entries") or []
@@ -126,8 +166,10 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
 
     @mcp.tool()
     async def show_message(text: str, style: str | None = None,
-                           seconds: int | None = None) -> dict:
+                           seconds: int | None = None, display: str = "") -> dict:
         """Show text on the display, centred and word-wrapped (newlines force a line break).
+
+        `display` picks the wall (see list_displays); omit it for the default one.
 
         `style` is the flap transition (see list_styles); omit it for the display's default.
 
@@ -142,7 +184,8 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         if style and style not in renderer.ALL_STYLES:
             raise ValueError(
                 f"unknown style {style!r} — one of: {', '.join(renderer.ALL_STYLES)}")
-        rows, cols = _grid()
+        d = _res(display)
+        rows, cols = _grid(d)
         # The same two steps a Vestaboard text write makes, and for the same reasons:
         # the board has no lowercase flaps (cp1252_upper keeps accents one cell wide),
         # and layout_text is the shared "centre it on the wall" layout. The result is
@@ -154,8 +197,8 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         if seconds and seconds > 0:
             # A temporary takeover: the running app/playlist parks and resumes after. Runs
             # in the background (the message can last minutes) so the tool returns at once.
-            running = controller.show_temporary(page, seconds, style=style or "ltr")
-            ha.publish_state()
+            running = d.controller.show_temporary(page, seconds, style=style or "ltr")
+            d.ha.publish_state()
             return {"ok": True, "lines": lines, "seconds": seconds,
                     "reverts_to": "the running app/playlist" if running else "blank"}
 
@@ -163,28 +206,34 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         # the transition. A Compose push can return early because a human is watching
         # the wall — an agent is not, and it will call get_display next. If the tool
         # returned while the flaps were still turning, it would read back the OLD board.
-        await controller.send_text(page, style=style, raw=True)
-        ha.publish_state()
+        await d.controller.send_text(page, style=style, raw=True)
+        d.ha.publish_state()
         return {"ok": True, "lines": lines}
 
     @mcp.tool()
-    async def clear_display() -> dict:
-        """Blank every module, stopping any running app or playlist."""
-        await controller.clear()
-        ha.publish_state()
+    async def clear_display(display: str = "") -> dict:
+        """Blank every module, stopping any running app or playlist.
+
+        `display` picks the wall (see list_displays); omit it for the default one."""
+        d = _res(display)
+        await d.controller.clear()
+        d.ha.publish_state()
         return {"ok": True}
 
     @mcp.tool()
-    def list_apps() -> list[dict]:
+    def list_apps(display: str = "") -> list[dict]:
         """The apps installed on this display (weather, clock, stocks, ...).
+
+        Installed apps are PER display, so two walls can have different ones.
 
         Pass an `id` to run_app. `configurable` marks apps with their own settings — use
         get_app_settings / configure_app on those. These are the web UI's Apps tab list.
         """
+        d = _res(display)
         out = []
-        for a in plugins.app_list():
+        for a in d.plugins.app_list():
             try:
-                configurable = bool(_app_fields(a["id"]))
+                configurable = bool(_app_fields(d, a["id"]))
             except Exception:
                 configurable = False        # a broken/odd app must not sink the whole list
             out.append({"id": a["id"], "name": a["name"],
@@ -192,24 +241,27 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         return out
 
     @mcp.tool()
-    async def run_app(app_id: str) -> dict:
-        """Run an installed app on the display (ids come from list_apps)."""
+    async def run_app(app_id: str, display: str = "") -> dict:
+        """Run an installed app on the display (ids come from list_apps).
+
+        `display` picks the wall (see list_displays); omit it for the default one."""
+        d = _res(display)
         app_id = app_id[7:] if app_id.startswith("plugin_") else app_id
         try:
-            await controller.run_app(app_id)
+            await d.controller.run_app(app_id)
         except KeyError:
             raise ValueError(f"app not installed: {app_id}")
-        ha.publish_state()
-        return {"ok": True, "active_app": app_id}
+        d.ha.publish_state()
+        return {"ok": True, "active_app": app_id, "display": d.id}
 
     def _norm_id(app_id: str) -> str:
         return app_id[7:] if app_id.startswith("plugin_") else app_id
 
-    def _app_fields(app_id: str) -> list[dict]:
+    def _app_fields(d, app_id: str) -> list[dict]:
         """This app's own settings as {name, label, type, value, options?}, with the
         storage prefix (plugin_<id>_) stripped off the name for a client to use. Skips the
         notice rows and the pointer to the global settings."""
-        schema = plugins.settings_schema(app_id)
+        schema = d.plugins.settings_schema(app_id)
         values = schema.get("values", {})
         prefix = f"plugin_{app_id}_"
         out = []
@@ -226,31 +278,38 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         return out
 
     @mcp.tool()
-    def get_app_settings(app_id: str) -> dict:
+    def get_app_settings(app_id: str, display: str = "") -> dict:
         """An app's settings and their current values — what configure_app can change.
+
+        Settings are PER display: the same app on two walls has two sets of them.
 
         Names are short (e.g. "stocks_list", "location"); pass those same names back to
         configure_app. `type` tells you the shape ("number", "toggle", "select" with
         `options`, "search_chips" for a place/ticker list, "text"/"password").
         """
+        d = _res(display)
         app_id = _norm_id(app_id)
         try:
-            return {"app_id": app_id, "settings": _app_fields(app_id)}
+            return {"app_id": app_id, "settings": _app_fields(d, app_id)}
         except KeyError:
             raise ValueError(f"app not installed: {app_id}")
 
     @mcp.tool()
-    async def configure_app(app_id: str, settings: dict) -> dict:
+    async def configure_app(app_id: str, settings: dict, display: str = "") -> dict:
         """Change an app's settings (see get_app_settings for the names and current values).
+
+        Changes only the wall you name (default: the default one) — the same app on another
+        display keeps its own settings.
 
         `settings` maps short names to values, e.g. {"stocks_list": "AAPL,MSFT"} or
         {"location": "Paris, France"}. If the app is on the display now, it restarts so the
         change shows immediately. Only that app's own settings are accepted — display-wide
         options (Language, Location, Timezone) live in the global settings, not here.
         """
+        d = _res(display)
         app_id = _norm_id(app_id)
         try:
-            valid = {f["name"] for f in _app_fields(app_id)}
+            valid = {f["name"] for f in _app_fields(d, app_id)}
         except KeyError:
             raise ValueError(f"app not installed: {app_id}")
         if not isinstance(settings, dict) or not settings:
@@ -265,23 +324,26 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         # Store under the plugin_<id>_ keys the settings store expects.
         prefixed = {f"plugin_{app_id}_{k.replace(f'plugin_{app_id}_', '')}": v
                     for k, v in settings.items()}
-        plugins.save_settings(app_id, prefixed)
+        d.plugins.save_settings(app_id, prefixed)
         # Restart it if it's the one on screen, so the change takes effect now (page dwell,
         # refresh cadence, content) — the same thing the web UI's settings dialog does.
-        if controller.active_app == app_id:
-            await controller.run_app(app_id)
-        ha.publish_state()
-        return {"ok": True, "app_id": app_id, "settings": _app_fields(app_id)}
+        if d.controller.active_app == app_id:
+            await d.controller.run_app(app_id)
+        d.ha.publish_state()
+        return {"ok": True, "app_id": app_id, "settings": _app_fields(d, app_id)}
 
     @mcp.tool()
-    def list_playlists() -> list[dict]:
+    def list_playlists(display: str = "") -> list[dict]:
         """The saved playlists (run one with run_playlist).
+
+        Playlists are PER display — each wall has its own.
 
         `apps` is the running order — the app ids in sequence, "(message)" for a composed
         entry — so you can say what a playlist contains and in what order without running it.
         """
         from .engine import _entry_label
-        saved = plugin_settings.get("saved_app_playlists", {}) or {}
+        d = _res(display)
+        saved = d.settings.get("saved_app_playlists", {}) or {}
         return [
             {"name": n,
              "apps": [_entry_label(e) for e in (p or {}).get("entries", [])],
@@ -290,24 +352,30 @@ def build(config, state, controller, plugins, plugin_settings, ha) -> FastMCP:
         ]
 
     @mcp.tool()
-    async def run_playlist(name: str) -> dict:
-        """Run a saved playlist by name (names come from list_playlists)."""
-        saved = plugin_settings.get("saved_app_playlists", {}) or {}
+    async def run_playlist(name: str, display: str = "") -> dict:
+        """Run a saved playlist by name (names come from list_playlists).
+
+        `display` picks the wall (see list_displays); omit it for the default one."""
+        d = _res(display)
+        saved = d.settings.get("saved_app_playlists", {}) or {}
         pl = saved.get(name)
         if not pl:
             raise ValueError(f"no such playlist: {name}")
         entries = pl.get("entries") or []
         if not entries:
             raise ValueError(f"playlist {name!r} has no entries")
-        await controller.run_playlist(entries, pl.get("loop", True), name)
-        ha.publish_state()
-        return {"ok": True, "active_playlist": controller.active_playlist}
+        await d.controller.run_playlist(entries, pl.get("loop", True), name)
+        d.ha.publish_state()
+        return {"ok": True, "active_playlist": d.controller.active_playlist, "display": d.id}
 
     @mcp.tool()
-    async def stop() -> dict:
-        """Stop the running app or playlist, leaving what it last drew on the board."""
-        await controller.stop_app()
-        ha.publish_state()
+    async def stop(display: str = "") -> dict:
+        """Stop the running app or playlist, leaving what it last drew on the board.
+
+        `display` picks the wall (see list_displays); omit it for the default one."""
+        d = _res(display)
+        await d.controller.stop_app()
+        d.ha.publish_state()
         return {"ok": True}
 
     @mcp.tool()

@@ -26,7 +26,7 @@ settings are read from it, so its URL is normally the only thing you have to ent
 
 | Option | Default | What it does |
 |---|---|---|
-| `gateway_url` | — | **Required.** Your SplitFlapGateway's URL. The add-on refuses to start without it. |
+| `gateway_url` | — | **Required.** Your SplitFlapGateway's URL. Takes a comma-separated list to drive several displays: `http://192.168.1.218,http://192.168.1.50`. The first is the default display. The add-on refuses to start without at least one. |
 | `mqtt_password` | *(unset)* | Only if your MQTT broker needs auth. The gateway publishes its broker/user/prefix but never the password, so it is set here. |
 | `companion_public_url` | *(auto)* | This add-on's own URL, registered with the gateway so the gateway shows a "Companion" tab linking back here. Leave blank: the add-on asks Supervisor for the **host's** address and the port it is published on. (It cannot work this out by itself — from inside the container the only address it can see is its own `172.30.x.x` on Home Assistant's internal bridge, which nothing on your LAN can reach.) Set it only if you front the add-on with a reverse proxy. |
 | `home_assistant` | `auto` | MQTT integration. `auto` follows the gateway's own HA setting. Publishes a *SplitFlap Companion* device with App/Playlist selects and a Stop button. |

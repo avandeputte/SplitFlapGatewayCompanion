@@ -214,6 +214,28 @@ class DisplayRegistry:
         self.save()
         log.info("default display is now %r", display_id)
 
+    def adopt_env_gateways(self, urls: list[str]) -> list["DisplayRecord"]:
+        """Follow a comma-delimited GATEWAY_URL: `http://kitchen,http://office`.
+
+        The FIRST entry owns display `default` (see adopt_env_gateway). Every later entry
+        that no display already points at becomes a new display, so a Home Assistant user
+        can configure two walls from the single `gateway_url` option they already have,
+        without touching the registry by hand.
+
+        Entries only ever ADD. A display is never removed because it stopped appearing in
+        the list: someone who adds a wall in the UI and later edits the env for an
+        unrelated reason must not silently lose it, along with its playlists and triggers.
+        """
+        added = []
+        for url in [u.strip() for u in urls if u and u.strip()][1:]:
+            if any(r.gateway_url == url for r in self.all()):
+                continue
+            n = len(self.all()) + 1
+            added.append(self.add(name=f"{DEFAULT_NAME} {n}", gateway_url=url,
+                                  display_id=f"display-{n}"))
+            log.info("GATEWAY_URL listed a gateway we had no display for: %s", url)
+        return added
+
     def adopt_env_gateway(self, url: str) -> bool:
         """Keep display `default` pointed at whatever GATEWAY_URL / the add-on option says.
 

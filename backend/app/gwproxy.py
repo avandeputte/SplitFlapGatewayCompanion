@@ -75,19 +75,41 @@ _SHIM = """<script>
 </script>"""
 
 
-def _bases(request: Request) -> tuple[str, str]:
+def _bases(request: Request, display_id: str = "") -> tuple[str, str]:
     """(gateway-under-us, companion) as the *browser* sees them.
 
     Under Home Assistant the page is served from /api/hassio_ingress/<token>/, and every
     absolute path the browser builds has to carry that prefix or it resolves against the
     Home Assistant root. Same header the SPA shell uses (see main.spa_index).
+
+    With several displays the base carries the display id, because the proxy REWRITES the
+    gateway's own links to it: a `?display=` query param would be dropped the moment you
+    clicked anything inside the proxied page, and the next click would silently land on
+    the default wall's gateway.
     """
     ingress = (request.headers.get("X-Ingress-Path") or "").rstrip("/")
-    return f"{ingress}{PREFIX}", ingress
+    seg = f"/{display_id}" if display_id else ""
+    return f"{ingress}{PREFIX}{seg}", ingress
 
 
-def build(config) -> APIRouter:
+def build(displays) -> APIRouter:
+    """`displays` is the DisplayManager: which gateway we proxy depends on the URL."""
     router = APIRouter()
+
+    def _resolve(path: str):
+        """Split `<display-id>/<path>` from a plain `<path>` on the default gateway.
+
+        `/gw/<path>` has always meant the one gateway, and bookmarks (and the gateway's
+        own absolute links, which we rewrite) rely on it, so it must keep working. So the
+        first segment is treated as a display id only when it actually names one — a
+        gateway path that collides with a display id is fixable by renaming the display,
+        whereas breaking every existing /gw/ URL is not.
+        """
+        head, _, rest = path.lstrip("/").partition("/")
+        d = displays.get(head)
+        if d is not None:
+            return d, rest, head
+        return displays.default, path, ""
 
     def _rewrite_html(html: str, base: str, companion: str) -> str:
         shim = _SHIM % {"base": _js(base), "companion": _js(companion)}
@@ -103,11 +125,12 @@ def build(config) -> APIRouter:
     @router.api_route(PREFIX + "/{path:path}",
                       methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
     async def proxy(request: Request, path: str = ""):
-        gw = (config.transport.get("gateway_url") or "").rstrip("/")
+        display, path, display_id = _resolve(path)
+        gw = display.gateway_url.rstrip("/")
         if not gw:
             return Response("no gateway configured", status_code=503)
 
-        base, companion = _bases(request)
+        base, companion = _bases(request, display_id)
         target = f"{gw}/{path.lstrip('/')}"
         body = await request.body()
         # Drop the conditional headers: we rewrite the page, so the gateway's ETag is not

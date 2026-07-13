@@ -104,7 +104,9 @@ class Display:
             settings=settings,
             plugins=plugins,
             scheduler=Scheduler(controller, plugins),
-            ha=HomeAssistant(cfg, plugins, controller),
+            # Its own HA device, on its own MQTT topics — two walls must not fight over one.
+            ha=HomeAssistant(cfg, plugins, controller,
+                             display_id=id, display_name=name or "SplitFlap"),
         )
 
     # -- convenience -----------------------------------------------------------

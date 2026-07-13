@@ -31,8 +31,25 @@ GATEWAY_PAGE = (
 INGRESS = {"X-Ingress-Path": "/api/hassio_ingress/tok"}
 
 
-class _Cfg:
-    transport = {"gateway_url": "http://192.168.1.229"}
+class _Display:
+    def __init__(self, id="default", gateway_url="http://192.168.1.229"):
+        self.id = id
+        self.gateway_url = gateway_url
+
+
+class _Displays:
+    """The DisplayManager, as far as the proxy is concerned: which gateway is under
+    /gw/<id>/… , and which one a bare /gw/… means."""
+
+    def __init__(self, *displays):
+        self._d = {d.id: d for d in (displays or (_Display(),))}
+
+    def get(self, display_id):
+        return self._d.get(display_id) if display_id else None
+
+    @property
+    def default(self):
+        return next(iter(self._d.values()))
 
 
 class _FakeGateway:
@@ -73,7 +90,7 @@ def client(monkeypatch):
         fake = _FakeGateway(**kw)
         monkeypatch.setattr(gwproxy.httpx, "AsyncClient", fake)
         app = FastAPI()
-        app.include_router(gwproxy.build(_Cfg()))
+        app.include_router(gwproxy.build(_Displays()))
         return TestClient(app), fake
     return build
 
@@ -152,16 +169,29 @@ def test_an_unreachable_gateway_is_a_502_not_a_crash(client, monkeypatch):
 
     monkeypatch.setattr(gwproxy.httpx, "AsyncClient", Boom())
     app = FastAPI()
-    app.include_router(gwproxy.build(_Cfg()))
+    app.include_router(gwproxy.build(_Displays()))
     assert TestClient(app).get("/gw/").status_code == 502
 
 
 def test_the_spa_links_gateway_tabs_through_the_proxy():
-    """A direct link to the gateway's own address leaves Home Assistant."""
+    """A direct link to the gateway's own address leaves Home Assistant. And it must be
+    the ACTIVE display's gateway: with two walls, linking to the bare /gw/ would open the
+    default gateway's page while the UI showed the other wall."""
     from pathlib import Path
     js = (Path(__file__).resolve().parents[1] / "app" / "static" / "app.js").read_text()
-    assert 'a.href = `${url("/gw/")}#${tab.id}`' in js
+    assert 'a.href = `${gwUrl()}#${tab.id}`' in js
     assert 'a.target = "_top"' not in js
+
+
+def test_the_proxy_is_addressed_by_path_not_by_query():
+    """The proxy rewrites the gateway page's own links to its base, so a ?display= would
+    be dropped on the first click INSIDE the proxied page and the next request would land
+    on the default wall's gateway. The display has to be in the path."""
+    from pathlib import Path
+    js = (Path(__file__).resolve().parents[1] / "app" / "static" / "app.js").read_text()
+    assert 'const gwUrl = () => url("/gw/"' in js
+    # url() adds ?display= to /api/ paths ONLY — never to the proxy
+    assert 'if (!DISPLAY || !path.startsWith("/api/")) return u;' in js
 
 
 def test_setup_gateway_tabs_does_not_shadow_the_url_helper():
