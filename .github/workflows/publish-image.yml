@@ -73,15 +73,40 @@ jobs:
           cache-to: type=gha,mode=max
 
       # Keep the registry tidy: after each publish, delete old versions of the image.
-      # `latest`, `beta` and the just-pushed `:<version>` are preserved; only superseded
-      # builds are removed. min-versions-to-keep is set so the CURRENT multi-arch image is
-      # never touched — one build is an index plus its per-arch child manifests (which
-      # appear as untagged versions), so a too-small keep would orphan the arch layers of
-      # the very image we just pushed and break `latest`/`beta`.
+      #
+      # min-versions-to-keep counts REGISTRY VERSIONS, not releases, and one multi-arch
+      # build is worth several: the index, one child manifest per architecture, and the
+      # attestation manifests buildx attaches. It was 6 — nominally "two builds" — which
+      # in practice retained barely ONE, and a beta publish deleted the stable image that
+      # :latest and the stable add-on point at. The channels must survive a publish of the
+      # OTHER channel, so keep enough versions for several builds of each.
       - name: Prune old image versions
         uses: actions/delete-package-versions@v5
         with:
           package-name: splitflap-gateway-companion
           package-type: container
-          min-versions-to-keep: 6
+          min-versions-to-keep: 30
           delete-only-untagged-versions: false
+
+      # A publish that leaves a channel tag dangling is a broken install for anyone on it
+      # (Supervisor pulls :<version> and gets nothing). Prove both channels still resolve
+      # before calling the run green — the prune above is the thing most likely to break
+      # them, and it did once.
+      - name: Verify the channel tags still resolve
+        run: |
+          IMAGE="${{ steps.meta.outputs.image }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          fail=0
+          for tag in "$VERSION" beta latest; do
+            if docker buildx imagetools inspect "$IMAGE:$tag" >/dev/null 2>&1; then
+              echo "ok      $IMAGE:$tag"
+            elif [ "$tag" = latest ] && [ "${VERSION#*-}" != "$VERSION" ]; then
+              # A prerelease never moves :latest; only complain if it vanished entirely.
+              echo "MISSING $IMAGE:latest — a prerelease must not leave stable dangling"
+              fail=1
+            else
+              echo "MISSING $IMAGE:$tag"
+              fail=1
+            fi
+          done
+          exit $fail
