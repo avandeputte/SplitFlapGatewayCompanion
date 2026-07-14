@@ -226,80 +226,187 @@ def _row(left, right, cols):
     return left + ' ' * (cols - len(left) - len(right)) + right
 
 
-# The sky, as one flap. A colour is the only weather icon that works on EVERY wall: the flap
-# reel has no cloud or raindrop, but it has had seven colours since the beginning, and a
-# split-flap shows them natively. (The tile characters here are mapped to the colour flaps by
-# renderer.COLOR_MAP.)
+# The sky: a WORD, an intensity, and a colour.
+#
+# The word is what you actually want to know — a colour tells you "wet" but not whether that
+# is drizzle or a downpour. The intensity is a `-` or `+` suffix rather than a separate word
+# (LRain / HRain) because a suffix survives translation: every language gets to keep its own
+# noun and the sign means the same thing everywhere. And it is short, which is the whole
+# problem: a 15-column line has room for a day, a condition and 24/14, and nothing else.
+#
+# The colour still comes along when the wall is wide enough for it.
 _SKY = {
-    'clear': '\U0001f7e8',    # yellow — sun
-    'cloud': '\u2b1c',        # white  — cloud, fog, overcast
-    'rain': '\U0001f7e6',     # blue   — drizzle, rain, showers
-    'snow': '\U0001f7ea',     # purple — cold
-    'storm': '\U0001f7e5',    # red    — severe
+    #  token       word       suffix  colour tile
+    'clear':     ('Sunny',    '',     '\U0001f7e8'),   # yellow
+    'pcloudy':   ('PSunny',   '',     '\u2b1c'),       # white
+    'cloudy':    ('Cloudy',   '',     '\u2b1c'),
+    'fog':       ('Fog',      '',     '\u2b1c'),
+    'rainl':     ('Rain',     '-',    '\U0001f7e6'),   # blue
+    'rain':      ('Rain',     '',     '\U0001f7e6'),
+    'rainh':     ('Rain',     '+',    '\U0001f7e6'),
+    'shwr':      ('Shwrs',    '',     '\U0001f7e6'),
+    'snowl':     ('Snow',     '-',    '\U0001f7ea'),   # purple
+    'snow':      ('Snow',     '',     '\U0001f7ea'),
+    'snowh':     ('Snow',     '+',    '\U0001f7ea'),
+    'sleet':     ('Sleet',    '',     '\U0001f7ea'),
+    'storm':     ('Storm',    '',     '\U0001f7e5'),   # red
+    'hail':      ('Hail',     '',     '\U0001f7e5'),
 }
+_SKY_MAX = 6        # the longest word a forecast column can hold on a 15-wide wall
+
+# Worst-first, for a provider that gives a forecast in slots rather than days (OpenWeather):
+# the day is described by the worst thing that happens in it, because that is the thing you
+# would have wanted to know before you went out.
+_SEVERITY = ('clear', 'pcloudy', 'cloudy', 'fog', 'rainl', 'shwr', 'rain', 'rainh',
+             'snowl', 'snow', 'snowh', 'sleet', 'hail', 'storm')
+
+
+def _sky_word(sky, t):
+    """The condition, translated and short enough for the wall.
+
+    The `-`/`+` is dropped rather than the noun when a language's word is already as long as
+    the column: knowing it is snow matters more than knowing it is light snow, and a
+    truncated noun ("Schne+") tells you neither.
+    """
+    word, suffix, _ = _SKY.get(sky or 'cloudy', _SKY['cloudy'])
+    word = t(word)
+    return word + suffix if len(word) + len(suffix) <= _SKY_MAX else word[:_SKY_MAX]
+
+
+def _sky_tile(sky, mono):
+    if mono:
+        return ''
+    return _SKY.get(sky or 'cloudy', _SKY['cloudy'])[2]
 
 
 def _sky_of_code(code):
-    """Open-Meteo's WMO weather code -> a sky family."""
+    """Open-Meteo's WMO weather code."""
     if code is None:
-        return 'cloud'
+        return 'cloudy'
     c = int(code)
-    if c == 0:
-        return 'clear'
-    if c in (95, 96, 99):
-        return 'storm'
-    if c in (71, 73, 75, 77, 85, 86):
-        return 'snow'
-    if 51 <= c <= 82:
-        return 'rain'
-    return 'cloud'          # 1-3 cloudy, 45/48 fog
+    return {
+        0: 'clear', 1: 'clear', 2: 'pcloudy', 3: 'cloudy',
+        45: 'fog', 48: 'fog',
+        51: 'rainl', 53: 'rainl', 55: 'rain',
+        56: 'sleet', 57: 'sleet',
+        61: 'rainl', 63: 'rain', 65: 'rainh',
+        66: 'sleet', 67: 'sleet',
+        71: 'snowl', 73: 'snow', 75: 'snowh', 77: 'snow',
+        80: 'shwr', 81: 'shwr', 82: 'rainh',
+        85: 'snowl', 86: 'snowh',
+        95: 'storm', 96: 'hail', 99: 'hail',
+    }.get(c, 'cloudy')
 
 
 def _sky_of_openweather(wid):
-    """OpenWeather's condition id -> a sky family."""
+    """OpenWeather's condition id."""
     if wid is None:
-        return 'cloud'
+        return 'cloudy'
     w = int(wid)
-    if w < 300:
-        return 'storm'
-    if w < 600:
-        return 'rain'
-    if w < 700:
-        return 'snow'
     if w == 800:
         return 'clear'
-    return 'cloud'
+    if w in (801, 802):
+        return 'pcloudy'
+    if 803 <= w <= 804:
+        return 'cloudy'
+    if w == 781:
+        return 'storm'
+    if 700 <= w < 800:
+        return 'fog'
+    if 200 <= w < 300:
+        return 'storm'
+    if 300 <= w < 400:
+        return 'rainl'
+    if w == 511:
+        return 'sleet'
+    if 520 <= w < 600:
+        return 'shwr'
+    if w == 500:
+        return 'rainl'
+    if w == 501:
+        return 'rain'
+    if 502 <= w < 520:
+        return 'rainh'
+    if w in (611, 612, 613, 615, 616):
+        return 'sleet'
+    if w == 600:
+        return 'snowl'
+    if w == 602:
+        return 'snowh'
+    if 600 <= w < 700:
+        return 'snow'
+    return 'cloudy'
 
 
 def _sky_of_weatherapi(code):
     if code is None:
-        return 'cloud'
+        return 'cloudy'
     c = int(code)
     if c == 1000:
         return 'clear'
+    if c == 1003:
+        return 'pcloudy'
+    if c in (1006, 1009):
+        return 'cloudy'
+    if c in (1030, 1135, 1147):
+        return 'fog'
     if c in (1087, 1273, 1276, 1279, 1282):
         return 'storm'
-    if 1210 <= c <= 1264 or c in (1066, 1069, 1072, 1114, 1117):
+    if c in (1237, 1261, 1264):
+        return 'hail'
+    if c in (1069, 1072, 1168, 1171, 1198, 1201, 1204, 1207, 1249, 1252):
+        return 'sleet'
+    if c in (1066, 1210, 1213):
+        return 'snowl'
+    if c in (1222, 1225):
+        return 'snowh'
+    if c in (1216, 1219, 1255, 1258):
         return 'snow'
-    if 1063 <= c <= 1201 or c in (1240, 1243, 1246):
+    if c in (1240, 1243, 1246):
+        return 'shwr'
+    if c in (1063, 1150, 1153, 1180, 1183):
+        return 'rainl'
+    if c in (1192, 1195):
+        return 'rainh'
+    if 1063 <= c <= 1201:
         return 'rain'
-    return 'cloud'
+    return 'cloudy'
 
 
 def _sky_of_qweather(icon):
     try:
         i = int(icon)
     except (TypeError, ValueError):
-        return 'cloud'
-    if i == 100:
+        return 'cloudy'
+    if i in (100, 150):
         return 'clear'
-    if i in (302, 303, 304):
+    if i in (102, 103, 152, 153):
+        return 'pcloudy'
+    if i in (101, 104, 151, 154):
+        return 'cloudy'
+    if 500 <= i <= 515:
+        return 'fog'
+    if i in (302, 303):
         return 'storm'
-    if 400 <= i <= 499:
-        return 'snow'
+    if i == 304:
+        return 'hail'
+    if i in (313, 404, 405, 406, 456, 457):
+        return 'sleet'
+    if i in (300, 301, 350, 351):
+        return 'shwr'
+    if i in (305, 309):
+        return 'rainl'
+    if i in (307, 308, 310, 311, 312, 318):
+        return 'rainh'
     if 300 <= i <= 399:
         return 'rain'
-    return 'cloud'
+    if i == 400:
+        return 'snowl'
+    if i in (402, 403):
+        return 'snowh'
+    if 400 <= i <= 499:
+        return 'snow'
+    return 'cloudy'
 
 
 def _metric_line(word, value, label, color, cols, mono=False):
@@ -472,11 +579,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 if key <= today:
                     continue
                 b = buckets[key]
-                skies = b['skies'] or ['cloud']
+                skies = b['skies'] or ['cloudy']
                 # The worst sky of the day is the one worth knowing about: a day with one
                 # thunderstorm in it is a stormy day, however sunny the rest of it was.
-                rank = ('clear', 'cloud', 'rain', 'snow', 'storm')
-                b['sky'] = max(skies, key=rank.index)
+                b['sky'] = max(skies, key=lambda k: _SEVERITY.index(k)
+                               if k in _SEVERITY else 0)
                 out.append(b)
             return out[:forecast_days]
         except Exception:
@@ -744,12 +851,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 pollen_overall, pollen_parts = None, []
 
         # --- the forecast --------------------------------------------------------
-        # A day per line: its sky as a colour flap, its name, and the high/low lined up in a
-        # column you can read down. A colour is the only weather icon that works on every
-        # wall — the reel has no cloud or raindrop, but it has had seven colours from the
-        # start, and a split-flap shows them natively.
+        # A day per line: what the sky will do, and the high/low in a column you can read
+        # down. The FORMAT is chosen once for the whole page, from the longest condition on
+        # it, so the columns line up — a line that shrinks its day to make room for "PSunny"
+        # while its neighbour does not is a list you have to read twice.
         fc_lines = []
         if forecast_days and rows >= 3:
+            days = []
             for d in (weather.get('days') or [])[:forecast_days]:
                 if d.get('hi') is None or d.get('lo') is None:
                     continue
@@ -757,15 +865,31 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                     dt = datetime.strptime(str(d.get('date'))[:10], '%Y-%m-%d')
                 except (TypeError, ValueError):
                     continue
-                day = i18n.weekday(dt, short=True) if i18n is not None else dt.strftime('%a')
-                # NOT `hi`/`lo`: those are the CURRENT day's, built above and used by the
-                # conditions page below. Reusing the names here quietly rewrote them, and
-                # today's "H 79F L 66F" came out as the last forecast day's "79 66".
-                d_hi = _short_temp(d['hi'], temp_unit)
-                d_lo = _short_temp(d['lo'], temp_unit)
-                dot = '' if no_color else _SKY.get(d.get('sky') or 'cloud', '')
-                left = f'{dot} {day}'.strip()
-                fc_lines.append(_row(left, f'{d_hi}/{d_lo}', cols))
+                days.append((dt, d, _sky_word(d.get('sky'), t)))
+
+            if days:
+                word_w = max(len(w) for _, _, w in days)
+                temp_w = max(len(f"{_short_temp(d['hi'], temp_unit)}/"
+                                 f"{_short_temp(d['lo'], temp_unit)}") for _, d, _ in days)
+
+                # The day shrinks before the condition does: "We" is still Wednesday, but a
+                # truncated condition is not a condition. One letter is a last resort — Tue
+                # and Thu, Sat and Sun share one.
+                day_w = next((n for n in (3, 2, 1)
+                              if n + 1 + word_w + 1 + temp_w <= cols), 1)
+                # …and the colour flap only if it costs nobody a letter.
+                tile = not no_color and (2 + day_w + 1 + word_w + 1 + temp_w) <= cols
+
+                for dt, d, word in days:
+                    day = (i18n.weekday(dt, short=True) if i18n is not None
+                           else dt.strftime('%a'))
+                    day = day.replace('.', '')[:day_w]
+                    left = f'{day} {word}'
+                    if tile:
+                        left = f'{_sky_tile(d.get("sky"), no_color)} {left}'
+                    right = (f"{_short_temp(d['hi'], temp_unit)}/"
+                             f"{_short_temp(d['lo'], temp_unit)}")
+                    fc_lines.append(_row(left, right, cols))
 
         # --- the pages ----------------------------------------------------------
         # Only one location is supported, so we don't repeat it on every page.

@@ -1558,6 +1558,160 @@
           "no": "INGEN",
           "sv": "INGEN"
         }
+      },
+      "Sunny": {
+        "context": "Forecast: clear/sunny (max 6 chars).",
+        "translations": {
+          "fr": "Soleil",
+          "de": "Sonnig",
+          "es": "Sol",
+          "it": "Sole",
+          "pt": "Sol",
+          "nl": "Zonnig",
+          "da": "Sol",
+          "no": "Sol",
+          "sv": "Sol"
+        }
+      },
+      "PSunny": {
+        "context": "Forecast: partly sunny / partly cloudy (max 6 chars).",
+        "translations": {
+          "fr": "P.Sol",
+          "de": "T.Sonn",
+          "es": "P.Sol",
+          "it": "P.Sole",
+          "pt": "P.Sol",
+          "nl": "H.Zon",
+          "da": "D.Sol",
+          "no": "D.Sol",
+          "sv": "D.Sol"
+        }
+      },
+      "Cloudy": {
+        "context": "Forecast: cloudy/overcast (max 6 chars).",
+        "translations": {
+          "fr": "Nuages",
+          "de": "Wolkig",
+          "es": "Nubes",
+          "it": "Nuvolo",
+          "pt": "Nublad",
+          "nl": "Bewolk",
+          "da": "Skyet",
+          "no": "Skyet",
+          "sv": "Molnig"
+        }
+      },
+      "Fog": {
+        "context": "Forecast: fog or mist (max 6 chars).",
+        "translations": {
+          "fr": "Brume",
+          "de": "Nebel",
+          "es": "Niebla",
+          "it": "Nebbia",
+          "pt": "Nevoa",
+          "nl": "Mist",
+          "da": "Tage",
+          "no": "Tåke",
+          "sv": "Dimma"
+        }
+      },
+      "Rain": {
+        "context": "Forecast: rain. A '-' or '+' is appended for light/heavy (max 6 chars).",
+        "translations": {
+          "fr": "Pluie",
+          "de": "Regen",
+          "es": "Lluvia",
+          "it": "Piogg",
+          "pt": "Chuva",
+          "nl": "Regen",
+          "da": "Regn",
+          "no": "Regn",
+          "sv": "Regn"
+        }
+      },
+      "Shwrs": {
+        "context": "Forecast: showers (max 6 chars).",
+        "translations": {
+          "fr": "Averse",
+          "de": "Schaue",
+          "es": "Chubas",
+          "it": "Rovesc",
+          "pt": "Aguace",
+          "nl": "Buien",
+          "da": "Byger",
+          "no": "Byger",
+          "sv": "Skurar"
+        }
+      },
+      "Snow": {
+        "context": "Forecast: snow. A '-' or '+' is appended for light/heavy (max 6 chars).",
+        "translations": {
+          "fr": "Neige",
+          "de": "Schnee",
+          "es": "Nieve",
+          "it": "Neve",
+          "pt": "Neve",
+          "nl": "Sneeuw",
+          "da": "Sne",
+          "no": "Snø",
+          "sv": "Snö"
+        }
+      },
+      "Sleet": {
+        "context": "Forecast: sleet or freezing rain (max 6 chars).",
+        "translations": {
+          "fr": "Givre",
+          "de": "Graupe",
+          "es": "Aguan",
+          "it": "Nevisc",
+          "pt": "Graniz",
+          "nl": "IJzel",
+          "da": "Slud",
+          "no": "Sludd",
+          "sv": "Slask"
+        }
+      },
+      "Storm": {
+        "context": "Forecast: thunderstorm (max 6 chars).",
+        "translations": {
+          "fr": "Orage",
+          "de": "Sturm",
+          "es": "Torm",
+          "it": "Temp",
+          "pt": "Trovoa",
+          "nl": "Onweer",
+          "da": "Torden",
+          "no": "Torden",
+          "sv": "Åska"
+        }
+      },
+      "Hail": {
+        "context": "Forecast: hail (max 6 chars).",
+        "translations": {
+          "fr": "Grêle",
+          "de": "Hagel",
+          "es": "Graniz",
+          "it": "Grand",
+          "pt": "Saraiv",
+          "nl": "Hagel",
+          "da": "Hagl",
+          "no": "Hagl",
+          "sv": "Hagel"
+        }
+      },
+      "FORECAST": {
+        "context": "Header of the multi-day forecast page. Must fit a 15-column wall.",
+        "translations": {
+          "fr": "PREVISIONS",
+          "de": "VORHERSAGE",
+          "es": "PRONOSTICO",
+          "it": "PREVISIONI",
+          "pt": "PREVISAO",
+          "nl": "VERWACHT",
+          "da": "PROGNOSE",
+          "no": "VARSEL",
+          "sv": "PROGNOS"
+        }
       }
     },
     "metals": {

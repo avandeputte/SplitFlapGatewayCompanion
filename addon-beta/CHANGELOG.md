@@ -3,6 +3,26 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.19
+
+**The forecast now says what the weather will be**, not just what colour it is.
+
+    |    FORECAST   |          |       FORECAST       |
+    |Tue Sunny 89/71|          |Y Tue Sunny      89/71|
+    |Wed Rain- 86/70|          |B Wed Rain-      86/70|
+    |Thu Storm 79/66|          |R Thu Storm      79/66|
+      a 15-wide wall             a 22-wide wall: the colour comes back too
+
+A colour tells you "wet"; it does not tell you drizzle from a downpour. Light and heavy are
+a `-` or `+` suffix rather than separate words, so every language keeps its own noun and the
+sign means the same thing everywhere — `Pluie-`, `Regen-`, `Nieve+`.
+
+The whole page picks ONE format, from its longest condition, so the columns line up. The day
+gives up a letter before the condition does (`We` is still Wednesday; a truncated condition
+is not a condition), and the colour flap is spent only when it costs nobody a letter.
+
+Translated into all nine languages.
+
 ## 1.9.0-beta.18
 
 **Fixes triggers painting colour flaps through the words.** A trigger's page was treated as

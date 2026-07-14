@@ -119,11 +119,51 @@ def test_a_day_per_line_with_its_sky_and_its_high_low(openmeteo):
     assert body[0].endswith("89/71") and body[1].endswith("86/70")
 
 
-def test_the_sky_is_a_colour_flap(openmeteo):
-    """cloud -> white, clear -> yellow, rain -> blue, storm -> red. The one weather icon a
-    real split-flap can actually show."""
+def test_it_says_WHAT_the_weather_will_be(openmeteo):
+    """A colour tells you "wet"; it does not tell you drizzle from a downpour. The word is
+    the thing you actually wanted, so on a 15-wide wall it gets the room."""
     rows, cols = 5, 15
+    body = _forecast(_pages(rows, cols), rows, cols)[1:]
+    assert [l.split()[1] for l in body] == ["Sunny", "Rain-", "Storm"]
+
+
+def test_five_letter_conditions_leave_the_day_its_three(openmeteo):
+    rows, cols = 5, 15
+    body = _forecast(_pages(rows, cols), rows, cols)[1:]
+    assert body[0].startswith("Tue Sunny")     # Sunny / Rain- / Storm all fit in five
+    for l in body:
+        assert len(l) == 15 and l[-1] != " "   # the highs still line up in a column
+
+
+def test_the_day_shrinks_before_the_condition_does(monkeypatch):
+    """A six-letter condition ("Cloudy") takes the day's third letter. "We" is still
+    Wednesday; a truncated condition is not a condition."""
+    import requests
+    six = dict(OPENMETEO)
+    six["daily"] = dict(OPENMETEO["daily"], weather_code=[3, 3, 3, 3])   # all Cloudy
+
+    def fake(url, **kw):
+        if "air-quality" in url:
+            return _Resp({"current": {}})
+        return _Resp(six)
+    monkeypatch.setattr(requests, "get", fake)
+
+    rows, cols = 5, 15
+    body = _forecast(_pages(rows, cols), rows, cols)[1:]
+    assert body[0].startswith("Tu Cloudy")   # two letters, so "Cloudy" keeps all six
+    # …and the WHOLE page uses ONE format, or the columns do not line up: the condition
+    # starts at the same cell on every row, and so does the high.
+    starts = {l.index("Cloudy") for l in body}
+    assert len(starts) == 1, f"the rows do not agree where the condition starts: {body}"
+    assert all(len(l) == 15 and l[-1] != " " for l in body)
+
+
+def test_the_colour_comes_back_when_the_wall_is_wide_enough(openmeteo):
+    """The flap costs two cells. It is spent only when it costs nobody a letter."""
+    rows, cols = 5, 22
     assert _dots(_pages(rows, cols), rows, cols) == ["yellow", "blue", "red"]
+    body = _forecast(_pages(rows, cols), rows, cols)[1:]
+    assert "Sunny" in body[0] and body[0].startswith(" ") is False
 
 
 def test_today_is_not_in_the_forecast(openmeteo):
@@ -223,6 +263,7 @@ def test_openweather_reports_the_worst_sky_of_the_day(monkeypatch):
                       "weather": [{"description": "clear"}]})
     monkeypatch.setattr(requests, "get", fake)
 
-    rows, cols = 5, 15
-    dots = _dots(_pages(rows, cols, provider="openweather"), rows, cols)
-    assert dots == ["red"], "a storm in the afternoon is a stormy day"
+    rows, cols = 5, 22          # wide enough for the colour flap as well as the word
+    pages = _pages(rows, cols, provider="openweather")
+    assert _dots(pages, rows, cols) == ["red"], "a storm in the afternoon is a stormy day"
+    assert "Storm" in _forecast(pages, rows, cols)[1]
