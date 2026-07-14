@@ -45,13 +45,28 @@ def _shown(c):
     return "".join(c.state.current_chars).strip()
 
 
+async def _until(pred, what, timeout=5.0):
+    """Wait for `pred`, rather than sleeping a fixed guess and hoping the scheduler kept up.
+
+    These tests drive a real async engine, so "has it drawn yet" is a question about a task
+    that has to be scheduled, not about elapsed time. A fixed `sleep(0.1)` passes on an idle
+    laptop and fails on a loaded CI box — which is exactly how this file started failing
+    roughly one run in ten. Polling asserts the same thing without pinning it to a deadline.
+    """
+    for _ in range(int(timeout / 0.02)):
+        if pred():
+            return
+        await asyncio.sleep(0.02)
+    raise AssertionError(what)
+
+
 def test_stopping_an_app_blanks_the_wall():
     async def go():
         c = _controller()
         await c.start()
         await c.run_app("time")
-        await asyncio.sleep(1.2)
-        assert _shown(c), "the app never drew anything, so this proves nothing"
+        await _until(lambda: _shown(c),
+                     "the app never drew anything, so this proves nothing")
 
         await c.stop_app()
         assert _shown(c) == "", "the wall is still showing the last page"
@@ -67,13 +82,17 @@ def test_a_playlist_that_runs_out_blanks_the_wall():
         await c.start()
         await c.run_playlist([{"type": "compose", "text": "Goodbye", "duration": 0.2}],
                              False, "once")
-        await asyncio.sleep(0.1)
         # a plain wall folds it, which is right — the point is that it IS on the wall
-        assert "GOODBYE" in "".join(c.state.current_chars)
+        await _until(lambda: "GOODBYE" in "".join(c.state.current_chars),
+                     "the playlist never put its page on the wall")
 
-        await asyncio.sleep(1.0)                      # let it run out
-        assert c.active_playlist is None
-        assert _shown(c) == "", "the last page of a finished playlist is still on the wall"
+        await _until(lambda: c.active_playlist is None, "the playlist never ran out")
+        # Wait for the BLANK, don't assert it the instant the playlist ends: the loop marks
+        # itself finished and then writes the empty page, so there is a window of a scheduler
+        # tick between the two. It is the wall ending up blank that matters, not which side
+        # of that tick we happened to look.
+        await _until(lambda: _shown(c) == "",
+                     "the last page of a finished playlist is still on the wall")
         await c.stop()
     asyncio.run(go())
 
@@ -87,7 +106,7 @@ def test_a_finished_playlist_is_not_resumed_after_a_restart():
         await c.start()
         await c.run_playlist([{"type": "compose", "text": "Bye", "duration": 0.2}],
                              False, "once")
-        await asyncio.sleep(1.0)
+        await _until(lambda: c.active_playlist is None, "the playlist never ran out")
         assert remembered[-1] is None, "a run-out playlist would be resurrected on restart"
         await c.stop()
     asyncio.run(go())
