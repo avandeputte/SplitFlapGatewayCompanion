@@ -165,6 +165,13 @@ def _convert_temp_from_f(value, temp_unit):
     return f_val
 
 
+def _short_temp(value, temp_unit):
+    """Just the number. The forecast column is a comparison — 24/14 — and repeating the unit
+    on every one of them costs four cells and says nothing the conditions page has not."""
+    converted = _convert_temp_from_f(value, temp_unit)
+    return '--' if converted is None else str(int(round(converted)))
+
+
 def _format_temp(value, temp_unit):
     converted = _convert_temp_from_f(value, temp_unit)
     if converted is None:
@@ -208,6 +215,93 @@ def _decorate_status(label, color, cols, mono=False):
     return swatch
 
 
+def _row(left, right, cols):
+    """One full-width line: `left` flush left, `right` flush right. format_lines centres each
+    line, so a line already `cols` wide passes through untouched — which is what makes the
+    forecast's highs and lows line up in a column you can read down."""
+    left, right = str(left), str(right)
+    if len(right) >= cols:
+        return right[:cols]
+    left = left[:cols - len(right) - 1]
+    return left + ' ' * (cols - len(left) - len(right)) + right
+
+
+# The sky, as one flap. A colour is the only weather icon that works on EVERY wall: the flap
+# reel has no cloud or raindrop, but it has had seven colours since the beginning, and a
+# split-flap shows them natively. (The tile characters here are mapped to the colour flaps by
+# renderer.COLOR_MAP.)
+_SKY = {
+    'clear': '\U0001f7e8',    # yellow — sun
+    'cloud': '\u2b1c',        # white  — cloud, fog, overcast
+    'rain': '\U0001f7e6',     # blue   — drizzle, rain, showers
+    'snow': '\U0001f7ea',     # purple — cold
+    'storm': '\U0001f7e5',    # red    — severe
+}
+
+
+def _sky_of_code(code):
+    """Open-Meteo's WMO weather code -> a sky family."""
+    if code is None:
+        return 'cloud'
+    c = int(code)
+    if c == 0:
+        return 'clear'
+    if c in (95, 96, 99):
+        return 'storm'
+    if c in (71, 73, 75, 77, 85, 86):
+        return 'snow'
+    if 51 <= c <= 82:
+        return 'rain'
+    return 'cloud'          # 1-3 cloudy, 45/48 fog
+
+
+def _sky_of_openweather(wid):
+    """OpenWeather's condition id -> a sky family."""
+    if wid is None:
+        return 'cloud'
+    w = int(wid)
+    if w < 300:
+        return 'storm'
+    if w < 600:
+        return 'rain'
+    if w < 700:
+        return 'snow'
+    if w == 800:
+        return 'clear'
+    return 'cloud'
+
+
+def _sky_of_weatherapi(code):
+    if code is None:
+        return 'cloud'
+    c = int(code)
+    if c == 1000:
+        return 'clear'
+    if c in (1087, 1273, 1276, 1279, 1282):
+        return 'storm'
+    if 1210 <= c <= 1264 or c in (1066, 1069, 1072, 1114, 1117):
+        return 'snow'
+    if 1063 <= c <= 1201 or c in (1240, 1243, 1246):
+        return 'rain'
+    return 'cloud'
+
+
+def _sky_of_qweather(icon):
+    try:
+        i = int(icon)
+    except (TypeError, ValueError):
+        return 'cloud'
+    if i == 100:
+        return 'clear'
+    if i in (302, 303, 304):
+        return 'storm'
+    if 400 <= i <= 499:
+        return 'snow'
+    if 300 <= i <= 399:
+        return 'rain'
+    return 'cloud'
+
+
 def _metric_line(word, value, label, color, cols, mono=False):
     """One metric on one line: `AQI 42 GOOD 🟩`, degraded to whatever fits.
 
@@ -238,6 +332,8 @@ def _paginate(lines, rows):
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import time
+    from datetime import datetime
+
     import requests
 
     # Global Language (when the companion injects i18n). Open-Meteo maps codes to
@@ -270,6 +366,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     show_aqi = settings.get('show_aqi', 'yes') == 'yes'
     show_uv = settings.get('show_uv', 'yes') == 'yes' and weather_provider in ('openmeteo', 'weatherapi')
     show_pollen = settings.get('show_pollen', 'yes') == 'yes' and weather_provider in ('openmeteo', 'weatherapi')
+    try:
+        forecast_days = max(0, min(5, int(settings.get('forecast_days', 3) or 0)))
+    except (TypeError, ValueError):
+        forecast_days = 3
     polling_seconds = max(30.0, min(86400.0, float(settings.get('polling_rate', 300) or 300)))
     openmeteo_air = None
 
@@ -335,6 +435,53 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             'overall': max(vals) if vals else None,
         }
 
+    def _openweather_days():
+        """OpenWeather's free plan has no daily endpoint — only /forecast, which is a list of
+        3-hourly slots. So the days are built here: bucket the slots by local date and take
+        each day's own min and max. Today's bucket is dropped; the conditions page IS today.
+
+        The slot's `dt` is UTC and the city's timezone offset comes back with it, so the
+        bucketing is done in the CITY's day, not this machine's — otherwise a wall in Boston
+        would split a European day in half at 7pm.
+        """
+        if not forecast_days:
+            return []
+        try:
+            r = requests.get(
+                'https://api.openweathermap.org/data/2.5/forecast',
+                params={'lat': _lat, 'lon': _lon, 'appid': api_key,
+                        'units': 'imperial', 'lang': lang},
+                timeout=10).json()
+            shift = int((r.get('city') or {}).get('timezone') or 0)
+            buckets = {}
+            for slot in (r.get('list') or []):
+                when = datetime.utcfromtimestamp(int(slot['dt']) + shift)
+                key = when.strftime('%Y-%m-%d')
+                temp = (slot.get('main') or {}).get('temp')
+                if temp is None:
+                    continue
+                b = buckets.setdefault(key, {'date': key, 'hi': temp, 'lo': temp, 'skies': []})
+                b['hi'] = max(b['hi'], temp)
+                b['lo'] = min(b['lo'], temp)
+                # The sky of the DAY, not of 3am: only the daylight slots get a vote.
+                if 9 <= when.hour <= 18:
+                    b['skies'].append(_sky_of_openweather((slot.get('weather') or [{}])[0].get('id')))
+            today = datetime.utcfromtimestamp(int(time.time()) + shift).strftime('%Y-%m-%d')
+            out = []
+            for key in sorted(buckets):
+                if key <= today:
+                    continue
+                b = buckets[key]
+                skies = b['skies'] or ['cloud']
+                # The worst sky of the day is the one worth knowing about: a day with one
+                # thunderstorm in it is a stormy day, however sunny the rest of it was.
+                rank = ('clear', 'cloud', 'rain', 'snow', 'storm')
+                b['sky'] = max(skies, key=rank.index)
+                out.append(b)
+            return out[:forecast_days]
+        except Exception:
+            return []
+
     def _fetch_openweather_weather():
         payload = requests.get(
             'https://api.openweathermap.org/data/2.5/weather',
@@ -342,6 +489,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             timeout=10
         ).json()
         return {
+            'days': _openweather_days(),
             'city': payload.get('name', _city),
             'temp': int(payload['main']['temp']),
             'feels_like': int(payload['main']['feels_like']),
@@ -359,10 +507,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 'latitude': _lat,
                 'longitude': _lon,
                 'current': 'temperature_2m,apparent_temperature,weather_code,uv_index',
-                'daily': 'temperature_2m_max,temperature_2m_min',
+                'daily': 'temperature_2m_max,temperature_2m_min,weather_code',
                 'temperature_unit': 'fahrenheit',
                 'timezone': 'auto',
-                'forecast_days': 1,
+                'forecast_days': forecast_days + 1,
             },
             timeout=10
         ).json()
@@ -370,7 +518,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         daily = weather.get('daily', {})
         hi_values = daily.get('temperature_2m_max') or [current.get('temperature_2m')]
         lo_values = daily.get('temperature_2m_min') or [current.get('temperature_2m')]
+        codes = daily.get('weather_code') or []
+        days = [{'date': d, 'hi': hi, 'lo': lo,
+                 'sky': _sky_of_code(codes[i] if i < len(codes) else None)}
+                for i, (d, hi, lo) in enumerate(zip(daily.get('time') or [],
+                                                    hi_values, lo_values))]
         return {
+            'days': days[1:],           # [0] is today, which the conditions page already is
             'city': _city,
             'temp': int(round(current.get('temperature_2m', 0))),
             'feels_like': int(round(current.get('apparent_temperature', current.get('temperature_2m', 0)))),
@@ -388,7 +542,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             params={
                 'key': api_key,
                 'q': f'{_lat},{_lon}',
-                'days': 1,
+                'days': forecast_days + 1,
                 'aqi': 'yes',
                 'pollen': 'yes',
                 'lang': lang,
@@ -397,7 +551,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         ).json()
         location = payload.get('location', {})
         current = payload.get('current', {})
-        forecast = ((payload.get('forecast') or {}).get('forecastday') or [{}])[0]
+        forecastdays = (payload.get('forecast') or {}).get('forecastday') or [{}]
+        forecast = forecastdays[0]
         day = forecast.get('day', {})
         pollen = forecast.get('pollen') or current.get('pollen') or day.get('pollen') or {}
         return {
@@ -412,6 +567,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             'uv': current.get('uv'),
             'weatherapi_aqi': ((current.get('air_quality') or {}).get('us-epa-index')),
             'pollen': _normalize_weatherapi_pollen(pollen),
+            'days': [{'date': f.get('date'),
+                      'hi': (f.get('day') or {}).get('maxtemp_f'),
+                      'lo': (f.get('day') or {}).get('mintemp_f'),
+                      'sky': _sky_of_weatherapi(((f.get('day') or {}).get('condition') or {}).get('code'))}
+                     for f in forecastdays[1:]],
         }
 
     def _fetch_qweather_weather():
@@ -427,14 +587,20 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         now = now_r.get('now', {})
 
         daily_r = requests.get(
-            'https://devapi.qweather.com/v7/weather/3d',
+            'https://devapi.qweather.com/v7/weather/7d' if forecast_days > 2
+            else 'https://devapi.qweather.com/v7/weather/3d',
             params={'location': location, 'lang': lang, 'unit': 'i'},
             headers=headers,
             timeout=10
         ).json()
-        first_day = (daily_r.get('daily') or [{}])[0]
+        all_days = daily_r.get('daily') or [{}]
+        first_day = all_days[0]
 
         return {
+            'days': [{'date': d.get('fxDate'),
+                      'hi': _to_int(d.get('tempMax')), 'lo': _to_int(d.get('tempMin')),
+                      'sky': _sky_of_qweather(d.get('iconDay'))}
+                     for d in all_days[1:]],
             'city': _city,
             'temp': _to_int(now.get('temp')),
             'feels_like': _to_int(now.get('feelsLike'), _to_int(now.get('temp'))),
@@ -577,6 +743,30 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             except Exception:
                 pollen_overall, pollen_parts = None, []
 
+        # --- the forecast --------------------------------------------------------
+        # A day per line: its sky as a colour flap, its name, and the high/low lined up in a
+        # column you can read down. A colour is the only weather icon that works on every
+        # wall — the reel has no cloud or raindrop, but it has had seven colours from the
+        # start, and a split-flap shows them natively.
+        fc_lines = []
+        if forecast_days and rows >= 3:
+            for d in (weather.get('days') or [])[:forecast_days]:
+                if d.get('hi') is None or d.get('lo') is None:
+                    continue
+                try:
+                    dt = datetime.strptime(str(d.get('date'))[:10], '%Y-%m-%d')
+                except (TypeError, ValueError):
+                    continue
+                day = i18n.weekday(dt, short=True) if i18n is not None else dt.strftime('%a')
+                # NOT `hi`/`lo`: those are the CURRENT day's, built above and used by the
+                # conditions page below. Reusing the names here quietly rewrote them, and
+                # today's "H 79F L 66F" came out as the last forecast day's "79 66".
+                d_hi = _short_temp(d['hi'], temp_unit)
+                d_lo = _short_temp(d['lo'], temp_unit)
+                dot = '' if no_color else _SKY.get(d.get('sky') or 'cloud', '')
+                left = f'{dot} {day}'.strip()
+                fc_lines.append(_row(left, f'{d_hi}/{d_lo}', cols))
+
         # --- the pages ----------------------------------------------------------
         # Only one location is supported, so we don't repeat it on every page.
         if rows >= 4:
@@ -633,6 +823,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                     pages.append(format_lines(pollen_word, overall_display))
                     if pollen_parts:
                         pages.append(format_lines(*pollen_parts))
+
+        if fc_lines:
+            # A header plus as many days as the wall has room for; the rest turn the page.
+            for chunk in _paginate(fc_lines, rows - 1):
+                pages.append(format_lines(t('FORECAST'), *chunk))
 
         state['last_pages'] = pages
         state['last_polled_at'] = now_ts

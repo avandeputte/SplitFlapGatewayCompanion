@@ -24,9 +24,18 @@
       "size": "sm",
       "default": "f",
       "options": [
-        { "value": "f", "label": "F" },
-        { "value": "c", "label": "C" },
-        { "value": "k", "label": "K" }
+        {
+          "value": "f",
+          "label": "F"
+        },
+        {
+          "value": "c",
+          "label": "C"
+        },
+        {
+          "value": "k",
+          "label": "K"
+        }
       ]
     },
     {
@@ -47,10 +56,22 @@
         }
       },
       "options": [
-        { "value": "openmeteo", "label": "Open-Meteo" },
-        { "value": "weatherapi", "label": "WeatherAPI.com" },
-        { "value": "qweather", "label": "QWeather" },
-        { "value": "openweather", "label": "OpenWeather" }
+        {
+          "value": "openmeteo",
+          "label": "Open-Meteo"
+        },
+        {
+          "value": "weatherapi",
+          "label": "WeatherAPI.com"
+        },
+        {
+          "value": "qweather",
+          "label": "QWeather"
+        },
+        {
+          "value": "openweather",
+          "label": "OpenWeather"
+        }
       ]
     },
     {
@@ -95,7 +116,11 @@
               "type": "base_plus_any_true",
               "base_calls": 1,
               "per_true_calls": 1,
-              "flag_indices": [2, 3, 4]
+              "flag_indices": [
+                2,
+                3,
+                4
+              ]
             },
             "limit_text": "Open-Meteo free API: 10k/day, 300k/month",
             "limit_per_day": 10000,
@@ -113,7 +138,9 @@
               "type": "base_plus_true_count",
               "base_calls": 2,
               "per_true_calls": 1,
-              "flag_indices": [2]
+              "flag_indices": [
+                2
+              ]
             },
             "limit_text": "QWeather free tier: first 50k/month included; additional usage is billed",
             "limit_per_month": 50000,
@@ -124,7 +151,9 @@
               "type": "base_plus_true_count",
               "base_calls": 1,
               "per_true_calls": 1,
-              "flag_indices": [2]
+              "flag_indices": [
+                2
+              ]
             },
             "limit_text": "OpenWeather free plan: 1M/month",
             "limit_per_month": 1000000,
@@ -174,13 +203,44 @@
       }
     },
     {
+      "key": "forecast_days",
+      "label": "Forecast days",
+      "type": "select",
+      "default": "3",
+      "options": [
+        {
+          "value": "0",
+          "label": "Off"
+        },
+        {
+          "value": "3",
+          "label": "3 days"
+        },
+        {
+          "value": "4",
+          "label": "4 days"
+        },
+        {
+          "value": "5",
+          "label": "5 days"
+        }
+      ],
+      "description": "Add a forecast page: one line per day, with its sky as a colour flap and the high/low."
+    },
+    {
       "key": "show_aqi",
       "label": "Show Air Quality Index (AQI)",
       "type": "toggle",
       "default": "yes",
       "options": [
-        { "value": "no", "label": "Off" },
-        { "value": "yes", "label": "On" }
+        {
+          "value": "no",
+          "label": "Off"
+        },
+        {
+          "value": "yes",
+          "label": "On"
+        }
       ]
     },
     {
@@ -189,11 +249,20 @@
       "type": "toggle",
       "default": "yes",
       "disabled_when": {
-        "weather_provider": ["openweather", "qweather"]
+        "weather_provider": [
+          "openweather",
+          "qweather"
+        ]
       },
       "options": [
-        { "value": "no", "label": "Off" },
-        { "value": "yes", "label": "On" }
+        {
+          "value": "no",
+          "label": "Off"
+        },
+        {
+          "value": "yes",
+          "label": "On"
+        }
       ]
     },
     {
@@ -202,11 +271,20 @@
       "type": "toggle",
       "default": "no",
       "disabled_when": {
-        "weather_provider": ["openweather", "qweather"]
+        "weather_provider": [
+          "openweather",
+          "qweather"
+        ]
       },
       "options": [
-        { "value": "no", "label": "Off" },
-        { "value": "yes", "label": "On" }
+        {
+          "value": "no",
+          "label": "Off"
+        },
+        {
+          "value": "yes",
+          "label": "On"
+        }
       ]
     }
   ],
@@ -222,13 +300,34 @@
       "type": "toggle",
       "default": "severe",
       "options": [
-        {"value": "severe",             "label": "Severe weather"},
-        {"value": "temp_above",         "label": "Temp above threshold"},
-        {"value": "temp_below",         "label": "Temp below threshold"},
-        {"value": "rain_starting",      "label": "Rain starting"},
-        {"value": "rapid_temp_change",  "label": "Rapid temp change"},
-        {"value": "uv_high",            "label": "UV index high"},
-        {"value": "wind_high",          "label": "Wind speed high"}
+        {
+          "value": "severe",
+          "label": "Severe weather"
+        },
+        {
+          "value": "temp_above",
+          "label": "Temp above threshold"
+        },
+        {
+          "value": "temp_below",
+          "label": "Temp below threshold"
+        },
+        {
+          "value": "rain_starting",
+          "label": "Rain starting"
+        },
+        {
+          "value": "rapid_temp_change",
+          "label": "Rapid temp change"
+        },
+        {
+          "value": "uv_high",
+          "label": "UV index high"
+        },
+        {
+          "value": "wind_high",
+          "label": "Wind speed high"
+        }
       ]
     },
     {
@@ -239,7 +338,13 @@
       "min": "-40",
       "max": "130",
       "step": "1",
-      "visible_when": {"condition": ["temp_above", "temp_below", "rapid_temp_change"]}
+      "visible_when": {
+        "condition": [
+          "temp_above",
+          "temp_below",
+          "rapid_temp_change"
+        ]
+      }
     },
     {
       "key": "uv_threshold",
@@ -249,7 +354,9 @@
       "min": "1",
       "max": "11",
       "step": "1",
-      "visible_when": {"condition": "uv_high"}
+      "visible_when": {
+        "condition": "uv_high"
+      }
     },
     {
       "key": "wind_threshold",
@@ -259,7 +366,9 @@
       "min": "5",
       "max": "100",
       "step": "5",
-      "visible_when": {"condition": "wind_high"}
+      "visible_when": {
+        "condition": "wind_high"
+      }
     }
   ]
 }

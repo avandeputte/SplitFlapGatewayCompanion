@@ -3,6 +3,21 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.17
+
+**Weather gets a forecast.** A page of the coming days — one line each, the day's sky as a
+colour flap and its high/low lined up in a column you can read down.
+
+    |    FORECAST   |
+    |# Wed     89/71|      # = a colour flap: yellow sun, white cloud,
+    |# Thu     86/70|          blue rain, purple snow, red storm
+    |# Fri     79/66|
+
+The sky is a **colour** rather than a picture because a colour is the only weather icon
+every wall can show: the flap reel has no cloud and no raindrop, but it has had seven
+colours since the beginning. Set **Forecast days** in the weather app's settings (off, 3, 4
+or 5 — three by default). Works with all four providers.
+
 ## 1.9.0-beta.16
 
 **The list of displays is now backed up to your gateways**, like everything else.
