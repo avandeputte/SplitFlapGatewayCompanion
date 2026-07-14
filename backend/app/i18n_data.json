@@ -140,339 +140,339 @@
   ],
   "strings": {
     "common": {
-      "OFFLINE": {
+      "Offline": {
         "context": "Status: the device/service is offline.",
         "translations": {
-          "fr": "HORS LIGNE",
-          "de": "OFFLINE",
-          "es": "SIN CONEXION",
-          "it": "OFFLINE",
-          "pt": "OFFLINE",
-          "nl": "OFFLINE",
-          "da": "OFFLINE",
-          "no": "OFFLINE",
-          "sv": "OFFLINE"
+          "fr": "Hors ligne",
+          "de": "Offline",
+          "es": "Sin conexion",
+          "it": "Offline",
+          "pt": "Offline",
+          "nl": "Offline",
+          "da": "Offline",
+          "no": "Offline",
+          "sv": "Offline"
         }
       },
-      "NO DATA": {
+      "No data": {
         "context": "Status: no data was returned.",
         "translations": {
-          "fr": "PAS DE DONNEES",
-          "de": "KEINE DATEN",
-          "es": "SIN DATOS",
-          "it": "NESSUN DATO",
-          "pt": "SEM DADOS",
-          "nl": "GEEN DATA",
-          "da": "INGEN DATA",
-          "no": "INGEN DATA",
-          "sv": "INGEN DATA"
+          "fr": "Pas de donnees",
+          "de": "Keine Daten",
+          "es": "Sin datos",
+          "it": "Nessun dato",
+          "pt": "Sem dados",
+          "nl": "Geen data",
+          "da": "Ingen data",
+          "no": "Ingen data",
+          "sv": "Ingen data"
         }
       },
-      "ERROR": {
+      "Error": {
         "context": "Status: a generic error occurred.",
         "translations": {
-          "fr": "ERREUR",
-          "de": "FEHLER",
-          "es": "ERROR",
-          "it": "ERRORE",
-          "pt": "ERRO",
-          "nl": "FOUT",
-          "da": "FEJL",
-          "no": "FEIL",
-          "sv": "FEL"
+          "fr": "Erreur",
+          "de": "Fehler",
+          "es": "Error",
+          "it": "Errore",
+          "pt": "Erro",
+          "nl": "Fout",
+          "da": "Fejl",
+          "no": "Feil",
+          "sv": "Fel"
         }
       },
-      "UNKNOWN": {
+      "Unknown": {
         "context": "Value unknown / unavailable.",
         "translations": {
-          "fr": "INCONNU",
-          "de": "UNBEKANNT",
-          "es": "DESCON.",
-          "it": "SCONOSC.",
-          "pt": "DESCON.",
-          "nl": "ONBEKEND",
-          "da": "UKENDT",
-          "no": "UKJENT",
-          "sv": "OKÄND"
+          "fr": "Inconnu",
+          "de": "Unbekannt",
+          "es": "Descon.",
+          "it": "Sconosc.",
+          "pt": "Descon.",
+          "nl": "Onbekend",
+          "da": "Ukendt",
+          "no": "Ukjent",
+          "sv": "Okänd"
         }
       },
-      "INVALID DATE": {
+      "Invalid date": {
         "context": "A configured date could not be parsed.",
         "translations": {
-          "fr": "DATE INVALIDE",
-          "de": "UNGULT. DATUM",
-          "es": "FECHA INVALIDA",
-          "it": "DATA NON VALIDA",
-          "pt": "DATA INVALIDA",
-          "nl": "ONGELDIGE DATUM"
+          "fr": "Date invalide",
+          "de": "Ungult. Datum",
+          "es": "Fecha invalida",
+          "it": "Data non valida",
+          "pt": "Data invalida",
+          "nl": "Ongeldige datum"
         }
       },
-      "API FAIL": {
+      "API fail": {
         "context": "Status: an upstream API call failed.",
         "translations": {
-          "fr": "ECHEC API",
-          "de": "API-FEHLER",
-          "es": "FALLO API",
-          "it": "ERRORE API",
-          "pt": "FALHA API",
-          "nl": "API-FOUT",
-          "da": "API-FEJL",
-          "no": "API-FEIL",
-          "sv": "API-FEL"
+          "fr": "Echec API",
+          "de": "API-Fehler",
+          "es": "Fallo API",
+          "it": "Errore API",
+          "pt": "Falha API",
+          "nl": "API-fout",
+          "da": "API-fejl",
+          "no": "API-feil",
+          "sv": "API-fel"
         }
       },
-      "CONFIGURE": {
+      "Configure": {
         "context": "Prompt to configure the app in Settings.",
         "translations": {
-          "fr": "CONFIGURER",
-          "de": "EINRICHTEN",
-          "es": "CONFIGURAR",
-          "it": "CONFIGURA",
-          "pt": "CONFIGURAR",
-          "nl": "INSTELLEN",
-          "da": "OPSÆT",
-          "no": "SETT OPP",
-          "sv": "KONFIGURERA"
+          "fr": "Configurer",
+          "de": "Einrichten",
+          "es": "Configurar",
+          "it": "Configura",
+          "pt": "Configurar",
+          "nl": "Instellen",
+          "da": "Opsæt",
+          "no": "Sett opp",
+          "sv": "Konfigurera"
         }
       },
-      "APP ERROR": {
+      "App error": {
         "context": "Fallback page on the flaps: the app raised an error.",
         "translations": {
-          "fr": "ERREUR APPLI",
-          "de": "APP FEHLER",
-          "es": "ERROR DE APP",
-          "it": "ERRORE APP",
-          "pt": "ERRO DA APP",
-          "nl": "APP FOUT",
-          "da": "APP FEJL",
-          "no": "APP FEIL",
-          "sv": "APP FEL"
+          "fr": "Erreur appli",
+          "de": "App Fehler",
+          "es": "Error de app",
+          "it": "Errore app",
+          "pt": "Erro da app",
+          "nl": "App fout",
+          "da": "App fejl",
+          "no": "App feil",
+          "sv": "App fel"
         }
       },
-      "PLUGIN ERROR": {
+      "Plugin error": {
         "context": "Fallback page on the flaps: the plugin could not be served.",
         "translations": {
-          "fr": "ERREUR PLUGIN",
-          "de": "PLUGIN FEHLER",
-          "es": "ERROR DE PLUGIN",
-          "it": "ERRORE PLUGIN",
-          "pt": "ERRO DE PLUGIN",
-          "nl": "PLUGIN FOUT",
-          "da": "PLUGIN FEJL",
-          "no": "PLUGIN FEIL",
-          "sv": "PLUGIN FEL"
+          "fr": "Erreur plugin",
+          "de": "Plugin Fehler",
+          "es": "Error de plugin",
+          "it": "Errore plugin",
+          "pt": "Erro de plugin",
+          "nl": "Plugin fout",
+          "da": "Plugin fejl",
+          "no": "Plugin feil",
+          "sv": "Plugin fel"
         }
       },
-      "NOT LOADED": {
+      "Not loaded": {
         "context": "Fallback page on the flaps: the app failed to import.",
         "translations": {
-          "fr": "NON CHARGE",
-          "de": "NICHT GELADEN",
-          "es": "NO CARGADA",
-          "it": "NON CARICATA",
-          "pt": "NAO CARREGADA",
-          "nl": "NIET GELADEN",
-          "da": "IKKE INDLAEST",
-          "no": "IKKE LASTET",
-          "sv": "EJ LADDAD"
+          "fr": "Non charge",
+          "de": "Nicht geladen",
+          "es": "No cargada",
+          "it": "Non caricata",
+          "pt": "Nao carregada",
+          "nl": "Niet geladen",
+          "da": "Ikke indlaest",
+          "no": "Ikke lastet",
+          "sv": "Ej laddad"
         }
       },
-      "NOT FOUND": {
+      "Not found": {
         "context": "Fallback page on the flaps: no such app id.",
         "translations": {
-          "fr": "INTROUVABLE",
-          "de": "NICHT GEFUNDEN",
-          "es": "NO ENCONTRADA",
-          "it": "NON TROVATA",
-          "pt": "NAO ENCONTRADA",
-          "nl": "NIET GEVONDEN",
-          "da": "IKKE FUNDET",
-          "no": "IKKE FUNNET",
-          "sv": "HITTAS EJ"
+          "fr": "Introuvable",
+          "de": "Nicht gefunden",
+          "es": "No encontrada",
+          "it": "Non trovata",
+          "pt": "Nao encontrada",
+          "nl": "Niet gevonden",
+          "da": "Ikke fundet",
+          "no": "Ikke funnet",
+          "sv": "Hittas ej"
         }
       },
-      "UNKNOWN TYPE": {
+      "Unknown type": {
         "context": "Fallback page on the flaps: manifest type is neither channel nor functional.",
         "translations": {
-          "fr": "TYPE INCONNU",
-          "de": "TYP UNBEKANNT",
-          "es": "TIPO DESCONOCIDO",
-          "it": "TIPO IGNOTO",
-          "pt": "TIPO INVALIDO",
-          "nl": "ONBEKEND TYPE",
-          "da": "UKENDT TYPE",
-          "no": "UKJENT TYPE",
-          "sv": "OKAND TYP"
+          "fr": "Type inconnu",
+          "de": "Typ unbekannt",
+          "es": "Tipo desconocido",
+          "it": "Tipo ignoto",
+          "pt": "Tipo invalido",
+          "nl": "Onbekend type",
+          "da": "Ukendt type",
+          "no": "Ukjent type",
+          "sv": "Okand typ"
         }
       }
     },
     "time": {
-      "DAYS": {
+      "Days": {
         "context": "Duration unit word (plural): days.",
         "translations": {
-          "fr": "JOURS",
-          "de": "TAGE",
-          "es": "DÍAS",
-          "it": "GIORNI",
-          "pt": "DIAS",
-          "nl": "DAGEN",
-          "da": "DAGE",
-          "no": "DAGER",
-          "sv": "DAGAR"
+          "fr": "Jours",
+          "de": "Tage",
+          "es": "Días",
+          "it": "Giorni",
+          "pt": "Dias",
+          "nl": "Dagen",
+          "da": "Dage",
+          "no": "Dager",
+          "sv": "Dagar"
         }
       },
-      "HOURS": {
+      "Hours": {
         "context": "Duration unit word (plural): hours.",
         "translations": {
-          "fr": "HEURES",
-          "de": "STUNDEN",
-          "es": "HORAS",
-          "it": "ORE",
-          "pt": "HORAS",
-          "nl": "UREN",
-          "da": "TIMER",
-          "no": "TIMER",
-          "sv": "TIMMAR"
+          "fr": "Heures",
+          "de": "Stunden",
+          "es": "Horas",
+          "it": "Ore",
+          "pt": "Horas",
+          "nl": "Uren",
+          "da": "Timer",
+          "no": "Timer",
+          "sv": "Timmar"
         }
       },
-      "MINS": {
+      "Mins": {
         "context": "Time unit: minutes (abbreviated).",
         "translations": {
-          "fr": "MIN",
-          "de": "MIN",
-          "es": "MIN",
-          "it": "MIN",
-          "pt": "MIN",
-          "nl": "MIN",
-          "da": "MIN",
-          "no": "MIN",
-          "sv": "MIN"
+          "fr": "Min",
+          "de": "Min",
+          "es": "Min",
+          "it": "Min",
+          "pt": "Min",
+          "nl": "Min",
+          "da": "Min",
+          "no": "Min",
+          "sv": "Min"
         }
       },
-      "LEFT": {
+      "left": {
         "context": "Follows a remaining duration ('3D LEFT').",
         "translations": {
-          "fr": "RESTE",
-          "de": "UBRIG",
-          "es": "QUEDAN",
-          "it": "MANCA",
-          "pt": "FALTAM",
-          "nl": "OVER",
-          "da": "TILBAGE",
-          "no": "IGJEN",
-          "sv": "KVAR"
+          "fr": "reste",
+          "de": "ubrig",
+          "es": "quedan",
+          "it": "manca",
+          "pt": "faltam",
+          "nl": "over",
+          "da": "tilbage",
+          "no": "igjen",
+          "sv": "kvar"
         }
       },
-      "REMAINING": {
+      "remaining": {
         "context": "Follows a duration to mean time remaining ('3D REMAINING').",
         "translations": {
-          "fr": "RESTANT",
-          "de": "VERBLEIB.",
-          "es": "RESTANTE",
-          "it": "RIMANENTE",
-          "pt": "RESTANTE",
-          "nl": "RESTEREND",
-          "da": "TILBAGE",
-          "no": "GJENSTÅR",
-          "sv": "ÅTERSTÅR"
+          "fr": "restant",
+          "de": "verbleib.",
+          "es": "restante",
+          "it": "rimanente",
+          "pt": "restante",
+          "nl": "resterend",
+          "da": "tilbage",
+          "no": "gjenstår",
+          "sv": "återstår"
         }
       },
-      "ARRIVED": {
+      "Arrived": {
         "context": "Shown when an awaited moment has arrived.",
         "translations": {
-          "fr": "ARRIVE",
-          "de": "DA",
-          "es": "LLEGO",
-          "it": "ARRIVATO",
-          "pt": "CHEGOU",
-          "nl": "AANGEKOMEN",
-          "da": "ANKOMMET",
-          "no": "ANKOMMET",
-          "sv": "ANLÄNT"
+          "fr": "Arrive",
+          "de": "Da",
+          "es": "Llego",
+          "it": "Arrivato",
+          "pt": "Chegou",
+          "nl": "Aangekomen",
+          "da": "Ankommet",
+          "no": "Ankommet",
+          "sv": "Anlänt"
         }
       },
-      "HERE": {
+      "Here": {
         "context": "Short 'it's here' when an awaited moment arrives.",
         "translations": {
-          "fr": "ICI",
-          "de": "HIER",
-          "es": "AQUI",
-          "it": "QUI",
-          "pt": "AQUI",
-          "nl": "HIER",
-          "da": "HER",
-          "no": "HER",
-          "sv": "HÄR"
+          "fr": "Ici",
+          "de": "Hier",
+          "es": "Aqui",
+          "it": "Qui",
+          "pt": "Aqui",
+          "nl": "Hier",
+          "da": "Her",
+          "no": "Her",
+          "sv": "Här"
         }
       },
-      "CELEBRATE": {
+      "Celebrate": {
         "context": "Celebratory word shown when an event arrives.",
         "translations": {
-          "fr": "FETEZ",
-          "de": "FEIERN",
-          "es": "CELEBRA",
-          "it": "FESTA",
-          "pt": "FESTA",
-          "nl": "VIER",
-          "da": "FEJR",
-          "no": "FEIRE",
-          "sv": "FIRA"
+          "fr": "Fetez",
+          "de": "Feiern",
+          "es": "Celebra",
+          "it": "Festa",
+          "pt": "Festa",
+          "nl": "Vier",
+          "da": "Fejr",
+          "no": "Feire",
+          "sv": "Fira"
         }
       },
-      "PARTY": {
+      "Party": {
         "context": "Celebratory word shown when an event arrives.",
         "translations": {
-          "fr": "FETE",
-          "de": "PARTY",
-          "es": "FIESTA",
-          "it": "FESTA",
-          "pt": "FESTA",
-          "nl": "FEEST",
-          "da": "FEST",
-          "no": "FEST",
-          "sv": "FEST"
+          "fr": "Fete",
+          "de": "Party",
+          "es": "Fiesta",
+          "it": "Festa",
+          "pt": "Festa",
+          "nl": "Feest",
+          "da": "Fest",
+          "no": "Fest",
+          "sv": "Fest"
         }
       },
-      "TODAY": {
+      "Today": {
         "context": "The word 'today'.",
         "translations": {
-          "fr": "AUJOURDHUI",
-          "de": "HEUTE",
-          "es": "HOY",
-          "it": "OGGI",
-          "pt": "HOJE",
-          "nl": "VANDAAG",
-          "da": "I DAG",
-          "no": "I DAG",
-          "sv": "IDAG"
+          "fr": "Aujourdhui",
+          "de": "Heute",
+          "es": "Hoy",
+          "it": "Oggi",
+          "pt": "Hoje",
+          "nl": "Vandaag",
+          "da": "I dag",
+          "no": "I dag",
+          "sv": "Idag"
         }
       },
-      "NOW": {
+      "Now": {
         "context": "The word 'now'.",
         "translations": {
-          "fr": "MAINTENANT",
-          "de": "JETZT",
-          "es": "AHORA",
-          "it": "ORA",
-          "pt": "AGORA",
-          "nl": "NU",
-          "da": "NU",
-          "no": "NÅ",
-          "sv": "NU"
+          "fr": "Maintenant",
+          "de": "Jetzt",
+          "es": "Ahora",
+          "it": "Ora",
+          "pt": "Agora",
+          "nl": "Nu",
+          "da": "Nu",
+          "no": "Nå",
+          "sv": "Nu"
         }
       },
-      "IN": {
+      "In": {
         "context": "Connector before a duration: 'IN 3 DAYS'.",
         "translations": {
-          "fr": "DANS",
-          "de": "IN",
-          "es": "EN",
-          "it": "TRA",
-          "pt": "EM",
-          "nl": "OVER",
-          "da": "OM",
-          "no": "OM",
-          "sv": "OM"
+          "fr": "Dans",
+          "de": "In",
+          "es": "En",
+          "it": "Tra",
+          "pt": "Em",
+          "nl": "over",
+          "da": "Om",
+          "no": "Om",
+          "sv": "Om"
         }
       },
       "Y": {
@@ -536,1027 +536,1027 @@
           "nl": "S"
         }
       },
-      "YEARS": {
+      "Years": {
         "context": "Duration unit word (plural): years.",
         "translations": {
-          "fr": "ANS",
-          "de": "JAHRE",
-          "es": "AÑOS",
-          "it": "ANNI",
-          "pt": "ANOS",
-          "nl": "JAREN",
-          "da": "ÅR",
-          "no": "ÅR",
-          "sv": "ÅR"
+          "fr": "Ans",
+          "de": "Jahre",
+          "es": "Años",
+          "it": "Anni",
+          "pt": "Anos",
+          "nl": "Jaren",
+          "da": "År",
+          "no": "År",
+          "sv": "År"
         }
       },
-      "MONTHS": {
+      "Months": {
         "context": "Duration unit word (plural): months.",
         "translations": {
-          "fr": "MOIS",
-          "de": "MONATE",
-          "es": "MESES",
-          "it": "MESI",
-          "pt": "MESES",
-          "nl": "MAANDEN",
-          "da": "MÅNEDER",
-          "no": "MÅNEDER",
-          "sv": "MÅNADER"
+          "fr": "Mois",
+          "de": "Monate",
+          "es": "Meses",
+          "it": "Mesi",
+          "pt": "Meses",
+          "nl": "Maanden",
+          "da": "Måneder",
+          "no": "Måneder",
+          "sv": "Månader"
         }
       },
-      "WEEKS": {
+      "Weeks": {
         "context": "Duration unit word (plural): weeks.",
         "translations": {
-          "fr": "SEMAINES",
-          "de": "WOCHEN",
-          "es": "SEMANAS",
-          "it": "SETTIMANE",
-          "pt": "SEMANAS",
-          "nl": "WEKEN",
-          "da": "UGER",
-          "no": "UKER",
-          "sv": "VECKOR"
+          "fr": "Semaines",
+          "de": "Wochen",
+          "es": "Semanas",
+          "it": "Settimane",
+          "pt": "Semanas",
+          "nl": "Weken",
+          "da": "Uger",
+          "no": "Uker",
+          "sv": "Veckor"
         }
       },
-      "MINUTES": {
+      "Minutes": {
         "context": "Duration unit word (plural): minutes.",
         "translations": {
-          "fr": "MINUTES",
-          "de": "MINUTEN",
-          "es": "MINUTOS",
-          "it": "MINUTI",
-          "pt": "MINUTOS",
-          "nl": "MINUTEN",
-          "da": "MINUTTER",
-          "no": "MINUTTER",
-          "sv": "MINUTER"
+          "fr": "Minutes",
+          "de": "Minuten",
+          "es": "Minutos",
+          "it": "Minuti",
+          "pt": "Minutos",
+          "nl": "Minuten",
+          "da": "Minutter",
+          "no": "Minutter",
+          "sv": "Minuter"
         }
       },
-      "SECONDS": {
+      "Seconds": {
         "context": "Duration unit word (plural): seconds.",
         "translations": {
-          "fr": "SECONDES",
-          "de": "SEKUNDEN",
-          "es": "SEGUNDOS",
-          "it": "SECONDI",
-          "pt": "SEGUNDOS",
-          "nl": "SECONDEN",
-          "da": "SEKUNDER",
-          "no": "SEKUNDER",
-          "sv": "SEKUNDER"
+          "fr": "Secondes",
+          "de": "Sekunden",
+          "es": "Segundos",
+          "it": "Secondi",
+          "pt": "Segundos",
+          "nl": "Seconden",
+          "da": "Sekunder",
+          "no": "Sekunder",
+          "sv": "Sekunder"
         }
       },
-      "TIME SINCE": {
+      "Time since": {
         "context": "'Time since <event>' label.",
         "translations": {
-          "fr": "DEPUIS",
-          "de": "SEIT",
-          "es": "DESDE",
-          "it": "DA",
-          "pt": "DESDE",
-          "nl": "SINDS",
-          "da": "SIDEN",
-          "no": "SIDEN",
-          "sv": "SEDAN"
+          "fr": "Depuis",
+          "de": "Seit",
+          "es": "Desde",
+          "it": "Da",
+          "pt": "Desde",
+          "nl": "Sinds",
+          "da": "Siden",
+          "no": "Siden",
+          "sv": "Sedan"
         }
       },
-      "NOT YET": {
+      "Not yet": {
         "context": "An awaited event is still in the future.",
         "translations": {
-          "fr": "PAS ENCORE",
-          "de": "NOCH NICHT",
-          "es": "AUN NO",
-          "it": "NON ANCORA",
-          "pt": "AINDA NAO",
-          "nl": "NOG NIET",
-          "da": "IKKE ENDNU",
-          "no": "IKKE ENNÅ",
-          "sv": "INTE ÄNNU"
+          "fr": "Pas encore",
+          "de": "Noch nicht",
+          "es": "Aun no",
+          "it": "Non ancora",
+          "pt": "Ainda nao",
+          "nl": "Nog niet",
+          "da": "Ikke endnu",
+          "no": "Ikke ennå",
+          "sv": "Inte ännu"
         }
       },
-      "STARTED": {
+      "Started": {
         "context": "An event has started / passed.",
         "translations": {
-          "fr": "COMMENCE",
-          "de": "GESTARTET",
-          "es": "EMPEZADO",
-          "it": "INIZIATO",
-          "pt": "INICIADO",
-          "nl": "GESTART",
-          "da": "STARTET",
-          "no": "STARTET",
-          "sv": "STARTAT"
+          "fr": "Commence",
+          "de": "Gestartet",
+          "es": "Empezado",
+          "it": "Iniziato",
+          "pt": "Iniciado",
+          "nl": "Gestart",
+          "da": "Startet",
+          "no": "Startet",
+          "sv": "Startat"
         }
       }
     },
     "sun": {
-      "SUNRISE": {
+      "Sunrise": {
         "context": "The time the sun rises.",
         "translations": {
-          "fr": "LEVER",
-          "de": "AUFGANG",
-          "es": "AMANECER",
-          "it": "ALBA",
-          "pt": "NASCER",
-          "nl": "OPKOMST",
-          "da": "SOLOPGANG",
-          "no": "SOLOPPGANG",
-          "sv": "SOLUPPGÅNG"
+          "fr": "Lever",
+          "de": "Aufgang",
+          "es": "Amanecer",
+          "it": "Alba",
+          "pt": "Nascer",
+          "nl": "Opkomst",
+          "da": "Solopgang",
+          "no": "Soloppgang",
+          "sv": "Soluppgång"
         }
       },
-      "SUNSET": {
+      "Sunset": {
         "context": "The time the sun sets.",
         "translations": {
-          "fr": "COUCHER",
-          "de": "UNTERGANG",
-          "es": "OCASO",
-          "it": "TRAMONTO",
-          "pt": "OCASO",
-          "nl": "ONDERGANG",
-          "da": "SOLNEDGANG",
-          "no": "SOLNEDGANG",
-          "sv": "SOLNEDGÅNG"
+          "fr": "Coucher",
+          "de": "Untergang",
+          "es": "Ocaso",
+          "it": "Tramonto",
+          "pt": "Ocaso",
+          "nl": "Ondergang",
+          "da": "Solnedgang",
+          "no": "Solnedgang",
+          "sv": "Solnedgång"
         }
       },
-      "DAYLIGHT": {
+      "Daylight": {
         "context": "Total hours of daylight.",
         "translations": {
-          "fr": "JOUR",
-          "de": "TAGESLICHT",
-          "es": "LUZ DIA",
-          "it": "LUCE",
-          "pt": "LUZ DIA",
-          "nl": "DAGLICHT",
-          "da": "DAGSLYS",
-          "no": "DAGSLYS",
-          "sv": "DAGSLJUS"
+          "fr": "Jour",
+          "de": "Tageslicht",
+          "es": "Luz dia",
+          "it": "Luce",
+          "pt": "Luz dia",
+          "nl": "Daglicht",
+          "da": "Dagslys",
+          "no": "Dagslys",
+          "sv": "Dagsljus"
         }
       },
-      "UP": {
+      "Up": {
         "context": "Very short label for sunrise (sun is up).",
         "translations": {
-          "fr": "LEV",
-          "de": "AUF",
-          "es": "SAL",
-          "it": "ALBA",
-          "pt": "NASC",
-          "nl": "OP"
+          "fr": "Lev",
+          "de": "Auf",
+          "es": "Sal",
+          "it": "Alba",
+          "pt": "Nasc",
+          "nl": "Op"
         }
       },
-      "DN": {
+      "Dn": {
         "context": "Very short label for sunset (sun is down).",
         "translations": {
-          "fr": "COU",
-          "de": "UNT",
-          "es": "OCA",
-          "it": "TRAM",
-          "pt": "OCA",
-          "nl": "OND"
+          "fr": "Cou",
+          "de": "Unt",
+          "es": "Oca",
+          "it": "Tram",
+          "pt": "Oca",
+          "nl": "Ond"
         }
       }
     },
     "moon": {
-      "NEW MOON": {
+      "New moon": {
         "context": "Lunar phase: new moon.",
         "translations": {
-          "fr": "NOUVELLE LUNE",
-          "de": "NEUMOND",
-          "es": "LUNA NUEVA",
-          "it": "LUNA NUOVA",
-          "pt": "LUA NOVA",
-          "nl": "NIEUWE MAAN",
-          "da": "NYMÅNE",
-          "no": "NYMÅNE",
-          "sv": "NYMÅNE"
+          "fr": "Nouvelle lune",
+          "de": "Neumond",
+          "es": "Luna nueva",
+          "it": "Luna nuova",
+          "pt": "Lua nova",
+          "nl": "Nieuwe maan",
+          "da": "Nymåne",
+          "no": "Nymåne",
+          "sv": "Nymåne"
         }
       },
-      "FULL MOON": {
+      "Full moon": {
         "context": "Lunar phase: full moon.",
         "translations": {
-          "fr": "PLEINE LUNE",
-          "de": "VOLLMOND",
-          "es": "LUNA LLENA",
-          "it": "LUNA PIENA",
-          "pt": "LUA CHEIA",
-          "nl": "VOLLE MAAN",
-          "da": "FULDMÅNE",
-          "no": "FULLMÅNE",
-          "sv": "FULLMÅNE"
+          "fr": "Pleine lune",
+          "de": "Vollmond",
+          "es": "Luna llena",
+          "it": "Luna piena",
+          "pt": "Lua cheia",
+          "nl": "Volle maan",
+          "da": "Fuldmåne",
+          "no": "Fullmåne",
+          "sv": "Fullmåne"
         }
       },
-      "FIRST QUARTER": {
+      "First quarter": {
         "context": "Lunar phase: first quarter (keep short).",
         "translations": {
-          "fr": "1ER QUARTIER",
-          "de": "1. VIERTEL",
-          "es": "CUARTO CREC.",
-          "it": "PRIMO QUARTO",
-          "pt": "QUARTO CRESC.",
-          "nl": "EERSTE KWART."
+          "fr": "1er quartier",
+          "de": "1. Viertel",
+          "es": "Cuarto crec.",
+          "it": "Primo quarto",
+          "pt": "Quarto cresc.",
+          "nl": "Eerste kwart."
         }
       },
-      "LAST QUARTER": {
+      "Last quarter": {
         "context": "Lunar phase: last quarter (keep short).",
         "translations": {
-          "fr": "DERN. QUARTIER",
-          "de": "LETZT. VIERTEL",
-          "es": "CUARTO MENG.",
-          "it": "ULTIMO QUARTO",
-          "pt": "QUARTO MING.",
-          "nl": "LAATSTE KWART."
+          "fr": "Dern. quartier",
+          "de": "Letzt. Viertel",
+          "es": "Cuarto meng.",
+          "it": "Ultimo quarto",
+          "pt": "Quarto ming.",
+          "nl": "Laatste kwart."
         }
       },
-      "WAXING CRESCENT": {
+      "Waxing crescent": {
         "context": "Lunar phase: waxing crescent (growing).",
         "translations": {
-          "fr": "1ER CROISSANT",
-          "de": "ZUN. SICHEL",
-          "es": "CRECIENTE",
-          "it": "CRESCENTE",
-          "pt": "CRESCENTE",
-          "nl": "WASSEND"
+          "fr": "1er croissant",
+          "de": "Zun. Sichel",
+          "es": "Creciente",
+          "it": "Crescente",
+          "pt": "Crescente",
+          "nl": "Wassend"
         }
       },
-      "WANING CRESCENT": {
+      "Waning crescent": {
         "context": "Lunar phase: waning crescent (shrinking).",
         "translations": {
-          "fr": "DERN. CROISSANT",
-          "de": "ABN. SICHEL",
-          "es": "MENGUANTE",
-          "it": "CALANTE",
-          "pt": "MINGUANTE",
-          "nl": "AFNEMEND"
+          "fr": "Dern. croissant",
+          "de": "Abn. Sichel",
+          "es": "Menguante",
+          "it": "Calante",
+          "pt": "Minguante",
+          "nl": "Afnemend"
         }
       },
-      "WAXING GIBBOUS": {
+      "Waxing gibbous": {
         "context": "Lunar phase: waxing gibbous (growing).",
         "translations": {
-          "fr": "GIBBEUSE CROIS.",
-          "de": "ZUN. MOND",
-          "es": "GIBOSA CREC.",
-          "it": "GIBBOSA CRESC.",
-          "pt": "GIBOSA CRESC.",
-          "nl": "WASSEND"
+          "fr": "Gibbeuse crois.",
+          "de": "Zun. Mond",
+          "es": "Gibosa crec.",
+          "it": "Gibbosa cresc.",
+          "pt": "Gibosa cresc.",
+          "nl": "Wassend"
         }
       },
-      "WANING GIBBOUS": {
+      "Waning gibbous": {
         "context": "Lunar phase: waning gibbous (shrinking).",
         "translations": {
-          "fr": "GIBBEUSE DECR.",
-          "de": "ABN. MOND",
-          "es": "GIBOSA MENG.",
-          "it": "GIBBOSA CAL.",
-          "pt": "GIBOSA MING.",
-          "nl": "AFNEMEND"
+          "fr": "Gibbeuse decr.",
+          "de": "Abn. Mond",
+          "es": "Gibosa meng.",
+          "it": "Gibbosa cal.",
+          "pt": "Gibosa ming.",
+          "nl": "Afnemend"
         }
       },
-      "LIT": {
+      "lit": {
         "context": "Precedes the percentage of a surface that is illuminated, e.g. '16% LIT'.",
         "translations": {
-          "fr": "ECLAIRE",
-          "de": "HELL",
-          "es": "ILUM.",
-          "it": "ILLUM.",
-          "pt": "ILUM.",
-          "nl": "VERL.",
-          "da": "OPLYST",
-          "no": "OPPLYST",
-          "sv": "UPPLYST"
+          "fr": "eclaire",
+          "de": "hell",
+          "es": "ilum.",
+          "it": "illum.",
+          "pt": "ilum.",
+          "nl": "verl.",
+          "da": "oplyst",
+          "no": "opplyst",
+          "sv": "upplyst"
         }
       },
-      "FULL IN": {
+      "Full in": {
         "context": "'FULL IN 3D' = time until something is full (e.g. the moon).",
         "translations": {
-          "fr": "PLEINE DANS",
-          "de": "VOLL IN",
-          "es": "LLENA EN",
-          "it": "PIENA IN",
-          "pt": "CHEIA EM",
-          "nl": "VOL OVER",
-          "da": "FULD OM",
-          "no": "FULL OM",
-          "sv": "FULL OM"
+          "fr": "Pleine dans",
+          "de": "Voll in",
+          "es": "Llena en",
+          "it": "Piena in",
+          "pt": "Cheia em",
+          "nl": "Vol over",
+          "da": "Fuld om",
+          "no": "Full om",
+          "sv": "Full om"
         }
       },
-      "NEW IN": {
+      "New in": {
         "context": "'NEW IN 3D' = time until something is new (e.g. the moon).",
         "translations": {
-          "fr": "NOUV. DANS",
-          "de": "NEU IN",
-          "es": "NUEVA EN",
-          "it": "NUOVA IN",
-          "pt": "NOVA EM",
-          "nl": "NIEUW OVER",
-          "da": "NY OM",
-          "no": "NY OM",
-          "sv": "NY OM"
+          "fr": "Nouv. dans",
+          "de": "Neu in",
+          "es": "Nueva en",
+          "it": "Nuova in",
+          "pt": "Nova em",
+          "nl": "Nieuw over",
+          "da": "Ny om",
+          "no": "Ny om",
+          "sv": "Ny om"
         }
       }
     },
     "weather": {
-      "CLEAR": {
+      "Clear": {
         "context": "Weather condition: clear sky.",
         "translations": {
-          "fr": "DEGAGE",
-          "de": "KLAR",
-          "es": "DESPEJADO",
-          "it": "SERENO",
-          "pt": "LIMPO",
-          "nl": "HELDER",
-          "da": "KLART",
-          "no": "KLART",
-          "sv": "KLART"
+          "fr": "Degage",
+          "de": "Klar",
+          "es": "Despejado",
+          "it": "Sereno",
+          "pt": "Limpo",
+          "nl": "Helder",
+          "da": "Klart",
+          "no": "Klart",
+          "sv": "Klart"
         }
       },
-      "MAINLY CLEAR": {
+      "Mainly clear": {
         "context": "Weather condition: mostly clear sky.",
         "translations": {
-          "fr": "PLUTOT CLAIR",
-          "de": "MEIST KLAR",
-          "es": "MAYORM. CLARO",
-          "it": "POCO NUVOLOSO",
-          "pt": "QUASE LIMPO",
-          "nl": "VNL. HELDER"
+          "fr": "Plutot clair",
+          "de": "Meist klar",
+          "es": "Mayorm. claro",
+          "it": "Poco nuvoloso",
+          "pt": "Quase limpo",
+          "nl": "Vnl. helder"
         }
       },
-      "PARTLY CLOUDY": {
+      "Partly cloudy": {
         "context": "Weather condition: partly cloudy.",
         "translations": {
-          "fr": "NUAGEUX",
-          "de": "TEILS WOLKIG",
-          "es": "PARC. NUBLADO",
-          "it": "POCO NUVOLOSO",
-          "pt": "PARC. NUBLADO",
-          "nl": "HALF BEWOLKT",
-          "da": "DELVIS SKYET",
-          "no": "DELVIS SKYET",
-          "sv": "DELVIS MOLNIGT"
+          "fr": "Nuageux",
+          "de": "Teils wolkig",
+          "es": "Parc. nublado",
+          "it": "Poco nuvoloso",
+          "pt": "Parc. nublado",
+          "nl": "Half bewolkt",
+          "da": "Delvis skyet",
+          "no": "Delvis skyet",
+          "sv": "Delvis molnigt"
         }
       },
-      "OVERCAST": {
+      "Overcast": {
         "context": "Weather condition: fully clouded over.",
         "translations": {
-          "fr": "COUVERT",
-          "de": "BEDECKT",
-          "es": "CUBIERTO",
-          "it": "COPERTO",
-          "pt": "ENCOBERTO",
-          "nl": "BEWOLKT",
-          "da": "OVERSKYET",
-          "no": "OVERSKYET",
-          "sv": "MULET"
+          "fr": "Couvert",
+          "de": "Bedeckt",
+          "es": "Cubierto",
+          "it": "Coperto",
+          "pt": "Encoberto",
+          "nl": "Bewolkt",
+          "da": "Overskyet",
+          "no": "Overskyet",
+          "sv": "Mulet"
         }
       },
-      "FOG": {
-        "context": "Weather condition: fog.",
+      "Fog": {
+        "context": "Forecast: fog or mist (max 6 chars).",
         "translations": {
-          "fr": "BROUILLARD",
-          "de": "NEBEL",
-          "es": "NIEBLA",
-          "it": "NEBBIA",
-          "pt": "NEVOEIRO",
-          "nl": "MIST",
-          "da": "TÅGE",
-          "no": "TÅKE",
-          "sv": "DIMMA"
+          "fr": "Brume",
+          "de": "Nebel",
+          "es": "Niebla",
+          "it": "Nebbia",
+          "pt": "Nevoa",
+          "nl": "Mist",
+          "da": "Tage",
+          "no": "Tåke",
+          "sv": "Dimma"
         }
       },
-      "RIME FOG": {
+      "Rime fog": {
         "context": "Weather condition: freezing/rime fog.",
         "translations": {
-          "fr": "BRUME GIVRANTE",
-          "de": "RAUREIF",
-          "es": "NIEBLA HELADA",
-          "it": "NEBBIA GHIAC.",
-          "pt": "NEVOA GELADA",
-          "nl": "RIJP-MIST"
+          "fr": "Brume givrante",
+          "de": "Raureif",
+          "es": "Niebla helada",
+          "it": "Nebbia ghiac.",
+          "pt": "Nevoa gelada",
+          "nl": "Rijp-mist"
         }
       },
-      "LIGHT DRIZZLE": {
+      "Light drizzle": {
         "context": "Weather condition: light drizzle.",
         "translations": {
-          "fr": "BRUINE LEGERE",
-          "de": "LEICHT NIESEL",
-          "es": "LLOVIZNA LEVE",
-          "it": "PIOVIGGINE",
-          "pt": "CHUVISCO FRACO",
-          "nl": "LICHTE MOTREG"
+          "fr": "Bruine legere",
+          "de": "Leicht Niesel",
+          "es": "Llovizna leve",
+          "it": "Pioviggine",
+          "pt": "Chuvisco fraco",
+          "nl": "Lichte motreg"
         }
       },
-      "DRIZZLE": {
+      "Drizzle": {
         "context": "Weather condition: drizzle.",
         "translations": {
-          "fr": "BRUINE",
-          "de": "NIESELN",
-          "es": "LLOVIZNA",
-          "it": "PIOVIGGINE",
-          "pt": "CHUVISCO",
-          "nl": "MOTREGEN"
+          "fr": "Bruine",
+          "de": "Nieseln",
+          "es": "Llovizna",
+          "it": "Pioviggine",
+          "pt": "Chuvisco",
+          "nl": "Motregen"
         }
       },
-      "HEAVY DRIZZLE": {
+      "Heavy drizzle": {
         "context": "Weather condition: heavy drizzle.",
         "translations": {
-          "fr": "BRUINE FORTE",
-          "de": "STARK. NIESEL",
-          "es": "LLOVIZNA FTE",
-          "it": "PIOVIGGINE FT",
-          "pt": "CHUVISCO FORTE",
-          "nl": "ZWARE MOTREG"
+          "fr": "Bruine forte",
+          "de": "Stark. Niesel",
+          "es": "Llovizna fte",
+          "it": "Pioviggine ft",
+          "pt": "Chuvisco forte",
+          "nl": "Zware motreg"
         }
       },
-      "LIGHT RAIN": {
+      "Light rain": {
         "context": "Weather condition: light rain.",
         "translations": {
-          "fr": "PLUIE LEGERE",
-          "de": "LEICHT. REGEN",
-          "es": "LLUVIA LEVE",
-          "it": "PIOGGIA LEGG.",
-          "pt": "CHUVA FRACA",
-          "nl": "LICHTE REGEN",
-          "da": "LET REGN",
-          "no": "LETT REGN",
-          "sv": "LÄTT REGN"
+          "fr": "Pluie legere",
+          "de": "Leicht. Regen",
+          "es": "Lluvia leve",
+          "it": "Pioggia legg.",
+          "pt": "Chuva fraca",
+          "nl": "Lichte regen",
+          "da": "Let regn",
+          "no": "Lett regn",
+          "sv": "Lätt regn"
         }
       },
-      "RAIN": {
-        "context": "Weather condition: rain.",
+      "Rain": {
+        "context": "Forecast: rain. A '-' or '+' is appended for light/heavy (max 6 chars).",
         "translations": {
-          "fr": "PLUIE",
-          "de": "REGEN",
-          "es": "LLUVIA",
-          "it": "PIOGGIA",
-          "pt": "CHUVA",
-          "nl": "REGEN",
-          "da": "REGN",
-          "no": "REGN",
-          "sv": "REGN"
+          "fr": "Pluie",
+          "de": "Regen",
+          "es": "Lluvia",
+          "it": "Piogg",
+          "pt": "Chuva",
+          "nl": "Regen",
+          "da": "Regn",
+          "no": "Regn",
+          "sv": "Regn"
         }
       },
-      "HEAVY RAIN": {
+      "Heavy rain": {
         "context": "Weather condition: heavy rain.",
         "translations": {
-          "fr": "PLUIE FORTE",
-          "de": "STARKREGEN",
-          "es": "LLUVIA FUERTE",
-          "it": "PIOGGIA FORTE",
-          "pt": "CHUVA FORTE",
-          "nl": "ZWARE REGEN",
-          "da": "KRAFTIG REGN",
-          "no": "KRAFTIG REGN",
-          "sv": "KRAFTIGT REGN"
+          "fr": "Pluie forte",
+          "de": "Starkregen",
+          "es": "Lluvia fuerte",
+          "it": "Pioggia forte",
+          "pt": "Chuva forte",
+          "nl": "Zware regen",
+          "da": "Kraftig regn",
+          "no": "Kraftig regn",
+          "sv": "Kraftigt regn"
         }
       },
-      "LIGHT FREEZING RAIN": {
+      "Light freezing rain": {
         "context": "Weather condition: light freezing rain.",
         "translations": {
-          "fr": "PLUIE VERGLAC.",
-          "de": "L. GEFR. REGEN",
-          "es": "LLUVIA HELADA",
-          "it": "PIOGGIA GELATA",
-          "pt": "CHUVA GELADA",
-          "nl": "LICHTE IJZEL"
+          "fr": "Pluie verglac.",
+          "de": "L. gefr. Regen",
+          "es": "Lluvia helada",
+          "it": "Pioggia gelata",
+          "pt": "Chuva gelada",
+          "nl": "Lichte ijzel"
         }
       },
-      "FREEZING RAIN": {
+      "Freezing rain": {
         "context": "Weather condition: freezing rain.",
         "translations": {
-          "fr": "PLUIE VERGLAC.",
-          "de": "GEFRIER-REGEN",
-          "es": "LLUVIA HELADA",
-          "it": "PIOGGIA GELATA",
-          "pt": "CHUVA GELADA",
-          "nl": "IJZEL"
+          "fr": "Pluie verglac.",
+          "de": "Gefrier-Regen",
+          "es": "Lluvia helada",
+          "it": "Pioggia gelata",
+          "pt": "Chuva gelada",
+          "nl": "IJzel"
         }
       },
-      "LIGHT SNOW": {
+      "Light snow": {
         "context": "Weather condition: light snow.",
         "translations": {
-          "fr": "NEIGE LEGERE",
-          "de": "LEICHT SCHNEE",
-          "es": "NIEVE LEVE",
-          "it": "NEVE LEGGERA",
-          "pt": "NEVE FRACA",
-          "nl": "LICHTE SNEEUW",
-          "da": "LET SNE",
-          "no": "LETT SNØ",
-          "sv": "LÄTT SNÖ"
+          "fr": "Neige legere",
+          "de": "Leicht Schnee",
+          "es": "Nieve leve",
+          "it": "Neve leggera",
+          "pt": "Neve fraca",
+          "nl": "Lichte sneeuw",
+          "da": "Let sne",
+          "no": "Lett snø",
+          "sv": "Lätt snö"
         }
       },
-      "SNOW": {
-        "context": "Weather condition: snow.",
+      "Snow": {
+        "context": "Forecast: snow. A '-' or '+' is appended for light/heavy (max 6 chars).",
         "translations": {
-          "fr": "NEIGE",
-          "de": "SCHNEE",
-          "es": "NIEVE",
-          "it": "NEVE",
-          "pt": "NEVE",
-          "nl": "SNEEUW",
-          "da": "SNE",
-          "no": "SNØ",
-          "sv": "SNÖ"
+          "fr": "Neige",
+          "de": "Schnee",
+          "es": "Nieve",
+          "it": "Neve",
+          "pt": "Neve",
+          "nl": "Sneeuw",
+          "da": "Sne",
+          "no": "Snø",
+          "sv": "Snö"
         }
       },
-      "HEAVY SNOW": {
+      "Heavy snow": {
         "context": "Weather condition: heavy snow.",
         "translations": {
-          "fr": "NEIGE FORTE",
-          "de": "STARK. SCHNEE",
-          "es": "NIEVE FUERTE",
-          "it": "NEVE FORTE",
-          "pt": "NEVE FORTE",
-          "nl": "ZWARE SNEEUW",
-          "da": "KRAFTIG SNE",
-          "no": "KRAFTIG SNØ",
-          "sv": "KRAFTIGT SNÖ"
+          "fr": "Neige forte",
+          "de": "Stark. Schnee",
+          "es": "Nieve fuerte",
+          "it": "Neve forte",
+          "pt": "Neve forte",
+          "nl": "Zware sneeuw",
+          "da": "Kraftig sne",
+          "no": "Kraftig snø",
+          "sv": "Kraftigt snö"
         }
       },
-      "SNOW GRAINS": {
+      "Snow grains": {
         "context": "Weather condition: snow grains.",
         "translations": {
-          "fr": "GRAINS NEIGE",
-          "de": "SCHNEEGRIESEL",
-          "es": "GRANIZO NIEVE",
-          "it": "NEVE GRANUL.",
-          "pt": "NEVE GRANULAR",
-          "nl": "KORRELSNEEUW"
+          "fr": "Grains neige",
+          "de": "Schneegriesel",
+          "es": "Granizo nieve",
+          "it": "Neve granul.",
+          "pt": "Neve granular",
+          "nl": "Korrelsneeuw"
         }
       },
-      "RAIN SHOWERS": {
+      "Rain showers": {
         "context": "Weather condition: rain showers.",
         "translations": {
-          "fr": "AVERSES",
-          "de": "REGENSCHAUER",
-          "es": "CHUBASCOS",
-          "it": "ROVESCI",
-          "pt": "AGUACEIROS",
-          "nl": "REGENBUIEN"
+          "fr": "Averses",
+          "de": "Regenschauer",
+          "es": "Chubascos",
+          "it": "Rovesci",
+          "pt": "Aguaceiros",
+          "nl": "Regenbuien"
         }
       },
-      "HEAVY SHOWERS": {
+      "Heavy showers": {
         "context": "Weather condition: heavy rain showers.",
         "translations": {
-          "fr": "AVERSES FORTES",
-          "de": "STARK. SCHAUER",
-          "es": "CHUBASCOS FTES",
-          "it": "ROVESCI FORTI",
-          "pt": "AGUAC. FORTES",
-          "nl": "ZWARE BUIEN"
+          "fr": "Averses fortes",
+          "de": "Stark. Schauer",
+          "es": "Chubascos ftes",
+          "it": "Rovesci forti",
+          "pt": "Aguac. fortes",
+          "nl": "Zware buien"
         }
       },
-      "SNOW SHOWERS": {
+      "Snow showers": {
         "context": "Weather condition: snow showers.",
         "translations": {
-          "fr": "AVERSES NEIGE",
-          "de": "SCHNEESCHAUER",
-          "es": "CHUBASCOS NIEVE",
-          "it": "ROVESCI NEVE",
-          "pt": "AGUAC. NEVE",
-          "nl": "SNEEUWBUIEN"
+          "fr": "Averses neige",
+          "de": "Schneeschauer",
+          "es": "Chubascos nieve",
+          "it": "Rovesci neve",
+          "pt": "Aguac. neve",
+          "nl": "Sneeuwbuien"
         }
       },
-      "HEAVY SNOW SHOWERS": {
+      "Heavy snow showers": {
         "context": "Weather condition: heavy snow showers.",
         "translations": {
-          "fr": "AVERSES NEIGE",
-          "de": "SCHNEESCHAUER",
-          "es": "CHUBASCOS NIEVE",
-          "it": "ROVESCI NEVE",
-          "pt": "AGUAC. NEVE",
-          "nl": "SNEEUWBUIEN"
+          "fr": "Averses neige",
+          "de": "Schneeschauer",
+          "es": "Chubascos nieve",
+          "it": "Rovesci neve",
+          "pt": "Aguac. neve",
+          "nl": "Sneeuwbuien"
         }
       },
-      "THUNDERSTORM": {
+      "Thunderstorm": {
         "context": "Weather condition: thunderstorm.",
         "translations": {
-          "fr": "ORAGE",
-          "de": "GEWITTER",
-          "es": "TORMENTA",
-          "it": "TEMPORALE",
-          "pt": "TROVOADA",
-          "nl": "ONWEER",
-          "da": "TORDENVEJR",
-          "no": "TORDENVÆR",
-          "sv": "ÅSKA"
+          "fr": "Orage",
+          "de": "Gewitter",
+          "es": "Tormenta",
+          "it": "Temporale",
+          "pt": "Trovoada",
+          "nl": "Onweer",
+          "da": "Tordenvejr",
+          "no": "Tordenvær",
+          "sv": "Åska"
         }
       },
-      "THUNDER HAIL": {
+      "Thunder hail": {
         "context": "Weather condition: thunderstorm with hail.",
         "translations": {
-          "fr": "ORAGE GRELE",
-          "de": "GEWITTER HAGEL",
-          "es": "TORM. GRANIZO",
-          "it": "TEMP. GRANDINE",
-          "pt": "TROV. GRANIZO",
-          "nl": "ONWEER HAGEL"
+          "fr": "Orage grele",
+          "de": "Gewitter Hagel",
+          "es": "Torm. granizo",
+          "it": "Temp. grandine",
+          "pt": "Trov. granizo",
+          "nl": "Onweer hagel"
         }
       },
-      "SEVERE TSTORM": {
+      "Severe tstorm": {
         "context": "Weather condition: severe thunderstorm (abbreviated).",
         "translations": {
-          "fr": "ORAGE VIOLENT",
-          "de": "SCHW. GEWITTER",
-          "es": "TORM. FUERTE",
-          "it": "TEMP. VIOLENTO",
-          "pt": "TROV. FORTE",
-          "nl": "ZWAAR ONWEER"
+          "fr": "Orage violent",
+          "de": "Schw. Gewitter",
+          "es": "Torm. fuerte",
+          "it": "Temp. violento",
+          "pt": "Trov. forte",
+          "nl": "Zwaar onweer"
         }
       },
-      "CURRENT CONDITIONS": {
+      "Current conditions": {
         "context": "Generic label for present weather conditions.",
         "translations": {
-          "fr": "CONDITIONS",
-          "de": "WETTER",
-          "es": "TIEMPO",
-          "it": "METEO",
-          "pt": "TEMPO",
-          "nl": "WEER",
-          "da": "VEJR",
-          "no": "VÆR",
-          "sv": "VÄDER"
+          "fr": "Conditions",
+          "de": "Wetter",
+          "es": "Tiempo",
+          "it": "Meteo",
+          "pt": "Tempo",
+          "nl": "Weer",
+          "da": "Vejr",
+          "no": "Vær",
+          "sv": "Väder"
         }
       },
-      "FEELS": {
+      "Feels": {
         "context": "Precedes the 'feels like' temperature.",
         "translations": {
-          "fr": "RESSENTI",
-          "de": "GEFUHLT",
-          "es": "SENSAC.",
-          "it": "PERCEP.",
-          "pt": "SENSAC.",
-          "nl": "GEVOELD",
-          "da": "FØLES",
-          "no": "FØLES",
-          "sv": "KÄNNS"
+          "fr": "Ressenti",
+          "de": "Gefuhlt",
+          "es": "Sensac.",
+          "it": "Percep.",
+          "pt": "Sensac.",
+          "nl": "Gevoeld",
+          "da": "Føles",
+          "no": "Føles",
+          "sv": "Känns"
         }
       },
-      "FLS": {
+      "Fls": {
         "context": "Very short 'feels like' label.",
         "translations": {
-          "fr": "RES",
-          "de": "GEF",
-          "es": "SEN",
-          "it": "PER",
-          "pt": "SEN",
-          "nl": "GVL"
+          "fr": "Res",
+          "de": "Gef",
+          "es": "Sen",
+          "it": "Per",
+          "pt": "Sen",
+          "nl": "Gvl"
         }
       },
-      "AIR QUALITY": {
+      "Air quality": {
         "context": "Air-quality label/heading.",
         "translations": {
-          "fr": "QUALITE AIR",
-          "de": "LUFTQUALITAT",
-          "es": "CALIDAD AIRE",
-          "it": "QUALITA ARIA",
-          "pt": "QUALID. AR",
-          "nl": "LUCHTKWAL.",
-          "da": "LUFTKVALITET",
-          "no": "LUFTKVALITET",
-          "sv": "LUFTKVALITET"
+          "fr": "Qualite air",
+          "de": "Luftqualitat",
+          "es": "Calidad aire",
+          "it": "Qualita aria",
+          "pt": "Qualid. ar",
+          "nl": "Luchtkwal.",
+          "da": "Luftkvalitet",
+          "no": "Luftkvalitet",
+          "sv": "Luftkvalitet"
         }
       },
-      "SUN EXPOSURE": {
+      "Sun exposure": {
         "context": "UV / sun-exposure label/heading.",
         "translations": {
-          "fr": "EXPO SOLEIL",
-          "de": "UV-BELASTUNG",
-          "es": "EXPO SOLAR",
-          "it": "ESPOS. SOLE",
-          "pt": "EXPO SOLAR",
-          "nl": "ZONKRACHT"
+          "fr": "Expo soleil",
+          "de": "UV-Belastung",
+          "es": "Expo solar",
+          "it": "Espos. sole",
+          "pt": "Expo solar",
+          "nl": "Zonkracht"
         }
       },
-      "SUN UV": {
+      "Sun UV": {
         "context": "Short 'sun UV' label.",
         "translations": {
-          "fr": "UV SOLEIL",
-          "de": "SONNE UV",
-          "es": "UV SOLAR",
-          "it": "UV SOLE",
-          "pt": "UV SOLAR",
-          "nl": "ZON UV"
+          "fr": "UV soleil",
+          "de": "Sonne UV",
+          "es": "UV solar",
+          "it": "UV sole",
+          "pt": "UV solar",
+          "nl": "Zon UV"
         }
       },
-      "POLLEN": {
+      "Pollen": {
         "context": "Pollen label/heading.",
         "translations": {
-          "fr": "POLLEN",
-          "de": "POLLEN",
-          "es": "POLEN",
-          "it": "POLLINE",
-          "pt": "POLEN",
-          "nl": "POLLEN",
-          "da": "POLLEN",
-          "no": "POLLEN",
-          "sv": "POLLEN"
+          "fr": "Pollen",
+          "de": "Pollen",
+          "es": "Polen",
+          "it": "Polline",
+          "pt": "Polen",
+          "nl": "Pollen",
+          "da": "Pollen",
+          "no": "Pollen",
+          "sv": "Pollen"
         }
       },
-      "OVERALL": {
+      "Overall": {
         "context": "The 'overall' level in a breakdown.",
         "translations": {
-          "fr": "GLOBAL",
-          "de": "GESAMT",
-          "es": "TOTAL",
-          "it": "TOTALE",
-          "pt": "GERAL",
-          "nl": "TOTAAL",
-          "da": "SAMLET",
-          "no": "SAMLET",
-          "sv": "TOTALT"
+          "fr": "Global",
+          "de": "Gesamt",
+          "es": "Total",
+          "it": "Totale",
+          "pt": "Geral",
+          "nl": "Totaal",
+          "da": "Samlet",
+          "no": "Samlet",
+          "sv": "Totalt"
         }
       },
-      "OVR": {
+      "Ovr": {
         "context": "Very short 'overall'.",
         "translations": {
-          "fr": "GLB",
-          "de": "GES",
-          "es": "TOT",
-          "it": "TOT",
-          "pt": "GER",
-          "nl": "TOT"
+          "fr": "Glb",
+          "de": "Ges",
+          "es": "Tot",
+          "it": "Tot",
+          "pt": "Ger",
+          "nl": "Tot"
         }
       },
-      "GRASS": {
+      "Grass": {
         "context": "Grass (e.g. grass pollen).",
         "translations": {
-          "fr": "HERBE",
-          "de": "GRAS",
-          "es": "HIERBA",
-          "it": "ERBA",
-          "pt": "RELVA",
-          "nl": "GRAS",
-          "da": "GRÆS",
-          "no": "GRESS",
-          "sv": "GRÄS"
+          "fr": "Herbe",
+          "de": "Gras",
+          "es": "Hierba",
+          "it": "Erba",
+          "pt": "Relva",
+          "nl": "Gras",
+          "da": "Græs",
+          "no": "Gress",
+          "sv": "Gräs"
         }
       },
-      "GRS": {
+      "Grs": {
         "context": "Very short 'grass'.",
         "translations": {
-          "fr": "HRB",
-          "de": "GRA",
-          "es": "HIE",
-          "it": "ERB",
-          "pt": "REL",
-          "nl": "GRS"
+          "fr": "Hrb",
+          "de": "Gra",
+          "es": "Hie",
+          "it": "Erb",
+          "pt": "Rel",
+          "nl": "Grs"
         }
       },
-      "TREE": {
+      "Tree": {
         "context": "Tree (e.g. tree pollen).",
         "translations": {
-          "fr": "ARBRE",
-          "de": "BAUM",
-          "es": "ARBOL",
-          "it": "ALBERO",
-          "pt": "ARVORE",
-          "nl": "BOOM",
-          "da": "TRÆ",
-          "no": "TRE",
-          "sv": "TRÄD"
+          "fr": "Arbre",
+          "de": "Baum",
+          "es": "Arbol",
+          "it": "Albero",
+          "pt": "Arvore",
+          "nl": "Boom",
+          "da": "Træ",
+          "no": "Tre",
+          "sv": "Träd"
         }
       },
-      "TRE": {
+      "Tre": {
         "context": "Very short 'tree'.",
         "translations": {
-          "fr": "ARB",
-          "de": "BAU",
-          "es": "ARB",
-          "it": "ALB",
-          "pt": "ARV",
-          "nl": "BOM"
+          "fr": "Arb",
+          "de": "Bau",
+          "es": "Arb",
+          "it": "Alb",
+          "pt": "Arv",
+          "nl": "Bom"
         }
       },
-      "WEED": {
+      "Weed": {
         "context": "Weed (e.g. weed pollen).",
         "translations": {
-          "fr": "HERBACEE",
-          "de": "UNKRAUT",
-          "es": "MALEZA",
-          "it": "ERBACCE",
-          "pt": "ERVAS",
-          "nl": "ONKRUID",
-          "da": "UKRUDT",
-          "no": "UGRESS",
-          "sv": "OGRÄS"
+          "fr": "Herbacee",
+          "de": "Unkraut",
+          "es": "Maleza",
+          "it": "Erbacce",
+          "pt": "Ervas",
+          "nl": "Onkruid",
+          "da": "Ukrudt",
+          "no": "Ugress",
+          "sv": "Ogräs"
         }
       },
-      "WED": {
+      "Wed": {
         "context": "Very short 'weed'.",
         "translations": {
-          "fr": "HER",
-          "de": "UNK",
-          "es": "MAL",
-          "it": "ERB",
-          "pt": "ERV",
-          "nl": "ONK"
+          "fr": "Her",
+          "de": "Unk",
+          "es": "Mal",
+          "it": "Erb",
+          "pt": "Erv",
+          "nl": "Onk"
         }
       },
-      "PROV": {
+      "Prov": {
         "context": "'Source/provider' label (which data provider).",
         "translations": {
-          "fr": "SRCE",
-          "de": "QUELLE",
-          "es": "FUENTE",
-          "it": "FONTE",
-          "pt": "FONTE",
-          "nl": "BRON"
+          "fr": "Srce",
+          "de": "Quelle",
+          "es": "Fuente",
+          "it": "Fonte",
+          "pt": "Fonte",
+          "nl": "Bron"
         }
       },
-      "PRV": {
+      "Prv": {
         "context": "Very short 'provider'.",
         "translations": {
-          "fr": "SRC",
-          "de": "QLE",
-          "es": "FTE",
-          "it": "FNT",
-          "pt": "FNT",
-          "nl": "BRN"
+          "fr": "Src",
+          "de": "Qle",
+          "es": "Fte",
+          "it": "Fnt",
+          "pt": "Fnt",
+          "nl": "Brn"
         }
       },
-      "GOOD": {
+      "Good": {
         "context": "Qualitative level: good.",
         "translations": {
-          "fr": "BON",
-          "de": "GUT",
-          "es": "BUENA",
-          "it": "BUONA",
-          "pt": "BOA",
-          "nl": "GOED",
-          "da": "GOD",
-          "no": "GOD",
-          "sv": "BRA"
+          "fr": "Bon",
+          "de": "Gut",
+          "es": "Buena",
+          "it": "Buona",
+          "pt": "Boa",
+          "nl": "Goed",
+          "da": "God",
+          "no": "God",
+          "sv": "Bra"
         }
       },
-      "FAIR": {
+      "Fair": {
         "context": "Qualitative level: fair (between good and moderate).",
         "translations": {
-          "fr": "CORRECT",
-          "de": "MASSIG",
-          "es": "ACEPTABLE",
-          "it": "DISCRETA",
-          "pt": "RAZOAVEL",
-          "nl": "REDELIJK"
+          "fr": "Correct",
+          "de": "Massig",
+          "es": "Aceptable",
+          "it": "Discreta",
+          "pt": "Razoavel",
+          "nl": "Redelijk"
         }
       },
-      "MODERATE": {
+      "Moderate": {
         "context": "Qualitative level: moderate.",
         "translations": {
-          "fr": "MODERE",
-          "de": "MASSIG",
-          "es": "MODERADA",
-          "it": "MODERATA",
-          "pt": "MODERADA",
-          "nl": "MATIG",
-          "da": "MODERAT",
-          "no": "MODERAT",
-          "sv": "MÅTTLIG"
+          "fr": "Modere",
+          "de": "Massig",
+          "es": "Moderada",
+          "it": "Moderata",
+          "pt": "Moderada",
+          "nl": "Matig",
+          "da": "Moderat",
+          "no": "Moderat",
+          "sv": "Måttlig"
         }
       },
-      "POOR": {
+      "Poor": {
         "context": "Qualitative level: poor.",
         "translations": {
-          "fr": "MAUVAIS",
-          "de": "SCHLECHT",
-          "es": "MALA",
-          "it": "SCARSA",
-          "pt": "FRACA",
-          "nl": "SLECHT",
-          "da": "DÅRLIG",
-          "no": "DÅRLIG",
-          "sv": "DÅLIG"
+          "fr": "Mauvais",
+          "de": "Schlecht",
+          "es": "Mala",
+          "it": "Scarsa",
+          "pt": "Fraca",
+          "nl": "Slecht",
+          "da": "Dårlig",
+          "no": "Dårlig",
+          "sv": "Dålig"
         }
       },
-      "V.POOR": {
+      "V.poor": {
         "context": "Qualitative level: very poor (abbreviated).",
         "translations": {
-          "fr": "TRES MAUVAIS",
-          "de": "SEHR SCHL.",
-          "es": "MUY MALA",
-          "it": "PESSIMA",
-          "pt": "MUITO FRACA",
-          "nl": "ZEER SLECHT"
+          "fr": "Tres mauvais",
+          "de": "Sehr schl.",
+          "es": "Muy mala",
+          "it": "Pessima",
+          "pt": "Muito fraca",
+          "nl": "Zeer slecht"
         }
       },
-      "MOD": {
+      "Mod": {
         "context": "Qualitative level: moderate (abbreviated).",
         "translations": {
-          "fr": "MOYEN",
-          "de": "MITTEL",
-          "es": "MODER.",
-          "it": "MEDIO",
-          "pt": "MODER.",
-          "nl": "MATIG"
+          "fr": "Moyen",
+          "de": "Mittel",
+          "es": "Moder.",
+          "it": "Medio",
+          "pt": "Moder.",
+          "nl": "Matig"
         }
       },
       "USG": {
         "context": "Air quality 'unhealthy for sensitive groups' (abbreviated).",
         "translations": {
-          "fr": "SENSIBLES",
-          "de": "EMPFINDL.",
-          "es": "SENSIBLES",
-          "it": "SENSIBILI",
-          "pt": "SENSIVEIS",
-          "nl": "GEVOELIG"
+          "fr": "Sensibles",
+          "de": "Empfindl.",
+          "es": "Sensibles",
+          "it": "Sensibili",
+          "pt": "Sensiveis",
+          "nl": "Gevoelig"
         }
       },
-      "UNHEALTHY": {
+      "Unhealthy": {
         "context": "Qualitative level: unhealthy.",
         "translations": {
-          "fr": "MALSAIN",
-          "de": "UNGESUND",
-          "es": "INSALUBRE",
-          "it": "MALSANO",
-          "pt": "INSALUBRE",
-          "nl": "ONGEZOND"
+          "fr": "Malsain",
+          "de": "Ungesund",
+          "es": "Insalubre",
+          "it": "Malsano",
+          "pt": "Insalubre",
+          "nl": "Ongezond"
         }
       },
-      "V.UNHLTHY": {
+      "V.unhlthy": {
         "context": "Qualitative level: very unhealthy (abbreviated).",
         "translations": {
-          "fr": "TRES MALSAIN",
-          "de": "SEHR UNGESUND",
-          "es": "MUY INSALUBRE",
-          "it": "MOLTO MALSANO",
-          "pt": "MUITO INSALUB",
-          "nl": "ZEER ONGEZOND"
+          "fr": "Tres malsain",
+          "de": "Sehr ungesund",
+          "es": "Muy insalubre",
+          "it": "Molto malsano",
+          "pt": "Muito insalub",
+          "nl": "Zeer ongezond"
         }
       },
-      "HAZARDOUS": {
+      "Hazardous": {
         "context": "Qualitative level: hazardous (worst).",
         "translations": {
-          "fr": "DANGEREUX",
-          "de": "GEFAHRLICH",
-          "es": "PELIGROSA",
-          "it": "PERICOLOSA",
-          "pt": "PERIGOSA",
-          "nl": "GEVAARLIJK"
+          "fr": "Dangereux",
+          "de": "Gefahrlich",
+          "es": "Peligrosa",
+          "it": "Pericolosa",
+          "pt": "Perigosa",
+          "nl": "Gevaarlijk"
         }
       },
-      "LOW": {
+      "Low": {
         "context": "Qualitative level: low.",
         "translations": {
-          "fr": "FAIBLE",
-          "de": "NIEDRIG",
-          "es": "BAJO",
-          "it": "BASSO",
-          "pt": "BAIXO",
-          "nl": "LAAG",
-          "da": "LAV",
-          "no": "LAV",
-          "sv": "LÅG"
+          "fr": "Faible",
+          "de": "Niedrig",
+          "es": "Bajo",
+          "it": "Basso",
+          "pt": "Baixo",
+          "nl": "Laag",
+          "da": "Lav",
+          "no": "Lav",
+          "sv": "Låg"
         }
       },
-      "HIGH": {
+      "High": {
         "context": "Qualitative level: high.",
         "translations": {
-          "fr": "ELEVE",
-          "de": "HOCH",
-          "es": "ALTO",
-          "it": "ALTO",
-          "pt": "ALTO",
-          "nl": "HOOG",
-          "da": "HØJ",
-          "no": "HØY",
-          "sv": "HÖG"
+          "fr": "Eleve",
+          "de": "Hoch",
+          "es": "Alto",
+          "it": "Alto",
+          "pt": "Alto",
+          "nl": "Hoog",
+          "da": "Høj",
+          "no": "Høy",
+          "sv": "Hög"
         }
       },
-      "V.HIGH": {
+      "V.high": {
         "context": "Qualitative level: very high (abbreviated).",
         "translations": {
-          "fr": "TRES ELEVE",
-          "de": "SEHR HOCH",
-          "es": "MUY ALTO",
-          "it": "MOLTO ALTO",
-          "pt": "MUITO ALTO",
-          "nl": "ZEER HOOG"
+          "fr": "Tres eleve",
+          "de": "Sehr hoch",
+          "es": "Muy alto",
+          "it": "Molto alto",
+          "pt": "Muito alto",
+          "nl": "Zeer hoog"
         }
       },
-      "EXTREME": {
+      "Extreme": {
         "context": "Qualitative level: extreme.",
         "translations": {
-          "fr": "EXTREME",
-          "de": "EXTREM",
-          "es": "EXTREMO",
-          "it": "ESTREMO",
-          "pt": "EXTREMO",
-          "nl": "EXTREEM",
-          "da": "EKSTREM",
-          "no": "EKSTREM",
-          "sv": "EXTREM"
+          "fr": "Extreme",
+          "de": "Extrem",
+          "es": "Extremo",
+          "it": "Estremo",
+          "pt": "Extremo",
+          "nl": "Extreem",
+          "da": "Ekstrem",
+          "no": "Ekstrem",
+          "sv": "Extrem"
         }
       },
-      "NONE": {
+      "None": {
         "context": "Level 'none' / zero.",
         "translations": {
-          "fr": "AUCUN",
-          "de": "KEIN",
-          "es": "NINGUNO",
-          "it": "NESSUNO",
-          "pt": "NENHUM",
-          "nl": "GEEN",
-          "da": "INGEN",
-          "no": "INGEN",
-          "sv": "INGEN"
+          "fr": "Aucun",
+          "de": "Kein",
+          "es": "Ninguno",
+          "it": "Nessuno",
+          "pt": "Nenhum",
+          "nl": "Geen",
+          "da": "Ingen",
+          "no": "Ingen",
+          "sv": "Ingen"
         }
       },
       "Sunny": {
@@ -1601,34 +1601,6 @@
           "sv": "Molnig"
         }
       },
-      "Fog": {
-        "context": "Forecast: fog or mist (max 6 chars).",
-        "translations": {
-          "fr": "Brume",
-          "de": "Nebel",
-          "es": "Niebla",
-          "it": "Nebbia",
-          "pt": "Nevoa",
-          "nl": "Mist",
-          "da": "Tage",
-          "no": "Tåke",
-          "sv": "Dimma"
-        }
-      },
-      "Rain": {
-        "context": "Forecast: rain. A '-' or '+' is appended for light/heavy (max 6 chars).",
-        "translations": {
-          "fr": "Pluie",
-          "de": "Regen",
-          "es": "Lluvia",
-          "it": "Piogg",
-          "pt": "Chuva",
-          "nl": "Regen",
-          "da": "Regn",
-          "no": "Regn",
-          "sv": "Regn"
-        }
-      },
       "Shwrs": {
         "context": "Forecast: showers (max 6 chars).",
         "translations": {
@@ -1641,20 +1613,6 @@
           "da": "Byger",
           "no": "Byger",
           "sv": "Skurar"
-        }
-      },
-      "Snow": {
-        "context": "Forecast: snow. A '-' or '+' is appended for light/heavy (max 6 chars).",
-        "translations": {
-          "fr": "Neige",
-          "de": "Schnee",
-          "es": "Nieve",
-          "it": "Neve",
-          "pt": "Neve",
-          "nl": "Sneeuw",
-          "da": "Sne",
-          "no": "Snø",
-          "sv": "Snö"
         }
       },
       "Sleet": {
@@ -1699,807 +1657,807 @@
           "sv": "Hagel"
         }
       },
-      "FORECAST": {
+      "Forecast": {
         "context": "Header of the multi-day forecast page. Must fit a 15-column wall.",
         "translations": {
-          "fr": "PREVISIONS",
-          "de": "VORHERSAGE",
-          "es": "PRONOSTICO",
-          "it": "PREVISIONI",
-          "pt": "PREVISAO",
-          "nl": "VERWACHT",
-          "da": "PROGNOSE",
-          "no": "VARSEL",
-          "sv": "PROGNOS"
+          "fr": "Previsions",
+          "de": "Vorhersage",
+          "es": "Pronostico",
+          "it": "Previsioni",
+          "pt": "Previsao",
+          "nl": "Verwacht",
+          "da": "Prognose",
+          "no": "Varsel",
+          "sv": "Prognos"
         }
       }
     },
     "metals": {
-      "GOLD": {
+      "Gold": {
         "context": "Precious metal: gold.",
         "translations": {
-          "fr": "OR",
-          "de": "GOLD",
-          "es": "ORO",
-          "it": "ORO",
-          "pt": "OURO",
-          "nl": "GOUD",
-          "da": "GULD",
-          "no": "GULL",
-          "sv": "GULD"
+          "fr": "Or",
+          "de": "Gold",
+          "es": "Oro",
+          "it": "Oro",
+          "pt": "Ouro",
+          "nl": "Goud",
+          "da": "Guld",
+          "no": "Gull",
+          "sv": "Guld"
         }
       },
-      "SILVER": {
+      "Silver": {
         "context": "Precious metal: silver.",
         "translations": {
-          "fr": "ARGENT",
-          "de": "SILBER",
-          "es": "PLATA",
-          "it": "ARGENTO",
-          "pt": "PRATA",
-          "nl": "ZILVER",
-          "da": "SØLV",
-          "no": "SØLV",
-          "sv": "SILVER"
+          "fr": "Argent",
+          "de": "Silber",
+          "es": "Plata",
+          "it": "Argento",
+          "pt": "Prata",
+          "nl": "Zilver",
+          "da": "Sølv",
+          "no": "Sølv",
+          "sv": "Silver"
         }
       },
-      "PLATINUM": {
+      "Platinum": {
         "context": "Precious metal: platinum.",
         "translations": {
-          "fr": "PLATINE",
-          "de": "PLATIN",
-          "es": "PLATINO",
-          "it": "PLATINO",
-          "pt": "PLATINA",
-          "nl": "PLATINA",
-          "da": "PLATIN",
-          "no": "PLATINA",
-          "sv": "PLATINA"
+          "fr": "Platine",
+          "de": "Platin",
+          "es": "Platino",
+          "it": "Platino",
+          "pt": "Platina",
+          "nl": "Platina",
+          "da": "Platin",
+          "no": "Platina",
+          "sv": "Platina"
         }
       },
-      "PALLADIUM": {
+      "Palladium": {
         "context": "Precious metal: palladium.",
         "translations": {
-          "fr": "PALLADIUM",
-          "de": "PALLADIUM",
-          "es": "PALADIO",
-          "it": "PALLADIO",
-          "pt": "PALADIO",
-          "nl": "PALLADIUM",
-          "da": "PALLADIUM",
-          "no": "PALLADIUM",
-          "sv": "PALLADIUM"
+          "fr": "Palladium",
+          "de": "Palladium",
+          "es": "Paladio",
+          "it": "Palladio",
+          "pt": "Paladio",
+          "nl": "Palladium",
+          "da": "Palladium",
+          "no": "Palladium",
+          "sv": "Palladium"
         }
       },
-      "SPOT PRICE": {
+      "Spot price": {
         "context": "Label for a current spot (market) price.",
         "translations": {
-          "fr": "COURS",
-          "de": "KURS",
-          "es": "PRECIO",
-          "it": "PREZZO",
-          "pt": "PRECO",
-          "nl": "KOERS",
-          "da": "SPOTPRIS",
-          "no": "SPOTPRIS",
-          "sv": "SPOTPRIS"
+          "fr": "Cours",
+          "de": "Kurs",
+          "es": "Precio",
+          "it": "Prezzo",
+          "pt": "Preco",
+          "nl": "Koers",
+          "da": "Spotpris",
+          "no": "Spotpris",
+          "sv": "Spotpris"
         }
       }
     },
     "tides": {
-      "TIDES": {
+      "Tides": {
         "context": "Tides heading.",
         "translations": {
-          "fr": "MAREES",
-          "de": "GEZEITEN",
-          "es": "MAREAS",
-          "it": "MAREE",
-          "pt": "MARES",
-          "nl": "GETIJDEN",
-          "da": "TIDEVAND",
-          "no": "TIDEVANN",
-          "sv": "TIDVATTEN"
+          "fr": "Marees",
+          "de": "Gezeiten",
+          "es": "Mareas",
+          "it": "Maree",
+          "pt": "Mares",
+          "nl": "Getijden",
+          "da": "Tidevand",
+          "no": "Tidevann",
+          "sv": "Tidvatten"
         }
       },
-      "HIGH TIDE": {
+      "High tide": {
         "context": "High tide.",
         "translations": {
-          "fr": "MAREE HAUTE",
-          "de": "FLUT",
-          "es": "PLEAMAR",
-          "it": "ALTA MAREA",
-          "pt": "PREIA-MAR",
-          "nl": "VLOED",
-          "da": "HØJVANDE",
-          "no": "HØYVANN",
-          "sv": "HÖGVATTEN"
+          "fr": "Maree haute",
+          "de": "Flut",
+          "es": "Pleamar",
+          "it": "Alta marea",
+          "pt": "Preia-mar",
+          "nl": "Vloed",
+          "da": "Højvande",
+          "no": "Høyvann",
+          "sv": "Högvatten"
         }
       },
-      "LOW TIDE": {
+      "Low tide": {
         "context": "Low tide.",
         "translations": {
-          "fr": "MAREE BASSE",
-          "de": "EBBE",
-          "es": "BAJAMAR",
-          "it": "BASSA MAREA",
-          "pt": "BAIXA-MAR",
-          "nl": "EB",
-          "da": "LAVVANDE",
-          "no": "LAVVANN",
-          "sv": "LÅGVATTEN"
+          "fr": "Maree basse",
+          "de": "Ebbe",
+          "es": "Bajamar",
+          "it": "Bassa marea",
+          "pt": "Baixa-mar",
+          "nl": "Eb",
+          "da": "Lavvande",
+          "no": "Lavvann",
+          "sv": "Lågvatten"
         }
       },
-      "CHECK STATION": {
+      "Check station": {
         "context": "Prompt to pick/verify a measurement station.",
         "translations": {
-          "fr": "VERIF STATION",
-          "de": "STATION PRUEF",
-          "es": "VER ESTACION",
-          "it": "VERIF STAZIONE",
-          "pt": "VER ESTACAO",
-          "nl": "STATION CHECK"
+          "fr": "Verif station",
+          "de": "Station pruef",
+          "es": "Ver estacion",
+          "it": "Verif stazione",
+          "pt": "Ver estacao",
+          "nl": "Station check"
         }
       },
-      "HIGH": {
+      "High": {
         "context": "High tide (short label).",
         "translations": {
-          "fr": "HAUTE",
-          "de": "HOCH",
-          "es": "ALTA",
-          "it": "ALTA",
-          "pt": "ALTA",
-          "nl": "HOOG",
-          "da": "HØJ",
-          "no": "HØY",
-          "sv": "HÖG"
+          "fr": "Haute",
+          "de": "Hoch",
+          "es": "Alta",
+          "it": "Alta",
+          "pt": "Alta",
+          "nl": "Hoog",
+          "da": "Høj",
+          "no": "Høy",
+          "sv": "Hög"
         }
       },
-      "LOW": {
+      "Low": {
         "context": "Low tide (short label).",
         "translations": {
-          "fr": "BASSE",
-          "de": "NIEDRIG",
-          "es": "BAJA",
-          "it": "BASSA",
-          "pt": "BAIXA",
-          "nl": "LAAG",
-          "da": "LAV",
-          "no": "LAV",
-          "sv": "LÅG"
+          "fr": "Basse",
+          "de": "Niedrig",
+          "es": "Baja",
+          "it": "Bassa",
+          "pt": "Baixa",
+          "nl": "Laag",
+          "da": "Lav",
+          "no": "Lav",
+          "sv": "Låg"
         }
       }
     },
     "aurora": {
-      "AURORA": {
+      "Aurora": {
         "context": "Aurora (northern/southern lights) heading.",
         "translations": {
-          "fr": "AURORE",
-          "de": "POLARLICHT",
-          "es": "AURORA",
-          "it": "AURORA",
-          "pt": "AURORA",
-          "nl": "NOORDERLICHT"
+          "fr": "Aurore",
+          "de": "Polarlicht",
+          "es": "Aurora",
+          "it": "Aurora",
+          "pt": "Aurora",
+          "nl": "Noorderlicht"
         }
       },
-      "QUIET": {
+      "Quiet": {
         "context": "Activity level: quiet/calm.",
         "translations": {
-          "fr": "CALME",
-          "de": "RUHIG",
-          "es": "TRANQUILO",
-          "it": "QUIETE",
-          "pt": "CALMO",
-          "nl": "RUSTIG"
+          "fr": "Calme",
+          "de": "Ruhig",
+          "es": "Tranquilo",
+          "it": "Quiete",
+          "pt": "Calmo",
+          "nl": "Rustig"
         }
       },
-      "UNSETTLED": {
+      "Unsettled": {
         "context": "Activity level: unsettled.",
         "translations": {
-          "fr": "AGITE",
-          "de": "UNRUHIG",
-          "es": "INESTABLE",
-          "it": "INSTABILE",
-          "pt": "INSTAVEL",
-          "nl": "ONRUSTIG"
+          "fr": "Agite",
+          "de": "Unruhig",
+          "es": "Inestable",
+          "it": "Instabile",
+          "pt": "Instavel",
+          "nl": "Onrustig"
         }
       },
-      "MINOR STORM": {
+      "Minor storm": {
         "context": "Storm level: minor.",
         "translations": {
-          "fr": "ORAGE MINEUR",
-          "de": "KL. STURM",
-          "es": "TORM. MENOR",
-          "it": "TEMP. MINORE",
-          "pt": "TORM. MENOR",
-          "nl": "KL. STORM"
+          "fr": "Orage mineur",
+          "de": "Kl. Sturm",
+          "es": "Torm. menor",
+          "it": "Temp. minore",
+          "pt": "Torm. menor",
+          "nl": "Kl. storm"
         }
       },
-      "STRONG STORM": {
+      "Strong storm": {
         "context": "Storm level: strong.",
         "translations": {
-          "fr": "ORAGE FORT",
-          "de": "STARK. STURM",
-          "es": "TORM. FUERTE",
-          "it": "TEMP. FORTE",
-          "pt": "TORM. FORTE",
-          "nl": "ZWARE STORM"
+          "fr": "Orage fort",
+          "de": "Stark. Sturm",
+          "es": "Torm. fuerte",
+          "it": "Temp. forte",
+          "pt": "Torm. forte",
+          "nl": "Zware storm"
         }
       },
-      "SEVERE STORM": {
+      "Severe storm": {
         "context": "Storm level: severe.",
         "translations": {
-          "fr": "ORAGE SEVERE",
-          "de": "SCHW. STURM",
-          "es": "TORM. SEVERA",
-          "it": "TEMP. SEVERO",
-          "pt": "TORM. SEVERA",
-          "nl": "HEVIGE STORM"
+          "fr": "Orage severe",
+          "de": "Schw. Sturm",
+          "es": "Torm. severa",
+          "it": "Temp. severo",
+          "pt": "Torm. severa",
+          "nl": "Hevige storm"
         }
       }
     },
     "space": {
-      "NEXT LAUNCH": {
+      "Next launch": {
         "context": "'Next launch' label.",
         "translations": {
-          "fr": "PROCH. LANCEMENT",
-          "de": "NAECHST. START",
-          "es": "PROX. LANZAMIENTO",
-          "it": "PROSS. LANCIO",
-          "pt": "PROX. LANCAMENTO",
-          "nl": "VOLGENDE START"
+          "fr": "Proch. lancement",
+          "de": "Naechst. Start",
+          "es": "Prox. lanzamiento",
+          "it": "Pross. lancio",
+          "pt": "Prox. lancamento",
+          "nl": "Volgende start"
         }
       },
-      "MISSION": {
+      "Mission": {
         "context": "'Mission' label (e.g. a mission name).",
         "translations": {
-          "fr": "MISSION",
-          "de": "MISSION",
-          "es": "MISION",
-          "it": "MISSIONE",
-          "pt": "MISSAO",
-          "nl": "MISSIE",
-          "da": "MISSION",
-          "no": "OPPDRAG",
-          "sv": "UPPDRAG"
+          "fr": "Mission",
+          "de": "Mission",
+          "es": "Mision",
+          "it": "Missione",
+          "pt": "Missao",
+          "nl": "Missie",
+          "da": "Mission",
+          "no": "Oppdrag",
+          "sv": "Uppdrag"
         }
       },
-      "IMMINENT": {
+      "Imminent": {
         "context": "About to happen (very soon).",
         "translations": {
-          "fr": "IMMINENT",
-          "de": "UNMITTELBAR",
-          "es": "INMINENTE",
-          "it": "IMMINENTE",
-          "pt": "IMINENTE",
-          "nl": "OP KOMST",
-          "da": "SNART",
-          "no": "SNART",
-          "sv": "SNART"
+          "fr": "Imminent",
+          "de": "Unmittelbar",
+          "es": "Inminente",
+          "it": "Imminente",
+          "pt": "Iminente",
+          "nl": "Op komst",
+          "da": "Snart",
+          "no": "Snart",
+          "sv": "Snart"
         }
       },
-      "SCHEDULED": {
+      "Scheduled": {
         "context": "Planned for a set time.",
         "translations": {
-          "fr": "PREVU",
-          "de": "GEPLANT",
-          "es": "PROGRAMADO",
-          "it": "PREVISTO",
-          "pt": "AGENDADO",
-          "nl": "GEPLAND",
-          "da": "PLANLAGT",
-          "no": "PLANLAGT",
-          "sv": "PLANERAD"
+          "fr": "Prevu",
+          "de": "Geplant",
+          "es": "Programado",
+          "it": "Previsto",
+          "pt": "Agendado",
+          "nl": "Gepland",
+          "da": "Planlagt",
+          "no": "Planlagt",
+          "sv": "Planerad"
         }
       },
-      "NONE": {
+      "None": {
         "context": "No launch scheduled.",
         "translations": {
-          "fr": "AUCUN",
-          "de": "KEIN",
-          "es": "NINGUNO",
-          "it": "NESSUNO",
-          "pt": "NENHUM",
-          "nl": "GEEN",
-          "da": "INGEN",
-          "no": "INGEN",
-          "sv": "INGEN"
+          "fr": "Aucun",
+          "de": "Kein",
+          "es": "Ninguno",
+          "it": "Nessuno",
+          "pt": "Nenhum",
+          "nl": "Geen",
+          "da": "Ingen",
+          "no": "Ingen",
+          "sv": "Ingen"
         }
       },
-      "IN SPACE": {
+      "in space": {
         "context": "Suffix after a count: 'N people in space'.",
         "translations": {
-          "fr": "DANS L'ESPACE",
-          "de": "IM WELTALL",
-          "es": "EN EL ESPACIO",
-          "it": "NELLO SPAZIO",
-          "pt": "NO ESPAÇO",
-          "nl": "IN DE RUIMTE",
-          "da": "I RUMMET",
-          "no": "I ROMMET",
-          "sv": "I RYMDEN"
+          "fr": "dans l'espace",
+          "de": "im Weltall",
+          "es": "en el espacio",
+          "it": "nello spazio",
+          "pt": "no espaço",
+          "nl": "in de ruimte",
+          "da": "i rummet",
+          "no": "i rommet",
+          "sv": "i rymden"
         }
       }
     },
     "sports": {
-      "NEXT GP": {
+      "Next GP": {
         "context": "'Next Grand Prix' (short).",
         "translations": {
-          "fr": "PROCHAIN GP",
-          "de": "NAECHSTER GP",
-          "es": "PROXIMO GP",
-          "it": "PROSSIMO GP",
-          "pt": "PROXIMO GP",
-          "nl": "VOLGENDE GP"
+          "fr": "Prochain GP",
+          "de": "Naechster GP",
+          "es": "Proximo GP",
+          "it": "Prossimo GP",
+          "pt": "Proximo GP",
+          "nl": "Volgende GP"
         }
       },
-      "NEXT GRAND PRIX": {
+      "Next Grand Prix": {
         "context": "'Next Grand Prix'.",
         "translations": {
-          "fr": "PROCHAIN GP",
-          "de": "NAECHSTER GP",
-          "es": "PROXIMO GP",
-          "it": "PROSSIMO GP",
-          "pt": "PROXIMO GP",
-          "nl": "VOLGENDE GP"
+          "fr": "Prochain GP",
+          "de": "Naechster GP",
+          "es": "Proximo GP",
+          "it": "Prossimo GP",
+          "pt": "Proximo GP",
+          "nl": "Volgende GP"
         }
       },
-      "RACE WEEKEND": {
+      "Race weekend": {
         "context": "'Race weekend' label.",
         "translations": {
-          "fr": "WEEKEND COURSE",
-          "de": "RENN-WOCHENENDE",
-          "es": "FIN DE SEMANA",
-          "it": "WEEKEND GARA",
-          "pt": "FIM DE SEMANA",
-          "nl": "RACEWEEKEND"
+          "fr": "Weekend course",
+          "de": "Renn-Wochenende",
+          "es": "Fin de semana",
+          "it": "Weekend gara",
+          "pt": "Fim de semana",
+          "nl": "Raceweekend"
         }
       },
-      "SEASON": {
+      "Season": {
         "context": "'Season' label (e.g. a sports season).",
         "translations": {
-          "fr": "SAISON",
-          "de": "SAISON",
-          "es": "TEMPORADA",
-          "it": "STAGIONE",
-          "pt": "TEMPORADA",
-          "nl": "SEIZOEN",
-          "da": "SÆSON",
-          "no": "SESONG",
-          "sv": "SÄSONG"
+          "fr": "Saison",
+          "de": "Saison",
+          "es": "Temporada",
+          "it": "Stagione",
+          "pt": "Temporada",
+          "nl": "Seizoen",
+          "da": "Sæson",
+          "no": "Sesong",
+          "sv": "Säsong"
         }
       },
-      "OVER": {
+      "Over": {
         "context": "Something has ended / is over.",
         "translations": {
-          "fr": "TERMINEE",
-          "de": "VORBEI",
-          "es": "TERMINADA",
-          "it": "FINITA",
-          "pt": "TERMINADA",
-          "nl": "VOORBIJ",
-          "da": "SLUT",
-          "no": "OVER",
-          "sv": "SLUT"
+          "fr": "Terminee",
+          "de": "Vorbei",
+          "es": "Terminada",
+          "it": "Finita",
+          "pt": "Terminada",
+          "nl": "Voorbij",
+          "da": "Slut",
+          "no": "Over",
+          "sv": "Slut"
         }
       },
-      "CHAMPIONSHIP": {
+      "Championship": {
         "context": "'Championship' label.",
         "translations": {
-          "fr": "CHAMPIONNAT",
-          "de": "MEISTERSCHAFT",
-          "es": "CAMPEONATO",
-          "it": "CAMPIONATO",
-          "pt": "CAMPEONATO",
-          "nl": "KAMPIOENSCHAP"
+          "fr": "Championnat",
+          "de": "Meisterschaft",
+          "es": "Campeonato",
+          "it": "Campionato",
+          "pt": "Campeonato",
+          "nl": "Kampioenschap"
         }
       },
-      "LEADER": {
+      "Leader": {
         "context": "The leader / person in first place.",
         "translations": {
-          "fr": "LEADER",
-          "de": "FUEHRENDER",
-          "es": "LIDER",
-          "it": "LEADER",
-          "pt": "LIDER",
-          "nl": "LEIDER",
-          "da": "FØRER",
-          "no": "LEDER",
-          "sv": "LEDARE"
+          "fr": "Leader",
+          "de": "Fuehrender",
+          "es": "Lider",
+          "it": "Leader",
+          "pt": "Lider",
+          "nl": "Leider",
+          "da": "Fører",
+          "no": "Leder",
+          "sv": "Ledare"
         }
       },
-      "POINTS": {
+      "Points": {
         "context": "'Points' (a score).",
         "translations": {
-          "fr": "POINTS",
-          "de": "PUNKTE",
-          "es": "PUNTOS",
-          "it": "PUNTI",
-          "pt": "PONTOS",
-          "nl": "PUNTEN",
-          "da": "POINT",
-          "no": "POENG",
-          "sv": "POÄNG"
+          "fr": "Points",
+          "de": "Punkte",
+          "es": "Puntos",
+          "it": "Punti",
+          "pt": "Pontos",
+          "nl": "Punten",
+          "da": "Point",
+          "no": "Poeng",
+          "sv": "Poäng"
         }
       },
-      "PTS": {
+      "Pts": {
         "context": "Abbreviation of 'points'.",
         "translations": {
-          "fr": "PTS",
-          "de": "PKT",
-          "es": "PTS",
-          "it": "PTI",
-          "pt": "PTS",
-          "nl": "PNT"
+          "fr": "Pts",
+          "de": "Pkt",
+          "es": "Pts",
+          "it": "Pti",
+          "pt": "Pts",
+          "nl": "Pnt"
         }
       },
-      "FINAL": {
+      "Final": {
         "context": "A finished game (final score).",
         "translations": {
-          "fr": "TERMINÉ",
-          "de": "BEENDET",
-          "es": "FINAL",
-          "it": "FINALE",
-          "pt": "FINAL",
-          "nl": "AFGELOPEN",
-          "da": "SLUT",
-          "no": "SLUTT",
-          "sv": "SLUT"
+          "fr": "Terminé",
+          "de": "Beendet",
+          "es": "Final",
+          "it": "Finale",
+          "pt": "Final",
+          "nl": "Afgelopen",
+          "da": "Slut",
+          "no": "Slutt",
+          "sv": "Slut"
         }
       },
-      "LIVE": {
+      "Live": {
         "context": "A game in progress.",
         "translations": {
-          "fr": "EN DIRECT",
-          "de": "LIVE",
-          "es": "EN VIVO",
-          "it": "IN DIRETTA",
-          "pt": "AO VIVO",
-          "nl": "LIVE",
-          "da": "LIVE",
-          "no": "DIREKTE",
-          "sv": "DIREKT"
+          "fr": "En direct",
+          "de": "Live",
+          "es": "En vivo",
+          "it": "In diretta",
+          "pt": "Ao vivo",
+          "nl": "Live",
+          "da": "Live",
+          "no": "Direkte",
+          "sv": "Direkt"
         }
       },
-      "UPCOMING": {
+      "Upcoming": {
         "context": "A game not yet started.",
         "translations": {
-          "fr": "À VENIR",
-          "de": "DEMNÄCHST",
-          "es": "PRÓXIMO",
-          "it": "IN ARRIVO",
-          "pt": "EM BREVE",
-          "nl": "BINNENKORT",
-          "da": "KOMMENDE",
-          "no": "KOMMENDE",
-          "sv": "KOMMANDE"
+          "fr": "À venir",
+          "de": "Demnächst",
+          "es": "Próximo",
+          "it": "In arrivo",
+          "pt": "Em breve",
+          "nl": "Binnenkort",
+          "da": "Kommende",
+          "no": "Kommende",
+          "sv": "Kommande"
         }
       },
-      "SCHEDULED": {
+      "Scheduled": {
         "context": "A game/event scheduled for later.",
         "translations": {
-          "fr": "PRÉVU",
-          "de": "GEPLANT",
-          "es": "PROGRAMADO",
-          "it": "PREVISTO",
-          "pt": "AGENDADO",
-          "nl": "GEPLAND",
-          "da": "PLANLAGT",
-          "no": "PLANLAGT",
-          "sv": "PLANERAD"
+          "fr": "Prévu",
+          "de": "Geplant",
+          "es": "Programado",
+          "it": "Previsto",
+          "pt": "Agendado",
+          "nl": "Gepland",
+          "da": "Planlagt",
+          "no": "Planlagt",
+          "sv": "Planerad"
         }
       },
-      "NO GAMES": {
+      "No games": {
         "context": "No games found.",
         "translations": {
-          "fr": "AUCUN MATCH",
-          "de": "KEINE SPIELE",
-          "es": "SIN PARTIDOS",
-          "it": "NESSUNA PARTITA",
-          "pt": "SEM JOGOS",
-          "nl": "GEEN DUELS",
-          "da": "INGEN KAMPE",
-          "no": "INGEN KAMPER",
-          "sv": "INGA MATCHER"
+          "fr": "Aucun match",
+          "de": "Keine Spiele",
+          "es": "Sin partidos",
+          "it": "Nessuna partita",
+          "pt": "Sem jogos",
+          "nl": "Geen duels",
+          "da": "Ingen kampe",
+          "no": "Ingen kamper",
+          "sv": "Inga matcher"
         }
       },
-      "NO TEAMS": {
+      "No teams": {
         "context": "No teams configured.",
         "translations": {
-          "fr": "AUCUNE ÉQUIPE",
-          "de": "KEINE TEAMS",
-          "es": "SIN EQUIPOS",
-          "it": "NESSUNA SQUADRA",
-          "pt": "SEM EQUIPES",
-          "nl": "GEEN TEAMS",
-          "da": "INGEN HOLD",
-          "no": "INGEN LAG",
-          "sv": "INGA LAG"
+          "fr": "Aucune équipe",
+          "de": "Keine Teams",
+          "es": "Sin equipos",
+          "it": "Nessuna squadra",
+          "pt": "Sem equipes",
+          "nl": "Geen teams",
+          "da": "Ingen hold",
+          "no": "Ingen lag",
+          "sv": "Inga lag"
         }
       },
-      "NO EVENT": {
+      "No event": {
         "context": "No event this week.",
         "translations": {
-          "fr": "AUCUN EVENT",
-          "de": "KEIN EVENT",
-          "es": "SIN EVENTO",
-          "it": "NESSUN EVENTO",
-          "pt": "SEM EVENTO",
-          "nl": "GEEN EVENT",
-          "da": "INGEN EVENT",
-          "no": "INGEN EVENT",
-          "sv": "INGET EVENT"
+          "fr": "Aucun event",
+          "de": "Kein Event",
+          "es": "Sin evento",
+          "it": "Nessun evento",
+          "pt": "Sem evento",
+          "nl": "Geen event",
+          "da": "Ingen event",
+          "no": "Ingen event",
+          "sv": "Inget event"
         }
       },
-      "NO LEADERS": {
+      "No leaders": {
         "context": "No leaderboard available.",
         "translations": {
-          "fr": "AUCUN LEADER",
-          "de": "KEINE FÜHRENDEN",
-          "es": "SIN LÍDERES",
-          "it": "NESSUN LEADER",
-          "pt": "SEM LÍDERES",
-          "nl": "GEEN LEIDERS",
-          "da": "INGEN LEDERE",
-          "no": "INGEN LEDERE",
-          "sv": "INGA LEDARE"
+          "fr": "Aucun leader",
+          "de": "Keine Führenden",
+          "es": "Sin líderes",
+          "it": "Nessun leader",
+          "pt": "Sem líderes",
+          "nl": "Geen leiders",
+          "da": "Ingen ledere",
+          "no": "Ingen ledere",
+          "sv": "Inga ledare"
         }
       },
-      "NO FIGHTS": {
+      "No fights": {
         "context": "No fights scheduled.",
         "translations": {
-          "fr": "AUCUN COMBAT",
-          "de": "KEINE KÄMPFE",
-          "es": "SIN COMBATES",
-          "it": "NESSUN INCONTRO",
-          "pt": "SEM LUTAS",
-          "nl": "GEEN GEVECHTEN",
-          "da": "INGEN KAMPE",
-          "no": "INGEN KAMPER",
-          "sv": "INGA MATCHER"
+          "fr": "Aucun combat",
+          "de": "Keine Kämpfe",
+          "es": "Sin combates",
+          "it": "Nessun incontro",
+          "pt": "Sem lutas",
+          "nl": "Geen gevechten",
+          "da": "Ingen kampe",
+          "no": "Ingen kamper",
+          "sv": "Inga matcher"
         }
       },
-      "CONFIGURED": {
+      "configured": {
         "context": "'... configured' (paired with NO TEAMS).",
         "translations": {
-          "fr": "CONFIGURÉE",
-          "de": "EINGERICHTET",
-          "es": "CONFIGURADO",
-          "it": "CONFIGURATO",
-          "pt": "CONFIGURADO",
-          "nl": "INGESTELD",
-          "da": "OPSAT",
-          "no": "SATT OPP",
-          "sv": "KONFIG."
+          "fr": "configurée",
+          "de": "eingerichtet",
+          "es": "configurado",
+          "it": "configurato",
+          "pt": "configurado",
+          "nl": "ingesteld",
+          "da": "opsat",
+          "no": "satt opp",
+          "sv": "konfig."
         }
       },
-      "FOUND": {
+      "found": {
         "context": "'... found' (paired with NO GAMES).",
         "translations": {
-          "fr": "TROUVÉ",
-          "de": "GEFUNDEN",
-          "es": "ENCONTRADO",
-          "it": "TROVATO",
-          "pt": "ENCONTRADO",
-          "nl": "GEVONDEN",
-          "da": "FUNDET",
-          "no": "FUNNET",
-          "sv": "HITTAT"
+          "fr": "trouvé",
+          "de": "gefunden",
+          "es": "encontrado",
+          "it": "trovato",
+          "pt": "encontrado",
+          "nl": "gevonden",
+          "da": "fundet",
+          "no": "funnet",
+          "sv": "hittat"
         }
       },
-      "THIS WEEK": {
+      "This week": {
         "context": "'this week' timeframe.",
         "translations": {
-          "fr": "CETTE SEMAINE",
-          "de": "DIESE WOCHE",
-          "es": "ESTA SEMANA",
-          "it": "QUESTA SETT.",
-          "pt": "ESTA SEMANA",
-          "nl": "DEZE WEEK",
-          "da": "DENNE UGE",
-          "no": "DENNE UKEN",
-          "sv": "DENNA VECKA"
+          "fr": "Cette semaine",
+          "de": "Diese Woche",
+          "es": "Esta semana",
+          "it": "Questa sett.",
+          "pt": "Esta semana",
+          "nl": "Deze week",
+          "da": "Denne uge",
+          "no": "Denne uken",
+          "sv": "Denna vecka"
         }
       },
-      "ALL": {
+      "All": {
         "context": "Filter label: all games.",
         "translations": {
-          "fr": "TOUS",
-          "de": "ALLE",
-          "es": "TODOS",
-          "it": "TUTTI",
-          "pt": "TODOS",
-          "nl": "ALLE",
-          "da": "ALLE",
-          "no": "ALLE",
-          "sv": "ALLA"
+          "fr": "Tous",
+          "de": "Alle",
+          "es": "Todos",
+          "it": "Tutti",
+          "pt": "Todos",
+          "nl": "Alle",
+          "da": "Alle",
+          "no": "Alle",
+          "sv": "Alla"
         }
       },
-      "NOTHING": {
+      "Nothing": {
         "context": "'nothing followed' empty state.",
         "translations": {
-          "fr": "RIEN",
-          "de": "NICHTS",
-          "es": "NADA",
-          "it": "NIENTE",
-          "pt": "NADA",
-          "nl": "NIETS",
-          "da": "INTET",
-          "no": "INGENTING",
-          "sv": "INGET"
+          "fr": "Rien",
+          "de": "Nichts",
+          "es": "Nada",
+          "it": "Niente",
+          "pt": "Nada",
+          "nl": "Niets",
+          "da": "Intet",
+          "no": "Ingenting",
+          "sv": "Inget"
         }
       },
-      "FOLLOWED": {
+      "followed": {
         "context": "'... followed' (paired with NOTHING).",
         "translations": {
-          "fr": "SUIVI",
-          "de": "GEFOLGT",
-          "es": "SEGUIDO",
-          "it": "SEGUITO",
-          "pt": "SEGUIDO",
-          "nl": "GEVOLGD",
-          "da": "FULGT",
-          "no": "FULGT",
-          "sv": "FÖLJT"
+          "fr": "suivi",
+          "de": "gefolgt",
+          "es": "seguido",
+          "it": "seguito",
+          "pt": "seguido",
+          "nl": "gevolgd",
+          "da": "fulgt",
+          "no": "fulgt",
+          "sv": "följt"
         }
       }
     },
     "sentiment": {
-      "FEAR": {
+      "Fear": {
         "context": "Sentiment/index classification: fear.",
         "translations": {
-          "fr": "PEUR",
-          "de": "ANGST",
-          "es": "MIEDO",
-          "it": "PAURA",
-          "pt": "MEDO",
-          "nl": "ANGST",
-          "da": "FRYGT",
-          "no": "FRYKT",
-          "sv": "RÄDSLA"
+          "fr": "Peur",
+          "de": "Angst",
+          "es": "Miedo",
+          "it": "Paura",
+          "pt": "Medo",
+          "nl": "Angst",
+          "da": "Frygt",
+          "no": "Frykt",
+          "sv": "Rädsla"
         }
       },
-      "GREED": {
+      "Greed": {
         "context": "Sentiment/index classification: greed.",
         "translations": {
-          "fr": "AVIDITE",
-          "de": "GIER",
-          "es": "CODICIA",
-          "it": "AVIDITA",
-          "pt": "GANANCIA",
-          "nl": "HEBZUCHT",
-          "da": "GRÅDIGHED",
-          "no": "GRÅDIGHET",
-          "sv": "GIRIGHET"
+          "fr": "Avidite",
+          "de": "Gier",
+          "es": "Codicia",
+          "it": "Avidita",
+          "pt": "Ganancia",
+          "nl": "Hebzucht",
+          "da": "Grådighed",
+          "no": "Grådighet",
+          "sv": "Girighet"
         }
       },
-      "NEUTRAL": {
+      "Neutral": {
         "context": "Sentiment/index classification: neutral.",
         "translations": {
-          "fr": "NEUTRE",
-          "de": "NEUTRAL",
-          "es": "NEUTRAL",
-          "it": "NEUTRO",
-          "pt": "NEUTRO",
-          "nl": "NEUTRAAL",
-          "da": "NEUTRAL",
-          "no": "NØYTRAL",
-          "sv": "NEUTRAL"
+          "fr": "Neutre",
+          "de": "Neutral",
+          "es": "Neutral",
+          "it": "Neutro",
+          "pt": "Neutro",
+          "nl": "Neutraal",
+          "da": "Neutral",
+          "no": "Nøytral",
+          "sv": "Neutral"
         }
       },
-      "EXTREME FEAR": {
+      "Extreme fear": {
         "context": "Sentiment/index classification: extreme fear.",
         "translations": {
-          "fr": "PEUR EXTREME",
-          "de": "EXTR. ANGST",
-          "es": "MIEDO EXTREMO",
-          "it": "PAURA ESTREMA",
-          "pt": "MEDO EXTREMO",
-          "nl": "EXTR. ANGST"
+          "fr": "Peur extreme",
+          "de": "Extr. Angst",
+          "es": "Miedo extremo",
+          "it": "Paura estrema",
+          "pt": "Medo extremo",
+          "nl": "Extr. angst"
         }
       },
-      "EXTREME GREED": {
+      "Extreme greed": {
         "context": "Sentiment/index classification: extreme greed.",
         "translations": {
-          "fr": "AVIDITE EXTREME",
-          "de": "EXTREME GIER",
-          "es": "CODICIA EXTREMA",
-          "it": "AVIDITA ESTREMA",
-          "pt": "GANANCIA EXTREMA",
-          "nl": "EXTREME HEBZUCHT"
+          "fr": "Avidite extreme",
+          "de": "Extreme Gier",
+          "es": "Codicia extrema",
+          "it": "Avidita estrema",
+          "pt": "Ganancia extrema",
+          "nl": "Extreme hebzucht"
         }
       }
     },
     "crypto": {
-      "NO COINS": {
+      "No coins": {
         "context": "No cryptocurrencies configured.",
         "translations": {
-          "fr": "AUCUNE CRYPTO",
-          "de": "KEINE COINS",
-          "es": "SIN MONEDAS",
-          "it": "NESSUNA CRIPTO",
-          "pt": "SEM MOEDAS",
-          "nl": "GEEN MUNTEN",
-          "da": "INGEN MØNTER",
-          "no": "INGEN MYNTER",
-          "sv": "INGA MYNT"
+          "fr": "Aucune crypto",
+          "de": "Keine Coins",
+          "es": "Sin monedas",
+          "it": "Nessuna cripto",
+          "pt": "Sem moedas",
+          "nl": "Geen munten",
+          "da": "Ingen mønter",
+          "no": "Ingen mynter",
+          "sv": "Inga mynt"
         }
       }
     },
     "stocks": {
-      "NO TICKERS": {
+      "No tickers": {
         "context": "No stock tickers configured.",
         "translations": {
-          "fr": "AUCUN TITRE",
-          "de": "KEINE AKTIEN",
-          "es": "SIN VALORES",
-          "it": "NESSUN TITOLO",
-          "pt": "SEM AÇÕES",
-          "nl": "GEEN AANDELEN",
-          "da": "INGEN AKTIER",
-          "no": "INGEN AKSJER",
-          "sv": "INGA AKTIER"
+          "fr": "Aucun titre",
+          "de": "Keine Aktien",
+          "es": "Sin valores",
+          "it": "Nessun titolo",
+          "pt": "Sem ações",
+          "nl": "Geen aandelen",
+          "da": "Ingen aktier",
+          "no": "Ingen aksjer",
+          "sv": "Inga aktier"
         }
       }
     },
     "holidays": {
-      "NEXT HOLIDAY": {
+      "Next holiday": {
         "context": "'Next holiday' label.",
         "translations": {
-          "fr": "PROCHAIN CONGE",
-          "de": "NAECHSTER FEIERTAG",
-          "es": "PROX. FESTIVO",
-          "it": "PROSS. FESTA",
-          "pt": "PROX. FERIADO",
-          "nl": "VOLGENDE FEESTDAG",
-          "da": "NÆSTE HELLIGDAG",
-          "no": "NESTE HELLIGDAG",
-          "sv": "NÄSTA HELGDAG"
+          "fr": "Prochain conge",
+          "de": "Naechster Feiertag",
+          "es": "Prox. festivo",
+          "it": "Pross. festa",
+          "pt": "Prox. feriado",
+          "nl": "Volgende feestdag",
+          "da": "Næste helligdag",
+          "no": "Neste helligdag",
+          "sv": "Nästa helgdag"
         }
       }
     },
     "content": {
-      "FEATURED": {
+      "Featured": {
         "context": "'Featured' item label (e.g. a featured article).",
         "translations": {
-          "fr": "A LA UNE",
-          "de": "ARTIKEL",
-          "es": "DESTACADO",
-          "it": "IN VETRINA",
-          "pt": "DESTAQUE",
-          "nl": "UITGELICHT",
-          "da": "FREMHÆVET",
-          "no": "FREMHEVET",
-          "sv": "UTVALD"
+          "fr": "A la une",
+          "de": "Artikel",
+          "es": "Destacado",
+          "it": "In vetrina",
+          "pt": "Destaque",
+          "nl": "Uitgelicht",
+          "da": "Fremhævet",
+          "no": "Fremhevet",
+          "sv": "Utvald"
         }
       },
-      "MOST READ": {
+      "Most read": {
         "context": "'Most read' item label.",
         "translations": {
-          "fr": "TOP LUS",
-          "de": "MEISTGELESEN",
-          "es": "MAS LEIDO",
-          "it": "PIU LETTI",
-          "pt": "MAIS LIDO",
-          "nl": "MEEST GELEZEN",
-          "da": "MEST LÆST",
-          "no": "MEST LEST",
-          "sv": "MEST LÄST"
+          "fr": "Top lus",
+          "de": "Meistgelesen",
+          "es": "Mas leido",
+          "it": "Piu letti",
+          "pt": "Mais lido",
+          "nl": "Meest gelezen",
+          "da": "Mest læst",
+          "no": "Mest lest",
+          "sv": "Mest läst"
         }
       }
     },
     "vocab": {
-      "WORD OF THE DAY": {
+      "Word of the day": {
         "context": "'Word of the day' heading.",
         "translations": {
-          "fr": "MOT DU JOUR",
-          "de": "WORT DES TAGES",
-          "es": "PALABRA DEL DIA",
-          "it": "PAROLA DEL GIORNO",
-          "pt": "PALAVRA DO DIA",
-          "nl": "WOORD VAN DE DAG",
-          "da": "DAGENS ORD",
-          "no": "DAGENS ORD",
-          "sv": "DAGENS ORD"
+          "fr": "Mot du jour",
+          "de": "Wort des Tages",
+          "es": "Palabra del dia",
+          "it": "Parola del giorno",
+          "pt": "Palavra do dia",
+          "nl": "Woord van de dag",
+          "da": "Dagens ord",
+          "no": "Dagens ord",
+          "sv": "Dagens ord"
         }
       }
     }

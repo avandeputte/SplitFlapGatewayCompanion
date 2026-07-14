@@ -41,18 +41,22 @@ def fetch(settings, format_lines, get_rows, get_cols):
             if title_el is not None and title_el.text:
                 titles.append(title_el.text.strip())
     except Exception:
-        titles = ['NEWS UNAVAILABLE', 'CHECK FEED URL']
+        titles = ['News unavailable', 'Check feed URL']
 
     allowed = set(" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*")
     pages = []
     for title in titles:
-        title = ''.join(c if c in allowed else ' ' for c in title)
+        # The allow-set is uppercase, so validate on the folded character but emit the
+        # one the feed wrote: a wall that can show lowercase gets it, and one that
+        # cannot has the companion fold it on the way out. Checking `c` directly would
+        # blank every lowercase letter in the headline.
+        title = ''.join(c if c.upper() in allowed else ' ' for c in title)
         lines = split_text(title, cols)
         for i in range(0, len(lines), rows):
             chunk = lines[i:i + rows]
             pages.append(format_lines(*chunk))
 
-    return pages or [format_lines('NEWS', 'NO HEADLINES', '')]
+    return pages or [format_lines('News', 'No headlines', '')]
 
 
 def trigger(settings, conditions):
@@ -91,7 +95,9 @@ def trigger(settings, conditions):
             # If no keywords configured, fire on any new headline
             if not keywords:
                 return True
-            if any(kw in title for kw in keywords):
+            # Keywords are folded above, so fold the headline to compare: a title is
+            # now stored as written, and 'TARIFF' is not in 'Trump tariff latest'.
+            if any(kw in title.upper() for kw in keywords):
                 return True
 
         # Prune seen set

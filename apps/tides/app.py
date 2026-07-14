@@ -40,7 +40,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
             timeout=8).json()
         preds = data.get('predictions') or []
         if not preds:
-            return [format_lines(t('TIDES'), t('NO DATA'), t('CHECK STATION'))]
+            return [format_lines(t('Tides'), t('No data'), t('Check station'))]
         # Four rows or more: today's tides are a LIST, and a list belongs on one page.
         # One tide per page meant waiting through four page turns to answer "when is high
         # tide?" — a question the whole app exists to answer at a glance.
@@ -51,7 +51,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
             # back to "^", which is not what you want a tide table to say — so there it
             # keeps the word, and shortens it to an initial only if it must.
             arrows = bool(caps and caps.pictographs)
-            lines = [t('TIDES')]
+            lines = [t('Tides')]
             for p in preds[:rows - 1]:
                 raw = str(p.get('t', ''))
                 hhmm = fmt_time(raw.split(' ')[-1] if ' ' in raw else raw)
@@ -60,7 +60,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
                 if arrows:
                     kind = '\u2191' if is_high else '\u2193'
                 else:
-                    kind = t('HIGH') if is_high else t('LOW')
+                    kind = t('High') if is_high else t('Low')
                 left = f'{kind} {hhmm}'
                 if len(left) + len(height) + 1 > cols:   # narrow wall: initial will do
                     left = f'{kind[:1]} {hhmm}'
@@ -76,14 +76,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
             if rows == 1:
                 # Compact single row: the short generic high/low word keeps the
                 # time + height on one line (the full "X TIDE" would crowd them out).
-                kind = t('HIGH') if is_high else t('LOW')
+                kind = t('High') if is_high else t('Low')
                 pages.append(f'{kind} {hhmm} {v}FT'[:cols].center(cols))
             elif rows == 2:
-                kind = t('HIGH TIDE') if is_high else t('LOW TIDE')
+                kind = t('High tide') if is_high else t('Low tide')
                 pages.append(format_lines(kind, f'{hhmm}  {v}FT'))
             else:
-                kind = t('HIGH TIDE') if is_high else t('LOW TIDE')
+                kind = t('High tide') if is_high else t('Low tide')
                 pages.append(format_lines(kind, hhmm, f'{v} FT'))
-        return pages or [format_lines(t('TIDES'), t('NO DATA'), '')]
+        return pages or [format_lines(t('Tides'), t('No data'), '')]
     except Exception:
-        return [format_lines(t('TIDES'), t('OFFLINE'), '')]
+        return [format_lines(t('Tides'), t('Offline'), '')]

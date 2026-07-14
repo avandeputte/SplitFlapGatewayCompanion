@@ -8,16 +8,16 @@ def fetch(settings, format_lines, get_rows, get_cols):
     cols = get_cols()
 
     fallback = [
-        "CHUCK NORRIS COUNTED TO INFINITY TWICE",
-        "CHUCK NORRIS CAN SLAM A REVOLVING DOOR",
-        "CHUCK NORRIS MAKES ONIONS CRY",
-        "WHEN CHUCK NORRIS DOES PUSHUPS HE PUSHES THE EARTH DOWN",
-        "CHUCK NORRIS CAN HEAR SIGN LANGUAGE",
-        "CHUCK NORRIS WON A STARING CONTEST WITH THE SUN",
-        "TIME WAITS FOR NO ONE EXCEPT CHUCK NORRIS",
-        "CHUCK NORRIS CAN CUT A KNIFE WITH BUTTER",
-        "CHUCK NORRIS CAN SPEAK BRAILLE",
-        "CHUCK NORRIS BEAT THE SUN IN A STARING CONTEST",
+        "Chuck Norris counted to infinity twice",
+        "Chuck Norris can slam a revolving door",
+        "Chuck Norris makes onions cry",
+        "When Chuck Norris does pushups he pushes the Earth down",
+        "Chuck Norris can hear sign language",
+        "Chuck Norris won a staring contest with the sun",
+        "Time waits for no one except Chuck Norris",
+        "Chuck Norris can cut a knife with butter",
+        "Chuck Norris can speak Braille",
+        "Chuck Norris beat the sun in a staring contest",
     ]
 
     def split_text(text, width):
@@ -45,9 +45,13 @@ def fetch(settings, format_lines, get_rows, get_cols):
     except Exception:
         text = random.choice(fallback)
 
-    # Remove characters not in the flap set
+    # Remove characters not in the flap set. Case-insensitively: a flap set lists the
+    # glyphs a module CARRIES, not the case the wall shows — the companion folds case at
+    # the last moment (renderer.fold), and only for a wall with no lowercase flaps. Testing
+    # membership case-sensitively would blank every lowercase letter here, long before the
+    # display got its say.
     allowed = set(" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*")
-    text = ''.join(c if c in allowed else ' ' for c in text)
+    text = ''.join(c if c.upper() in allowed else ' ' for c in text)
 
     lines = split_text(text, cols)
     rows = get_rows()
@@ -55,4 +59,4 @@ def fetch(settings, format_lines, get_rows, get_cols):
     for i in range(0, len(lines), rows):
         chunk = lines[i:i + rows]
         pages.append(format_lines(*chunk))
-    return pages or [format_lines('CHUCK NORRIS', 'FACTS', '')]
+    return pages or [format_lines('Chuck Norris', 'Facts', '')]

@@ -19,7 +19,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
             import re
             name = re.search(r'<name>(.+?)</name>', body)
             name = name.group(1) if name else cid[:15]
-            pages.append({'text': format_lines(time_str, name[:15], "YOUTUBE"), 'style': 'ltr'})
+            pages.append({'text': format_lines(time_str, name[:15], "YouTube"), 'style': 'ltr'})
         except Exception:
             pass
 
@@ -34,7 +34,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
             if items:
                 v = items[0].get('liveStreamingDetails', {}).get('concurrentViewers')
                 if v is not None:
-                    pages.append({'text': format_lines("WATCHING NOW", f"{int(v):,}", "LIVE VIEWERS"), 'style': 'diagonal'})
+                    pages.append({'text': format_lines("Watching now", f"{int(v):,}", "Live viewers"), 'style': 'diagonal'})
         except Exception:
             pass
 
@@ -50,4 +50,4 @@ def fetch(settings, format_lines, get_rows, get_cols):
             page = ''.join(l[:cols].center(cols) for l in lines)
             pages.append({'text': page, 'style': styles[i % len(styles)]})
 
-    return pages or [format_lines("LIVESTREAM", time_str, "NO DATA")]
+    return pages or [format_lines("Livestream", time_str, "No data")]

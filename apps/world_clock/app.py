@@ -35,7 +35,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         # the whole point of putting several clocks on a wall.
         lines.append(_row(city, t, cols))
     if not lines:
-        lines = ['NO VALID', 'TIMEZONES']
+        lines = ['No valid', 'timezones']
     # No bottom padding: format_lines centres what it is given. Filling the page here
     # would pin three zones to the top of a five-row wall.
     return [format_lines(*lines)]

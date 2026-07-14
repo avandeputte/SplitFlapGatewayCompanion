@@ -18,13 +18,13 @@ def fetch(settings, format_lines, get_rows, get_cols):
     except Exception:
         holidays = {}
 
-    names = holidays.get(key, ['A GREAT DAY'])
+    names = holidays.get(key, ['A great day'])
     pages = []
     for name in names:
         name = name
         cols = get_cols()
         if len(name) <= cols:
-            pages.append(format_lines('TODAY IS', name, ''))
+            pages.append(format_lines('Today is', name, ''))
         else:
             words = name.split()
             line1 = ''
@@ -34,6 +34,6 @@ def fetch(settings, format_lines, get_rows, get_cols):
                     line1 = (line1 + ' ' + word).strip() if line1 else word
                 elif not line2 or len(line2) + 1 + len(word) <= cols:
                     line2 = (line2 + ' ' + word).strip() if line2 else word
-            pages.append(format_lines('TODAY IS', line1, line2))
+            pages.append(format_lines('Today is', line1, line2))
 
-    return pages or [format_lines('TODAY IS', 'A GREAT DAY', '')]
+    return pages or [format_lines('Today is', 'A great day', '')]

@@ -154,10 +154,10 @@ def test_weather_puts_everything_on_one_tall_page(stub_net, tmp_path):
     assert len(pages) <= 2, f"still {len(pages)} pages on a 5-row wall"
 
     everything = " ".join(l for p in pages for l in _body(p, 5, 15))
-    assert "FEELS" in everything                       # conditions
+    assert "Feels" in everything                       # conditions
     assert "AQI 42" in everything                      # air quality, as a LINE
     assert "UV 7" in everything                        # uv, as a LINE
-    assert "POLLEN" in everything
+    assert "Pollen" in everything
     assert "PROV" not in everything
 
 
@@ -181,10 +181,10 @@ def test_weather_keeps_the_three_row_layout(stub_net, tmp_path):
                   plugin_weather_show_pollen="yes")
     pages = rt.get_pages("weather")
     first = _lines(pages[0], 3, 15)
-    assert "FEELS" in first[0]
+    assert "Feels" in first[0]
     assert first[1].startswith("H ") and " L " in first[1]
     assert len(pages) > 1, "the metrics still page on a short wall"
-    assert any("AIR QUALITY" in " ".join(_lines(p, 3, 15)) for p in pages)
+    assert any("Air quality" in " ".join(_lines(p, 3, 15)) for p in pages)
 
 
 # ---------------------------------------------------------------------------
@@ -194,18 +194,18 @@ def test_wiki_most_read_is_one_page_listing_the_articles(stub_net, tmp_path):
     """Three articles on three pages, each using one row of five, becomes one page
     that is simply the list."""
     rt = _runtime(5, 15, tmp_path, "wiki-today")
-    pages = [p for p in rt.get_pages("wiki-today") if "MOST READ" in p]
+    pages = [p for p in rt.get_pages("wiki-today") if "Most read" in p]
     assert len(pages) == 1
 
     body = _body(pages[0], 5, 15)
-    assert body[0].startswith("WIKI")
+    assert body[0].startswith("Wiki")
     assert len(body[1:]) == 4, "a 5-row wall lists four articles under the header"
     assert all(len(l) <= 15 for l in body)
 
 
 def test_wiki_keeps_a_page_per_article_on_a_three_row_wall(stub_net, tmp_path):
     rt = _runtime(3, 15, tmp_path, "wiki-today")
-    assert len([p for p in rt.get_pages("wiki-today") if "MOST READ" in p]) == 3
+    assert len([p for p in rt.get_pages("wiki-today") if "Most read" in p]) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -246,20 +246,20 @@ def test_a_tall_wall_spends_its_spare_row_on_the_date(stub_net, tmp_path):
     labor = [p for p in rt.get_pages("holidays") if "Labor" in p][0]
     body = _body(labor, 5, 15)
     assert any("Sep" in l for l in body), f"no date line in {body}"
-    assert any(l.startswith("IN ") for l in body), "the countdown is the point"
+    assert any(l.startswith("In ") for l in body), "the countdown is the point"
 
 
 def test_three_row_wall_gives_up_the_header_before_it_truncates(stub_net, tmp_path):
-    """On the common wall, a name that fits keeps 'NEXT HOLIDAY'; one that doesn't
+    """On the common wall, a name that fits keeps 'Next holiday'; one that doesn't
     takes that row rather than losing half of itself — the header says less than the
     name it was cutting in half."""
     rt = _runtime(3, 15, tmp_path, "holidays", country="US")
     pages = rt.get_pages("holidays")
 
     short = [p for p in pages if "Labor" in p][0]
-    assert "NEXT HOLIDAY" in short
+    assert "Next holiday" in short
 
     long = [p for p in pages if "Martin" in p][0]
-    assert "NEXT HOLIDAY" not in long, "the header must yield to the name"
+    assert "Next holiday" not in long, "the header must yield to the name"
     body = _body(long, 3, 15)
     assert "Martin" in " ".join(body) and "King" in " ".join(body)

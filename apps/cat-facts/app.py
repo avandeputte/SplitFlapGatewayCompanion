@@ -110,7 +110,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
                          params={'max_length': max_len}, timeout=8).json()
         text = str(d.get('fact', '') or '').strip()
         if not text:
-            return [format_lines('CAT FACT', 'NO DATA', '')]
+            return [format_lines('Cat fact', 'No data', '')]
         return _pages(format_lines, '', text, rows, cols)   # no title — just the fact
     except Exception:
-        return [format_lines('CAT FACT', 'OFFLINE', '')]
+        return [format_lines('Cat fact', 'Offline', '')]

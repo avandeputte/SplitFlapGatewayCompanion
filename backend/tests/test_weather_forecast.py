@@ -76,14 +76,14 @@ def _forecast(pages, rows, cols):
     NOT simply rows 0..n — format_lines CENTRES the block vertically, so a two-day forecast
     on a five-row wall starts on row 1, not row 0.
     """
-    p = next(pg for pg in pages if "FORECAST" in pg)
+    p = next(pg for pg in pages if "Forecast" in pg)
     rowsx = [p[r * cols:(r + 1) * cols] for r in range(rows)]
     return [r for r in rowsx if r.strip()]
 
 
 def _dots(pages, rows, cols):
     """The first cell of each DAY line, as a colour name."""
-    p = next(pg for pg in pages if "FORECAST" in pg)
+    p = next(pg for pg in pages if "Forecast" in pg)
     p = (renderer.normalize(p, rows * cols))
     out = []
     seen_header = False
@@ -109,7 +109,7 @@ def test_a_day_per_line_with_its_sky_and_its_high_low(openmeteo):
     rows, cols = 5, 15
     lines = _forecast(_pages(rows, cols), rows, cols)
 
-    assert lines[0].strip() == "FORECAST"
+    assert lines[0].strip() == "Forecast"
     body = lines[1:]
     assert len(body) == 3                     # the default is three days
 
@@ -175,16 +175,16 @@ def test_today_is_not_in_the_forecast(openmeteo):
 
 def test_it_pages_on_a_short_wall(openmeteo):
     rows, cols = 3, 15
-    pages = [p for p in _pages(rows, cols) if "FORECAST" in p]
+    pages = [p for p in _pages(rows, cols) if "Forecast" in p]
     assert len(pages) == 2, "two days fit under the header; the third turns the page"
 
 
 def test_off_means_off(openmeteo):
-    assert not any("FORECAST" in p for p in _pages(5, 15, plugin_weather_forecast_days="0"))
+    assert not any("Forecast" in p for p in _pages(5, 15, plugin_weather_forecast_days="0"))
 
 
 def test_five_days_when_asked(openmeteo):
-    pages = [p for p in _pages(5, 15, plugin_weather_forecast_days="5") if "FORECAST" in p]
+    pages = [p for p in _pages(5, 15, plugin_weather_forecast_days="5") if "Forecast" in p]
     assert pages, "the forecast disappeared"
 
 

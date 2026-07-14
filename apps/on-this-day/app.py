@@ -1,16 +1,16 @@
 """On This Day in History — one concise event, on a single page (byabbe.se)."""
 
 _FALLBACK = [
-    (1776, "DECLARATION OF INDEPENDENCE SIGNED"),
-    (1969, "FIRST MOON LANDING BY APOLLO 11"),
-    (1989, "BERLIN WALL FALLS IN GERMANY"),
-    (1903, "WRIGHT BROTHERS FIRST FLIGHT"),
-    (1865, "CIVIL WAR ENDS IN AMERICA"),
-    (1945, "WORLD WAR 2 ENDS"),
-    (1963, "I HAVE A DREAM SPEECH BY MLK"),
-    (1912, "TITANIC SINKS ON MAIDEN VOYAGE"),
-    (1929, "STOCK MARKET CRASH BLACK TUESDAY"),
-    (1955, "ROSA PARKS REFUSES TO GIVE UP SEAT"),
+    (1776, "Declaration of Independence signed"),
+    (1969, "First moon landing by Apollo 11"),
+    (1989, "Berlin Wall falls in Germany"),
+    (1903, "Wright brothers first flight"),
+    (1865, "Civil War ends in America"),
+    (1945, "World War 2 ends"),
+    (1963, "I Have a Dream speech by MLK"),
+    (1912, "Titanic sinks on maiden voyage"),
+    (1929, "Stock market crash Black Tuesday"),
+    (1955, "Rosa Parks refuses to give up seat"),
 ]
 _ALLOWED = set(" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*")
 

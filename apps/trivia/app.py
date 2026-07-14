@@ -10,16 +10,16 @@ def fetch(settings, format_lines, get_rows, get_cols):
     rows = get_rows()
 
     fallback_qa = [
-        ("WHAT IS THE LARGEST PLANET?", "JUPITER"),
-        ("HOW MANY BONES IN A HUMAN BODY?", "206"),
-        ("WHAT IS THE SPEED OF LIGHT?", "186000 MI/SEC"),
-        ("WHAT YEAR DID WW2 END?", "1945"),
-        ("WHAT IS THE SMALLEST COUNTRY?", "VATICAN CITY"),
-        ("HOW MANY STRINGS ON A GUITAR?", "SIX"),
-        ("WHAT IS THE HARDEST MINERAL?", "DIAMOND"),
-        ("WHAT GAS DO PLANTS ABSORB?", "CO2"),
-        ("HOW MANY LEGS DOES A SPIDER HAVE?", "EIGHT"),
-        ("WHAT IS THE LARGEST OCEAN?", "PACIFIC"),
+        ("What is the largest planet?", "Jupiter"),
+        ("How many bones in a human body?", "206"),
+        ("What is the speed of light?", "186000 mi/sec"),
+        ("What year did WW2 end?", "1945"),
+        ("What is the smallest country?", "Vatican City"),
+        ("How many strings on a guitar?", "Six"),
+        ("What is the hardest mineral?", "Diamond"),
+        ("What gas do plants absorb?", "CO2"),
+        ("How many legs does a spider have?", "Eight"),
+        ("What is the largest ocean?", "Pacific"),
     ]
 
     def split_text(text, width):
@@ -50,9 +50,13 @@ def fetch(settings, format_lines, get_rows, get_cols):
         q, a = random.choice(fallback_qa)
         question, answer = q, a
 
+    # Case-insensitively: a flap set lists the glyphs a module CARRIES, not the case the
+    # wall shows — the companion folds case at the last moment (renderer.fold), and only for
+    # a wall with no lowercase flaps. Testing membership case-sensitively would blank every
+    # lowercase letter here, long before the display got its say.
     allowed = set(" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*")
-    question = ''.join(c if c in allowed else ' ' for c in question)
-    answer = ''.join(c if c in allowed else ' ' for c in answer)
+    question = ''.join(c if c.upper() in allowed else ' ' for c in question)
+    answer = ''.join(c if c.upper() in allowed else ' ' for c in answer)
 
     q_lines = split_text(question, cols)
     pages = []
@@ -61,9 +65,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
         pages.append(format_lines(*chunk))
 
     a_lines = split_text(answer, cols)
-    a_lines = ['ANSWER:'] + a_lines
+    a_lines = ['Answer:'] + a_lines
     for i in range(0, len(a_lines), rows):
         chunk = a_lines[i:i + rows]
         pages.append(format_lines(*chunk))
 
-    return pages or [format_lines('TRIVIA', 'NO DATA', '')]
+    return pages or [format_lines('Trivia', 'No data', '')]

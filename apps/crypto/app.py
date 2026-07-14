@@ -6,7 +6,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
 
     coins = [s.strip() for s in settings.get('crypto_list', '').split(',') if s.strip()]
     if not coins:
-        return [format_lines('CRYPTO', t('NO COINS'), t('CONFIGURE'))]
+        return [format_lines('Crypto', t('No coins'), t('Configure'))]
 
     # Price in the local currency: where you are (Location) -> your Language -> USD.
     # CoinGecko quotes natively in the target currency, so no FX conversion is needed.
@@ -28,7 +28,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
             timeout=10
         ).json()
     except Exception:
-        return [format_lines('CRYPTO', t('ERROR'), t('API FAIL'))]
+        return [format_lines('Crypto', t('Error'), t('API fail'))]
     rows, cols = get_rows(), get_cols()
     no_color = settings.get('disable_colors', 'no') == 'yes'
 
@@ -52,7 +52,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         price, chg = d.get(vs), d.get(f'{vs}_24h_change')
         sym = c[:6].upper()
         if price is None:
-            return [f'{sym} ERR']
+            return [f'{sym} Err']
         if chg is None:
             chg_str = 'N/A'
         else:
@@ -81,7 +81,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         while lines and not lines[-1].strip():
             lines.pop()
         pages.append(format_lines(*lines))
-    return pages or [format_lines('CRYPTO', t('NO DATA'), '')]
+    return pages or [format_lines('Crypto', t('No data'), '')]
 
 
 def trigger(settings, conditions):

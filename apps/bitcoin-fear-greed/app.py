@@ -15,10 +15,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         entry = data["data"][0]
         value = entry["value"]
         # "Extreme Fear" / "Fear" / "Neutral" / "Greed" / "Extreme Greed" -> localized.
-        label = t(entry["value_classification"].upper())
-        return [format_lines("BTC FEAR&GREED", f"INDEX: {value}/100", label)]
+        # The API already writes the classification as a person would, and the catalog
+        # folds its keys, so it needs no uppercasing to be found — shouting it here
+        # would only take the case away from the wall before the wall could decide.
+        label = t(entry["value_classification"])
+        return [format_lines("BTC Fear&Greed", f"Index: {value}/100", label)]
     except Exception:
-        return [format_lines("BTC FEAR&GREED", t("OFFLINE"), "")]
+        return [format_lines("BTC Fear&Greed", t("Offline"), "")]
 
 
 def trigger(settings, conditions):

@@ -3,7 +3,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
     video_id = settings.get('yt_video_id', '')
     api_key = settings.get('yt_api_key', '')
     if not video_id or not api_key:
-        return [format_lines('COMMENTS', 'MISSING', 'CONFIG')]
+        return [format_lines('Comments', 'Missing', 'Config')]
     try:
         r = requests.get(
             'https://www.googleapis.com/youtube/v3/commentThreads',
@@ -22,9 +22,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
             text_lines = text_lines[:rows - 1]  # leave room for author
             lines = [author] + text_lines
             pages.append(format_lines(*lines[:rows]))
-        return pages or [format_lines('COMMENTS', 'NONE FOUND', '')]
+        return pages or [format_lines('Comments', 'None found', '')]
     except Exception:
-        return [format_lines('COMMENTS', 'ERROR', 'CHECK CONFIG')]
+        return [format_lines('Comments', 'Error', 'Check config')]
 
 
 def trigger(settings, conditions):

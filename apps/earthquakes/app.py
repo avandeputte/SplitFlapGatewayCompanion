@@ -37,12 +37,15 @@ def fetch(settings, format_lines, get_rows, get_cols):
             ms = p.get('time')
             if isinstance(ms, (int, float)):
                 mins = int((now - ms / 1000) / 60)
-                ago = f'{mins}M AGO' if mins < 120 else f'{mins // 60}H AGO'
-            # USGS place is like "134 KM E OF BITUNG, INDONESIA": show the distance
+                ago = f'{mins}m ago' if mins < 120 else f'{mins // 60}h ago'
+            # USGS place is like "134 km E of Bitung, Indonesia": show the distance
             # on the header line and give the location name the remaining rows so
-            # it isn't cut off.
-            if ' OF ' in place:
-                dist, loc = place.split(' OF ', 1)
+            # it isn't cut off. Match on the folded text and slice the original —
+            # USGS writes "of" in lowercase, and the place is no longer uppercased.
+            folded = place.upper()
+            if ' OF ' in folded:
+                cut = folded.index(' OF ')
+                dist, loc = place[:cut], place[cut + 4:]
                 head = f'{mags} {dist.strip()}'
             else:
                 loc, head = place, f'{mags}  {ago}'.strip()
@@ -52,6 +55,6 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 pages.append(format_lines(head, *_wrap(loc, cols, 1)))
             else:
                 pages.append(format_lines(head, *_wrap(loc, cols, rows - 1)))
-        return pages or [format_lines('EARTHQUAKES', 'NONE RECENT', '')]
+        return pages or [format_lines('Earthquakes', 'None recent', '')]
     except Exception:
-        return [format_lines('EARTHQUAKES', 'OFFLINE', '')]
+        return [format_lines('Earthquakes', 'Offline', '')]

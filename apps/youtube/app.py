@@ -3,7 +3,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
     import xml.etree.ElementTree as ET
     channel_id = settings.get('yt_channel_id', '')
     if not channel_id:
-        return [format_lines('YOUTUBE', 'NO CHANNEL', 'SET ID')]
+        return [format_lines('YouTube', 'No channel', 'Set ID')]
     try:
         url = f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}'
         r = requests.get(url, timeout=10)
@@ -11,17 +11,17 @@ def fetch(settings, format_lines, get_rows, get_cols):
         ns = {'a': 'http://www.w3.org/2005/Atom', 'yt': 'http://www.youtube.com/xml/schemas/2015'}
         name = root.find('a:title', ns).text
         entries = root.findall('a:entry', ns)
-        count = f'{len(entries)} VIDEOS'
+        count = f'{len(entries)} videos'
         rows = get_rows()
         if rows >= 4 and entries:
             # The feed carries the latest upload — worth a line when the wall is tall.
             latest = entries[0].find('a:title', ns)
             title = (latest.text or '') if latest is not None else ''
-            extra = ['LATEST', title[:get_cols()]] if title else []
-            return [format_lines('YOUTUBE', name, count, *extra[:rows - 3])]
-        return [format_lines('YOUTUBE', name, count)]
+            extra = ['Latest', title[:get_cols()]] if title else []
+            return [format_lines('YouTube', name, count, *extra[:rows - 3])]
+        return [format_lines('YouTube', name, count)]
     except Exception:
-        return [format_lines('YOUTUBE', 'ERROR', 'CHECK ID')]
+        return [format_lines('YouTube', 'Error', 'Check ID')]
 
 
 def trigger(settings, conditions):

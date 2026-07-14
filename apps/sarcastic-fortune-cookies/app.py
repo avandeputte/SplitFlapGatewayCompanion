@@ -143,7 +143,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             or not state.get("pages")
             or (now - state.get("at", 0)) >= every):
         fortunes = _load(lang)
-        text = random.choice(fortunes) if fortunes else "NO FORTUNES FOUND"
+        text = random.choice(fortunes) if fortunes else "No fortunes found"
         lines = _wrap(text, rows, cols)
         # Vertically centre when the board has spare rows (format_lines centres
         # each line horizontally and pads the remaining rows at the bottom).

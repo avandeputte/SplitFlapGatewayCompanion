@@ -14,7 +14,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         if rows == 1:
             return [format_lines(f'ISS LAT{lat} LON{lon}')]
         if rows == 2:
-            return [format_lines('ISS TRACKER', f'LAT{lat} LON{lon}')]
+            return [format_lines('ISS tracker', f'LAT{lat} LON{lon}')]
         if rows >= 4:
             # astros.json is already fetched above and carries who is aboard — the
             # position API has nothing else to give (no altitude, no velocity).
@@ -25,11 +25,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             # give latitude and longitude a line each instead of truncating both.
             def trim(v):
                 return f'{float(v):.2f}'
-            body = [f'LAT {trim(lat)}', f'LON {trim(lon)}', f'{num} ' + t('IN SPACE')]
-            return [format_lines('ISS TRACKER', *body, *crew[:max(0, rows - 4)])]
-        return [format_lines('ISS TRACKER', f'LAT {lat} LON {lon}', f'{num} ' + t('IN SPACE'))]
+            body = [f'LAT {trim(lat)}', f'LON {trim(lon)}', f'{num} ' + t('In space')]
+            return [format_lines('ISS tracker', *body, *crew[:max(0, rows - 4)])]
+        return [format_lines('ISS tracker', f'LAT {lat} LON {lon}', f'{num} ' + t('In space'))]
     except Exception:
-        return [format_lines('ISS TRACKER', t('ERROR'), t('API FAIL'))]
+        return [format_lines('ISS tracker', t('Error'), t('API fail'))]
 
 
 def trigger(settings, conditions):

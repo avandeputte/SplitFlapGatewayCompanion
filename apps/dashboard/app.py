@@ -24,7 +24,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
         return [time_page]
     w = get_weather()
     if not w or not w.get('ok'):
-        return [time_page, format_lines("NO WEATHER", "DATA", "TRY LATER")]
+        return [time_page, format_lines("No weather", "data", "Try later")]
 
     c = get_cols()
     city = str(w.get('city') or 'Location')
@@ -46,9 +46,9 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
         hum, wind = w.get('humidity'), w.get('wind_mph')
         bits = []
         if hum is not None:
-            bits.append(f"{int(hum)}% HUM")
+            bits.append(f"{int(hum)}% hum")
         if wind is not None:
-            bits.append(f"{int(wind)}MPH")
+            bits.append(f"{int(wind)}mph")
         l4 = "  ".join(bits).center(c) if bits else ""
         return [time_page, format_lines(l1, l2, l3, l4)]
     return [time_page, format_lines(l1, l2, l3)]

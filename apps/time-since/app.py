@@ -16,10 +16,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         start = datetime.strptime(date_str, '%Y-%m-%d')
         start = tz.localize(start)
     except Exception:
-        return [format_lines(event, t('INVALID DATE'), '')]
+        return [format_lines(event, t('Invalid date'), '')]
     diff = now - start
     if diff.total_seconds() < 0:
-        return [format_lines(event, t('NOT YET'), t('STARTED'))]
+        return [format_lines(event, t('Not yet'), t('Started'))]
     days = diff.days
     hrs, rem = divmod(diff.seconds, 3600)
     mins, secs = divmod(rem, 60)
@@ -29,7 +29,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         elapsed = f'{years}{u("Y")} {remaining_days}{u("D")} {hrs}{u("H")}'
     else:
         elapsed = f'{days}{u("D")} {hrs}{u("H")} {mins}{u("M")} {secs}{u("S")}'
-    return [format_lines(event, elapsed, t('TIME SINCE'))]
+    return [format_lines(event, elapsed, t('Time since'))]
 
 
 def trigger(settings, conditions):

@@ -24,8 +24,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     # Phase name
     phase_idx = int(days_into_cycle / (synodic / 8))
     phases = [
-        'NEW MOON', 'WAXING CRESCENT', 'FIRST QUARTER', 'WAXING GIBBOUS',
-        'FULL MOON', 'WANING GIBBOUS', 'LAST QUARTER', 'WANING CRESCENT'
+        'New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous',
+        'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent'
     ]
     phase_name = phases[phase_idx % 8]
 
@@ -51,13 +51,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     if get_rows() >= 4:
         # Everything is already computed; a 3-row wall just couldn't show it at once.
         return [
-            format_lines(name, bar, f'{illum_pct}% {t("LIT")}',
-                         f'{t("FULL IN")} {int(days_to_full)}{u("D")}',
-                         f'{t("NEW IN")} {int(days_to_new)}{u("D")}'),
+            format_lines(name, bar, f'{illum_pct}% {t("Lit")}',
+                         f'{t("Full in")} {int(days_to_full)}{u("D")}',
+                         f'{t("New in")} {int(days_to_new)}{u("D")}'),
         ]
     pages = [
-        format_lines(name, f'{illum_pct}% {t("LIT")}', f'{t("FULL IN")} {int(days_to_full)}{u("D")}'),
-        format_lines(name, bar, f'{t("NEW IN")} {int(days_to_new)}{u("D")}'),
+        format_lines(name, f'{illum_pct}% {t("Lit")}', f'{t("Full in")} {int(days_to_full)}{u("D")}'),
+        format_lines(name, bar, f'{t("New in")} {int(days_to_new)}{u("D")}'),
     ]
     return pages
 

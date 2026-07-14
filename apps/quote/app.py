@@ -119,9 +119,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
             if best is None or len(q) < len(best[0]):
                 best = (q, a)
         if not best:
-            return [format_lines('QUOTE', 'NO DATA', '')]
+            return [format_lines('Quote', 'No data', '')]
         q, a = best
         text = f'{q}  - {a}' if a else q
-        return _pages(format_lines, '', f'QUOTE: {text}', rows, cols)
+        return _pages(format_lines, '', f'Quote: {text}', rows, cols)
     except Exception:
-        return [format_lines('QUOTE', 'OFFLINE', '')]
+        return [format_lines('Quote', 'Offline', '')]

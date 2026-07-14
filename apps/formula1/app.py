@@ -26,23 +26,23 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 secs = int((dt - datetime.now(timezone.utc)).total_seconds())
                 if secs > 0:
                     d, h = secs // 86400, (secs % 86400) // 3600
-                    in_ = t('IN', 'time')
+                    in_ = t('In', 'time')
                     cd = f'{in_} {d}{u("D")} {h}{u("H")}' if d else f'{in_} {h}{u("H")}'
                 else:
-                    cd = t('RACE WEEKEND')
+                    cd = t('Race weekend')
             except ValueError:
                 pass
             if rows == 1:
                 pages.append(f'{name} {cd}'[:cols].center(cols))
             elif rows == 2:
-                pages.append(format_lines(t('NEXT GP'), name))
+                pages.append(format_lines(t('Next GP'), name))
                 pages.append(format_lines(name, cd))
             else:
-                pages.append(format_lines(t('NEXT GRAND PRIX'), name, cd))
+                pages.append(format_lines(t('Next Grand Prix'), name, cd))
         else:
-            pages.append(format_lines('FORMULA 1', t('SEASON'), t('OVER')))
+            pages.append(format_lines('Formula 1', t('Season'), t('Over')))
     except Exception:
-        return [format_lines('FORMULA 1', t('OFFLINE'), '')]
+        return [format_lines('Formula 1', t('Offline'), '')]
 
     try:
         st = requests.get('https://api.jolpi.ca/ergast/f1/current/driverStandings.json', timeout=10).json()
@@ -53,11 +53,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             nm = str(top.get('Driver', {}).get('familyName', ''))
             pts = top.get('points', '')
             if rows == 1:
-                pages.append(f'{t("LEADER")} {nm} {pts}'[:cols].center(cols))
+                pages.append(f'{t("Leader")} {nm} {pts}'[:cols].center(cols))
             elif rows == 2:
-                pages.append(format_lines(t('CHAMPIONSHIP'), f'{nm} {pts}{t("PTS")}'))
+                pages.append(format_lines(t('Championship'), f'{nm} {pts}{t("pts")}'))
             else:
-                pages.append(format_lines(t('LEADER'), nm, f'{pts} {t("POINTS")}'))
+                pages.append(format_lines(t('Leader'), nm, f'{pts} {t("points")}'))
     except Exception:
         pass
-    return pages or [format_lines('FORMULA 1', t('NO DATA'), '')]
+    return pages or [format_lines('Formula 1', t('No data'), '')]

@@ -1,46 +1,46 @@
-"""Word clock — spells the time out ("IT'S HALF PAST TEN").
+"""Word clock — spells the time out ("It's half past ten").
 
 Localized into the major Western-European languages when the companion injects
 i18n (honoring the global Language). Each language has its own grammar — Romance
-languages name the hour first (IL EST DIX HEURES ET QUART), Germanic ones lead
-with the minutes (VIERTEL NACH ZEHN), and German/Dutch "half" points at the *next*
-hour (HALB DREI = 2:30). Anything without a builder (or a bare host) falls back to
+languages name the hour first (Il est dix heures et quart), Germanic ones lead
+with the minutes (Viertel nach zehn), and German/Dutch "half" points at the *next*
+hour (halb drei = 2:30). Anything without a builder (or a bare host) falls back to
 the original English behavior.
 """
 
 # Hour words 1..12 (index 0 unused) and minute-number words 1..29, accent-free to
 # match the display's Windows-1252 rendering. Gender follows each language (es
-# UNA/UNO for hour/minute, pt UMA/UM).
+# una/uno for hour/minute, pt uma/um).
 _HOURS = {
-    'fr': ['', 'UNE', 'DEUX', 'TROIS', 'QUATRE', 'CINQ', 'SIX', 'SEPT', 'HUIT', 'NEUF', 'DIX', 'ONZE', 'DOUZE'],
-    'de': ['', 'EINS', 'ZWEI', 'DREI', 'VIER', 'FUNF', 'SECHS', 'SIEBEN', 'ACHT', 'NEUN', 'ZEHN', 'ELF', 'ZWOLF'],
-    'es': ['', 'UNA', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE', 'DIEZ', 'ONCE', 'DOCE'],
-    'it': ['', 'UNA', 'DUE', 'TRE', 'QUATTRO', 'CINQUE', 'SEI', 'SETTE', 'OTTO', 'NOVE', 'DIECI', 'UNDICI', 'DODICI'],
-    'pt': ['', 'UMA', 'DUAS', 'TRES', 'QUATRO', 'CINCO', 'SEIS', 'SETE', 'OITO', 'NOVE', 'DEZ', 'ONZE', 'DOZE'],
-    'nl': ['', 'EEN', 'TWEE', 'DRIE', 'VIER', 'VIJF', 'ZES', 'ZEVEN', 'ACHT', 'NEGEN', 'TIEN', 'ELF', 'TWAALF'],
+    'fr': ['', 'une', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze'],
+    'de': ['', 'eins', 'zwei', 'drei', 'vier', 'funf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwolf'],
+    'es': ['', 'una', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'once', 'doce'],
+    'it': ['', 'una', 'due', 'tre', 'quattro', 'cinque', 'sei', 'sette', 'otto', 'nove', 'dieci', 'undici', 'dodici'],
+    'pt': ['', 'uma', 'duas', 'tres', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze'],
+    'nl': ['', 'een', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien', 'elf', 'twaalf'],
 }
 _MINS = {
-    'fr': ['', 'UNE', 'DEUX', 'TROIS', 'QUATRE', 'CINQ', 'SIX', 'SEPT', 'HUIT', 'NEUF', 'DIX', 'ONZE', 'DOUZE',
-           'TREIZE', 'QUATORZE', 'QUINZE', 'SEIZE', 'DIX-SEPT', 'DIX-HUIT', 'DIX-NEUF', 'VINGT', 'VINGT ET UNE',
-           'VINGT-DEUX', 'VINGT-TROIS', 'VINGT-QUATRE', 'VINGT-CINQ', 'VINGT-SIX', 'VINGT-SEPT', 'VINGT-HUIT', 'VINGT-NEUF'],
-    'de': ['', 'EINS', 'ZWEI', 'DREI', 'VIER', 'FUNF', 'SECHS', 'SIEBEN', 'ACHT', 'NEUN', 'ZEHN', 'ELF', 'ZWOLF',
-           'DREIZEHN', 'VIERZEHN', 'FUNFZEHN', 'SECHZEHN', 'SIEBZEHN', 'ACHTZEHN', 'NEUNZEHN', 'ZWANZIG', 'EINUNDZWANZIG',
-           'ZWEIUNDZWANZIG', 'DREIUNDZWANZIG', 'VIERUNDZWANZIG', 'FUNFUNDZWANZIG', 'SECHSUNDZWANZIG', 'SIEBENUNDZWANZIG',
-           'ACHTUNDZWANZIG', 'NEUNUNDZWANZIG'],
-    'es': ['', 'UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE', 'DIEZ', 'ONCE', 'DOCE',
-           'TRECE', 'CATORCE', 'QUINCE', 'DIECISEIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE', 'VEINTE', 'VEINTIUNO',
-           'VEINTIDOS', 'VEINTITRES', 'VEINTICUATRO', 'VEINTICINCO', 'VEINTISEIS', 'VEINTISIETE', 'VEINTIOCHO', 'VEINTINUEVE'],
-    'it': ['', 'UNO', 'DUE', 'TRE', 'QUATTRO', 'CINQUE', 'SEI', 'SETTE', 'OTTO', 'NOVE', 'DIECI', 'UNDICI', 'DODICI',
-           'TREDICI', 'QUATTORDICI', 'QUINDICI', 'SEDICI', 'DICIASSETTE', 'DICIOTTO', 'DICIANNOVE', 'VENTI', 'VENTUNO',
-           'VENTIDUE', 'VENTITRE', 'VENTIQUATTRO', 'VENTICINQUE', 'VENTISEI', 'VENTISETTE', 'VENTOTTO', 'VENTINOVE'],
-    'pt': ['', 'UM', 'DOIS', 'TRES', 'QUATRO', 'CINCO', 'SEIS', 'SETE', 'OITO', 'NOVE', 'DEZ', 'ONZE', 'DOZE',
-           'TREZE', 'CATORZE', 'QUINZE', 'DEZESSEIS', 'DEZESSETE', 'DEZOITO', 'DEZENOVE', 'VINTE', 'VINTE E UM',
-           'VINTE E DOIS', 'VINTE E TRES', 'VINTE E QUATRO', 'VINTE E CINCO', 'VINTE E SEIS', 'VINTE E SETE',
-           'VINTE E OITO', 'VINTE E NOVE'],
-    'nl': ['', 'EEN', 'TWEE', 'DRIE', 'VIER', 'VIJF', 'ZES', 'ZEVEN', 'ACHT', 'NEGEN', 'TIEN', 'ELF', 'TWAALF',
-           'DERTIEN', 'VEERTIEN', 'VIJFTIEN', 'ZESTIEN', 'ZEVENTIEN', 'ACHTTIEN', 'NEGENTIEN', 'TWINTIG', 'EENENTWINTIG',
-           'TWEEENTWINTIG', 'DRIEENTWINTIG', 'VIERENTWINTIG', 'VIJFENTWINTIG', 'ZESENTWINTIG', 'ZEVENENTWINTIG',
-           'ACHTENTWINTIG', 'NEGENENTWINTIG'],
+    'fr': ['', 'une', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze',
+           'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf', 'vingt', 'vingt et une',
+           'vingt-deux', 'vingt-trois', 'vingt-quatre', 'vingt-cinq', 'vingt-six', 'vingt-sept', 'vingt-huit', 'vingt-neuf'],
+    'de': ['', 'eins', 'zwei', 'drei', 'vier', 'funf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwolf',
+           'dreizehn', 'vierzehn', 'funfzehn', 'sechzehn', 'siebzehn', 'achtzehn', 'neunzehn', 'zwanzig', 'einundzwanzig',
+           'zweiundzwanzig', 'dreiundzwanzig', 'vierundzwanzig', 'funfundzwanzig', 'sechsundzwanzig', 'siebenundzwanzig',
+           'achtundzwanzig', 'neunundzwanzig'],
+    'es': ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'once', 'doce',
+           'trece', 'catorce', 'quince', 'dieciseis', 'diecisiete', 'dieciocho', 'diecinueve', 'veinte', 'veintiuno',
+           'veintidos', 'veintitres', 'veinticuatro', 'veinticinco', 'veintiseis', 'veintisiete', 'veintiocho', 'veintinueve'],
+    'it': ['', 'uno', 'due', 'tre', 'quattro', 'cinque', 'sei', 'sette', 'otto', 'nove', 'dieci', 'undici', 'dodici',
+           'tredici', 'quattordici', 'quindici', 'sedici', 'diciassette', 'diciotto', 'diciannove', 'venti', 'ventuno',
+           'ventidue', 'ventitre', 'ventiquattro', 'venticinque', 'ventisei', 'ventisette', 'ventotto', 'ventinove'],
+    'pt': ['', 'um', 'dois', 'tres', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze',
+           'treze', 'catorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove', 'vinte', 'vinte e um',
+           'vinte e dois', 'vinte e tres', 'vinte e quatro', 'vinte e cinco', 'vinte e seis', 'vinte e sete',
+           'vinte e oito', 'vinte e nove'],
+    'nl': ['', 'een', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen', 'tien', 'elf', 'twaalf',
+           'dertien', 'veertien', 'vijftien', 'zestien', 'zeventien', 'achttien', 'negentien', 'twintig', 'eenentwintig',
+           'tweeentwintig', 'drieentwintig', 'vierentwintig', 'vijfentwintig', 'zesentwintig', 'zevenentwintig',
+           'achtentwintig', 'negenentwintig'],
 }
 
 
@@ -55,139 +55,144 @@ def _ctx(h):
 
 def _b_fr(h, rounded):
     if h == 0 and rounded == 0:
-        return ['IL', 'EST', 'MINUIT']
+        return ['Il', 'est', 'minuit']
     if h == 12 and rounded == 0:
-        return ['IL', 'EST', 'MIDI']
+        return ['Il', 'est', 'midi']
     disp, dispn = _ctx(h)
     H, M = _HOURS['fr'], _MINS['fr']
-    heure = lambda d: 'HEURE' if d == 1 else 'HEURES'
+    heure = lambda d: 'heure' if d == 1 else 'heures'
     if rounded == 0:
-        return ['IL', 'EST', H[disp], heure(disp)]
+        return ['Il', 'est', H[disp], heure(disp)]
     if rounded <= 30:
-        head = ['IL', 'EST', H[disp], heure(disp)]
+        head = ['Il', 'est', H[disp], heure(disp)]
         if rounded == 15:
-            return head + ['ET', 'QUART']
+            return head + ['et', 'quart']
         if rounded == 30:
-            return head + ['ET', 'DEMIE']
-        return head + ['ET', M[rounded]]
+            return head + ['et', 'demie']
+        return head + ['et', M[rounded]]
     mm = 60 - rounded
-    head = ['IL', 'EST', H[dispn], heure(dispn)]
+    head = ['Il', 'est', H[dispn], heure(dispn)]
     if mm == 15:
-        return head + ['MOINS', 'LE', 'QUART']
-    return head + ['MOINS', M[mm]]
+        return head + ['moins', 'le', 'quart']
+    return head + ['moins', M[mm]]
 
 
 def _b_de(h, rounded):
     if h == 0 and rounded == 0:
-        return ['ES', 'IST', 'MITTERNACHT']
+        return ['Es', 'ist', 'Mitternacht']
     if h == 12 and rounded == 0:
-        return ['ES', 'IST', 'MITTAG']
+        return ['Es', 'ist', 'Mittag']
     disp, dispn = _ctx(h)
     H, M = _HOURS['de'], _MINS['de']
     if rounded == 0:
-        return ['ES', 'IST', 'EIN' if disp == 1 else H[disp], 'UHR']
+        return ['Es', 'ist', 'ein' if disp == 1 else H[disp], 'Uhr']
     if rounded <= 30:
         if rounded == 15:
-            return ['ES', 'IST', 'VIERTEL', 'NACH', H[disp]]
+            return ['Es', 'ist', 'Viertel', 'nach', H[disp]]
         if rounded == 30:
-            return ['ES', 'IST', 'HALB', H[dispn]]      # halb points at the next hour
-        return ['ES', 'IST', M[rounded], 'NACH', H[disp]]
+            return ['Es', 'ist', 'halb', H[dispn]]      # halb points at the next hour
+        return ['Es', 'ist', M[rounded], 'nach', H[disp]]
     mm = 60 - rounded
     if mm == 15:
-        return ['ES', 'IST', 'VIERTEL', 'VOR', H[dispn]]
-    return ['ES', 'IST', M[mm], 'VOR', H[dispn]]
+        return ['Es', 'ist', 'Viertel', 'vor', H[dispn]]
+    return ['Es', 'ist', M[mm], 'vor', H[dispn]]
 
 
 def _b_es(h, rounded):
     if h == 0 and rounded == 0:
-        return ['ES', 'MEDIANOCHE']
+        return ['Es', 'medianoche']
     if h == 12 and rounded == 0:
-        return ['ES', 'MEDIODIA']
+        return ['Es', 'mediodia']
     disp, dispn = _ctx(h)
     H, M = _HOURS['es'], _MINS['es']
-    pre = lambda d: ['ES', 'LA'] if d == 1 else ['SON', 'LAS']
+    pre = lambda d: ['Es', 'la'] if d == 1 else ['Son', 'las']
     if rounded == 0:
         return pre(disp) + [H[disp]]
     if rounded <= 30:
         head = pre(disp) + [H[disp]]
         if rounded == 15:
-            return head + ['Y', 'CUARTO']
+            return head + ['y', 'cuarto']
         if rounded == 30:
-            return head + ['Y', 'MEDIA']
-        return head + ['Y', M[rounded]]
+            return head + ['y', 'media']
+        return head + ['y', M[rounded]]
     mm = 60 - rounded
     head = pre(dispn) + [H[dispn]]
     if mm == 15:
-        return head + ['MENOS', 'CUARTO']
-    return head + ['MENOS', M[mm]]
+        return head + ['menos', 'cuarto']
+    return head + ['menos', M[mm]]
 
 
 def _b_it(h, rounded):
     if h == 0 and rounded == 0:
-        return ["E'", 'MEZZANOTTE']
+        return ["E'", 'mezzanotte']
     if h == 12 and rounded == 0:
-        return ["E'", 'MEZZOGIORNO']
+        return ["E'", 'mezzogiorno']
     disp, dispn = _ctx(h)
     H, M = _HOURS['it'], _MINS['it']
-    named = lambda d: ["E'", "L'UNA"] if d == 1 else ['SONO', 'LE', H[d]]
+    named = lambda d: ["E'", "l'una"] if d == 1 else ['Sono', 'le', H[d]]
     if rounded == 0:
         return named(disp)
     if rounded <= 30:
         head = named(disp)
         if rounded == 15:
-            return head + ['E', 'UN', 'QUARTO']
+            return head + ['e', 'un', 'quarto']
         if rounded == 30:
-            return head + ['E', 'MEZZA']
-        return head + ['E', M[rounded]]
+            return head + ['e', 'mezza']
+        return head + ['e', M[rounded]]
     mm = 60 - rounded
     head = named(dispn)
     if mm == 15:
-        return head + ['MENO', 'UN', 'QUARTO']
-    return head + ['MENO', M[mm]]
+        return head + ['meno', 'un', 'quarto']
+    return head + ['meno', M[mm]]
 
 
 def _b_pt(h, rounded):
     if h == 0 and rounded == 0:
-        return ["E'", 'MEIA-NOITE']
+        return ["E'", 'meia-noite']
     if h == 12 and rounded == 0:
-        return ["E'", 'MEIO-DIA']
+        return ["E'", 'meio-dia']
     disp, dispn = _ctx(h)
     H, M = _HOURS['pt'], _MINS['pt']
     if rounded == 0:
-        return ["E'", 'UMA', 'HORA'] if disp == 1 else ['SAO', H[disp], 'HORAS']
+        return ["E'", 'uma', 'hora'] if disp == 1 else ['Sao', H[disp], 'horas']
     if rounded <= 30:
-        head = ["E'", 'UMA'] if disp == 1 else ['SAO', H[disp]]
+        head = ["E'", 'uma'] if disp == 1 else ['Sao', H[disp]]
         if rounded == 15:
-            return head + ['E', 'QUINZE']
+            return head + ['e', 'quinze']
         if rounded == 30:
-            return head + ['E', 'MEIA']
-        return head + ['E', M[rounded]]
+            return head + ['e', 'meia']
+        return head + ['e', M[rounded]]
     mm = 60 - rounded
-    tail = 'QUINZE' if mm == 15 else M[mm]
+    tail = 'quinze' if mm == 15 else M[mm]
+    # Unlike every other branch, this one has no copula: the minute word OPENS the sentence
+    # ("Quinze para as dez"). The vocabulary stores each word in its mid-sentence form —
+    # it is the same word the branch above uses after "e" — so capitalize it here, where
+    # we know it is first, rather than keeping a second capitalized copy of the numbers.
+    tail = tail[:1].upper() + tail[1:]
     if dispn == 1:
-        return [tail, 'PARA', 'A', 'UMA']
-    return [tail, 'PARA', 'AS', H[dispn]]
+        return [tail, 'para', 'a', 'uma']
+    return [tail, 'para', 'as', H[dispn]]
 
 
 def _b_nl(h, rounded):
     if h == 0 and rounded == 0:
-        return ['HET', 'IS', 'MIDDERNACHT']
+        return ['Het', 'is', 'middernacht']
     if h == 12 and rounded == 0:
-        return ['HET', 'IS', 'MIDDAG']
+        return ['Het', 'is', 'middag']
     disp, dispn = _ctx(h)
     H, M = _HOURS['nl'], _MINS['nl']
     if rounded == 0:
-        return ['HET', 'IS', H[disp], 'UUR']
+        return ['Het', 'is', H[disp], 'uur']
     if rounded <= 30:
         if rounded == 15:
-            return ['HET', 'IS', 'KWART', 'OVER', H[disp]]
+            return ['Het', 'is', 'kwart', 'over', H[disp]]
         if rounded == 30:
-            return ['HET', 'IS', 'HALF', H[dispn]]      # half points at the next hour
-        return ['HET', 'IS', M[rounded], 'OVER', H[disp]]
+            return ['Het', 'is', 'half', H[dispn]]      # half points at the next hour
+        return ['Het', 'is', M[rounded], 'over', H[disp]]
     mm = 60 - rounded
     if mm == 15:
-        return ['HET', 'IS', 'KWART', 'VOOR', H[dispn]]
-    return ['HET', 'IS', M[mm], 'VOOR', H[dispn]]
+        return ['Het', 'is', 'kwart', 'voor', H[dispn]]
+    return ['Het', 'is', M[mm], 'voor', H[dispn]]
 
 
 _BUILDERS = {'fr': _b_fr, 'de': _b_de, 'es': _b_es, 'it': _b_it, 'pt': _b_pt, 'nl': _b_nl}
@@ -217,19 +222,19 @@ def _fit(words, cols, rows):
 
 def _english(h, rounded, cols):
     h12 = h % 12
-    hours = ['TWELVE', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE',
-             'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN']
-    ones = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN',
-            'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN']
-    tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY']
+    hours = ['twelve', 'one', 'two', 'three', 'four', 'five',
+             'six', 'seven', 'eight', 'nine', 'ten', 'eleven']
+    ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+            'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen']
+    tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty']
 
     def minute_word(n):
         if n == 0:
             return ''
         if n == 15:
-            return 'A QUARTER'
+            return 'a quarter'
         if n == 30:
-            return 'HALF'
+            return 'half'
         if n < 20:
             return ones[n]
         t, o = divmod(n, 10)
@@ -239,20 +244,20 @@ def _english(h, rounded, cols):
     next_word = hours[(h12 + 1) % 12]
 
     if h == 0 and rounded == 0:
-        return ["IT'S", 'MIDNIGHT', '']
+        return ["It's", 'midnight', '']
     if h == 12 and rounded == 0:
-        return ["IT'S", 'NOON', '']
+        return ["It's", 'noon', '']
     if rounded == 0:
-        return ["IT'S", hour_word, "O'CLOCK"]
+        return ["It's", hour_word, "o'clock"]
     if rounded <= 30:
-        mw, direction, target = minute_word(rounded), 'PAST', hour_word
+        mw, direction, target = minute_word(rounded), 'past', hour_word
     else:
-        mw, direction, target = minute_word(60 - rounded), 'TO', next_word
+        mw, direction, target = minute_word(60 - rounded), 'to', next_word
 
     combined = mw + ' ' + direction
     if len(combined) <= cols:
-        return ["IT'S", combined, target]
-    return ["IT'S", mw, direction + ' ' + target]
+        return ["It's", combined, target]
+    return ["It's", mw, direction + ' ' + target]
 
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):

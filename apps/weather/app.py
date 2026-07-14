@@ -1,87 +1,87 @@
-AQI_LABELS = {1: 'GOOD', 2: 'FAIR', 3: 'MODERATE', 4: 'POOR', 5: 'V.POOR'}
+AQI_LABELS = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'V.Poor'}
 
 OPENMETEO_WEATHER_CODES = {
-    0: 'CLEAR',
-    1: 'MAINLY CLEAR',
-    2: 'PARTLY CLOUDY',
-    3: 'OVERCAST',
-    45: 'FOG',
-    48: 'RIME FOG',
-    51: 'LIGHT DRIZZLE',
-    53: 'DRIZZLE',
-    55: 'HEAVY DRIZZLE',
-    61: 'LIGHT RAIN',
-    63: 'RAIN',
-    65: 'HEAVY RAIN',
-    66: 'LIGHT FREEZING RAIN',
-    67: 'FREEZING RAIN',
-    71: 'LIGHT SNOW',
-    73: 'SNOW',
-    75: 'HEAVY SNOW',
-    77: 'SNOW GRAINS',
-    80: 'RAIN SHOWERS',
-    81: 'RAIN SHOWERS',
-    82: 'HEAVY SHOWERS',
-    85: 'SNOW SHOWERS',
-    86: 'HEAVY SNOW SHOWERS',
-    95: 'THUNDERSTORM',
-    96: 'THUNDER HAIL',
-    99: 'SEVERE TSTORM',
+    0: 'Clear',
+    1: 'Mainly clear',
+    2: 'Partly cloudy',
+    3: 'Overcast',
+    45: 'Fog',
+    48: 'Rime fog',
+    51: 'Light drizzle',
+    53: 'Drizzle',
+    55: 'Heavy drizzle',
+    61: 'Light rain',
+    63: 'Rain',
+    65: 'Heavy rain',
+    66: 'Light freezing rain',
+    67: 'Freezing rain',
+    71: 'Light snow',
+    73: 'Snow',
+    75: 'Heavy snow',
+    77: 'Snow grains',
+    80: 'Rain showers',
+    81: 'Rain showers',
+    82: 'Heavy showers',
+    85: 'Snow showers',
+    86: 'Heavy snow showers',
+    95: 'Thunderstorm',
+    96: 'Thunder hail',
+    99: 'Severe tstorm',
 }
 
 
 def _pollen_level(val):
     if val is None or val < 1:
-        return 'NONE'
+        return 'None'
     if val < 10:
-        return 'LOW'
+        return 'Low'
     if val < 50:
-        return 'MOD'
+        return 'Mod'
     if val < 200:
-        return 'HIGH'
-    return 'V.HIGH'
+        return 'High'
+    return 'V.High'
 
 
 def _uv_level(val):
     if val is None:
-        return 'UNKNOWN'
+        return 'Unknown'
     if val < 3:
-        return 'LOW'
+        return 'Low'
     if val < 6:
-        return 'MOD'
+        return 'Mod'
     if val < 8:
-        return 'HIGH'
+        return 'High'
     if val < 11:
-        return 'V.HIGH'
-    return 'EXTREME'
+        return 'V.High'
+    return 'Extreme'
 
 
 def _us_aqi_level(val):
     if val is None:
-        return 'UNKNOWN'
+        return 'Unknown'
     if val <= 50:
-        return 'GOOD'
+        return 'Good'
     if val <= 100:
-        return 'MOD'
+        return 'Mod'
     if val <= 150:
         return 'USG'
     if val <= 200:
-        return 'UNHEALTHY'
+        return 'Unhealthy'
     if val <= 300:
-        return 'V.UNHLTHY'
-    return 'HAZARDOUS'
+        return 'V.Unhlthy'
+    return 'Hazardous'
 
 
 def _weatherapi_aqi_level(val):
     labels = {
-        1: 'GOOD',
-        2: 'MOD',
+        1: 'Good',
+        2: 'Mod',
         3: 'USG',
-        4: 'UNHEALTHY',
-        5: 'V.UNHLTHY',
-        6: 'HAZARDOUS',
+        4: 'Unhealthy',
+        5: 'V.Unhlthy',
+        6: 'Hazardous',
     }
-    return labels.get(val, 'UNKNOWN')
+    return labels.get(val, 'Unknown')
 
 
 def _aqi_color_from_us(value):
@@ -410,7 +410,7 @@ def _sky_of_qweather(icon):
 
 
 def _metric_line(word, value, label, color, cols, mono=False):
-    """One metric on one line: `AQI 42 GOOD 🟩`, degraded to whatever fits.
+    """One metric on one line: `AQI 42 Good 🟩`, degraded to whatever fits.
 
     A tall wall can afford a row per metric; it cannot afford a whole PAGE per
     metric, which is what the three-row layout had to do.
@@ -486,7 +486,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     loc_lat = settings.get('location_lat', '')
     loc_lon = settings.get('location_lon', '')
     loc_name = settings.get('location_name', '')
-    _lat, _lon, _city = 42.3496, -71.0783, 'BOSTON'
+    _lat, _lon, _city = 42.3496, -71.0783, 'Boston'
     try:
         if app_location and ',' in app_location:
             if '|' in app_location:
@@ -494,7 +494,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 _city = _city.strip()
             else:
                 coords = app_location
-                _city = 'LOCATION'
+                _city = 'Location'
             parts = coords.split(',', 1)
             _lat, _lon = float(parts[0]), float(parts[1])
         elif loc_lat and loc_lon:
@@ -513,7 +513,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 _lat, _lon = float(geo[0]['lat']), float(geo[0]['lon'])
                 _city = geo[0].get('display_name', zip_code).split(',')[0].strip()
     except (ValueError, KeyError, IndexError, TypeError, requests.RequestException):
-        _lat, _lon, _city = 42.3496, -71.0783, 'BOSTON'
+        _lat, _lon, _city = 42.3496, -71.0783, 'Boston'
 
     settings_sig = (
         api_key, _lat, _lon, weather_provider, temp_unit,
@@ -637,7 +637,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             'feels_like': int(round(current.get('apparent_temperature', current.get('temperature_2m', 0)))),
             'hi': int(round(hi_values[0] if hi_values else 0)),
             'lo': int(round(lo_values[0] if lo_values else 0)),
-            'desc': t(OPENMETEO_WEATHER_CODES.get(current.get('weather_code'), 'CURRENT CONDITIONS')),
+            'desc': t(OPENMETEO_WEATHER_CODES.get(current.get('weather_code'), 'Current conditions')),
             'lat': _lat,
             'lon': _lon,
             'uv': current.get('uv_index'),
@@ -668,7 +668,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             'feels_like': int(round(current.get('feelslike_f', current.get('temp_f', 0)))),
             'hi': int(round(day.get('maxtemp_f', current.get('temp_f', 0)))),
             'lo': int(round(day.get('mintemp_f', current.get('temp_f', 0)))),
-            'desc': str((current.get('condition') or {}).get('text', t('CURRENT CONDITIONS'))),
+            'desc': str((current.get('condition') or {}).get('text', t('Current conditions'))),
             'lat': location.get('lat'),
             'lon': location.get('lon'),
             'uv': current.get('uv'),
@@ -713,7 +713,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             'feels_like': _to_int(now.get('feelsLike'), _to_int(now.get('temp'))),
             'hi': _to_int(first_day.get('tempMax'), _to_int(now.get('temp'))),
             'lo': _to_int(first_day.get('tempMin'), _to_int(now.get('temp'))),
-            'desc': str(now.get('text', t('CURRENT CONDITIONS'))),
+            'desc': str(now.get('text', t('Current conditions'))),
             'lat': _lat,
             'lon': _lon,
         }
@@ -767,12 +767,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         cols = get_cols()
         rows = get_rows()
         narrow = cols <= 12
-        feels_word = t('FLS') if narrow else t('FEELS')
-        pollen_word = t('POL') if narrow else t('POLLEN')
-        sun_exposure_text = t('SUN UV') if narrow else t('SUN EXPOSURE')
-        grass_word = t('GRS') if narrow else t('GRASS')
-        tree_word = t('TRE') if narrow else t('TREE')
-        weed_word = t('WED') if narrow else t('WEED')
+        feels_word = t('Fls') if narrow else t('Feels')
+        pollen_word = t('Pol') if narrow else t('Pollen')
+        sun_exposure_text = t('Sun UV') if narrow else t('Sun exposure')
+        grass_word = t('Grs') if narrow else t('Grass')
+        tree_word = t('Tre') if narrow else t('Tree')
+        weed_word = t('Wed') if narrow else t('Weed')
 
         temp = _format_temp(weather.get('temp'), temp_unit)
         feels = f"{feels_word} {_format_temp(weather.get('feels_like'), temp_unit)}"
@@ -804,7 +804,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                     aqi_color = _aqi_color_from_us(aqi_num)
                 else:
                     aqi_num = _fetch_openweather_aqi(lat, lon)
-                    aqi_label = AQI_LABELS.get(aqi_num, 'UNKNOWN')
+                    aqi_label = AQI_LABELS.get(aqi_num, 'Unknown')
                     aqi_color = _aqi_color_from_openweather(aqi_num)
                 if aqi_num is None or aqi_num <= 0:      # provider had nothing usable
                     aqi_num = None
@@ -823,7 +823,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 uv_num = None
 
         pollen_overall = None
-        pollen_parts = []            # 'GRASS LOW 🟩' — one per component we got
+        pollen_parts = []            # 'Grass Low 🟩' — one per component we got
         if show_pollen:
             try:
                 if weather_provider == 'weatherapi':
@@ -927,7 +927,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 elif rows == 2:
                     pages.append(format_lines(f'AQI {aqi_num}', aqi_display))
                 else:
-                    pages.append(format_lines(t('AIR QUALITY'), f'AQI {aqi_num}', aqi_display))
+                    pages.append(format_lines(t('Air quality'), f'AQI {aqi_num}', aqi_display))
 
             if uv_num is not None:
                 uv_display = _decorate_status(t(uv_label), uv_color, cols, no_color)
@@ -951,7 +951,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         if fc_lines:
             # A header plus as many days as the wall has room for; the rest turn the page.
             for chunk in _paginate(fc_lines, rows - 1):
-                pages.append(format_lines(t('FORECAST'), *chunk))
+                pages.append(format_lines(t('Forecast'), *chunk))
 
         state['last_pages'] = pages
         state['last_polled_at'] = now_ts
@@ -961,7 +961,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         # On transient error, reuse last good pages if available
         if state['last_pages'] is not None:
             return state['last_pages']
-        return [format_lines('WEATHER', 'ERROR', 'CHECK API KEY')]
+        return [format_lines('Weather', 'Error', 'Check API key')]
 
 
 def trigger(settings, conditions):

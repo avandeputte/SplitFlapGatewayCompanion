@@ -59,7 +59,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
         detections = [d for d in detections if d.get('confidence', 0) >= min_conf]
 
         if not detections:
-            pages = [format_lines('BIRDNET', 'NO DETECTIONS', 'CHECK SETTINGS')]
+            pages = [format_lines('BirdNET', 'No detections', 'Check settings')]
             state['last_pages'] = pages
             return pages
 
@@ -94,7 +94,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
             pages = [format_lines(*lines[:rows])]
 
         else:
-            pages = [format_lines('BIRDNET', 'UNKNOWN MODE', '')]
+            pages = [format_lines('BirdNET', 'Unknown mode', '')]
 
         state['last_pages'] = pages
         return pages
@@ -102,7 +102,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
     except Exception as e:
         if state['last_pages']:
             return state['last_pages']
-        return [format_lines('BIRDNET', 'ERROR', str(e)[:cols] if cols > 10 else 'ERR')]
+        return [format_lines('BirdNET', 'Error', str(e)[:cols] if cols > 10 else 'Err')]
 
 
 def trigger(settings, conditions):

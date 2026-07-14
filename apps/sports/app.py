@@ -12,20 +12,20 @@ LEAGUES = {
     'usl1':   {'path': 'soccer/usa.usl.l1',                  'name': 'USL1'},
     'nwsl':   {'path': 'soccer/usa.nwsl',                    'name': 'NWSL'},
     'epl':    {'path': 'soccer/eng.1',                       'name': 'EPL'},
-    'laliga': {'path': 'soccer/esp.1',                       'name': 'LALIGA'},
+    'laliga': {'path': 'soccer/esp.1',                       'name': 'LaLiga'},
     'ucl':    {'path': 'soccer/uefa.champions',              'name': 'UCL'},
-    'uel':    {'path': 'soccer/uefa.europa',                 'name': 'EUROPA'},
-    'ger':    {'path': 'soccer/ger.1',                       'name': 'BUNDESLIGA'},
-    'ita':    {'path': 'soccer/ita.1',                       'name': 'SERIE A'},
-    'fra':    {'path': 'soccer/fra.1',                       'name': 'LIGUE 1'},
-    'por':    {'path': 'soccer/por.1',                       'name': 'PRIMEIRA'},
-    'ned':    {'path': 'soccer/ned.1',                       'name': 'EREDIVISIE'},
-    'mex':    {'path': 'soccer/mex.1',                       'name': 'LIGA MX'},
-    'bra':    {'path': 'soccer/bra.1',                       'name': 'BRASILEIRAO'},
-    'efl':    {'path': 'soccer/eng.2',                       'name': 'CHAMPIONSHIP'},
+    'uel':    {'path': 'soccer/uefa.europa',                 'name': 'Europa'},
+    'ger':    {'path': 'soccer/ger.1',                       'name': 'Bundesliga'},
+    'ita':    {'path': 'soccer/ita.1',                       'name': 'Serie A'},
+    'fra':    {'path': 'soccer/fra.1',                       'name': 'Ligue 1'},
+    'por':    {'path': 'soccer/por.1',                       'name': 'Primeira'},
+    'ned':    {'path': 'soccer/ned.1',                       'name': 'Eredivisie'},
+    'mex':    {'path': 'soccer/mex.1',                       'name': 'Liga MX'},
+    'bra':    {'path': 'soccer/bra.1',                       'name': 'Brasileirao'},
+    'efl':    {'path': 'soccer/eng.2',                       'name': 'Championship'},
     'wnba':   {'path': 'basketball/wnba',                    'name': 'WNBA'},
     'ncaaw':  {'path': 'basketball/womens-college-basketball','name': 'NCAAW'},
-    'soft':   {'path': 'baseball/college-softball',          'name': 'SOFTBALL'},
+    'soft':   {'path': 'baseball/college-softball',          'name': 'Softball'},
     'msoc':   {'path': 'soccer/usa.ncaa.m.1',               'name': 'MSOC'},
     'wsoc':   {'path': 'soccer/usa.ncaa.w.1',               'name': 'WSOC'},
     'pga':    {'path': 'golf/pga',                           'name': 'PGA'},
@@ -73,7 +73,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
     by_league = _parse_follows(settings.get('follows', ''))
     if not by_league:
-        return [format_lines("SPORTS", _t("NOTHING"), _t("FOLLOWED"))]
+        return [format_lines("Sports", _t("Nothing"), _t("Followed"))]
 
     all_games = []
     for key, picks in by_league.items():
@@ -87,10 +87,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             logging.error(f"ESPN {key} error: {e}")
 
     if not all_games:
-        filter_labels = {'all': _t('ALL'), 'live': _t('LIVE'),
-                         'live+upcoming': f"{_t('LIVE')}/{_t('UPCOMING')}",
-                         'live+final': f"{_t('LIVE')}/{_t('FINAL')}"}
-        return [format_lines("SPORTS", _t("NO GAMES"), filter_labels.get(game_filter, _t('FOUND')))]
+        filter_labels = {'all': _t('All'), 'live': _t('Live'),
+                         'live+upcoming': f"{_t('Live')}/{_t('Upcoming')}",
+                         'live+final': f"{_t('Live')}/{_t('Final')}"}
+        return [format_lines("Sports", _t("No games"), filter_labels.get(game_filter, _t('Found')))]
 
     rows = get_rows()
     cols = get_cols()
@@ -207,8 +207,8 @@ def _fetch_last_game(info, team_abbr, format_lines, get_cols, requests, game_fil
             a_score = as_.get('displayValue', str(as_)) if isinstance(as_, dict) else str(as_)
             h_score = hs_.get('displayValue', str(hs_)) if isinstance(hs_, dict) else str(hs_)
             score_line = f"{aa} {a_score}  {ha} {h_score}"
-            page = format_lines(info['name'], score_line, _t("FINAL"))
-            return {'page': page, 'score_line': score_line, 'status': _t("FINAL"), 'state': 'post'}
+            page = format_lines(info['name'], score_line, _t("Final"))
+            return {'page': page, 'score_line': score_line, 'status': _t("Final"), 'state': 'post'}
         return None
     except Exception as e:
         logging.error(f"Schedule fetch error for {team_abbr}: {e}")
@@ -244,10 +244,10 @@ def _parse_events(events, info, team_filter, show_all, format_lines, get_cols, g
             continue
 
         if state == 'pre':
-            score_line = f"{aa} VS {ha}"
+            score_line = f"{aa} vs {ha}"
         else:
             score_line = f"{aa} {away.get('score','0')}  {ha} {home.get('score','0')}"
-        status = _t("FINAL") if state == 'post' else detail.upper()[:15]
+        status = _t("Final") if state == 'post' else detail[:15]
         page = format_lines(info['name'], score_line, status)
         game = {'page': page, 'score_line': score_line, 'status': status, 'state': state}
         (live if state == 'in' else upcoming if state == 'pre' else final).append(game)
@@ -255,10 +255,10 @@ def _parse_events(events, info, team_filter, show_all, format_lines, get_cols, g
 
 def _golf(events, info, format_lines):
     if not events:
-        return [format_lines("PGA TOUR", _t("NO EVENT"), _t("THIS WEEK"))]
+        return [format_lines("PGA Tour", _t("No event"), _t("This week"))]
     comps = events[0].get('competitions', [{}])
     if not comps:
-        return [format_lines("PGA TOUR", "NO DATA", "")]
+        return [format_lines("PGA Tour", "No data", "")]
     competitors = comps[0].get('competitors', [])
     competitors.sort(key=lambda c: int(c.get('order', 999)))
     pages = []
@@ -271,22 +271,22 @@ def _golf(events, info, format_lines):
             lines.append(f"{c.get('order','?')} {name[:8]} {score}"[:15])
         while len(lines) < 3: lines.append('')
         pages.append(format_lines(*lines))
-    return pages or [format_lines("PGA TOUR", _t("NO LEADERS"), "")]
+    return pages or [format_lines("PGA Tour", _t("No leaders"), "")]
 
 def _mma(events, info, format_lines):
     if not events:
-        return [format_lines("UFC", _t("NO EVENT"), _t("SCHEDULED"))]
+        return [format_lines("UFC", _t("No event"), _t("Scheduled"))]
     pages = []
     for comp in events[0].get('competitions', [])[:5]:
         competitors = comp.get('competitors', [])
         if len(competitors) < 2: continue
-        n1 = competitors[0].get('athlete', {}).get('shortName', '?').upper()[:7]
-        n2 = competitors[1].get('athlete', {}).get('shortName', '?').upper()[:7]
+        n1 = competitors[0].get('athlete', {}).get('shortName', '?')[:7]
+        n2 = competitors[1].get('athlete', {}).get('shortName', '?')[:7]
         state = comp.get('status', {}).get('type', {}).get('state', 'pre')
         detail = comp.get('status', {}).get('type', {}).get('shortDetail', '')
-        r3 = detail.upper()[:15] if detail else (_t("LIVE") if state == 'in' else _t("UPCOMING"))
-        pages.append(format_lines("UFC", f"{n1} V {n2}", r3))
-    return pages or [format_lines("UFC", _t("NO FIGHTS"), _t("SCHEDULED"))]
+        r3 = detail[:15] if detail else (_t("Live") if state == 'in' else _t("Upcoming"))
+        pages.append(format_lines("UFC", f"{n1} v {n2}", r3))
+    return pages or [format_lines("UFC", _t("No fights"), _t("Scheduled"))]
 
 
 def trigger(settings, conditions):

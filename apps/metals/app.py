@@ -46,9 +46,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
     try:
         gold, silver = price('XAU'), price('XAG')
         if gold is None and silver is None:
-            return [format_lines('METALS', t('OFFLINE'), '')]
+            return [format_lines('Metals', t('Offline'), '')]
         # Localized names vary in length — pad both to the same width so they align.
-        g, s = t('GOLD'), t('SILVER')
+        g, s = t('Gold'), t('Silver')
         w = max(len(g), len(s))
         if rows == 1:
             pages = []
@@ -59,6 +59,6 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
             return pages
         if rows == 2:
             return [format_lines(f'{g:<{w}} {fmt(gold)}', f'{s:<{w}} {fmt(silver)}')]
-        return [format_lines(f'{t("SPOT PRICE")} /OZ', f'{g:<{w}} {fmt(gold)}', f'{s:<{w}} {fmt(silver)}')]
+        return [format_lines(f'{t("Spot price")} /OZ', f'{g:<{w}} {fmt(gold)}', f'{s:<{w}} {fmt(silver)}')]
     except Exception:
-        return [format_lines('METALS', t('OFFLINE'), '')]
+        return [format_lines('Metals', t('Offline'), '')]

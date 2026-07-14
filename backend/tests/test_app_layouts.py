@@ -169,7 +169,7 @@ def test_sun_times_line_up_in_a_column(stub_net):
     assert len(body) == 3
     for l in body:
         assert len(l) == 15 and l[0] != " " and l[-1] != " "
-    assert body[0].startswith("SUNRISE") and body[0].endswith("5:31AM")
+    assert body[0].startswith("Sunrise") and body[0].endswith("5:31AM")
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +181,7 @@ def test_the_days_tides_fit_on_one_page(stub_net):
     assert len(pages) == 1, "still paging through the tides one at a time"
 
     body = _body(pages[0], 5, 15)
-    assert body[0].strip() == "TIDES"
+    assert body[0].strip() == "Tides"
     assert len(body) == 5                       # header + four tides
     for l in body[1:]:
         assert l.endswith("FT"), "the height must be flush right, in a column"
@@ -203,10 +203,10 @@ def test_the_launch_fits_on_one_page(stub_net):
     assert len(pages) == 1
 
     text = " ".join(_body(pages[0], 5, 15))
-    assert "NEXT LAUNCH" in text
+    assert "Next launch" in text
     assert "FALCON 9" in text
     assert "STARLINK" in text
-    assert "IN " in text                        # the countdown
+    assert "In " in text                        # the countdown
 
 
 def test_rocket_launch_still_pages_on_a_three_row_wall(stub_net):

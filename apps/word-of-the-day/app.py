@@ -5,61 +5,63 @@ the current Language (falling back to English), and the header is translated. Th
 word is picked by the calendar day, so it's stable for the day and cycles over time.
 """
 
-# Accent-free (Windows-1252-safe) uppercase words, one evocative list per language.
+# Accent-free (Windows-1252-safe) words as they are actually written — German nouns keep
+# their capital, everything else is lowercase — one evocative list per language. Walls with
+# no lowercase flaps are folded to uppercase downstream; don't shout here.
 WORDS_BY_LANG = {
     "en": [
-        "EPHEMERAL", "UBIQUITOUS", "SERENDIPITY", "ELOQUENT", "RESILIENT",
-        "PRAGMATIC", "CANDOR", "TENACIOUS", "MELLIFLUOUS", "LUMINOUS",
-        "QUINTESSENTIAL", "EFFERVESCENT", "PERSPICACIOUS", "SUCCINCT", "GREGARIOUS",
-        "INEFFABLE", "LABYRINTHINE", "MAGNANIMOUS", "NEBULOUS", "OBSTINATE",
-        "PANACEA", "QUERULOUS", "RESPLENDENT", "SANGUINE", "TACITURN",
-        "UMBRAGE", "VORACIOUS", "WISTFUL", "ZEALOUS", "AMBIVALENT",
-        "BENEVOLENT", "CACOPHONY", "DILIGENT", "ENIGMATIC", "FASTIDIOUS",
-        "GARRULOUS", "HALCYON", "IDIOSYNCRASY", "JUXTAPOSE", "LETHARGIC",
-        "MERCURIAL", "NONCHALANT", "OSTENTATIOUS", "PENCHANT", "QUIXOTIC",
-        "RECALCITRANT", "TRANQUIL", "VENERABLE", "WHIMSICAL", "ZENITH",
+        "ephemeral", "ubiquitous", "serendipity", "eloquent", "resilient",
+        "pragmatic", "candor", "tenacious", "mellifluous", "luminous",
+        "quintessential", "effervescent", "perspicacious", "succinct", "gregarious",
+        "ineffable", "labyrinthine", "magnanimous", "nebulous", "obstinate",
+        "panacea", "querulous", "resplendent", "sanguine", "taciturn",
+        "umbrage", "voracious", "wistful", "zealous", "ambivalent",
+        "benevolent", "cacophony", "diligent", "enigmatic", "fastidious",
+        "garrulous", "halcyon", "idiosyncrasy", "juxtapose", "lethargic",
+        "mercurial", "nonchalant", "ostentatious", "penchant", "quixotic",
+        "recalcitrant", "tranquil", "venerable", "whimsical", "zenith",
     ],
     "fr": [
-        "FLANERIE", "DEPAYSEMENT", "RETROUVAILLES", "CREPUSCULE", "EBLOUISSANT",
-        "CHATOYANT", "INSOUCIANT", "MELANCOLIE", "QUIETUDE", "SAGACITE",
-        "PERSPICACE", "OPINIATRE", "LOQUACE", "VOLUBILE", "EPHEMERE",
-        "LUMINEUX", "RESILIENT", "TENACE", "SERENITE", "VENERABLE",
-        "NONCHALANT", "ENIGMATIQUE", "EXQUIS", "IMPROMPTU",
+        "flanerie", "depaysement", "retrouvailles", "crepuscule", "eblouissant",
+        "chatoyant", "insouciant", "melancolie", "quietude", "sagacite",
+        "perspicace", "opiniatre", "loquace", "volubile", "ephemere",
+        "lumineux", "resilient", "tenace", "serenite", "venerable",
+        "nonchalant", "enigmatique", "exquis", "impromptu",
     ],
     "de": [
-        "FERNWEH", "WALDEINSAMKEIT", "ZEITGEIST", "GEBORGENHEIT", "SEHNSUCHT",
-        "VERGAENGLICH", "LEUCHTEND", "BEHARRLICH", "SCHARFSINNIG", "WORTKARG",
-        "UEBERSCHWANG", "GEMUETLICH", "WEHMUT", "GELASSENHEIT", "EIGENSINNIG",
-        "BESONNEN", "VERWEGEN", "ANMUTIG", "UNERGRUENDLICH", "AUGENBLICK",
-        "DAEMMERUNG", "SCHWELGEN", "VERSCHMITZT", "EHRFURCHT",
+        "Fernweh", "Waldeinsamkeit", "Zeitgeist", "Geborgenheit", "Sehnsucht",
+        "vergaenglich", "leuchtend", "beharrlich", "scharfsinnig", "wortkarg",
+        "Ueberschwang", "gemuetlich", "Wehmut", "Gelassenheit", "eigensinnig",
+        "besonnen", "verwegen", "anmutig", "unergruendlich", "Augenblick",
+        "Daemmerung", "schwelgen", "verschmitzt", "Ehrfurcht",
     ],
     "es": [
-        "EFIMERO", "INEFABLE", "SERENDIPIA", "ELOCUENTE", "RESILIENTE",
-        "LUMINOSO", "TENAZ", "PERSPICAZ", "LOCUAZ", "OBSTINADO",
-        "PANACEA", "RESPLANDECIENTE", "TRANQUILO", "VENERABLE", "SAGAZ",
-        "NOSTALGIA", "CREPUSCULO", "DESLUMBRANTE", "MELANCOLIA", "QUIETUD",
-        "SOSIEGO", "ENIGMATICO", "EXQUISITO", "IMPETU",
+        "efimero", "inefable", "serendipia", "elocuente", "resiliente",
+        "luminoso", "tenaz", "perspicaz", "locuaz", "obstinado",
+        "panacea", "resplandeciente", "tranquilo", "venerable", "sagaz",
+        "nostalgia", "crepusculo", "deslumbrante", "melancolia", "quietud",
+        "sosiego", "enigmatico", "exquisito", "impetu",
     ],
     "it": [
-        "EFFIMERO", "INEFFABILE", "SERENDIPITA", "ELOQUENTE", "RESILIENTE",
-        "LUMINOSO", "TENACE", "PERSPICACE", "LOQUACE", "OSTINATO",
-        "PANACEA", "SPLENDENTE", "TRANQUILLO", "VENERABILE", "SAGACE",
-        "NOSTALGIA", "CREPUSCOLO", "ABBAGLIANTE", "MALINCONIA", "QUIETE",
-        "SERENITA", "ENIGMATICO", "SQUISITO", "IMPETO",
+        "effimero", "ineffabile", "serendipita", "eloquente", "resiliente",
+        "luminoso", "tenace", "perspicace", "loquace", "ostinato",
+        "panacea", "splendente", "tranquillo", "venerabile", "sagace",
+        "nostalgia", "crepuscolo", "abbagliante", "malinconia", "quiete",
+        "serenita", "enigmatico", "squisito", "impeto",
     ],
     "pt": [
-        "EFEMERO", "INEFAVEL", "SERENDIPIA", "ELOQUENTE", "RESILIENTE",
-        "LUMINOSO", "TENAZ", "PERSPICAZ", "LOQUAZ", "OBSTINADO",
-        "PANACEIA", "RESPLANDECENTE", "TRANQUILO", "VENERAVEL", "SAGAZ",
-        "SAUDADE", "CREPUSCULO", "DESLUMBRANTE", "MELANCOLIA", "QUIETUDE",
-        "SOSSEGO", "ENIGMATICO", "REQUINTADO", "IMPETO",
+        "efemero", "inefavel", "serendipia", "eloquente", "resiliente",
+        "luminoso", "tenaz", "perspicaz", "loquaz", "obstinado",
+        "panaceia", "resplandecente", "tranquilo", "veneravel", "sagaz",
+        "saudade", "crepusculo", "deslumbrante", "melancolia", "quietude",
+        "sossego", "enigmatico", "requintado", "impeto",
     ],
     "nl": [
-        "VLUCHTIG", "ONUITSPREKELIJK", "TIJDGEEST", "VEERKRACHTIG", "LICHTEND",
-        "VASTBERADEN", "SCHERPZINNIG", "WOORDKARIG", "KOPPIG", "WONDERMIDDEL",
-        "STRALEND", "SEREEN", "EERBIEDWAARDIG", "WIJSHEID", "WEEMOED",
-        "SCHEMERING", "OOGVERBLINDEND", "MELANCHOLIE", "GEZELLIG", "RAADSELACHTIG",
-        "VERRUKKELIJK", "ONSTUIMIG", "VOORBIJGAAND", "BEDACHTZAAM",
+        "vluchtig", "onuitsprekelijk", "tijdgeest", "veerkrachtig", "lichtend",
+        "vastberaden", "scherpzinnig", "woordkarig", "koppig", "wondermiddel",
+        "stralend", "sereen", "eerbiedwaardig", "wijsheid", "weemoed",
+        "schemering", "oogverblindend", "melancholie", "gezellig", "raadselachtig",
+        "verrukkelijk", "onstuimig", "voorbijgaand", "bedachtzaam",
     ],
 }
 
@@ -69,7 +71,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     lang = i18n.lang_base if i18n is not None else "en"
     words = WORDS_BY_LANG.get(lang) or WORDS_BY_LANG["en"]
     word = words[date.today().toordinal() % len(words)]
-    header = i18n.t("WORD OF THE DAY", "vocab") if i18n is not None else "WORD OF THE DAY"
+    header = i18n.t("Word of the day", "vocab") if i18n is not None else "Word of the day"
     if get_rows() == 1:
         return [format_lines(word)]
     return [format_lines(header, word)]

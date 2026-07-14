@@ -28,7 +28,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
                             params={'from': base, 'to': ','.join(targets)}, timeout=8).json()
         rates = data.get('rates', {})
         if not rates:
-            return [format_lines('FX RATES', 'NO DATA', 'CHECK CODES')]
+            return [format_lines('FX rates', 'No data', 'Check codes')]
 
         pairs = [(t, rates[t]) for t in targets if t in rates]
         if rows == 1:
@@ -36,4 +36,4 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         lines = [f'1 {base} ='] + [f'{t} {fmt(v)}' for t, v in pairs]
         return [format_lines(*lines[i:i + rows]) for i in range(0, len(lines), rows)]
     except Exception:
-        return [format_lines('FX RATES', 'OFFLINE', '')]
+        return [format_lines('FX rates', 'Offline', '')]

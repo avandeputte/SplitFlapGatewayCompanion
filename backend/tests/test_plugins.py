@@ -403,13 +403,14 @@ def test_i18n_localizes_labels_and_dates():
     from app import i18n
     # Strings are keyed by context/domain (like gettext msgctxt): SUNRISE lives in
     # the 'sun' domain, and the same word can differ per domain.
-    assert i18n.translate("SUNRISE", "fr", "sun") == "LEVER"
-    assert i18n.translate("SUNRISE", "en", "sun") == "SUNRISE"      # English -> unchanged
-    assert i18n.translate("SUNRISE", "zz", "sun") == "SUNRISE"      # unknown language -> English
+    assert i18n.translate("Sunrise", "fr", "sun") == "Lever"
+    assert i18n.translate("Sunrise", "en", "sun") == "Sunrise"      # English -> unchanged
+    assert i18n.translate("SUNRISE", "fr", "sun") == "Lever"      # key case does not matter
+    assert i18n.translate("Sunrise", "zz", "sun") == "Sunrise"      # unknown language -> English
     assert i18n.translate("NOT_A_KEY", "fr", "sun") == "NOT_A_KEY"  # unknown key -> English
-    assert i18n.translate("HIGH", "fr", "weather") == "ELEVE"       # a level
-    assert i18n.translate("HIGH", "fr", "tides") == "HAUTE"         # a tide -> distinct
-    assert i18n.translate("OFFLINE", "fr", "aurora") == "HORS LIGNE"  # 'common' fallback
+    assert i18n.translate("High", "fr", "weather") == "Eleve"       # a level
+    assert i18n.translate("High", "fr", "tides") == "Haute"         # a tide -> distinct
+    assert i18n.translate("Offline", "fr", "aurora") == "Hors ligne"  # 'common' fallback
     d = date(2026, 1, 5)                                     # a Monday
     # Natural case now — a wall that cannot show lowercase has the companion fold it on
     # the way out (renderer.normalize), so the flaps are unchanged. "lundi" is lowercase
@@ -477,7 +478,7 @@ def test_english_variants_differ_by_region():
     assert i18n.base_currency("en-GB") == "GBP"
     assert i18n.base_currency("en-AU") == "AUD"
     # English variants keep 12h AM/PM and English UI words.
-    assert not i18n.uses_24h("en-GB") and i18n.translate("GOLD", "en-GB") == "GOLD"
+    assert not i18n.uses_24h("en-GB") and i18n.translate("Gold", "en-GB") == "Gold"
 
 
 def test_fortune_cookies_have_english_region_variants():
@@ -689,8 +690,8 @@ def test_playlist_entry_overrides(tmp_path):
     us = " ".join(rt.get_pages("metals"))                                  # global
     de = " ".join(rt.get_pages("metals", {"plugin_metals_language": "de"}))  # this entry only
     fr = " ".join(rt.get_pages("metals", {"plugin_metals_language": "fr"}))
-    assert "GOLD" in us and "GOLD" in de and "OR" in fr                    # de keeps GOLD, fr -> OR
-    assert "KURS" in de and "COURS" in fr and "SPOT PRICE" in us
+    assert "Gold" in us and "Gold" in de and "Or" in fr                    # de keeps Gold, fr -> Or
+    assert "Kurs" in de and "Cours" in fr and "Spot price" in us
     # a second no-override render is unaffected by the overridden ones (no cache bleed)
     assert " ".join(rt.get_pages("metals")) == us
     # the global setting was never mutated
@@ -704,10 +705,10 @@ def test_perapp_language_override(tmp_path):
     assert "plugin_word-of-the-day_language" in keys          # the override field is auto-injected
     rt.settings.set("language", "en-US")
     rt.settings.set("plugin_word-of-the-day_language", "fr")   # override wins
-    assert any("MOT DU JOUR" in p for p in rt.get_pages("word-of-the-day"))
+    assert any("Mot du jour" in p for p in rt.get_pages("word-of-the-day"))
     rt.settings.set("plugin_word-of-the-day_language", "")     # blank -> follow global (US)
     rt._caches.pop("word-of-the-day", None)
-    assert any("WORD OF THE DAY" in p for p in rt.get_pages("word-of-the-day"))
+    assert any("Word of the day" in p for p in rt.get_pages("word-of-the-day"))
 
 
 def test_i18n_injected_by_param_name(tmp_path):

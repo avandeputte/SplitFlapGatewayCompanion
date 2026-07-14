@@ -74,13 +74,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         return (words[-1] or '')[:cols]
 
     def build_arrived_text(cols):
-        return _pick(cols, t('ARRIVED') + '!', t('HERE') + '!', t('NOW') + '!', 'GO')
+        return _pick(cols, t('Arrived') + '!', t('Here') + '!', t('Now') + '!', 'Go')
 
     def build_celebration_text(cols):
-        return _pick(cols, t('CELEBRATE') + '!', t('PARTY') + '!', '')
+        return _pick(cols, t('Celebrate') + '!', t('Party') + '!', '')
 
     def build_remaining_text(cols):
-        return _pick(cols, t('REMAINING'), t('LEFT'), '')
+        return _pick(cols, t('Remaining'), t('Left'), '')
 
     def build_slot_pages(event, target, now, rows, cols):
         diff = target - now
@@ -140,8 +140,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         {
             'enabled': is_enabled(settings.get('countdown_enabled', 'on'), default=True),
             'event': clean_event(
-                settings.get('countdown_event', 'NEW YEAR'),
-                fallback='NEW YEAR',
+                settings.get('countdown_event', 'New Year'),
+                fallback='New Year',
             ),
             'target': clean_target(settings.get('countdown_target', '')),
             'allow_default_target': True,
@@ -179,15 +179,15 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         if target is None:
             continue
 
-        event = slot['event'] or 'COUNTDOWN'
+        event = slot['event'] or 'Countdown'
         pages.extend(build_slot_pages(event, target, now, rows, cols))
 
     if pages:
         return pages
 
     if rows == 2:
-        return [format_lines('COUNTDOWN', 'CHECK CONFIG')]
-    return [format_lines('COUNTDOWN', 'CHECK CONFIG', '')]
+        return [format_lines('Countdown', 'Check config')]
+    return [format_lines('Countdown', 'Check config', '')]
 
 
 def trigger(settings, conditions):

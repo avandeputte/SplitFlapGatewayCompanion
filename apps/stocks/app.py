@@ -20,7 +20,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
     tickers = [s.strip() for s in settings.get('stocks_list', '').split(',') if s.strip()]
     if not tickers:
-        return [format_lines('STOCKS', t('NO TICKERS'), t('CONFIGURE'))]
+        return [format_lines('Stocks', t('No tickers'), t('Configure'))]
     no_color = settings.get('disable_colors', 'no') == 'yes'
     rows, cols = get_rows(), get_cols()
 
@@ -71,12 +71,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 price_lines.append(_row(sym, f'{cs}{sep}{n(price, 2)}', cols))
                 change_lines.append(_row(sym, f'{icon}{pct(chg)}', cols))
             except Exception:
-                price_lines.append(_row(sym, 'ERR', cols))
-                change_lines.append(_row(sym, 'ERR', cols))
+                price_lines.append(_row(sym, 'Err', cols))
+                change_lines.append(_row(sym, 'Err', cols))
         # No padding: two tickers on a five-row wall are centred by format_lines.
         pages.append(format_lines(*price_lines))
         pages.append(format_lines(*change_lines))
-    return pages or [format_lines('STOCKS', t('NO DATA'), '')]
+    return pages or [format_lines('Stocks', t('No data'), '')]
 
 
 def trigger(settings, conditions):

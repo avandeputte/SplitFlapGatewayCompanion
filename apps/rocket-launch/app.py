@@ -17,11 +17,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                             params={'limit': 1, 'mode': 'list'}, timeout=10).json()
         res = data.get('results') or []
         if not res:
-            return [format_lines(t('NEXT LAUNCH'), t('NONE'), t('SCHEDULED'))]
+            return [format_lines(t('Next launch'), t('None'), t('Scheduled'))]
         r = res[0]
         name = str(r.get('name', ''))
         rocket, _, mission = name.partition('|')
-        rocket = rocket.strip() or 'ROCKET'
+        rocket = rocket.strip() or 'Rocket'
         mission = mission.strip() or rocket
         cd, when = '', ''
         net = r.get('net')
@@ -42,10 +42,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                     when = local.strftime('%a %I:%M%p').lstrip('0')
                 secs = int((dt - datetime.now(timezone.utc)).total_seconds())
                 if secs <= 0:
-                    cd = t('IMMINENT')
+                    cd = t('Imminent')
                 else:
                     d, h, m = secs // 86400, (secs % 86400) // 3600, (secs % 3600) // 60
-                    in_ = t('IN', 'time')
+                    in_ = t('In', 'time')
                     cd = (f'{in_} {d}{u("D")} {h}{u("H")}' if d
                           else (f'{in_} {h}{u("H")} {m}{u("M")}' if h
                                 else f'{in_} {m}{u("M")}'))
@@ -54,18 +54,18 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         if rows == 1:
             return [f'{rocket} {cd}'[:cols].center(cols)]
         if rows == 2:
-            return [format_lines(t('NEXT LAUNCH'), rocket), format_lines(mission, cd)]
+            return [format_lines(t('Next launch'), rocket), format_lines(mission, cd)]
         if rows == 3:
-            return [format_lines(t('NEXT LAUNCH'), rocket, cd),
-                    format_lines(t('MISSION'), mission, cd)]
+            return [format_lines(t('Next launch'), rocket, cd),
+                    format_lines(t('Mission'), mission, cd)]
 
         # Four rows or more: it all fits at once. Splitting the rocket from its mission
         # across two pages was a three-row compromise — on a taller wall it just means
         # waiting for a page turn to read the other half of one sentence.
-        lines = [t('NEXT LAUNCH'), rocket, mission]
+        lines = [t('Next launch'), rocket, mission]
         if rows >= 5 and when:
             lines.append(when)
         lines.append(cd)
         return [format_lines(*lines)]
     except Exception:
-        return [format_lines(t('NEXT LAUNCH'), t('OFFLINE'), '')]
+        return [format_lines(t('Next launch'), t('Offline'), '')]

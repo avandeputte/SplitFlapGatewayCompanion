@@ -79,10 +79,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         secs = int((daily.get('daylight_duration') or [0])[0] or 0)
         length = f'{secs // 3600}{u("H")}{(secs % 3600) // 60:02d}{u("M")}'
         if rows == 1:
-            return [format_lines(f'{t("UP")} {rise} {t("DN")} {sett}')]
+            return [format_lines(f'{t("Up")} {rise} {t("Dn")} {sett}')]
         if rows == 2:
-            return [format_lines(line(t('SUNRISE'), rise), line(t('SUNSET'), sett))]
-        return [format_lines(line(t('SUNRISE'), rise), line(t('SUNSET'), sett),
-                             line(t('DAYLIGHT'), length))]
+            return [format_lines(line(t('Sunrise'), rise), line(t('Sunset'), sett))]
+        return [format_lines(line(t('Sunrise'), rise), line(t('Sunset'), sett),
+                             line(t('Daylight'), length))]
     except Exception:
-        return [format_lines('SUN TIMES', 'OFFLINE', '')]
+        return [format_lines('Sun times', 'Offline', '')]

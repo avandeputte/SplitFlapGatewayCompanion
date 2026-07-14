@@ -47,7 +47,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
     try:
         data = requests.get(f'https://date.nager.at/api/v3/NextPublicHolidays/{country}', timeout=8).json()
         if not isinstance(data, list) or not data:
-            return [format_lines('HOLIDAYS', 'NONE FOUND', country)]
+            return [format_lines('Holidays', 'None found', country)]
         # Keep nationwide holidays + the ones for our own province/state; drop other
         # regions' (so Quebec doesn't list British Columbia Day).
         if subdivision:
@@ -61,9 +61,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
                 dt = datetime.strptime(h.get('date', ''), '%Y-%m-%d').date()
                 days = (dt - today).days
                 if days == 0:
-                    cd = t('TODAY')
+                    cd = t('Today')
                 elif days > 0:
-                    cd = f'{t("IN")} {days} {t("DAYS")}'
+                    cd = f'{t("In")} {days} {t("days")}'
                 if i18n is not None:
                     dow = i18n.weekday(dt, short=True)
                     # "MON SEPTEMBER 7" is already 15 — one more letter and the wall
@@ -76,7 +76,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
             except ValueError:
                 pass
 
-            head = t('NEXT HOLIDAY', 'holidays')
+            head = t('Next holiday', 'holidays')
             if rows == 1:
                 pages.append(f'{name} {cd}'[:cols].center(cols))
             elif rows == 2:
@@ -96,6 +96,6 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
                 if when and len(lines) < rows:
                     lines.insert(-1, when)
                 pages.append(format_lines(*lines))
-        return pages or [format_lines('HOLIDAYS', 'NONE', '')]
+        return pages or [format_lines('Holidays', 'None', '')]
     except Exception:
-        return [format_lines('HOLIDAYS', 'OFFLINE', '')]
+        return [format_lines('Holidays', 'Offline', '')]

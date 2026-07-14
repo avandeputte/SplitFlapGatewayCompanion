@@ -119,7 +119,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
             if t and (best is None or len(t) < len(best)):
                 best = t
         if not best:
-            return [format_lines('RANDOM FACT', 'NO DATA', '')]
-        return _pages(format_lines, 'DID YOU KNOW', best, rows, cols)
+            return [format_lines('Random fact', 'No data', '')]
+        return _pages(format_lines, 'Did you know', best, rows, cols)
     except Exception:
-        return [format_lines('RANDOM FACT', 'OFFLINE', '')]
+        return [format_lines('Random fact', 'Offline', '')]

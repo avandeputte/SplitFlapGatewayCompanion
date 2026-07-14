@@ -39,13 +39,22 @@ _DEFAULT_LANGUAGES = [{"value": "en-US", "label": "English (US)"}]
 def _translations(section):
     """Flatten a data section into the runtime ``{key: {lang: value}}`` lookup. Each
     entry in the file is ``{"context": "...", "translations": {lang: value}}`` (the
-    context note is for translators only); a bare ``{lang: value}`` is also accepted."""
+    context note is for translators only); a bare ``{lang: value}`` is also accepted.
+
+    Keys are folded, because a lookup miss here is SILENT: ``translate()`` falls back
+    to the English text, so a key whose case has drifted from its call site does not
+    raise — it just quietly stops translating, for every language at once. The catalog
+    was written when apps shouted, so every key was ``OFFLINE``; the day the apps
+    stopped shouting, ``t("Offline")`` would have missed all 169 of them and nobody
+    would have seen an error. Case is not meant to be part of the key's identity, so
+    do not let it be."""
     out = {}
     for key, entry in (section or {}).items():
+        k = str(key).casefold()
         if isinstance(entry, dict) and "translations" in entry:
-            out[key] = entry["translations"]
+            out[k] = entry["translations"]
         elif isinstance(entry, dict):
-            out[key] = entry
+            out[k] = entry
     return out
 
 
@@ -86,7 +95,7 @@ def _localized(table, key, lang, default):
     """Look up ``key`` in a ``{lang: value}`` table, trying the full language code
     first and then its base subtag, so a regional variant (``pt-BR``) inherits the
     base language (``pt``) wherever it has no entry of its own."""
-    variants = table.get(key)
+    variants = table.get(str(key).casefold())    # see _translations: case is not identity
     if not variants:
         return default
     code = str(lang or "").lower()

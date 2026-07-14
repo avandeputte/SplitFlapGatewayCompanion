@@ -74,9 +74,10 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
     def _sanitize_callsign(value):
         if not value:
-            return "UNKNOWN"
+            return "Unknown"
+        # A callsign IS a code — this .upper() normalizes one, it does not shout.
         clean = str(value).strip().upper()
-        return clean if clean else "UNKNOWN"
+        return clean if clean else "Unknown"
 
     def _parse_timestamp(value):
         if value is None or value == "":
@@ -376,9 +377,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
         return {
             "opensky": [],
             "flightaware": [("flightaware_api_key", "FLIGHTAWARE")],
-            "flightradar24": [("flightradar24_api_key", "FR24 KEY")],
-            "airlabs": [("airlabs_api_key", "AIRLABS KEY")],
-            "aviationstack": [("aviationstack_api_key", "AVSTACK KEY")],
+            "flightradar24": [("flightradar24_api_key", "FR24 key")],
+            "airlabs": [("airlabs_api_key", "AIRLABS key")],
+            "aviationstack": [("aviationstack_api_key", "AVSTACK key")],
         }.get(provider, [])
 
     def _provider_tag(provider):
@@ -406,9 +407,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
     def _error_pages(provider, err, dwell_repeat):
         tag = _provider_tag(provider)
         if isinstance(err, requests.Timeout):
-            return [format_lines("PLANES", "API TIMEOUT", tag)] * dwell_repeat
+            return [format_lines("Planes", "API timeout", tag)] * dwell_repeat
         if isinstance(err, requests.ConnectionError):
-            return [format_lines("PLANES", "CONNECTION ERR", tag)] * dwell_repeat
+            return [format_lines("Planes", "Connection err", tag)] * dwell_repeat
 
         status = None
         body_text = ""
@@ -419,21 +420,21 @@ def fetch(settings, format_lines, get_rows, get_cols):
                 body_text = _extract_error_text(response).lower()
 
         if status in (401, 403):
-            return [format_lines("PLANES", "AUTH ERROR", f"{tag} KEY")] * dwell_repeat
+            return [format_lines("Planes", "Auth error", f"{tag} key")] * dwell_repeat
 
         if status == 429 or any(token in body_text for token in ("rate", "limit", "quota", "usage", "too many")):
-            return [format_lines("PLANES", "RATE LIMITED", tag)] * dwell_repeat
+            return [format_lines("Planes", "Rate limited", tag)] * dwell_repeat
 
         if status == 402:
-            return [format_lines("PLANES", "PLAN LIMIT", tag)] * dwell_repeat
+            return [format_lines("Planes", "Plan limit", tag)] * dwell_repeat
 
         if status in (500, 502, 503, 504):
-            return [format_lines("PLANES", "API OFFLINE", tag)] * dwell_repeat
+            return [format_lines("Planes", "API offline", tag)] * dwell_repeat
 
         if status is not None:
-            return [format_lines("PLANES", f"API ERR {status}", tag)] * dwell_repeat
+            return [format_lines("Planes", f"API err {status}", tag)] * dwell_repeat
 
-        return [format_lines("PLANES", "DATA ERROR", "TRY AGAIN")] * dwell_repeat
+        return [format_lines("Planes", "Data error", "Try again")] * dwell_repeat
 
     def _fetch_provider_flights(provider, lamin, lomin, lamax, lomax):
         if provider == "opensky":
@@ -509,11 +510,11 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
     center = _resolve_location(location_raw)
     if not center:
-        return [format_lines("PLANES", "BAD LOCATION", "USE LAT,LON")] * dwell_repeat
+        return [format_lines("Planes", "Bad location", "Use lat,lon")] * dwell_repeat
 
     for key, label in _provider_requirements(data_source):
         if not str(settings.get(key, "")).strip():
-            return [format_lines("PLANES", "ADD API KEY", label)] * dwell_repeat
+            return [format_lines("Planes", "Add API key", label)] * dwell_repeat
 
     lat, lon = center
     delta_lat = radius_km / 111.0
@@ -590,7 +591,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
     if not nearby:
         radius_text = f"{radius_value:.0f}{radius_unit.upper()}"
-        return [format_lines("PLANES", "NONE NEARBY", f"RAD {radius_text}")] * dwell_repeat
+        return [format_lines("Planes", "None nearby", f"Rad {radius_text}")] * dwell_repeat
 
     nearby.sort(key=lambda item: item["distance"])
     pages = []
