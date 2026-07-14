@@ -243,10 +243,20 @@ def holiday(name, lang):
 
 
 def clock(dt, lang, seconds=False, ampm_space=True):
-    """Locale-appropriate wall-clock time: ``3:48 PM`` in English, ``15:48`` elsewhere."""
+    """Locale-appropriate wall-clock time: ``3:48 PM`` in English, ``15:48`` elsewhere.
+
+    FRENCH SEPARATES ITS HOURS WITH AN ``h`` — ``15h48`` — and here that is not a matter of
+    typographic taste. The fr-FR reel spends its 64 flaps on the thirteen accents French needs
+    and has NO COLON on it. A module asked for a flap it does not carry simply homes, so
+    "15:48" was reaching a French wall as "15 48", with a hole where the colon should be — on
+    every clock, in every app, on every French display. `h` is the form a French speaker writes
+    anyway, and it is on the reel.
+    """
+    hsep = "h" if _base_lang(lang) == "fr" else ":"
     if uses_24h(lang):
-        return dt.strftime("%H:%M:%S" if seconds else "%H:%M")
-    body = dt.strftime("%I:%M:%S" if seconds else "%I:%M").lstrip("0")
+        body = dt.strftime(f"%H{hsep}%M")
+        return f"{body}{hsep}{dt.strftime('%S')}" if seconds else body
+    body = dt.strftime(f"%I{hsep}%M{hsep}%S" if seconds else f"%I{hsep}%M").lstrip("0")
     sep = " " if ampm_space else ""
     return f"{body}{sep}{dt.strftime('%p')}"
 

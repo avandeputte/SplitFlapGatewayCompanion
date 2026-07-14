@@ -65,6 +65,10 @@ CODES = {
     "weather": {"GREEN", "YELLOW", "ORANGE", "RED", "NONE", "UNKNOWN"},
     # Column labels for the satellite's position — abbreviations, not words.
     "iss": {"LAT", "LON"},
+    # iCal (RFC 5545) is a wire format, and these are its property and component names, matched
+    # against the bytes Google sends. They are as much "display text" as `Content-Type` is.
+    "calendar": {"BEGIN", "END", "VEVENT", "VALARM", "VTIMEZONE", "DTSTART", "DTEND",
+                 "SUMMARY", "RRULE", "EXDATE", "STATUS", "CANCELLED", "TZID", "VALUE", "DATE"},
 }
 
 

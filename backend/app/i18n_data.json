@@ -647,6 +647,20 @@
           "no": "Startet",
           "sv": "Startat"
         }
+      },
+      "Tomorrow": {
+        "context": "The day label on an event happening tomorrow, e.g. 'Tomorrow 3:30PM'. A time follows it on the same line, so it must stay short.",
+        "translations": {
+          "fr": "Demain",
+          "de": "Morgen",
+          "nl": "Morgen",
+          "es": "Mañana",
+          "it": "Domani",
+          "pt": "Amanhã",
+          "sv": "Imorgon",
+          "da": "I morgen",
+          "no": "I morgen"
+        }
       }
     },
     "sun": {
@@ -2458,6 +2472,36 @@
           "da": "Dagens ord",
           "no": "Dagens ord",
           "sv": "Dagens ord"
+        }
+      }
+    },
+    "calendar": {
+      "Calendar": {
+        "context": "The Calendar app's own name, shown as a heading above the next event.",
+        "translations": {
+          "fr": "Calendrier",
+          "de": "Kalender",
+          "nl": "Agenda",
+          "es": "Calendario",
+          "it": "Calendario",
+          "pt": "Calendário",
+          "sv": "Kalender",
+          "da": "Kalender",
+          "no": "Kalender"
+        }
+      },
+      "No events": {
+        "context": "Status: the calendar has nothing coming up in the look-ahead window.",
+        "translations": {
+          "fr": "Aucun événement",
+          "de": "Keine Termine",
+          "nl": "Geen afspraken",
+          "es": "Sin eventos",
+          "it": "Nessun evento",
+          "pt": "Sem eventos",
+          "sv": "Inga händelser",
+          "da": "Ingen aftaler",
+          "no": "Ingen hendelser"
         }
       }
     }

@@ -1,0 +1,44 @@
+{
+  "id": "dog-facts",
+  "name": "Dog Facts",
+  "icon": "🐶",
+  "description": "A concise dog fact",
+  "type": "functional",
+  "refresh_interval": 1800,
+  "loop_delay": 7,
+  "category": "fun",
+  "min_rows": 3,
+  "min_cols": 15,
+  "settings": [
+    {
+      "key": "max_length",
+      "label": "Max fact length (characters)",
+      "type": "number",
+      "default": "120",
+      "min": "40",
+      "max": "250",
+      "step": "10",
+      "stepper": true
+    },
+    {
+      "key": "refresh_minutes",
+      "label": "Fetch a new fact every (minutes)",
+      "type": "number",
+      "default": "30",
+      "min": "1",
+      "max": "1440",
+      "step": "1",
+      "stepper": true
+    },
+    {
+      "key": "loop_delay",
+      "label": "Delay Between Pages (seconds)",
+      "type": "number",
+      "default": "7",
+      "min": "2",
+      "max": "30",
+      "step": "1",
+      "stepper": true
+    }
+  ]
+}

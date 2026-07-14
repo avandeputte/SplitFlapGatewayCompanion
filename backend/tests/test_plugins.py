@@ -431,8 +431,10 @@ def test_i18n_date_order_and_time_format():
     assert i18n.date(dt, "fr") == "9 juillet"                # day-first
     assert i18n.date(dt, "de") == "9. Juli"
     assert i18n.clock(dt, "en") == "3:05 PM"                 # 12h + meridiem
-    assert i18n.clock(dt, "fr") == "15:05"                   # 24h everywhere else
-    assert i18n.clock(dt, "de", ampm_space=False) == "15:05"
+    # French writes 15h05 — and it must: the fr-FR reel spends its 64 flaps on the accents
+    # French needs and has NO COLON, so "15:05" reached a French wall with a hole in it.
+    assert i18n.clock(dt, "fr") == "15h05"
+    assert i18n.clock(dt, "de", ampm_space=False) == "15:05"  # every other reel has a colon
     assert not i18n.uses_24h("en") and i18n.uses_24h("fr")
 
 

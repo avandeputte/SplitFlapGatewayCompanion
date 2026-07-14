@@ -1,0 +1,50 @@
+{
+  "id": "calendar",
+  "name": "Calendar",
+  "icon": "📅",
+  "description": "Your next event, from an iCal feed",
+  "type": "functional",
+  "i18n": true,
+  "refresh_interval": 900,
+  "loop_delay": 6,
+  "category": "data",
+  "min_rows": 2,
+  "min_cols": 12,
+  "settings": [
+    {
+      "key": "ical_url",
+      "label": "iCal URL(s)",
+      "type": "password",
+      "default": "",
+      "note": "The secret address of your calendar's iCal feed — in Google Calendar: Settings → your calendar → Integrate calendar → 'Secret address in iCal format'. Several calendars? Separate them with commas, and their events are merged into one timeline. Anyone holding one of these URLs can read that calendar, so they are stored and shown like a password."
+    },
+    {
+      "key": "skip_all_day",
+      "label": "Skip all-day events",
+      "type": "toggle",
+      "default": "no",
+      "options": [
+        {
+          "value": "no",
+          "label": "No"
+        },
+        {
+          "value": "yes",
+          "label": "Yes"
+        }
+      ],
+      "note": "Birthdays and holidays are all-day events. Turn this on if you only want things that happen at a time."
+    },
+    {
+      "key": "days_ahead",
+      "label": "Look ahead (days)",
+      "type": "number",
+      "default": "60",
+      "min": "1",
+      "max": "365",
+      "step": "1",
+      "stepper": true,
+      "note": "How far into the future to look. Nothing beyond this is shown."
+    }
+  ]
+}
