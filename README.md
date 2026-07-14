@@ -35,10 +35,19 @@ Building your own? **[WRITING_APPS.md](WRITING_APPS.md)** is a full guide; see a
   textarea / select / toggle, **search_chips** (live search for locations, stocks,
   crypto, timezones), stepper, inline-toggle, `visible_when`, `sync_values` and
   computed fields.
+- **Several displays at once** — drive more than one gateway from one companion. Each
+  wall has its own geometry, apps, playlists, triggers and settings, and a switcher in
+  the header moves between them. See **[Multiple displays](#multiple-displays)**.
+- **Matrix Portal walls get their full alphabet** — lowercase and accents in the text you
+  type, fourteen **pictographs** (`♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀` …), and colours addressed by
+  *name* rather than by spending seven letters on them. A physical split-flap is driven
+  exactly as before. See **[Characters](#characters)**.
 - **Compose** — a click-to-type grid with colour tiles and every transition style
   (`ltr`, `rtl`, `spiral`, `slot`, `columns`, `outside_in`, …).
 - **Live preview + Home all** — the board mirrors what's on the wall, and **⌂ Home
   all** returns every module to its blank home position, stopping whatever is playing.
+  Stopping an app or playlist blanks the wall: nothing running means nothing shown, and
+  a clock frozen at 11:34 is not obviously *off*, it is obviously *wrong*.
 - **Playlists** — sequence apps and messages with per-entry durations; save, run,
   loop. **Per-entry settings** let the same app appear more than once configured
   differently (e.g. weather for two cities in two languages).
@@ -167,6 +176,7 @@ uploaded apps** — not any companion config, which is never persisted.
 | `COMPANION_HA` | Home Assistant MQTT device: `auto` (follow gateway) \| `true` \| `false` | `auto` |
 | `COMPANION_VESTABOARD` / `_KEY` | Enable the [Vestaboard API](#vestaboard-compatible-api) and pin its key | `off` |
 | `COMPANION_MCP` / `_TOKEN` | Enable the [MCP server](#mcp-server) and pin its token | `off` |
+| `GATEWAY_URL` | **Required.** Your gateway. Takes a **comma-separated list** to drive [several displays](#multiple-displays) | — |
 | `COMPANION_MODULE_ID_BASE` | Module id of grid index 0 | `0` |
 | `COMPANION_GRID_ROWS` / `_COLS` | Manual panel-size override | *(from gateway)* |
 | `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | Manual MQTT overrides | *(from gateway)* |
@@ -194,11 +204,33 @@ custom apps live in `<data_dir>/apps/` — only the settings blob moves.
 
 ### Characters
 
-Text is upper-cased in a **Windows-1252-aware** way, so `ß` and accented letters like
-`É`, `Ü`, `ç` survive (`ß` is *not* expanded to `SS`), and sent to the gateway in
-Windows-1252. The companion does **not** police characters: every glyph (accents, `€`,
-punctuation) passes through, and each module blanks anything its own flap set can't
-show. Emoji colour squares (🟥🟩🟦 …) map to the gateway's colour flaps.
+**The wall decides the case, not the app.** A physical split-flap has no lowercase
+flaps, and its one-byte protocol has no lowercase byte to send — the byte for `r`
+already means **red**. So text bound for one is folded to uppercase, in a
+**Windows-1252-aware** way: `É`, `Ü`, `ç` and `ß` survive, and `ß` is *not* expanded to
+`SS` (which would silently eat a cell).
+
+A **Matrix Portal** is different. Its modules are drawn rather than mechanical, so
+nothing is rationed: 237 flaps, every Windows-1252 glyph, every lowercase letter, and
+fourteen pictographs. It is driven through an index-addressed API that reaches them, so
+the text you type in Compose, send to the Vestaboard endpoint or give an LLM arrives
+**as you wrote it** — and the seven colours are addressed by *name* instead of stealing
+seven letters.
+
+|  | split-flap | Matrix Portal |
+|---|---|---|
+| lowercase | folded to caps | shown as written |
+| pictographs `♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀` | nearest character (`↑` → `^`) | shown |
+| colours 🟥🟩🟦🟨🟧🟪⬜ | yes | yes, addressed by name |
+
+Prefer the classic look on a Matrix Portal? **Always uppercase** in Global settings folds
+it anyway — and costs nothing else: the wall still gets its pictographs and its named
+colours, just in capitals. It is **per display**, so one wall can shout while another
+does not.
+
+The companion does **not** police characters: every glyph (accents, `€`, punctuation)
+passes through, and a module blanks anything its own flaps lack. A character the wall
+cannot show at all becomes a blank rather than a rejected page.
 
 ### Grid → module mapping
 
@@ -215,6 +247,46 @@ loaded immediately. **[WRITING_APPS.md](WRITING_APPS.md)** is the full guide.
 
 > ⚠️ A functional app's `app.py` runs arbitrary Python on the companion host — only
 > upload apps you trust. (The same trust model as splitflap-os plugins.)
+
+---
+
+## Multiple displays
+
+One companion can drive several gateways. Each is a **display** with its own geometry,
+installed apps, playlists, triggers and settings — and its own Home Assistant device.
+
+**Adding one.** Either list them in `GATEWAY_URL`, comma-separated:
+
+```bash
+GATEWAY_URL=http://192.168.1.218,http://192.168.1.50
+```
+
+…or add one in the app: **⚙ Tools → Displays**. A display added there comes up
+immediately — no restart — and starts from the first display's global settings (location,
+language, API keys) so you do not retype them. They become that display's own from then on.
+
+A switcher appears in the header once you have more than one; everything follows it — the
+live preview, Compose, Playlists, Triggers, and the gateway's own tabs. **With one display
+it is hidden entirely**, so a single-gateway setup looks exactly as it always did.
+
+**The default display** is the one that anything not naming a display drives: the bare
+`/api/…` routes, the Vestaboard endpoint, an MCP call with no `display`, an existing HACS
+entry. It is a choice you make (⚙ Tools → Displays → *Make default*), never inferred from
+whatever happens to be playing, and it is remembered.
+
+**Addressing one explicitly:**
+
+| surface | how |
+|---|---|
+| REST | `?display=<id>` on any `/api/…` route (unknown id → **404**, never the wrong wall) |
+| the gateway's own UI | `/gw/<id>/` |
+| Vestaboard | `/local-api/<id>/message` |
+| MCP | a `display` argument on every tool, plus `list_displays` |
+
+**Where it is stored.** `data/displays.json` holds the registry, and each display's
+settings live in `data/displays/<id>/`. Both ride along in **every** gateway's settings
+blob — so if the companion's disk is lost, give it back a single gateway URL and your other
+walls come back, with their names and your chosen default.
 
 ---
 
@@ -360,6 +432,11 @@ COMPANION_MCP_TOKEN=            # blank -> generated once, kept with your settin
 
 Point a client at `http://<host>:8000/mcp` with `Authorization: Bearer <token>`. The
 token is shown in the **⚙ tools menu**, which can also flip the server on at runtime.
+
+With [several displays](#multiple-displays), every tool takes an optional `display`
+argument and a `list_displays` tool enumerates them — so *"what's on the kitchen wall?"*
+works. Omit it and you get the **default** display, which is what keeps every prompt
+written before multi-display working untouched.
 
 | Tool | Does |
 |---|---|

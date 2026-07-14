@@ -99,11 +99,25 @@ A **page** is a string of exactly `rows × cols` characters. Row 0 is the first
 string by hand — use the `format_lines` helper (below), which centres each line
 and pads/truncates to the grid.
 
-**Characters.** Text is upper-cased on the way to the display (Windows-1252
-aware, so `É`, `Ü`, `ç`, `ß` survive), and every glyph is passed through to the
-gateway verbatim — the companion does **not** restrict you to a fixed character
-set. Each physical module simply shows a blank for any character its own flap set
-doesn't include. So write normal text; punctuation, accents and `€` are fine.
+**Characters. Do not uppercase your own text.** Write it the way the words are
+actually written. The companion folds the case *for the wall that needs it*, and it
+is the only thing that knows which wall that is: a real split-flap has no lowercase
+flaps, while a Matrix Portal (whose modules are drawn, not mechanical) has them and
+shows your text as you wrote it. The fold is Windows-1252-aware, so `É`, `Ü`, `ç`
+and `ß` survive — `ß` is *not* expanded to `SS`, which would silently eat a cell.
+
+Every glyph is passed through verbatim; the companion does **not** restrict you to a
+fixed character set, and a module simply blanks anything its own flaps lack. So write
+normal text — punctuation, accents and `€` are fine.
+
+The one exception is an **animation** (`"animation": true`): its page is sent raw and
+is *not* folded, because its lowercase letters are the COLOUR FLAPS (below). An
+animation that draws text must uppercase it itself.
+
+```python
+title = article["title"]        # "Manufacturers Trust Company Building"
+# NOT: title = article["title"].upper()
+```
 
 **Colour tiles.** Lower-case letters `r o y g b p w` are the firmware colour
 codes (red, orange, yellow, green, blue, purple, white). A page made of these
@@ -203,16 +217,18 @@ setting; on a host without it, `i18n` is `None` and you fall back to English.
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     from datetime import datetime
     now = datetime.now()
-    weekday = i18n.weekday(now) if i18n else now.strftime("%A").upper()
+    weekday = i18n.weekday(now) if i18n else now.strftime("%A")
     label = i18n.t("SUNRISE") if i18n else "SUNRISE"
     return [format_lines(weekday, label)]
 ```
 
-- `i18n.weekday(dt, short=False)` / `i18n.month(dt, short=False)` — CLDR-correct,
-  UPPERCASE day/month names for *every* language (via babel).
+- `i18n.weekday(dt, short=False)` / `i18n.month(dt, short=False)` — CLDR-correct day
+  and month names for *every* language (via babel), in that language's **own case**:
+  `Monday`, `lundi` (French does not capitalise them), `Montag` (German does). The
+  wall folds it if it must.
 - `i18n.date(dt, short=False, year=False)` — day + month (and optional year) in the
-  locale's **own order and wording**: `JULY 9` in English but `9 JUILLET` (fr),
-  `9. JULI` (de), `9 DE JULIO` (es). Don't hand-assemble `month + " " + day` — the
+  locale's **own order and wording**: `July 9` in English but `9 juillet` (fr),
+  `9. Juli` (de), `9 de julio` (es). Don't hand-assemble `month + " " + day` — the
   order is language-specific, so let this decide it.
 - `i18n.time(dt, seconds=False, ampm_space=True)` — wall-clock time: `3:48 PM` in
   English, `15:48` everywhere else (AM/PM is an English convention). `i18n.is_24h`
@@ -244,6 +260,56 @@ carries its own per-language phrase builders. All helpers compose with
 Once your app adapts to the language, add `"i18n": true` to its `manifest.json` — the
 Apps grid and library show a 🌐 badge on those cards so users know they follow the
 global **Language**.
+
+### Optional: what the wall can show (`caps`)
+
+Some walls are drawn rather than mechanical (a **Matrix Portal**), and those carry
+fourteen pictographs a real reel has no flap for. Declare `caps` and the runtime tells
+you what you are driving:
+
+```python
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
+    high = "↑" if (caps and caps.pictographs) else "HIGH"
+    return [format_lines(f"{high} 9:28AM")]
+```
+
+`caps` has three fields — `lowercase`, `pictographs`, `named_colours`. It is optional
+and defaults to `None`, which is also what a stock splitflap-os host passes, and which
+correctly means *"a plain reel"*. So an app that uses it stays drop-in in both
+directions.
+
+The pictographs: `♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`
+
+**Check before you use one.** A wall without them substitutes the nearest character it
+has, and only some of those still mean anything:
+
+| pictograph | on a plain reel | verdict |
+|---|---|---|
+| `← ↑ → ↓` | `< ^ > v` | **safe with no check** — still reads |
+| `■` `⌂` `☺` | `#` `^` `:` | usable |
+| `♥ ♦ ♣ ♠ ♪ ● ☀` | `*` | **meaning is lost** — check `caps.pictographs` |
+
+The seven **colour flaps** are different: every wall has had them from the start, so a
+colour tile (🟥🟩🟦🟨🟧🟪⬜) is always safe. But a colour is invisible when the user turns
+colours off — so if you are showing a **direction**, show an arrow as well as the colour.
+
+### Optional: where your lines sit (`vertical_align`)
+
+Return only the lines you actually **have**. Given fewer than the wall is tall,
+`format_lines` **centres** the block, so a 3-line app looks right on a 3-row wall and on
+a 5-row one. Do **not** pad to `get_rows()` yourself — that fills the page, and your
+content ends up pinned to the top of a tall wall.
+
+If your app builds its own layout and wants its rows left exactly where it put them, say
+so in the manifest:
+
+```json
+{ "vertical_align": "top" }     // "center" (default) | "top" | "bottom"
+```
+
+`"top"` is byte-for-byte the original splitflap-os padding. The key is additive: absent
+means `"center"`, so every existing app behaves as it always did. Without it, an app that
+centres its own block gets centred a **second** time and drifts below the middle.
 
 ### The return value
 

@@ -496,12 +496,13 @@ fieldset { border-color: var(--acc); border-radius: 8px; }
    The header switcher only exists when there is more than one wall (app.js hides
    it otherwise), so a single-gateway setup — nearly everyone — sees no new chrome. */
 .display-switch {
-  background: var(--panel, #1b1f27);
-  color: inherit;
-  border: 1px solid var(--line, #2c313c);
-  border-radius: 8px;
+  /* Colour, border and background come from the base `select` rule, so the switcher
+     follows whichever theme is active — including Home Assistant's light one, where a
+     palette of its own turned it into an unreadable dark box. Only the sizing is ours:
+     `width` because the base rule stretches a select to 100%, which in a header is the
+     whole header. */
+  width: auto;
   padding: 5px 8px;
-  font: inherit;
   font-size: 13px;
   max-width: 170px;
 }
@@ -511,11 +512,21 @@ fieldset { border-color: var(--acc); border-radius: 8px; }
   align-items: center;
   flex-wrap: wrap;
   padding: 8px 0;
-  border-bottom: 1px solid var(--line, #2c313c);
+  border-bottom: 1px solid var(--acc);
 }
 .display-row .input { flex: 1 1 140px; min-width: 120px; }
 .display-row .btn { flex: 0 0 auto; }
-.warn.sm { color: var(--warn, #e0a33e); font-size: 12px; }
+/* The action cluster wraps as one block and sits at the end of the row, so a narrow
+   dialog gives you name/URL on one line and the buttons on the next — rather than
+   whichever buttons happened not to fit. */
+.display-acts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.warn.sm { color: var(--ylw); font-size: 12px; }
 
 /* ---- playlists ------------------------------------------------------------
    The editor has a name, so saving an edit no longer means retyping it. */

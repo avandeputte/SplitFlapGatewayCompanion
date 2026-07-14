@@ -718,11 +718,17 @@ def test_i18n_injected_by_param_name(tmp_path):
     assert rt._wants_i18n.get("cat-facts") is False  # cat-facts(...) does not
     rt.settings.set("language", "de")
     from datetime import datetime
-    wd = datetime.now().strftime("%A")
-    de = {"Monday": "Montag", "Tuesday": "DIENSTAG", "Wednesday": "MITTWOCH",
-          "Thursday": "DONNERSTAG", "Friday": "FREITAG", "Saturday": "SAMSTAG",
-          "Sunday": "SONNTAG"}[wd]
-    assert any(de in p for p in rt.get_pages("date"))   # weekday shows in German
+
+    from app import i18n
+
+    # Ask CLDR for the German weekday rather than hard-coding a table: the previous
+    # version listed the seven names by hand, in the uppercase the apps used to shout,
+    # so it broke on the first Tuesday after the apps stopped shouting — a test that
+    # only failed on six days out of seven.
+    now = datetime.now()
+    de = i18n.weekday(now, "de")
+    assert de != now.strftime("%A")                     # really German, not the English fallback
+    assert any(de in p for p in rt.get_pages("date"))   # and that is what the app shows
 
 
 def test_weather_helper_injected_only_when_opted_in(tmp_path):

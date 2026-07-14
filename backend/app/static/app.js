@@ -1385,8 +1385,8 @@ async function switchDisplay(id) {
 
 // ---- Displays: add, rename, re-point, remove, choose the default -------------
 async function openDisplays() {
-  const body = el("div", "stack");
-  const list = el("div", "stack");
+  const body = el("div");
+  const list = el("div");
   body.appendChild(list);
 
   const render = async () => {
@@ -1396,7 +1396,7 @@ async function openDisplays() {
     list.innerHTML = "";
 
     DISPLAYS.forEach((d) => {
-      const row = el("div", "row display-row");
+      const row = el("div", "display-row");
       const isDefault = d.id === doc.default;
 
       const name = el("input", "input");
@@ -1407,7 +1407,7 @@ async function openDisplays() {
       gw.placeholder = "http://192.168.1.50";
       gw.setAttribute("aria-label", t("Gateway URL"));
 
-      const info = el("span", "muted sm");
+      const info = el("span", "hint");
       info.textContent = d.grid ? `${d.grid.rows}×${d.grid.cols}` : t("not running");
 
       const save = el("button", "btn btn-sm");
@@ -1438,7 +1438,7 @@ async function openDisplays() {
         await loadDisplays();
       };
 
-      const del = el("button", "btn btn-sm danger");
+      const del = el("button", "btn btn-sm warn");
       del.textContent = t("Remove");
       del.disabled = DISPLAYS.length < 2;
       del.onclick = async () => {
@@ -1452,12 +1452,16 @@ async function openDisplays() {
         await switchDisplay(DEFAULT_DISPLAY);
       };
 
-      row.append(name, gw, info, save, mkDefault, del);
+      // The buttons travel together: in a dialog this narrow the row always wraps, and
+      // wrapping them one at a time strands "Remove" alone on a line of its own.
+      const acts = el("div", "display-acts");
+      acts.append(info, save, mkDefault, del);
+      row.append(name, gw, acts);
       list.appendChild(row);
     });
 
     // add a wall
-    const add = el("div", "row display-row");
+    const add = el("div", "display-row");
     const an = el("input", "input"); an.placeholder = t("Office wall");
     const ag = el("input", "input"); ag.placeholder = "http://192.168.1.50";
     const btn = el("button", "btn btn-sm primary");
@@ -1477,7 +1481,7 @@ async function openDisplays() {
     add.append(an, ag, btn);
     list.appendChild(add);
 
-    const note = el("p", "muted sm");
+    const note = el("p", "hint");
     note.textContent = t("A new display starts from this one's global settings — location, language and API keys are copied so you don't retype them. They become its own from then on, and are stored on its own gateway.");
     list.appendChild(note);
   };
