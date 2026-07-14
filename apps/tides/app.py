@@ -12,7 +12,7 @@ def _row(left, right, cols):
     return left + ' ' * (cols - len(left) - len(right)) + right
 
 
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     import requests
     from datetime import datetime
     rows, cols = get_rows(), get_cols()
@@ -45,12 +45,22 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         # One tide per page meant waiting through four page turns to answer "when is high
         # tide?" — a question the whole app exists to answer at a glance.
         if rows >= 4:
+            # An arrow says high-or-low in ONE cell, which on a 15-wide wall is the
+            # difference between "HIGH 9:28AM" not fitting and "↑ 9:28AM  11.2FT" fitting
+            # with room to spare. Only where the wall HAS arrows: on a real reel a ↑ falls
+            # back to "^", which is not what you want a tide table to say — so there it
+            # keeps the word, and shortens it to an initial only if it must.
+            arrows = bool(caps and caps.pictographs)
             lines = [t('TIDES')]
             for p in preds[:rows - 1]:
                 raw = str(p.get('t', ''))
                 hhmm = fmt_time(raw.split(' ')[-1] if ' ' in raw else raw)
-                kind = t('HIGH') if p.get('type') == 'H' else t('LOW')
+                is_high = p.get('type') == 'H'
                 height = f"{p.get('v', '')}FT"
+                if arrows:
+                    kind = '\u2191' if is_high else '\u2193'
+                else:
+                    kind = t('HIGH') if is_high else t('LOW')
                 left = f'{kind} {hhmm}'
                 if len(left) + len(height) + 1 > cols:   # narrow wall: initial will do
                     left = f'{kind[:1]} {hhmm}'

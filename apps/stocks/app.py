@@ -60,7 +60,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 chg = ((price - prev) / prev) * 100
                 cs = sym_for(cur)
                 sep = '' if cs != cur else ' '   # 3-letter-code fallback reads better spaced
-                icon = '' if no_color else ('🟩' if chg >= 0 else '🟥')
+                # An arrow, not just a colour. A colour says "good"/"bad" only if you can
+                # see it — it is nothing at all with colours disabled, and nothing on a
+                # mono wall. ↑/↓ degrade to ^/v on a reel with no pictograph flaps, which
+                # still reads. The colour comes along as well when it can.
+                arrow = '\u2191' if chg >= 0 else '\u2193'
+                icon = arrow if no_color else arrow + ('🟩' if chg >= 0 else '🟥')
                 # Ticker flush left, price flush right: prices line up in a column and
                 # you can read down them, which is what a list of stocks is for.
                 price_lines.append(_row(sym, f'{cs}{sep}{n(price, 2)}', cols))

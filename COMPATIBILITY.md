@@ -54,6 +54,11 @@ coincidence, and this document is the contract we hold it to.
   > middle — which is exactly what happened to three vendored apps in 1.9.0-beta.5.
 - **`settings` dict** — manifest defaults merged with saved user values, same key
   resolution, including any global keys apps read (e.g. `currency_symbol`).
+- **Optional `caps` argument** — like `i18n` and `get_location`, injected by parameter name
+  and only when the app asks for it. It reports what the wall can show (`lowercase`,
+  `pictographs`, `named_colours`), so an app can offer `↑` where the wall has a real arrow
+  and `HIGH` where it does not. Additive and defaulted to `None`, so an app that uses it
+  still runs on stock splitflap-os — where `None` correctly means "a plain reel".
 - **Triggers** — `trigger(settings, conditions) -> bool` on a
   `trigger_interval`, with `trigger_display_seconds` / `trigger_cooldown` /
   `trigger_conditions`, and the `setattr(fetch, '_state', …)` state pattern.

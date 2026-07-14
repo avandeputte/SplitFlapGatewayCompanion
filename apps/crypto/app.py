@@ -55,10 +55,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
             return [f'{sym} ERR']
         if chg is None:
             chg_str = 'N/A'
-        elif no_color:
-            chg_str = pct(chg)
         else:
-            chg_str = ('🟩' if chg >= 0 else '🟥') + f' {pct(chg)}'
+            # An arrow, not just a colour: a colour is nothing at all with colours disabled,
+            # and nothing on a mono wall. ↑/↓ degrade to ^/v on a reel with no pictograph
+            # flaps, which still reads. The colour comes along too, when it can.
+            arrow = '\u2191' if chg >= 0 else '\u2193'
+            tile = '' if no_color else ('🟩' if chg >= 0 else '🟥')
+            chg_str = f'{arrow}{tile} {pct(chg)}'
         if rows == 1:
             return [f'{sym} {price_str(price)}']
         if rows == 2:

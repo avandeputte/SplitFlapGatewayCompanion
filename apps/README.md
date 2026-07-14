@@ -30,6 +30,33 @@ Two exceptions, both real:
 * **Codes, not prose.** A currency code, a team abbreviation, a country code or a string
   you compare against is not display text. Keep `.upper()` there; it is logic.
 
+## Asking what the wall can show
+
+Some walls are drawn rather than mechanical (a Matrix Portal), and those have fourteen
+pictographs the reel has no flap for. Declare `caps` and the runtime hands you the answer:
+
+```python
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
+    high = '↑' if (caps and caps.pictographs) else 'HIGH'
+```
+
+`caps` has `lowercase`, `pictographs` and `named_colours`. It is optional and defaults to
+`None`, so an app that asks for it still runs on splitflap-os — treat `None` as "a plain
+reel". Available pictographs: `♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`
+
+**Check before you use one.** A wall without them substitutes the nearest character it has,
+and only some of those still mean anything:
+
+| pictograph | on a plain reel | verdict |
+|---|---|---|
+| `← ↑ → ↓` | `< ^ > v` | **safe without a check** — still reads |
+| `■` `⌂` `☺` | `#` `^` `:` | usable |
+| `♥ ♦ ♣ ♠ ♪ ● ☀` | `*` | **the meaning is lost** — check `caps.pictographs` |
+
+The seven **colour flaps** are a different matter: every wall has had them from the start, so
+a colour tile (🟥🟩🟦🟨🟧🟪⬜) is always safe. But a colour is invisible with colours turned
+off — so if you are showing a *direction*, show an arrow as well.
+
 ## Where your lines land on the wall
 
 Return only the lines you actually have — `format_lines` places them. Given fewer lines

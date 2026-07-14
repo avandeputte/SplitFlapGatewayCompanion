@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.21
+
+**Apps can now ask what the display can show**, and the first pictographs are in use.
+
+- **Stocks and Crypto** show **↑ / ↓** for the day's direction. It used to be a colour only —
+  which is nothing at all if you have colours turned off. The arrow carries the meaning and
+  the colour reinforces it. On a real split-flap the arrow becomes `^` / `v`, which still reads.
+- **Tides** shows **↑ / ↓** instead of HIGH / LOW on a Matrix Portal, which frees the room the
+  time and the height wanted. A real reel keeps the words, because there a ↑ would come out
+  as `^` — and that is not what a tide table should say.
+
+An app declares `caps` and gets told: `lowercase`, `pictographs`, `named_colours`. It is
+optional, so an app that never heard of it is called exactly as before.
+
 ## 1.9.0-beta.20
 
 **New setting: "Always uppercase"** (Global settings). Show everything in capitals even on a

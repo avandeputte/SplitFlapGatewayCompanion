@@ -26,7 +26,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import appaudit, i18n, location, weather
+from . import appaudit, device, i18n, location, weather
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -121,8 +121,21 @@ class PluginRuntime:
         self._wants_weather: dict[str, bool] = {}  # app_id -> fetch() accepts get_weather
         self._wants_location: dict[str, bool] = {}  # app_id -> fetch() accepts get_location
         self._wants_i18n: dict[str, bool] = {}     # app_id -> fetch() accepts i18n
+        self._wants_caps: dict[str, bool] = {}     # app_id -> fetch() accepts caps
+        # What THIS display's wall can show. A callable, because the answer is only known
+        # once the transport has talked to the gateway — and it can change if the gateway
+        # is swapped. Defaults to the pessimistic answer: a real reel, no pictographs.
+        self._caps = lambda: device.SPLIT_FLAP
         self._fetch_locks: dict[str, threading.Lock] = {}  # app_id -> serialize its fetches
         self._first_error: dict[str, str] = {}     # cache key -> its first fetch error
+
+    def attach_caps(self, provider) -> None:
+        """Tell the runtime how to ask what THIS display's wall can show (see Display.build).
+
+        A callable, not a value: the answer is only known once the transport has reached the
+        gateway, and a display can be re-pointed at a different one.
+        """
+        self._caps = provider
 
     # -- helpers injected into plugins -------------------------------------
     def get_rows(self) -> int:
@@ -228,6 +241,7 @@ class PluginRuntime:
         self._wants_weather.clear()
         self._wants_location.clear()
         self._wants_i18n.clear()
+        self._wants_caps.clear()
         self._fetch_locks.clear()
         self._first_error.clear()
         # Scan the app dirs once and reuse it (discovery + per-app load).
@@ -394,6 +408,7 @@ class PluginRuntime:
             self._wants_weather[app_id] = self._fetch_accepts(mod.fetch, "get_weather")
             self._wants_location[app_id] = self._fetch_accepts(mod.fetch, "get_location")
             self._wants_i18n[app_id] = self._fetch_accepts(mod.fetch, "i18n")
+            self._wants_caps[app_id] = self._fetch_accepts(mod.fetch, "caps")
             self._fetch_locks[app_id] = threading.Lock()
         else:
             log.error("plugin %s: app.py has no fetch()", app_id)
@@ -590,6 +605,11 @@ class PluginRuntime:
                         # the global Language; blank/unset = follow global.
                         lang = self._perapp_value(app_id, "language", settings) or settings.get("language", "en-US")
                         kwargs["i18n"] = i18n.Localizer(lang)
+                    if self._wants_caps.get(app_id):
+                        # What this wall can show. An app asks so it can offer a pictograph
+                        # where the wall has one and a WORD where it does not: ♥, ♪, ● and ☀
+                        # all degrade to "*" on a real reel, which says nothing at all.
+                        kwargs["caps"] = self._caps()
                     # Bound to THIS app's alignment, so the app calls format_lines(*lines)
                     # exactly as it always has — the signature splitflap-os apps expect.
                     fmt = functools.partial(self.format_lines,

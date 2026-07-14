@@ -95,6 +95,9 @@ class Display:
         # *installed* is per display, but the same zip should not live on disk twice.
         plugins = PluginRuntime(cfg, settings, apps_dir, cfg.data_dir / "apps")
         controller.attach_plugins(plugins)
+        # An app can ask what this wall can SHOW, so it can offer a pictograph where the
+        # wall has one and a word where it does not (see PluginRuntime.attach_caps).
+        plugins.attach_caps(lambda: controller.caps)
         return cls(
             id=id,
             name=name or "SplitFlap",
