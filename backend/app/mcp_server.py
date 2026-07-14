@@ -198,7 +198,7 @@ def build(displays) -> FastMCP:
         # r/o/y/g/b/p/w) would be uppercased into a letter.
         # NOT folded here: the wall does that, last, for everyone (engine._normalize). The
         # `lines` we report back are folded to match what the wall will actually show.
-        page = vestaboard.layout_text(text, rows, cols)
+        page = vestaboard.layout_text(text, rows, cols, d.controller.caps)
         shown = page if d.controller.shows_lowercase else renderer.fold(page)
         lines = [shown[r * cols:(r + 1) * cols] for r in range(rows)]
 

@@ -162,7 +162,7 @@ def fit(rows: list[str], target_rows: int, target_cols: int) -> str:
     return _center_block(_trim(rows), target_rows, target_cols)
 
 
-def layout_text(text: str, target_rows: int, target_cols: int) -> str:
+def layout_text(text: str, target_rows: int, target_cols: int, caps=None) -> str:
     """Lay plain text out on the wall — the `{"text": ...}` extension.
 
     Vestaboard's own text API centres a message, and so do the companion's apps
@@ -170,7 +170,16 @@ def layout_text(text: str, target_rows: int, target_cols: int) -> str:
     lines, anything longer than the wall is greedily word-wrapped (a word too long
     to fit is hard-split), every line is centred, and the block is centred vertically.
     Uppercasing is left to the caller — the board has no lowercase flaps.
+
+    `caps` (what the wall can show) is taken here and NOT further down, because a character
+    the reel cannot show may need TWO flaps — ß becomes SS on a reel with no ß — and this is
+    the last point at which the text is still text. One line down it is a grid, one flap per
+    character, and the wrapping has already been decided.
     """
+    from . import renderer
+
+    text = renderer.expand(text, caps)
+
     lines: list[str] = []
     for para in text.split("\n"):
         words, line = para.split(), ""

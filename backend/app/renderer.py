@@ -188,9 +188,75 @@ _LOOKALIKE = {
     "\u00b7": ".", "\u2022": ".",                                  # middot, bullet
     ":": ".",       # a reel with no colon (the fr-FR one) still reads "15.30" as a time
     "\u00d7": "X", "\u00f7": "/",
-    "\u00df": "S",                          # SS would not fit in one cell -- see above
-    "\u00e6": "A", "\u00c6": "A", "\u0153": "O", "\u0152": "O",
+    # NOTE what is NOT here: \u00df, \u00e6, \u0153. Their correct stand-ins are SS, AE, OE \u2014 two characters \u2014
+    # and a single "S" is not a shorter version of "SS", it is a misspelling ("STRASE"). They
+    # are handled by expand(), before the text is committed to a grid and while it can still
+    # get longer. If one still reaches this point it is a character somebody typed into a
+    # single compose cell, where two flaps are not available, and a space is more honest than
+    # inventing a letter.
 }
+
+# Two-flap stand-ins, applied to TEXT \u2014 before it is laid out on the grid, which is the only
+# moment at which a string is still allowed to get longer.
+#
+# The lowercase forms are deliberate: fold() runs afterwards and uppercases them for a wall
+# with no lowercase flaps ("ss" -> "SS"), while a wall that HAS lowercase keeps "stra\u00dfe" ->
+# "strasse" rather than the shouting "straSSe".
+_EXPAND = {
+    "\u00df": "ss", "\u1e9e": "SS",     # \u1e9e only occurs in text that is already all-caps
+    "\u00e6": "ae", "\u00c6": "AE",
+    "\u0153": "oe", "\u0152": "OE",
+}
+
+
+def expand(text: str, caps) -> str:
+    """Replace a character with a MULTI-FLAP stand-in when the wall cannot show it.
+
+    Called on a line of text before it is centred onto the wall, because that is the last
+    moment a string may change length. Once the page is a grid it is one flap per character,
+    and "SS" no longer fits where "\u00df" was.
+
+    The rule for \u00df, in order:
+
+      1. **Use the lowercase \u00df if the reel has one.** Most reels that carry it carry only the
+         lowercase form \u2014 there is no uppercase \u1e9e flap \u2014 so an uppercase page still shows \u00df.
+         (``cp1252_upper`` already declines to turn \u00df into SS for exactly this reason.)
+      2. **Otherwise SS.** Which is the documented German fallback, and is two flaps. Not "S":
+         a single S is not an abbreviation of SS, it is a spelling mistake.
+
+    Same shape for \u00e6 -> ae and \u0153 -> oe.
+
+    A wall that has not told us its charset is left alone.
+    """
+    if caps is None or not caps.knows_charset():
+        return text
+    out = []
+    for ch in text:
+        if caps.can_show(ch):
+            out.append(ch)
+            continue
+        # 1. The lowercase flap, if the reel has it \u2014 \u1e9e -> \u00df.
+        lower = ch.lower()
+        if lower != ch and caps.can_show(lower):
+            out.append(lower)
+            continue
+        # 2. The two-flap spelling \u2014 in whichever CASE the reel actually carries.
+        #    This is not fussiness: a split-flap has no lowercase flaps at all, so asking it
+        #    for "ss" is asking for something it does not have, and the expansion would be
+        #    skipped on precisely the walls that need it. fold() runs after us and will
+        #    uppercase whatever we choose, so preferring the lowercase form keeps a Matrix
+        #    Portal reading "strasse" rather than "straSSe".
+        rep = _EXPAND.get(ch)
+        if rep:
+            for cand in (rep, rep.upper(), rep.lower()):
+                if all(caps.can_show(c) for c in cand):
+                    out.append(cand)
+                    break
+            else:
+                out.append(ch)
+            continue
+        out.append(ch)          # leave it; degrade() will find it a single-cell stand-in
+    return "".join(out)
 
 
 def _strip_accent(ch: str) -> str:
@@ -237,10 +303,14 @@ def degrade(page: str, caps) -> str:
                      _LOOKALIKE.get(ch),
                      _strip_accent(ch),
                      ch.upper(), ch.lower()):
-            if cand and all(caps.can_show(c) for c in cand):
-                # A multi-character stand-in (ß -> SS) would shift every cell after it and
-                # re-wrap the line, so it is only taken when it fits in one cell.
-                out.append(cand if len(cand) == 1 else cand[0])
+            # ONE FLAP ONLY, and no truncating to get there. `ch.upper()` of ß is "SS", and
+            # taking the first letter of it would put "STRASE" on someone's wall — a
+            # misspelling, silently, which is worse than the hole it was trying to avoid. The
+            # two-flap spellings are expand()'s job, done while the text can still change
+            # length; anything still here is a character in a fixed cell, and if no single
+            # flap will do, a space is the honest answer.
+            if cand and len(cand) == 1 and caps.can_show(cand):
+                out.append(cand)
                 break
         else:
             out.append(" ")

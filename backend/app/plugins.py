@@ -26,7 +26,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import appaudit, device, i18n, location, weather
+from . import appaudit, device, i18n, location, renderer, weather
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -196,7 +196,11 @@ class PluginRuntime:
         else:
             top = pad // 2                  # centred; an odd remainder falls to the bottom
         padded = [""] * top + given + [""] * (pad - top)
-        return "".join(l.center(cols)[:cols] for l in padded[:rows])
+        # Expand BEFORE centring: a character the wall cannot show may need two flaps (ß -> SS
+        # on a reel with no ß), and this is the last moment the line is allowed to get longer.
+        # Afterwards it is one flap per character and "SS" no longer fits where "ß" was.
+        caps = self._caps()
+        return "".join(renderer.expand(str(l), caps).center(cols)[:cols] for l in padded[:rows])
 
     # -- discovery / loading ----------------------------------------------
     def _scan(self) -> dict[str, Path]:

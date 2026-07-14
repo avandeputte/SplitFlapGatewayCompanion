@@ -1352,7 +1352,7 @@ async def show_message(request: Request, req: MessageRequest):
         raise HTTPException(400, f"unknown style: {req.style}")
     g = d.config.grid
     rows, cols = int(g["rows"]), int(g["cols"])
-    page = vestaboard.layout_text(req.text, rows, cols)
+    page = vestaboard.layout_text(req.text, rows, cols, d.controller.caps)
     if req.seconds and req.seconds > 0:
         running = d.controller.show_temporary(page, req.seconds, style=req.style or "ltr")
         d.ha.publish_state()
@@ -1546,7 +1546,7 @@ async def vb_send_message(request: Request, display_id: str | None = None):
             strategy = body.get("strategy")
             # The board has no lowercase flaps; uppercase exactly the way every other
             # text path here does (cp1252-aware, so accents survive as one cell).
-            page = vestaboard.layout_text(body["text"], rows, cols)
+            page = vestaboard.layout_text(body["text"], rows, cols, d.controller.caps)
         else:
             raise HTTPException(422, "expected a character matrix, {\"characters\": [[...]]}, "
                                      "or {\"text\": \"...\"}")

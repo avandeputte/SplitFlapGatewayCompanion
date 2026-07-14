@@ -131,3 +131,75 @@ def test_a_colour_is_never_degraded(fr):
 def test_the_matrix_portal_degrades_nothing_it_can_show():
     caps = device.from_capabilities(MATRIX)
     assert renderer.degrade("Prévu ♥", caps) == "Prévu ♥"
+
+
+# --- ß, which needs TWO flaps ------------------------------------------------
+#
+# The rule, and it is not the obvious one:
+#   1. an uppercase page still uses the LOWERCASE ß, because that is the flap reels carry —
+#      there is no uppercase ẞ flap;
+#   2. and a reel with no ß at all gets SS. Two flaps. Not "S": a single S is not a shorter
+#      spelling of SS, it is a misspelling ("STRASE").
+#
+# Two flaps means the substitution can only happen while the text is still TEXT — before it is
+# centred onto the grid, where one character is one module. That is expand(); degrade() runs
+# later, on the finished page, and must never truncate a two-character stand-in to get it to
+# fit.
+
+DE_REEL = " ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜß0123456789€!?.,'-:%&()@#+="
+
+
+def _wall(text, caps, shows_lowercase):
+    """Text -> what the modules receive, in the real order: expand, fold, degrade."""
+    out = renderer.expand(text, caps)
+    if not shows_lowercase:
+        out = renderer.fold(out)
+    return renderer.degrade(out, caps)
+
+
+@pytest.fixture
+def de():
+    return device.from_capabilities({
+        "features": ["colors"], "charset": {"uniform": True, "common": DE_REEL}})
+
+
+def test_an_uppercase_page_still_uses_the_lowercase_flap(de):
+    """Reels carry ß, not ẞ. So an all-caps German page shows ß, and that is correct."""
+    assert _wall("Straße", de, shows_lowercase=False) == "STRAßE"
+    assert _wall("STRAẞE", de, shows_lowercase=False) == "STRAßE"
+
+
+def test_a_reel_with_no_eszett_gets_SS_not_S(fr):
+    """The documented German fallback, and the reason expand() exists at all."""
+    assert _wall("Straße", fr, shows_lowercase=False) == "STRASSE"
+    assert _wall("STRAẞE", fr, shows_lowercase=False) == "STRASSE"
+
+
+def test_the_expansion_happens_while_the_text_can_still_grow(fr):
+    """Six characters in, seven out. If this ran on the finished page instead, the extra S
+    would shift every cell after it and re-wrap the line."""
+    assert renderer.expand("Straße", fr) == "StraSSe"
+    assert len(renderer.expand("Straße", fr)) == 7
+
+
+def test_degrade_never_truncates_a_two_flap_standin_to_one(fr):
+    """The bug this guards: ß.upper() is "SS", and taking its first letter puts the
+    misspelling "STRASE" on someone's wall — silently, which is worse than the hole it was
+    avoiding.
+
+    Reached directly, with no expand() in front of it, degrade() has a fixed cell and no room
+    for SS. The honest answer is a space, NOT half of a two-letter spelling.
+    """
+    page = renderer.fold("Straße")            # ß survives the fold, as it must
+    assert renderer.degrade(page, fr) == "STRA E"
+
+
+def test_ae_and_oe_expand_the_same_way(fr):
+    """Æ and Œ are the same shape of problem: two flaps, or nothing."""
+    assert renderer.expand("Æon", fr) == "AEon"
+    assert renderer.expand("Œuvre", fr) == "OEuvre"
+    assert _wall("Æon", fr, shows_lowercase=False) == "AEON"
+
+
+def test_a_reel_that_has_the_character_is_left_alone(de):
+    assert renderer.expand("Straße", de) == "Straße"

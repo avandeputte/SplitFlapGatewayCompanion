@@ -296,8 +296,12 @@ def fetch(settings, format_lines, get_rows, get_cols, caps=None):
 
 **You do not have to do this.** Anything the wall cannot show is degraded on the way out —
 an accent to its base letter (`é` → `E`), a curly quote to `'`, a pictograph to its stand-in,
-and only as a last resort to a space. Reach for `caps` when you want to make a *different*
-choice, not to avoid a broken one.
+a `ß` to `SS` on a reel that has no `ß`, and only as a last resort to a space. Reach for `caps`
+when you want to make a *different* choice, not to avoid a broken one.
+
+(`ß` → `SS` costs a second module, so it happens to your *lines*, inside `format_lines`, before
+they are centred — which is why `format_lines` is the thing that lays your page out and you
+should not build the grid yourself.)
 
 `caps` is optional and defaults to `None`, which is also what a stock splitflap-os host
 passes, and which correctly means *"assume nothing, send it and let the wall cope"*. So an
