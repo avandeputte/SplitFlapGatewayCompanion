@@ -3,6 +3,53 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.23
+
+**The wall now says what it can show, and the companion listens.** Gateways answer a new
+`/api/capabilities`, so the companion no longer guesses a display's alphabet from its product
+name. It asks — on boot and on every resync — and gets the real answer, including a physical
+wall's actual reel.
+
+That matters because of how a split-flap fails: ask a module for a character that is not
+printed on its reel and it does not complain and does not substitute — it **homes**. A blank
+hole in the middle of a word, reported by nothing. So now anything your reel cannot show is
+turned into the nearest thing it can: `Åre` → `ARE`, an em dash → `-`, `15:30` → `15.30` on a
+reel with no colon, `Straße` → `STRASSE` on a reel with no ß. And what your reel *does* carry,
+it keeps — on a French reel, `Prévu` finally shows as **`PRÉVU`**. Those thirteen accent flaps
+were always there.
+
+**Two new apps.**
+
+* **Calendar** — the next thing you have to be at, and the one after it if the wall has the
+  rows. Point it at one or more iCal feeds (comma-separated); their events merge into one
+  timeline, and a feed being down costs you its events, not the whole app. Recurring events
+  are expanded properly, so the weekly standup shows up.
+* **Dog Facts** — the sibling of Cat Facts.
+
+**The apps stopped shouting.** They wrote in capitals because a split-flap has no lowercase
+flaps — but that is the wall's business, not theirs, and the companion already folds the case
+for the walls that need it. On a Matrix Portal they now read as they were written: *It's five
+past three*. Nothing changes on a physical wall.
+
+Fixing that turned up **three apps that were shipping shredded text**: Trivia, Chuck Norris and
+News Headlines filter their text through the flap character set, and a case-sensitive filter
+was quietly blanking every lowercase letter. Trivia has been rendering "What is the largest
+planet?" as "W                         ?". They are readable again.
+
+**Translations.** A native-speaker pass over all nine languages. The Dutch label for tree
+pollen was `Bom` — *bomb*. Norwegian's was `Tre`, which is also the numeral *three*. Portuguese
+had sleet and hail swapped. Ten strings were wider than the wall and being silently cut
+("Naechster Feier"). Accents are spelled properly now, because the reels carry them.
+
+The **French clock** was broken everywhere: the fr-FR reel has no colon, so `15:30` reached
+every French wall as `15 30`, with a hole in it, in all fourteen apps that show a time. French
+writes `15h30` anyway.
+
+**Also:** the display switcher was an unreadable dark box in the Home Assistant theme, and
+"Remove a display" — the one destructive control in the app — was styled as the primary blue
+button. Both fixed. The German UI was half formal and half informal, and a review of it found a
+setting whose description said the opposite of what it does.
+
 ## 1.9.0-beta.22
 
 **A stopped display goes blank.** It used to keep showing the last page the app happened to
