@@ -3,6 +3,23 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.24
+
+**Standalone Docker: set `COMPANION_PUBLIC_URL`.** Outside Home Assistant there is no
+Supervisor to ask where we live, so the companion works its own address out by opening a socket
+toward the gateway — and inside a bridge-networked container that address is `172.17.0.x`,
+which is the container's own address on the Docker bridge. Your gateway is a device on the LAN
+and cannot reach it, so the "Companion" link on the gateway pointed nowhere.
+
+The reachability check could never have caught this, and it is worth saying why: it probed the
+URL *from inside the container*, where `172.17.0.x` is reachable because it **is** us. The
+check passed and the URL was still useless. It now looks at the address instead, and warns in
+the log, naming the fix.
+
+The README and `docker-compose.yml` now set `COMPANION_PUBLIC_URL`; the install script already
+did. **Nothing else was affected** — driving the display, the apps, settings sync, the gateway
+proxy, multiple displays and the UI all worked either way.
+
 ## 1.9.0-beta.23
 
 **The wall now says what it can show, and the companion listens.** Gateways answer a new

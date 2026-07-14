@@ -430,6 +430,49 @@ async def _companion_heartbeat(gateway_url: str, companion_url: str, display=Non
                 log.debug("periodic gateway sync error: %s", e)
 
 
+def _warn_if_container_address(companion_url: str) -> None:
+    """Warn when the URL we are about to register is the container's own bridge address.
+
+    This is the one thing that is broken about running the plain Docker image the way the
+    README shows it. `detect_local_ip` opens a socket toward the gateway and reads back our
+    own address — which, in a bridge-networked container, is 172.17.0.x. That is OUR address
+    on the docker0 bridge, and it is not routable from the gateway, which is a device out on
+    the LAN. So the gateway is handed a "Companion" link that can never resolve.
+
+    _verify_reachable() cannot catch this, and it is worth being clear about why: it probes
+    the URL FROM INSIDE THE CONTAINER, where 172.17.0.x is trivially reachable — it is us.
+    The check passes and the URL is still useless. Reachability is the wrong question; the
+    address itself is the answer.
+
+    So we look at the address. 172.16.0.0/12 is Docker's bridge range (172.17 is the default
+    bridge, 172.18-31 are user-defined ones). A host-networked container gets the host's real
+    LAN IP and never trips this; a home LAN genuinely numbered in 172.16/12 would, and gets a
+    warning suggesting a setting that is harmless to set.
+    """
+    import ipaddress
+    from urllib.parse import urlparse
+
+    if not companion_url or (config.effective.get("companion_url") or "").strip():
+        return                                   # explicitly configured — nothing to guess at
+    if not Path("/.dockerenv").exists():
+        return                                   # not in a container; the detected IP is real
+    host = urlparse(companion_url).hostname or ""
+    try:
+        addr = ipaddress.ip_address(host)
+    except ValueError:
+        return
+    if addr not in ipaddress.ip_network("172.16.0.0/12"):
+        return
+
+    log.warning(
+        "the URL registered with the gateway is %s, which is this CONTAINER's address on the "
+        "Docker bridge — your gateway is on the LAN and cannot reach it, so its 'Companion' "
+        "link will not open. Set COMPANION_PUBLIC_URL to this host's LAN address, e.g. "
+        "-e COMPANION_PUBLIC_URL=http://<this-host-ip>:%s (the install script does this for "
+        "you). Everything else — driving the display — is unaffected.",
+        companion_url, config.effective.get("port", 8000))
+
+
 async def _verify_reachable(companion_url: str):
     """Confirm the URL we registered is actually reachable. If the server was
     launched with `uvicorn ...` (binds 127.0.0.1) instead of `python -m app`
@@ -577,6 +620,7 @@ async def lifespan(app: FastAPI):
     global _companion_url
     _companion_url = await resolve_companion_url()
     companion_url = _companion_url
+    _warn_if_container_address(companion_url)
     for d in displays.all():
         _display_tasks[d.id] = await start_display(d, companion_url)
 

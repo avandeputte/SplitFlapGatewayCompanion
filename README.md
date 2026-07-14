@@ -94,10 +94,19 @@ Details, options and the two channels are in **[Home Assistant app](#home-assist
 
 ```bash
 docker run -d --name splitflap-companion -p 8000:8000 \
-  -e GATEWAY_URL=http://192.168.1.50 -v companion-data:/data \
+  -e GATEWAY_URL=http://192.168.1.50 \
+  -e COMPANION_PUBLIC_URL=http://192.168.1.42:8000 \
+  -v companion-data:/data \
   ghcr.io/avandeputte/splitflap-gateway-companion:latest
 # open http://localhost:8000
 ```
+
+`COMPANION_PUBLIC_URL` is **this machine's LAN address** (not the gateway's), and it is what
+the companion registers with the gateway so the gateway's *Companion* tab can link back to it.
+Set it whenever you run in Docker: inside a bridge-networked container the companion can only
+see its own `172.17.x.x` bridge address, which your gateway — a device out on the LAN — cannot
+reach. It logs a warning if it has to guess. The [install script](#install-script) fills this
+in for you, and nothing else depends on it: driving the display works either way.
 
 The image is **multi-arch**, so the same tag runs on x86 (Windows/Linux) and arm64
 (Raspberry Pi 64-bit, Apple Silicon) — Docker pulls the right architecture. Point
