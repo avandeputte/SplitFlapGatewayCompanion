@@ -92,6 +92,17 @@ class DisplayRegistry:
         self._lock = threading.RLock()
         self._records: list[DisplayRecord] = []
         self._default_id: str = DEFAULT_ID
+        # True when we had to CREATE the registry because there was none on disk — i.e. a
+        # fresh install, or a companion whose disk is gone. Only then may we adopt the copy
+        # a gateway is holding: on any other boot the local file is the user's own, and
+        # restoring over it would resurrect a display they deliberately removed.
+        self.seeded = False
+        # Called after every change. The registry is only USEFUL as a backup if it actually
+        # reaches the gateways, and a display's blob is pushed only when that display's own
+        # settings change — so a companion whose settings never move would leave its
+        # gateways holding no registry at all, and a rebuild would forget every wall added
+        # in the UI. A registry change is therefore a reason to push, on every wall.
+        self.on_change = None
 
     # -- disk ------------------------------------------------------------------
     def load(self) -> bool:
@@ -138,6 +149,11 @@ class DisplayRegistry:
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, self.path)
+        if self.on_change is not None:
+            try:
+                self.on_change()
+            except Exception as e:          # a backup must never take the companion down
+                log.warning("could not mirror the registry to the gateways: %s", e)
 
     # -- membership ------------------------------------------------------------
     def all(self) -> list[DisplayRecord]:
@@ -267,6 +283,7 @@ class DisplayRegistry:
             return self
 
         migrated = migrate_settings(self.data_dir)
+        self.seeded = True
         with self._lock:
             self._records = [DisplayRecord(id=DEFAULT_ID, name=name,
                                            gateway_url=str(gateway_url or "").strip(),
@@ -276,6 +293,61 @@ class DisplayRegistry:
         log.info("created display registry (%s)",
                  "migrated existing settings" if migrated else "fresh install")
         return self
+
+
+    # -- the registry is BACKED UP, like everything else -------------------------
+    def snapshot(self) -> dict:
+        """The set of walls, in the shape that rides along in every gateway's settings blob.
+
+        The registry is the one thing a companion knows that no single gateway does — which
+        OTHER gateways exist. Left only on the companion's disk it would be the one thing
+        that could not be recovered when that disk is gone: each wall's settings come back
+        from its own gateway, but the LIST of walls, their names, their order and which one
+        you chose as the default would not. GATEWAY_URL only reseeds what is in the env, so
+        a display added in the UI would simply vanish.
+
+        So every gateway carries a copy of the whole set. Any one of them can rebuild it.
+        """
+        with self._lock:
+            return {
+                "version": REGISTRY_VERSION,
+                "default_display": self._default_id,
+                "displays": [r.to_dict() for r in sorted(self._records, key=lambda r: r.order)],
+            }
+
+    def adopt(self, doc: dict) -> list[DisplayRecord]:
+        """Restore the set from a gateway's copy. Only ever called on a registry we had to
+        SEED (see `seeded`), which is the rebuilt-companion case. Returns the records that
+        were not already here, so the caller can bring them up.
+
+        Display `default`'s gateway_url is NOT taken from the backup: it belongs to
+        GATEWAY_URL / the add-on option, which is the thing that got us talking to a gateway
+        in the first place. Its name and order are.
+        """
+        if not isinstance(doc, dict) or not doc.get("displays"):
+            return []
+        added = []
+        with self._lock:
+            known = {r.id for r in self._records}
+            for i, raw in enumerate(doc["displays"]):
+                try:
+                    rec = DisplayRecord.from_dict(raw, order=i)
+                except (ValueError, TypeError):
+                    continue
+                if rec.id in known:
+                    cur = self.get(rec.id)
+                    cur.name, cur.order, cur.enabled = rec.name, rec.order, rec.enabled
+                    continue
+                self._records.append(rec)
+                added.append(rec)
+            wanted = str(doc.get("default_display") or "")
+            if any(r.id == wanted for r in self._records):
+                self._default_id = wanted
+        self.save()
+        if added:
+            log.info("restored %d display(s) from the gateway's copy of the registry: %s",
+                     len(added), ", ".join(r.id for r in added))
+        return added
 
 
 # ---------------------------------------------------------------------------

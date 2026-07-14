@@ -103,8 +103,19 @@ registry = DisplayRegistry(DATA_DIR).ensure(gateway_url=_seed_url)
 registry.adopt_env_gateway(_seed_url)
 registry.adopt_env_gateways(_seed_urls)
 
+
+def _mirror_registry() -> None:
+    """The set of walls changed — make sure every gateway's copy is brought up to date, not
+    just the ones whose own settings happen to have moved."""
+    for d in displays.all():
+        try:
+            d.settings.sync_now()
+        except Exception:
+            pass
+
 displays = DisplayManager(APPS_DIR, registry=registry, data_dir=DATA_DIR)
 displays.load_registry()
+registry.on_change = _mirror_registry
 _default = displays.default
 
 # Names kept for the module-level consumers that are not per-request: the lifespan, the
@@ -317,6 +328,13 @@ async def setup_settings_sync(d=None) -> None:
         return
 
     def _pusher(doc: dict) -> bool:
+        # The registry rides along. It is the one thing the companion knows that no single
+        # gateway does — which OTHER gateways exist — so left only on our disk it would be
+        # the one thing a rebuilt companion could not recover: each wall's settings come
+        # back from its own gateway, but the LIST of walls, their names and the default
+        # would not. Every gateway holds a copy; any one of them can restore the set.
+        doc = dict(doc)
+        doc["displays"] = registry.snapshot()
         return push_gateway_settings(url, doc)
 
     debounce = float(cfg.effective.get("settings_debounce", 3.0))
@@ -427,6 +445,30 @@ _display_tasks: dict[str, list] = {}
 _companion_url: str = ""
 
 
+async def restore_registry_from(d) -> list:
+    """A rebuilt companion learns the OTHER walls from the one gateway it was given.
+
+    Only when the registry had to be SEEDED — i.e. there was no displays.json, so this is a
+    fresh install or a lost disk. On any other boot the local file is the user's own, and
+    restoring over it would resurrect a display they had deliberately removed.
+
+    Returns the displays that were not already here, built and ready to be started.
+    """
+    if not registry.seeded or not d.gateway_url:
+        return []
+    try:
+        doc = await asyncio.to_thread(fetch_gateway_settings, d.gateway_url)
+    except Exception:
+        return []
+    added = registry.adopt((doc or {}).get("displays") or {})
+    built = [displays.build_from(rec) for rec in added if rec.enabled]
+    # The default is a CHOICE, and it is part of what was backed up. The manager fixed its
+    # own default when it loaded the seeded (single-display) registry, so without this the
+    # wall the user had chosen comes back as just another display.
+    displays.adopt_default(registry.default_id)
+    return built
+
+
 async def start_display(d, companion_url: str = "") -> list:
     """Bring ONE display up, and return the background tasks it owns.
 
@@ -523,6 +565,14 @@ async def lifespan(app: FastAPI):
     _companion_url = await resolve_companion_url()
     companion_url = _companion_url
     for d in displays.all():
+        _display_tasks[d.id] = await start_display(d, companion_url)
+
+    # The default display has just restored its settings from its gateway; if we had to seed
+    # the registry, that blob also carries the SET of walls. Bring back the ones we did not
+    # know about — otherwise a rebuilt companion silently forgets every display that was
+    # added in the UI rather than in GATEWAY_URL.
+    for d in await restore_registry_from(displays.default):
+        log.info("display %r came back from the gateway's copy of the registry", d.id)
         _display_tasks[d.id] = await start_display(d, companion_url)
 
     # If we auto-detected our URL, verify it's actually reachable. Once, not per display

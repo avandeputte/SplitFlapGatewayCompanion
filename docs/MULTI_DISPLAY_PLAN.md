@@ -58,6 +58,24 @@ the storage model, not chosen for tidiness, and it is the decision that shapes t
 > file **restores from it**. So a setting that does not live in a display's own store has
 > no gateway to live on — it can never be backed up, and never recovered.
 
+**The registry is not exempt from that rule.** `data/displays.json` is companion-local, and
+for a while it was the one thing a rebuilt companion could not recover: each wall's settings
+come back from its own gateway, but the LIST of walls — their names, their order, and which
+one you chose as the default — would not. `GATEWAY_URL` reseeds only what is in the env, so
+a display added in the **UI** would simply vanish. That is precisely the hole that killed
+`globals.json`.
+
+So the registry rides along inside **every** gateway's settings blob (`doc["displays"]`), and
+any one of them can rebuild the set. Two details make it work:
+
+* **A registry change is itself a reason to push.** A display's blob only goes out when that
+  display's own settings change — so a companion whose settings never move would leave its
+  gateways holding no registry at all. Changing the set of walls now pushes to all of them.
+* **Only a SEEDED registry adopts a backup** — one we had to create because there was no
+  `displays.json` (a fresh install, or a lost disk). On any other boot the local file is the
+  user's own, and restoring over it would resurrect a display they deliberately removed.
+  Display `default`'s gateway_url still belongs to `GATEWAY_URL`; its *name* is restored.
+
 A `globals.json` holding the credentials for all displays was tried and reverted for
 exactly this reason: it was a companion-local file with no home on any gateway, i.e. an
 invisible hole in the recovery story. The cost of the rule is entering an API key once

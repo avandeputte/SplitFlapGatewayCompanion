@@ -309,3 +309,80 @@ def test_making_a_display_default_persists_it(tmp_path):
     fresh = DisplayRegistry(tmp_path)
     fresh.load()
     assert fresh.default_id == "office", "the choice did not survive a restart"
+
+
+# ---------------------------------------------------------------------------
+# the registry is BACKED UP too — it is not exempt from the rule
+# ---------------------------------------------------------------------------
+# data/displays.json is companion-local, and for a while it was the ONE thing that could not
+# be recovered when that disk was gone: each wall's settings come back from its own gateway,
+# but the LIST of walls, their names, their order and which one you chose as the default
+# would not. GATEWAY_URL only reseeds what is in the env, so a display added in the UI would
+# simply vanish. That is exactly the hole that killed globals.json.
+#
+# So the registry rides along in EVERY gateway's settings blob, and any one of them can
+# rebuild the set.
+def test_the_registry_has_a_backup_shape(tmp_path):
+    reg = DisplayRegistry(tmp_path).ensure(gateway_url="http://kitchen")
+    reg.add(name="Office wall", gateway_url="http://office")
+    reg.set_default("office-wall")
+
+    snap = reg.snapshot()
+    assert snap["default_display"] == "office-wall"
+    assert [d["id"] for d in snap["displays"]] == ["default", "office-wall"]
+    assert [d["name"] for d in snap["displays"]] == ["SplitFlap", "Office wall"]
+
+
+def test_a_rebuilt_companion_gets_its_walls_back(tmp_path):
+    """The whole point: only GATEWAY_URL survives a lost disk. Everything else — the office
+    wall, its name, and the fact that it was the default — comes from the gateway's copy."""
+    backup = DisplayRegistry(tmp_path / "old").ensure(gateway_url="http://kitchen")
+    backup.add(name="Office wall", gateway_url="http://office")
+    backup.set_default("office-wall")
+    blob = backup.snapshot()
+
+    fresh = DisplayRegistry(tmp_path / "new").ensure(gateway_url="http://kitchen")
+    assert fresh.seeded is True
+    added = fresh.adopt(blob)
+
+    assert [r.id for r in added] == ["office-wall"]
+    assert fresh.get("office-wall").gateway_url == "http://office"
+    assert fresh.get("office-wall").name == "Office wall"
+    assert fresh.default_id == "office-wall", "the wall you CHOSE must come back as the default"
+
+
+def test_a_registry_we_did_not_seed_is_never_overwritten(tmp_path):
+    """A backup must not resurrect a display the user deliberately removed. Only a registry
+    we had to CREATE (no displays.json — a fresh install, or a lost disk) adopts one."""
+    reg = DisplayRegistry(tmp_path).ensure(gateway_url="http://kitchen")
+    reg.add(name="Office", gateway_url="http://office")
+    reg.remove("office")
+
+    again = DisplayRegistry(tmp_path)
+    assert again.load() is True
+    assert again.seeded is False, "an existing registry is the user's own"
+
+
+def test_the_default_displays_gateway_still_belongs_to_the_env(tmp_path):
+    """GATEWAY_URL is what got us talking to a gateway at all. The backup must not overrule
+    it, or a corrected IP on the add-on's Configuration tab would be undone by a restore."""
+    blob = {"version": 1, "default_display": "default",
+            "displays": [{"id": "default", "name": "Kitchen", "gateway_url": "http://OLD"}]}
+    reg = DisplayRegistry(tmp_path).ensure(gateway_url="http://new")
+    reg.adopt(blob)
+
+    assert reg.get("default").gateway_url == "http://new"   # the env wins
+    assert reg.get("default").name == "Kitchen"             # …but the NAME is restored
+
+
+def test_a_registry_change_is_pushed_to_every_wall(tmp_path):
+    """A display's blob is pushed only when that display's OWN settings change, so a
+    companion whose settings never move would leave its gateways holding no registry at all
+    — and a rebuild would forget every wall added in the UI."""
+    reg = DisplayRegistry(tmp_path).ensure(gateway_url="http://kitchen")
+    pushed = []
+    reg.on_change = lambda: pushed.append(1)
+
+    reg.add(name="Office", gateway_url="http://office")
+    reg.set_default("office")
+    assert len(pushed) >= 2, "changing the set of walls must schedule a push"

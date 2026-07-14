@@ -3,6 +3,19 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.16
+
+**The list of displays is now backed up to your gateways**, like everything else.
+
+It was the one thing a rebuilt companion could not recover. Each wall's settings come back
+from its own gateway — but the LIST of walls, their names, and which one you chose as the
+default lived only on the companion's disk. `gateway_url` reseeds what is in the add-on
+options, so a display you added in the **UI** would simply vanish.
+
+Now every gateway carries a copy of the whole set, and any one of them can rebuild it:
+wipe the companion completely, give it back a single gateway URL, and your other walls
+come back with their names and your chosen default.
+
 ## 1.9.0-beta.15
 
 **Fixes the gateway's logo not loading** when you open a gateway tab through the companion.
