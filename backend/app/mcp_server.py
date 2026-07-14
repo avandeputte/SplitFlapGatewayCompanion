@@ -378,7 +378,8 @@ def build(displays) -> FastMCP:
 
     @mcp.tool()
     async def stop(display: str = "") -> dict:
-        """Stop the running app or playlist, leaving what it last drew on the board.
+        """Stop the running app or playlist. The board goes blank — nothing is running, so
+        it shows nothing.
 
         `display` picks the wall (see list_displays); omit it for the default one."""
         d = _res(display)

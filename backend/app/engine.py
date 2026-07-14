@@ -322,9 +322,23 @@ class DisplayController:
         self._task = asyncio.create_task(self._app_loop(app_id))
 
     async def stop_app(self) -> None:
+        """Stop whatever is running — and BLANK the wall.
+
+        A display with nothing running should show nothing. Leaving the last page an app
+        happened to draw is worse than blank: it is a lie that goes stale, and the longer it
+        sits there the more it looks like the thing is still working.
+
+        Blanking IS homing here: flap 0 is the blank flap, so driving every module to a space
+        returns it home. (The Home button is a separate, physical re-home; this is the
+        ordinary "nothing is on" state.)
+
+        Only an EXPLICIT stop comes through here — starting another app cancels the loop
+        directly (run_app), so switching apps does not flash a blank wall in between.
+        """
         await self._cancel_task()
         self._clear_driver_flags()
         self._remember(None)
+        await self.clear()
 
     async def _app_loop(self, app_id: str) -> None:
         loop = asyncio.get_running_loop()
@@ -425,7 +439,16 @@ class DisplayController:
                                 last_sent = text
                             await asyncio.sleep(max(0.0, float(t["loop_delay"])))
             if not loop:
+                # A playlist that has run out is a display with nothing running, and it
+                # should show nothing — not the last page it happened to stop on.
+                #
+                # NOT clear(): that cancels the current task, and the current task is THIS
+                # one. Emit the blank page directly.
                 self._clear_driver_flags()
+                self._remember(None)
+                await self._emit_page(self._normalize(" " * self.config.module_count()),
+                                      style="ltr",
+                                      speed=int(self.config.display.get("transition_speed", 15)))
                 return
 
     # -- trigger interrupts + quiet hours -----------------------------------

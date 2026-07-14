@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.22
+
+**A stopped display goes blank.** It used to keep showing the last page the app happened to
+draw — which is worse than blank: a clock frozen at 11:34 is not obviously *off*, it is
+obviously *wrong*, and the longer it sits there the more it looks like the thing is still
+working.
+
+Blanking **is** homing: flap 0 is the blank flap, so every module returns home. (The Home
+button is still there for a physical re-home.)
+
+Both ways of ending up with nothing running now blank the wall: you stopped it (the Stop
+button, Home Assistant, an MCP call), **or** a playlist that does not loop simply ran out.
+Switching from one app to another does not flash a blank in between.
+
 ## 1.9.0-beta.21
 
 **Apps can now ask what the display can show**, and the first pictographs are in use.
