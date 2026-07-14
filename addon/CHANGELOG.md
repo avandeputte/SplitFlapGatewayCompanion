@@ -3,6 +3,115 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.0.0
+
+Everything from the 1.9.0 beta series, consolidated. The headline is that the companion stopped
+guessing about your wall and started asking it — and that one change is what makes the rest of
+this release possible.
+
+### The wall decides what it can show
+
+Gateways now answer **`GET /api/capabilities`**, and the companion asks — on boot, and again on
+every resync. It gets the feature list *and the actual character set of your reels*.
+
+This matters because of how a split-flap fails. Ask a module for a character that is not printed
+on its reel and it does not complain and does not substitute: it **homes**. A blank hole in the
+middle of a word, reported by nothing. The companion used to send the character and hope, which
+is why app text had to be written in stripped-down ASCII.
+
+Now what your reel cannot show becomes the nearest thing it can — `Åre` → `ARE`, an em dash →
+`-`, `15:30` → `15.30` on a reel with no colon, `Straße` → `STRASSE` on a reel with no ß. And
+what your reel **does** carry, it keeps: on a French reel, `Prévu` finally shows as `PRÉVU`.
+Those thirteen accent flaps were always there.
+
+On a **mixed wall** (modules with different reels) it uses the intersection — a character only
+half your modules carry is a character that punches holes in the other half.
+
+### The apps stopped shouting
+
+Apps used to write in capitals, because a split-flap has no lowercase flaps. But that is the
+*wall's* business, not the app's: the companion folds the case on the way out, for the walls
+that need it. So the apps now write the way people write, and a **Matrix Portal** shows them as
+written — *It's five past three*. Nothing changes on a physical wall, where the output is
+byte-for-byte what it always was. If you prefer capitals anyway, there is a new **Always
+uppercase** setting, per display.
+
+A Matrix Portal (firmware 1.6+) also gets its **full alphabet**: every Windows-1252 glyph, the
+60 lowercase flaps, and fourteen **pictographs** (`♥ ♦ ♣ ♠ ☀ ☺ ♪ ● ■ ⌂` and four arrows). Apps
+can ask what the wall can do and use them when they are there.
+
+### Several displays, one companion
+
+Drive **more than one gateway at once** — a split-flap in the living room and a Matrix Portal in
+the office. Each has its own geometry, apps, playlists, triggers and settings. A switcher
+appears in the header as soon as there is a second one.
+
+`GATEWAY_URL` takes a comma-separated list. Everything that addresses a display can name one:
+`?display=` on the API, `/gw/<id>/` for the gateway's own UI, `/local-api/<id>/message` for the
+Vestaboard API, a `display` argument on every MCP tool (plus a new `list_displays`), and **one
+Home Assistant device per wall** — the default keeps its historic entity ids, so existing
+automations do not break.
+
+The list of displays is backed up to your gateways along with everything else, so a rebuilt
+companion comes back knowing about all of them.
+
+### Home Assistant
+
+The gateway's own UI now **opens inside Home Assistant**, in the sidebar, and matches its look.
+The add-on follows your **Home Assistant profile language**, not your browser's.
+
+### Tall walls
+
+A 5×15 wall is no longer a 3×15 wall with dead rows under it. Content is **centred vertically**,
+and Weather, Wikipedia, Next Holiday, World Clock, Stocks and YouTube Comments were re-laid-out
+to use the space instead of paging through near-empty screens.
+
+### Weather gets a forecast
+
+A page of the coming days — one line each, with the day's sky as a **word** (not just a colour):
+`Sunny`, `Rain-`, `Storm`. The day name shrinks before the condition does.
+
+### New apps
+
+- **Calendar** — the next thing you have to be at, and the one after it if the wall has the rows.
+  Point it at one or more iCal feeds (comma-separated) and their events merge into one timeline.
+  Recurring events are expanded, so the weekly standup actually shows up; a feed being down costs
+  you its events, not the whole app.
+- **Dog Facts** — the sibling of Cat Facts.
+- **Forecast Ribbon** — the shape of the day painted in flap colours.
+
+### A stopped display goes blank
+
+It used to keep showing the last page the app happened to draw, which is worse than blank: a
+clock frozen at 11:34 is not obviously *off*, it is obviously *wrong*. Stopping an app or
+playlist — or a playlist simply running out — now homes every module.
+
+### Fixes worth naming
+
+- **Three apps were shipping shredded text.** Trivia, Chuck Norris and News Headlines filter
+  their text through the flap character set, and the filter was case-sensitive — so it was
+  quietly blanking every lowercase letter. Trivia had been rendering *"What is the largest
+  planet?"* as `W                         ?`.
+- **The French clock had a hole in it.** The `fr-FR` reel spends its flaps on the thirteen
+  accents French needs and has no colon, so `15:30` reached every French wall as `15 30` — in all
+  fourteen apps that show a time. French writes `15h30` anyway.
+- **Translations, all nine languages, reviewed by native speakers.** The Dutch label for tree
+  pollen was `Bom` — *bomb*. Norwegian's was `Tre`, which is also the numeral *three*. Portuguese
+  had sleet and hail swapped. Ten strings were wider than the wall and were being silently cut.
+- **Triggers were painting colour flaps through their words** — a trigger's page was treated as a
+  raw colour frame, so any `r`, `o` or `y` in the text became a coloured square.
+- The gateway's **logo** not loading through the companion's proxy; the gateway **tabs**
+  disappearing from the top bar; **editing a playlist** no longer means retyping its name.
+- **Standalone Docker**: set `COMPANION_PUBLIC_URL` to this host's LAN address. Inside a
+  bridge-networked container the companion could only see its own `172.17.x.x` address, which
+  your gateway cannot reach, so the gateway's *Companion* link pointed nowhere. It now says so in
+  the log, and the README and compose file set it.
+
+### Upgrading
+
+Nothing to do. Settings, playlists and triggers are carried over, and a single-display setup
+behaves exactly as it did — the switcher only appears once there is a second wall.
+
 ## 1.8.0
 
 - **The ⚙ menu is now always there** (it used to appear only in developer mode, labelled
