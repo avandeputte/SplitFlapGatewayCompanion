@@ -360,3 +360,23 @@ def test_a_timed_message_does_not_stop_a_running_app(mcp_on):
         t = getattr(mcp_on.controller, "_temp_task", None)
         if t:
             t.cancel()
+
+
+def test_mcp_holds_the_live_manager_not_a_snapshot():
+    """The MCP server is built ONCE, at import. If it captured the displays as a list rather
+    than holding the DisplayManager, a wall added later in the UI would be invisible to an
+    agent forever — and invisibly so, which is the worst kind."""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "app" / "mcp_server.py").read_text("utf-8")
+    assert "def build(displays)" in src
+    # every lookup goes through the manager, live
+    assert "displays.default" in src and "displays.get(display)" in src
+    assert "displays.all()" in src        # list_displays enumerates it at CALL time
+
+
+def test_an_unknown_display_names_the_ones_that_exist():
+    """An agent that guessed wrong should be told what it could have said, not just "no"."""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "app" / "mcp_server.py").read_text("utf-8")
+    assert 'known = ", ".join(displays.ids())' in src
+    assert "no such display" in src
