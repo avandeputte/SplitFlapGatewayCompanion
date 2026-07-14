@@ -104,11 +104,19 @@ actually written. The companion folds the case *for the wall that needs it*, and
 is the only thing that knows which wall that is: a real split-flap has no lowercase
 flaps, while a Matrix Portal (whose modules are drawn, not mechanical) has them and
 shows your text as you wrote it. The fold is Windows-1252-aware, so `É`, `Ü`, `ç`
-and `ß` survive — `ß` is *not* expanded to `SS`, which would silently eat a cell.
+and `ß` survive it: `ß` is *not* uppercased to `SS`, because a reel that carries `ß` carries
+only the lowercase flap (there is no `ẞ`), so `STRAßE` is the correct all-caps German page.
+Only a reel with **no** `ß` at all falls back to `SS`, and that is handled for you.
 
-Every glyph is passed through verbatim; the companion does **not** restrict you to a
-fixed character set, and a module simply blanks anything its own flaps lack. So write
-normal text — punctuation, accents and `€` are fine.
+**Write normal text — punctuation, accents and `€` are fine.** You do not have to know what
+is printed on the user's reels. The gateway tells the companion (`GET /api/capabilities`), and
+anything the wall cannot show is degraded on the way out: an accent to its base letter
+(`Åre` → `ARE`), a curly quote to `'`, an em dash to `-`, `ß` to `SS` on a reel with no `ß`.
+What the reel *does* carry, it keeps — on a French wall, `Prévu` shows as `PRÉVU`.
+
+It did not always work that way: a module asked for a flap it does not have simply **homes**,
+leaving a blank hole in the middle of a word and telling nobody. That is why older app text was
+written in stripped-down ASCII. It no longer needs to be.
 
 The one exception is an **animation** (`"animation": true`): its page is sent raw and
 is *not* folded, because its lowercase letters are the COLOUR FLAPS (below). An
