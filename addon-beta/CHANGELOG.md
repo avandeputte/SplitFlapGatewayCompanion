@@ -3,6 +3,28 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.0.1
+
+**Fixes a physical Split-Flap Gateway going dark on 2.0.0.** Every page write returned 404 and
+the UI reported the display offline, while the gateway itself sat there answering everything
+else perfectly.
+
+2.0.0 started asking the gateway what it can do (`GET /api/capabilities`). A physical gateway
+answers with a feature list that includes **`index`** — which is `POST /api/flap/index`, "turn
+ONE module to a flap by number", something every gateway has. The companion read that as the
+Matrix Portal's bulk **`cells`** API (`POST /api/display/cells`) and posted every page to an
+endpoint that does not exist there.
+
+Two different endpoints, one wrong assumption. Only `cells` means the bulk page API, and that
+is now the only thing the companion looks for.
+
+It also no longer takes a wall down over it: if the cells endpoint returns 404, the gateway is
+telling us plainly that it does not have it — whatever the capability list said — so the page
+goes out on the legacy wire instead, with one warning in the log. A 500 is left alone, because
+that means the endpoint exists and something behind it is genuinely broken.
+
+Matrix Portal walls are unaffected.
+
 ## 2.0.0
 
 Everything from the 1.9.0 beta series, consolidated. The headline is that the companion stopped

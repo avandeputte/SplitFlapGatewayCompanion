@@ -203,3 +203,58 @@ def test_ae_and_oe_expand_the_same_way(fr):
 
 def test_a_reel_that_has_the_character_is_left_alone(de):
     assert renderer.expand("Straße", de) == "Straße"
+
+
+# --- the feature list is a list, not a taxonomy -------------------------------
+#
+# These two are the REAL feature lists, copied verbatim from a physical Split-Flap Gateway
+# (fw 3.7.4) and a Matrix Portal (fw 1.10.1). They are here because reading them wrong took a
+# working wall down: the physical gateway advertises "index", the companion read that as "has
+# the index-addressed page API", and posted every page to /api/display/cells — which that
+# gateway does not have. 404 on every write, display shown as offline, while the gateway
+# answered /api/status, /api/config, /api/capabilities and the whole proxied UI perfectly.
+#
+# "index" is POST /api/flap/index {"id":5,"index":3} — turn ONE module to a flap by number.
+# Every gateway has it. "cells" is POST /api/display/cells — the bulk page API. Only a Matrix
+# Portal has it. They are different endpoints and only one of them picks the wire format.
+
+PHYSICAL_FEATURES = ["colors", "index", "batch", "quiet", "maintenance", "ha", "ota", "flapconfig"]
+MATRIX_FEATURES = ["cells", "colors", "index", "lowercase", "pictographs",
+                   "quiet", "maintenance", "ha", "ota"]
+
+
+def test_a_physical_gateway_advertising_index_is_NOT_index_addressed():
+    """The regression. `index` != `cells`, and mistaking them 404s every page."""
+    caps = device.from_capabilities({
+        "product": "Split-Flap Gateway", "fw": "3.7.4",
+        "features": PHYSICAL_FEATURES,
+        "charset": {"uniform": False, "common": " ABC0123456789"},
+    })
+    assert caps.indexed is False, (
+        "a physical gateway has /api/flap/index but NOT /api/display/cells — posting a page "
+        "to the cells endpoint 404s and the wall goes dark")
+    assert caps.lowercase is False and caps.pictographs is False
+
+
+def test_only_cells_means_the_bulk_page_api():
+    assert device.from_capabilities({"features": ["cells"], "charset": {}}).indexed is True
+    assert device.from_capabilities({"features": ["index"], "charset": {}}).indexed is False
+    assert device.from_capabilities({"features": ["batch"], "charset": {}}).indexed is False
+
+
+def test_a_real_matrix_portal_still_uses_the_cells_api():
+    caps = device.from_capabilities({
+        "product": "Matrix Portal Gateway", "fw": "1.10.1",
+        "features": MATRIX_FEATURES,
+        "charset": {"uniform": True, "common": " ABCabc"},
+    })
+    assert caps.indexed and caps.lowercase and caps.pictographs
+
+
+def test_a_physical_gateway_advertising_colors_does_not_change_the_wire():
+    """It has colour FLAPS (r/o/y/g/b/p/w), which is not the same as naming them in an API.
+    Only `indexed` selects the wire format, so this must not drag the cells API in with it."""
+    caps = device.from_capabilities({
+        "features": PHYSICAL_FEATURES, "colors": ["red", "blue"], "charset": {}})
+    assert caps.named_colours is True
+    assert caps.indexed is False

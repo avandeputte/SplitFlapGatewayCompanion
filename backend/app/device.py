@@ -146,9 +146,20 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         lowercase="lowercase" in features,
         pictographs="pictographs" in features,
         named_colours="colors" in features or bool(colours),
-        # "cells" is the endpoint, "index" the addressing mode; firmware advertises both, and
-        # either alone is enough to mean "this wall can be addressed by flap index".
-        indexed=bool(features & {"cells", "index"}),
+        # ONLY "cells". This is the one flag that picks the WIRE FORMAT, and it names an
+        # endpoint: POST /api/display/cells, the bulk index-addressed page API, which only a
+        # Matrix Portal has.
+        #
+        # It is emphatically NOT "index". A physical Split-Flap Gateway advertises `index`
+        # too, and means something else by it — POST /api/flap/index {"id":5,"index":3}, which
+        # turns ONE module to a flap by number. Every gateway can do that. Reading `index` as
+        # "has the cells API" made the companion post every page to /api/display/cells on a
+        # physical wall, get a 404, and show the display as offline while the gateway sat there
+        # answering everything else perfectly.
+        #
+        # So: the feature list is a list of things the gateway HAS, not a taxonomy to infer
+        # from. Match the endpoint you are about to call, and nothing else.
+        indexed="cells" in features,
         charset=frozenset(common),
         uniform=bool(cs.get("uniform", True)),
         colours=colours,

@@ -11,9 +11,20 @@ available; there's no per-frame legacy fallback.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 
 from .. import device, renderer
 from .base import DisplayTransport, frame_for
+
+
+def _is_404(exc: Exception) -> bool:
+    """Is this the gateway saying "I do not have that endpoint"?
+
+    Only a 404. A 500 means the endpoint EXISTS and something went wrong behind it, and
+    quietly changing wire format on the strength of that would hide a real fault.
+    """
+    r = getattr(exc, "response", None)
+    return getattr(r, "status_code", None) == 404
 
 log = logging.getLogger("companion.transport.rest")
 
@@ -211,9 +222,29 @@ class RestTransport(DisplayTransport):
             except Exception as e:
                 # The wall is now in an unknown state, so the next page must be sent whole.
                 self._shown.clear()
-                self._connected = False
-                self._last_error = str(e)
-                raise
+                if _is_404(e):
+                    # The gateway does not HAVE /api/display/cells. Whatever its capabilities
+                    # said, the endpoint is the truth, and a 404 is it telling us plainly.
+                    #
+                    # This is a fallback rather than an error because of what the alternative
+                    # costs: a wall in somebody's hallway goes dark and the UI says "offline"
+                    # while the gateway is sitting there answering everything else perfectly.
+                    # It happened — a physical gateway advertises the `index` feature (which is
+                    # POST /api/flap/index, one module by flap number) and that was misread as
+                    # the bulk cells API. One wrong word in a feature list, and every page 404s.
+                    #
+                    # So: believe the endpoint, downgrade for the life of this transport, say so
+                    # once, and send the page on the wire that works.
+                    log.warning(
+                        "gateway %s advertised the index-addressed page API but POST "
+                        "/api/display/cells is 404 — it does not have it. Falling back to "
+                        "/api/rs485/batch for this gateway.", self.base)
+                    self.caps = replace(self.caps, indexed=False)
+                    # fall through to the legacy path below, with this same page
+                else:
+                    self._connected = False
+                    self._last_error = str(e)
+                    raise
         payload = {"frames": [frame_for(mid, renderer.for_legacy(ch)) for mid, ch in frames],
                    "step_ms": int(step_ms)}
         try:
