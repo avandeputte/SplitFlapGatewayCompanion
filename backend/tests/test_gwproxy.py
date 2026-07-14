@@ -206,3 +206,43 @@ def test_setup_gateway_tabs_does_not_shadow_the_url_helper():
     body = re.search(r"function setupGatewayTabs\(\).*?\n}\n", js, re.S).group(0)
     assert not re.search(r"\b(?:let|const|var)\s+url\b", body), \
         "setupGatewayTabs declares a local `url`, shadowing the global url() helper it calls"
+
+
+# ---------------------------------------------------------------------------
+# both quote styles
+# ---------------------------------------------------------------------------
+def test_an_absolute_asset_is_rewritten_whichever_quotes_it_uses():
+    """The gateway MIXES them: its nav is written with double quotes, but its brand image is
+
+        <img src='/logo.svg' alt='Split-Flap Gateway' class='brand'>
+
+    A rule that only knew about double quotes left exactly that one asset pointing at the
+    COMPANION's root — where there is no /logo.svg — so the logo was the one thing on the
+    page that did not load through the proxy.
+    """
+    from app.gwproxy import _ABS_URL
+
+    html = ("<a href=\"/ota\">ota</a>"
+            "<img src='/logo.svg' alt='Split-Flap Gateway' class='brand'>"
+            "<link href='/favicon.svg'>"
+            "<form action=\"/x\">")
+    out = _ABS_URL.sub(r"\1=\2/gw/", html)
+
+    assert "src='/gw/logo.svg'" in out
+    assert 'href="/gw/ota"' in out
+    assert "href='/gw/favicon.svg'" in out
+    assert 'action="/gw/x"' in out
+
+
+def test_the_original_quote_is_put_back_verbatim():
+    """Re-quoting would break a value that contains the other quote character."""
+    from app.gwproxy import _ABS_URL
+    out = _ABS_URL.sub(r"\1=\2/gw/", "<img src='/a.svg' alt=\"it's here\">")
+    assert out == "<img src='/gw/a.svg' alt=\"it's here\">"
+
+
+def test_a_protocol_relative_url_is_left_alone():
+    """//cdn/x is not ours to rewrite — it is a different host."""
+    from app.gwproxy import _ABS_URL
+    html = '<script src="//cdn.example/x.js"></script>'
+    assert _ABS_URL.sub(r"\1=\2/gw/", html) == html

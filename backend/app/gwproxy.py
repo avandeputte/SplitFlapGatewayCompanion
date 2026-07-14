@@ -42,9 +42,15 @@ log = logging.getLogger("companion.gwproxy")
 
 PREFIX = "/gw"
 
-# Everything the browser must not resolve against our own root. `href="/ota"` and
-# `href="/favicon.svg"` are the only absolute ones in the page; the rest is fetch().
-_ABS_URL = re.compile(r'\b(href|src|action)="/(?!/)')
+# Everything the browser must not resolve against our own root: an absolute path in the
+# gateway's page means "the gateway's root", and unrewritten it means OURS, where there is
+# no /logo.svg to serve.
+#
+# BOTH quote styles. The gateway mixes them — its nav is written with double quotes but its
+# brand image is `<img src='/logo.svg'>` — and a rule that only knew about double quotes
+# left exactly that one asset pointing at us. The captured quote is put back verbatim, so
+# the attribute is not re-quoted (which would break a value containing the other quote).
+_ABS_URL = re.compile(r"""\b(href|src|action)=(["'])/(?!/)""")
 
 _SHIM = """<script>
 (function () {
@@ -118,7 +124,7 @@ def build(displays) -> APIRouter:
         # too. The gateway's CSS uses the same variables we do, so this re-points a dozen
         # values rather than restyling — harmless when the firmware already has them.
         head = shim + f'<link rel="stylesheet" href="{companion}/gateway-theme.css">'
-        html = _ABS_URL.sub(rf'\1="{base}/', html)
+        html = _ABS_URL.sub(rf'\1=\2{base}/', html)
         return html.replace("</head>", head + "</head>", 1)
 
     @router.api_route(PREFIX, methods=["GET"])

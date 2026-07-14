@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.15
+
+**Fixes the gateway's logo not loading** when you open a gateway tab through the companion.
+
+The proxy rewrites the gateway's absolute paths so the browser asks the GATEWAY for them
+rather than the companion — but it only recognised double quotes, and the gateway writes its
+brand image with single ones (`<img src='/logo.svg'>`). So the logo was the one asset on the
+page still pointing at the companion's root, where there is no /logo.svg. Both quote styles
+now, with the original quote preserved.
+
 ## 1.9.0-beta.14
 
 **Nothing shouts any more.** Every joke, quote, fortune and holiday name in the apps' data
