@@ -186,10 +186,36 @@ class DisplayController:
         several displays the answer differs per wall."""
         return getattr(self.transport, "caps", device.SPLIT_FLAP)
 
+    def _forced_uppercase(self) -> bool:
+        """Has the user asked this wall to shout, even though it need not?"""
+        plugins = getattr(self, "plugins", None)
+        if plugins is None:
+            return False
+        try:
+            v = plugins.settings.get("force_uppercase", "no")
+        except Exception:
+            return False
+        return str(v).strip().lower() in ("1", "true", "yes", "on")
+
+    @property
+    def shows_lowercase(self) -> bool:
+        """Whether this wall will actually SHOW lowercase.
+
+        Two different questions, and keeping them apart is the point:
+
+          caps.lowercase   — what the wall CAN do. A property of the hardware.
+          shows_lowercase  — what it WILL do. The hardware, AND the user's preference.
+
+        Only the second one decides the fold. The first still decides the WIRE protocol: a
+        Matrix Portal asked to shout is still driven by the index-addressed API, and still
+        shows its pictographs and named colours. It is just in capitals.
+        """
+        return self.caps.lowercase and not self._forced_uppercase()
+
     @property
     def rich(self) -> bool:
-        """Shorthand kept for the API surface (Display.status) and the templates."""
-        return bool(self.caps)
+        """What the UI and the API mean by "rich": what the wall will actually show."""
+        return self.shows_lowercase
 
     def _normalize(self, text: str, *, frame: bool = False) -> str:
         """A page, ready for the wire.
@@ -204,7 +230,7 @@ class DisplayController:
         and it is made LAST — after the colours are explicit, so folding can never eat one.
         """
         clean = renderer.normalize(text, self.config.module_count(), frame=frame)
-        return clean if self.caps.lowercase else renderer.fold(clean)
+        return clean if self.shows_lowercase else renderer.fold(clean)
 
     async def _run_manual(self, clean: str, *, style: str | None, speed: int | None) -> None:
         disp = self.config.display

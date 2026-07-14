@@ -199,7 +199,7 @@ def build(displays) -> FastMCP:
         # NOT folded here: the wall does that, last, for everyone (engine._normalize). The
         # `lines` we report back are folded to match what the wall will actually show.
         page = vestaboard.layout_text(text, rows, cols)
-        shown = page if d.controller.caps.lowercase else renderer.fold(page)
+        shown = page if d.controller.shows_lowercase else renderer.fold(page)
         lines = [shown[r * cols:(r + 1) * cols] for r in range(rows)]
 
         if seconds and seconds > 0:

@@ -783,7 +783,14 @@ async function openGlobalSettings() {
     const values = {};
     _formFields.forEach((w) => { const v = w._getValue && w._getValue(); if (v !== undefined) values[w._field.key] = v; });
     msg.textContent = t("Saving…");
-    try { await post("/api/global-settings", { values }); closeModal(); }
+    try {
+      await post("/api/global-settings", { values });
+      // "Always uppercase" changes what the wall will SHOW, so the Compose editor's preview
+      // has to follow it — otherwise it goes on promising lowercase the wall will not give.
+      await loadDisplays();
+      cmpRender();
+      closeModal();
+    }
     catch (e) { msg.textContent = t("Error: %s", e.message); }
   });
   const close = el("button", "btn ghost"); close.textContent = t("Close"); close.addEventListener("click", closeModal);

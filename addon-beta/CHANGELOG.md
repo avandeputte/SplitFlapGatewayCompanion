@@ -3,6 +3,19 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.20
+
+**New setting: "Always uppercase"** (Global settings). Show everything in capitals even on a
+display that *can* render lowercase — for when you prefer the classic split-flap look.
+
+It is **per display**, so one wall can shout while another does not, and it is stored with
+that display's settings, which means it is backed up to that display's gateway like
+everything else.
+
+It costs nothing else: a Matrix Portal told to shout is still driven by the index-addressed
+API, still shows its pictographs, and still gets its colours by name. It is simply in
+capitals — `Hi ♥ 🟥` becomes `HI ♥ [red]`, and `café` becomes `CAFÉ` with its accent intact.
+
 ## 1.9.0-beta.19
 
 **The forecast now says what the weather will be**, not just what colour it is.

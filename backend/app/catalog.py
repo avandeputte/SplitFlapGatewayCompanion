@@ -56,6 +56,11 @@ CATALOG: list[dict] = [
     {"key": "disable_colors", "label": "Disable colors", "type": "toggle", "default": "no",
      "options": [{"value": "no", "label": "No"}, {"value": "yes", "label": "Yes"}],
      "note": "Show up/down and status as text only, without the colored tiles."},
+    {"key": "force_uppercase", "label": "Always uppercase", "type": "toggle", "default": "no",
+     "options": [{"value": "no", "label": "No"}, {"value": "yes", "label": "Yes"}],
+     "note": "Show everything in capitals, even on a display that can render lowercase "
+             "(a Matrix Portal). A real split-flap has no lowercase flaps and is always in "
+             "capitals regardless — this is for when you prefer that look."},
     {"key": "yt_api_key", "label": "YouTube Data API Key", "type": "password",
      "note": "Shared by the YouTube subscriber, comments and livestream apps."},
 ]

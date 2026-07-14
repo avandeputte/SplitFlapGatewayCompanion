@@ -368,3 +368,72 @@ def test_there_is_exactly_one_place_that_folds():
     assert "_cased" not in (app / "main.py").read_text("utf-8")
     engine = (app / "engine.py").read_text("utf-8")
     assert "renderer.fold(clean)" in engine
+
+
+# ---------------------------------------------------------------------------
+# "Always uppercase": what the wall CAN do vs what it WILL do
+# ---------------------------------------------------------------------------
+# A capability is a fact about the hardware; whether to use it is a preference. Keeping the
+# two apart is what lets a Matrix Portal shout WITHOUT giving up anything else it can do:
+# it is still driven by the index-addressed API, still shows its pictographs, still gets its
+# colours by name. It is simply in capitals.
+def _with_setting(value):
+    import tempfile
+    from pathlib import Path
+
+    from app.config import Config
+    from app.engine import DisplayController
+    from app.plugin_settings import PluginSettings
+    from app.plugins import PluginRuntime
+    from app.state import DisplayState
+
+    tmp = Path(tempfile.mkdtemp())
+    cfg = Config(tmp)
+    cfg.update({"grid": {"rows": 1, "cols": 20}})
+    st = PluginSettings(cfg.data_dir)
+    st.set("force_uppercase", value)
+    c = DisplayController(cfg, DisplayState(20))
+    c.attach_plugins(PluginRuntime(cfg, st, APPS, cfg.data_dir / "apps"))
+
+    class T:
+        caps = device.MATRIX_PORTAL
+    c.transport = T()
+    return c
+
+
+APPS = __import__("pathlib").Path(__file__).resolve().parents[2] / "apps"
+
+
+def test_a_matrix_portal_can_be_told_to_shout():
+    c = _with_setting("yes")
+    assert c.caps.lowercase is True, "the hardware can still do it"
+    assert c.shows_lowercase is False, "…the user asked it not to"
+    assert c._normalize("Hello").startswith("HELLO")
+
+
+def test_it_is_off_by_default():
+    c = _with_setting("no")
+    assert c.shows_lowercase is True
+    assert c._normalize("Hello").startswith("Hello")
+
+
+def test_shouting_costs_nothing_else():
+    """Not a fallback to the legacy protocol: the wall keeps its pictographs and its named
+    colours, because those are capabilities and this is only a preference about CASE."""
+    from app import renderer
+    c = _with_setting("yes")
+    page = c._normalize("Hi ♥ 🟥")
+    assert "♥" in page, "the pictograph was thrown away with the lowercase"
+    assert any(renderer.is_color(ch) for ch in page), "the colour flap was lost"
+    assert c.caps.indexed is True, "it must still use the index-addressed API"
+
+
+def test_a_split_flap_shouts_whatever_the_setting_says():
+    """It has no lowercase flaps. The setting cannot turn some on."""
+    c = _with_setting("no")
+
+    class T:
+        caps = device.SPLIT_FLAP
+    c.transport = T()
+    assert c.shows_lowercase is False
+    assert c._normalize("Hello").startswith("HELLO")
