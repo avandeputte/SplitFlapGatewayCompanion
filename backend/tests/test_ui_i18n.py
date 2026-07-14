@@ -273,7 +273,7 @@ def test_flap_fallback_uses_content_language_and_flap_name(tmp_path):
                              "{name}", "NO DATA", "")
     name, msg, _ = page.split("|")
     assert name == "DEMO FR"            # flap_name beats the pretty name
-    assert msg == "Pas de donnees"      # translated via i18n_data.json
+    assert msg == "Pas de données"      # translated via i18n_data.json (accents and all)
     page_en = rt._flap_fallback("demo", {"name": "Demo"},
                                 S({"language": "en-US"}), "{name}", "NO DATA", "")
     assert page_en.split("|")[1] == "NO DATA"

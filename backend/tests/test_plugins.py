@@ -408,8 +408,9 @@ def test_i18n_localizes_labels_and_dates():
     assert i18n.translate("SUNRISE", "fr", "sun") == "Lever"      # key case does not matter
     assert i18n.translate("Sunrise", "zz", "sun") == "Sunrise"      # unknown language -> English
     assert i18n.translate("NOT_A_KEY", "fr", "sun") == "NOT_A_KEY"  # unknown key -> English
-    assert i18n.translate("High", "fr", "weather") == "Eleve"       # a level
-    assert i18n.translate("High", "fr", "tides") == "Haute"         # a tide -> distinct
+    assert i18n.translate("High", "fr", "weather") == "Élevé"       # a level
+    assert i18n.translate("High", "fr", "tides") == "Haute"         # a tide -> distinct,
+    # and it stays distinct: the accents went back in without collapsing the two domains.
     assert i18n.translate("Offline", "fr", "aurora") == "Hors ligne"  # 'common' fallback
     d = date(2026, 1, 5)                                     # a Monday
     # Natural case now — a wall that cannot show lowercase has the companion fold it on

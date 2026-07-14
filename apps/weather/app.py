@@ -229,10 +229,18 @@ def _row(left, right, cols):
 # The sky: a WORD, an intensity, and a colour.
 #
 # The word is what you actually want to know — a colour tells you "wet" but not whether that
-# is drizzle or a downpour. The intensity is a `-` or `+` suffix rather than a separate word
-# (LRain / HRain) because a suffix survives translation: every language gets to keep its own
-# noun and the sign means the same thing everywhere. And it is short, which is the whole
-# problem: a 15-column line has room for a day, a condition and 24/14, and nothing else.
+# is drizzle or a downpour. The intensity is a suffix rather than a separate word (LRain /
+# HRain) because a suffix survives translation: every language gets to keep its own noun and
+# the mark means the same thing everywhere. And it is short, which is the whole problem: a
+# 15-column line has room for a day, a condition and 24/14, and nothing else.
+#
+# The marks are `-` and `!`, and the choice is forced. HEAVY used to be `+`, which is on the
+# English, German and Scandinavian reels — and on NO OTHER. A module asked for a flap it does
+# not carry simply homes, so on a French, Spanish, Italian, Portuguese or Dutch wall "Rain+"
+# came out as "Rain", making a downpour indistinguishable from ordinary rain. The suffix IS
+# the payload here, and it was being silently dropped in exactly the languages that have a
+# reel of their own. `-` and `!` are on every published set (see the wiki's Flaps & Character
+# Sets), so they carry the same meaning to every wall.
 #
 # The colour still comes along when the wall is wide enough for it.
 _SKY = {
@@ -243,11 +251,11 @@ _SKY = {
     'fog':       ('Fog',      '',     '\u2b1c'),
     'rainl':     ('Rain',     '-',    '\U0001f7e6'),   # blue
     'rain':      ('Rain',     '',     '\U0001f7e6'),
-    'rainh':     ('Rain',     '+',    '\U0001f7e6'),
+    'rainh':     ('Rain',     '!',    '\U0001f7e6'),
     'shwr':      ('Shwrs',    '',     '\U0001f7e6'),
     'snowl':     ('Snow',     '-',    '\U0001f7ea'),   # purple
     'snow':      ('Snow',     '',     '\U0001f7ea'),
-    'snowh':     ('Snow',     '+',    '\U0001f7ea'),
+    'snowh':     ('Snow',     '!',    '\U0001f7ea'),
     'sleet':     ('Sleet',    '',     '\U0001f7ea'),
     'storm':     ('Storm',    '',     '\U0001f7e5'),   # red
     'hail':      ('Hail',     '',     '\U0001f7e5'),
