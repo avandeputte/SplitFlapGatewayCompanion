@@ -9,34 +9,56 @@ import asyncio
 
 import pytest
 
-from app import renderer
+from app import device, renderer
 from app.config import Config
 from app.engine import DisplayController
 from app.state import DisplayState
 
 
 def test_normalize_basics():
+    """normalize() sizes the page and makes its colours explicit. It does NOT fold the case:
+    whether to uppercase is a property of the WALL, not of the text, so the engine does it
+    last, once, for everyone (renderer.fold). A Matrix Portal shows "hello"."""
     out = renderer.normalize("hello", 15)
-    assert out == "HELLO".ljust(15)
+    assert out == "hello".ljust(15)
     assert len(out) == 15
+    assert renderer.fold(out) == "HELLO".ljust(15)     # …what a split-flap gets
 
 
 def test_normalize_passes_characters_through():
     # The companion no longer polices characters against a fixed flap set:
     # accents, quotes and currency symbols are all sent verbatim (uppercased);
     # a module blanks anything it lacks.
-    assert renderer.normalize('café "5"€', 20) == 'CAFÉ "5"€'.ljust(20)
-    assert renderer.normalize("groß", 4) == "GROß"     # ß kept (not "SS")
-    assert renderer.normalize("abcdef", 3) == "ABC"    # truncates to n
+    fold = lambda t, n: renderer.fold(renderer.normalize(t, n))     # noqa: E731
+    assert fold('café "5"€', 20) == 'CAFÉ "5"€'.ljust(20)
+    assert fold("groß", 4) == "GROß"                   # ß kept (not "SS")
+    assert renderer.normalize("abcdef", 3) == "abc"    # truncates to n
 
 
 def test_normalize_emoji_color_tiles():
-    assert renderer.normalize("\U0001f7e5\U0001f7e9", 2) == "rg"
+    """A colour tile becomes a COLOUR — its own codepoint, not the letter r or g. It has to
+    be: a wall that can show lowercase can show the letter r, so a page must say which it
+    meant. On the wire a split-flap still gets the byte `r` (renderer.for_legacy)."""
+    out = renderer.normalize("\U0001f7e5\U0001f7e9", 2)
+    assert [renderer.PUA_TO_NAME[c] for c in out] == ["red", "green"]
+    assert "".join(renderer.for_legacy(c) for c in out) == "rg"
 
 
-def test_normalize_raw_keeps_case():
-    # Animation pages pass raw=True so lowercase colour codes survive.
-    assert renderer.normalize("roygbpw", 7, raw=True) == "roygbpw"
+def test_a_frames_lowercase_is_a_colour():
+    """An animation draws with lowercase r/o/y/g/b/p/w — the only way it can ask for a colour
+    flap. `frame=True` is what says so, and it must survive."""
+    out = renderer.normalize("roygbpw", 7, frame=True)
+    assert [renderer.PUA_TO_NAME[c] for c in out] == \
+        ["red", "orange", "yellow", "green", "blue", "purple", "white"]
+    assert renderer.fold(out) == out, "folding must never eat a colour"
+
+
+def test_words_keep_their_letters():
+    """…and the same characters in WORDS are letters. This is the whole distinction, and
+    getting it wrong is how "Hello" came out as "Hell<orange>"."""
+    out = renderer.normalize("roygbpw", 7)
+    assert out == "roygbpw"
+    assert not any(renderer.is_color(c) for c in out)
 
 
 @pytest.mark.parametrize("style", renderer.ORDERED_STYLES)

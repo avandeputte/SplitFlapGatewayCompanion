@@ -84,7 +84,7 @@ def _forecast(pages, rows, cols):
 def _dots(pages, rows, cols):
     """The first cell of each DAY line, as a colour name."""
     p = next(pg for pg in pages if "FORECAST" in pg)
-    p = renderer.colorize(renderer.normalize(p, rows * cols))
+    p = (renderer.normalize(p, rows * cols))
     out = []
     seen_header = False
     for r in range(rows):

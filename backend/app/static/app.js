@@ -26,6 +26,7 @@ const BASE = window.__BASE__ || "";
 // addresses a display by PATH (/gw/<id>/), because it rewrites the proxied page's own
 // links and a query param would be lost on the first click inside it.
 let DISPLAY = "";                 // active display id ("" until we've loaded them)
+let RICH = false;                 // can THIS wall show lowercase? (a Matrix Portal can)
 let DISPLAYS = [];                // [{id, name, grid, module_count, ...}]
 let DEFAULT_DISPLAY = "default";
 
@@ -196,9 +197,14 @@ let CMP_AT = 0;            // focused cell
 let EMOJI2CODE = {};       // 🟥 -> r      (from /api/grid)
 const isEmoji = (v) => Object.prototype.hasOwnProperty.call(EMOJI2CODE, v);
 
-// Uppercase the way the server will (renderer.cp1252_upper): never let a glyph
+// Uppercase the way the server will (renderer.fold / cp1252_upper): never let a glyph
 // expand, so "ß" stays "ß" instead of becoming "SS" and silently eating a cell.
+//
+// …and ONLY when the wall would. A Matrix Portal has lowercase flaps, so shouting the
+// editor back at someone who typed "Hello" made the preview lie about what the wall is
+// about to show. RICH is the active display's capability (see loadDisplays).
 function cmpUpper(ch) {
+  if (RICH) return ch;
   const u = ch.toUpperCase();
   return u.length === 1 ? u : ch;
 }
@@ -1337,6 +1343,9 @@ async function loadDisplays() {
   const remembered = localStorage.getItem("splitflap.display");
   const known = (id) => DISPLAYS.some((d) => d.id === id && d.enabled !== false);
   DISPLAY = known(remembered) ? remembered : DEFAULT_DISPLAY;
+
+  const me = DISPLAYS.find((d) => d.id === DISPLAY);
+  RICH = !!(me && me.rich);
 
   const sel = $("displaySel");
   sel.innerHTML = "";

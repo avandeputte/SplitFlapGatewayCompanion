@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from .. import renderer
+from .. import device, renderer
 from .base import DisplayTransport, frame_for
 
 log = logging.getLogger("companion.transport.rest")
@@ -44,10 +44,9 @@ class RestTransport(DisplayTransport):
         self._client = None
         self._connected = False
         self._last_error: str | None = None
-        # Does this wall have the index-addressed API (lowercase, pictographs, named
-        # colours)? Probed on connect — it is a property of the gateway on the other end,
-        # not a setting, and with several displays the answer differs per wall.
-        self.cells = False
+        # What the wall on the other end can show. Probed on connect: it is a property of
+        # the gateway, not a setting, and with several displays the answer differs per wall.
+        self.caps = device.SPLIT_FLAP
         # What we last put in each module. Lets us send `skip` for the cells that did not
         # change: a clock repainting 75 modules every second to move one digit is traffic
         # the wall does not need, and flaps that should not be moving.
@@ -74,14 +73,13 @@ class RestTransport(DisplayTransport):
             log.warning("REST %s", self._last_error)
         # …and ask what it CAN do.
         try:
-            from ..gateway import supports_cells
             cfg = (await self._client.get("/api/config")).json()
-            self.cells = supports_cells(cfg)
-            if self.cells:
-                log.info("gateway %s: index-addressed display API — lowercase, "
-                         "pictographs and named colours are available", self.base)
+            self.caps = device.of(cfg)
+            if self.caps.indexed:
+                log.info("gateway %s is a Matrix Portal — lowercase, pictographs and named "
+                         "colours are available", self.base)
         except Exception:
-            self.cells = False
+            self.caps = device.SPLIT_FLAP
 
     async def close(self) -> None:
         if self._client is not None:
@@ -170,7 +168,7 @@ class RestTransport(DisplayTransport):
         """
         if self._client is None:
             raise RuntimeError("REST transport not connected")
-        if self.cells:
+        if self.caps.indexed:
             try:
                 await self._send_cells(frames, step_ms)
                 self._connected = True

@@ -687,17 +687,6 @@ class DisplayPatch(BaseModel):
     order: int | None = None
 
 
-def _cased(d, text: str) -> str:
-    """User text, in the case the wall can actually show it in.
-
-    A physical split-flap has no lowercase flaps to turn to, and the one-byte protocol has
-    no lowercase byte to send — the byte for `r` means RED. A Matrix Portal has both, so
-    text a person typed is shown as they typed it instead of being SHOUTED BACK AT THEM.
-    cp1252_upper (rather than str.upper) is what keeps an accent a single cell wide.
-    """
-    return text if d.controller.rich else renderer.cp1252_upper(text)
-
-
 # ---------------------------------------------------------------------------
 # API
 # ---------------------------------------------------------------------------
@@ -1332,7 +1321,7 @@ async def compose_send(request: Request, req: ComposeRequest):
     # …unless it is `raw`, which is the click-to-type GRID: there a lowercase r/o/y/g/b/p/w
     # is a COLOUR CELL the user placed, not a letter they typed.
     target = d.controller.send_text_bg(req.text, style=req.style, speed=req.speed,
-                                       raw=req.raw, keep_case=not req.raw)
+                                       frame=req.raw)
     return {"ok": True, "target": target}
 
 
@@ -1350,15 +1339,13 @@ async def show_message(request: Request, req: MessageRequest):
         raise HTTPException(400, f"unknown style: {req.style}")
     g = d.config.grid
     rows, cols = int(g["rows"]), int(g["cols"])
-    page = vestaboard.layout_text(_cased(d, req.text), rows, cols)
+    page = vestaboard.layout_text(req.text, rows, cols)
     if req.seconds and req.seconds > 0:
         running = d.controller.show_temporary(page, req.seconds, style=req.style or "ltr")
         d.ha.publish_state()
         return {"ok": True, "seconds": req.seconds,
                 "reverts_to": "app/playlist" if running else "blank"}
-    # raw: the page is already laid out. keep_case: it is made of WORDS — its `o` is the
-    # letter o, not an orange flap.
-    d.controller.send_text_bg(page, style=req.style, raw=True, keep_case=True)
+    d.controller.send_text_bg(page, style=req.style)
     d.ha.publish_state()
     return {"ok": True}
 
@@ -1535,9 +1522,6 @@ async def vb_send_message(request: Request, display_id: str | None = None):
     g = d.config.grid
     rows, cols = int(g["rows"]), int(g["cols"])
     strategy = None
-    # Only the {"text": ...} shape is WORDS, and only words need their case kept. The matrix
-    # shapes are decoded cells, in which a colour is already its own codepoint.
-    is_text = isinstance(body, dict) and isinstance(body.get("text"), str)
 
     try:
         if isinstance(body, list):                       # the bare-matrix form
@@ -1549,7 +1533,7 @@ async def vb_send_message(request: Request, display_id: str | None = None):
             strategy = body.get("strategy")
             # The board has no lowercase flaps; uppercase exactly the way every other
             # text path here does (cp1252-aware, so accents survive as one cell).
-            page = vestaboard.layout_text(_cased(d, body["text"]), rows, cols)
+            page = vestaboard.layout_text(body["text"], rows, cols)
         else:
             raise HTTPException(422, "expected a character matrix, {\"characters\": [[...]]}, "
                                      "or {\"text\": \"...\"}")
@@ -1557,9 +1541,9 @@ async def vb_send_message(request: Request, display_id: str | None = None):
         raise HTTPException(422, str(e))
 
     style = vestaboard.style_for(strategy, d.config.display.get("transition_style", "ltr"))
-    # raw=True: the codec already produced final characters, and uppercasing here
-    # would turn every colour chip (lowercase r/o/y/g/b/p/w) into a letter.
-    d.controller.send_text_bg(page, style=style, raw=True, keep_case=is_text)
+    # Not a frame: the codec already turned every colour chip into a COLOUR (its own
+    # codepoint), so nothing here is a lowercase letter standing in for one.
+    d.controller.send_text_bg(page, style=style)
     d.ha.publish_state()
     # 201, not 200: the real Local API returns 201 Created on a successful write, and
     # clients treat anything else as failure (ha-vestaboard's coordinator raises

@@ -3,6 +3,21 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 1.9.0-beta.18
+
+**Fixes triggers painting colour flaps through the words.** A trigger's page was treated as
+an *animation* — where a lowercase r, o, y, g, b, p or w means a COLOUR FLAP. That was
+harmless while every app SHOUTED its own output, so no lowercase could reach it. The apps
+stopped doing that in beta.13, and since then "Partly cloudy" has been arriving with a red,
+an orange and a yellow flap in the middle of it. Triggers now show words; only a real
+animation paints.
+
+**Also fixes the Compose editor shouting at you** on a Matrix Portal: it uppercased the
+preview whatever wall you were on, so it lied about what the wall was going to show.
+
+Under the hood, the two device types are now one idea in one file, which is what surfaced
+both bugs.
+
 ## 1.9.0-beta.17
 
 **Weather gets a forecast.** A page of the coming days — one line each, the day's sky as a

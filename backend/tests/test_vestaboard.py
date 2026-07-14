@@ -8,7 +8,7 @@ real Vestaboard client relies on (auth header, payload shapes, 6x22 → this wal
 import pytest
 from fastapi.testclient import TestClient
 
-from app import vestaboard as vb
+from app import device, vestaboard as vb
 
 ROWS, COLS = 3, 15   # the companion's default grid — and a Vestaboard Note
 
@@ -165,8 +165,8 @@ def client(monkeypatch):
 
     sent = {}
 
-    def fake_send(text, style=None, speed=None, raw=False, keep_case=False):
-        sent.update(text=text, style=style, raw=raw)
+    def fake_send(text, style=None, speed=None, frame=False):
+        sent.update(text=text, style=style, frame=frame)
         return text
 
     monkeypatch.setattr(main.config, "set_vestaboard", main.config.set_vestaboard)
@@ -193,7 +193,9 @@ def test_post_a_matrix_takes_over_the_display(client):
     assert r.status_code == 201 and r.json() == {"ok": True}
     # send_text_bg is the same call a compose push makes: it cancels any running app.
     assert client.sent["text"] == "".join(rows)
-    assert client.sent["raw"] is True        # or every colour chip becomes a letter
+    # NOT a frame: the codec already turned every colour chip into a COLOUR (its own
+    # codepoint), so no lowercase letter here is standing in for one.
+    assert client.sent["frame"] is False
 
 
 def test_post_characters_with_a_strategy(client):
@@ -206,7 +208,7 @@ def test_post_characters_with_a_strategy(client):
 def test_post_text_the_home_assistant_way(client):
     r = client.post("/local-api/message", json={"text": "hello world"}, headers=AUTH)
     assert r.status_code == 201
-    assert "HELLO WORLD" in client.sent["text"]     # uppercased: there are no lowercase flaps
+    assert "hello world" in client.sent["text"]     # uppercased: there are no lowercase flaps
 
 
 def test_colour_chips_become_colour_flaps(client):

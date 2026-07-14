@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from . import gateway, renderer
+from . import device, gateway, renderer
 from .config import Config
 from .state import DisplayState
 from .transport import DisplayTransport, SimTransport, build_transport
@@ -154,13 +154,12 @@ class DisplayController:
         self.state.playlist_entries = None
 
     def send_text_bg(self, text: str, style: str | None = None,
-                     speed: int | None = None, raw: bool = False,
-                     keep_case: bool = False) -> str:
+                     speed: int | None = None, frame: bool = False) -> str:
         """Stop any app/playlist and show ``text`` (background). Returns target.
 
-        ``keep_case`` is for text a PERSON typed: on a wall that can show lowercase, it is
-        shown as they typed it. Ignored on a wall that cannot."""
-        clean = self._normalize(text, raw=raw, keep_case=keep_case)
+        ``frame``: the text is a FRAME, not words — its lowercase r/o/y/g/b/p/w are the
+        COLOUR FLAPS. That is what an animation and a raw colour grid are."""
+        clean = self._normalize(text, frame=frame)
         self._clear_driver_flags()
         # A manual message replaces whatever was playing, so there is nothing to come
         # back to — a restart should leave the board alone, not resurrect the old app.
@@ -172,56 +171,40 @@ class DisplayController:
         return clean
 
     async def send_text(self, text: str, style: str | None = None,
-                        speed: int | None = None, raw: bool = False,
-                        keep_case: bool = False) -> str:
+                        speed: int | None = None, frame: bool = False) -> str:
         """Send and await completion (used by tests / synchronous callers)."""
         await self._cancel_task()
         self._clear_driver_flags()
         self._remember(None)                       # as send_text_bg — a manual takeover
-        clean = self._normalize(text, raw=raw, keep_case=keep_case)
+        clean = self._normalize(text, frame=frame)
         await self._run_manual(clean, style=style, speed=speed)
         return clean
 
     @property
+    def caps(self) -> device.Capabilities:
+        """What THIS wall can show. A property of the gateway on the other end, so with
+        several displays the answer differs per wall."""
+        return getattr(self.transport, "caps", device.SPLIT_FLAP)
+
+    @property
     def rich(self) -> bool:
-        """Whether THIS wall can show lowercase, accents and pictographs — i.e. whether its
-        gateway has the index-addressed display API. That is a property of the gateway on
-        the other end, so with several displays the answer differs per wall."""
-        return bool(getattr(self.transport, "cells", False))
+        """Shorthand kept for the API surface (Display.status) and the templates."""
+        return bool(self.caps)
 
-    def _normalize(self, text: str, *, raw: bool, keep_case: bool = False) -> str:
-        """Two INDEPENDENT questions, which `raw` used to answer at once — and that is what
-        turned the o, r and w of "Hello world" into colour flaps.
+    def _normalize(self, text: str, *, frame: bool = False) -> str:
+        """A page, ready for the wire.
 
-          raw        — the text is already laid out; do not re-wrap or fold it.
-          keep_case  — a lowercase letter is a LETTER.
+        `frame` is the ONE question the caller has to answer: is a lowercase letter in this
+        text a COLOUR (an animation, a raw colour grid) or a LETTER (words)? It used to be
+        two flags — `raw` and `keep_case` — which were the same axis inverted, and whose
+        fourth combination silently destroyed an animation's colours.
 
-        A composed message is both: laid out by the caller, and made of words. An ANIMATION
-        is raw and NOT keep_case: its lowercase r/o/y/g/b/p/w are the COLOUR FLAPS, which is
-        the only way an animation can ask for one. Conflating the two meant every message
-        containing an `o` grew an orange flap in the middle of it.
+        Folding is not the caller's business. A wall with no lowercase flaps gets uppercase;
+        a Matrix Portal does not. That decision belongs to the wall, it is made here, once,
+        and it is made LAST — after the colours are explicit, so folding can never eat one.
         """
-        # keep_case is the CALLER's statement that this text is made of WORDS — so a
-        # lowercase r is the letter r, not the red flap. It is not the wall's business, and
-        # gating it on the wall was a bug: on a physical wall the intent was discarded and
-        # "Hello world" had its o, r and w eaten by colorize below. The wall decides only
-        # the final fold.
-        keep = keep_case
-        clean = renderer.normalize(text, self.config.module_count(), raw=raw, keep_case=keep)
-        # Every page reaching a transport says explicitly which cells are COLOURS. Where the
-        # case is kept, normalize already did it (a colour tile became its own codepoint);
-        # otherwise the lowercase colour codes ARE colours, and saying so here is what stops
-        # the transport from having to guess.
-        clean = clean if keep else renderer.colorize(clean)
-
-        # THE LAST WORD ON CASE. A wall with no lowercase flaps gets uppercase, whatever the
-        # caller passed — `raw` skips the fold, so without this a composed message could go
-        # out lowercase to a wall that cannot show it. Colours are exempt: they are no longer
-        # letters, so there is nothing to fold.
-        if not self.rich:
-            clean = "".join(c if renderer.is_color(c) else renderer.cp1252_upper(c)
-                            for c in clean)
-        return clean
+        clean = renderer.normalize(text, self.config.module_count(), frame=frame)
+        return clean if self.caps.lowercase else renderer.fold(clean)
 
     async def _run_manual(self, clean: str, *, style: str | None, speed: int | None) -> None:
         disp = self.config.display
@@ -275,7 +258,7 @@ class DisplayController:
 
     async def clear(self) -> str:
         """Blank the whole display."""
-        return await self.send_text(" " * self.config.module_count(), style="ltr", raw=True)
+        return await self.send_text(" " * self.config.module_count(), style="ltr")
 
     async def home_all(self) -> bool:
         """Physically home every module and blank the preview.
@@ -341,7 +324,7 @@ class DisplayController:
                 text = page if isinstance(page, str) else str(page.get("text", ""))
                 # Non-anim apps skip re-sending an unchanged page.
                 if t["is_anim"] or text != last_sent:
-                    clean = self._normalize(text, raw=t["is_anim"], keep_case=not t["is_anim"])
+                    clean = self._normalize(text, frame=t["is_anim"])
                     await self._emit_page(clean, style=t["style"], speed=t["speed"])
                     last_sent = text
                 await asyncio.sleep(max(0.0, float(t["loop_delay"])))
@@ -378,7 +361,7 @@ class DisplayController:
                 if etype == "compose":
                     self.state.current_app = None      # a composed entry, not an app
                     await self._wait_if_interrupted()
-                    clean = self._normalize(entry.get("text", ""), raw=False, keep_case=True)
+                    clean = self._normalize(entry.get("text", ""))
                     await self._emit_page(clean, style=entry.get("style", "ltr"),
                                           speed=int(entry.get("speed", 15)))
                     await asyncio.sleep(duration)
@@ -411,7 +394,7 @@ class DisplayController:
                             await self._wait_if_interrupted()
                             text = page if isinstance(page, str) else str(page.get("text", ""))
                             if t["is_anim"] or text != last_sent:
-                                clean = self._normalize(text, raw=t["is_anim"], keep_case=not t["is_anim"])
+                                clean = self._normalize(text, frame=t["is_anim"])
                                 await self._emit_page(clean, style=t["style"], speed=t["speed"])
                                 last_sent = text
                             await asyncio.sleep(max(0.0, float(t["loop_delay"])))
@@ -425,8 +408,14 @@ class DisplayController:
             await asyncio.sleep(0.1)
 
     async def fire_interrupt(self, text: str, seconds: float, *, style: str = "ltr",
-                             raw: bool = True, blank_if_idle: bool = False) -> None:
+                             frame: bool = False, blank_if_idle: bool = False) -> None:
         """Briefly show ``text`` over whatever is running, then let it resume.
+
+        `frame` defaults to FALSE — words. It used to default to "raw", i.e. "a lowercase
+        letter is a colour flap", which was harmless only while every app uppercased its own
+        output. They stopped, so a trigger on any app whose page contained a lowercase r, o,
+        y, g, b, p or w was quietly sprinkling COLOUR FLAPS through it: "Partly cloudy" came
+        out with an orange, a white and a yellow flap in the middle of the words.
 
         While interrupting, the app/playlist loops park on ``_wait_if_interrupted`` and pick
         back up the moment it clears — that is what makes this a *temporary* takeover rather
@@ -435,7 +424,7 @@ class DisplayController:
         async with self._interrupt_lock:
             self._interrupting = True
             try:
-                clean = self._normalize(text, raw=raw)
+                clean = self._normalize(text, frame=frame)
                 await self._emit_page(clean, style=style,
                                       speed=int(self.config.display.get("transition_speed", 15)))
                 await asyncio.sleep(max(0.0, seconds))
@@ -447,7 +436,7 @@ class DisplayController:
             await self.clear()
 
     def show_temporary(self, text: str, seconds: float, *, style: str = "ltr",
-                       raw: bool = True) -> bool:
+                       frame: bool = False) -> bool:
         """Show ``text`` for ``seconds``, then revert — to whatever was running, or to
         blank if nothing was. Runs in the background (a message can last minutes; the
         caller shouldn't block on it) and returns whether something was playing to come
@@ -455,5 +444,5 @@ class DisplayController:
         running = bool(self.active_app or self.active_playlist)
         # Keep a reference: a bare create_task() can be garbage-collected mid-sleep.
         self._temp_task = asyncio.create_task(
-            self.fire_interrupt(text, seconds, style=style, raw=raw, blank_if_idle=True))
+            self.fire_interrupt(text, seconds, style=style, frame=frame, blank_if_idle=True))
         return running

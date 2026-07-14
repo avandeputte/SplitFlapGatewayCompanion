@@ -88,7 +88,10 @@ class Scheduler:
                 if pages:
                     text = pages[0] if isinstance(pages[0], str) else str(pages[0].get("text", ""))
                     log.info("trigger fired: %s (%s)", trig.get("name", tid), app_id)
-                    await self.c.fire_interrupt(text, secs)
+                    # Only an ANIMATION draws with lowercase colour codes. Treating every
+                    # trigger page as one put colour flaps in the middle of ordinary words.
+                    await self.c.fire_interrupt(text, secs,
+                                                frame=self.plugins.is_anim(app_id))
 
     async def _trigger_loop(self) -> None:
         try:

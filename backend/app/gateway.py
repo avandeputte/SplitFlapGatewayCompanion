@@ -266,25 +266,10 @@ def supports_settings(gw: dict) -> bool:
 
 
 def supports_cells(gw: dict) -> bool:
-    """Whether this gateway has the index-addressed display API (POST /api/display/cells).
-
-    That endpoint is what makes lowercase, accents and pictographs possible at all. The
-    legacy wire carries one byte per character and spent seven of its letters on colours —
-    the byte for `r` MEANS RED — so on that path lowercase *must* fold to uppercase, and a
-    heart, having no Windows-1252 byte, cannot be addressed by character in any way. Both
-    flaps exist on the reel; they are simply unreachable except by index.
-
-    It is a MATRIX PORTAL capability, not a gateway-API level: the API version stays 3.1
-    (it is the API level, not the firmware's). Those modules are drawn rather than
-    physical, which is why they can carry 237 flaps instead of a reel's 64. So this is
-    keyed on the product and its firmware version — and it is per DISPLAY, because one
-    companion can now drive a Matrix Portal and a physical wall side by side, and they do
-    not have the same alphabet.
-    """
-    if "matrix portal" not in str(gw.get("product") or "").lower():
-        return False
-    m = re.search(r"(\d+)\.(\d+)", str(gw.get("fwVersion") or ""))
-    return bool(m) and (int(m.group(1)), int(m.group(2))) >= (1, 6)
+    """Deprecated: ask device.of(gw) instead — it says WHAT the wall can do, not merely
+    which endpoint it has. Kept because it reads well at a call site that only wants a yes."""
+    from .device import of
+    return bool(of(gw))
 
 
 # --- companion settings blob, stored on the gateway (3.1+), gzipped -----------

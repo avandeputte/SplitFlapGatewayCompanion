@@ -190,14 +190,17 @@ def build(displays) -> FastMCP:
         d = _res(display)
         rows, cols = _grid(d)
         # The same two steps a Vestaboard text write makes, and for the same reasons:
-        # a physical board has no lowercase flaps (cp1252_upper keeps accents one cell wide;
-        # a Matrix Portal has them, and keeps the text as written),
+        # The wall folds the case, last, for everyone (engine._normalize) — a physical board
+        # has no lowercase flaps; a Matrix Portal has them and keeps the text as written. We
+        # only fold the lines we REPORT, so what we tell the caller matches what it will see.
         # and layout_text is the shared "centre it on the wall" layout. The result is
         # final characters, so it must go out raw — otherwise a colour flap (lowercase
         # r/o/y/g/b/p/w) would be uppercased into a letter.
-        page = vestaboard.layout_text(
-            text if d.controller.rich else renderer.cp1252_upper(text), rows, cols)
-        lines = [page[r * cols:(r + 1) * cols] for r in range(rows)]
+        # NOT folded here: the wall does that, last, for everyone (engine._normalize). The
+        # `lines` we report back are folded to match what the wall will actually show.
+        page = vestaboard.layout_text(text, rows, cols)
+        shown = page if d.controller.caps.lowercase else renderer.fold(page)
+        lines = [shown[r * cols:(r + 1) * cols] for r in range(rows)]
 
         if seconds and seconds > 0:
             # A temporary takeover: the running app/playlist parks and resumes after. Runs
@@ -211,7 +214,7 @@ def build(displays) -> FastMCP:
         # the transition. A Compose push can return early because a human is watching
         # the wall — an agent is not, and it will call get_display next. If the tool
         # returned while the flaps were still turning, it would read back the OLD board.
-        await d.controller.send_text(page, style=style, raw=True)
+        await d.controller.send_text(page, style=style)
         d.ha.publish_state()
         return {"ok": True, "lines": lines}
 

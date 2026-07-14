@@ -124,45 +124,52 @@ def cp1252_upper(text: str) -> str:
     return "".join(out)
 
 
-def normalize(text: str, n: int, *, raw: bool = False, keep_case: bool = False) -> str:
-    """Normalize display text to exactly ``n`` module characters.
+def normalize(text: str, n: int, *, frame: bool = False) -> str:
+    """Normalize display text to exactly ``n`` module characters, and make its COLOURS
+    explicit so that nothing downstream has to guess.
 
-    Uppercase (unless ``raw`` — animation pages keep their lowercase colour codes — or
-    ``keep_case``, on a wall that can actually show lowercase), turn colour tiles into
-    colour cells, then pad/truncate to ``n``.
+    ONE question decides everything here:
 
-    ``keep_case`` is what the Matrix Portal's index-addressed API buys: text the user
-    actually typed keeps the case they typed it in. It is deliberately NOT used for app
-    output — 34 of the 60 apps call .upper() on their own strings, so there is nothing left
-    to preserve there, and an app that emits a lowercase colour code means the COLOUR.
+        **Is a lowercase letter in this page a COLOUR, or a LETTER?**
 
-    The companion does NOT police characters: accents, punctuation, quotes, currency
-    symbols are passed through verbatim. Uppercasing is Windows-1252-aware (see
-    ``cp1252_upper``) so single-byte accents and ``ß`` survive intact.
+    ``frame=True`` says COLOUR. That is the splitflap-os convention and the only way an
+    animation can ask for one: art-clock and the anim_* apps draw with lowercase
+    r/o/y/g/b/p/w, and a raw grid from the Compose editor may too. Such a page must NOT be
+    folded here, because folding it would turn its colours into the letters R, O, Y…
+    before anyone could tell they were colours.
+
+    ``frame=False`` (the default) says LETTER — a page made of WORDS. Its colours can only
+    have come from a colour tile (🟥, 🟩 …), which is unambiguous.
+
+    Either way the result says explicitly which cells are colours (COLOR_PUA), so a
+    transport, the live preview and the Vestaboard codec never have to decide whether the
+    `o` of "Hello" is the letter o or the orange flap. They did have to, once, and it came
+    out as "Hell<orange>".
+
+    NOTE what is NOT decided here: whether to UPPERCASE. That is not a property of the
+    text, it is a property of the WALL — a reel with no lowercase flaps gets uppercase, a
+    Matrix Portal does not — so the engine does it last, once, for everyone. This used to
+    be two overlapping flags (``raw`` and ``keep_case``) which encoded the same axis
+    inverted, and whose fourth combination silently destroyed an animation's colours.
     """
-    clean = text if (raw or keep_case) else cp1252_upper(text)
-    for emoji, code in COLOR_MAP.items():
-        # Only when the case is being kept does a colour need its own codepoint: there a
-        # lowercase `r` is the LETTER r, so a colour tile cannot be carried as one. On every
-        # other path nothing is lowercase except a colour code, exactly as before — so those
-        # pages come out byte-for-byte identical to what they have always been.
-        clean = clean.replace(emoji, COLOR_PUA[code] if (keep_case and code in COLOR_PUA) else code)
+    clean = str(text)
+    for tile, code in COLOR_MAP.items():
+        clean = clean.replace(tile, COLOR_PUA.get(code, code))
+    if frame:
+        # In a frame, a lowercase colour code IS a colour. Say so, before anything else can
+        # mistake it for a letter.
+        clean = "".join(COLOR_PUA.get(c, c) if c in COLOR_CODES else c for c in clean)
     return clean.ljust(n)[:n]
 
 
-def colorize(page: str) -> str:
-    """Make a legacy page say what it means.
+def fold(page: str) -> str:
+    """A wall with no lowercase flaps gets uppercase — every cell that is not a colour.
 
-    In a page that was uppercased (or is a RAW animation frame), a lowercase colour code IS
-    a colour — nothing else in it can be lowercase. That was fine while the wall could only
-    show uppercase. It is NOT fine now: a Matrix Portal can show a lowercase `o`, so a
-    transport handed a bare `o` has no way to know whether the page meant the LETTER o or
-    the ORANGE FLAP. Guessing is how "Hello" comes out as "Hell<orange>".
-
-    So the ambiguity is resolved HERE, at the one place that still knows which kind of page
-    this is, and every page reaching a transport is explicit about its colours.
+    The wall has the LAST word on case, and it is the only one that has any word on it. A
+    caller that folded early (as two of them did) discarded the one thing a Matrix Portal
+    was for, and a caller that forgot to fold sent lowercase to a reel that has none.
     """
-    return "".join(COLOR_PUA.get(c, c) if c in COLOR_CODES else c for c in page)
+    return "".join(c if is_color(c) else cp1252_upper(c) for c in page)
 
 
 def for_legacy(ch: str) -> str:

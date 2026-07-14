@@ -17,11 +17,11 @@ def client(monkeypatch):
 
     calls = {}
 
-    def fake_send(text, style=None, speed=None, raw=False, keep_case=False):
-        calls["send"] = {"text": text, "style": style, "raw": raw}
+    def fake_send(text, style=None, speed=None, frame=False):
+        calls["send"] = {"text": text, "style": style, "frame": frame}
         return text
 
-    def fake_temp(text, seconds, *, style="ltr", raw=True):
+    def fake_temp(text, seconds, *, style="ltr", frame=False):
         calls["temp"] = {"text": text, "seconds": seconds, "style": style}
         return True                      # pretend something was running
 
@@ -39,8 +39,10 @@ def test_a_message_is_centred_on_the_board(client):
     page = client.calls["send"]["text"]
     assert len(page) == ROWS * COLS
     lines = [page[i * COLS:(i + 1) * COLS] for i in range(ROWS)]
-    assert "HELLO WORLD" in "".join(lines)         # uppercased, laid out
-    assert client.calls["send"]["raw"] is True     # final chars, sent raw
+    assert "hello world" in "".join(lines)         # uppercased, laid out
+    # NOT a frame: it is made of WORDS. A frame would mean "a lowercase r is the RED
+    # FLAP", which is how "Hello world" grew an orange flap in the middle of it.
+    assert client.calls["send"]["frame"] is False
 
 
 def test_seconds_makes_it_a_temporary_takeover(client):
