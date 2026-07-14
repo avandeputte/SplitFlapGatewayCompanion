@@ -72,12 +72,46 @@ class RestTransport(DisplayTransport):
             self._last_error = f"gateway unreachable: {e}"
             log.warning("REST %s", self._last_error)
         # …and ask what it CAN do.
+        await self.probe_capabilities()
+
+    async def probe_capabilities(self) -> None:
+        """Ask the wall what it can show. Called on connect, and again on a resync.
+
+        ASKED, not inferred. The gateway knows its own reel — it is the thing that configures
+        the modules — and now it will tell us: which characters every module carries, whether
+        it has lowercase and pictograph flaps, whether colours are named. We used to guess all
+        of that from the product name and a firmware number, which could not see a physical
+        wall's alphabet at all.
+
+        A gateway too old to answer falls back to the guess, and keeps working exactly as it
+        did.
+        """
+        if self._client is None:
+            return
+        try:
+            r = await self._client.get("/api/capabilities")
+            caps = device.from_capabilities(r.json()) if r.status_code < 400 else None
+        except Exception:
+            caps = None
+
+        if caps is not None:
+            self.caps = caps
+            log.info(
+                "gateway %s: %d characters on every module%s%s%s", self.base,
+                len(caps.charset),
+                "" if caps.uniform else " (a MIXED wall — this is the intersection)",
+                ", lowercase" if caps.lowercase else "",
+                ", pictographs" if caps.pictographs else "",
+            )
+            return
+
+        # Older firmware: no /api/capabilities. Guess from the product, as we always did — and
+        # accept that we do not know this wall's alphabet, so nothing gets degraded for it.
         try:
             cfg = (await self._client.get("/api/config")).json()
             self.caps = device.of(cfg)
-            if self.caps.indexed:
-                log.info("gateway %s is a Matrix Portal — lowercase, pictographs and named "
-                         "colours are available", self.base)
+            log.info("gateway %s has no /api/capabilities; assuming %s from its product name",
+                     self.base, "a Matrix Portal" if self.caps.indexed else "a split-flap")
         except Exception:
             self.caps = device.SPLIT_FLAP
 

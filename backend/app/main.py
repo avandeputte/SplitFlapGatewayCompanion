@@ -214,6 +214,19 @@ async def do_gateway_sync(d=None) -> dict:
         # A sync only touches grid (resized above) and the HA MQTT broker; the
         # REST display transport depends only on gateway_url, which sync never
         # changes, so there's nothing to reload here.
+
+    # Re-ask what the wall can show. Capabilities are not fixed for the life of a process: the
+    # gateway can be re-flashed to a firmware that grows a feature, and a module can be swapped
+    # for one carrying a different reel. Probing only at boot would leave the companion driving
+    # today's wall with last week's answer — folding case it no longer needs to fold, or
+    # sending a character that is no longer on the reel.
+    probe = getattr(controller.transport, "probe_capabilities", None)
+    if probe is not None:
+        try:
+            await probe()
+        except Exception as e:                       # a resync must not fail over this
+            log.debug("capabilities re-probe failed [%s]: %s", d.id, e)
+
     return {
         "ok": True,
         "applied": patch,

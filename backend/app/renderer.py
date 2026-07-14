@@ -172,6 +172,81 @@ def fold(page: str) -> str:
     return "".join(c if is_color(c) else cp1252_upper(c) for c in page)
 
 
+# Stand-ins, ONE CHARACTER FOR ONE CHARACTER. That constraint is not stylistic: a page is a
+# fixed grid of modules, one cell per character, so a two-character stand-in would shift every
+# cell after it and re-wrap the line. Which means the honest expansions — ss for ss, ae for ae —
+# are not available here, and the best we can do is the first letter. It is a visible
+# compromise ("STRASE"), but it is legible, and the alternative is a homed module and "STRA E".
+#
+# Typographic punctuation is the common case, and the happiest one: a news feed sends curly
+# quotes and an em dash, no 64-flap reel carries either, and the ASCII forms are exactly right.
+_LOOKALIKE = {
+    "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',   # curly quotes
+    "\u2013": "-", "\u2014": "-", "\u2212": "-",                   # en dash, em dash, minus
+    "\u2026": ".",                                                 # ellipsis
+    "\u00a0": " ", "\u2007": " ", "\u202f": " ",                   # the non-breaking spaces
+    "\u00b7": ".", "\u2022": ".",                                  # middot, bullet
+    ":": ".",       # a reel with no colon (the fr-FR one) still reads "15.30" as a time
+    "\u00d7": "X", "\u00f7": "/",
+    "\u00df": "S",                          # SS would not fit in one cell -- see above
+    "\u00e6": "A", "\u00c6": "A", "\u0153": "O", "\u0152": "O",
+}
+
+
+def _strip_accent(ch: str) -> str:
+    """É -> E. One character in, one character out, or "" if there is nothing under it."""
+    import unicodedata
+
+    decomposed = unicodedata.normalize("NFD", ch)
+    base = "".join(c for c in decomposed if not unicodedata.combining(c))
+    return base if len(base) == 1 else ""
+
+
+def degrade(page: str, caps) -> str:
+    """Replace every character this wall cannot show with the best one it CAN.
+
+    This exists because of how a split-flap fails. Send a module a character that is not
+    printed on its reel and it does not complain, it does not substitute, and nothing upstream
+    hears about it: it HOMES. You get a blank cell in the middle of a word, and the only way
+    anyone finds out is by looking at the wall.
+
+    Until the gateway grew /api/capabilities we could not do anything about that, because we
+    did not know what was on the reel — which is why the shipped translations were written in
+    stripped-down ASCII, and why "Prévu" was a risk nobody could take. Now the wall tells us,
+    so a character it cannot show becomes the nearest one it can:
+
+        é -> E      (the accent goes, the word survives)
+        ♥ -> *      (the pictograph's documented stand-in)
+        — -> -      (typographic punctuation, from a feed that does not know about flaps)
+
+    and only when nothing works does it become a space — which is what the module would have
+    done anyway, except now it is a deliberate space and not a hole nobody knew about.
+
+    A wall that has not told us its charset is left alone entirely (``can_show`` answers True
+    for everything), so an old gateway behaves exactly as it did.
+    """
+    if not caps.knows_charset():
+        return page
+
+    out = []
+    for ch in page:
+        if is_color(ch) or caps.can_show(ch):
+            out.append(ch)                       # a colour is a flap index, not a character
+            continue
+        for cand in (PICTOGRAPH_FALLBACK.get(ch),
+                     _LOOKALIKE.get(ch),
+                     _strip_accent(ch),
+                     ch.upper(), ch.lower()):
+            if cand and all(caps.can_show(c) for c in cand):
+                # A multi-character stand-in (ß -> SS) would shift every cell after it and
+                # re-wrap the line, so it is only taken when it fits in one cell.
+                out.append(cand if len(cand) == 1 else cand[0])
+                break
+        else:
+            out.append(" ")
+    return "".join(out)
+
+
 def for_legacy(ch: str) -> str:
     """One cell, as the legacy one-byte protocol wants it: a colour becomes its letter, and
     a pictograph — which has no byte at all — becomes the nearest thing that does."""

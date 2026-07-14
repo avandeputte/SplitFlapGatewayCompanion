@@ -228,9 +228,19 @@ class DisplayController:
         Folding is not the caller's business. A wall with no lowercase flaps gets uppercase;
         a Matrix Portal does not. That decision belongs to the wall, it is made here, once,
         and it is made LAST — after the colours are explicit, so folding can never eat one.
+
+        Then DEGRADE, which is later still, and has to be: it asks "can this wall show this
+        exact character", and until the case is settled that question has no answer. A reel
+        with `É` on it and no `é` would reject the lowercase form and accept the uppercase,
+        and asking before the fold would degrade a letter that was about to become showable.
         """
         clean = renderer.normalize(text, self.config.module_count(), frame=frame)
-        return clean if self.shows_lowercase else renderer.fold(clean)
+        if not self.shows_lowercase:
+            clean = renderer.fold(clean)
+        # What the wall cannot show becomes the nearest thing it can, rather than a homed
+        # module and a hole in the middle of a word. A gateway that has not told us its
+        # charset is left exactly as it was.
+        return renderer.degrade(clean, self.caps)
 
     async def _run_manual(self, clean: str, *, style: str | None, speed: int | None) -> None:
         disp = self.config.display

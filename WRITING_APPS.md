@@ -273,10 +273,35 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     return [format_lines(f"{high} 9:28AM")]
 ```
 
-`caps` has three fields — `lowercase`, `pictographs`, `named_colours`. It is optional
-and defaults to `None`, which is also what a stock splitflap-os host passes, and which
-correctly means *"a plain reel"*. So an app that uses it stays drop-in in both
-directions.
+`caps` is not a guess. The gateway is asked (`GET /api/capabilities`) what its wall can do,
+on boot and on every resync, and this is its answer:
+
+| field | what it tells you |
+|---|---|
+| `lowercase` | it has lowercase flaps |
+| `pictographs` | it has the fourteen extra flaps |
+| `named_colours` | colours are named, not spelled with `r/o/y/g/b/p/w` |
+| `can_show(ch)` | **can every module on this wall show this exact character?** |
+| `charset` | every character it can show (the intersection across its modules) |
+| `uniform` | whether all its modules carry the same reel |
+
+`can_show` is the useful one, and it works on a physical wall too — the gateway knows which
+flaps are printed on its reels:
+
+```python
+def fetch(settings, format_lines, get_rows, get_cols, caps=None):
+    degree = "°" if (caps is None or caps.can_show("°")) else " "
+    return [format_lines(f"22{degree}C")]
+```
+
+**You do not have to do this.** Anything the wall cannot show is degraded on the way out —
+an accent to its base letter (`é` → `E`), a curly quote to `'`, a pictograph to its stand-in,
+and only as a last resort to a space. Reach for `caps` when you want to make a *different*
+choice, not to avoid a broken one.
+
+`caps` is optional and defaults to `None`, which is also what a stock splitflap-os host
+passes, and which correctly means *"assume nothing, send it and let the wall cope"*. So an
+app that uses it stays drop-in in both directions.
 
 The pictographs: `♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`
 
