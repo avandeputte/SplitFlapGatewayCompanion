@@ -15,10 +15,11 @@ the scan is an HTTP sweep first. Scans run only while that dialog is open, never
 background.
 
 **Animations now default to a speed a split-flap can physically do.** Frames used to
-advance every 0.25–0.6 s — faster than a module can reach its flap, so the wall was still
-clattering toward one frame when the next arrived. The built-in animations now default to
-1.5–2 s per frame (and the Frame Speed slider goes up to 5 s); an animation that doesn't
-declare a speed gets 2 s instead of 0.4 s. A Frame Speed you saved yourself is untouched.
+advance every 0.25–0.6 s — but a frame can send any flap anywhere, and a module's full
+revolution takes up to ~4 s, so the wall was still clattering toward one frame when the
+next arrived. The built-in animations now default to 4 s per frame (and the Frame Speed
+slider goes up to 10 s); an animation that doesn't declare a speed gets 4 s instead of
+0.4 s. A Frame Speed you saved yourself is untouched.
 
 ## 2.0.1
 
