@@ -1486,8 +1486,63 @@ async function openDisplays() {
     list.appendChild(note);
   };
 
+  // ---- discovery — only here, on demand. A scan probes the LAN (and listens on
+  // mDNS where multicast reaches us at all), which is something the user asks for
+  // by opening this dialog, never something the companion does in the background.
+  const disco = el("div", "discover");
+  const dHead = el("div", "discover-head");
+  const dTitle = el("span", "hint");
+  const rescan = el("button", "btn btn-sm ghost");
+  rescan.textContent = t("Scan again");
+  dHead.append(dTitle, rescan);
+  const dList = el("div");
+  disco.append(dHead, dList);
+  body.appendChild(disco);
+
+  const scan = async () => {
+    rescan.disabled = true;
+    dList.innerHTML = "";
+    dTitle.textContent = t("Scanning the network for gateways…");
+    let found = [];
+    try {
+      found = (await api("/api/displays/discover")).found || [];
+    } catch {
+      dTitle.textContent = t("The scan failed — you can still add a gateway by URL above.");
+      rescan.disabled = false;
+      return;
+    }
+    rescan.disabled = false;
+    const fresh = found.filter((g) => !g.known);
+    dTitle.textContent = fresh.length
+      ? t("Found on your network:")
+      : t("No new gateways found — a gateway must be powered and on this network.");
+    fresh.forEach((g) => {
+      const row = el("div", "display-row");
+      const label = el("span");
+      label.textContent = `${g.url} · ${g.rows}×${g.cols}` + (g.version ? ` · v${g.version}` : "");
+      const btn = el("button", "btn btn-sm primary");
+      btn.textContent = t("Add");
+      btn.onclick = async () => {
+        btn.disabled = true;
+        const res = await fetch(url("/api/displays"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: g.name || g.url, gateway_url: g.url }),
+        });
+        if (!res.ok) { alert((await res.json()).detail || t("Could not add it")); btn.disabled = false; return; }
+        await render();
+        await loadDisplays();
+        await scan();
+      };
+      row.append(label, btn);
+      dList.appendChild(row);
+    });
+  };
+  rescan.onclick = scan;
+
   await render();
   openModal(t("Displays"), body, []);
+  scan();                      // kicked off after the dialog is up, never blocking it
 }
 
 

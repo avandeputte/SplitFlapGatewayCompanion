@@ -537,6 +537,14 @@ fieldset { border-color: var(--acc); border-radius: 8px; }
   flex-wrap: wrap;
   margin-left: auto;
 }
+.discover { margin-top: 14px; }
+.discover-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.discover .display-row span { flex: 1 1 auto; word-break: break-all; }
 .warn.sm { color: var(--ylw); font-size: 12px; }
 
 /* ---- playlists ------------------------------------------------------------

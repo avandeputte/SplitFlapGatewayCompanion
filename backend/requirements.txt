@@ -30,3 +30,6 @@ python-dateutil>=2.9   # RRULE expansion for the `calendar` app. It arrives anyw
                        # an UNTIL in UTC against a local DTSTART, DST) is not a spec to
                        # reimplement by hand.
 mcp>=1.28              # MCP server (app/mcp_server.py); an LLM client can drive the display
+zeroconf>=0.132        # gateway discovery accelerator (app/discovery.py). Optional at
+                       # runtime — multicast never reaches a bridged container (HA add-on,
+                       # default Docker), where the HTTP sweep does the finding instead.

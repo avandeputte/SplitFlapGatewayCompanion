@@ -23,7 +23,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, gwproxy, helpers, mcp_server, renderer, uilang, vestaboard, weather
+from . import __version__, discovery, gwproxy, helpers, mcp_server, renderer, uilang, vestaboard, weather
 from .catalog import GLOBAL_STORAGE_KEYS
 from .config import Config, addon_option, default_data_dir
 from .display import DisplayManager
@@ -856,6 +856,19 @@ async def remove_display(display_id: str):
     # The registry decides which display is the default; keep the runtime in step.
     displays.adopt_default(registry.default_id)
     return {"ok": True, "removed": rec.to_dict()}
+
+
+@app.get("/api/displays/discover")
+async def discover_displays():
+    """Scan the LAN for gateways — the Displays dialog's scan, and nothing else.
+
+    On demand only: a scan probes neighbours (and opens an mDNS socket where
+    multicast works at all), which is dialog behaviour, not background
+    behaviour. See discovery module docstring for why this is an HTTP sweep
+    first and mDNS second."""
+    known = [r.gateway_url for r in registry.all()]
+    found = await discovery.discover(known)
+    return {"ok": True, "found": found}
 
 
 @app.post("/api/displays/{display_id}/default")
