@@ -14,10 +14,10 @@ SplitFlap Gateway Companion is a **derivative work** and is licensed under
   `search_chips` helper endpoints, the emoji colour-tile map, and the
   transition/animation orderings are all ports of splitflap-os. Keeping them
   identical is what makes plugins interchangeable in both directions. (Final
-  character normalization deliberately differs — see [COMPATIBILITY.md](COMPATIBILITY.md).)
+  character normalization deliberately differs — see [Compatibility](https://github.com/avandeputte/SplitFlapGateway/wiki/Compatibility).)
 
   **Pinned upstream:** commit `12df2773cbbe9890a7d6f92fdc60d2be920129bd`
-  (splitflap-os `VERSION` 0.3.0, 2026-06-24). See [COMPATIBILITY.md](COMPATIBILITY.md).
+  (splitflap-os `VERSION` 0.3.0, 2026-06-24). See [Compatibility](https://github.com/avandeputte/SplitFlapGateway/wiki/Compatibility).
 
 - **[Adam G Makes — Split-Flap Display](https://github.com/adamgmakes/SplitFlapDisplay)**
   — CC BY-NC-SA 4.0. The underlying hardware platform that splitflap-os is built on.

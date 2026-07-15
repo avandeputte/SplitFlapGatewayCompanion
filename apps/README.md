@@ -4,7 +4,7 @@ App plugins live here, one folder per app: `apps/<id>/manifest.json` +
 `apps/<id>/app.py` (plus any bundled data). The plugin contract is a **faithful,
 behavior-identical port of splitflap-os** so that **any splitflap-os app folder
 drops in here unmodified and works** (and apps authored here run on splitflap-os).
-See [`../COMPATIBILITY.md`](../COMPATIBILITY.md).
+See [Compatibility](https://github.com/avandeputte/SplitFlapGateway/wiki/Compatibility).
 
 ## Do not uppercase your own text
 

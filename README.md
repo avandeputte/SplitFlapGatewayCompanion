@@ -15,8 +15,10 @@ matches what actually exists on both.
 The content apps are the **plugin library from
 [csader/splitflap-os](https://github.com/csader/splitflap-os)**, run through a
 **behavior-identical plugin runtime** so any splitflap-os app drops in unchanged.
-Building your own? **[WRITING_APPS.md](WRITING_APPS.md)** is a full guide; see also
-[COMPATIBILITY.md](COMPATIBILITY.md) and [ATTRIBUTION.md](ATTRIBUTION.md).
+Building your own? **[Writing Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Apps)**
+is a full guide; see also
+[Compatibility](https://github.com/avandeputte/SplitFlapGateway/wiki/Compatibility)
+and [ATTRIBUTION.md](ATTRIBUTION.md).
 
 > **License:** CC BY-NC-SA 4.0 (non-commercial, share-alike, attribution) — a
 > derivative of splitflap-os. See [LICENSE](LICENSE).
@@ -252,7 +254,8 @@ rows/cols/base to match how your modules are provisioned in the gateway.
 `app.py` (functional) or `data.json` (channel), the same format as the built-in apps.
 The upload is validated (manifest + a functional app's `fetch()` must import), written
 to `<data_dir>/apps/<id>/` so it survives restarts and image upgrades, enabled and
-loaded immediately. **[WRITING_APPS.md](WRITING_APPS.md)** is the full guide.
+loaded immediately. **[Writing Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Apps)**
+is the full guide.
 
 > ⚠️ A functional app's `app.py` runs arbitrary Python on the companion host — only
 > upload apps you trust. (The same trust model as splitflap-os plugins.)
@@ -498,5 +501,5 @@ state** (Quebec ≠ British Columbia), the common ones in your Language.
 every location-tied app has a **Location** override — per app *and* per playlist entry,
 so one playlist can show Paris in French and Tokyo in Japanese back to back.
 
-Building an app that localizes? **[WRITING_APPS.md](WRITING_APPS.md)** documents the
-injected `i18n`, `get_weather` and `get_location` helpers.
+Building an app that localizes? **[Writing Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Apps)**
+documents the injected `i18n`, `get_weather` and `get_location` helpers.
