@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.2.1
+
+**The "Show seconds" switch can now actually be switched.** 2.2.0 shipped it as a
+toggle with no options — and the settings dialog draws a toggle *from* its options,
+so it rendered as an empty, unclickable control and the seconds never came on. It
+looked like the companion wasn't recognizing Matrix Portal walls; detection was
+fine, the switch was dead. All three fields (Time, Countdown, Binary Clock) are
+proper Yes/No toggles now, and a regression test fails any future manifest toggle
+that declares no options.
+
 ## 2.2.0
 
 **A binary clock.** New app: the time as a classic BCD binary clock — six columns of
