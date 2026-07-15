@@ -32,6 +32,16 @@ from .entity import SplitFlapEntity
 _COLOURS = ("#e23b3b", "#ff9f0a", "#ffd60a", "#2fb84a", "#3b82f6", "#a855f7", "#e8e8e8")
 _PUA_COLOUR = {chr(0xE000 + i): c for i, c in enumerate(_COLOURS)}
 
+# Pictographs that bring their own ink, exactly as the Matrix Portal draws them
+# (its FONT_EXTRA_COLOUR table): a heart is the red flap's red — a white heart is
+# not a heart. Everything else stays the normal glyph ink.
+_PICTO_INK = {
+    "♥": _COLOURS[0],   # heart   -> red
+    "♦": _COLOURS[0],   # diamond -> red
+    "☺": _COLOURS[2],   # smiley  -> yellow
+    "☀": _COLOURS[2],   # sun     -> yellow
+}
+
 _BG = "#10141f"        # page background (matches the companion UI)
 _TILE = "#1a2440"      # an idle flap
 _HINGE = "#0c1120"     # the split across the middle
@@ -77,7 +87,7 @@ def render_board(lines: list[str], cols: int, *, scale: int = 16) -> bytes:
                                    fill=colour or _TILE)
             if colour is None and ch != " ":
                 draw.text((x + tw / 2, y + th / 2 - scale // 8), ch,
-                          font=font, fill=_GLYPH, anchor="mm")
+                          font=font, fill=_PICTO_INK.get(ch, _GLYPH), anchor="mm")
             # the hinge, over everything — it is what makes a tile read as a flap
             draw.line((x, y + th / 2, x + tw, y + th / 2), fill=_HINGE,
                       width=max(1, scale // 8))
