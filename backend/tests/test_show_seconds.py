@@ -1,4 +1,4 @@
-"""Seconds on the clock apps: opt-in, drawn walls (caps.indexed) only, and only
+"""Seconds on the clock apps: opt-in, walls that say sub-second updates are honest (caps.instant), and only
 when the geometry has room. A physical module takes seconds per flip, so a
 ticking seconds field would keep the wall permanently mid-clatter."""
 import importlib.util
@@ -7,8 +7,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 APPS = Path(__file__).resolve().parents[2] / "apps"
-DRAWN = SimpleNamespace(indexed=True)
-REEL = SimpleNamespace(indexed=False)
+DRAWN = SimpleNamespace(instant=True)
+REEL = SimpleNamespace(instant=False)
 
 
 def _mod(name):

@@ -1,11 +1,11 @@
 """The binary clock: BCD bit math, layout widths, the label row, and the rule
-that seconds only tick on a drawn wall (caps.indexed)."""
+that seconds only tick where the wall's motion allows (caps.instant)."""
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 
 APPS = Path(__file__).resolve().parents[2] / "apps"
-DRAWN = SimpleNamespace(indexed=True)      # a Matrix Portal-ish wall
+DRAWN = SimpleNamespace(instant=True)      # a Matrix Portal-ish wall
 
 
 def _mod():

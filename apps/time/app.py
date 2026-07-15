@@ -3,12 +3,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     import pytz
     tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
     now = datetime.now(tz)
-    # Seconds are opt-in, and only on a drawn wall (caps.indexed): a physical
-    # module takes seconds per flip, so a ticking seconds field would keep the
-    # wall permanently mid-clatter. They also have to fit the row.
+    # Seconds are opt-in, and only where the wall says sub-second updates are
+    # honest (caps.instant — its own motion statement): a mechanical module takes
+    # seconds per flip, so a ticking seconds field would keep the wall permanently
+    # mid-clatter. They also have to fit the row. getattr, so the app still runs
+    # on a stock splitflap-os whose caps has no such attribute.
     want_secs = (str(settings.get('show_seconds', '')).strip().lower()
                  in ('1', 'true', 'yes', 'on')
-                 and caps is not None and caps.indexed)
+                 and bool(getattr(caps, 'instant', False)))
 
     def clock(seconds):
         # An explicit Time Format wins; otherwise the Language decides (12h AM/PM

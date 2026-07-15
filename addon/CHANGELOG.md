@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.3.0
+
+**The wall states how it moves, and the companion believes it.** `/api/capabilities`
+gained a `motion` key — `{"kind": "drawn" | "mechanical", "settleMs": …}` (Gateway
+3.10+, Matrix Portal 1.12+). "Show seconds" and every future update-rate decision
+now reads that statement instead of inferring the wall's nature from which
+endpoints it happens to expose; a gateway too old to have said falls back to the
+old inference. Nothing to configure — and the day a physical gateway advertises
+its bulk `cells` endpoint, nothing will start ticking seconds at mechanical flaps.
+
 ## 2.2.1
 
 **The "Show seconds" switch can now actually be switched.** 2.2.0 shipped it as a

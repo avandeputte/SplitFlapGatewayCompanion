@@ -63,6 +63,13 @@ class Capabilities:
     named_colours: bool  # colours are named, rather than spelled with r/o/y/g/b/p/w
     indexed: bool = False  # it takes POST /api/display/cells (address a flap by INDEX)
 
+    # How the wall MOVES — from the capabilities document's `motion` key (Gateway 3.10+ /
+    # Matrix Portal 1.12+). "drawn": a cell is a repaint, interruptible, nothing queues —
+    # sub-second updates are honest. "mechanical": motion must physically complete; commands
+    # queue behind it. "" means the gateway predates the key and motion must be inferred.
+    motion: str = ""              # "drawn" | "mechanical" | "" (not reported)
+    settle_ms: int | None = None  # worst-case transition; a physical constraint only when mechanical
+
     # Every character the wall can show — the INTERSECTION across its modules, so sending one
     # of these is safe on all of them. Empty means "we do not know", which is what an older
     # gateway leaves us with; nothing may be degraded against an empty set, because "not in the
@@ -72,6 +79,16 @@ class Capabilities:
     colours: tuple[str, ...] = ()
 
     def __bool__(self) -> bool:
+        return self.indexed
+
+    @property
+    def instant(self) -> bool:
+        """Whether sub-second updates are honest on this wall — a ticking seconds field, a
+        fast progress bar. The wall's own `motion` statement decides when it made one; a
+        gateway too old to have said falls back to the drawn-wall inference (the cells API
+        only existed on drawn walls before motion was a stated fact)."""
+        if self.motion:
+            return self.motion == "drawn"
         return self.indexed
 
     def knows_charset(self) -> bool:
@@ -92,11 +109,13 @@ class Capabilities:
 
 # A real reel, as it used to be assumed: 64 leaves, one byte per character, seven of its letters
 # spent on colours, and no idea which characters are actually printed on it.
-SPLIT_FLAP = Capabilities(lowercase=False, pictographs=False, named_colours=False, indexed=False)
+SPLIT_FLAP = Capabilities(lowercase=False, pictographs=False, named_colours=False, indexed=False,
+                          motion="mechanical", settle_ms=4000)
 
 # Drawn modules: nothing to ration. Used only as the fallback guess for a Matrix Portal too old
 # to answer /api/capabilities.
-MATRIX_PORTAL = Capabilities(lowercase=True, pictographs=True, named_colours=True, indexed=True)
+MATRIX_PORTAL = Capabilities(lowercase=True, pictographs=True, named_colours=True, indexed=True,
+                             motion="drawn")
 
 
 def of(gateway_config: dict | None) -> Capabilities:
@@ -142,6 +161,16 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
 
     colours = tuple(str(c) for c in (doc.get("colors") or []) if isinstance(c, str))
 
+    # The wall's own statement about how it moves (Gateway 3.10+ / Matrix Portal 1.12+). Only
+    # the two known kinds are accepted; anything else counts as "not reported", so `instant`
+    # falls back to inference rather than trusting a typo.
+    motion = doc.get("motion") if isinstance(doc.get("motion"), dict) else {}
+    kind = motion.get("kind") if motion.get("kind") in ("drawn", "mechanical") else ""
+    try:
+        settle = int(motion["settleMs"])
+    except (KeyError, TypeError, ValueError):
+        settle = None
+
     return Capabilities(
         lowercase="lowercase" in features,
         pictographs="pictographs" in features,
@@ -163,4 +192,6 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         charset=frozenset(common),
         uniform=bool(cs.get("uniform", True)),
         colours=colours,
+        motion=kind,
+        settle_ms=settle,
     )

@@ -47,10 +47,11 @@ def fetch(settings, format_lines, get_rows, get_cols, caps=None):
     rows, cols = get_rows(), get_cols()
     one = TILES.get(str(settings.get('one_color', 'green')), TILES['green'])
     zero = TILES.get(str(settings.get('zero_color', 'red')), TILES['red'])
-    # Seconds only on a drawn wall (caps.indexed): physical flaps take seconds
+    # Seconds only where the wall says sub-second updates are honest
+    # (caps.instant — its own motion statement): mechanical flaps take seconds
     # per flip and would never catch up with a ticking seconds column.
     seconds = (_truthy(settings.get('show_seconds', True)) and cols >= 8
-               and caps is not None and caps.indexed)
+               and bool(getattr(caps, 'instant', False)))
 
     digits = [now.hour // 10, now.hour % 10, now.minute // 10, now.minute % 10]
     if seconds:
