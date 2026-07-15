@@ -47,6 +47,10 @@ a { color: var(--brand); }
 .logo-tiles b::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0,0,0,.6); }
 .brand-sub { font-weight: 700; letter-spacing: 2px; color: var(--txt); font-size: .95rem; }
 .ver { font-size: .72rem; color: var(--dim); }
+/* The version, retired from the title bar to the bottom-right corner. Its own footer so it
+   sits below the content and to the right, out of the way but findable when you want it. */
+.page-foot { display: flex; justify-content: flex-end; padding: 8px 16px 12px; }
+.page-foot .ver { user-select: text; }
 .hdr-right { display: flex; align-items: center; gap: 14px; }
 .gwlink { color: var(--grn); font-weight: 600; text-decoration: none; font-size: .9rem; }
 .gwlink:hover { text-decoration: underline; }
