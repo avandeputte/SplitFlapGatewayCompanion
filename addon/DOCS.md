@@ -26,7 +26,7 @@ settings are read from it, so its URL is normally the only thing you have to ent
 
 | Option | Default | What it does |
 |---|---|---|
-| `gateway_url` | — | **Required.** Your SplitFlapGateway's URL. The add-on refuses to start without it. |
+| `gateway_url` | — | **Required.** Your SplitFlapGateway's URL. Takes a comma-separated list to drive several displays: `http://192.168.1.218,http://192.168.1.50`. The first is the default display. The add-on refuses to start without at least one. |
 | `mqtt_password` | *(unset)* | Only if your MQTT broker needs auth. The gateway publishes its broker/user/prefix but never the password, so it is set here. |
 | `companion_public_url` | *(auto)* | This add-on's own URL, registered with the gateway so the gateway shows a "Companion" tab linking back here. Leave blank: the add-on asks Supervisor for the **host's** address and the port it is published on. (It cannot work this out by itself — from inside the container the only address it can see is its own `172.30.x.x` on Home Assistant's internal bridge, which nothing on your LAN can reach.) Set it only if you front the add-on with a reverse proxy. |
 | `home_assistant` | `auto` | MQTT integration. `auto` follows the gateway's own HA setting. Publishes a *SplitFlap Companion* device with App/Playlist selects and a Stop button. |
@@ -93,3 +93,32 @@ apps and playlists as entities.
   the gateway, so a reinstall restores what you had.
 - Dark mode follows your browser/OS, which can disagree with Home Assistant's own
   theme setting — that choice isn't exposed to an ingress page.
+
+## Multiple displays
+
+One companion can drive several gateways. List them in `gateway_url`, comma-separated:
+
+```
+gateway_url: http://192.168.1.218,http://192.168.1.50
+```
+
+…or add one in the app (**⚙ Tools → Displays**), where it comes up immediately without a
+restart. The first entry is the **default display** — the one Home Assistant, the
+Vestaboard API and anything else that does not name a display will drive.
+
+Each wall has its own geometry, apps, playlists, triggers and settings, and **its own Home
+Assistant device**, so its App/Playlist controls drive that wall and not another. The
+existing device keeps its entity ids, so nothing in your automations breaks.
+
+A switcher appears in the header once you have more than one. With a single gateway it is
+hidden entirely and nothing about the app changes.
+
+## Matrix Portal displays
+
+A Matrix Portal's modules are drawn rather than mechanical, so it has flaps a real reel does
+not: every **lowercase** letter, fourteen **pictographs** (`♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`), and
+colours addressed by name. The companion uses them automatically — the message you type
+arrives as you wrote it rather than SHOUTED BACK AT YOU.
+
+Prefer the classic look? **Always uppercase** in Global settings folds it anyway, per
+display, and costs nothing else: the wall keeps its pictographs and its colours.

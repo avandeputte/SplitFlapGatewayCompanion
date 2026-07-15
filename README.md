@@ -350,11 +350,14 @@ companion's URL, and it adds a **SplitFlap** device with:
 | **Playlist** (select) | Run a saved playlist, or `Off` |
 | **Showing** (sensor) | Which app is on the flaps right now — even mid-playlist |
 | **Message** (sensor) | What the board reads, as text (with a `lines` attribute) |
+| **Board** (image) | The wall as a live picture — split-flap tiles, colour flaps, accents and pictographs. Drop it in any Picture card or attach it to a notification; redrawn only when the board changes. |
 | **Clear / Stop / Home all** (buttons) | — |
 | `splitflap.message` (service) | Show text, with an optional style and a **timed auto-revert** |
 
 Unlike a Vestaboard integration, this surfaces the **apps and playlists**. It needs no
-MQTT broker — it talks to the companion directly. The `splitflap.message` service with
+MQTT broker — it talks to the companion directly. Driving [multiple displays](#multiple-displays)?
+The config flow asks which wall each entry is for — each display is its own device, so add
+the integration once per wall. The `splitflap.message` service with
 `seconds` set shows a message for that long, then returns the display to whatever was
 playing:
 
