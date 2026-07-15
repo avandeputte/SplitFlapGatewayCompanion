@@ -102,3 +102,17 @@ def test_countdown_five_rows_drop_the_seconds_row_on_a_reel():
     lines = _countdown_tall(REEL, show_seconds="true")
     assert len(lines) == 4                                # event + D/H/M
     assert not any(re.match(r"[ \d]{2}\d+S ", l) for l in lines)
+
+
+# ---- the toggle itself ---------------------------------------------------
+def test_every_manifest_toggle_declares_its_options():
+    """The settings dialog renders a toggle as a segmented control built FROM
+    its options — a toggle without options is an empty, unclickable control.
+    Regression: show_seconds shipped as a bare boolean and nobody could turn
+    it on (which read as 'capability detection is broken')."""
+    import json
+    for mf in sorted(APPS.glob("*/manifest.json")):
+        m = json.loads(mf.read_text("utf-8"))
+        for s in m.get("settings") or []:
+            if isinstance(s, dict) and s.get("type") == "toggle":
+                assert s.get("options"), f"{mf.parent.name}: toggle '{s.get('key')}' has no options"

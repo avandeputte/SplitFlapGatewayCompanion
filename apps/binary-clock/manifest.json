@@ -23,8 +23,18 @@
       "key": "show_seconds",
       "label": "Show seconds",
       "type": "toggle",
-      "default": true,
-      "note": "Matrix Portal walls only — physical flaps can't keep up with seconds."
+      "default": "yes",
+      "note": "Matrix Portal walls only — physical flaps can't keep up with seconds.",
+      "options": [
+        {
+          "value": "yes",
+          "label": "Yes"
+        },
+        {
+          "value": "no",
+          "label": "No"
+        }
+      ]
     },
     {
       "key": "one_color",
