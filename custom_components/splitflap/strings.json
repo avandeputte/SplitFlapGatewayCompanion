@@ -53,6 +53,11 @@
       "home": {
         "name": "Home all"
       }
+    },
+    "image": {
+      "board": {
+        "name": "Board"
+      }
     }
   },
   "services": {

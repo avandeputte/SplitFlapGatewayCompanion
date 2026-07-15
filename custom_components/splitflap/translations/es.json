@@ -53,6 +53,11 @@
       "home": {
         "name": "Inicializar todo"
       }
+    },
+    "image": {
+      "board": {
+        "name": "Tablero"
+      }
     }
   },
   "services": {

@@ -53,6 +53,11 @@
       "home": {
         "name": "Tout remettre à zéro"
       }
+    },
+    "image": {
+      "board": {
+        "name": "Tableau"
+      }
     }
   },
   "services": {

@@ -53,6 +53,11 @@
       "home": {
         "name": "Alle in Grundstellung"
       }
+    },
+    "image": {
+      "board": {
+        "name": "Tafel"
+      }
     }
   },
   "services": {

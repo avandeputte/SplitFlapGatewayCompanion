@@ -20,7 +20,7 @@ from .const import (ATTR_SECONDS, ATTR_STYLE, ATTR_TEXT, CONF_DISPLAY, CONF_URL,
                     DOMAIN, SERVICE_MESSAGE)
 from .coordinator import SplitFlapCoordinator
 
-PLATFORMS = [Platform.SELECT, Platform.SENSOR, Platform.BUTTON]
+PLATFORMS = [Platform.SELECT, Platform.SENSOR, Platform.BUTTON, Platform.IMAGE]
 
 MESSAGE_SCHEMA = vol.Schema({
     vol.Required(ATTR_TEXT): cv.string,

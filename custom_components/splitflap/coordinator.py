@@ -50,6 +50,8 @@ class SplitFlapCoordinator(DataUpdateCoordinator[dict]):
 
         return {
             "state": state,
+            "rows": rows,
+            "cols": cols,
             "lines": lines,
             "text": " ".join(line.strip() for line in lines if line.strip()),
             "apps": apps.get("apps", []),
