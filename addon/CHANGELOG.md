@@ -11,6 +11,13 @@ colour-flap bits (tens and ones of hours, minutes and seconds) read top to botto
 4 rows tall and 8 wide; a fifth row gets H/M/S labels under the columns. In the App
 Library under Time.
 
+**Countdown grows an instrument panel, and stops fidgeting.** On a wall five rows
+or taller, each unit gets its own row — the value beside a colour bar of how much
+of that unit's cycle remains (days of the year 🟦, hours of the day 🟩, minutes of
+the hour 🟨, seconds of the minute 🟥). And in the one-line layout, the seconds
+field holds a fixed width, so a 10S → 9S rollover no longer shifts everything to
+its left by a flap.
+
 **Seconds, where the wall can actually do them.** Time, Countdown and the binary
 clock gain a "Show seconds" option that is honored only on a drawn wall (a Matrix
 Portal): a physical module takes seconds per flip, so a ticking seconds field would

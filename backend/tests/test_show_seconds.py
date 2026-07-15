@@ -70,3 +70,35 @@ def test_countdown_has_no_seconds_by_default():
 def test_countdown_ignores_the_toggle_on_a_reel():
     lines = _countdown(REEL, show_seconds="true")
     assert not re.search(r"\d+S\b", lines[1]), lines
+
+
+def test_countdown_seconds_are_space_padded_for_a_stable_width():
+    # 10S -> 9S used to shorten the line and shift everything left of it by a
+    # flap; a two-wide seconds field keeps the width constant between ticks.
+    # Only seconds get this — they tick every second; H and M stay natural.
+    lines = _countdown(DRAWN, show_seconds="true")
+    assert re.fullmatch(r"\d+D \d+H \d+M [ \d]\dS", lines[1]), lines
+
+
+def _countdown_tall(caps, rows=5, cols=15, **settings):
+    from datetime import datetime, timedelta
+    target = (datetime.now() + timedelta(days=2, hours=3)).replace(microsecond=0)
+    settings.setdefault("countdown_event", "TEST")
+    settings.setdefault("countdown_target", target.strftime("%Y-%m-%dT%H:%M:%S"))
+    return _first_page("countdown", rows, cols, caps, **settings)
+
+
+def test_countdown_five_rows_get_a_bar_per_unit():
+    lines = _countdown_tall(DRAWN, show_seconds="true")
+    assert len(lines) == 5 and lines[0] == "TEST"
+    bar_tiles = set("\U0001f7e6\U0001f7e9\U0001f7e8\U0001f7e5⬛")
+    for line in lines[1:]:
+        assert len(line) == 15, line                      # constant width
+        assert re.match(r"[ \d]{2}\d[DHMS] ", line), line  # right-aligned value
+        assert set(line[5:]) <= bar_tiles, line            # then only bar cells
+
+
+def test_countdown_five_rows_drop_the_seconds_row_on_a_reel():
+    lines = _countdown_tall(REEL, show_seconds="true")
+    assert len(lines) == 4                                # event + D/H/M
+    assert not any(re.match(r"[ \d]{2}\d+S ", l) for l in lines)

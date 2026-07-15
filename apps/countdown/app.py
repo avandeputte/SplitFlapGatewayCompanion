@@ -51,6 +51,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
         mins, secs = divmod(rem, 60)
 
         # Keep the most useful leading units that still fit on the sign.
+        # Only the seconds field is padded (with a space): it ticks every second
+        # at the end of the line, and a 10S -> 9S rollover used to shorten the
+        # line and shift everything left of it by a flap.
         day_u = u('D')
         sections = [
             f'{days}{day_u}',
@@ -58,7 +61,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
             f'{mins}{u("M")}',
         ]
         if show_secs:
-            sections.append(f'{secs}{u("S")}')
+            sections.append(f'{secs:>2}{u("S")}')
 
         text = ''
         for section in sections:
@@ -74,6 +77,38 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
         if cols <= 1:
             return day_u[:cols]
         return f"{str(days)[:cols - len(day_u)]}{day_u}"
+
+    # One colour per unit — cool to urgent, top to bottom. The empty bar cell is
+    # the black square: it lands as a blank flap but keeps every line the same
+    # width, so a bar growing or shrinking never re-centres the row.
+    BAR_TILES = {'D': '\U0001f7e6', 'H': '\U0001f7e9', 'M': '\U0001f7e8', 'S': '\U0001f7e5'}
+    BAR_EMPTY = '⬛'
+
+    def build_unit_rows(total_seconds, cols):
+        """A tall wall gets one row per unit: the value, then a colour bar of how
+        much of that unit's own cycle remains — days of the year, hours of the
+        day, minutes of the hour, seconds of the minute. Values sit right-aligned
+        in a fixed field so a tick only touches the flaps that changed."""
+        days, rem = divmod(total_seconds, 86400)
+        hrs, rem = divmod(rem, 3600)
+        mins, secs = divmod(rem, 60)
+        units = [('D', min(days, 999), days / 365.0),
+                 ('H', hrs, hrs / 24.0),
+                 ('M', mins, mins / 60.0)]
+        if show_secs:
+            units.append(('S', secs, secs / 60.0))
+        labels = {key: u(key) for key, _, _ in units}
+        label_w = max(len(v) for v in labels.values())
+        lines = []
+        for key, val, frac in units:
+            field = f'{val:>3}{labels[key]:<{label_w}}'
+            bar_len = cols - len(field) - 1
+            if bar_len < 3:                      # no room for a meaningful bar
+                lines.append(field.strip())
+                continue
+            filled = min(bar_len, round(min(frac, 1.0) * bar_len))
+            lines.append(field + ' ' + BAR_TILES[key] * filled + BAR_EMPTY * (bar_len - filled))
+        return lines
 
     def _pick(cols, *words):
         for w in words:
@@ -105,6 +140,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
         total_seconds = max(0, int(diff.total_seconds()))
         countdown_text = build_compact_countdown(total_seconds, cols)
 
+        if rows >= 5:
+            # Room for the full instrument panel: the event, then a row per unit.
+            return [format_lines(event, *build_unit_rows(total_seconds, cols))]
         if rows == 1:
             return [format_lines(event[:cols]), format_lines(countdown_text[:cols])]
         if rows == 2:
