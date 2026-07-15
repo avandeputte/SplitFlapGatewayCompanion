@@ -10,6 +10,13 @@
         "data_description": {
           "url": "Zum Beispiel http://homeassistant.local:8000, oder IP und Port des Companions."
         }
+      },
+      "display": {
+        "title": "Welche Anzeige?",
+        "description": "Dieser Companion steuert mehrere Wände. Jeder Eintrag ist das Gerät einer Anzeige — füge die Integration für die anderen erneut hinzu.",
+        "data": {
+          "display": "Anzeige"
+        }
       }
     },
     "error": {

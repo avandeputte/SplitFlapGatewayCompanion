@@ -10,6 +10,13 @@
         "data_description": {
           "url": "Por ejemplo http://homeassistant.local:8000, o la IP y el puerto del companion."
         }
+      },
+      "display": {
+        "title": "¿Qué pantalla?",
+        "description": "Este companion controla varias paredes. Cada entrada es el dispositivo de una pantalla — añade la integración de nuevo para las demás.",
+        "data": {
+          "display": "Pantalla"
+        }
       }
     },
     "error": {

@@ -16,8 +16,8 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import voluptuous as vol
 
 from .api import SplitFlapClient, SplitFlapError
-from .const import (ATTR_SECONDS, ATTR_STYLE, ATTR_TEXT, CONF_URL, DOMAIN,
-                    SERVICE_MESSAGE)
+from .const import (ATTR_SECONDS, ATTR_STYLE, ATTR_TEXT, CONF_DISPLAY, CONF_URL,
+                    DOMAIN, SERVICE_MESSAGE)
 from .coordinator import SplitFlapCoordinator
 
 PLATFORMS = [Platform.SELECT, Platform.SENSOR, Platform.BUTTON]
@@ -31,7 +31,10 @@ MESSAGE_SCHEMA = vol.Schema({
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    client = SplitFlapClient(async_get_clientsession(hass), entry.data[CONF_URL])
+    # An entry is ONE display's device. Entries created before multi-display
+    # support carry no display id, which the companion reads as its default wall.
+    client = SplitFlapClient(async_get_clientsession(hass), entry.data[CONF_URL],
+                             entry.data.get(CONF_DISPLAY, ""))
     coordinator = SplitFlapCoordinator(hass, client, entry.title)
     await coordinator.async_config_entry_first_refresh()
 
@@ -56,8 +59,9 @@ def _register_message_service(hass: HomeAssistant) -> None:
         return
 
     async def handle_message(call: ServiceCall) -> None:
-        # Send to every configured companion (usually one). A device/target selector is
-        # unnecessary for the common single-wall case and keeps the service simple.
+        # Send to every configured display (usually one). A device/target selector is
+        # unnecessary for the common single-wall case and keeps the service simple;
+        # with several walls configured this is deliberately a broadcast.
         for coordinator in hass.data.get(DOMAIN, {}).values():
             try:
                 await coordinator.client.message(

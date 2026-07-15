@@ -10,6 +10,13 @@
         "data_description": {
           "url": "Par exemple http://homeassistant.local:8000, ou l'IP et le port du companion."
         }
+      },
+      "display": {
+        "title": "Quel écran ?",
+        "description": "Ce companion pilote plusieurs murs. Chaque entrée est l'appareil d'un écran — ajoutez à nouveau l'intégration pour les autres.",
+        "data": {
+          "display": "Écran"
+        }
       }
     },
     "error": {
