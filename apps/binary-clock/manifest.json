@@ -1,0 +1,106 @@
+{
+  "id": "binary-clock",
+  "name": "Binary Clock",
+  "icon": "🔢",
+  "description": "Time as a BCD binary clock in colour flaps",
+  "type": "functional",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "category": "time",
+  "min_rows": 4,
+  "min_cols": 8,
+  "settings": [
+    {
+      "key": "timezone",
+      "label": "Timezone (override global)",
+      "type": "search_chips",
+      "searchUrl": "/timezones",
+      "resultKey": "zones",
+      "maxItems": 1,
+      "global_key": true
+    },
+    {
+      "key": "show_seconds",
+      "label": "Show seconds",
+      "type": "toggle",
+      "default": true,
+      "note": "Matrix Portal walls only — physical flaps can't keep up with seconds."
+    },
+    {
+      "key": "one_color",
+      "label": "Colour for 1",
+      "type": "select",
+      "default": "green",
+      "options": [
+        {
+          "value": "red",
+          "label": "Red"
+        },
+        {
+          "value": "orange",
+          "label": "Orange"
+        },
+        {
+          "value": "yellow",
+          "label": "Yellow"
+        },
+        {
+          "value": "green",
+          "label": "Green"
+        },
+        {
+          "value": "blue",
+          "label": "Blue"
+        },
+        {
+          "value": "purple",
+          "label": "Purple"
+        },
+        {
+          "value": "white",
+          "label": "White"
+        }
+      ]
+    },
+    {
+      "key": "zero_color",
+      "label": "Colour for 0",
+      "type": "select",
+      "default": "red",
+      "options": [
+        {
+          "value": "red",
+          "label": "Red"
+        },
+        {
+          "value": "orange",
+          "label": "Orange"
+        },
+        {
+          "value": "yellow",
+          "label": "Yellow"
+        },
+        {
+          "value": "green",
+          "label": "Green"
+        },
+        {
+          "value": "blue",
+          "label": "Blue"
+        },
+        {
+          "value": "purple",
+          "label": "Purple"
+        },
+        {
+          "value": "white",
+          "label": "White"
+        },
+        {
+          "value": "off",
+          "label": "Off (blank flap)"
+        }
+      ]
+    }
+  ]
+}

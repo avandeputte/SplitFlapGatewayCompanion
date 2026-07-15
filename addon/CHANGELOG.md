@@ -3,6 +3,21 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.2.0
+
+**A binary clock.** New app: the time as a classic BCD binary clock — six columns of
+colour-flap bits (tens and ones of hours, minutes and seconds) read top to bottom as
+8-4-2-1. Pick the colours for 1 and 0 (0 can be a blank flap). Needs a wall at least
+4 rows tall and 8 wide; a fifth row gets H/M/S labels under the columns. In the App
+Library under Time.
+
+**Seconds, where the wall can actually do them.** Time, Countdown and the binary
+clock gain a "Show seconds" option that is honored only on a drawn wall (a Matrix
+Portal): a physical module takes seconds per flip, so a ticking seconds field would
+keep the wall permanently mid-clatter. Countdown used to append seconds whenever
+they fit — on physical walls too; that now requires the option, so a physical
+countdown ticks by the minute as it always should have.
+
 ## 2.1.0
 
 **The Displays dialog now finds gateways for you.** Open the Displays dialog and the

@@ -11,6 +11,15 @@
       "version": "1.0"
     },
     {
+      "id": "binary-clock",
+      "name": "Binary Clock",
+      "icon": "🔢",
+      "description": "Time as a BCD binary clock in colour flaps",
+      "category": "time",
+      "type": "functional",
+      "version": "1.0"
+    },
+    {
       "id": "birdnet",
       "name": "BirdNET",
       "icon": "🐦",

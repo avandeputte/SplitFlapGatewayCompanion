@@ -33,6 +33,13 @@
         }
       ],
       "global_key": true
+    },
+    {
+      "key": "show_seconds",
+      "label": "Show seconds",
+      "type": "toggle",
+      "default": false,
+      "note": "Matrix Portal walls only — physical flaps can't keep up with seconds."
     }
   ],
   "min_rows": 1,

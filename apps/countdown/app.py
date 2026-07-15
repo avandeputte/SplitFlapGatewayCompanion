@@ -1,6 +1,13 @@
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     from datetime import datetime
     import pytz
+
+    # Seconds are opt-in, and only on a drawn wall (caps.indexed): a physical
+    # module takes seconds per flip, so a ticking seconds field would keep the
+    # wall permanently mid-clatter.
+    show_secs = (str(settings.get('show_seconds', '')).strip().lower()
+                 in {'1', 'true', 'yes', 'on'}
+                 and caps is not None and caps.indexed)
 
     def t(s):
         return i18n.t(s, "time") if i18n is not None else s
@@ -49,8 +56,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             f'{days}{day_u}',
             f'{hrs}{u("H")}',
             f'{mins}{u("M")}',
-            f'{secs}{u("S")}',
         ]
+        if show_secs:
+            sections.append(f'{secs}{u("S")}')
 
         text = ''
         for section in sections:
