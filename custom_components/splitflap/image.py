@@ -44,6 +44,8 @@ def render_board(lines: list[str], cols: int, *, scale: int = 16) -> bytes:
     ``scale`` is the tile width in pixels; tiles are taller than wide (3:4),
     like the real flaps.
     """
+    from pathlib import Path
+
     from PIL import Image, ImageDraw, ImageFont   # HA core ships Pillow
 
     rows = len(lines)
@@ -54,7 +56,16 @@ def render_board(lines: list[str], cols: int, *, scale: int = 16) -> bytes:
 
     img = Image.new("RGB", (w, h), _BG)
     draw = ImageDraw.Draw(img)
-    font = ImageFont.load_default(size=int(th * 0.62))
+    # Bundled DejaVu Sans Bold: Pillow's built-in font has no glyphs for the wall's
+    # fourteen pictograph flaps (♥ ☀ ♪ the arrows …) and drew them as blanks.
+    # DejaVu covers all fourteen (verified) and is freely redistributable
+    # (fonts/LICENSE rides along).
+    try:
+        font = ImageFont.truetype(
+            str(Path(__file__).parent / "fonts" / "DejaVuSans-Bold.ttf"),
+            int(th * 0.58))
+    except OSError:
+        font = ImageFont.load_default(size=int(th * 0.62))
 
     for r, line in enumerate(lines):
         for c in range(cols):

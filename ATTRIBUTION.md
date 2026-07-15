@@ -26,6 +26,10 @@ SplitFlap Gateway Companion is a **derivative work** and is licensed under
   **[SplitFlapUniversalFirmware](https://github.com/avandeputte/SplitFlapUniversalFirmware)**
   — the ESP32 gateway/firmware this companion targets.
 
+- **[DejaVu Sans Bold](https://dejavu-fonts.github.io/)** — bundled with the HACS
+  integration to draw the board-image entity's glyphs and pictograph flaps
+  (`custom_components/splitflap/fonts/`, license alongside).
+
 ## Originally authored here
 
 The engine (play loop, config store, state), the transports (REST / sim), the
