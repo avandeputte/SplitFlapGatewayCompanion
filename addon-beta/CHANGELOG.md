@@ -3,6 +3,23 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.1.0
+
+**The Displays dialog now finds gateways for you.** Open the Displays dialog and the
+companion scans the network: every SplitFlap-family gateway answers `GET /api/config` with
+its grid, so the companion probes the subnets it can honestly claim to be near — where its
+registered gateways live, and (as an add-on, by asking Supervisor) the host's real LAN.
+One tap adds what it finds. mDNS is used as an accelerator where multicast reaches us at
+all — on bare metal it does, inside a bridged container it cannot, which is exactly why
+the scan is an HTTP sweep first. Scans run only while that dialog is open, never in the
+background.
+
+**Animations now default to a speed a split-flap can physically do.** Frames used to
+advance every 0.25–0.6 s — faster than a module can reach its flap, so the wall was still
+clattering toward one frame when the next arrived. The built-in animations now default to
+1.5–2 s per frame (and the Frame Speed slider goes up to 5 s); an animation that doesn't
+declare a speed gets 2 s instead of 0.4 s. A Frame Speed you saved yourself is untouched.
+
 ## 2.0.1
 
 **Fixes a physical Split-Flap Gateway going dark on 2.0.0.** Every page write returned 404 and

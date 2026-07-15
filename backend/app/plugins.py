@@ -708,11 +708,14 @@ class PluginRuntime:
         settings = settings or self.settings
         if self.is_anim(app_id):
             # anim speed is a per-app setting (each animation keeps its own).
+            # The fallback is sized for a physical wall: a split-flap module takes
+            # on the order of a second to reach a target flap, so sub-second frames
+            # just queue up while the wall is still clattering toward the last one.
             v = self._perapp_value(app_id, "anim_speed", settings)
             try:
-                return max(0.1, float(v)) if v is not None else 0.4
+                return max(0.1, float(v)) if v is not None else 2.0
             except (ValueError, TypeError):
-                return 0.4
+                return 2.0
         # The declared setting default (what the dialog shows) is used before the
         # manifest's top-level loop_delay or the global default — so it applies
         # even when the user hasn't explicitly saved the app's settings.
