@@ -1,52 +1,24 @@
 {
- "1/1": [
-  "Neujahr"
- ],
- "1/6": [
-  "Dreikönigstag"
- ],
- "2/14": [
-  "Valentinstag"
- ],
- "4/1": [
-  "Aprilscherz"
- ],
- "5/1": [
-  "Tag der Arbeit"
- ],
- "5/9": [
-  "Europatag"
- ],
- "7/21": [
-  "Nationalfeiertag"
- ],
- "8/15": [
-  "Mariä Himmelfahrt"
- ],
- "11/1": [
-  "Allerheiligen"
- ],
- "11/2": [
-  "Allerseelen"
- ],
- "11/11": [
-  "Waffenstillstand",
-  "Sankt Martin"
- ],
- "11/15": [
-  "Festtag des Königs",
-  "Tag der Deutschsprachigen Gemeinschaft"
- ],
- "12/6": [
-  "Nikolaus"
- ],
- "12/24": [
-  "Heiligabend"
- ],
- "12/25": [
-  "Weihnachten"
- ],
- "12/31": [
-  "Silvester"
- ]
+  "2/14": [
+    "Valentinstag"
+  ],
+  "4/1": [
+    "Aprilscherz"
+  ],
+  "5/9": [
+    "Europatag"
+  ],
+  "11/11": [
+    "Sankt Martin"
+  ],
+  "11/15": [
+    "Festtag des Königs",
+    "Tag der Deutschsprachigen Gemeinschaft"
+  ],
+  "12/6": [
+    "Nikolaus"
+  ],
+  "12/31": [
+    "Silvester"
+  ]
 }

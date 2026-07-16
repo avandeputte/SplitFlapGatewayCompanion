@@ -1,10 +1,4 @@
 {
-  "1/1": [
-    "Neujahr"
-  ],
-  "1/6": [
-    "Heilige Drei Könige"
-  ],
   "1/11": [
     "Tag des Deutschen Apfels"
   ],
@@ -15,14 +9,8 @@
   "1/27": [
     "Holocaust-Gedenktag"
   ],
-  "2/2": [
-    "Mariä Lichtmess"
-  ],
   "2/14": [
     "Valentinstag"
-  ],
-  "3/8": [
-    "Internationaler Frauentag"
   ],
   "4/1": [
     "Erster April"
@@ -33,9 +21,6 @@
   "4/30": [
     "Walpurgisnacht",
     "Tanz in den Mai"
-  ],
-  "5/1": [
-    "Tag der Arbeit"
   ],
   "5/8": [
     "Tag der Befreiung"
@@ -52,17 +37,11 @@
   "6/27": [
     "Siebenschläfertag"
   ],
-  "8/15": [
-    "Mariä Himmelfahrt"
-  ],
   "9/1": [
     "Antikriegstag"
   ],
   "9/4": [
     "Tag der Currywurst"
-  ],
-  "9/20": [
-    "Weltkindertag"
   ],
   "9/25": [
     "Tag der Zahngesundheit"
@@ -70,21 +49,11 @@
   "10/1": [
     "Tag des Kaffees"
   ],
-  "10/3": [
-    "Tag der Deutschen Einheit"
-  ],
   "10/24": [
     "Tag der Bibliotheken"
   ],
   "10/31": [
-    "Reformationstag",
     "Halloween"
-  ],
-  "11/1": [
-    "Allerheiligen"
-  ],
-  "11/2": [
-    "Allerseelen"
   ],
   "11/9": [
     "Schicksalstag der Deutschen"
@@ -98,15 +67,6 @@
   ],
   "12/6": [
     "Nikolaustag"
-  ],
-  "12/24": [
-    "Heiligabend"
-  ],
-  "12/25": [
-    "Erster Weihnachtsfeiertag"
-  ],
-  "12/26": [
-    "Zweiter Weihnachtsfeiertag"
   ],
   "12/31": [
     "Silvester"

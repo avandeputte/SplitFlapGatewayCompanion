@@ -1,15 +1,6 @@
 {
-  "1/1": [
-    "Jour de l'An"
-  ],
-  "1/6": [
-    "Épiphanie (galette des rois)"
-  ],
   "1/22": [
     "Saint-Vincent, patron des vignerons"
-  ],
-  "2/2": [
-    "Chandeleur (jour des crêpes)"
   ],
   "2/14": [
     "Saint-Valentin"
@@ -24,11 +15,7 @@
     "Poisson d'avril"
   ],
   "5/1": [
-    "Fête du Travail",
     "Fête du Muguet"
-  ],
-  "5/8": [
-    "Victoire de 1945"
   ],
   "5/9": [
     "Journée de l'Europe"
@@ -41,18 +28,6 @@
   ],
   "6/24": [
     "Feux de la Saint-Jean"
-  ],
-  "7/14": [
-    "Fête Nationale"
-  ],
-  "8/15": [
-    "Assomption"
-  ],
-  "11/1": [
-    "Toussaint"
-  ],
-  "11/11": [
-    "Armistice de 1918"
   ],
   "11/22": [
     "Sainte-Cécile, patronne des musiciens"
@@ -68,12 +43,6 @@
   ],
   "12/8": [
     "Fête des Lumières (Lyon)"
-  ],
-  "12/24": [
-    "Réveillon de Noël"
-  ],
-  "12/25": [
-    "Noël"
   ],
   "12/31": [
     "Saint-Sylvestre"

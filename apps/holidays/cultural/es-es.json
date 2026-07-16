@@ -1,12 +1,6 @@
 {
-  "1/1": [
-    "Año Nuevo"
-  ],
   "1/5": [
     "Cabalgata de los Reyes Magos"
-  ],
-  "1/6": [
-    "Día de Reyes"
   ],
   "1/17": [
     "San Antón, bendición de animales"
@@ -20,9 +14,6 @@
   "2/14": [
     "San Valentín"
   ],
-  "2/28": [
-    "Día de Andalucía"
-  ],
   "3/8": [
     "Día de la Mujer"
   ],
@@ -31,29 +22,13 @@
     "La Cremà de las Fallas (Valencia)"
   ],
   "4/23": [
-    "Sant Jordi (llibres i roses)",
     "Día del Libro"
-  ],
-  "5/1": [
-    "Día del Trabajador"
-  ],
-  "5/2": [
-    "Dos de Mayo (Madrid)"
   ],
   "5/15": [
     "San Isidro (Madrid)"
   ],
-  "5/17": [
-    "Día das Letras Galegas"
-  ],
-  "5/30": [
-    "Día de Canarias"
-  ],
   "6/23": [
     "Noche de San Juan (hogueras)"
-  ],
-  "6/24": [
-    "San Juan"
   ],
   "7/6": [
     "Chupinazo de San Fermín"
@@ -64,39 +39,11 @@
   "7/16": [
     "Virgen del Carmen, patrona del mar"
   ],
-  "7/25": [
-    "Santiago Apóstol"
-  ],
-  "8/15": [
-    "Asunción de la Virgen"
-  ],
-  "9/11": [
-    "Diada Nacional de Catalunya"
-  ],
-  "10/9": [
-    "Dia de la Comunitat Valenciana"
-  ],
   "10/12": [
-    "Fiesta Nacional de España",
     "Virgen del Pilar (Zaragoza)"
-  ],
-  "11/1": [
-    "Todos los Santos"
-  ],
-  "12/6": [
-    "Día de la Constitución"
-  ],
-  "12/8": [
-    "Inmaculada Concepción"
   ],
   "12/22": [
     "Lotería de Navidad (El Gordo)"
-  ],
-  "12/24": [
-    "Nochebuena"
-  ],
-  "12/25": [
-    "Navidad"
   ],
   "12/28": [
     "Día de los Santos Inocentes"

@@ -1,65 +1,20 @@
 {
- "1/1": [
-  "Nouvel An"
- ],
- "1/2": [
-  "Saint-Berchtold"
- ],
- "1/6": [
-  "Épiphanie"
- ],
- "2/2": [
-  "Chandeleur"
- ],
- "2/14": [
-  "Saint-Valentin"
- ],
- "3/8": [
-  "Journée internationale des femmes"
- ],
- "3/19": [
-  "Saint-Joseph"
- ],
- "4/1": [
-  "Poisson d'avril"
- ],
- "5/1": [
-  "Fête du Travail"
- ],
- "6/29": [
-  "Saint-Pierre et Paul"
- ],
- "8/1": [
-  "Fête nationale suisse"
- ],
- "8/15": [
-  "Assomption"
- ],
- "10/31": [
-  "Halloween"
- ],
- "11/1": [
-  "Toussaint"
- ],
- "11/11": [
-  "Saint-Martin"
- ],
- "12/6": [
-  "Saint-Nicolas"
- ],
- "12/8": [
-  "Immaculée Conception"
- ],
- "12/24": [
-  "Veillée de Noël"
- ],
- "12/25": [
-  "Noël"
- ],
- "12/26": [
-  "Saint-Étienne"
- ],
- "12/31": [
-  "Saint-Sylvestre"
- ]
+  "2/14": [
+    "Saint-Valentin"
+  ],
+  "3/8": [
+    "Journée internationale des femmes"
+  ],
+  "4/1": [
+    "Poisson d'avril"
+  ],
+  "10/31": [
+    "Halloween"
+  ],
+  "11/11": [
+    "Saint-Martin"
+  ],
+  "12/6": [
+    "Saint-Nicolas"
+  ]
 }

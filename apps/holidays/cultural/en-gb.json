@@ -1,7 +1,4 @@
 {
-  "1/1": [
-    "New Year's Day"
-  ],
   "1/5": [
     "Twelfth Night"
   ],
@@ -18,9 +15,6 @@
   "3/5": [
     "St Piran's Day"
   ],
-  "3/17": [
-    "St Patrick's Day"
-  ],
   "4/1": [
     "April Fools' Day"
   ],
@@ -31,14 +25,8 @@
     "St George's Day",
     "Shakespeare Day"
   ],
-  "5/1": [
-    "May Day"
-  ],
   "5/8": [
     "VE Day"
-  ],
-  "7/12": [
-    "Orangemen's Day"
   ],
   "7/15": [
     "St Swithin's Day"
@@ -70,18 +58,6 @@
   ],
   "11/11": [
     "Remembrance Day"
-  ],
-  "11/30": [
-    "St Andrew's Day"
-  ],
-  "12/24": [
-    "Christmas Eve"
-  ],
-  "12/25": [
-    "Christmas Day"
-  ],
-  "12/26": [
-    "Boxing Day"
   ],
   "12/31": [
     "New Year's Eve",

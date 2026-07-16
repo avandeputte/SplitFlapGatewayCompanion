@@ -1,10 +1,4 @@
 {
-  "1/1": [
-    "New Year's Day"
-  ],
-  "1/26": [
-    "Australia Day"
-  ],
   "2/13": [
     "National Apology Day"
   ],
@@ -22,9 +16,6 @@
   ],
   "4/6": [
     "Waltzing Matilda Day"
-  ],
-  "4/25": [
-    "Anzac Day"
   ],
   "5/26": [
     "National Sorry Day"
@@ -58,17 +49,5 @@
   ],
   "11/15": [
     "Steve Irwin Day"
-  ],
-  "12/24": [
-    "Christmas Eve"
-  ],
-  "12/25": [
-    "Christmas Day"
-  ],
-  "12/26": [
-    "Boxing Day"
-  ],
-  "12/31": [
-    "New Year's Eve"
   ]
 }

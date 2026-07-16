@@ -1,13 +1,4 @@
 {
-  "1/1": [
-    "New Year's Day"
-  ],
-  "1/2": [
-    "Day after New Year's Day"
-  ],
-  "2/6": [
-    "Waitangi Day"
-  ],
   "2/14": [
     "Valentine's Day"
   ],
@@ -16,9 +7,6 @@
   ],
   "4/1": [
     "April Fools' Day"
-  ],
-  "4/25": [
-    "Anzac Day"
   ],
   "6/5": [
     "Arbor Day"
@@ -38,15 +26,6 @@
   ],
   "11/11": [
     "Armistice Day"
-  ],
-  "12/24": [
-    "Christmas Eve"
-  ],
-  "12/25": [
-    "Christmas Day"
-  ],
-  "12/26": [
-    "Boxing Day"
   ],
   "12/31": [
     "New Year's Eve"

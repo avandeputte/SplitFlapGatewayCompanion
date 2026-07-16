@@ -1,62 +1,29 @@
 {
- "1/1": [
-  "Jour de l'An"
- ],
- "1/6": [
-  "Épiphanie"
- ],
- "2/2": [
-  "Chandeleur"
- ],
- "2/14": [
-  "Saint-Valentin"
- ],
- "3/8": [
-  "Journée des droits des femmes"
- ],
- "4/1": [
-  "Poisson d'avril"
- ],
- "5/1": [
-  "Fête du Travail"
- ],
- "5/8": [
-  "Fête de l'Iris (Bruxelles)"
- ],
- "5/9": [
-  "Journée de l'Europe"
- ],
- "7/21": [
-  "Fête nationale"
- ],
- "8/15": [
-  "Assomption"
- ],
- "9/27": [
-  "Fête de la Communauté française"
- ],
- "11/1": [
-  "Toussaint"
- ],
- "11/2": [
-  "Jour des Défunts"
- ],
- "11/11": [
-  "Armistice"
- ],
- "11/15": [
-  "Fête du Roi"
- ],
- "12/6": [
-  "Saint-Nicolas"
- ],
- "12/24": [
-  "Réveillon de Noël"
- ],
- "12/25": [
-  "Noël"
- ],
- "12/31": [
-  "Saint-Sylvestre"
- ]
+  "2/14": [
+    "Saint-Valentin"
+  ],
+  "3/8": [
+    "Journée des droits des femmes"
+  ],
+  "4/1": [
+    "Poisson d'avril"
+  ],
+  "5/8": [
+    "Fête de l'Iris (Bruxelles)"
+  ],
+  "5/9": [
+    "Journée de l'Europe"
+  ],
+  "9/27": [
+    "Fête de la Communauté française"
+  ],
+  "11/15": [
+    "Fête du Roi"
+  ],
+  "12/6": [
+    "Saint-Nicolas"
+  ],
+  "12/31": [
+    "Saint-Sylvestre"
+  ]
 }

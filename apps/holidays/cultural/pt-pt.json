@@ -1,10 +1,4 @@
 {
-  "1/1": [
-    "Ano Novo"
-  ],
-  "1/6": [
-    "Dia de Reis"
-  ],
   "2/14": [
     "Dia dos Namorados"
   ],
@@ -23,64 +17,19 @@
   "4/1": [
     "Dia das Mentiras"
   ],
-  "4/25": [
-    "Dia da Liberdade"
-  ],
-  "5/1": [
-    "Dia do Trabalhador"
-  ],
   "6/1": [
     "Dia Mundial da Criança"
-  ],
-  "6/10": [
-    "Dia de Portugal"
-  ],
-  "6/13": [
-    "Dia de Santo António"
-  ],
-  "6/24": [
-    "Dia de São João"
-  ],
-  "6/29": [
-    "Dia de São Pedro"
   ],
   "7/26": [
     "Dia dos Avós"
   ],
-  "8/15": [
-    "Assunção de Nossa Senhora"
-  ],
-  "10/5": [
-    "Implantação da República"
-  ],
   "10/31": [
     "Dia das Bruxas"
-  ],
-  "11/1": [
-    "Dia de Todos os Santos"
-  ],
-  "11/2": [
-    "Dia dos Fiéis Defuntos"
   ],
   "11/11": [
     "Dia de São Martinho"
   ],
   "11/16": [
     "Dia Nacional do Mar"
-  ],
-  "12/1": [
-    "Restauração da Independência"
-  ],
-  "12/8": [
-    "Imaculada Conceição"
-  ],
-  "12/24": [
-    "Véspera de Natal"
-  ],
-  "12/25": [
-    "Natal"
-  ],
-  "12/31": [
-    "Véspera de Ano Novo"
   ]
 }

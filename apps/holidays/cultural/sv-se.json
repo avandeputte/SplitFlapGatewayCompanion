@@ -1,10 +1,4 @@
 {
-  "1/1": [
-    "Nyårsdagen"
-  ],
-  "1/6": [
-    "Trettondedag jul"
-  ],
   "1/13": [
     "Tjugondedag Knut"
   ],
@@ -24,17 +18,10 @@
     "Första april (aprilskämt)"
   ],
   "4/30": [
-    "Valborgsmässoafton",
     "Kungens födelsedag"
-  ],
-  "5/1": [
-    "Första maj"
   ],
   "5/11": [
     "Chokladbollens dag"
-  ],
-  "6/6": [
-    "Sveriges nationaldag"
   ],
   "7/14": [
     "Victoriadagen"
@@ -76,19 +63,6 @@
     "Luciadagen"
   ],
   "12/23": [
-    "Dan före dopparedan",
     "Drottningens födelsedag"
-  ],
-  "12/24": [
-    "Julafton"
-  ],
-  "12/25": [
-    "Juldagen"
-  ],
-  "12/26": [
-    "Annandag jul"
-  ],
-  "12/31": [
-    "Nyårsafton"
   ]
 }

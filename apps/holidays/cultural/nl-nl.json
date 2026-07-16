@@ -1,10 +1,6 @@
 {
   "1/1": [
-    "Nieuwjaarsdag",
     "Nieuwjaarsduik"
-  ],
-  "1/6": [
-    "Driekoningen"
   ],
   "2/14": [
     "Valentijnsdag"
@@ -18,17 +14,11 @@
   "4/1": [
     "1 april (aprilgrappen)"
   ],
-  "4/27": [
-    "Koningsdag"
-  ],
   "5/1": [
     "Dag van de Arbeid"
   ],
   "5/4": [
     "Nationale Dodenherdenking"
-  ],
-  "5/5": [
-    "Bevrijdingsdag"
   ],
   "5/12": [
     "Dag van de Verpleging"
@@ -72,15 +62,6 @@
   ],
   "12/15": [
     "Koninkrijksdag"
-  ],
-  "12/24": [
-    "Kerstavond"
-  ],
-  "12/25": [
-    "Eerste Kerstdag"
-  ],
-  "12/26": [
-    "Tweede Kerstdag"
   ],
   "12/31": [
     "Oudejaarsavond"

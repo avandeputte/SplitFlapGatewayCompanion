@@ -1,21 +1,9 @@
 {
-  "1/1": [
-    "Ano Novo"
-  ],
-  "1/6": [
-    "Dia de Reis"
-  ],
   "1/20": [
     "Dia de São Sebastião (Rio)"
   ],
-  "1/25": [
-    "Aniversário de São Paulo"
-  ],
   "2/2": [
     "Dia de Iemanjá"
-  ],
-  "3/8": [
-    "Dia Internacional da Mulher"
   ],
   "4/1": [
     "Dia da Mentira"
@@ -23,17 +11,8 @@
   "4/19": [
     "Dia dos Povos Indígenas"
   ],
-  "4/21": [
-    "Tiradentes"
-  ],
   "4/22": [
     "Descobrimento do Brasil"
-  ],
-  "4/23": [
-    "Dia de São Jorge"
-  ],
-  "5/1": [
-    "Dia do Trabalhador"
   ],
   "5/13": [
     "Abolição da Escravatura"
@@ -43,12 +22,6 @@
   ],
   "6/13": [
     "Dia de Santo Antônio"
-  ],
-  "6/24": [
-    "Festa de São João"
-  ],
-  "6/29": [
-    "Dia de São Pedro"
   ],
   "7/20": [
     "Dia do Amigo"
@@ -62,12 +35,6 @@
   "8/22": [
     "Dia do Folclore"
   ],
-  "9/7": [
-    "Dia da Independência"
-  ],
-  "9/20": [
-    "Dia do Gaúcho"
-  ],
   "9/21": [
     "Dia da Árvore"
   ],
@@ -75,7 +42,6 @@
     "Dia de Cosme e Damião"
   ],
   "10/12": [
-    "Nossa Senhora Aparecida",
     "Dia das Crianças"
   ],
   "10/15": [
@@ -85,31 +51,10 @@
     "Dia do Saci",
     "Dia das Bruxas"
   ],
-  "11/2": [
-    "Finados"
-  ],
-  "11/15": [
-    "Proclamação da República"
-  ],
   "11/19": [
     "Dia da Bandeira"
   ],
-  "11/20": [
-    "Dia da Consciência Negra"
-  ],
   "12/2": [
     "Dia Nacional do Samba"
-  ],
-  "12/8": [
-    "Nossa Senhora da Conceição"
-  ],
-  "12/24": [
-    "Véspera de Natal"
-  ],
-  "12/25": [
-    "Natal"
-  ],
-  "12/31": [
-    "Réveillon"
   ]
 }

@@ -1,10 +1,4 @@
 {
-  "1/1": [
-    "Nytårsdag"
-  ],
-  "1/6": [
-    "Helligtrekonger"
-  ],
   "2/5": [
     "Dronning Marys fødselsdag"
   ],
@@ -23,9 +17,6 @@
   "4/16": [
     "Dronning Margrethes fødselsdag"
   ],
-  "5/1": [
-    "Arbejdernes kampdag"
-  ],
   "5/4": [
     "Befrielsesaften"
   ],
@@ -36,7 +27,6 @@
     "Kong Frederiks fødselsdag"
   ],
   "6/5": [
-    "Grundlovsdag",
     "Fars dag"
   ],
   "6/15": [
@@ -63,17 +53,5 @@
   ],
   "12/23": [
     "Lillejuleaften"
-  ],
-  "12/24": [
-    "Juleaften"
-  ],
-  "12/25": [
-    "1. juledag"
-  ],
-  "12/26": [
-    "2. juledag"
-  ],
-  "12/31": [
-    "Nytårsaften"
   ]
 }

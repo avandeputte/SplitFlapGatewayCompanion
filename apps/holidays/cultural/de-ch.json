@@ -1,18 +1,6 @@
 {
-  "1/1": [
-    "Neujahrstag"
-  ],
-  "1/2": [
-    "Berchtoldstag"
-  ],
-  "1/6": [
-    "Dreikönigstag"
-  ],
   "1/13": [
     "Alter Silvester"
-  ],
-  "2/2": [
-    "Mariä Lichtmess"
   ],
   "2/14": [
     "Valentinstag"
@@ -23,49 +11,16 @@
   "3/8": [
     "Internationaler Frauentag"
   ],
-  "3/19": [
-    "Josefstag"
-  ],
   "4/1": [
     "Erster April"
   ],
-  "5/1": [
-    "Tag der Arbeit"
-  ],
-  "6/29": [
-    "Peter und Paul"
-  ],
-  "8/1": [
-    "Bundesfeier"
-  ],
-  "8/15": [
-    "Mariä Himmelfahrt"
-  ],
   "10/31": [
     "Halloween"
-  ],
-  "11/1": [
-    "Allerheiligen"
   ],
   "11/11": [
     "Martinstag"
   ],
   "12/6": [
     "Samichlaus"
-  ],
-  "12/8": [
-    "Mariä Empfängnis"
-  ],
-  "12/24": [
-    "Heiligabend"
-  ],
-  "12/25": [
-    "Weihnachten"
-  ],
-  "12/26": [
-    "Stephanstag"
-  ],
-  "12/31": [
-    "Silvester"
   ]
 }
