@@ -43,7 +43,7 @@ def _row(left, right, cols):
     return left + ' ' * (cols - len(left) - len(right)) + right
 
 
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
     import requests
     from datetime import datetime
     rows, cols = get_rows(), get_cols()
@@ -67,7 +67,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         return dt.strftime('%I:%M%p').lstrip('0')
 
     try:
-        lat, lon = _latlon(settings, requests)
+        # The platform's cached geocode first (one Nominatim query shared with
+        # weather and every other location app); our own ladder only off-host.
+        loc = get_location() if get_location is not None else None
+        if isinstance(loc, dict) and loc.get('lat') is not None:
+            lat, lon = float(loc['lat']), float(loc['lon'])
+        else:
+            lat, lon = _latlon(settings, requests)
         data = requests.get('https://api.open-meteo.com/v1/forecast',
                             params={'latitude': lat, 'longitude': lon,
                                     'daily': 'sunrise,sunset,daylight_duration',
@@ -85,4 +91,4 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         return [format_lines(line(t('Sunrise'), rise), line(t('Sunset'), sett),
                              line(t('Daylight'), length))]
     except Exception:
-        return [format_lines('Sun times', 'Offline', '')]
+        return [format_lines('Sun times', t('Offline'), '')]

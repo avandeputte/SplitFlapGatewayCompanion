@@ -11,28 +11,33 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         lon = pos['iss_position']['longitude']
         num = ppl['number']
         rows = get_rows()
+
+        # A hemisphere letter instead of a sign: "41.00S 123.45W" is 14 wide where
+        # the API's raw "LAT -41.0050 LON 123.4506" was 25 — which no small wall
+        # showed; it was silently cut mid-longitude.
+        def coord(v, hemis, dec):
+            f = float(v)
+            return f'{abs(f):.{dec}f}{hemis[0] if f >= 0 else hemis[1]}'
+
         if rows == 1:
-            return [format_lines(f'ISS LAT{lat} LON{lon}')]
+            return [format_lines(f'ISS {coord(lat, "NS", 0)} {coord(lon, "EW", 0)}')]
+        pos_line = f'{coord(lat, "NS", 2)} {coord(lon, "EW", 2)}'
         if rows == 2:
-            return [format_lines('ISS tracker', f'LAT{lat} LON{lon}')]
+            return [format_lines('ISS tracker', pos_line)]
         if rows >= 4:
             # astros.json is already fetched above and carries who is aboard — the
             # position API has nothing else to give (no altitude, no velocity).
             cols = get_cols()
             crew = [str(pp.get('name', ''))[:cols]
                     for pp in (ppl.get('people') or []) if pp.get('craft') == 'ISS']
-            # "LAT -41.0050 LON 123.4" does not fit 15 columns; with rows to spare,
-            # give latitude and longitude a line each instead of truncating both.
-            def trim(v):
-                return f'{float(v):.2f}'
-            body = [f'LAT {trim(lat)}', f'LON {trim(lon)}', f'{num} ' + t('In space')]
-            return [format_lines('ISS tracker', *body, *crew[:max(0, rows - 4)])]
-        return [format_lines('ISS tracker', f'LAT {lat} LON {lon}', f'{num} ' + t('In space'))]
+            body = [pos_line, f'{num} ' + t('In space')]
+            return [format_lines('ISS tracker', *body, *crew[:max(0, rows - 3)])]
+        return [format_lines('ISS tracker', pos_line, f'{num} ' + t('In space'))]
     except Exception:
         return [format_lines('ISS tracker', t('Error'), t('API fail'))]
 
 
-def trigger(settings, conditions):
+def trigger(settings, conditions, get_location=None):
     """Fire when ISS is overhead, or on crew milestone."""
     import requests, math
     from datetime import datetime
@@ -51,7 +56,14 @@ def trigger(settings, conditions):
             loc_lon = settings.get('location_lon', '')
             if loc_lat and loc_lon:
                 user_lat, user_lon = float(loc_lat), float(loc_lon)
+            elif get_location is not None and get_location().get('lat') is not None:
+                # The platform's cached geocode of the configured location — no
+                # need to run our own Nominatim query on every trigger poll.
+                loc = get_location()
+                user_lat, user_lon = float(loc['lat']), float(loc['lon'])
             else:
+                # Off a companion host (splitflap-os injects nothing): geocode the
+                # ZIP ourselves.
                 zip_code = settings.get('zip_code', '02118')
                 geo = requests.get(
                     f'https://nominatim.openstreetmap.org/search?q={zip_code}&format=json&limit=1',
@@ -77,7 +89,10 @@ def trigger(settings, conditions):
 
             if condition_type == 'visible_pass':
                 # Check nighttime and clear sky
-                tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+                try:
+                    tz = pytz.timezone(settings.get('timezone') or 'UTC')
+                except Exception:
+                    tz = pytz.utc
                 hour = datetime.now(tz).hour
                 is_night = hour >= 20 or hour <= 5
 

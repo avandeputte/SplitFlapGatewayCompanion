@@ -1,12 +1,18 @@
 """National Today - Holiday of the Day plugin for Split-Flap Display."""
 
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     from datetime import datetime
     import pytz
     import json
     import os
 
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    def t(s):
+        return i18n.t(s, "holiday") if i18n is not None else s
+
+    try:
+        tz = pytz.timezone(settings.get('timezone') or 'UTC')
+    except Exception:
+        tz = pytz.utc
     now = datetime.now(tz)
     key = f'{now.month}/{now.day}'
 
@@ -18,22 +24,26 @@ def fetch(settings, format_lines, get_rows, get_cols):
     except Exception:
         holidays = {}
 
-    names = holidays.get(key, ['A great day'])
+    rows, cols = get_rows(), get_cols()
+    names = holidays.get(key, [t('A great day')])
     pages = []
     for name in names:
-        name = name
-        cols = get_cols()
-        if len(name) <= cols:
-            pages.append(format_lines('Today is', name, ''))
-        else:
-            words = name.split()
-            line1 = ''
-            line2 = ''
-            for word in words:
-                if not line1 or len(line1) + 1 + len(word) <= cols:
-                    line1 = (line1 + ' ' + word).strip() if line1 else word
-                elif not line2 or len(line2) + 1 + len(word) <= cols:
-                    line2 = (line2 + ' ' + word).strip() if line2 else word
-            pages.append(format_lines('Today is', line1, line2))
+        # The catalog ships common holiday names localized — use the translation
+        # when there is one ("Christmas Day" -> "Weihnachten"), keep ours if not.
+        if i18n is not None:
+            name = i18n.holiday(name) or name
+        # Sequential wrap onto the rows below the title. The old two-line greedy
+        # version skipped words mid-sentence and then re-slotted later ones, which
+        # could scramble "Wear Pajamas to Work Day" into nonsense.
+        words, lines, cur = name.split(), [], ''
+        for word in words:
+            if cur and len(cur) + 1 + len(word) > cols:
+                lines.append(cur)
+                cur = word[:cols]
+            else:
+                cur = f'{cur} {word}'.strip() if cur else word[:cols]
+        if cur:
+            lines.append(cur)
+        pages.append(format_lines(t('Today is'), *lines[:max(1, rows - 1)]))
 
-    return pages or [format_lines('Today is', 'A great day', '')]
+    return pages or [format_lines(t('Today is'), t('A great day'), '')]

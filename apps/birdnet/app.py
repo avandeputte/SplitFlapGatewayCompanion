@@ -2,9 +2,13 @@ def fetch(settings, format_lines, get_rows, get_cols):
     import requests
     from collections import Counter
 
-    host = settings.get('birdnet_host', '192.168.86.139')
+    host = settings.get('birdnet_host', '')
     port = settings.get('birdnet_port', '80')
     mode = settings.get('display_mode', 'latest')
+    if not host:
+        # There is no defensible default here — a BirdNET-Pi lives at whatever
+        # address YOUR network gave it (shipping the developer's LAN IP was worse).
+        return [format_lines('BirdNET', 'No host set', 'Configure')]
     min_conf = int(settings.get('min_confidence', '70')) / 100
     leaderboard_count = int(settings.get('leaderboard_count', '3'))
     base_url = f"http://{host}:{port}"
@@ -109,8 +113,10 @@ def trigger(settings, conditions):
     """Fire when a new bird detection matches the configured filter."""
     import requests
 
-    host = settings.get('birdnet_host', '192.168.86.139')
+    host = settings.get('birdnet_host', '')
     port = settings.get('birdnet_port', '80')
+    if not host:
+        return False
     min_conf = int(settings.get('min_confidence', '70')) / 100
     filt = conditions.get('filter', 'any')
     species_query = conditions.get('species', '').lower().strip()

@@ -103,7 +103,10 @@ def trigger(settings, conditions):
 
             if condition_type == 'pct_change':
                 threshold = float(conditions.get('threshold', 3))
-                direction = conditions.get('direction', 'either')
+                # The direction select is shared between condition types; map the
+                # price-target vocabulary so no combination is silently dead.
+                direction = {'above': 'up', 'below': 'down'}.get(
+                    conditions.get('direction', 'either'), conditions.get('direction', 'either'))
                 if not prev:
                     continue
                 chg = ((price - prev) / prev) * 100
@@ -116,7 +119,8 @@ def trigger(settings, conditions):
 
             elif condition_type == 'price_target':
                 target = float(conditions.get('price_target', 0))
-                direction = conditions.get('direction', 'above')
+                direction = {'up': 'above', 'down': 'below', 'either': 'above'}.get(
+                    conditions.get('direction', 'above'), conditions.get('direction', 'above'))
                 if not target:
                     continue
                 key = f"{sym}:{direction}:{target}"

@@ -1,7 +1,13 @@
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import requests
     from datetime import datetime, timezone
-    stop = settings.get('mbta_stop', 'place-bbsta')
+
+    def t(s):
+        return i18n.t(s, "transit") if i18n is not None else s
+
+    # Defaults match the manifest (place-NSTAT = North Station) — they used to
+    # disagree, so a blank setting rode a different platform than the dialog showed.
+    stop = settings.get('mbta_stop', 'place-NSTAT')
     route = settings.get('mbta_route', 'Orange')
     try:
         r = requests.get(
@@ -17,11 +23,11 @@ def fetch(settings, format_lines, get_rows, get_cols):
             if arr and d_id not in preds:
                 dt = datetime.fromisoformat(arr)
                 mins = max(0, int((dt - now).total_seconds() // 60))
-                preds[d_id] = f'{mins} min'
+                preds[d_id] = f'{mins} {t("min")}'
         no_color = settings.get('disable_colors', 'no') == 'yes'
-        header = f'{route} Line' if no_color else f'🟧 {route} Line 🟧'
-        line0 = preds.get(0, 'No data')
-        line1 = preds.get(1, 'No data')
+        header = f'{route} {t("Line")}' if no_color else f'🟧 {route} {t("Line")} 🟧'
+        line0 = preds.get(0, t('No data'))
+        line1 = preds.get(1, t('No data'))
         rows = get_rows()
         if rows == 1:
             return [format_lines(f'Dir0 {line0} Dir1 {line1}')]
@@ -29,7 +35,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
             return [format_lines(f'Dir0 {line0}', f'Dir1 {line1}')]
         return [format_lines(header, f'Dir0 {line0}', f'Dir1 {line1}')]
     except Exception:
-        return [format_lines('Metro', 'Error', 'Check config')]
+        return [format_lines('Metro', t('Error'), t('Check config'))]
 
 
 def trigger(settings, conditions):
@@ -40,7 +46,7 @@ def trigger(settings, conditions):
     condition_type = conditions.get('condition_type', 'arriving')
     minutes = int(conditions.get('minutes', 5))
     direction = conditions.get('direction', 'either')
-    stop = settings.get('mbta_stop', 'place-bbsta')
+    stop = settings.get('mbta_stop', 'place-NSTAT')
     route = settings.get('mbta_route', 'Orange')
 
     state = getattr(trigger, '_state', None)

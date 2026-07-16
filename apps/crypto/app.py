@@ -45,14 +45,23 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         body = n(price, 0) if price >= 1 else n(price, 4, grouping=False)
         return f'{cur_sym}{sep}{body}'
 
+    # CoinGecko is queried by id slug ('bitcoin'), but a slug is not a display
+    # name: uppercasing and cutting it made "BITCOI". Show the ticker people know
+    # and fall back to the slug as written (the wall folds case if it has to).
+    tickers = {'bitcoin': 'BTC', 'ethereum': 'ETH', 'tether': 'USDT',
+               'binancecoin': 'BNB', 'solana': 'SOL', 'ripple': 'XRP',
+               'cardano': 'ADA', 'dogecoin': 'DOGE', 'tron': 'TRX',
+               'polkadot': 'DOT', 'litecoin': 'LTC', 'monero': 'XMR',
+               'chainlink': 'LINK', 'shiba-inu': 'SHIB', 'avalanche-2': 'AVAX'}
+
     def block(c):
         """The lines for one coin, sized to the display: price+change together on
         2+ row displays (with the name too when there are 3+ rows)."""
         d = r.get(c, {})
         price, chg = d.get(vs), d.get(f'{vs}_24h_change')
-        sym = c[:6].upper()
+        sym = tickers.get(c, c)
         if price is None:
-            return [f'{sym} Err']
+            return [f'{sym} Err'[:cols]]
         if chg is None:
             chg_str = 'N/A'
         else:
@@ -63,10 +72,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
             tile = '' if no_color else ('🟩' if chg >= 0 else '🟥')
             chg_str = f'{arrow}{tile} {pct(chg)}'
         if rows == 1:
-            return [f'{sym} {price_str(price)}']
+            return [f'{sym} {price_str(price)}'[:cols]]
         if rows == 2:
-            return [f'{sym} {price_str(price)}', chg_str]
-        return [c[:cols], price_str(price), chg_str]   # name / price / change
+            return [f'{sym} {price_str(price)}'[:cols], chg_str]
+        return [sym[:cols], price_str(price), chg_str]   # ticker / price / change
 
     lines_per = 1 if rows == 1 else (2 if rows == 2 else 3)
     per_page = max(1, rows // lines_per)   # how many coins fit on one page
@@ -112,7 +121,10 @@ def trigger(settings, conditions):
 
             if condition_type == 'pct_change':
                 threshold = float(conditions.get('threshold', 5))
-                direction = conditions.get('direction', 'either')
+                # The direction select is shared between condition types; map the
+                # price-target vocabulary so no combination is silently dead.
+                direction = {'above': 'up', 'below': 'down'}.get(
+                    conditions.get('direction', 'either'), conditions.get('direction', 'either'))
                 if chg is None:
                     continue
                 if direction == 'up' and chg >= threshold:
@@ -124,7 +136,8 @@ def trigger(settings, conditions):
 
             elif condition_type == 'price_target' and price is not None:
                 target = float(conditions.get('price_target', 0))
-                direction = conditions.get('direction', 'above')
+                direction = {'up': 'above', 'down': 'below', 'either': 'above'}.get(
+                    conditions.get('direction', 'above'), conditions.get('direction', 'above'))
                 if not target:
                     continue
                 key = f"{c}:{direction}:{target}"

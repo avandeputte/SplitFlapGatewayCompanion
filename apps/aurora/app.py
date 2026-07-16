@@ -39,7 +39,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         # The feed is a list of {time_tag, Kp, ...} records (newest last).
         kp = float(latest.get('Kp') if isinstance(latest, dict) else latest[1])
         kps = num(kp)
-        label = t(_label(kp))
+        # Severity at a glance: a colour square renders everywhere — coloured
+        # pixels on a matrix wall, the matching colour FLAP on a physical one.
+        tile = '🟩' if kp < 5 else '🟨' if kp < 6 else '🟧' if kp < 7 else '🟥'
+        label = f'{tile} {t(_label(kp))}'
         if rows == 1:
             return [format_lines(f'{t("Aurora")} KP {kps}')]
         if rows == 2:

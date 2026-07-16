@@ -12,14 +12,11 @@ _FALLBACK = [
     (1929, "Stock market crash Black Tuesday"),
     (1955, "Rosa Parks refuses to give up seat"),
 ]
-_ALLOWED = set(" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*")
-
-
 def _clean(s):
-    # Validate on the uppercased form (the allow-set is uppercase) but emit the
-    # character as written: a wall that can show lowercase should get it, and one
-    # that cannot has the companion fold it on the way out.
-    return ''.join(c if c.upper() in _ALLOWED else ' ' for c in s).strip()
+    # No character filtering: the renderer degrades wall-aware at the last moment
+    # (accents survive on reels that carry them). Filtering to ASCII here was
+    # punching holes in names like "Dvořák" on walls that could have shown them.
+    return s.strip()
 
 
 def _split(text, width):
@@ -46,9 +43,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
     cols, rows = get_cols(), get_rows()
     try:
-        tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
-    except pytz.UnknownTimeZoneError:
-        tz = pytz.timezone('US/Eastern')
+        tz = pytz.timezone(settings.get('timezone') or 'UTC')
+    except Exception:
+        tz = pytz.utc
     now = datetime.now(tz)
 
     try:
@@ -63,17 +60,23 @@ def fetch(settings, format_lines, get_rows, get_cols):
     except Exception:
         events = [(str(y), _clean(d)) for y, d in _FALLBACK]
 
-    # Lead with the year (no wasted 'ON THIS DAY' header row) and keep the whole
-    # thing on one page — prefer a short event that fits, else the shortest.
+    # Lead with the year (no wasted 'ON THIS DAY' header row) and keep each event
+    # whole on its own page — up to three that fit, so the rotation shows more
+    # than one thing that happened today. (One page used to win and the rest of
+    # the feed was discarded.)
     events = [(y, f'{y} {d}') for y, d in events]     # (year, "YEAR DESC")
     if rows == 1:
-        return [min(events, key=lambda e: len(e[1]))[1][:cols].center(cols)]
+        picks = sorted(events, key=lambda e: len(e[1]))[:3]
+        return [t[:cols].center(cols) for _y, t in picks]
     random.shuffle(events)
-    text = min(events, key=lambda e: len(e[1]))[1]
+    pages = []
     for _y, t in events:
         if len(_split(t, cols)) <= rows:
-            text = t
+            pages.append(format_lines(*_split(t, cols)))
+        if len(pages) == 3:
             break
-    lines = _split(text, cols)[:rows]
-    # format_lines centres it; doing it here as well lands it below the middle.
-    return [format_lines(*lines)]
+    if not pages:
+        text = min(events, key=lambda e: len(e[1]))[1]
+        # format_lines centres it; doing it here as well lands it below the middle.
+        pages = [format_lines(*_split(text, cols)[:rows])]
+    return pages

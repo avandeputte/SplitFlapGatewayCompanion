@@ -261,6 +261,22 @@ def clock(dt, lang, seconds=False, ampm_space=True):
     return f"{body}{sep}{dt.strftime('%p')}"
 
 
+def tzinfo(name):
+    """A tzinfo for an IANA zone name, falling back to UTC when the name is blank
+    or unknown. This is the one guarded version of the ``pytz.timezone(...)``
+    boilerplate every clock app used to carry — a bad zone string coming out of
+    settings must never crash a fetch, and UTC is the only fallback that means
+    the same thing on every wall."""
+    if name:
+        try:
+            import pytz
+            return pytz.timezone(str(name))
+        except Exception:
+            pass
+    from datetime import timezone
+    return timezone.utc
+
+
 class Localizer:
     """Language-bound convenience wrapper handed to apps as ``i18n``."""
 
@@ -303,6 +319,10 @@ class Localizer:
 
     def holiday(self, name):
         return holiday(name, self.lang_base)
+
+    def tz(self, name=None):
+        """tzinfo for ``settings.get('timezone')`` — UTC when blank or unknown."""
+        return tzinfo(name)
 
     @property
     def lang_base(self):

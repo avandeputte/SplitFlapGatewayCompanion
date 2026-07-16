@@ -1,7 +1,10 @@
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     from datetime import datetime
     import pytz
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    try:
+        tz = pytz.timezone(settings.get('timezone') or 'UTC')
+    except Exception:
+        tz = pytz.utc
     now = datetime.now(tz)
     # Seconds are opt-in, and only where the wall says sub-second updates are
     # honest (caps.instant — its own motion statement): a mechanical module takes

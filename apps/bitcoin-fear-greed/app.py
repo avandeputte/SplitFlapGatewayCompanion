@@ -19,7 +19,17 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         # folds its keys, so it needs no uppercasing to be found — shouting it here
         # would only take the case away from the wall before the wall could decide.
         label = t(entry["value_classification"])
-        return [format_lines("BTC Fear&Greed", f"Index: {value}/100", label)]
+        # A colour square renders everywhere: a coloured pixel block on a matrix
+        # wall, the matching colour FLAP on a physical one (every reel carries 7).
+        n = int(value)
+        tile = "🟥" if n <= 24 else "🟧" if n <= 44 else "🟨" if n <= 55 else "🟩"
+        rows, cols = get_rows(), get_cols()
+        if rows == 1:
+            # The index value is the payload — it must never be the line that drops.
+            return [format_lines(f"{tile} F&G {value} {label}"[:cols])]
+        if rows == 2:
+            return [format_lines("BTC Fear&Greed", f"{tile} {value}/100 {label}"[:cols])]
+        return [format_lines("BTC Fear&Greed", f"Index: {value}/100", f"{tile} {label}")]
     except Exception:
         return [format_lines("BTC Fear&Greed", t("Offline"), "")]
 

@@ -59,7 +59,7 @@ def _latlon(settings, requests):
     return 42.3601, -71.0589
 
 
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_weather=None):
+def fetch(settings, format_lines, get_rows, get_cols, get_weather=None):
     import requests
     from datetime import datetime, timedelta, timezone
 

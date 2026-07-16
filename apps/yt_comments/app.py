@@ -16,7 +16,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
         for item in r.get('items', []):
             s = item['snippet']['topLevelComment']['snippet']
             author = s['authorDisplayName'][:cols]
-            text = s['textDisplay']
+            # textOriginal is the comment as typed; textDisplay is HTML — its
+            # entities (&#39;) and tags (<br>) would land on the flaps verbatim.
+            text = s.get('textOriginal') or s.get('textDisplay', '')
             # split text into lines that fit the display
             text_lines = [text[j:j+cols] for j in range(0, len(text), cols)]
             text_lines = text_lines[:rows - 1]  # leave room for author
@@ -56,7 +58,8 @@ def trigger(settings, conditions):
             state['seen_ids'].add(cid)
             if not keyword:
                 return True
-            text = item['snippet']['topLevelComment']['snippet'].get('textDisplay', '').upper()
+            s = item['snippet']['topLevelComment']['snippet']
+            text = (s.get('textOriginal') or s.get('textDisplay', '')).upper()
             if keyword in text:
                 return True
         if len(state['seen_ids']) > 500:

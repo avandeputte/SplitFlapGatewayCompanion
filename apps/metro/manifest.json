@@ -17,8 +17,14 @@
       "type": "toggle",
       "default": "arriving",
       "options": [
-        {"value": "arriving", "label": "Train arriving"},
-        {"value": "alert",    "label": "Service alert"}
+        {
+          "value": "arriving",
+          "label": "Train arriving"
+        },
+        {
+          "value": "alert",
+          "label": "Service alert"
+        }
       ]
     },
     {
@@ -29,7 +35,9 @@
       "min": "1",
       "max": "15",
       "step": "1",
-      "visible_when": {"condition_type": "arriving"}
+      "visible_when": {
+        "condition_type": "arriving"
+      }
     },
     {
       "key": "direction",
@@ -37,11 +45,22 @@
       "type": "toggle",
       "default": "either",
       "options": [
-        {"value": "either", "label": "Either"},
-        {"value": "0",      "label": "Direction 0"},
-        {"value": "1",      "label": "Direction 1"}
+        {
+          "value": "either",
+          "label": "Either"
+        },
+        {
+          "value": "0",
+          "label": "Direction 0"
+        },
+        {
+          "value": "1",
+          "label": "Direction 1"
+        }
       ],
-      "visible_when": {"condition_type": "arriving"}
+      "visible_when": {
+        "condition_type": "arriving"
+      }
     }
   ],
   "settings": [
@@ -71,5 +90,6 @@
     }
   ],
   "min_rows": 1,
-  "min_cols": 10
+  "min_cols": 10,
+  "i18n": true
 }

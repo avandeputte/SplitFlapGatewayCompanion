@@ -8,17 +8,6 @@
   "loop_delay": 5,
   "settings": [
     {
-      "key": "livestream_interval",
-      "label": "Rotation Interval (seconds)",
-      "type": "number",
-      "default": "25",
-      "min": "5",
-      "max": "180",
-      "step": "1",
-      "global_key": true,
-      "stepper": true
-    },
-    {
       "key": "livestream_comments",
       "label": "Comments (blank line separates slides, up to 3 lines each)",
       "type": "textarea",
@@ -65,5 +54,6 @@
   ],
   "category": "animation",
   "min_rows": 3,
-  "min_cols": 12
+  "min_cols": 12,
+  "i18n": true
 }

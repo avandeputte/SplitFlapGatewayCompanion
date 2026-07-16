@@ -137,9 +137,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     now = time.time()
     state = getattr(fetch, "_state", None)
     # Pick a new fortune on first run, when the chosen interval elapses, or when
-    # the language changes (so a language switch shows on the next tick).
+    # the language changes (so a language switch shows on the next tick). The wall
+    # geometry is part of the key: a cached page is a RENDERED page, and one wrapped
+    # for 3x15 is wrong on the 5x20 wall you just switched to.
     if (state is None
             or state.get("lang") != lang
+            or state.get("grid") != (rows, cols)
             or not state.get("pages")
             or (now - state.get("at", 0)) >= every):
         fortunes = _load(lang)
@@ -149,5 +152,5 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         # each line horizontally and pads the remaining rows at the bottom).
         # format_lines centres it; doing it here as well lands it below the middle.
         page = format_lines(*lines)
-        fetch._state = {"at": now, "lang": lang, "pages": [page]}
+        fetch._state = {"at": now, "lang": lang, "grid": (rows, cols), "pages": [page]}
     return fetch._state["pages"]

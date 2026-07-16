@@ -43,14 +43,12 @@ def fetch(settings, format_lines, get_rows, get_cols):
     except Exception:
         titles = ['News unavailable', 'Check feed URL']
 
-    allowed = set(" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*")
     pages = []
     for title in titles:
-        # The allow-set is uppercase, so validate on the folded character but emit the
-        # one the feed wrote: a wall that can show lowercase gets it, and one that
-        # cannot has the companion fold it on the way out. Checking `c` directly would
-        # blank every lowercase letter in the headline.
-        title = ''.join(c if c.upper() in allowed else ' ' for c in title)
+        # No character filtering here: the renderer degrades wall-aware at the last
+        # moment (accents survive on reels that carry them, é->E only where they
+        # don't). Filtering to ASCII in the app was punching holes in "Zürich" on
+        # walls that could have shown it.
         lines = split_text(title, cols)
         for i in range(0, len(lines), rows):
             chunk = lines[i:i + rows]

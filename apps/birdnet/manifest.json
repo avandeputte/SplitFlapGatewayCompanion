@@ -4,7 +4,7 @@
   "icon": "🐦",
   "description": "Live bird detections from BirdNET-Pi",
   "type": "functional",
-  "refresh_interval": 1,
+  "refresh_interval": 10,
   "loop_delay": 5,
   "category": "data",
   "trigger_interval": 30,
@@ -76,7 +76,8 @@
       "key": "birdnet_host",
       "label": "BirdNET-Pi Host",
       "type": "text",
-      "default": "192.168.86.139",
+      "default": "",
+      "ph": "birdnetpi.local or 192.168.x.x",
       "global_key": true
     },
     {

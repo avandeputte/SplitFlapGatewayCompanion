@@ -437,6 +437,32 @@ class PluginRuntime:
             return False
         return name in params or any(p.kind == p.VAR_KEYWORD for p in params.values())
 
+    def _helper_kwargs(self, app_id: str, fn, ps: dict, settings=None) -> dict:
+        """The injected-helper kwargs ``fn`` opts into by parameter name. One
+        assembly for fetch() and trigger() — a trigger needs the weather or the
+        timezone for exactly the same reasons a fetch does, and used to have to
+        hand-roll both."""
+        settings = settings or self.settings
+        kwargs = {}
+        if self._fetch_accepts(fn, "get_weather"):
+            # get_weather() = current conditions; days=N adds a forecast
+            # and hourly temps; air=True adds AQI/UV/pollen (weather.py).
+            kwargs["get_weather"] = lambda s=None, days=0, air=False: weather.fetch_weather(
+                s if s is not None else ps, days=days, air=air)
+        if self._fetch_accepts(fn, "get_location"):
+            kwargs["get_location"] = lambda: location.resolve(ps)
+        if self._fetch_accepts(fn, "i18n"):
+            # A per-app Language override (plugin_<id>_language) wins over
+            # the global Language; blank/unset = follow global.
+            lang = self._perapp_value(app_id, "language", settings) or settings.get("language", "en-US")
+            kwargs["i18n"] = i18n.Localizer(lang)
+        if self._fetch_accepts(fn, "caps"):
+            # What this wall can show. An app asks so it can offer a pictograph
+            # where the wall has one and a WORD where it does not: ♥, ♪, ● and ☀
+            # all degrade to "*" on a real reel, which says nothing at all.
+            kwargs["caps"] = self._caps()
+        return kwargs
+
     @staticmethod
     def _scan_reads(src: str) -> dict:
         """Keys read via ``<settings>.get('k'[, default])`` / ``<settings>['k']`` in
@@ -599,24 +625,7 @@ class PluginRuntime:
                     return cached["pages"]
                 try:
                     ps = self._plugin_settings(app_id, manifest, settings)
-                    kwargs = {}
-                    if self._wants_weather.get(app_id):
-                        # get_weather() = current conditions; days=N adds a forecast
-                        # and hourly temps; air=True adds AQI/UV/pollen (weather.py).
-                        kwargs["get_weather"] = lambda s=None, days=0, air=False: weather.fetch_weather(
-                            s if s is not None else ps, days=days, air=air)
-                    if self._wants_location.get(app_id):
-                        kwargs["get_location"] = lambda: location.resolve(ps)
-                    if self._wants_i18n.get(app_id):
-                        # A per-app Language override (plugin_<id>_language) wins over
-                        # the global Language; blank/unset = follow global.
-                        lang = self._perapp_value(app_id, "language", settings) or settings.get("language", "en-US")
-                        kwargs["i18n"] = i18n.Localizer(lang)
-                    if self._wants_caps.get(app_id):
-                        # What this wall can show. An app asks so it can offer a pictograph
-                        # where the wall has one and a WORD where it does not: ♥, ♪, ● and ☀
-                        # all degrade to "*" on a real reel, which says nothing at all.
-                        kwargs["caps"] = self._caps()
+                    kwargs = self._helper_kwargs(app_id, mod.fetch, ps, settings)
                     # Bound to THIS app's alignment, so the app calls format_lines(*lines)
                     # exactly as it always has — the signature splitflap-os apps expect.
                     fmt = functools.partial(self.format_lines,
@@ -664,13 +673,16 @@ class PluginRuntime:
         return out
 
     def call_trigger(self, app_id: str, conditions: dict) -> bool:
-        """Run an app's trigger(settings, conditions). Blocking — use executor."""
+        """Run an app's trigger(settings, conditions). Blocking — use executor.
+        Triggers opt into the same injected helpers as fetch(), by parameter
+        name (``i18n``, ``caps``, ``get_weather``, ``get_location``)."""
         fn = self._triggers.get(app_id)
         manifest = self._registry.get(app_id)
         if not fn or not manifest:
             return False
         ps = self._plugin_settings(app_id, manifest)
-        return bool(fn(ps, conditions or {}))
+        kwargs = self._helper_kwargs(app_id, fn, ps)
+        return bool(fn(ps, conditions or {}, **kwargs))
 
     # -- run metadata ------------------------------------------------------
     def manifest(self, app_id: str) -> dict | None:

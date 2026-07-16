@@ -1,4 +1,4 @@
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     from datetime import datetime
     import pytz
 
@@ -8,7 +8,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     def u(k):                       # localized Y/D/H/M/S suffix
         return i18n.unit(k) if i18n is not None else k
 
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    try:
+        tz = pytz.timezone(settings.get('timezone') or 'UTC')
+    except Exception:
+        tz = pytz.utc
     now = datetime.now(tz)
     event = settings.get('event_name', 'The start')
     date_str = settings.get('event_date', '2024-01-01')
@@ -25,11 +28,21 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     mins, secs = divmod(rem, 60)
     years = days // 365
     remaining_days = days % 365
+    # A live seconds counter means a flip every second, forever. Only a wall that
+    # repaints (caps.instant) gets it; a mechanical wall shows minutes and moves
+    # once a minute. It must also actually fit: "364D 23H 59M 59S" is 16 wide.
+    instant = bool(getattr(caps, 'instant', False))
     if years > 0:
         elapsed = f'{years}{u("Y")} {remaining_days}{u("D")} {hrs}{u("H")}'
     else:
-        elapsed = f'{days}{u("D")} {hrs}{u("H")} {mins}{u("M")} {secs}{u("S")}'
-    return [format_lines(event, elapsed, t('Time since'))]
+        elapsed = f'{days}{u("D")} {hrs}{u("H")} {mins}{u("M")}'
+        with_secs = f'{elapsed} {secs}{u("S")}'
+        if instant and len(with_secs) <= get_cols():
+            elapsed = with_secs
+    lines = [event, elapsed, t('Time since')]
+    if get_rows() >= 4 and i18n is not None:
+        lines.append(i18n.date(start, year=True))    # the wall has room: since when
+    return [format_lines(*lines)]
 
 
 def trigger(settings, conditions):
@@ -38,7 +51,10 @@ def trigger(settings, conditions):
     import pytz
 
     milestone = conditions.get('milestone', '1y')
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    try:
+        tz = pytz.timezone(settings.get('timezone') or 'UTC')
+    except Exception:
+        tz = pytz.utc
     now = datetime.now(tz)
     date_str = settings.get('event_date', '2024-01-01')
 

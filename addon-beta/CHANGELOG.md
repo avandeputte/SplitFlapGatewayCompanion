@@ -3,6 +3,59 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.5.0-beta.1
+
+**The whole app catalog, audited and brought up to what the platform can do.**
+Every app — all 64 — was audited against the gateways' capabilities; this release
+executes the findings.
+
+*Platform.* `get_location()` now carries `lat`/`lon`/`city` (the one cached
+geocode, shared with weather), so no app needs its own Nominatim ladder.
+Triggers opt into the same injected helpers as `fetch()` — `caps`, `i18n`,
+`get_weather`, `get_location` — by parameter name; the two-argument form stays
+the splitflap-os contract. And `i18n.tz()` plus one blessed guarded snippet
+replace eighteen hand-rolled timezone parses (fallback standardized on UTC).
+
+*Bugs out of the wall.* Three apps stopped deleting accents the renderer could
+have shown (News, On This Day, Trivia). Comments renders the comment as typed,
+not its HTML (`&#39;` on flaps, no more). Time Since ticks seconds only on a
+wall that repaints, fits its line to the wall, and gains a start-date row on
+tall walls. Crypto shows tickers (BTC, ETH) instead of mangling id slugs into
+"BITCOI". ISS coordinates now use hemisphere letters ("41.00S 123.45W") instead
+of a 25-character line no small wall could show. Fear & Greed no longer drops
+its own index on short walls. Sarcastic Fortune Cookies re-wraps when the wall
+changes shape. BirdNET stops polling its Pi every second and no longer ships a
+private LAN IP as a product default. Metro's code default matches its dialog.
+Stock/crypto triggers: every direction option now works with every condition
+type. Moon Phase drops timezone code that cancelled itself out. YouTube says
+what it actually shows — real subscribers with an API key, latest uploads
+without.
+
+*Honest minimums.* All twelve channels declared `min_cols: 10` over 15-wide
+data — every page truncated on a 10-column wall. Now 15, and a conformance test
+keeps any channel's declared minimum at least as wide as its data. Stocks,
+Crypto, Metals, ISS, Art Clock, Fear & Greed corrected too; Sun Times,
+Earthquakes and Rocket Launch advertise the 1-row layouts they already had.
+
+*More from the wall you own.* Severity colours (coloured pixels on a matrix
+wall, colour flaps on a physical one): aurora Kp, earthquake magnitude, Fear &
+Greed sentiment, and the moon's illumination bar. Tall walls: On This Day shows
+up to three events, Formula 1 shows the standings column, Time Since shows the
+start date. Countdown asks `caps.can_show()` instead of reaching into host
+internals.
+
+*Speak your language.* Magic 8 Ball, Fortune Cookie, Stoic Quotes and Shower
+Thoughts join the localized channels — ten languages each, forty new data
+files, every line checked against that language's actual reel (a new test; it
+also caught and fixed five off-reel characters in existing data). Random Fact
+follows your Language to the facts API (English/German). Livestream, Metro,
+YouTube, Earthquakes and National Today localize their chrome; National Today
+also uses the catalog's holiday-name translations.
+
+The Writing-Apps wiki gained the distilled **house rules** — one truthy parser,
+one timezone snippet, errors that raise, minimums as a contract, the i18n badge
+as a promise, and never filtering characters the renderer handles better.
+
 ## 2.4.0
 
 **One weather brain.** Every provider quirk — four providers' condition-code

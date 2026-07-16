@@ -1,9 +1,13 @@
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import requests
     import xml.etree.ElementTree as ET
+
+    def t(s):
+        return i18n.t(s, "media") if i18n is not None else s
+
     channel_id = settings.get('yt_channel_id', '')
     if not channel_id:
-        return [format_lines('YouTube', 'No channel', 'Set ID')]
+        return [format_lines('YouTube', t('No channel'), t('Set ID'))]
     try:
         url = f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}'
         r = requests.get(url, timeout=10)
@@ -11,17 +15,34 @@ def fetch(settings, format_lines, get_rows, get_cols):
         ns = {'a': 'http://www.w3.org/2005/Atom', 'yt': 'http://www.youtube.com/xml/schemas/2015'}
         name = root.find('a:title', ns).text
         entries = root.findall('a:entry', ns)
-        count = f'{len(entries)} videos'
+        # The keyless RSS feed carries no subscriber count — with an API key we
+        # show real subs; without one we say what we actually counted: recent
+        # uploads. ("N videos" from a 15-entry feed was neither subs nor videos.)
+        count = None
+        api_key = settings.get('yt_api_key', '')
+        if api_key:
+            try:
+                cr = requests.get(
+                    'https://www.googleapis.com/youtube/v3/channels',
+                    params={'part': 'statistics', 'id': channel_id, 'key': api_key},
+                    timeout=8).json()
+                subs = int(cr['items'][0]['statistics']['subscriberCount'])
+                n = i18n.number(subs, 0) if i18n is not None else f'{subs:,}'
+                count = f'{n} {t("subs")}'
+            except Exception:
+                count = None
+        if count is None:
+            count = f'{len(entries)} {t("recent uploads")}'
         rows = get_rows()
         if rows >= 4 and entries:
             # The feed carries the latest upload — worth a line when the wall is tall.
             latest = entries[0].find('a:title', ns)
             title = (latest.text or '') if latest is not None else ''
-            extra = ['Latest', title[:get_cols()]] if title else []
+            extra = [t('Latest'), title[:get_cols()]] if title else []
             return [format_lines('YouTube', name, count, *extra[:rows - 3])]
         return [format_lines('YouTube', name, count)]
     except Exception:
-        return [format_lines('YouTube', 'Error', 'Check ID')]
+        return [format_lines('YouTube', t('Error'), t('Check ID'))]
 
 
 def trigger(settings, conditions):

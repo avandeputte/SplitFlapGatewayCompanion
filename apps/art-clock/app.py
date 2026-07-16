@@ -4,7 +4,10 @@ def fetch(settings, format_lines, get_rows, get_cols):
     from datetime import datetime
     import pytz
 
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    try:
+        tz = pytz.timezone(settings.get('timezone') or 'UTC')
+    except Exception:
+        tz = pytz.utc
     now = datetime.now(tz)
     h = now.hour % 12
     if h == 0:

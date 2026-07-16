@@ -103,9 +103,14 @@ def country(settings):
 
 
 def resolve(settings) -> dict:
-    """{ok, country, subdivision, currency} for the configured location. ok is False
-    (values None) when there's no location set or the lookup failed."""
+    """{ok, country, subdivision, currency, lat, lon, city} for the configured
+    location. ok is False (country/currency None) when there's no location set or
+    the reverse lookup failed — but lat/lon/city can still be present in that case
+    (precise coordinates don't need Nominatim), so apps that only want coordinates
+    should test ``lat is not None`` rather than ``ok``."""
+    coords = coordinates(settings)
+    lat, lon, city = coords if coords else (None, None, None)
     g = _geo(settings)
     cc = g.get("country")
     return {"ok": bool(cc), "country": cc, "subdivision": g.get("subdivision"),
-            "currency": _currency_for(cc)}
+            "currency": _currency_for(cc), "lat": lat, "lon": lon, "city": city}

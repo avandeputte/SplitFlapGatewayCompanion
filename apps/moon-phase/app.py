@@ -1,6 +1,5 @@
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
-    from datetime import datetime
-    import pytz
+    from datetime import datetime, timezone
     import math
 
     def t(s):
@@ -9,15 +8,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     def u(k):                       # localized D/H/M/S suffix (French J for jour, etc.)
         return i18n.unit(k) if i18n is not None else k
 
-    try:
-        tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
-    except pytz.UnknownTimeZoneError:
-        tz = pytz.timezone('US/Eastern')
-    now = datetime.now(tz)
+    # The moon's phase is a fact about the moon, not about your wall clock — the
+    # old local-tz conversion here converted straight back to UTC and cancelled out.
+    now = datetime.now(timezone.utc)
 
     # Known new moon: January 6, 2000 18:14 UTC
-    ref = datetime(2000, 1, 6, 18, 14, 0, tzinfo=pytz.utc)
-    diff = (now.astimezone(pytz.utc) - ref).total_seconds()
+    ref = datetime(2000, 1, 6, 18, 14, 0, tzinfo=timezone.utc)
+    diff = (now - ref).total_seconds()
     synodic = 29.53058867
     days_into_cycle = (diff / 86400) % synodic
 
@@ -43,9 +40,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
     cols = get_cols()
 
-    # Visual bar: w for illuminated, space for dark
+    # Visual bar: colour tiles render everywhere — yellow pixels on a matrix wall,
+    # the yellow colour FLAP on a physical one, where a literal 'w' was just the
+    # letter W repeated across the row.
     filled = int(illumination * cols)
-    bar = 'w' * filled + ' ' * (cols - filled)
+    bar = '🟨' * filled + '⬛' * (cols - filled)
 
     name = t(phase_name)
     if get_rows() >= 4:
@@ -64,15 +63,15 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 def trigger(settings, conditions):
     """Fire on full moon or new moon."""
-    from datetime import datetime
-    import pytz, math
+    from datetime import datetime, timezone
 
     phase_type = conditions.get('phase', 'full')
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
-    now = datetime.now(tz)
+    # UTC throughout — the phase doesn't depend on the configured timezone, and
+    # the old code converted to local time only to convert straight back.
+    now = datetime.now(timezone.utc)
 
-    ref = datetime(2000, 1, 6, 18, 14, 0, tzinfo=pytz.utc)
-    diff = (now.astimezone(pytz.utc) - ref).total_seconds()
+    ref = datetime(2000, 1, 6, 18, 14, 0, tzinfo=timezone.utc)
+    diff = (now - ref).total_seconds()
     synodic = 29.53058867
     days_into_cycle = (diff / 86400) % synodic
 

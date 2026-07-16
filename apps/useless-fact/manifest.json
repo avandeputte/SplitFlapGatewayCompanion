@@ -40,5 +40,6 @@
       "step": "1",
       "stepper": true
     }
-  ]
+  ],
+  "i18n": true
 }

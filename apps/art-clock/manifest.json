@@ -9,7 +9,17 @@
   "refresh_interval": 60,
   "loop_delay": 1,
   "animation": true,
-  "settings": [],
+  "settings": [
+    {
+      "key": "timezone",
+      "label": "Timezone (override global)",
+      "type": "search_chips",
+      "searchUrl": "/timezones",
+      "resultKey": "zones",
+      "maxItems": 1,
+      "global_key": true
+    }
+  ],
   "min_rows": 3,
-  "min_cols": 12
+  "min_cols": 15
 }

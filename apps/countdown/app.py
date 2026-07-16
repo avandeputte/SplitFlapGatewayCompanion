@@ -16,21 +16,6 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     def u(k):                       # localized D/H/M/S suffix (French J for jour, etc.)
         return i18n.unit(k) if i18n is not None else k
 
-    def get_allowed_chars():
-        default_chars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*"
-
-        try:
-            import __main__
-
-            source_chars = getattr(__main__, 'FLAP_CHARS', '') or default_chars
-        except Exception:
-            source_chars = default_chars
-
-        # The server stores some flap-only control/color characters in lowercase.
-        return {ch.upper() for ch in str(source_chars)}
-
-    allowed_chars = get_allowed_chars()
-
     def is_enabled(value, default=False):
         if value is None:
             return default
@@ -38,10 +23,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
 
     def clean_event(value, fallback='Countdown'):
         text = str(value or '').strip()
-        # The flap set is uppercase, so check against the folded character but keep
-        # the one the user typed — the companion uppercases it later if the wall needs.
-        sanitized = ''.join(ch if ch.upper() in allowed_chars else ' ' for ch in text)
-        return sanitized.strip() or fallback
+        # caps.can_show is the wall's own answer to "can you show this?" — the
+        # old version reached into the host's __main__ for FLAP_CHARS, which was
+        # splitflap-os internals, not a contract. Without caps (stock
+        # splitflap-os) nothing is filtered: the renderer degrades what it must.
+        can = getattr(caps, 'can_show', None)
+        if callable(can):
+            text = ''.join(ch if can(ch) else ' ' for ch in text)
+        return text.strip() or fallback
 
     def clean_target(value):
         return str(value or '').strip()
@@ -175,9 +164,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
         return target
 
     try:
-        tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+        tz = pytz.timezone(settings.get('timezone') or 'UTC')
     except Exception:
-        tz = pytz.timezone('US/Eastern')
+        tz = pytz.utc
 
     now = datetime.now(tz)
     rows = get_rows()
@@ -244,7 +233,10 @@ def trigger(settings, conditions):
 
     milestone = conditions.get('milestone', '1d')
     target_str = settings.get('countdown_target', '')
-    tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    try:
+        tz = pytz.timezone(settings.get('timezone') or 'UTC')
+    except Exception:
+        tz = pytz.utc
     now = datetime.now(tz)
 
     if not target_str:

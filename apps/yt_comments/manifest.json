@@ -4,6 +4,8 @@
   "icon": "💬",
   "description": "YT comments",
   "type": "functional",
+  "min_rows": 2,
+  "min_cols": 10,
   "refresh_interval": 60,
   "loop_delay": 8,
   "trigger_interval": 120,

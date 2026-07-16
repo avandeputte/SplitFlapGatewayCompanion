@@ -42,6 +42,13 @@ SHOUT = re.compile(r"\b[A-Z]{3,}\b")
 ACRONYMS = {
     "API", "URL", "AQI", "ISS", "USG", "MLK", "MLLW", "MPH", "KPH",
     "USD", "EUR", "GBP", "GBX", "JPY", "BTC", "XAU", "XAG",
+    # Crypto tickers — this is how they are written (crypto shows them instead of
+    # mangling the CoinGecko id slug into "BITCOI").
+    "ETH", "USDT", "BNB", "SOL", "XRP", "ADA", "DOGE", "TRX", "DOT",
+    "LTC", "XMR", "LINK", "SHIB", "AVAX",
+    # The guarded-timezone fallback (pytz.timezone(... or 'UTC')) — a zone name
+    # handed to pytz, and an acronym when it does appear as text.
+    "UTC",
 }
 
 # Uppercase strings that are NOT display text: they are matched against what an API sends back,
@@ -49,8 +56,9 @@ ACRONYMS = {
 # MATCH and the feature quietly stops working. They are listed per app, explicitly, so that a
 # new one has to be justified here rather than waved through by a blanket rule.
 CODES = {
-    # MBTA alert `effect` values.
-    "metro": {"DELAY", "DETOUR", "SHUTTLE", "SUSPENSION"},
+    # MBTA alert `effect` values, and the stop id in the code default
+    # ("place-NSTAT" is an API identifier, matched by the MBTA, not display text).
+    "metro": {"DELAY", "DETOUR", "SHUTTLE", "SUSPENSION", "NSTAT"},
     # ESPN puts the period in `shortDetail` as free text; these are searched for in it.
     "sports": {"OVERTIME", "EXTRA", "SHOOTOUT", "PENALTY", "ESPN", "EPL",
                "NFL", "NBA", "MLB", "NHL", "NCAAF", "NCAAB", "NCAAW", "MLS", "USL",

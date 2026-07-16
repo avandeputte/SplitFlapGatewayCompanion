@@ -9,7 +9,7 @@
   "loop_delay": 5,
   "category": "finance",
   "min_rows": 1,
-  "min_cols": 12,
+  "min_cols": 13,
   "settings": [
     {
       "key": "loop_delay",

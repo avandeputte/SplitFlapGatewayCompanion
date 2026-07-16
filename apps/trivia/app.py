@@ -50,14 +50,9 @@ def fetch(settings, format_lines, get_rows, get_cols):
         q, a = random.choice(fallback_qa)
         question, answer = q, a
 
-    # Case-insensitively: a flap set lists the glyphs a module CARRIES, not the case the
-    # wall shows — the companion folds case at the last moment (renderer.fold), and only for
-    # a wall with no lowercase flaps. Testing membership case-sensitively would blank every
-    # lowercase letter here, long before the display got its say.
-    allowed = set(" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;:%'.,/?*")
-    question = ''.join(c if c.upper() in allowed else ' ' for c in question)
-    answer = ''.join(c if c.upper() in allowed else ' ' for c in answer)
-
+    # No character filtering: the renderer degrades wall-aware at the last moment
+    # (accents survive on reels that carry them). Filtering to ASCII here was
+    # punching holes in trivia about "Beyoncé" on walls that could have shown her.
     q_lines = split_text(question, cols)
     pages = []
     for i in range(0, len(q_lines), rows):

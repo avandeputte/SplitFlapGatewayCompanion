@@ -2,7 +2,7 @@
   "id": "youtube",
   "name": "YouTube",
   "icon": "▶️",
-  "description": "Sub counter",
+  "description": "Channel stats: real subscribers with an API key, latest uploads without",
   "type": "functional",
   "refresh_interval": 30,
   "loop_delay": 5,
@@ -17,8 +17,14 @@
       "type": "toggle",
       "default": "new_video",
       "options": [
-        {"value": "new_video",      "label": "New video posted"},
-        {"value": "view_milestone", "label": "View milestone hit"}
+        {
+          "value": "new_video",
+          "label": "New video posted"
+        },
+        {
+          "value": "view_milestone",
+          "label": "View milestone hit"
+        }
       ]
     },
     {
@@ -28,7 +34,9 @@
       "default": "1000000",
       "min": "1000",
       "step": "1000",
-      "visible_when": {"condition_type": "view_milestone"}
+      "visible_when": {
+        "condition_type": "view_milestone"
+      }
     }
   ],
   "settings": [
@@ -38,8 +46,15 @@
       "type": "text",
       "default": "UC...",
       "global_key": true
+    },
+    {
+      "key": "yt_api_key",
+      "label": "API Key (for real subscriber count)",
+      "type": "password",
+      "global_key": true
     }
   ],
   "min_rows": 3,
-  "min_cols": 10
+  "min_cols": 10,
+  "i18n": true
 }
