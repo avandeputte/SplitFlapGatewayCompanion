@@ -3,6 +3,28 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.5.0-beta.5
+
+**A round of app polish across the catalog.**
+
+- **Countdown** now rotates between your countdowns on a timer you set
+  (Seconds each countdown is shown), and the seconds keep ticking while it
+  does — the two were tangled before. It also opens a calendar picker for the
+  target date and leads with years for far-off dates ("8Y 267D 14H").
+- **Binary Clock** shows the plain time on the bottom row — the answer key
+  under the puzzle.
+- **Exchange Rates** line their decimal points up into a readable column.
+- **Public Holidays** folds its cultural traditions into the same per-locale
+  data files as the official holidays — one file per locale, still switchable
+  by category (public / religious-by-tradition / cultural / fun-day).
+- **Weather**: the colour swatches are balanced on both sides of a label
+  instead of one lonely tile, the current condition carries its own sky
+  colour, humidity shows on tall walls, and a five-row display fits five days
+  of forecast on one page.
+- **Channel apps** can shuffle: single-page channels (quotes, fortunes, 8-ball
+  answers, morning/night greetings) now play in random order, while jokes keep
+  their setup-then-punchline order. Authors control it with one manifest field.
+
 ## 2.5.0-beta.4
 
 **One calendar app, honest categories.** National Today is gone — folded into
