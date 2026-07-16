@@ -47,15 +47,28 @@ jobs:
         run: cd backend && python -m pytest -q
 
   # Home Assistant's own manifest/quality linter for custom_components/splitflap.
+  # Run against a directory containing ONLY the integration: this repo is full of
+  # OTHER manifest.json files (the apps/ plugin catalog uses the same filename for
+  # a different format), and hassfest's discovery walks into them and KeyErrors
+  # on fields an app manifest was never meant to have.
   hassfest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: home-assistant/actions/hassfest@f4ca6f671bd429efb108c0f2fa0ae8af0215986c # master 2026-07
+      - name: Stage the integration alone
+        run: |
+          mkdir -p /tmp/hassfest
+          cp -r custom_components /tmp/hassfest/
+      - name: Run hassfest
+        run: docker run --rm -v /tmp/hassfest://github/workspace ghcr.io/home-assistant/hassfest
 
-  # HACS's installability checks for the same integration. `brands` is skipped on
-  # purpose: HA ≥2026.3 serves brand icons from the integration's own brand/ folder,
-  # so this domain is deliberately not in the home-assistant/brands repo.
+  # HACS's installability checks for the same integration. Skipped on purpose:
+  #  - brands: HA ≥2026.3 serves brand icons from the integration's own brand/
+  #    folder, so this domain is deliberately not in the home-assistant/brands repo.
+  #  - license: the repo is CC BY-NC-SA by choice; GitHub reports the summary file
+  #    as NOASSERTION, which this check refuses. Only matters for HACS
+  #    default-store inclusion.
+  #  - topics: repo topics are GitHub metadata, not code — same default-store rule.
   hacs:
     runs-on: ubuntu-latest
     steps:
@@ -63,4 +76,4 @@ jobs:
       - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main 2026-07
         with:
           category: integration
-          ignore: brands
+          ignore: brands license topics
