@@ -1,8 +1,9 @@
-"""The cultural and fun layers the holidays app absorbed from National Today:
-curated traditions per language-region (cultural/<locale>.json, locale-picked
-like the dataset, ON by default), and the one-a-day novelty calendar (fun.json,
-OFF by default — 366 a year would drown the real holidays). Both are M/D-keyed
-(they recur yearly) and live OUTSIDE data/, which the dataset rebuild wipes.
+"""The category layers of the holidays app. Cultural traditions now live IN the
+per-locale data file as recurring records ({name, recurs:"M/D", cultural:true})
+— one file per locale, refreshed-but-preserved by scripts/extract_holidays.py —
+and show under the Cultural switch (on by default). The fun-day novelty calendar
+is the one global, non-localized layer (fun.json, off by default: 366 a year
+would drown the real holidays).
 """
 
 import importlib.util
@@ -21,18 +22,23 @@ KEY = f"{_today.month}/{_today.day}"
 
 
 def _fixture_app(tmp_path, cultural=None, fun=None):
+    """cultural = {locale: name} → a recurring cultural record keyed to TODAY,
+    written into that locale's data file alongside a fixed statutory day."""
     d = tmp_path / "hol"
     d.mkdir(parents=True)
     shutil.copy(APP_DIR / "app.py", d / "app.py")
     (d / "data").mkdir()
-    (d / "data" / "en-us.json").write_text(json.dumps(
-        {"locale": "en-us", "language": "en", "region": "US",
-         "holidays": [{"name": "Statutory Day", "public": True,
-                       "dates": ["2099-01-05"]}]}), "utf-8")
-    (d / "cultural").mkdir()
+    files = {}
     for locale, name in (cultural or {}).items():
-        (d / "cultural" / f"{locale}.json").write_text(
-            json.dumps({KEY: [name]}), "utf-8")
+        files.setdefault(locale, []).append(
+            {"name": name, "recurs": KEY, "cultural": True})
+    files.setdefault("en-us", [])   # always present as the default country
+    for locale, cult_records in files.items():
+        (d / "data" / f"{locale}.json").write_text(json.dumps(
+            {"locale": locale, "language": locale.split("-")[0],
+             "region": locale.split("-")[1].upper(),
+             "holidays": [{"name": "Statutory Day", "public": True,
+                           "dates": ["2099-01-05"]}] + cult_records}), "utf-8")
     if fun:
         (d / "fun.json").write_text(json.dumps({KEY: [fun]}), "utf-8")
     spec = importlib.util.spec_from_file_location("_holc_test", d / "app.py")
@@ -96,29 +102,33 @@ def test_same_name_same_day_shows_once(tmp_path):
     assert sum("Twin Day" in p for p in pages) == 1
 
 
-# --- the shipped curation must be wall-safe ---------------------------------
+# --- the shipped cultural records (now IN the data files) must be wall-safe ---
 
-_KEY = re.compile(r"^([1-9]|1[0-2])/([1-9]|[12][0-9]|3[01])$")
-_LOCALE = re.compile(r"^[a-z]{2}-[a-z]{2}$")
-SHIPPED = sorted((APP_DIR / "cultural").glob("*.json")) + [APP_DIR / "fun.json"]
+_MD = re.compile(r"^([1-9]|1[0-2])/([1-9]|[12][0-9]|3[01])$")
+DATA = sorted((APP_DIR / "data").glob("*.json"))
 
 
-@pytest.mark.parametrize("path", SHIPPED, ids=[p.stem for p in SHIPPED])
-def test_shipped_layer_file_is_wall_safe(path):
-    if path.parent.name == "cultural":
-        assert _LOCALE.match(path.stem), f"{path.name}: not a <lang>-<cc> name"
-    doc = json.loads(path.read_text("utf-8"))
-    assert isinstance(doc, dict) and doc
-    for key, names in doc.items():
-        assert _KEY.match(key), f"{path.name}: bad date key {key!r}"
-        assert isinstance(names, list) and names
-        for n in names:
-            n.encode("cp1252")
-            assert len(n) <= 40, f"{path.name}: {key}: {n!r}"
+@pytest.mark.parametrize("path", DATA, ids=[p.stem for p in DATA])
+def test_shipped_cultural_records_are_wall_safe(path):
+    for h in json.loads(path.read_text("utf-8")).get("holidays", []):
+        if not h.get("cultural"):
+            continue
+        assert _MD.match(h.get("recurs", "")), f"{path.name}: bad recurs {h.get('recurs')!r}"
+        name = h.get("name", "")
+        name.encode("cp1252")
+        assert 0 < len(name) <= 40, f"{path.name}: {name!r}"
+
+
+def _locales_with_cultural():
+    out = set()
+    for path in (APP_DIR / "data").glob("*.json"):
+        if any(h.get("cultural") for h in json.loads(path.read_text("utf-8")).get("holidays", [])):
+            out.add(path.stem)
+    return out
 
 
 def test_the_curated_locales_ship():
-    have = {p.stem for p in (APP_DIR / "cultural").glob("*.json")}
+    have = _locales_with_cultural()
     assert {"de-de", "de-at", "de-ch", "de-be", "fr-fr", "fr-be", "fr-ca",
             "fr-ch", "it-it", "it-ch", "nl-nl", "nl-be", "en-gb", "en-ie",
             "en-ca", "en-au", "en-nz", "sv-se", "da-dk", "no-no", "es-es",

@@ -264,12 +264,12 @@
       ]
     },
     {
-      "key": "loop_delay",
-      "label": "Seconds per countdown (1 keeps the seconds display ticking)",
+      "key": "transition_seconds",
+      "label": "Seconds each countdown is shown (before rotating to the next)",
       "type": "number",
-      "default": "1",
-      "min": "1",
-      "max": "30",
+      "default": "6",
+      "min": "2",
+      "max": "60",
       "step": "1",
       "stepper": true
     }

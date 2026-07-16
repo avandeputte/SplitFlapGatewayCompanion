@@ -249,7 +249,7 @@
   "Search a team or league…": "Team oder Liga suchen…",
   "Search apps…": "Apps suchen…",
   "Search…": "Suchen…",
-  "Seconds per countdown (1 keeps the seconds display ticking)": "Sekunden pro Countdown (1 lässt die Sekundenanzeige weiterticken)",
+  "Seconds each countdown is shown (before rotating to the next)": "Anzeigedauer je Countdown in Sekunden (vor dem Wechsel)",
   "Sending…": "Sende…",
   "Sent.": "Gesendet.",
   "Sequence apps and composed messages, each shown for its own duration.": "Reihe Apps und verfasste Nachrichten aneinander, jede mit eigener Anzeigedauer.",

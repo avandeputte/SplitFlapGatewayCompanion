@@ -21,6 +21,7 @@ import inspect
 import json
 import logging
 import os
+import random
 import re
 import threading
 import time
@@ -353,20 +354,46 @@ class PluginRuntime:
         log.info("plugin loaded: %s (%s)", app_id, kind)
 
     def _read_pages(self, app_id: str, path: Path) -> list | None:
-        """The 'pages' of one channel data file, rendered to display lines."""
+        """The 'pages' of one channel data file, rendered — grouped into ITEMS so
+        a multi-page item (a joke's setup + punchline) stays together and in order
+        even when the app shuffles. Returns a list of items, each a list of one or
+        more rendered page strings.
+
+        Grouping, in order of precedence:
+          * an explicit ``group`` on a page — consecutive pages sharing it are one
+            item (for a data file that mixes single- and multi-page items);
+          * else the manifest's ``group_size`` (default 1) — pages chunked N at a
+            time (for a file whose items are all the same length, e.g. every joke
+            is setup+punchline).
+        """
         try:
             data = json.loads(path.read_text("utf-8"))
         except Exception as e:
             log.error("plugin %s: %s error: %s", app_id, path.name, e)
             return None
-        pages = []
+
+        rendered = []      # (page_string, explicit_group_or_None)
         for page in data.get("pages", []):
             if isinstance(page, str):
-                pages.append(page)
+                rendered.append((page, None))
             elif isinstance(page, dict) and "lines" in page:
-                pages.append(self.format_lines(*page["lines"],
-                                               align=self.vertical_align(app_id)))
-        return pages
+                rendered.append((self.format_lines(*page["lines"],
+                                                   align=self.vertical_align(app_id)),
+                                 page.get("group")))
+
+        if any(g is not None for _, g in rendered):
+            items, prev = [], object()
+            for text, g in rendered:
+                if g is not None and g == prev:
+                    items[-1].append(text)
+                else:
+                    items.append([text])
+                prev = g if g is not None else object()
+            return items
+
+        size = max(1, int(self._registry.get(app_id, {}).get("group_size", 1) or 1))
+        texts = [text for text, _ in rendered]
+        return [texts[i:i + size] for i in range(0, len(texts), size)]
 
     def _load_channel(self, app_id: str, app_dir: Path) -> None:
         """Load a channel app's pages. ``data.json`` is the default set; an app may
@@ -436,17 +463,30 @@ class PluginRuntime:
                 out.append(i18n.translate(ln, lang) if ln else ln)
         return self.format_lines(*out)
 
-    def _channel_pages(self, app_id: str, lang: str) -> list:
+    def _channel_pages(self, app_id: str, lang: str, settings=None) -> list:
         """Pages for a channel app in the effective language: an exact locale match
         (``fr-BE``) wins, then the base language (``fr``), then data.json. Same
         precedence a Localizer gives a functional app, so both kinds of app answer
-        a Language change the same way."""
+        a Language change the same way.
+
+        Stored as items (page-groups); flattened here. When the effective order is
+        ``random`` the ITEMS are shuffled — each fetch is a fresh pass, so a quotes
+        channel doesn't march in the same order every day, while a joke's two pages
+        never come apart. A multi-page item is never split across the shuffle."""
         by_lang = self._channel.get(app_id) or {}
         code = str(lang or "").replace("_", "-").lower()
-        for key in (code, code.split("-")[0], ""):
-            if by_lang.get(key):
-                return by_lang[key]
-        return next((p for p in by_lang.values() if p), [])
+        items = next((by_lang[k] for k in (code, code.split("-")[0], "") if by_lang.get(k)),
+                     None)
+        if items is None:
+            items = next((v for v in by_lang.values() if v), [])
+
+        # A per-app setting wins over the manifest's declared order.
+        order = (self._perapp_value(app_id, "order", settings)
+                 or self._registry.get(app_id, {}).get("order", "sequential"))
+        if str(order).lower() == "random":
+            items = list(items)
+            random.shuffle(items)
+        return [page for item in items for page in item]
 
     def _load_functional(self, app_id: str, app_dir: Path) -> None:
         module_path = app_dir / "app.py"
@@ -661,7 +701,7 @@ class PluginRuntime:
             # A per-app Language override (plugin_<id>_language) wins over the global
             # Language; blank/unset = follow global. Same rule as a functional app.
             lang = self.content_lang(app_id, settings)
-            pages = self._channel_pages(app_id, lang)
+            pages = self._channel_pages(app_id, lang, settings)
             return pages or [self._flap_fallback(app_id, manifest, settings,
                                                  "{name}", "NO DATA", "")]
 

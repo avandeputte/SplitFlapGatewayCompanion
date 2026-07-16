@@ -36,7 +36,20 @@ def main(zip_path: str) -> None:
     idx = json.loads(z.read(prefix + "_index.json"))
 
     DEST.mkdir(exist_ok=True)
+    # Cultural records (recurring, curated by hand — see the app's category
+    # layer) are NOT in the zip. Preserve them across a rebuild: they carry a
+    # 'recurs' M/D and 'cultural' flag, and would otherwise be wiped along with
+    # the dataset they now share a file with.
+    preserved: dict = {}
     for old in DEST.glob("*.json"):
+        if old.name != "_about.json":
+            try:
+                doc = json.loads(old.read_text("utf-8"))
+                cult = [h for h in doc.get("holidays", []) if h.get("cultural")]
+                if cult:
+                    preserved[old.stem] = cult
+            except Exception:
+                pass
         old.unlink()
 
     kept, dropped = [], []
@@ -62,9 +75,17 @@ def main(zip_path: str) -> None:
             g["dates"].append(("~" if h.get("estimated") else "") + h["date"])
         for g in groups.values():
             g["dates"].sort(key=lambda d: d.lstrip("~"))
+
+        def _order(h):
+            # dated records by first date; recurring (cultural) by their M/D.
+            if h.get("dates"):
+                return (h["dates"][0].lstrip("~"), h["name"])
+            m, d = (int(x) for x in h.get("recurs", "13/1").split("/"))
+            return (f"2026-{m:02d}-{d:02d}", h["name"])
+
+        holidays = list(groups.values()) + preserved.get(locale.lower(), [])
         out = {"locale": locale, "language": doc["language"], "region": doc["region"],
-               "holidays": sorted(groups.values(),
-                                  key=lambda g: (g["dates"][0].lstrip("~"), g["name"]))}
+               "holidays": sorted(holidays, key=_order)}
         dest = DEST / f"{locale.lower()}.json"
         dest.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n",
                         "utf-8")
@@ -76,6 +97,7 @@ def main(zip_path: str) -> None:
         "year_range": idx.get("year_range"),
         "rebuilt_with": "scripts/extract_holidays.py",
         "locales": len(kept),
+        "cultural_records_preserved": sum(len(v) for v in preserved.values()),
         "dropped_unsupported_languages": sorted(dropped),
     }, ensure_ascii=False, indent=1) + "\n", "utf-8")
 

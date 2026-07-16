@@ -87,8 +87,11 @@ def _body(page, rows, cols):
 # ---------------------------------------------------------------------------
 def test_a_metric_is_one_line_not_one_page():
     w = _mod("weather")
-    assert w._metric_line("AQI", 42, "GOOD", "GREEN", 15) == "AQI 42 GOOD 🟩"
+    # A tile on BOTH ends when it fits — the lonely trailing tile looked unbalanced.
+    assert w._metric_line("AQI", 42, "GOOD", "GREEN", 15) == "🟩 AQI 42 GOOD 🟩"
     assert w._metric_line("AQI", 42, "GOOD", "GREEN", 15, mono=True) == "AQI 42 GOOD"
+    # Narrower: degrade to a single trailing tile, then none.
+    assert w._metric_line("AQI", 42, "GOOD", "GREEN", 13) == "AQI 42 GOOD 🟩"
 
 
 @pytest.mark.parametrize("cols", [8, 11, 15, 20])
@@ -202,3 +205,40 @@ def test_wrap_never_emits_a_blank_first_line():
     h = _mod("holidays")
     assert h._wrap("SUPERCALIFRAGILISTICEXPI ALIDOCIOUS", 10, 2)[0] != ""
 
+
+
+# --- weather improvements (July 2026): balanced tiles, humidity, +1 forecast day
+_WX = {
+    "ok": True, "provider": "openweather", "city": "Boston", "temp_f": 72,
+    "feels_like_f": 75, "humidity": 66, "hi_f": 91, "lo_f": 64,
+    "desc": "Sunny", "sky": "clear", "uv": 7,
+    "forecast": [{"date": f"2026-08-0{i}", "hi_f": 80 + i, "lo_f": 60 + i, "sky": "clear"}
+                 for i in range(1, 6)],
+}
+
+
+def _weather_pages(rows, cols=15, **settings):
+    w = _mod("weather")
+    settings.setdefault("forecast_days", "5")
+    return w.fetch(settings, lambda *l, **k: list(l), lambda: rows, lambda: cols,
+                   get_weather=lambda days=0, air=False: _WX)
+
+
+def test_humidity_shows_on_a_tall_wall():
+    body = " ".join(l for p in _weather_pages(5) for l in p)
+    assert "Humidity 66%" in body
+
+
+def test_condition_carries_balanced_sky_tiles():
+    tile = "\U0001f7e8"      # yellow, clear sky
+    cond = next(l for p in _weather_pages(5) for l in p if "Sunny" in l)
+    assert cond.startswith(tile) and cond.rstrip().endswith(tile), cond
+
+
+def test_five_day_forecast_fills_a_five_row_page():
+    pages = _weather_pages(5)
+    fc = [p for p in pages if any("/" in l and l.split()[0][:2].isalpha() for l in p)]
+    # the forecast page holds five day-rows, no "Forecast" header eating one
+    full = [p for p in fc if len(p) == 5]
+    assert full, [len(p) for p in fc]
+    assert not any("Forecast" in l for l in full[0])

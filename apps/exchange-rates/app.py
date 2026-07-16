@@ -33,7 +33,27 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         pairs = [(t, rates[t]) for t in targets if t in rates]
         if rows == 1:
             return [f'1{base}={fmt(v)}{t}'.center(cols)[:cols] for t, v in pairs]
-        lines = [f'1 {base} ='] + [f'{t} {fmt(v)}' for t, v in pairs]
+
+        # Line the decimal points up into a column. format_lines centres EACH line
+        # on its own, so alignment only survives if every rate line is the same
+        # length — then they all shift by the same amount. Split each value on the
+        # locale's decimal separator (found by probing, since it's ',' in fr/de),
+        # right-justify the integer part and left-justify the fraction so the
+        # separators stack; a whole-number rate (JPY 149) leaves that column blank.
+        sep = next((c for c in (i18n.number(1.5, 1) if i18n is not None else '1.5')
+                    if not c.isdigit()), '.')
+        parts = []
+        for _t, v in pairs:
+            s = fmt(v)
+            ip, _, fp = s.partition(sep)
+            parts.append((ip, sep + fp if fp else ''))
+        wi = max((len(ip) for ip, _ in parts), default=0)
+        wf = max((len(fr) for _, fr in parts), default=0)
+        wc = max((len(t) for t, _ in pairs), default=0)
+        rate_lines = [f'{t.ljust(wc)} {ip.rjust(wi)}{fr.ljust(wf)}'
+                      for (t, _), (ip, fr) in zip(pairs, parts)]
+
+        lines = [f'1 {base} ='] + rate_lines
         return [format_lines(*lines[i:i + rows]) for i in range(0, len(lines), rows)]
     except Exception:
         return [format_lines('FX rates', 'Offline', '')]

@@ -222,14 +222,19 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     if not any(slot['enabled'] for slot in slots):
         slots[0]['enabled'] = True
 
-    pages = []
+    # One page-group per active countdown. We show ONE group per fetch and rotate
+    # which by wall-clock time — not by returning every countdown as its own page.
+    # That is what lets the seconds tick: the app is re-fetched every second (like
+    # the clock app), so the shown countdown re-renders each second, while the
+    # switch to the NEXT countdown happens only every `transition_seconds`. Returning
+    # them all as pages instead coupled the rotation to the 1-second page dwell —
+    # which is why they used to flip past once a second.
+    groups = []
     for slot in slots:
         if not slot['enabled']:
             continue
-
         if not slot['event'] and not slot['target']:
             continue
-
         target = parse_target(
             slot['target'],
             tz,
@@ -238,16 +243,32 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
         )
         if target is None:
             continue
-
         event = slot['event'] or 'Countdown'
-        pages.extend(build_slot_pages(event, target, now, rows, cols))
+        groups.append(build_slot_pages(event, target, now, rows, cols))
 
-    if pages:
-        return pages
+    if not groups:
+        if rows == 2:
+            return [format_lines('Countdown', 'Check config')]
+        return [format_lines('Countdown', 'Check config', '')]
 
-    if rows == 2:
-        return [format_lines('Countdown', 'Check config')]
-    return [format_lines('Countdown', 'Check config', '')]
+    if len(groups) == 1:
+        return groups[0]
+
+    try:
+        span = max(2, int(float(settings.get('transition_seconds', 6) or 6)))
+    except (ValueError, TypeError):
+        span = 6
+    return groups[_rotation_index(now.timestamp(), span, len(groups))]
+
+
+def _rotation_index(now_ts, span, count):
+    """Which countdown shows now: epoch // span gives stable, aligned blocks, so
+    each fetch (once a second) lands in one block and the shown countdown holds
+    for `span` seconds before advancing. Pure and module-level so it is testable
+    without freezing the clock."""
+    if count <= 0:
+        return 0
+    return int(now_ts // max(2, int(span))) % count
 
 
 def trigger(settings, conditions):

@@ -50,12 +50,26 @@ def test_tight_wall_uses_single_gaps():
     assert all(len(l) == 8 for l in lines)      # 6 tiles + 2 single gaps
 
 
-def test_units_row_appears_on_tall_walls_and_stays_aligned():
+def test_decimal_time_is_the_bottom_row():
+    """The plain-language time is the answer key under the bits. Five rows: four
+    bit rows + the decimal time, 24h (the clock is BCD of a 24-hour time), and it
+    reflects the seconds setting."""
+    import re
     m, lines = _fetch(5, 15)
     assert len(lines) == 5
+    assert re.fullmatch(r"\d\d:\d\d:\d\d", lines[4]), lines[4]
+    m, lines = _fetch(5, 15, show_seconds="false")
+    assert re.fullmatch(r"\d\d:\d\d", lines[4]), lines[4]
+
+
+def test_units_row_sits_above_the_decimal_on_a_six_row_wall():
+    import re
+    m, lines = _fetch(6, 15)
+    assert len(lines) == 6
     # same width as the bit rows — per-line centring keeps H/M/S under the columns
     assert len(lines[4]) == len(lines[0])
     assert lines[4].replace(' ', '') == 'HMS'
+    assert re.fullmatch(r"\d\d:\d\d:\d\d", lines[5]), lines[5]
 
 
 def test_zero_can_be_a_blank_flap():

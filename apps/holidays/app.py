@@ -67,13 +67,13 @@ def _dataset(locale):
     return doc
 
 
-def _pick_locale(lang, country, subdir='data'):
-    """The locale file for (language, country) in ``subdir``: the wall's own
-    language in that country when it exists, else English there, else any
-    locale for the country. None when nothing exists for the country at all.
-    The directory listing IS the index."""
+def _pick_locale(lang, country):
+    """The data/ locale file for (language, country): the wall's own language in
+    that country when it exists, else English there, else any locale for the
+    country. None when nothing exists for the country at all. The directory
+    listing IS the index."""
     import os
-    ddir = os.path.join(os.path.dirname(__file__), subdir)
+    ddir = os.path.join(os.path.dirname(__file__), 'data')
     try:
         have = {f[:-5] for f in os.listdir(ddir)
                 if f.endswith('.json') and not f.startswith('_')}
@@ -89,40 +89,66 @@ def _pick_locale(lang, country, subdir='data'):
     return None
 
 
-def _recurring_layer(subdir_file, today, horizon_days=366):
-    """M/D-keyed yearly layers (cultural traditions, fun days) → the same
-    (date, record, estimated=False) tuples the dataset yields: each entry's
-    next occurrence on or after today."""
+def _next_recurring(md, today):
+    """Next occurrence (>= today) of an ``M/D`` recurring date, or None. Feb 29
+    correctly skips non-leap years to the next leap year."""
+    from datetime import date
+    try:
+        m, d = (int(x) for x in md.split('/'))
+    except (ValueError, AttributeError):
+        return None
+    for year in range(today.year, today.year + 9):
+        try:
+            dt = date(year, m, d)
+        except ValueError:
+            continue
+        if dt >= today:
+            return dt
+    return None
+
+
+def _next_date(record, today):
+    """When a record next occurs, as (date, estimated), or None. A dataset record
+    carries an explicit ten-year ``dates`` list (an ``~`` marks a computed lunar
+    date); a cultural record recurs every year on a fixed ``M/D``."""
+    from datetime import datetime
+    if record.get('dates'):
+        for ds in record['dates']:
+            estimated = ds.startswith('~')
+            try:
+                dt = datetime.strptime(ds.lstrip('~'), '%Y-%m-%d').date()
+            except ValueError:
+                continue
+            if dt >= today:
+                return dt, estimated
+        return None
+    if record.get('recurs'):
+        dt = _next_recurring(record['recurs'], today)
+        return (dt, False) if dt else None
+    return None
+
+
+def _fun_days(today):
+    """The one global novelty calendar (fun.json, English) as records — a single
+    file, not per-locale, so it stays separate from the localized dataset."""
     import json
     import os
-    from datetime import date
-    path = os.path.join(os.path.dirname(__file__), *subdir_file)
+    path = os.path.join(os.path.dirname(__file__), 'fun.json')
     try:
         with open(path, encoding='utf-8') as f:
             doc = json.load(f)
     except Exception:
         return []
     out = []
-    for key, names in (doc.items() if isinstance(doc, dict) else ()):
-        try:
-            m, d = (int(x) for x in key.split('/'))
-        except ValueError:
-            continue
-        for year in (today.year, today.year + 1):
-            try:
-                dt = date(year, m, d)
-            except ValueError:
-                continue        # Feb 29 in a non-leap year: skip to next
-            if dt >= today:
-                if (dt - today).days <= horizon_days:
-                    for n in names:
-                        out.append((dt, {'name': n}, False))
-                break
+    for md, names in (doc.items() if isinstance(doc, dict) else ()):
+        dt = _next_recurring(md, today)
+        if dt:
+            out += [(dt, {'name': n}, False) for n in names]
     return out
 
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
-    from datetime import datetime, date
+    from datetime import date
     rows, cols = get_rows(), get_cols()
 
     def t(s, ctx="time"):
@@ -163,30 +189,24 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
             subs = h.get('subdivisions')
             if subs and (not subdivision or subdivision not in subs):
                 continue
-            # Days off always show; the religious toggle adds the OBSERVANCE
-            # layer on top, filtered to the chosen traditions.
-            if not h.get('public'):
+            # Category gate. Every record is tagged: cultural traditions (April
+            # Fools', Nikolaus) show under their own switch; a non-public
+            # religious observance needs the religious switch AND its tradition;
+            # a public holiday is a day off and always shows.
+            if h.get('cultural'):
+                if not want_cultural:
+                    continue
+            elif not h.get('public'):
                 if not (want_religious and h.get('religious')
                         and h.get('tradition') in traditions):
                     continue
-            for ds in h.get('dates', []):
-                estimated = ds.startswith('~')
-                try:
-                    dt = datetime.strptime(ds.lstrip('~'), '%Y-%m-%d').date()
-                except ValueError:
-                    continue
-                if dt >= today:
-                    upcoming.append((dt, h, estimated))
-                    break            # dates are sorted: the first future one is next
+            nd = _next_date(h, today)
+            if nd:
+                upcoming.append((nd[0], h, nd[1]))
 
-        # The layers absorbed from National Today: curated traditions (locale-
-        # picked like the dataset) and the one-a-day novelty calendar.
-        if want_cultural:
-            cloc = _pick_locale(lang, country, 'cultural')
-            if cloc:
-                upcoming += _recurring_layer(('cultural', f'{cloc}.json'), today)
+        # The one layer that isn't per-locale: the global novelty calendar.
         if want_fun:
-            upcoming += _recurring_layer(('fun.json',), today)
+            upcoming += _fun_days(today)
 
         upcoming.sort(key=lambda e: e[0])
 

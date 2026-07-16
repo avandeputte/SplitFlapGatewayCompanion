@@ -62,6 +62,12 @@ def fetch(settings, format_lines, get_rows, get_cols, caps=None):
     gap = '  ' if cols >= n_groups * 2 + (n_groups - 1) * 2 else ' '
 
     lines = _bits_rows(digits, one, zero, gap)
-    if rows >= 5:
+    # With rows to spare, put the H/M/S labels above and the plain-language time
+    # on the very bottom row — the answer key to the puzzle above it. The clock
+    # is BCD of a 24-hour time, so the decimal is 24h too, and it shows seconds
+    # exactly when the bit columns do.
+    if rows >= 6:
         lines.append(_units_row(n_groups, gap))
+    if rows >= 5:
+        lines.append(now.strftime('%H:%M:%S' if seconds else '%H:%M'))
     return [format_lines(*lines)]

@@ -1684,6 +1684,34 @@
           "no": "Varsel",
           "sv": "Prognos"
         }
+      },
+      "Humidity": {
+        "context": "Air humidity label (wide walls).",
+        "translations": {
+          "fr": "Humidité",
+          "de": "Luftfeuchte",
+          "es": "Humedad",
+          "it": "Umidità",
+          "pt": "Humidade",
+          "nl": "Vochtigheid",
+          "da": "Fugtighed",
+          "no": "Fuktighet",
+          "sv": "Luftfuktighet"
+        }
+      },
+      "Hum": {
+        "context": "Air humidity label, abbreviated (narrow walls).",
+        "translations": {
+          "fr": "Hum.",
+          "de": "Feu.",
+          "es": "Hum.",
+          "it": "Um.",
+          "pt": "Hum.",
+          "nl": "Vocht",
+          "da": "Fugt",
+          "no": "Fukt",
+          "sv": "Fukt"
+        }
       }
     },
     "metals": {

@@ -146,10 +146,14 @@ def test_today_is_not_in_the_forecast(openmeteo):
     assert not any("91/68" in l for l in body), "today was listed again"
 
 
-def test_it_pages_on_a_short_wall(openmeteo):
+def test_short_wall_packs_days_instead_of_spending_a_row_on_the_header(openmeteo):
+    """Each forecast row starts with its own weekday, so it labels itself. On a
+    full page the "Forecast" header no longer steals a row: the three days pack
+    onto ONE 3-row page rather than a header page plus a lonely third day."""
     rows, cols = 3, 15
-    pages = [p for p in _pages(rows, cols) if "Forecast" in p]
-    assert len(pages) == 2, "two days fit under the header; the third turns the page"
+    fc = [p for p in _pages(rows, cols) if p.count("/") >= 1]   # rows carry hi/lo
+    assert len(fc) == 1, "the three days pack onto one page now"
+    assert "Forecast" not in fc[0], "a full page spends every row on a day"
 
 
 def test_off_means_off(openmeteo):

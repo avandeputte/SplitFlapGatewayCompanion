@@ -71,27 +71,28 @@ def _compact_color(color, mono=False):
     }.get(color, color)
 
 
-def _decorate_status(label, color, cols, mono=False):
-    text = str(label or '').strip()
-    if mono:                       # colors disabled: show the label only
+def _balance(text, swatch, cols):
+    """Centre `text` between equal runs of `swatch`, scaled to the width — the
+    balanced form a lone tile floating at one end never had. Example, wide:
+    🟩🟩 GOOD 🟩🟩; narrower: 🟩 GOOD 🟩; then GOOD; then just the tile."""
+    text = str(text or '').strip()
+    if not swatch:
         return text[:cols]
-    swatch = _compact_color(color)
     if not text:
         return swatch
-
-    # Ideal form: multiple swatches on both sides, scaled by available columns.
-    # Example: 🟩🟩 GOOD 🟩🟩
     max_side = max(0, (cols - len(text) - 2) // 2)
     if max_side >= 1:
         side = swatch * min(4, max_side)
         return f'{side} {text} {side}'
-
-    # Degrade gracefully as width shrinks.
     if cols >= len(text) + 2:
         return f'{swatch} {text}'
     if cols >= len(text):
         return text[:cols]
     return swatch
+
+
+def _decorate_status(label, color, cols, mono=False):
+    return _balance(label, '' if mono else _compact_color(color), cols)
 
 
 def _row(left, right, cols):
@@ -169,9 +170,13 @@ def _metric_line(word, value, label, color, cols, mono=False):
     """
     swatch = '' if mono else _compact_color(color)
     head = f'{word} {value}' if value is not None else str(word)
-    for candidate in (f'{head} {label} {swatch}'.rstrip(), f'{head} {label}', head):
-        if len(candidate) <= cols:
-            return candidate
+    # Prefer a tile on BOTH ends — one lonely trailing tile is the unbalanced
+    # look; degrade to trailing-only, then no tile, as the width shrinks.
+    for candidate in (f'{swatch} {head} {label} {swatch}', f'{head} {label} {swatch}',
+                      f'{head} {label}', head):
+        c = candidate.strip()
+        if len(c) <= cols:
+            return c
     return head[:cols]
 
 
@@ -231,7 +236,7 @@ def _fallback_fetch(settings, days, air):
 
     d = requests.get('https://api.open-meteo.com/v1/forecast', params={
         'latitude': lat, 'longitude': lon,
-        'current': 'temperature_2m,apparent_temperature,weather_code,uv_index',
+        'current': 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,uv_index',
         'daily': 'temperature_2m_max,temperature_2m_min,weather_code',
         'temperature_unit': 'fahrenheit', 'timezone': 'auto',
         'forecast_days': max(1, days + 1)}, timeout=10).json()
@@ -244,6 +249,7 @@ def _fallback_fetch(settings, days, air):
         'ok': True, 'provider': 'openmeteo', 'city': city, 'lat': lat, 'lon': lon,
         'temp_f': _to_int(cur.get('temperature_2m')),
         'feels_like_f': _to_int(cur.get('apparent_temperature'), _to_int(cur.get('temperature_2m'))),
+        'humidity': cur.get('relative_humidity_2m'),
         'hi_f': _to_int(his[0] if his else None), 'lo_f': _to_int(los[0] if los else None),
         'desc': _DESC.get(code, 'Current conditions'), 'code': code,
         'sky': _SKY_OF_WMO.get(code, 'cloudy'), 'uv': cur.get('uv_index'),
@@ -335,9 +341,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_weather=Non
 
         temp = _format_temp(w.get('temp_f'), temp_unit)
         feels = f"{feels_word} {_format_temp(w.get('feels_like_f'), temp_unit)}"
+        humidity = w.get('humidity')
+        hum_word = t('Hum') if narrow else t('Humidity')
         # Open-Meteo's condition text is ours to translate; a keyed provider
         # already answered in the global Language.
         desc = t(w['desc']) if w.get('provider') == 'openmeteo' else str(w.get('desc') or '')
+        # The current sky gets its colour too, balanced — so the conditions line
+        # carries a tile like every forecast row does, instead of standing bare.
+        desc_tiled = _balance(desc, _sky_tile(w.get('sky'), no_color), cols)
         hi = f"H {_format_temp(w.get('hi_f'), temp_unit)}"
         lo = f"L {_format_temp(w.get('lo_f'), temp_unit)}"
 
@@ -405,7 +416,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_weather=Non
         if rows >= 4:
             # A tall wall can say all of this at once, one row per metric, over as
             # few pages as they fit on.
-            lines = [f'{temp} {feels}', f'{hi} {lo}', desc]
+            # A tall wall has the room, so humidity gets a labelled line of its own.
+            lines = [f'{temp} {feels}', f'{hi} {lo}']
+            if humidity is not None:
+                lines.append(f'{hum_word} {humidity}%')
+            lines.append(desc_tiled)
             if aqi_num is not None:
                 lines.append(_metric_line('AQI', aqi_num, t(a.get('aqi_label', '')),
                                           _BAND_COLOR.get(a.get('aqi_band'), 'UNKNOWN'), cols, no_color))
@@ -423,11 +438,11 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_weather=Non
                 pages = [format_lines(f'{temp} {desc}')]
             elif rows == 2:
                 pages = [
-                    format_lines(f'{temp} {feels}', desc),
-                    format_lines(f'{hi} {lo}', desc),
+                    format_lines(f'{temp} {feels}', desc_tiled),
+                    format_lines(f'{hi} {lo}', desc_tiled),
                 ]
             else:
-                pages = [format_lines(f'{temp} {feels}', f'{hi} {lo}', desc)]
+                pages = [format_lines(f'{temp} {feels}', f'{hi} {lo}', desc_tiled)]
 
             if aqi_num is not None:
                 aqi_display = _decorate_status(t(a.get('aqi_label', '')),
@@ -461,9 +476,15 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_weather=Non
                         pages.append(format_lines(*pollen_parts))
 
         if fc_lines:
-            # A header plus as many days as the wall has room for; the rest turn the page.
-            for chunk in _paginate(fc_lines, rows - 1):
-                pages.append(format_lines(t('Forecast'), *chunk))
+            # Each forecast row already starts with its weekday, so it labels
+            # itself — the "Forecast" header only earns a row when there is a
+            # spare one. On a 5-row wall that means five days fill the page
+            # instead of a title plus four.
+            for i, chunk in enumerate(_paginate(fc_lines, rows)):
+                if i == 0 and len(chunk) < rows:
+                    pages.append(format_lines(t('Forecast'), *chunk))
+                else:
+                    pages.append(format_lines(*chunk))
 
         state['last_pages'] = pages
         return pages
