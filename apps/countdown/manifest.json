@@ -262,6 +262,16 @@
           "label": "No"
         }
       ]
+    },
+    {
+      "key": "loop_delay",
+      "label": "Seconds per countdown (1 keeps the seconds display ticking)",
+      "type": "number",
+      "default": "1",
+      "min": "1",
+      "max": "30",
+      "step": "1",
+      "stepper": true
     }
   ],
   "min_rows": 1,

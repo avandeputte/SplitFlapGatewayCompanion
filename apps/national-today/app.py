@@ -1,6 +1,16 @@
-"""National Today - Holiday of the Day plugin for Split-Flap Display."""
+"""National Today - Holiday of the Day plugin for Split-Flap Display.
 
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+Country-aware: next to the default ``holidays.json`` (the US-flavoured baseline
+and universal fallback) sit curated ``holidays_<cc>.json`` sidecars — the same
+convention channel apps use for ``data_<lang>.json``. The wall's configured
+Location picks the sidecar: a wall in Germany leads with "Tag des deutschen
+Bieres" and still shows the international day after it, and a date with no
+local entry simply falls back to the default file, so a sidecar only ever adds.
+Sidecar names are written in the country's own language — they are proper
+names of local observances, not text to translate.
+"""
+
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
     from datetime import datetime
     import pytz
     import json
@@ -16,16 +26,32 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     now = datetime.now(tz)
     key = f'{now.month}/{now.day}'
 
-    # Load bundled holidays
-    holidays_path = os.path.join(os.path.dirname(__file__), 'holidays.json')
-    try:
-        with open(holidays_path) as f:
-            holidays = json.load(f)
-    except Exception:
-        holidays = {}
+    here = os.path.dirname(__file__)
+
+    def load(fname):
+        try:
+            with open(os.path.join(here, fname)) as f:
+                doc = json.load(f)
+                return doc if isinstance(doc, dict) else {}
+        except Exception:
+            return {}
+
+    names = list(load('holidays.json').get(key, []))
+
+    # Where the wall IS decides whose days it celebrates — geography, not
+    # language (a French-speaking wall in Canada wants Canada's days).
+    country = None
+    if get_location is not None:
+        try:
+            country = (get_location() or {}).get('country')
+        except Exception:
+            country = None
+    if country:
+        local = load(f'holidays_{str(country).lower()}.json').get(key, [])
+        # Local days lead; the international/default day still shows after them.
+        names = list(local) + [n for n in names if n not in local]
 
     rows, cols = get_rows(), get_cols()
-    names = holidays.get(key, [t('A great day')])
     pages = []
     for name in names:
         # The catalog ships common holiday names localized — use the translation
