@@ -1,144 +1,24 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "É certo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Decididamente",
-        "sim"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Sem dúvida",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Sim,",
-        "definitivamente"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Podes contar",
-        "com isso"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "A meu ver, sim",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Muito provável",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Boas",
-        "perspetivas"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Sim",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Os sinais",
-        "dizem que sim"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Resposta vaga,",
-        "tenta de novo"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Pergunta",
-        "mais tarde"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "É melhor não",
-        "dizer-te agora"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Não consigo",
-        "prever agora"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Concentra-te e",
-        "volta a tentar"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Não contes",
-        "com isso"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "A minha",
-        "resposta é não"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Minhas fontes",
-        "dizem que não"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Perspetivas",
-        "não muito boas"
-      ]
-    },
-    {
-      "lines": [
-        "Bola 8 Mágica",
-        "Muito duvidoso",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "Bola 8 Mágica\nÉ certo",
+  "Bola 8 Mágica\nDecididamente sim",
+  "Bola 8 Mágica\nSem dúvida",
+  "Bola 8 Mágica\nSim, definitivamente",
+  "Bola 8 Mágica\nPodes contar com isso",
+  "Bola 8 Mágica\nA meu ver, sim",
+  "Bola 8 Mágica\nMuito provável",
+  "Bola 8 Mágica\nBoas perspetivas",
+  "Bola 8 Mágica\nSim",
+  "Bola 8 Mágica\nOs sinais dizem que sim",
+  "Bola 8 Mágica\nResposta vaga, tenta de novo",
+  "Bola 8 Mágica\nPergunta mais tarde",
+  "Bola 8 Mágica\nÉ melhor não dizer-te agora",
+  "Bola 8 Mágica\nNão consigo prever agora",
+  "Bola 8 Mágica\nConcentra-te e volta a tentar",
+  "Bola 8 Mágica\nNão contes com isso",
+  "Bola 8 Mágica\nA minha resposta é não",
+  "Bola 8 Mágica\nMinhas fontes dizem que não",
+  "Bola 8 Mágica\nPerspetivas não muito boas",
+  "Bola 8 Mágica\nMuito duvidoso"
+ ]
 }

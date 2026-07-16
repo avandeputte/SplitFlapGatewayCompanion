@@ -1,29 +1,31 @@
 {
-  "pages": [
-    {"lines": ["Nothing is on", "fire. Fire is", "on things"]},
-    {"lines": ["The word bed", "looks like", "a bed"]},
-    {"lines": ["Your future", "self is", "watching you"]},
-    {"lines": ["Every book is", "a remix of", "the alphabet"]},
-    {"lines": ["You have never", "seen your own", "face in person"]},
-    {"lines": ["Lasagna is", "just a", "pasta cake"]},
-    {"lines": ["The ocean is", "just flavored", "water"]},
-    {"lines": ["Every exit is", "an entrance", "somewhere else"]},
-    {"lines": ["You are the", "oldest you", "have ever been"]},
-    {"lines": ["Teeth are the", "only bones you", "clean daily"]},
-    {"lines": ["Swans can be", "gay and that", "is beautiful"]},
-    {"lines": ["History class", "gets longer", "every year"]},
-    {"lines": ["Your dog cant", "tell if you", "tripped or ran"]},
-    {"lines": ["Coffee is just", "hot bean", "water"]},
-    {"lines": ["Elevators are", "just rooms", "that move"]},
-    {"lines": ["When you wait", "for a waiter", "you are one"]},
-    {"lines": ["Every mirror", "you buy is", "used"]},
-    {"lines": ["Sand is called", "sand because", "sea and land"]},
-    {"lines": ["Birthdays are", "good for you", "the more the"]},
-    {"lines": ["better. People", "with the most", "live longest"]},
-    {"lines": ["Sleeping is", "just time", "travel"]},
-    {"lines": ["A map is just", "a spoiler for", "a trip"]},
-    {"lines": ["Rain is just", "confetti from", "the sky"]},
-    {"lines": ["Socks are just", "shoes for your", "shoes"]},
-    {"lines": ["Clapping is", "just hitting", "yourself"]}
-  ]
+ "groups": [
+  "Nothing is on fire. Fire is on things",
+  "The word bed looks like a bed",
+  "Your future self is watching you",
+  "Every book is a remix of the alphabet",
+  "You have never seen your own face in person",
+  "Lasagna is just a pasta cake",
+  "The ocean is just flavored water",
+  "Every exit is an entrance somewhere else",
+  "You are the oldest you have ever been",
+  "Teeth are the only bones you clean daily",
+  "Swans can be gay and that is beautiful",
+  "History class gets longer every year",
+  "Your dog cant tell if you tripped or ran",
+  "Coffee is just hot bean water",
+  "Elevators are just rooms that move",
+  "When you wait for a waiter you are one",
+  "Every mirror you buy is used",
+  "Sand is called sand because sea and land",
+  [
+   "Birthdays are good for you the more the",
+   "better. People with the most live longest"
+  ],
+  "Sleeping is just time travel",
+  "A map is just a spoiler for a trip",
+  "Rain is just confetti from the sky",
+  "Socks are just shoes for your shoes",
+  "Clapping is just hitting yourself"
+ ]
 }

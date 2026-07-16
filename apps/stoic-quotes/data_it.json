@@ -1,144 +1,24 @@
 {
- "pages": [
-  {
-   "lines": [
-    "L'ostacolo",
-    "è la via",
-    "- Marco Aurelio"
-   ]
-  },
-  {
-   "lines": [
-    "Soffriamo più",
-    "immaginando",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Non perdere",
-    "tempo in liti",
-    "- Marco Aurelio"
-   ]
-  },
-  {
-   "lines": [
-    "Hai potere",
-    "sulla tua mente",
-    "- Marco Aurelio"
-   ]
-  },
-  {
-   "lines": [
-    "Comincia ora",
-    "a vivere",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Contempla il",
-    "bello di vivere",
-    "- Marco Aurelio"
-   ]
-  },
-  {
-   "lines": [
-    "Nulla di grande",
-    "nasce di colpo",
-    "- Epitteto"
-   ]
-  },
-  {
-   "lines": [
-    "L'uso tempra",
-    "la mente",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Sopporta e",
-    "astieniti",
-    "- Epitteto"
-   ]
-  },
-  {
-   "lines": [
-    "Sii tollerante",
-    "con gli altri",
-    "- Marco Aurelio"
-   ]
-  },
-  {
-   "lines": [
-    "Ama la sorte",
-    "che ti tocca",
-    "- Marco Aurelio"
-   ]
-  },
-  {
-   "lines": [
-    "La vita è lunga",
-    "se sai usarla",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Abbi cura di",
-    "questo istante",
-    "- Epitteto"
-   ]
-  },
-  {
-   "lines": [
-    "Vera felicità",
-    "è la virtù",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Vinci te stesso",
-    "poi gli altri",
-    "- Epitteto"
-   ]
-  },
-  {
-   "lines": [
-    "Scegli di non",
-    "essere leso",
-    "- Marco Aurelio"
-   ]
-  },
-  {
-   "lines": [
-    "Ciò che fai ora",
-    "risuona sempre",
-    "- Marco Aurelio"
-   ]
-  },
-  {
-   "lines": [
-    "Mentre attendi",
-    "la vita passa",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Pensa a ciò",
-    "che hai",
-    "- Marco Aurelio"
-   ]
-  },
-  {
-   "lines": [
-    "Un nuovo giorno",
-    "è un'occasione",
-    "- Seneca"
-   ]
-  }
+ "groups": [
+  "L'ostacolo è la via\n- Marco Aurelio",
+  "Soffriamo più immaginando\n- Seneca",
+  "Non perdere tempo in liti\n- Marco Aurelio",
+  "Hai potere sulla tua mente\n- Marco Aurelio",
+  "Comincia ora a vivere\n- Seneca",
+  "Contempla il bello di vivere\n- Marco Aurelio",
+  "Nulla di grande nasce di colpo\n- Epitteto",
+  "L'uso tempra la mente\n- Seneca",
+  "Sopporta e astieniti\n- Epitteto",
+  "Sii tollerante con gli altri\n- Marco Aurelio",
+  "Ama la sorte che ti tocca\n- Marco Aurelio",
+  "La vita è lunga se sai usarla\n- Seneca",
+  "Abbi cura di questo istante\n- Epitteto",
+  "Vera felicità è la virtù\n- Seneca",
+  "Vinci te stesso poi gli altri\n- Epitteto",
+  "Scegli di non essere leso\n- Marco Aurelio",
+  "Ciò che fai ora risuona sempre\n- Marco Aurelio",
+  "Mentre attendi la vita passa\n- Seneca",
+  "Pensa a ciò che hai\n- Marco Aurelio",
+  "Un nuovo giorno è un'occasione\n- Seneca"
  ]
 }

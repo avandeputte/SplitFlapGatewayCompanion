@@ -1,144 +1,24 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Magische Kugel",
-        "Es ist sicher",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Es ist",
-        "entschieden so"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Ohne Zweifel",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Ja, definitiv",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Verlass dich",
-        "drauf"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Wie ich es sehe",
-        "ja"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Sehr",
-        "wahrscheinlich"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Gute Aussichten",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Ja",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Zeichen stehen",
-        "auf Ja"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Antwort unklar",
-        "frag erneut"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Frag später",
-        "noch einmal"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Sag ich lieber",
-        "jetzt nicht"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Zurzeit nicht",
-        "vorhersehbar"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Denk nach und",
-        "frag nochmal"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Zähl nicht",
-        "drauf"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Meine Antwort",
-        "ist Nein"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Meine Quellen",
-        "sagen Nein"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Aussichten",
-        "eher schlecht"
-      ]
-    },
-    {
-      "lines": [
-        "Magische Kugel",
-        "Sehr",
-        "zweifelhaft"
-      ]
-    }
-  ]
+ "groups": [
+  "Magische Kugel\nEs ist sicher",
+  "Magische Kugel\nEs ist entschieden so",
+  "Magische Kugel\nOhne Zweifel",
+  "Magische Kugel\nJa, definitiv",
+  "Magische Kugel\nVerlass dich drauf",
+  "Magische Kugel\nWie ich es sehe ja",
+  "Magische Kugel\nSehr wahrscheinlich",
+  "Magische Kugel\nGute Aussichten",
+  "Magische Kugel\nJa",
+  "Magische Kugel\nZeichen stehen auf Ja",
+  "Magische Kugel\nAntwort unklar frag erneut",
+  "Magische Kugel\nFrag später noch einmal",
+  "Magische Kugel\nSag ich lieber jetzt nicht",
+  "Magische Kugel\nZurzeit nicht vorhersehbar",
+  "Magische Kugel\nDenk nach und frag nochmal",
+  "Magische Kugel\nZähl nicht drauf",
+  "Magische Kugel\nMeine Antwort ist Nein",
+  "Magische Kugel\nMeine Quellen sagen Nein",
+  "Magische Kugel\nAussichten eher schlecht",
+  "Magische Kugel\nSehr zweifelhaft"
+ ]
 }

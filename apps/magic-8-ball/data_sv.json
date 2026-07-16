@@ -1,144 +1,24 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Det är säkert",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Det är",
-        "definitivt så"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Utan tvekan",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Ja, absolut",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Du kan lita",
-        "på det"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Som jag ser",
-        "det, ja"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Högst troligt",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Det ser bra ut",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Ja",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Allt pekar",
-        "på ja"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Oklart svar,",
-        "försök igen"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Fråga igen",
-        "senare"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Bäst att inte",
-        "säga det nu"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Kan inte",
-        "förutspås nu"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Koncentrera",
-        "dig, fråga igen"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Räkna inte",
-        "med det"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Mitt svar",
-        "är nej"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Mina källor",
-        "säger nej"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Det ser inte",
-        "så bra ut"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-boll",
-        "Mycket tveksamt",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "Magisk 8-boll\nDet är säkert",
+  "Magisk 8-boll\nDet är definitivt så",
+  "Magisk 8-boll\nUtan tvekan",
+  "Magisk 8-boll\nJa, absolut",
+  "Magisk 8-boll\nDu kan lita på det",
+  "Magisk 8-boll\nSom jag ser det, ja",
+  "Magisk 8-boll\nHögst troligt",
+  "Magisk 8-boll\nDet ser bra ut",
+  "Magisk 8-boll\nJa",
+  "Magisk 8-boll\nAllt pekar på ja",
+  "Magisk 8-boll\nOklart svar, försök igen",
+  "Magisk 8-boll\nFråga igen senare",
+  "Magisk 8-boll\nBäst att inte säga det nu",
+  "Magisk 8-boll\nKan inte förutspås nu",
+  "Magisk 8-boll\nKoncentrera dig, fråga igen",
+  "Magisk 8-boll\nRäkna inte med det",
+  "Magisk 8-boll\nMitt svar är nej",
+  "Magisk 8-boll\nMina källor säger nej",
+  "Magisk 8-boll\nDet ser inte så bra ut",
+  "Magisk 8-boll\nMycket tveksamt"
+ ]
 }

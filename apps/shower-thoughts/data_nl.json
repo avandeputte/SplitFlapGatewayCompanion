@@ -1,179 +1,31 @@
 {
- "pages": [
-  {
-   "lines": [
-    "Niets staat in",
-    "brand. Brand",
-    "staat op dingen"
-   ]
-  },
-  {
-   "lines": [
-    "Het woord bed",
-    "ziet eruit als",
-    "een bed"
-   ]
-  },
-  {
-   "lines": [
-    "Je toekomstige",
-    "ik zit naar je",
-    "te kijken"
-   ]
-  },
-  {
-   "lines": [
-    "Elk boek is",
-    "een remix van",
-    "het alfabet"
-   ]
-  },
-  {
-   "lines": [
-    "Je hebt je",
-    "gezicht nooit",
-    "echt gezien"
-   ]
-  },
-  {
-   "lines": [
-    "Lasagne is",
-    "gewoon een",
-    "pastataart"
-   ]
-  },
-  {
-   "lines": [
-    "De zee is",
-    "gewoon water",
-    "met een smaakje"
-   ]
-  },
-  {
-   "lines": [
-    "Elke uitgang",
-    "is elders een",
-    "ingang"
-   ]
-  },
-  {
-   "lines": [
-    "Je bent nu",
-    "ouder dan ooit",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Tanden: de",
-    "enige botten",
-    "die je poetst"
-   ]
-  },
-  {
-   "lines": [
-    "Zwanen kunnen",
-    "gay zijn en dat",
-    "is prachtig"
-   ]
-  },
-  {
-   "lines": [
-    "Geschiedenis",
-    "wordt elk jaar",
-    "langer"
-   ]
-  },
-  {
-   "lines": [
-    "Je hond weet",
-    "niet of je rent",
-    "of struikelt"
-   ]
-  },
-  {
-   "lines": [
-    "Koffie is",
-    "gewoon heet",
-    "bonenwater"
-   ]
-  },
-  {
-   "lines": [
-    "Een lift is",
-    "gewoon een",
-    "kamer die rijdt"
-   ]
-  },
-  {
-   "lines": [
-    "Wachtend op de",
-    "ober dien je",
-    "nergens toe"
-   ]
-  },
-  {
-   "lines": [
-    "Elke spiegel",
-    "die je koopt is",
-    "tweedehands"
-   ]
-  },
-  {
-   "lines": [
-    "Zand heet zand",
-    "want zee",
-    "en land"
-   ]
-  },
-  {
-   "lines": [
-    "Verjaardagen",
-    "zijn gezond.",
-    "Hoe meer, hoe"
-   ]
-  },
-  {
-   "lines": [
-    "beter. Met de",
-    "meeste leef je",
-    "het langst"
-   ]
-  },
-  {
-   "lines": [
-    "Slapen is",
-    "gewoon",
-    "tijdreizen"
-   ]
-  },
-  {
-   "lines": [
-    "Een kaart is",
-    "een spoiler",
-    "van je reis"
-   ]
-  },
-  {
-   "lines": [
-    "Regen is",
-    "confetti uit",
-    "de lucht"
-   ]
-  },
-  {
-   "lines": [
-    "Sokken zijn",
-    "schoenen voor",
-    "je schoenen"
-   ]
-  },
-  {
-   "lines": [
-    "Klappen is",
-    "jezelf slaan",
-    ""
-   ]
-  }
+ "groups": [
+  "Niets staat in brand. Brand staat op dingen",
+  "Het woord bed ziet eruit als een bed",
+  "Je toekomstige ik zit naar je te kijken",
+  "Elk boek is een remix van het alfabet",
+  "Je hebt je gezicht nooit echt gezien",
+  "Lasagne is gewoon een pastataart",
+  "De zee is gewoon water met een smaakje",
+  "Elke uitgang is elders een ingang",
+  "Je bent nu ouder dan ooit",
+  "Tanden: de enige botten die je poetst",
+  "Zwanen kunnen gay zijn en dat is prachtig",
+  "Geschiedenis wordt elk jaar langer",
+  "Je hond weet niet of je rent of struikelt",
+  "Koffie is gewoon heet bonenwater",
+  "Een lift is gewoon een kamer die rijdt",
+  "Wachtend op de ober dien je nergens toe",
+  "Elke spiegel die je koopt is tweedehands",
+  "Zand heet zand want zee en land",
+  [
+   "Verjaardagen zijn gezond. Hoe meer, hoe",
+   "beter. Met de meeste leef je het langst"
+  ],
+  "Slapen is gewoon tijdreizen",
+  "Een kaart is een spoiler van je reis",
+  "Regen is confetti uit de lucht",
+  "Sokken zijn schoenen voor je schoenen",
+  "Klappen is jezelf slaan"
  ]
 }

@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Guten Morgen",
-        "heute steckt",
-        "voller Chancen"
-      ]
-    },
-    {
-      "lines": [
-        "Aufstehen",
-        "mach den Tag",
-        "grossartig"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "du genügst",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Jeder Morgen",
-        "ist ein neuer",
-        "Anfang"
-      ]
-    },
-    {
-      "lines": [
-        "Wach auf mit",
-        "Willenskraft",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Heute ist ein",
-        "ganz neuer Tag",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "sei der Grund",
-        "für ein Lächeln"
-      ]
-    },
-    {
-      "lines": [
-        "Mach es wahr",
-        "überrasche alle",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "deine Grenze",
-        "bist nur du"
-      ]
-    },
-    {
-      "lines": [
-        "Glaub an dich",
-        "heute und",
-        "jeden Tag"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "verfolge heute",
-        "deine Träume"
-      ]
-    },
-    {
-      "lines": [
-        "Der Tag gehört",
-        "dir. Nimm ihn",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "bleib positiv",
-        "arbeite hart"
-      ]
-    },
-    {
-      "lines": [
-        "Steh auf und",
-        "pack den Tag",
-        "mit Schwung an"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "Grosses steht",
-        "bevor"
-      ]
-    },
-    {
-      "lines": [
-        "Du bist stärker",
-        "als du denkst",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "mach dich heute",
-        "stolz"
-      ]
-    },
-    {
-      "lines": [
-        "Neuer Tag",
-        "neue Kraft",
-        "neue Gedanken"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "verbreite",
-        "Freundlichkeit"
-      ]
-    },
-    {
-      "lines": [
-        "Die beste Zeit",
-        "für einen",
-        "Neuanfang"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "die Sonne kam",
-        "auch für dich"
-      ]
-    },
-    {
-      "lines": [
-        "Erst lächeln",
-        "dann Kaffee",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "heute läuft",
-        "nur einmal"
-      ]
-    },
-    {
-      "lines": [
-        "Ein nettes Wort",
-        "kann einen Tag",
-        "ändern"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "fang dort an",
-        "wo du bist"
-      ]
-    },
-    {
-      "lines": [
-        "Das Schwerste",
-        "zuerst",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "tu heute eine",
-        "mutige Sache"
-      ]
-    },
-    {
-      "lines": [
-        "Jeder Morgen",
-        "ist ein",
-        "Neuanfang"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "lass gestern",
-        "los"
-      ]
-    },
-    {
-      "lines": [
-        "Heute ist ein",
-        "guter Tag für",
-        "einen guten Tag"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "giesse heute",
-        "deine Träume"
-      ]
-    },
-    {
-      "lines": [
-        "Sei die Energie",
-        "die du",
-        "anziehen willst"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "kleine Schritte",
-        "zählen auch"
-      ]
-    },
-    {
-      "lines": [
-        "Aufstehen und",
-        "glänzen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "deine Zukunft",
-        "schaut zu"
-      ]
-    },
-    {
-      "lines": [
-        "Mach es heute",
-        "nicht morgen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "atme Mut ein",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Der frühe Vogel",
-        "kriegt den",
-        "Kaffee"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "mach den Tag",
-        "wertvoll"
-      ]
-    },
-    {
-      "lines": [
-        "Neuer Tag neue",
-        "Chance neues",
-        "Ich"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "beginne mit",
-        "Dankbarkeit"
-      ]
-    },
-    {
-      "lines": [
-        "Strahle wie die",
-        "Morgensonne",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "heute ist ein",
-        "Geschenk"
-      ]
-    },
-    {
-      "lines": [
-        "Starte den Tag",
-        "mit einem",
-        "Danke"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "säe heute",
-        "Freundlichkeit"
-      ]
-    },
-    {
-      "lines": [
-        "Du bist wach",
-        "das ist schon",
-        "ein Sieg"
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "ziel hoch",
-        "starte jetzt"
-      ]
-    },
-    {
-      "lines": [
-        "Lass das Licht",
-        "herein",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Guten Morgen",
-        "schreib heute",
-        "eine gute Story"
-      ]
-    },
-    {
-      "lines": [
-        "Heute scheint",
-        "die Sonne für",
-        "dich"
-      ]
-    }
-  ]
+ "groups": [
+  "Guten Morgen heute steckt voller Chancen",
+  "Aufstehen mach den Tag grossartig",
+  "Guten Morgen du genügst",
+  "Jeder Morgen ist ein neuer Anfang",
+  "Wach auf mit Willenskraft",
+  "Heute ist ein ganz neuer Tag",
+  "Guten Morgen sei der Grund für ein Lächeln",
+  "Mach es wahr überrasche alle",
+  "Guten Morgen deine Grenze bist nur du",
+  "Glaub an dich heute und jeden Tag",
+  "Guten Morgen verfolge heute deine Träume",
+  "Der Tag gehört dir. Nimm ihn",
+  "Guten Morgen bleib positiv arbeite hart",
+  "Steh auf und pack den Tag mit Schwung an",
+  "Guten Morgen Grosses steht bevor",
+  "Du bist stärker als du denkst",
+  "Guten Morgen mach dich heute stolz",
+  "Neuer Tag neue Kraft neue Gedanken",
+  "Guten Morgen verbreite Freundlichkeit",
+  "Die beste Zeit für einen Neuanfang",
+  "Guten Morgen die Sonne kam auch für dich",
+  "Erst lächeln dann Kaffee",
+  "Guten Morgen heute läuft nur einmal",
+  "Ein nettes Wort kann einen Tag ändern",
+  "Guten Morgen fang dort an wo du bist",
+  "Das Schwerste zuerst",
+  "Guten Morgen tu heute eine mutige Sache",
+  "Jeder Morgen ist ein Neuanfang",
+  "Guten Morgen lass gestern los",
+  "Heute ist ein guter Tag für einen guten Tag",
+  "Guten Morgen giesse heute deine Träume",
+  "Sei die Energie die du anziehen willst",
+  "Guten Morgen kleine Schritte zählen auch",
+  "Aufstehen und glänzen",
+  "Guten Morgen deine Zukunft schaut zu",
+  "Mach es heute nicht morgen",
+  "Guten Morgen atme Mut ein",
+  "Der frühe Vogel kriegt den Kaffee",
+  "Guten Morgen mach den Tag wertvoll",
+  "Neuer Tag neue Chance neues Ich",
+  "Guten Morgen beginne mit Dankbarkeit",
+  "Strahle wie die Morgensonne",
+  "Guten Morgen heute ist ein Geschenk",
+  "Starte den Tag mit einem Danke",
+  "Guten Morgen säe heute Freundlichkeit",
+  "Du bist wach das ist schon ein Sieg",
+  "Guten Morgen ziel hoch starte jetzt",
+  "Lass das Licht herein",
+  "Guten Morgen schreib heute eine gute Story",
+  "Heute scheint die Sonne für dich"
+ ]
 }

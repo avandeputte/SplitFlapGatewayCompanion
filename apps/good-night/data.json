@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Good night",
-        "Sleep tight",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Sweet dreams",
-        "See you in the",
-        "morning"
-      ]
-    },
-    {
-      "lines": [
-        "Rest well",
-        "Tomorrow is a",
-        "new day"
-      ]
-    },
-    {
-      "lines": [
-        "The stars are",
-        "out tonight",
-        "Sleep well"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Let go of",
-        "today's worries"
-      ]
-    },
-    {
-      "lines": [
-        "Close your eyes",
-        "Dream big",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "You did great",
-        "today"
-      ]
-    },
-    {
-      "lines": [
-        "Sleep well and",
-        "wake refreshed",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "The moon is",
-        "watching over"
-      ]
-    },
-    {
-      "lines": [
-        "Tomorrow holds",
-        "new adventures",
-        "Rest now"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Be grateful for",
-        "today"
-      ]
-    },
-    {
-      "lines": [
-        "Let the stars",
-        "guide your",
-        "dreams tonight"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Relax and",
-        "breathe deeply"
-      ]
-    },
-    {
-      "lines": [
-        "End the day",
-        "with a grateful",
-        "heart"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Peace and calm",
-        "surround you"
-      ]
-    },
-    {
-      "lines": [
-        "Drift off to",
-        "sleep knowing",
-        "you are loved"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Let your mind",
-        "rest easy"
-      ]
-    },
-    {
-      "lines": [
-        "The night is",
-        "quiet and still",
-        "Sleep well"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Sweet dreams",
-        "until tomorrow"
-      ]
-    },
-    {
-      "lines": [
-        "May your dreams",
-        "be filled with",
-        "joy and peace"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "The day is",
-        "done Rest now"
-      ]
-    },
-    {
-      "lines": [
-        "Stars above",
-        "dreams ahead",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Tomorrow can",
-        "wait"
-      ]
-    },
-    {
-      "lines": [
-        "Put the day",
-        "down gently",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "You are safe",
-        "and loved"
-      ]
-    },
-    {
-      "lines": [
-        "The moon keeps",
-        "watch tonight",
-        "Sleep deep"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Forgive the",
-        "day and rest"
-      ]
-    },
-    {
-      "lines": [
-        "Quiet hours",
-        "soft dreams",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Tomorrow is",
-        "unwritten"
-      ]
-    },
-    {
-      "lines": [
-        "Close the day",
-        "Open a dream",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Let silence",
-        "heal you"
-      ]
-    },
-    {
-      "lines": [
-        "The night sky",
-        "is full of",
-        "wishes"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Rest is",
-        "productive too"
-      ]
-    },
-    {
-      "lines": [
-        "Dim the lights",
-        "Slow the",
-        "thoughts"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "You did",
-        "enough today"
-      ]
-    },
-    {
-      "lines": [
-        "Sleep is the",
-        "best",
-        "meditation"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Count blessings",
-        "not sheep"
-      ]
-    },
-    {
-      "lines": [
-        "May the night",
-        "be soft and",
-        "kind"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Dreams are",
-        "free Take two"
-      ]
-    },
-    {
-      "lines": [
-        "The day is",
-        "over Let it",
-        "go"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Recharge for",
-        "tomorrow"
-      ]
-    },
-    {
-      "lines": [
-        "Even the sun",
-        "needs to set",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Whisper your",
-        "wishes"
-      ]
-    },
-    {
-      "lines": [
-        "Tonight rest",
-        "Tomorrow",
-        "rise"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "The world can",
-        "wait"
-      ]
-    },
-    {
-      "lines": [
-        "Sleep well",
-        "Grow strong",
-        "Dream far"
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "Starlight is",
-        "on the house"
-      ]
-    },
-    {
-      "lines": [
-        "Lay down your",
-        "worries",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good night",
-        "See you at",
-        "sunrise"
-      ]
-    },
-    {
-      "lines": [
-        "The night is a",
-        "lullaby",
-        "Sleep now"
-      ]
-    }
-  ]
+ "groups": [
+  "Good night Sleep tight",
+  "Sweet dreams See you in the morning",
+  "Rest well Tomorrow is a new day",
+  "The stars are out tonight Sleep well",
+  "Good night Let go of today's worries",
+  "Close your eyes Dream big",
+  "Good night You did great today",
+  "Sleep well and wake refreshed",
+  "Good night The moon is watching over",
+  "Tomorrow holds new adventures Rest now",
+  "Good night Be grateful for today",
+  "Let the stars guide your dreams tonight",
+  "Good night Relax and breathe deeply",
+  "End the day with a grateful heart",
+  "Good night Peace and calm surround you",
+  "Drift off to sleep knowing you are loved",
+  "Good night Let your mind rest easy",
+  "The night is quiet and still Sleep well",
+  "Good night Sweet dreams until tomorrow",
+  "May your dreams be filled with joy and peace",
+  "Good night The day is done Rest now",
+  "Stars above dreams ahead",
+  "Good night Tomorrow can wait",
+  "Put the day down gently",
+  "Good night You are safe and loved",
+  "The moon keeps watch tonight Sleep deep",
+  "Good night Forgive the day and rest",
+  "Quiet hours soft dreams",
+  "Good night Tomorrow is unwritten",
+  "Close the day Open a dream",
+  "Good night Let silence heal you",
+  "The night sky is full of wishes",
+  "Good night Rest is productive too",
+  "Dim the lights Slow the thoughts",
+  "Good night You did enough today",
+  "Sleep is the best meditation",
+  "Good night Count blessings not sheep",
+  "May the night be soft and kind",
+  "Good night Dreams are free Take two",
+  "The day is over Let it go",
+  "Good night Recharge for tomorrow",
+  "Even the sun needs to set",
+  "Good night Whisper your wishes",
+  "Tonight rest Tomorrow rise",
+  "Good night The world can wait",
+  "Sleep well Grow strong Dream far",
+  "Good night Starlight is on the house",
+  "Lay down your worries",
+  "Good night See you at sunrise",
+  "The night is a lullaby Sleep now"
+ ]
 }

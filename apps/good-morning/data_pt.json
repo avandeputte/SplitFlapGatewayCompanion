@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Bom dia",
-        "Hoje está cheio",
-        "de potencial"
-      ]
-    },
-    {
-      "lines": [
-        "Acorda e brilha",
-        "Faz de hoje",
-        "algo incrível"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Tu és",
-        "suficiente"
-      ]
-    },
-    {
-      "lines": [
-        "Cada manhã é",
-        "uma chance de",
-        "recomeçar"
-      ]
-    },
-    {
-      "lines": [
-        "Acorda com",
-        "determinação",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoje é um dia",
-        "novinho em",
-        "folha"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Sê a razão de",
-        "um sorriso"
-      ]
-    },
-    {
-      "lines": [
-        "Faz acontecer",
-        "Surpreende",
-        "todos"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "O teu limite",
-        "és só tu"
-      ]
-    },
-    {
-      "lines": [
-        "Acredita em ti",
-        "hoje e todos",
-        "os dias"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Persegue os",
-        "teus sonhos"
-      ]
-    },
-    {
-      "lines": [
-        "O dia é teu",
-        "Aproveita-o",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Mantém-te",
-        "positivo"
-      ]
-    },
-    {
-      "lines": [
-        "Levanta-te e",
-        "ataca o dia",
-        "com entusiasmo"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Grandes coisas",
-        "vêm aí"
-      ]
-    },
-    {
-      "lines": [
-        "És mais forte",
-        "do que",
-        "pensas"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Deixa-te",
-        "orgulhoso hoje"
-      ]
-    },
-    {
-      "lines": [
-        "Novo dia",
-        "nova força",
-        "novas ideias"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Espalha",
-        "bondade"
-      ]
-    },
-    {
-      "lines": [
-        "A melhor hora",
-        "para recomeçar",
-        "é agora"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "O sol nasceu",
-        "para ti também"
-      ]
-    },
-    {
-      "lines": [
-        "Sorri primeiro",
-        "café depois",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Hoje só passa",
-        "uma vez"
-      ]
-    },
-    {
-      "lines": [
-        "Uma palavra",
-        "amável muda",
-        "um dia"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Começa onde",
-        "estás"
-      ]
-    },
-    {
-      "lines": [
-        "O mais difícil",
-        "primeiro",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Faz algo",
-        "corajoso hoje"
-      ]
-    },
-    {
-      "lines": [
-        "Cada manhã é",
-        "um recomeço",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Solta o ontem",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoje é um bom",
-        "dia para um",
-        "bom dia"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Rega os teus",
-        "sonhos"
-      ]
-    },
-    {
-      "lines": [
-        "Sê a energia",
-        "que queres",
-        "atrair"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Passos pequenos",
-        "também contam"
-      ]
-    },
-    {
-      "lines": [
-        "Acorda e",
-        "sê incrível",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "O teu futuro",
-        "está a ver"
-      ]
-    },
-    {
-      "lines": [
-        "Faz hoje",
-        "não amanhã",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Respira",
-        "coragem"
-      ]
-    },
-    {
-      "lines": [
-        "Quem madruga",
-        "ganha o",
-        "café"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Faz hoje",
-        "contar"
-      ]
-    },
-    {
-      "lines": [
-        "Novo dia",
-        "nova",
-        "oportunidade"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Começa com",
-        "gratidão"
-      ]
-    },
-    {
-      "lines": [
-        "Brilha como o",
-        "sol da manhã",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Hoje é um",
-        "presente"
-      ]
-    },
-    {
-      "lines": [
-        "Começa o dia",
-        "com um",
-        "obrigado"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Semeia",
-        "bondade"
-      ]
-    },
-    {
-      "lines": [
-        "Acordaste",
-        "Isso já é uma",
-        "vitória"
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Aponta alto",
-        "Começa já"
-      ]
-    },
-    {
-      "lines": [
-        "Deixa entrar",
-        "a luz",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bom dia",
-        "Escreve uma",
-        "grande história"
-      ]
-    },
-    {
-      "lines": [
-        "Hoje o sol",
-        "brilha para",
-        "ti"
-      ]
-    }
-  ]
+ "groups": [
+  "Bom dia Hoje está cheio de potencial",
+  "Acorda e brilha Faz de hoje algo incrível",
+  "Bom dia Tu és suficiente",
+  "Cada manhã é uma chance de recomeçar",
+  "Acorda com determinação",
+  "Hoje é um dia novinho em folha",
+  "Bom dia Sê a razão de um sorriso",
+  "Faz acontecer Surpreende todos",
+  "Bom dia O teu limite és só tu",
+  "Acredita em ti hoje e todos os dias",
+  "Bom dia Persegue os teus sonhos",
+  "O dia é teu Aproveita-o",
+  "Bom dia Mantém-te positivo",
+  "Levanta-te e ataca o dia com entusiasmo",
+  "Bom dia Grandes coisas vêm aí",
+  "És mais forte do que pensas",
+  "Bom dia Deixa-te orgulhoso hoje",
+  "Novo dia nova força novas ideias",
+  "Bom dia Espalha bondade",
+  "A melhor hora para recomeçar é agora",
+  "Bom dia O sol nasceu para ti também",
+  "Sorri primeiro café depois",
+  "Bom dia Hoje só passa uma vez",
+  "Uma palavra amável muda um dia",
+  "Bom dia Começa onde estás",
+  "O mais difícil primeiro",
+  "Bom dia Faz algo corajoso hoje",
+  "Cada manhã é um recomeço",
+  "Bom dia Solta o ontem",
+  "Hoje é um bom dia para um bom dia",
+  "Bom dia Rega os teus sonhos",
+  "Sê a energia que queres atrair",
+  "Bom dia Passos pequenos também contam",
+  "Acorda e sê incrível",
+  "Bom dia O teu futuro está a ver",
+  "Faz hoje não amanhã",
+  "Bom dia Respira coragem",
+  "Quem madruga ganha o café",
+  "Bom dia Faz hoje contar",
+  "Novo dia nova oportunidade",
+  "Bom dia Começa com gratidão",
+  "Brilha como o sol da manhã",
+  "Bom dia Hoje é um presente",
+  "Começa o dia com um obrigado",
+  "Bom dia Semeia bondade",
+  "Acordaste Isso já é uma vitória",
+  "Bom dia Aponta alto Começa já",
+  "Deixa entrar a luz",
+  "Bom dia Escreve uma grande história",
+  "Hoje o sol brilha para ti"
+ ]
 }

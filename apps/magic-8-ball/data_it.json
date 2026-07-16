@@ -1,144 +1,24 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "È certo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "È decisamente",
-        "così"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Senza dubbio",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Assolutamente",
-        "sì"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Puoi contarci",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "A mio avviso,",
-        "sì"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Molto probabile",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Si mette bene",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Sì",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "I segni dicono",
-        "di sì"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Risposta vaga,",
-        "riprova"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Chiedi di nuovo",
-        "più tardi"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Meglio non",
-        "dirtelo ora"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Non posso",
-        "prevederlo ora"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Concentrati e",
-        "riprova"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Non contarci",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "La mia risposta",
-        "è no"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Le mie fonti",
-        "dicono di no"
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Si mette male",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Palla 8 Magica",
-        "Molto incerto",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "Palla 8 Magica\nÈ certo",
+  "Palla 8 Magica\nÈ decisamente così",
+  "Palla 8 Magica\nSenza dubbio",
+  "Palla 8 Magica\nAssolutamente sì",
+  "Palla 8 Magica\nPuoi contarci",
+  "Palla 8 Magica\nA mio avviso, sì",
+  "Palla 8 Magica\nMolto probabile",
+  "Palla 8 Magica\nSi mette bene",
+  "Palla 8 Magica\nSì",
+  "Palla 8 Magica\nI segni dicono di sì",
+  "Palla 8 Magica\nRisposta vaga, riprova",
+  "Palla 8 Magica\nChiedi di nuovo più tardi",
+  "Palla 8 Magica\nMeglio non dirtelo ora",
+  "Palla 8 Magica\nNon posso prevederlo ora",
+  "Palla 8 Magica\nConcentrati e riprova",
+  "Palla 8 Magica\nNon contarci",
+  "Palla 8 Magica\nLa mia risposta è no",
+  "Palla 8 Magica\nLe mie fonti dicono di no",
+  "Palla 8 Magica\nSi mette male",
+  "Palla 8 Magica\nMolto incerto"
+ ]
 }

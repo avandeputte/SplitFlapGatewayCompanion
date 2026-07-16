@@ -1,179 +1,29 @@
 {
- "pages": [
-  {
-   "lines": [
-    "Une agréable",
-    "surprise",
-    "t'attend"
-   ]
-  },
-  {
-   "lines": [
-    "Ton travail",
-    "portera vite",
-    "ses fruits"
-   ]
-  },
-  {
-   "lines": [
-    "Un long voyage",
-    "commence par",
-    "un premier pas"
-   ]
-  },
-  {
-   "lines": [
-    "La patience",
-    "est la clé de",
-    "la joie"
-   ]
-  },
-  {
-   "lines": [
-    "La fortune",
-    "sourit aux",
-    "audacieux"
-   ]
-  },
-  {
-   "lines": [
-    "Tout vient à",
-    "point à qui",
-    "sait attendre"
-   ]
-  },
-  {
-   "lines": [
-    "Un sourire",
-    "remet tout en",
-    "place"
-   ]
-  },
-  {
-   "lines": [
-    "Le meilleur",
-    "reste à venir",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Crois en toi",
-    "et en tes",
-    "rêves"
-   ]
-  },
-  {
-   "lines": [
-    "Un nouveau",
-    "départ te",
-    "mettra en route"
-   ]
-  },
-  {
-   "lines": [
-    "Tes talents",
-    "seront bientôt",
-    "reconnus"
-   ]
-  },
-  {
-   "lines": [
-    "L'aventure",
-    "peut être un",
-    "vrai bonheur"
-   ]
-  },
-  {
-   "lines": [
-    "Le secret pour",
-    "avancer, c'est",
-    "de commencer"
-   ]
-  },
-  {
-   "lines": [
-    "Ta gentillesse",
-    "te mènera au",
-    "succès"
-   ]
-  },
-  {
-   "lines": [
-    "Chaque jour est",
-    "une chance de",
-    "briller"
-   ]
-  },
-  {
-   "lines": [
-    "Le bonheur",
-    "vient de",
-    "l'intérieur"
-   ]
-  },
-  {
-   "lines": [
-    "Une vie de",
-    "joie t'attend",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Ton sourire",
-    "éclaire les",
-    "autres"
-   ]
-  },
-  {
-   "lines": [
-    "Les grandes",
-    "idées viennent",
-    "du coeur"
-   ]
-  },
-  {
-   "lines": [
-    "C'est le moment",
-    "de tenter du",
-    "nouveau"
-   ]
-  },
-  {
-   "lines": [
-    "Tu trouveras",
-    "ce que tu",
-    "cherches"
-   ]
-  },
-  {
-   "lines": [
-    "Reste fidèle à",
-    "toi et à tes",
-    "valeurs"
-   ]
-  },
-  {
-   "lines": [
-    "L'étoile de la",
-    "fortune brille",
-    "sur toi"
-   ]
-  },
-  {
-   "lines": [
-    "L'amour est en",
-    "chemin vers",
-    "toi"
-   ]
-  },
-  {
-   "lines": [
-    "Ton avenir est",
-    "radieux et",
-    "plein de joie"
-   ]
-  }
+ "groups": [
+  "Une agréable surprise t'attend",
+  "Ton travail portera vite ses fruits",
+  "Un long voyage commence par un premier pas",
+  "La patience est la clé de la joie",
+  "La fortune sourit aux audacieux",
+  "Tout vient à point à qui sait attendre",
+  "Un sourire remet tout en place",
+  "Le meilleur reste à venir",
+  "Crois en toi et en tes rêves",
+  "Un nouveau départ te mettra en route",
+  "Tes talents seront bientôt reconnus",
+  "L'aventure peut être un vrai bonheur",
+  "Le secret pour avancer, c'est de commencer",
+  "Ta gentillesse te mènera au succès",
+  "Chaque jour est une chance de briller",
+  "Le bonheur vient de l'intérieur",
+  "Une vie de joie t'attend",
+  "Ton sourire éclaire les autres",
+  "Les grandes idées viennent du coeur",
+  "C'est le moment de tenter du nouveau",
+  "Tu trouveras ce que tu cherches",
+  "Reste fidèle à toi et à tes valeurs",
+  "L'étoile de la fortune brille sur toi",
+  "L'amour est en chemin vers toi",
+  "Ton avenir est radieux et plein de joie"
  ]
 }

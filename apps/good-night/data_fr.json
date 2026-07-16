@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Bonne nuit",
-        "Dors bien",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Fais de beaux",
-        "rêves À",
-        "demain matin"
-      ]
-    },
-    {
-      "lines": [
-        "Repose toi",
-        "Demain est un",
-        "nouveau jour"
-      ]
-    },
-    {
-      "lines": [
-        "Les étoiles",
-        "sont là ce soir",
-        "Dors bien"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Lâche les",
-        "soucis du jour"
-      ]
-    },
-    {
-      "lines": [
-        "Ferme les yeux",
-        "rêve grand",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Tu as assuré",
-        "aujourdhui"
-      ]
-    },
-    {
-      "lines": [
-        "Dors bien et",
-        "réveille toi",
-        "en forme"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "La lune veille",
-        "sur toi"
-      ]
-    },
-    {
-      "lines": [
-        "Demain apporte",
-        "de nouvelles",
-        "aventures"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Dis merci pour",
-        "ce jour"
-      ]
-    },
-    {
-      "lines": [
-        "Que les étoiles",
-        "guident tes",
-        "rêves ce soir"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Détends toi",
-        "respire à fond"
-      ]
-    },
-    {
-      "lines": [
-        "Finis la",
-        "journée le cur",
-        "reconnaissant"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Paix et calme",
-        "tentourent"
-      ]
-    },
-    {
-      "lines": [
-        "Endors toi en",
-        "sachant que tu",
-        "es aimé"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Laisse ton",
-        "esprit se poser"
-      ]
-    },
-    {
-      "lines": [
-        "La nuit est",
-        "calme et douce",
-        "Dors bien"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Beaux rêves",
-        "à demain"
-      ]
-    },
-    {
-      "lines": [
-        "Que tes rêves",
-        "soient pleins",
-        "de joie"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "La journée est",
-        "faite Repose"
-      ]
-    },
-    {
-      "lines": [
-        "Étoiles en haut",
-        "rêves devant",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Demain peut",
-        "attendre"
-      ]
-    },
-    {
-      "lines": [
-        "Pose la",
-        "journée",
-        "doucement"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Tu es en",
-        "sécurité aimé"
-      ]
-    },
-    {
-      "lines": [
-        "La lune monte",
-        "la garde",
-        "Dors profond"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Pardonne au",
-        "jour et dors"
-      ]
-    },
-    {
-      "lines": [
-        "Heures calmes",
-        "rêves doux",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Demain reste",
-        "à écrire"
-      ]
-    },
-    {
-      "lines": [
-        "Ferme le jour",
-        "ouvre un rêve",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Laisse le",
-        "silence guérir"
-      ]
-    },
-    {
-      "lines": [
-        "Le ciel de nuit",
-        "est plein de",
-        "vux"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Le repos est",
-        "productif aussi"
-      ]
-    },
-    {
-      "lines": [
-        "Baisse la",
-        "lumière apaise",
-        "les pensées"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Tu en as fait",
-        "assez"
-      ]
-    },
-    {
-      "lines": [
-        "Le sommeil est",
-        "la meilleure",
-        "méditation"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Compte tes",
-        "joies pas les"
-      ]
-    },
-    {
-      "lines": [
-        "Que la nuit",
-        "soit douce et",
-        "gentille"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Les rêves sont",
-        "gratuits"
-      ]
-    },
-    {
-      "lines": [
-        "Le jour est",
-        "fini Laisse",
-        "le partir"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Recharge pour",
-        "demain"
-      ]
-    },
-    {
-      "lines": [
-        "Même le soleil",
-        "doit se",
-        "coucher"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Chuchote tes",
-        "souhaits"
-      ]
-    },
-    {
-      "lines": [
-        "Ce soir repose",
-        "demain",
-        "brille"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Le monde peut",
-        "attendre"
-      ]
-    },
-    {
-      "lines": [
-        "Dors bien",
-        "deviens fort",
-        "rêve loin"
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Les étoiles",
-        "sont offertes"
-      ]
-    },
-    {
-      "lines": [
-        "Dépose tes",
-        "soucis",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonne nuit",
-        "Rendez vous au",
-        "lever du soleil"
-      ]
-    },
-    {
-      "lines": [
-        "La nuit est une",
-        "berceuse Dors",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "Bonne nuit Dors bien",
+  "Fais de beaux rêves À demain matin",
+  "Repose toi Demain est un nouveau jour",
+  "Les étoiles sont là ce soir Dors bien",
+  "Bonne nuit Lâche les soucis du jour",
+  "Ferme les yeux rêve grand",
+  "Bonne nuit Tu as assuré aujourdhui",
+  "Dors bien et réveille toi en forme",
+  "Bonne nuit La lune veille sur toi",
+  "Demain apporte de nouvelles aventures",
+  "Bonne nuit Dis merci pour ce jour",
+  "Que les étoiles guident tes rêves ce soir",
+  "Bonne nuit Détends toi respire à fond",
+  "Finis la journée le cur reconnaissant",
+  "Bonne nuit Paix et calme tentourent",
+  "Endors toi en sachant que tu es aimé",
+  "Bonne nuit Laisse ton esprit se poser",
+  "La nuit est calme et douce Dors bien",
+  "Bonne nuit Beaux rêves à demain",
+  "Que tes rêves soient pleins de joie",
+  "Bonne nuit La journée est faite Repose",
+  "Étoiles en haut rêves devant",
+  "Bonne nuit Demain peut attendre",
+  "Pose la journée doucement",
+  "Bonne nuit Tu es en sécurité aimé",
+  "La lune monte la garde Dors profond",
+  "Bonne nuit Pardonne au jour et dors",
+  "Heures calmes rêves doux",
+  "Bonne nuit Demain reste à écrire",
+  "Ferme le jour ouvre un rêve",
+  "Bonne nuit Laisse le silence guérir",
+  "Le ciel de nuit est plein de vux",
+  "Bonne nuit Le repos est productif aussi",
+  "Baisse la lumière apaise les pensées",
+  "Bonne nuit Tu en as fait assez",
+  "Le sommeil est la meilleure méditation",
+  "Bonne nuit Compte tes joies pas les",
+  "Que la nuit soit douce et gentille",
+  "Bonne nuit Les rêves sont gratuits",
+  "Le jour est fini Laisse le partir",
+  "Bonne nuit Recharge pour demain",
+  "Même le soleil doit se coucher",
+  "Bonne nuit Chuchote tes souhaits",
+  "Ce soir repose demain brille",
+  "Bonne nuit Le monde peut attendre",
+  "Dors bien deviens fort rêve loin",
+  "Bonne nuit Les étoiles sont offertes",
+  "Dépose tes soucis",
+  "Bonne nuit Rendez vous au lever du soleil",
+  "La nuit est une berceuse Dors"
+ ]
 }

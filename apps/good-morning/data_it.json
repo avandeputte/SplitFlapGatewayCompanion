@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Buongiorno",
-        "Oggi è pieno",
-        "di potenziale"
-      ]
-    },
-    {
-      "lines": [
-        "Sveglia",
-        "Rendi oggi",
-        "fantastico"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Tu basti",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Ogni mattina",
-        "si può",
-        "ricominciare"
-      ]
-    },
-    {
-      "lines": [
-        "Svegliati con",
-        "determinazione",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Oggi è un",
-        "giorno tutto",
-        "nuovo"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Fai sorridere",
-        "qualcuno"
-      ]
-    },
-    {
-      "lines": [
-        "Fallo accadere",
-        "Stupisci tutti",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Il tuo limite",
-        "sei solo tu"
-      ]
-    },
-    {
-      "lines": [
-        "Credi in te",
-        "oggi e ogni",
-        "giorno"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Insegui i tuoi",
-        "sogni oggi"
-      ]
-    },
-    {
-      "lines": [
-        "Oggi è tuo",
-        "Prenditelo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Resta positivo",
-        "Lavora sodo"
-      ]
-    },
-    {
-      "lines": [
-        "Alzati e vivi",
-        "il giorno con",
-        "gioia"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Grandi cose",
-        "in arrivo"
-      ]
-    },
-    {
-      "lines": [
-        "Sei più forte",
-        "di quanto",
-        "pensi"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Renditi",
-        "fiero oggi"
-      ]
-    },
-    {
-      "lines": [
-        "Nuovo giorno",
-        "nuova forza",
-        "nuove idee"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Diffondi",
-        "gentilezza"
-      ]
-    },
-    {
-      "lines": [
-        "Il momento per",
-        "ricominciare",
-        "è adesso"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Il sole è sorto",
-        "anche per te"
-      ]
-    },
-    {
-      "lines": [
-        "Prima sorridi",
-        "poi il caffè",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Oggi va in",
-        "onda una volta"
-      ]
-    },
-    {
-      "lines": [
-        "Una parola",
-        "gentile cambia",
-        "una giornata"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Inizia da",
-        "dove sei"
-      ]
-    },
-    {
-      "lines": [
-        "Prima la cosa",
-        "più difficile",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Fai una cosa",
-        "coraggiosa"
-      ]
-    },
-    {
-      "lines": [
-        "Ogni mattina è",
-        "una ripartenza",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Lascia andare",
-        "ieri"
-      ]
-    },
-    {
-      "lines": [
-        "Oggi è un buon",
-        "giorno per un",
-        "buon giorno"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Annaffia i",
-        "tuoi sogni"
-      ]
-    },
-    {
-      "lines": [
-        "Sii lenergia",
-        "che vuoi",
-        "attirare"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "I piccoli passi",
-        "contano"
-      ]
-    },
-    {
-      "lines": [
-        "Svegliati e",
-        "sii grande",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Il tuo futuro",
-        "ti guarda"
-      ]
-    },
-    {
-      "lines": [
-        "Fallo oggi",
-        "non domani",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Respira",
-        "coraggio"
-      ]
-    },
-    {
-      "lines": [
-        "Chi si alza",
-        "presto trova",
-        "il caffè"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Fai contare",
-        "questo giorno"
-      ]
-    },
-    {
-      "lines": [
-        "Nuovo giorno",
-        "nuova chance",
-        "nuovo te"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Inizia con",
-        "gratitudine"
-      ]
-    },
-    {
-      "lines": [
-        "Splendi come",
-        "il sole del",
-        "mattino"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Oggi è un",
-        "regalo"
-      ]
-    },
-    {
-      "lines": [
-        "Inizia il",
-        "giorno con un",
-        "grazie"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Semina",
-        "gentilezza"
-      ]
-    },
-    {
-      "lines": [
-        "Ti sei alzato",
-        "È già una",
-        "vittoria"
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Punta in alto",
-        "Inizia ora"
-      ]
-    },
-    {
-      "lines": [
-        "Fai entrare",
-        "la luce",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buongiorno",
-        "Scrivi oggi una",
-        "bella storia"
-      ]
-    },
-    {
-      "lines": [
-        "Oggi il sole",
-        "splende per",
-        "te"
-      ]
-    }
-  ]
+ "groups": [
+  "Buongiorno Oggi è pieno di potenziale",
+  "Sveglia Rendi oggi fantastico",
+  "Buongiorno Tu basti",
+  "Ogni mattina si può ricominciare",
+  "Svegliati con determinazione",
+  "Oggi è un giorno tutto nuovo",
+  "Buongiorno Fai sorridere qualcuno",
+  "Fallo accadere Stupisci tutti",
+  "Buongiorno Il tuo limite sei solo tu",
+  "Credi in te oggi e ogni giorno",
+  "Buongiorno Insegui i tuoi sogni oggi",
+  "Oggi è tuo Prenditelo",
+  "Buongiorno Resta positivo Lavora sodo",
+  "Alzati e vivi il giorno con gioia",
+  "Buongiorno Grandi cose in arrivo",
+  "Sei più forte di quanto pensi",
+  "Buongiorno Renditi fiero oggi",
+  "Nuovo giorno nuova forza nuove idee",
+  "Buongiorno Diffondi gentilezza",
+  "Il momento per ricominciare è adesso",
+  "Buongiorno Il sole è sorto anche per te",
+  "Prima sorridi poi il caffè",
+  "Buongiorno Oggi va in onda una volta",
+  "Una parola gentile cambia una giornata",
+  "Buongiorno Inizia da dove sei",
+  "Prima la cosa più difficile",
+  "Buongiorno Fai una cosa coraggiosa",
+  "Ogni mattina è una ripartenza",
+  "Buongiorno Lascia andare ieri",
+  "Oggi è un buon giorno per un buon giorno",
+  "Buongiorno Annaffia i tuoi sogni",
+  "Sii lenergia che vuoi attirare",
+  "Buongiorno I piccoli passi contano",
+  "Svegliati e sii grande",
+  "Buongiorno Il tuo futuro ti guarda",
+  "Fallo oggi non domani",
+  "Buongiorno Respira coraggio",
+  "Chi si alza presto trova il caffè",
+  "Buongiorno Fai contare questo giorno",
+  "Nuovo giorno nuova chance nuovo te",
+  "Buongiorno Inizia con gratitudine",
+  "Splendi come il sole del mattino",
+  "Buongiorno Oggi è un regalo",
+  "Inizia il giorno con un grazie",
+  "Buongiorno Semina gentilezza",
+  "Ti sei alzato È già una vittoria",
+  "Buongiorno Punta in alto Inizia ora",
+  "Fai entrare la luce",
+  "Buongiorno Scrivi oggi una bella storia",
+  "Oggi il sole splende per te"
+ ]
 }

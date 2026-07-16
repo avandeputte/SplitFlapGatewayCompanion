@@ -1,354 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Was macht ein",
-        "Pirat am",
-        "Computer?"
-      ]
-    },
-    {
-      "lines": [
-        "Er drückt",
-        "Enter",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Ein Bumerang",
-        "der nicht",
-        "zurückkommt?"
-      ]
-    },
-    {
-      "lines": [
-        "Ein Stock",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was ist braun",
-        "und schwimmt",
-        "im Wasser?"
-      ]
-    },
-    {
-      "lines": [
-        "Ein U Brot",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was sitzt im",
-        "Baum und ruft",
-        "aha?"
-      ]
-    },
-    {
-      "lines": [
-        "Ein Uhu mit",
-        "Sprachfehler",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was ist gelb",
-        "und kann nicht",
-        "schwimmen?"
-      ]
-    },
-    {
-      "lines": [
-        "Ein Bagger",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was macht eine",
-        "Wolke mit",
-        "Juckreiz?"
-      ]
-    },
-    {
-      "lines": [
-        "Sie sucht den",
-        "Wolkenkratzer",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wie heisst ein",
-        "Spanier ohne",
-        "Auto?"
-      ]
-    },
-    {
-      "lines": [
-        "Carlos",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was ist weiss",
-        "und stört beim",
-        "Frühstück?"
-      ]
-    },
-    {
-      "lines": [
-        "Eine Lawine",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Kommt ein Pferd",
-        "in die Bar...",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Barkeeper:",
-        "Warum so ein",
-        "langes Gesicht?"
-      ]
-    },
-    {
-      "lines": [
-        "Was macht ein",
-        "Clown im",
-        "Büro?"
-      ]
-    },
-    {
-      "lines": [
-        "Faxen",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wie nennt man",
-        "ein helles",
-        "Mammut?"
-      ]
-    },
-    {
-      "lines": [
-        "Hellmut",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was trinken",
-        "Chefs am",
-        "liebsten?"
-      ]
-    },
-    {
-      "lines": [
-        "Leitungs",
-        "wasser",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Warum lügen",
-        "Geister so",
-        "schlecht?"
-      ]
-    },
-    {
-      "lines": [
-        "Man sieht",
-        "durch sie",
-        "hindurch"
-      ]
-    },
-    {
-      "lines": [
-        "Was ist orange",
-        "und wandert?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Eine",
-        "Wanderine",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was ist grün",
-        "und klopft an",
-        "der Tür?"
-      ]
-    },
-    {
-      "lines": [
-        "Ein",
-        "Klopfsalat",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was liegt am",
-        "Strand und",
-        "nuschelt?"
-      ]
-    },
-    {
-      "lines": [
-        "Eine Nuschel",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was macht ein",
-        "Keks unter",
-        "einem Baum?"
-      ]
-    },
-    {
-      "lines": [
-        "Krümeln",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Fragt eine",
-        "Kerze die",
-        "andere:"
-      ]
-    },
-    {
-      "lines": [
-        "Gehen wir",
-        "heute aus?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wie nennt man",
-        "einen Cowboy",
-        "ohne Pferd?"
-      ]
-    },
-    {
-      "lines": [
-        "Sattel",
-        "schlepper",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was ist rot",
-        "und sitzt auf",
-        "dem Klo?"
-      ]
-    },
-    {
-      "lines": [
-        "Eine Klomate",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Warum platzte",
-        "der",
-        "Luftballon?"
-      ]
-    },
-    {
-      "lines": [
-        "Aus Platz",
-        "gründen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Ein Schneemann",
-        "im Sommer",
-        "heisst?"
-      ]
-    },
-    {
-      "lines": [
-        "Pfütze",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wie nennt man",
-        "einen Fisch",
-        "ohne Augen?"
-      ]
-    },
-    {
-      "lines": [
-        "Fsch",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Warum war das",
-        "Mathebuch",
-        "traurig?"
-      ]
-    },
-    {
-      "lines": [
-        "Es hatte zu",
-        "viele Probleme",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Was sagt ein",
-        "grosser Stift",
-        "zum Kleinen?"
-      ]
-    },
-    {
-      "lines": [
-        "Wachs",
-        "malstift",
-        ""
-      ]
-    }
+ "groups": [
+  [
+   "Was macht ein Pirat am Computer?",
+   "Er drückt Enter"
+  ],
+  [
+   "Ein Bumerang der nicht zurückkommt?",
+   "Ein Stock"
+  ],
+  [
+   "Was ist braun und schwimmt im Wasser?",
+   "Ein U Brot"
+  ],
+  [
+   "Was sitzt im Baum und ruft aha?",
+   "Ein Uhu mit Sprachfehler"
+  ],
+  [
+   "Was ist gelb und kann nicht schwimmen?",
+   "Ein Bagger"
+  ],
+  [
+   "Was macht eine Wolke mit Juckreiz?",
+   "Sie sucht den Wolkenkratzer"
+  ],
+  [
+   "Wie heisst ein Spanier ohne Auto?",
+   "Carlos"
+  ],
+  [
+   "Was ist weiss und stört beim Frühstück?",
+   "Eine Lawine"
+  ],
+  [
+   "Kommt ein Pferd in die Bar...",
+   "Barkeeper: Warum so ein langes Gesicht?"
+  ],
+  [
+   "Was macht ein Clown im Büro?",
+   "Faxen"
+  ],
+  [
+   "Wie nennt man ein helles Mammut?",
+   "Hellmut"
+  ],
+  [
+   "Was trinken Chefs am liebsten?",
+   "Leitungs wasser"
+  ],
+  [
+   "Warum lügen Geister so schlecht?",
+   "Man sieht durch sie hindurch"
+  ],
+  [
+   "Was ist orange und wandert?",
+   "Eine Wanderine"
+  ],
+  [
+   "Was ist grün und klopft an der Tür?",
+   "Ein Klopfsalat"
+  ],
+  [
+   "Was liegt am Strand und nuschelt?",
+   "Eine Nuschel"
+  ],
+  [
+   "Was macht ein Keks unter einem Baum?",
+   "Krümeln"
+  ],
+  [
+   "Fragt eine Kerze die andere:",
+   "Gehen wir heute aus?"
+  ],
+  [
+   "Wie nennt man einen Cowboy ohne Pferd?",
+   "Sattel schlepper"
+  ],
+  [
+   "Was ist rot und sitzt auf dem Klo?",
+   "Eine Klomate"
+  ],
+  [
+   "Warum platzte der Luftballon?",
+   "Aus Platz gründen"
+  ],
+  [
+   "Ein Schneemann im Sommer heisst?",
+   "Pfütze"
+  ],
+  [
+   "Wie nennt man einen Fisch ohne Augen?",
+   "Fsch"
+  ],
+  [
+   "Warum war das Mathebuch traurig?",
+   "Es hatte zu viele Probleme"
+  ],
+  [
+   "Was sagt ein grosser Stift zum Kleinen?",
+   "Wachs malstift"
   ]
+ ]
 }

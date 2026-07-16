@@ -1,144 +1,24 @@
 {
- "pages": [
-  {
-   "lines": [
-    "Hindringen",
-    "er veien",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Vi lider mer i",
-    "fantasien",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Kast ikke bort",
-    "tid på krangel",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Du har makt",
-    "over ditt sinn",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Begynn straks",
-    "å leve",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Dvel ved livets",
-    "skjønnhet",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Intet stort",
-    "kommer brått",
-    "- Epiktet"
-   ]
-  },
-  {
-   "lines": [
-    "Herd sinnet",
-    "gjennom bruk",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Tål og forsak",
-    "",
-    "- Epiktet"
-   ]
-  },
-  {
-   "lines": [
-    "Vær tolerant",
-    "mot andre",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Elsk skjebnen",
-    "du får",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Livet er langt,",
-    "bruker du det",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Vern om dette",
-    "øyeblikket",
-    "- Epiktet"
-   ]
-  },
-  {
-   "lines": [
-    "Ekte lykke",
-    "er en dyd",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Mestre deg selv",
-    "før andre",
-    "- Epiktet"
-   ]
-  },
-  {
-   "lines": [
-    "Velg å ikke",
-    "bli krenket",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Det vi gjør nå",
-    "runger evig",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Mens vi venter",
-    "går livet forbi",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Tenk på det",
-    "du har",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Hver ny dag",
-    "er en sjanse",
-    "- Seneca"
-   ]
-  }
+ "groups": [
+  "Hindringen er veien\n- Marcus",
+  "Vi lider mer i fantasien\n- Seneca",
+  "Kast ikke bort tid på krangel\n- Marcus",
+  "Du har makt over ditt sinn\n- Marcus",
+  "Begynn straks å leve\n- Seneca",
+  "Dvel ved livets skjønnhet\n- Marcus",
+  "Intet stort kommer brått\n- Epiktet",
+  "Herd sinnet gjennom bruk\n- Seneca",
+  "Tål og forsak\n- Epiktet",
+  "Vær tolerant mot andre\n- Marcus",
+  "Elsk skjebnen du får\n- Marcus",
+  "Livet er langt, bruker du det\n- Seneca",
+  "Vern om dette øyeblikket\n- Epiktet",
+  "Ekte lykke er en dyd\n- Seneca",
+  "Mestre deg selv før andre\n- Epiktet",
+  "Velg å ikke bli krenket\n- Marcus",
+  "Det vi gjør nå runger evig\n- Marcus",
+  "Mens vi venter går livet forbi\n- Seneca",
+  "Tenk på det du har\n- Marcus",
+  "Hver ny dag er en sjanse\n- Seneca"
  ]
 }

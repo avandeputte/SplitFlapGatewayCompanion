@@ -1,354 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Qué le dice un",
-        "jaguar a otro",
-        "jaguar?"
-      ]
-    },
-    {
-      "lines": [
-        "Jaguar you",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Cómo se",
-        "despiden los",
-        "químicos?"
-      ]
-    },
-    {
-      "lines": [
-        "Ácido un",
-        "placer",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qué hace una",
-        "abeja en el",
-        "gimnasio?"
-      ]
-    },
-    {
-      "lines": [
-        "Zumba",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qué dice una",
-        "iguana a su",
-        "gemela?"
-      ]
-    },
-    {
-      "lines": [
-        "Somos",
-        "iguanitas",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "El primo",
-        "vegano de",
-        "Bruce Lee?"
-      ]
-    },
-    {
-      "lines": [
-        "Broco Lee",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qué hace un",
-        "perro con un",
-        "taladro?"
-      ]
-    },
-    {
-      "lines": [
-        "Taladrando",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Por qué las",
-        "focas miran",
-        "arriba?"
-      ]
-    },
-    {
-      "lines": [
-        "Porque ahí",
-        "están los",
-        "focos"
-      ]
-    },
-    {
-      "lines": [
-        "Qué le dice un",
-        "techo a otro",
-        "techo?"
-      ]
-    },
-    {
-      "lines": [
-        "Techo de",
-        "menos",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Cuál es la",
-        "fruta más",
-        "paciente?"
-      ]
-    },
-    {
-      "lines": [
-        "La pera",
-        "es pera",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qué hace un",
-        "pez todo el",
-        "día?"
-      ]
-    },
-    {
-      "lines": [
-        "Nada",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qué dijo el",
-        "semáforo al",
-        "coche?"
-      ]
-    },
-    {
-      "lines": [
-        "No me mires",
-        "que me pongo",
-        "rojo"
-      ]
-    },
-    {
-      "lines": [
-        "Cuál es el",
-        "animal más",
-        "viejo?"
-      ]
-    },
-    {
-      "lines": [
-        "La cebra está",
-        "en blanco y",
-        "negro"
-      ]
-    },
-    {
-      "lines": [
-        "Qué le dice",
-        "el 3 al 30?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Para ser como",
-        "yo sé",
-        "sincero"
-      ]
-    },
-    {
-      "lines": [
-        "Van dos por",
-        "la calle y...",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "se cae el",
-        "de en medio",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qué es un",
-        "terapeuta?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "1024",
-        "gigapeutas",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Por qué está",
-        "triste el libro",
-        "de mates?"
-      ]
-    },
-    {
-      "lines": [
-        "Tiene muchos",
-        "problemas",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "El colmo de un",
-        "electricista?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Que le sigan",
-        "la corriente",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "El colmo de un",
-        "jardinero?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Que lo dejen",
-        "plantado",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qué hace una",
-        "vaca al sol?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Sombra",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Cómo queda un",
-        "mago después",
-        "de comer?"
-      ]
-    },
-    {
-      "lines": [
-        "Magordito",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qué le dice",
-        "una pared a",
-        "otra?"
-      ]
-    },
-    {
-      "lines": [
-        "Nos vemos en",
-        "la esquina",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "El último",
-        "animal en salir",
-        "del arca?"
-      ]
-    },
-    {
-      "lines": [
-        "El delfín",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qué le dijo la",
-        "luna al sol?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Tan grande y no",
-        "te dejan salir",
-        "de noche"
-      ]
-    },
-    {
-      "lines": [
-        "Qué le dice una",
-        "impresora a",
-        "otra?"
-      ]
-    },
-    {
-      "lines": [
-        "Esa hoja es",
-        "tuya o es",
-        "impresión mía?"
-      ]
-    },
-    {
-      "lines": [
-        "Por qué el mar",
-        "no se seca?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Porque no",
-        "tiene toalla",
-        ""
-      ]
-    }
+ "groups": [
+  [
+   "Qué le dice un jaguar a otro jaguar?",
+   "Jaguar you"
+  ],
+  [
+   "Cómo se despiden los químicos?",
+   "Ácido un placer"
+  ],
+  [
+   "Qué hace una abeja en el gimnasio?",
+   "Zumba"
+  ],
+  [
+   "Qué dice una iguana a su gemela?",
+   "Somos iguanitas"
+  ],
+  [
+   "El primo vegano de Bruce Lee?",
+   "Broco Lee"
+  ],
+  [
+   "Qué hace un perro con un taladro?",
+   "Taladrando"
+  ],
+  [
+   "Por qué las focas miran arriba?",
+   "Porque ahí están los focos"
+  ],
+  [
+   "Qué le dice un techo a otro techo?",
+   "Techo de menos"
+  ],
+  [
+   "Cuál es la fruta más paciente?",
+   "La pera es pera"
+  ],
+  [
+   "Qué hace un pez todo el día?",
+   "Nada"
+  ],
+  [
+   "Qué dijo el semáforo al coche?",
+   "No me mires que me pongo rojo"
+  ],
+  [
+   "Cuál es el animal más viejo?",
+   "La cebra está en blanco y negro"
+  ],
+  [
+   "Qué le dice el 3 al 30?",
+   "Para ser como yo sé sincero"
+  ],
+  [
+   "Van dos por la calle y...",
+   "se cae el de en medio"
+  ],
+  [
+   "Qué es un terapeuta?",
+   "1024 gigapeutas"
+  ],
+  [
+   "Por qué está triste el libro de mates?",
+   "Tiene muchos problemas"
+  ],
+  [
+   "El colmo de un electricista?",
+   "Que le sigan la corriente"
+  ],
+  [
+   "El colmo de un jardinero?",
+   "Que lo dejen plantado"
+  ],
+  [
+   "Qué hace una vaca al sol?",
+   "Sombra"
+  ],
+  [
+   "Cómo queda un mago después de comer?",
+   "Magordito"
+  ],
+  [
+   "Qué le dice una pared a otra?",
+   "Nos vemos en la esquina"
+  ],
+  [
+   "El último animal en salir del arca?",
+   "El delfín"
+  ],
+  [
+   "Qué le dijo la luna al sol?",
+   "Tan grande y no te dejan salir de noche"
+  ],
+  [
+   "Qué le dice una impresora a otra?",
+   "Esa hoja es tuya o es impresión mía?"
+  ],
+  [
+   "Por qué el mar no se seca?",
+   "Porque no tiene toalla"
   ]
+ ]
 }

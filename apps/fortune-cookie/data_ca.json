@@ -1,179 +1,29 @@
 {
- "pages": [
-  {
-   "lines": [
-    "Una agradable",
-    "sorpresa",
-    "t'espera"
-   ]
-  },
-  {
-   "lines": [
-    "El teu esforç",
-    "aviat donarà",
-    "fruit"
-   ]
-  },
-  {
-   "lines": [
-    "Un llarg camí",
-    "comença amb un",
-    "primer pas"
-   ]
-  },
-  {
-   "lines": [
-    "La paciència",
-    "és la clau de",
-    "la joia"
-   ]
-  },
-  {
-   "lines": [
-    "La fortuna",
-    "somriu als",
-    "valents"
-   ]
-  },
-  {
-   "lines": [
-    "Les coses",
-    "bones arriben",
-    "a qui espera"
-   ]
-  },
-  {
-   "lines": [
-    "Un somriure ho",
-    "posa tot al",
-    "seu lloc"
-   ]
-  },
-  {
-   "lines": [
-    "El millor",
-    "encara ha",
-    "d'arribar"
-   ]
-  },
-  {
-   "lines": [
-    "Creu en tu i",
-    "en els teus",
-    "somnis"
-   ]
-  },
-  {
-   "lines": [
-    "Un nou",
-    "començament",
-    "t'obrirà camí"
-   ]
-  },
-  {
-   "lines": [
-    "Els teus",
-    "talents seran",
-    "reconeguts"
-   ]
-  },
-  {
-   "lines": [
-    "L'aventura pot",
-    "ser felicitat",
-    "de veritat"
-   ]
-  },
-  {
-   "lines": [
-    "El secret",
-    "d'avançar és",
-    "començar"
-   ]
-  },
-  {
-   "lines": [
-    "La teva bondat",
-    "et durà a",
-    "l'èxit"
-   ]
-  },
-  {
-   "lines": [
-    "Cada dia és una",
-    "ocasió per",
-    "brillar"
-   ]
-  },
-  {
-   "lines": [
-    "La felicitat",
-    "neix dins teu",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Una vida de",
-    "joia t'espera",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "El teu",
-    "somriure dona",
-    "llum als altres"
-   ]
-  },
-  {
-   "lines": [
-    "Els grans",
-    "pensaments",
-    "neixen del cor"
-   ]
-  },
-  {
-   "lines": [
-    "És el moment",
-    "de provar",
-    "coses noves"
-   ]
-  },
-  {
-   "lines": [
-    "Trobaràs allò",
-    "que busques",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Sigues fidel a",
-    "tu i als teus",
-    "valors"
-   ]
-  },
-  {
-   "lines": [
-    "L'estel de la",
-    "riquesa brilla",
-    "sobre teu"
-   ]
-  },
-  {
-   "lines": [
-    "L'amor ja ve",
-    "de camí cap a",
-    "tu"
-   ]
-  },
-  {
-   "lines": [
-    "El teu futur",
-    "és brillant i",
-    "ple de joia"
-   ]
-  }
+ "groups": [
+  "Una agradable sorpresa t'espera",
+  "El teu esforç aviat donarà fruit",
+  "Un llarg camí comença amb un primer pas",
+  "La paciència és la clau de la joia",
+  "La fortuna somriu als valents",
+  "Les coses bones arriben a qui espera",
+  "Un somriure ho posa tot al seu lloc",
+  "El millor encara ha d'arribar",
+  "Creu en tu i en els teus somnis",
+  "Un nou començament t'obrirà camí",
+  "Els teus talents seran reconeguts",
+  "L'aventura pot ser felicitat de veritat",
+  "El secret d'avançar és començar",
+  "La teva bondat et durà a l'èxit",
+  "Cada dia és una ocasió per brillar",
+  "La felicitat neix dins teu",
+  "Una vida de joia t'espera",
+  "El teu somriure dona llum als altres",
+  "Els grans pensaments neixen del cor",
+  "És el moment de provar coses noves",
+  "Trobaràs allò que busques",
+  "Sigues fidel a tu i als teus valors",
+  "L'estel de la riquesa brilla sobre teu",
+  "L'amor ja ve de camí cap a tu",
+  "El teu futur és brillant i ple de joia"
  ]
 }

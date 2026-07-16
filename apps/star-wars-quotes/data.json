@@ -1,24 +1,24 @@
 {
-  "pages": [
-    {"lines": ["May the Force", "be with you", "- Obi Wan"]},
-    {"lines": ["I am your", "father", "- Vader"]},
-    {"lines": ["Do or do not", "there is no try", "- Yoda"]},
-    {"lines": ["I have a bad", "feeling about", "this"]},
-    {"lines": ["The Force is", "strong with", "this one"]},
-    {"lines": ["Never tell me", "the odds", "- Han Solo"]},
-    {"lines": ["I find your", "lack of faith", "disturbing"]},
-    {"lines": ["Help me Obi Wan", "you're my only", "hope - Leia"]},
-    {"lines": ["It's a trap!", "", "- Ackbar"]},
-    {"lines": ["The Force will", "be with you", "always"]},
-    {"lines": ["In my", "experience", "there's no luck"]},
-    {"lines": ["Stay on target", "stay on target", ""]},
-    {"lines": ["This is the way", "", "- Mandalorian"]},
-    {"lines": ["I've got a bad", "feeling about", "this - Han"]},
-    {"lines": ["Your focus", "determines your", "reality -QuiGon"]},
-    {"lines": ["Luminous beings", "are we not this", "crude - Yoda"]},
-    {"lines": ["So this is how", "liberty dies", "with applause"]},
-    {"lines": ["Let the past", "die kill it if", "you have to"]},
-    {"lines": ["Judge me by my", "size do you?", "- Yoda"]},
-    {"lines": ["I know", "", "- Han Solo"]}
-  ]
+ "groups": [
+  "May the Force be with you\n- Obi Wan",
+  "I am your father\n- Vader",
+  "Do or do not there is no try\n- Yoda",
+  "I have a bad feeling about this",
+  "The Force is strong with this one",
+  "Never tell me the odds\n- Han Solo",
+  "I find your lack of faith disturbing",
+  "Help me Obi Wan you're my only hope - Leia",
+  "It's a trap!\n- Ackbar",
+  "The Force will be with you always",
+  "In my experience there's no luck",
+  "Stay on target stay on target",
+  "This is the way\n- Mandalorian",
+  "I've got a bad feeling about this - Han",
+  "Your focus determines your reality -QuiGon",
+  "Luminous beings are we not this crude - Yoda",
+  "So this is how liberty dies with applause",
+  "Let the past die kill it if you have to",
+  "Judge me by my size do you?\n- Yoda",
+  "I know\n- Han Solo"
+ ]
 }

@@ -1,144 +1,24 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Det er sikkert",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Det er avgjort",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Uten tvil",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Ja, definitivt",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Du kan stole",
-        "på det"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Slik jeg ser",
-        "det, ja"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Mest sannsynlig",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Det ser bra ut",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Ja",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Alt tyder på ja",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Uklart svar,",
-        "prøv igjen"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Spør igjen",
-        "senere"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Best å ikke",
-        "si det nå"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Kan ikke",
-        "forutsies nå"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Konsentrer deg",
-        "og spør igjen"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Ikke regn",
-        "med det"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Svaret mitt",
-        "er nei"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Kildene mine",
-        "sier nei"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Det ser ikke",
-        "så bra ut"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kule",
-        "Svært tvilsomt",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "Magisk 8-kule\nDet er sikkert",
+  "Magisk 8-kule\nDet er avgjort",
+  "Magisk 8-kule\nUten tvil",
+  "Magisk 8-kule\nJa, definitivt",
+  "Magisk 8-kule\nDu kan stole på det",
+  "Magisk 8-kule\nSlik jeg ser det, ja",
+  "Magisk 8-kule\nMest sannsynlig",
+  "Magisk 8-kule\nDet ser bra ut",
+  "Magisk 8-kule\nJa",
+  "Magisk 8-kule\nAlt tyder på ja",
+  "Magisk 8-kule\nUklart svar, prøv igjen",
+  "Magisk 8-kule\nSpør igjen senere",
+  "Magisk 8-kule\nBest å ikke si det nå",
+  "Magisk 8-kule\nKan ikke forutsies nå",
+  "Magisk 8-kule\nKonsentrer deg og spør igjen",
+  "Magisk 8-kule\nIkke regn med det",
+  "Magisk 8-kule\nSvaret mitt er nei",
+  "Magisk 8-kule\nKildene mine sier nei",
+  "Magisk 8-kule\nDet ser ikke så bra ut",
+  "Magisk 8-kule\nSvært tvilsomt"
+ ]
 }

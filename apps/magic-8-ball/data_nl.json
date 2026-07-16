@@ -1,144 +1,24 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Het is zeker",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Het is",
-        "beslist zo"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Zonder twijfel",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Ja, absoluut",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Je kunt erop",
-        "vertrouwen"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Zoals ik het",
-        "zie, ja"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Zeer",
-        "waarschijnlijk"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Het ziet er",
-        "goed uit"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Ja",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Alles wijst",
-        "op ja"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Vaag antwoord,",
-        "probeer opnieuw"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Vraag het",
-        "later nog eens"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Zeg ik je nu",
-        "liever niet"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Nu niet te",
-        "voorspellen"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Concentreer je,",
-        "vraag nog eens"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Reken er",
-        "niet op"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Mijn antwoord",
-        "is nee"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Mijn bronnen",
-        "zeggen nee"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Het ziet er",
-        "niet goed uit"
-      ]
-    },
-    {
-      "lines": [
-        "Magische 8-bal",
-        "Zeer",
-        "twijfelachtig"
-      ]
-    }
-  ]
+ "groups": [
+  "Magische 8-bal\nHet is zeker",
+  "Magische 8-bal\nHet is beslist zo",
+  "Magische 8-bal\nZonder twijfel",
+  "Magische 8-bal\nJa, absoluut",
+  "Magische 8-bal\nJe kunt erop vertrouwen",
+  "Magische 8-bal\nZoals ik het zie, ja",
+  "Magische 8-bal\nZeer waarschijnlijk",
+  "Magische 8-bal\nHet ziet er goed uit",
+  "Magische 8-bal\nJa",
+  "Magische 8-bal\nAlles wijst op ja",
+  "Magische 8-bal\nVaag antwoord, probeer opnieuw",
+  "Magische 8-bal\nVraag het later nog eens",
+  "Magische 8-bal\nZeg ik je nu liever niet",
+  "Magische 8-bal\nNu niet te voorspellen",
+  "Magische 8-bal\nConcentreer je, vraag nog eens",
+  "Magische 8-bal\nReken er niet op",
+  "Magische 8-bal\nMijn antwoord is nee",
+  "Magische 8-bal\nMijn bronnen zeggen nee",
+  "Magische 8-bal\nHet ziet er niet goed uit",
+  "Magische 8-bal\nZeer twijfelachtig"
+ ]
 }

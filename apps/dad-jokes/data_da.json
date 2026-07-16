@@ -1,354 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Hvad kalder man",
-        "en snemand i",
-        "solen?"
-      ]
-    },
-    {
-      "lines": [
-        "En vandpyt",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad sagde den",
-        "ene væg til",
-        "den anden?"
-      ]
-    },
-    {
-      "lines": [
-        "Vi mødes på",
-        "hjørnet",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor blev",
-        "uret anholdt?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Fordi det",
-        "slog",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad kalder man",
-        "en fisk uden",
-        "øjne?"
-      ]
-    },
-    {
-      "lines": [
-        "Fsk",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor har",
-        "elefanter ikke",
-        "computere?"
-      ]
-    },
-    {
-      "lines": [
-        "De er bange",
-        "for musen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad sagde",
-        "nullet til",
-        "ottetallet?"
-      ]
-    },
-    {
-      "lines": [
-        "Fedt",
-        "bælte",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad kalder man",
-        "en ko uden",
-        "ben?"
-      ]
-    },
-    {
-      "lines": [
-        "Hakkebøf",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor svømmer",
-        "fisk i",
-        "saltvand?"
-      ]
-    },
-    {
-      "lines": [
-        "Peber får dem",
-        "til at nyse",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Det bedste ved",
-        "Schweiz?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Ved ikke men",
-        "flaget er et",
-        "stort plus"
-      ]
-    },
-    {
-      "lines": [
-        "Hvordan holder",
-        "man fest i",
-        "rummet?"
-      ]
-    },
-    {
-      "lines": [
-        "Man planet",
-        "lægger den",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad kalder man",
-        "en bjørn uden",
-        "tænder?"
-      ]
-    },
-    {
-      "lines": [
-        "En gummi",
-        "bamse",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor kan man",
-        "ikke stole på",
-        "atomer?"
-      ]
-    },
-    {
-      "lines": [
-        "De udgør",
-        "alting",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Tjener hvad",
-        "laver fluen i",
-        "min suppe?"
-      ]
-    },
-    {
-      "lines": [
-        "Den svømmer",
-        "tror jeg",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad er brunt",
-        "og løber i",
-        "skoven?"
-      ]
-    },
-    {
-      "lines": [
-        "En kanelsnegl",
-        "på flugt",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad hedder en",
-        "spanier uden",
-        "bil?"
-      ]
-    },
-    {
-      "lines": [
-        "Carlos",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor er",
-        "matematikbogen",
-        "trist?"
-      ]
-    },
-    {
-      "lines": [
-        "Den har for",
-        "mange",
-        "problemer"
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor lyver",
-        "spøgelser",
-        "dårligt?"
-      ]
-    },
-    {
-      "lines": [
-        "Man kan se",
-        "lige igennem",
-        "dem"
-      ]
-    },
-    {
-      "lines": [
-        "Hvordan bygger",
-        "en pingvin",
-        "sit hus?"
-      ]
-    },
-    {
-      "lines": [
-        "Iglo for",
-        "iglo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor kan",
-        "cyklen ikke",
-        "stå selv?"
-      ]
-    },
-    {
-      "lines": [
-        "Den er",
-        "træt i",
-        "dækkene"
-      ]
-    },
-    {
-      "lines": [
-        "Hvor gemmer",
-        "vampyrer deres",
-        "penge?"
-      ]
-    },
-    {
-      "lines": [
-        "I blod",
-        "banken",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad kalder man",
-        "en boomerang",
-        "der bliver væk?"
-      ]
-    },
-    {
-      "lines": [
-        "En pind",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad er hvidt",
-        "og forstyrrer",
-        "morgenmaden?"
-      ]
-    },
-    {
-      "lines": [
-        "En lavine",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor slås",
-        "skeletter",
-        "aldrig?"
-      ]
-    },
-    {
-      "lines": [
-        "De har ikke",
-        "mave til det",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad sagde",
-        "havet til",
-        "stranden?"
-      ]
-    },
-    {
-      "lines": [
-        "Ikke noget det",
-        "vinkede bare",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvad er orange",
-        "og lyder som en",
-        "papegøje?"
-      ]
-    },
-    {
-      "lines": [
-        "En gulerod",
-        "",
-        ""
-      ]
-    }
+ "groups": [
+  [
+   "Hvad kalder man en snemand i solen?",
+   "En vandpyt"
+  ],
+  [
+   "Hvad sagde den ene væg til den anden?",
+   "Vi mødes på hjørnet"
+  ],
+  [
+   "Hvorfor blev uret anholdt?",
+   "Fordi det slog"
+  ],
+  [
+   "Hvad kalder man en fisk uden øjne?",
+   "Fsk"
+  ],
+  [
+   "Hvorfor har elefanter ikke computere?",
+   "De er bange for musen"
+  ],
+  [
+   "Hvad sagde nullet til ottetallet?",
+   "Fedt bælte"
+  ],
+  [
+   "Hvad kalder man en ko uden ben?",
+   "Hakkebøf"
+  ],
+  [
+   "Hvorfor svømmer fisk i saltvand?",
+   "Peber får dem til at nyse"
+  ],
+  [
+   "Det bedste ved Schweiz?",
+   "Ved ikke men flaget er et stort plus"
+  ],
+  [
+   "Hvordan holder man fest i rummet?",
+   "Man planet lægger den"
+  ],
+  [
+   "Hvad kalder man en bjørn uden tænder?",
+   "En gummi bamse"
+  ],
+  [
+   "Hvorfor kan man ikke stole på atomer?",
+   "De udgør alting"
+  ],
+  [
+   "Tjener hvad laver fluen i min suppe?",
+   "Den svømmer tror jeg"
+  ],
+  [
+   "Hvad er brunt og løber i skoven?",
+   "En kanelsnegl på flugt"
+  ],
+  [
+   "Hvad hedder en spanier uden bil?",
+   "Carlos"
+  ],
+  [
+   "Hvorfor er matematikbogen trist?",
+   "Den har for mange problemer"
+  ],
+  [
+   "Hvorfor lyver spøgelser dårligt?",
+   "Man kan se lige igennem dem"
+  ],
+  [
+   "Hvordan bygger en pingvin sit hus?",
+   "Iglo for iglo"
+  ],
+  [
+   "Hvorfor kan cyklen ikke stå selv?",
+   "Den er træt i dækkene"
+  ],
+  [
+   "Hvor gemmer vampyrer deres penge?",
+   "I blod banken"
+  ],
+  [
+   "Hvad kalder man en boomerang der bliver væk?",
+   "En pind"
+  ],
+  [
+   "Hvad er hvidt og forstyrrer morgenmaden?",
+   "En lavine"
+  ],
+  [
+   "Hvorfor slås skeletter aldrig?",
+   "De har ikke mave til det"
+  ],
+  [
+   "Hvad sagde havet til stranden?",
+   "Ikke noget det vinkede bare"
+  ],
+  [
+   "Hvad er orange og lyder som en papegøje?",
+   "En gulerod"
   ]
+ ]
 }

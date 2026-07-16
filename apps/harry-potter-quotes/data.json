@@ -1,24 +1,34 @@
 {
-  "pages": [
-    {"lines": ["It does not do", "to dwell on", "dreams - Albus"]},
-    {"lines": ["Happiness can", "be found in the", "darkest times"]},
-    {"lines": ["Turn on the", "light", "- Albus"]},
-    {"lines": ["After all this", "time? Always", "- Snape"]},
-    {"lines": ["I solemnly", "swear I am up", "to no good"]},
-    {"lines": ["Mischief", "managed", ""]},
-    {"lines": ["Fear of a name", "increases fear", "- Hermione"]},
-    {"lines": ["You're a wizard", "Harry", "- Hagrid"]},
-    {"lines": ["It is our", "choices that", "show - Albus"]},
-    {"lines": ["what we truly", "are far more", "than abilities"]},
-    {"lines": ["Dobby is a", "free elf!", "- Dobby"]},
-    {"lines": ["Expecto", "Patronum!", "- Harry"]},
-    {"lines": ["Just because", "you have the", "emotional range"]},
-    {"lines": ["of a teaspoon", "", "- Hermione"]},
-    {"lines": ["Nitwit blubber", "oddment tweak", "- Albus"]},
-    {"lines": ["Things we lose", "have a way of", "coming back"]},
-    {"lines": ["to us - Luna", "", ""]},
-    {"lines": ["Dobby has no", "master Dobby is", "a free elf"]},
-    {"lines": ["It takes great", "courage to face", "your enemies"]},
-    {"lines": ["but more to", "stand up to", "friends - Albus"]}
+ "groups": [
+  "It does not do to dwell on dreams\n- Albus",
+  [
+   "Happiness can be found in the darkest times",
+   "Turn on the light\n- Albus"
+  ],
+  "After all this time? Always\n- Snape",
+  "I solemnly swear I am up to no good",
+  "Mischief managed",
+  "Fear of a name increases fear\n- Hermione",
+  "You're a wizard Harry\n- Hagrid",
+  [
+   "It is our choices that show",
+   "what we truly are far more than abilities\n- Albus"
+  ],
+  "Dobby is a free elf!\n- Dobby",
+  "Expecto Patronum!\n- Harry",
+  [
+   "Just because you have the emotional range",
+   "of a teaspoon\n- Hermione"
+  ],
+  "Nitwit blubber oddment tweak\n- Albus",
+  [
+   "Things we lose have a way of coming back",
+   "to us\n- Luna"
+  ],
+  "Dobby has no master Dobby is a free elf",
+  [
+   "It takes great courage to face your enemies",
+   "but more to stand up to friends\n- Albus"
   ]
+ ]
 }

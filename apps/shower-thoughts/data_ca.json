@@ -1,179 +1,31 @@
 {
- "pages": [
-  {
-   "lines": [
-    "Res no s'encén.",
-    "El foc encén",
-    "les coses"
-   ]
-  },
-  {
-   "lines": [
-    "La paraula bed",
-    "té forma de",
-    "llit"
-   ]
-  },
-  {
-   "lines": [
-    "El teu jo del",
-    "futur t'està",
-    "mirant"
-   ]
-  },
-  {
-   "lines": [
-    "Cada llibre és",
-    "un remix de",
-    "l'abecedari"
-   ]
-  },
-  {
-   "lines": [
-    "Mai has vist",
-    "la teva cara",
-    "en persona"
-   ]
-  },
-  {
-   "lines": [
-    "La lasanya és",
-    "només un pastís",
-    "de pasta"
-   ]
-  },
-  {
-   "lines": [
-    "El mar és",
-    "només aigua",
-    "amb gust"
-   ]
-  },
-  {
-   "lines": [
-    "Cada sortida",
-    "és una entrada",
-    "a un altre lloc"
-   ]
-  },
-  {
-   "lines": [
-    "Mai no havies",
-    "estat tan vell",
-    "com ara"
-   ]
-  },
-  {
-   "lines": [
-    "Les dents: els",
-    "únics ossos",
-    "que rentes"
-   ]
-  },
-  {
-   "lines": [
-    "Els cignes",
-    "poden ser gais",
-    "i és preciós"
-   ]
-  },
-  {
-   "lines": [
-    "La classe",
-    "d'història",
-    "creix cada any"
-   ]
-  },
-  {
-   "lines": [
-    "El teu gos no",
-    "sap si corres",
-    "o caus"
-   ]
-  },
-  {
-   "lines": [
-    "El cafè és",
-    "aigua calenta",
-    "de grans"
-   ]
-  },
-  {
-   "lines": [
-    "L'ascensor és",
-    "una habitació",
-    "que es mou"
-   ]
-  },
-  {
-   "lines": [
-    "Si esperes el",
-    "cambrer, tu no",
-    "serveixes"
-   ]
-  },
-  {
-   "lines": [
-    "Tot mirall que",
-    "compres és de",
-    "segona mà"
-   ]
-  },
-  {
-   "lines": [
-    "La sorra és una",
-    "muntanya",
-    "jubilada"
-   ]
-  },
-  {
-   "lines": [
-    "Els aniversaris",
-    "són sans: com",
-    "més, millor."
-   ]
-  },
-  {
-   "lines": [
-    "Qui més en té,",
-    "més anys viu",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Dormir és",
-    "només viatjar",
-    "en el temps"
-   ]
-  },
-  {
-   "lines": [
-    "Un mapa és",
-    "un espòiler",
-    "del viatge"
-   ]
-  },
-  {
-   "lines": [
-    "La pluja és",
-    "confeti del",
-    "cel"
-   ]
-  },
-  {
-   "lines": [
-    "Els mitjons",
-    "són sabates",
-    "de les sabates"
-   ]
-  },
-  {
-   "lines": [
-    "Aplaudir és",
-    "pegar-te a tu",
-    "mateix"
-   ]
-  }
+ "groups": [
+  "Res no s'encén. El foc encén les coses",
+  "La paraula bed té forma de llit",
+  "El teu jo del futur t'està mirant",
+  "Cada llibre és un remix de l'abecedari",
+  "Mai has vist la teva cara en persona",
+  "La lasanya és només un pastís de pasta",
+  "El mar és només aigua amb gust",
+  "Cada sortida és una entrada a un altre lloc",
+  "Mai no havies estat tan vell com ara",
+  "Les dents: els únics ossos que rentes",
+  "Els cignes poden ser gais i és preciós",
+  "La classe d'història creix cada any",
+  "El teu gos no sap si corres o caus",
+  "El cafè és aigua calenta de grans",
+  "L'ascensor és una habitació que es mou",
+  "Si esperes el cambrer, tu no serveixes",
+  "Tot mirall que compres és de segona mà",
+  "La sorra és una muntanya jubilada",
+  [
+   "Els aniversaris són sans: com més, millor.",
+   "Qui més en té, més anys viu"
+  ],
+  "Dormir és només viatjar en el temps",
+  "Un mapa és un espòiler del viatge",
+  "La pluja és confeti del cel",
+  "Els mitjons són sabates de les sabates",
+  "Aplaudir és pegar-te a tu mateix"
  ]
 }

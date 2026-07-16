@@ -1,354 +1,70 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Si fa un gran",
-        "lavoro solo",
-        "amandolo"
-      ]
-    },
-    {
-      "lines": [
-        "Credi di",
-        "farcela e sei",
-        "già a metà"
-      ]
-    },
-    {
-      "lines": [
-        "Non importa",
-        "quanto vai",
-        "piano"
-      ]
-    },
-    {
-      "lines": [
-        "basta che",
-        "non ti fermi",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Il momento per",
-        "piantare un",
-        "albero?"
-      ]
-    },
-    {
-      "lines": [
-        "20 anni fa",
-        "oppure adesso",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Tutto ciò che",
-        "immagini è",
-        "reale"
-      ]
-    },
-    {
-      "lines": [
-        "Resta affamato",
-        "resta folle",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "In mezzo alle",
-        "difficoltà",
-        "si nasconde"
-      ]
-    },
-    {
-      "lines": [
-        "lopportunità",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Diventiamo ciò",
-        "che pensiamo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Il futuro è di",
-        "chi crede",
-        "nella"
-      ]
-    },
-    {
-      "lines": [
-        "bellezza dei",
-        "propri sogni",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Fai ciò che",
-        "puoi con ciò",
-        "che hai"
-      ]
-    },
-    {
-      "lines": [
-        "lì dove sei",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Successo non è",
-        "finale errore",
-        "non è fatale"
-      ]
-    },
-    {
-      "lines": [
-        "conta il",
-        "coraggio di",
-        "continuare"
-      ]
-    },
-    {
-      "lines": [
-        "Sogna in grande",
-        "inizia piccolo",
-        "agisci ora"
-      ]
-    },
-    {
-      "lines": [
-        "Cadi sette",
-        "volte rialzati",
-        "otto"
-      ]
-    },
-    {
-      "lines": [
-        "Fatto è meglio",
-        "che perfetto",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Fai di ogni",
-        "giorno un",
-        "capolavoro"
-      ]
-    },
-    {
-      "lines": [
-        "Piccoli passi",
-        "ogni giorno",
-        "fanno strada"
-      ]
-    },
-    {
-      "lines": [
-        "Se puoi",
-        "sognarlo puoi",
-        "farlo"
-      ]
-    },
-    {
-      "lines": [
-        "Più lavoro",
-        "più divento",
-        "fortunato"
-      ]
-    },
-    {
-      "lines": [
-        "Non contare i",
-        "giorni falli",
-        "contare"
-      ]
-    },
-    {
-      "lines": [
-        "La qualità non",
-        "è un atto è",
-        "unabitudine"
-      ]
-    },
-    {
-      "lines": [
-        "Chi ben",
-        "comincia è a",
-        "metà dellopera"
-      ]
-    },
-    {
-      "lines": [
-        "Senza",
-        "pressione",
-        "niente diamanti"
-      ]
-    },
-    {
-      "lines": [
-        "A piccoli",
-        "passi si va",
-        "lontano"
-      ]
-    },
-    {
-      "lines": [
-        "Il coraggio è",
-        "grazia sotto",
-        "pressione"
-      ]
-    },
-    {
-      "lines": [
-        "Un obiettivo",
-        "senza piano è",
-        "un desiderio"
-      ]
-    },
-    {
-      "lines": [
-        "La motivazione",
-        "avvia",
-        "labitudine dura"
-      ]
-    },
-    {
-      "lines": [
-        "La via",
-        "duscita è",
-        "attraverso"
-      ]
-    },
-    {
-      "lines": [
-        "Sbagli il 100%",
-        "dei tiri che",
-        "non fai"
-      ]
-    },
-    {
-      "lines": [
-        "Energia e",
-        "costanza",
-        "vincono tutto"
-      ]
-    },
-    {
-      "lines": [
-        "Nulla di grande",
-        "nasce nel",
-        "comfort"
-      ]
-    },
-    {
-      "lines": [
-        "Progresso non",
-        "perfezione",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Impossibile",
-        "finché non",
-        "viene fatto"
-      ]
-    },
-    {
-      "lines": [
-        "La fortuna",
-        "aiuta le menti",
-        "preparate"
-      ]
-    },
-    {
-      "lines": [
-        "Fallo con",
-        "passione o non",
-        "farlo"
-      ]
-    },
-    {
-      "lines": [
-        "Troverò una",
-        "strada o ne",
-        "farò una"
-      ]
-    },
-    {
-      "lines": [
-        "Ciò che fai",
-        "oggi migliora",
-        "tutti"
-      ]
-    },
-    {
-      "lines": [
-        "i tuoi domani",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Le stelle",
-        "brillano solo",
-        "al buio"
-      ]
-    },
-    {
-      "lines": [
-        "Il segreto per",
-        "avanzare è",
-        "semplicemente"
-      ]
-    },
-    {
-      "lines": [
-        "iniziare",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Sii così bravo",
-        "che non possano",
-        "ignorarti"
-      ]
-    },
-    {
-      "lines": [
-        "Il lavoro",
-        "batte il",
-        "talento pigro"
-      ]
-    },
-    {
-      "lines": [
-        "Ogni esperto è",
-        "stato un",
-        "principiante"
-      ]
-    },
-    {
-      "lines": [
-        "Il viaggio è",
-        "la ricompensa",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "Si fa un gran lavoro solo amandolo",
+  "Credi di farcela e sei già a metà",
+  [
+   "Non importa quanto vai piano",
+   "basta che non ti fermi"
+  ],
+  [
+   "Il momento per piantare un albero?",
+   "20 anni fa oppure adesso"
+  ],
+  "Tutto ciò che immagini è reale",
+  "Resta affamato resta folle",
+  [
+   "In mezzo alle difficoltà si nasconde",
+   "lopportunità"
+  ],
+  "Diventiamo ciò che pensiamo",
+  [
+   "Il futuro è di chi crede nella",
+   "bellezza dei propri sogni"
+  ],
+  [
+   "Fai ciò che puoi con ciò che hai",
+   "lì dove sei"
+  ],
+  [
+   "Successo non è finale errore non è fatale",
+   "conta il coraggio di continuare"
+  ],
+  "Sogna in grande inizia piccolo agisci ora",
+  "Cadi sette volte rialzati otto",
+  "Fatto è meglio che perfetto",
+  "Fai di ogni giorno un capolavoro",
+  "Piccoli passi ogni giorno fanno strada",
+  "Se puoi sognarlo puoi farlo",
+  "Più lavoro più divento fortunato",
+  "Non contare i giorni falli contare",
+  "La qualità non è un atto è unabitudine",
+  "Chi ben comincia è a metà dellopera",
+  "Senza pressione niente diamanti",
+  "A piccoli passi si va lontano",
+  "Il coraggio è grazia sotto pressione",
+  "Un obiettivo senza piano è un desiderio",
+  "La motivazione avvia labitudine dura",
+  "La via duscita è attraverso",
+  "Sbagli il 100% dei tiri che non fai",
+  "Energia e costanza vincono tutto",
+  "Nulla di grande nasce nel comfort",
+  "Progresso non perfezione",
+  "Impossibile finché non viene fatto",
+  "La fortuna aiuta le menti preparate",
+  "Fallo con passione o non farlo",
+  "Troverò una strada o ne farò una",
+  [
+   "Ciò che fai oggi migliora tutti",
+   "i tuoi domani"
+  ],
+  "Le stelle brillano solo al buio",
+  [
+   "Il segreto per avanzare è semplicemente",
+   "iniziare"
+  ],
+  "Sii così bravo che non possano ignorarti",
+  "Il lavoro batte il talento pigro",
+  "Ogni esperto è stato un principiante",
+  "Il viaggio è la ricompensa"
+ ]
 }

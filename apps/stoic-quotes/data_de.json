@@ -1,144 +1,24 @@
 {
- "pages": [
-  {
-   "lines": [
-    "Das Hindernis",
-    "ist der Weg",
-    "- Mark Aurel"
-   ]
-  },
-  {
-   "lines": [
-    "Wir leiden mehr",
-    "in der Fantasie",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Vergeude keine",
-    "Zeit mit Streit",
-    "- Mark Aurel"
-   ]
-  },
-  {
-   "lines": [
-    "Du hast Macht",
-    "über den Geist",
-    "- Mark Aurel"
-   ]
-  },
-  {
-   "lines": [
-    "Beginne sofort",
-    "zu leben",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Sieh des Lebens",
-    "Schönheit",
-    "- Mark Aurel"
-   ]
-  },
-  {
-   "lines": [
-    "Nichts Großes",
-    "kommt plötzlich",
-    "- Epiktet"
-   ]
-  },
-  {
-   "lines": [
-    "Härte den Geist",
-    "durch Übung",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Ertrage und",
-    "entsage",
-    "- Epiktet"
-   ]
-  },
-  {
-   "lines": [
-    "Sei nachsichtig",
-    "mit anderen",
-    "- Mark Aurel"
-   ]
-  },
-  {
-   "lines": [
-    "Liebe, was das",
-    "Schicksal gibt",
-    "- Mark Aurel"
-   ]
-  },
-  {
-   "lines": [
-    "Leben ist lang,",
-    "nutzt man es",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Pflege diesen",
-    "Augenblick",
-    "- Epiktet"
-   ]
-  },
-  {
-   "lines": [
-    "Wahres Glück",
-    "ist eine Tugend",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Beherrsche dich",
-    "dann andere",
-    "- Epiktet"
-   ]
-  },
-  {
-   "lines": [
-    "Wähle: nicht",
-    "verletzt sein",
-    "- Mark Aurel"
-   ]
-  },
-  {
-   "lines": [
-    "Unser Tun hallt",
-    "ewig nach",
-    "- Mark Aurel"
-   ]
-  },
-  {
-   "lines": [
-    "Beim Warten",
-    "eilt das Leben",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Denk an das,",
-    "was du hast",
-    "- Mark Aurel"
-   ]
-  },
-  {
-   "lines": [
-    "Jeder neue Tag",
-    "ist eine Chance",
-    "- Seneca"
-   ]
-  }
+ "groups": [
+  "Das Hindernis ist der Weg\n- Mark Aurel",
+  "Wir leiden mehr in der Fantasie\n- Seneca",
+  "Vergeude keine Zeit mit Streit\n- Mark Aurel",
+  "Du hast Macht über den Geist\n- Mark Aurel",
+  "Beginne sofort zu leben\n- Seneca",
+  "Sieh des Lebens Schönheit\n- Mark Aurel",
+  "Nichts Großes kommt plötzlich\n- Epiktet",
+  "Härte den Geist durch Übung\n- Seneca",
+  "Ertrage und entsage\n- Epiktet",
+  "Sei nachsichtig mit anderen\n- Mark Aurel",
+  "Liebe, was das Schicksal gibt\n- Mark Aurel",
+  "Leben ist lang, nutzt man es\n- Seneca",
+  "Pflege diesen Augenblick\n- Epiktet",
+  "Wahres Glück ist eine Tugend\n- Seneca",
+  "Beherrsche dich dann andere\n- Epiktet",
+  "Wähle: nicht verletzt sein\n- Mark Aurel",
+  "Unser Tun hallt ewig nach\n- Mark Aurel",
+  "Beim Warten eilt das Leben\n- Seneca",
+  "Denk an das, was du hast\n- Mark Aurel",
+  "Jeder neue Tag ist eine Chance\n- Seneca"
  ]
 }

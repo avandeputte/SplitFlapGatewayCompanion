@@ -1,354 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Wat is groen en",
-        "plakt aan de",
-        "muur?"
-      ]
-    },
-    {
-      "lines": [
-        "Kermit de",
-        "sticker",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Waarom kunnen",
-        "skeletten niet",
-        "liegen?"
-      ]
-    },
-    {
-      "lines": [
-        "Je kijkt er",
-        "dwars doorheen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wat zegt een",
-        "boer zonder",
-        "tractor?"
-      ]
-    },
-    {
-      "lines": [
-        "Waar is mijn",
-        "tractor",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Waarom heeft",
-        "de olifant",
-        "geen laptop?"
-      ]
-    },
-    {
-      "lines": [
-        "Bang voor",
-        "de muis",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wat drinkt een",
-        "scheidsrechter?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Een fluitje",
-        "bier",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoe heet een",
-        "Spanjaard",
-        "zonder auto?"
-      ]
-    },
-    {
-      "lines": [
-        "Carlos",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wat zei de ene",
-        "muur tegen de",
-        "andere?"
-      ]
-    },
-    {
-      "lines": [
-        "Tot op de",
-        "hoek",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wat is geel en",
-        "kan niet",
-        "zwemmen?"
-      ]
-    },
-    {
-      "lines": [
-        "Een",
-        "graafmachine",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Waarom is het",
-        "wiskundeboek",
-        "verdrietig?"
-      ]
-    },
-    {
-      "lines": [
-        "Te veel",
-        "problemen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Een slak op een",
-        "schildpad",
-        "zegt:"
-      ]
-    },
-    {
-      "lines": [
-        "Wat gaat",
-        "dit snel",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoe noem je een",
-        "koe zonder",
-        "poten?"
-      ]
-    },
-    {
-      "lines": [
-        "Gehakt",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Een koe in een",
-        "aardbeving",
-        "heet?"
-      ]
-    },
-    {
-      "lines": [
-        "Een",
-        "milkshake",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoe noem je een",
-        "vis zonder",
-        "ogen?"
-      ]
-    },
-    {
-      "lines": [
-        "Vs",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoe noem je een",
-        "beer zonder",
-        "tanden?"
-      ]
-    },
-    {
-      "lines": [
-        "Een",
-        "gummybeer",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoe bouwt een",
-        "pinguin zijn",
-        "huis?"
-      ]
-    },
-    {
-      "lines": [
-        "Igloetje bij",
-        "igloetje",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wat eet een",
-        "sneeuwpop het",
-        "liefst?"
-      ]
-    },
-    {
-      "lines": [
-        "IJsbergsla",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Waarom hebben",
-        "bijen plakkerig",
-        "haar?"
-      ]
-    },
-    {
-      "lines": [
-        "Ze gebruiken",
-        "honingkammen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wat is wit en",
-        "stoort bij het",
-        "ontbijt?"
-      ]
-    },
-    {
-      "lines": [
-        "Een lawine",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoe organiseer",
-        "je een feest in",
-        "de ruimte?"
-      ]
-    },
-    {
-      "lines": [
-        "Je planeet",
-        "het",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Welke kaas is",
-        "niet van jou?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Nacho kaas",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Wat is groot",
-        "grijs en doet",
-        "er niet toe?"
-      ]
-    },
-    {
-      "lines": [
-        "Een",
-        "irrelefant",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoe noem je een",
-        "boemerang die",
-        "wegblijft?"
-      ]
-    },
-    {
-      "lines": [
-        "Een stok",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Waarom vertrouw",
-        "je atomen niet?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Ze maken",
-        "overal deel",
-        "van uit"
-      ]
-    },
-    {
-      "lines": [
-        "Vraagt de ene",
-        "kaars aan de",
-        "andere:"
-      ]
-    },
-    {
-      "lines": [
-        "Gaan we",
-        "vanavond uit?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Een paard loopt",
-        "een café in...",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Barman: Waarom",
-        "zo een lang",
-        "gezicht?"
-      ]
-    }
+ "groups": [
+  [
+   "Wat is groen en plakt aan de muur?",
+   "Kermit de sticker"
+  ],
+  [
+   "Waarom kunnen skeletten niet liegen?",
+   "Je kijkt er dwars doorheen"
+  ],
+  [
+   "Wat zegt een boer zonder tractor?",
+   "Waar is mijn tractor"
+  ],
+  [
+   "Waarom heeft de olifant geen laptop?",
+   "Bang voor de muis"
+  ],
+  [
+   "Wat drinkt een scheidsrechter?",
+   "Een fluitje bier"
+  ],
+  [
+   "Hoe heet een Spanjaard zonder auto?",
+   "Carlos"
+  ],
+  [
+   "Wat zei de ene muur tegen de andere?",
+   "Tot op de hoek"
+  ],
+  [
+   "Wat is geel en kan niet zwemmen?",
+   "Een graafmachine"
+  ],
+  [
+   "Waarom is het wiskundeboek verdrietig?",
+   "Te veel problemen"
+  ],
+  [
+   "Een slak op een schildpad zegt:",
+   "Wat gaat dit snel"
+  ],
+  [
+   "Hoe noem je een koe zonder poten?",
+   "Gehakt"
+  ],
+  [
+   "Een koe in een aardbeving heet?",
+   "Een milkshake"
+  ],
+  [
+   "Hoe noem je een vis zonder ogen?",
+   "Vs"
+  ],
+  [
+   "Hoe noem je een beer zonder tanden?",
+   "Een gummybeer"
+  ],
+  [
+   "Hoe bouwt een pinguin zijn huis?",
+   "Igloetje bij igloetje"
+  ],
+  [
+   "Wat eet een sneeuwpop het liefst?",
+   "IJsbergsla"
+  ],
+  [
+   "Waarom hebben bijen plakkerig haar?",
+   "Ze gebruiken honingkammen"
+  ],
+  [
+   "Wat is wit en stoort bij het ontbijt?",
+   "Een lawine"
+  ],
+  [
+   "Hoe organiseer je een feest in de ruimte?",
+   "Je planeet het"
+  ],
+  [
+   "Welke kaas is niet van jou?",
+   "Nacho kaas"
+  ],
+  [
+   "Wat is groot grijs en doet er niet toe?",
+   "Een irrelefant"
+  ],
+  [
+   "Hoe noem je een boemerang die wegblijft?",
+   "Een stok"
+  ],
+  [
+   "Waarom vertrouw je atomen niet?",
+   "Ze maken overal deel van uit"
+  ],
+  [
+   "Vraagt de ene kaars aan de andere:",
+   "Gaan we vanavond uit?"
+  ],
+  [
+   "Een paard loopt een café in...",
+   "Barman: Waarom zo een lang gezicht?"
   ]
+ ]
 }

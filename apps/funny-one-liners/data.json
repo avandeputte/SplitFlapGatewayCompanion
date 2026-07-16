@@ -1,29 +1,51 @@
 {
-  "pages": [
-    {"lines": ["I told my wife", "she drew her", "eyebrows high"]},
-    {"lines": ["She looked", "surprised", ""]},
-    {"lines": ["Parallel lines", "have so much", "in common"]},
-    {"lines": ["Its a shame", "they never", "meet"]},
-    {"lines": ["I threw a ball", "for my dog", "its a bit far"]},
-    {"lines": ["But he is a", "good boy and", "enjoys it"]},
-    {"lines": ["I used to hate", "facial hair", "but then"]},
-    {"lines": ["it grew", "on me", ""]},
-    {"lines": ["What do you", "call a bear", "with no teeth?"]},
-    {"lines": ["A gummy bear!", "", ""]},
-    {"lines": ["I asked the", "librarian for", "books on fear"]},
-    {"lines": ["She said they", "are in the", "horror section"]},
-    {"lines": ["What do you", "call a lazy", "kangaroo?"]},
-    {"lines": ["A pouch", "potato!", ""]},
-    {"lines": ["I told a joke", "about paper", "its tearable"]},
-    {"lines": ["Why did the", "bicycle fall?", "It was two"]},
-    {"lines": ["tired", "", ""]},
-    {"lines": ["I have a fear", "of speed bumps", "but Im slowly"]},
-    {"lines": ["getting", "over it", ""]},
-    {"lines": ["What do you", "call a fish", "with no eyes?"]},
-    {"lines": ["A fsh!", "", ""]},
-    {"lines": ["I used to play", "piano by ear", "now I use"]},
-    {"lines": ["my hands", "", ""]},
-    {"lines": ["Broken pencils", "are pointless", ""]},
-    {"lines": ["I stayed up", "all night to", "see the sun"]}
-  ]
+ "groups": [
+  [
+   "I told my wife she drew her eyebrows high",
+   "She looked surprised"
+  ],
+  [
+   "Parallel lines have so much in common",
+   "Its a shame they never meet"
+  ],
+  [
+   "I threw a ball for my dog its a bit far",
+   "But he is a good boy and enjoys it"
+  ],
+  [
+   "I used to hate facial hair but then",
+   "it grew on me"
+  ],
+  [
+   "What do you call a bear with no teeth?",
+   "A gummy bear!"
+  ],
+  [
+   "I asked the librarian for books on fear",
+   "She said they are in the horror section"
+  ],
+  [
+   "What do you call a lazy kangaroo?",
+   "A pouch potato!"
+  ],
+  "I told a joke about paper its tearable",
+  [
+   "Why did the bicycle fall? It was two",
+   "tired"
+  ],
+  [
+   "I have a fear of speed bumps but Im slowly",
+   "getting over it"
+  ],
+  [
+   "What do you call a fish with no eyes?",
+   "A fsh!"
+  ],
+  [
+   "I used to play piano by ear now I use",
+   "my hands"
+  ],
+  "Broken pencils are pointless",
+  "I stayed up all night to see the sun"
+ ]
 }

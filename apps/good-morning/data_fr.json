@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Bonjour",
-        "Cette journée",
-        "a du potentiel"
-      ]
-    },
-    {
-      "lines": [
-        "Debout",
-        "Rends ce jour",
-        "mémorable"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Tu es suffisant",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Chaque matin",
-        "est une chance",
-        "de recommencer"
-      ]
-    },
-    {
-      "lines": [
-        "Réveille toi",
-        "avec ambition",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Aujourd'hui est",
-        "un jour neuf",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Fais sourire",
-        "quelqu'un"
-      ]
-    },
-    {
-      "lines": [
-        "Fais le",
-        "Étonne tout",
-        "le monde"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Ta seule limite",
-        "c'est toi"
-      ]
-    },
-    {
-      "lines": [
-        "Crois en toi",
-        "aujourd'hui",
-        "et chaque jour"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Poursuis tes",
-        "rêves"
-      ]
-    },
-    {
-      "lines": [
-        "Ce jour est",
-        "à toi",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Reste positif",
-        "Travaille fort"
-      ]
-    },
-    {
-      "lines": [
-        "Lève toi et",
-        "attaque le jour",
-        "avec entrain"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "De grandes",
-        "choses arrivent"
-      ]
-    },
-    {
-      "lines": [
-        "Tu es plus fort",
-        "que tu le",
-        "crois"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Sois fier de",
-        "toi aujourd'hui"
-      ]
-    },
-    {
-      "lines": [
-        "Nouveau jour",
-        "nouvelle force",
-        "nouvelles idées"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Sème la",
-        "bienveillance"
-      ]
-    },
-    {
-      "lines": [
-        "Le meilleur",
-        "moment pour",
-        "recommencer"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Le soleil sest",
-        "levé pour toi"
-      ]
-    },
-    {
-      "lines": [
-        "Souris dabord",
-        "café ensuite",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Aujourdhui ne",
-        "repasse pas"
-      ]
-    },
-    {
-      "lines": [
-        "Un mot gentil",
-        "peut changer",
-        "une journée"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Commence là",
-        "où tu es"
-      ]
-    },
-    {
-      "lines": [
-        "Fais le plus",
-        "dur en premier",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Ose une chose",
-        "aujourdhui"
-      ]
-    },
-    {
-      "lines": [
-        "Chaque matin",
-        "est un nouveau",
-        "départ"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Laisse hier",
-        "derrière toi"
-      ]
-    },
-    {
-      "lines": [
-        "Cest un bon",
-        "jour pour une",
-        "bonne journée"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Arrose tes",
-        "rêves"
-      ]
-    },
-    {
-      "lines": [
-        "Sois lénergie",
-        "que tu veux",
-        "attirer"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Les petits pas",
-        "comptent aussi"
-      ]
-    },
-    {
-      "lines": [
-        "Lève toi et",
-        "sois génial",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Ton avenir te",
-        "regarde"
-      ]
-    },
-    {
-      "lines": [
-        "Fais le",
-        "aujourdhui pas",
-        "demain"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Respire du",
-        "courage"
-      ]
-    },
-    {
-      "lines": [
-        "Le lève tôt a",
-        "droit au café",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Fais compter",
-        "ce jour"
-      ]
-    },
-    {
-      "lines": [
-        "Nouveau jour",
-        "nouvelle chance",
-        "nouveau toi"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Commence par",
-        "la gratitude"
-      ]
-    },
-    {
-      "lines": [
-        "Brille comme",
-        "le soleil du",
-        "matin"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Aujourdhui est",
-        "un cadeau"
-      ]
-    },
-    {
-      "lines": [
-        "Commence la",
-        "journée par un",
-        "merci"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Sème la",
-        "gentillesse"
-      ]
-    },
-    {
-      "lines": [
-        "Tu es debout",
-        "Cest déjà une",
-        "victoire"
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Vise haut Pars",
-        "maintenant"
-      ]
-    },
-    {
-      "lines": [
-        "Laisse entrer",
-        "la lumière",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bonjour",
-        "Écris une belle",
-        "histoire"
-      ]
-    },
-    {
-      "lines": [
-        "Aujourdhui le",
-        "soleil brille",
-        "pour toi"
-      ]
-    }
-  ]
+ "groups": [
+  "Bonjour Cette journée a du potentiel",
+  "Debout Rends ce jour mémorable",
+  "Bonjour Tu es suffisant",
+  "Chaque matin est une chance de recommencer",
+  "Réveille toi avec ambition",
+  "Aujourd'hui est un jour neuf",
+  "Bonjour Fais sourire quelqu'un",
+  "Fais le Étonne tout le monde",
+  "Bonjour Ta seule limite c'est toi",
+  "Crois en toi aujourd'hui et chaque jour",
+  "Bonjour Poursuis tes rêves",
+  "Ce jour est à toi",
+  "Bonjour Reste positif Travaille fort",
+  "Lève toi et attaque le jour avec entrain",
+  "Bonjour De grandes choses arrivent",
+  "Tu es plus fort que tu le crois",
+  "Bonjour Sois fier de toi aujourd'hui",
+  "Nouveau jour nouvelle force nouvelles idées",
+  "Bonjour Sème la bienveillance",
+  "Le meilleur moment pour recommencer",
+  "Bonjour Le soleil sest levé pour toi",
+  "Souris dabord café ensuite",
+  "Bonjour Aujourdhui ne repasse pas",
+  "Un mot gentil peut changer une journée",
+  "Bonjour Commence là où tu es",
+  "Fais le plus dur en premier",
+  "Bonjour Ose une chose aujourdhui",
+  "Chaque matin est un nouveau départ",
+  "Bonjour Laisse hier derrière toi",
+  "Cest un bon jour pour une bonne journée",
+  "Bonjour Arrose tes rêves",
+  "Sois lénergie que tu veux attirer",
+  "Bonjour Les petits pas comptent aussi",
+  "Lève toi et sois génial",
+  "Bonjour Ton avenir te regarde",
+  "Fais le aujourdhui pas demain",
+  "Bonjour Respire du courage",
+  "Le lève tôt a droit au café",
+  "Bonjour Fais compter ce jour",
+  "Nouveau jour nouvelle chance nouveau toi",
+  "Bonjour Commence par la gratitude",
+  "Brille comme le soleil du matin",
+  "Bonjour Aujourdhui est un cadeau",
+  "Commence la journée par un merci",
+  "Bonjour Sème la gentillesse",
+  "Tu es debout Cest déjà une victoire",
+  "Bonjour Vise haut Pars maintenant",
+  "Laisse entrer la lumière",
+  "Bonjour Écris une belle histoire",
+  "Aujourdhui le soleil brille pour toi"
+ ]
 }

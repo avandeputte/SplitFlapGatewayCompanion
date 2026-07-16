@@ -1,354 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "La città",
-        "preferita dei",
-        "ragni?"
-      ]
-    },
-    {
-      "lines": [
-        "Mosca",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Perché i pesci",
-        "non giocano a",
-        "tennis?"
-      ]
-    },
-    {
-      "lines": [
-        "Hanno paura",
-        "della rete",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Cosa dice lo",
-        "zero allotto?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Che bella",
-        "cintura",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Chi salta più",
-        "in alto di una",
-        "casa?"
-      ]
-    },
-    {
-      "lines": [
-        "Tutti le case",
-        "non saltano",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Il frutto",
-        "preferito dei",
-        "sub?"
-      ]
-    },
-    {
-      "lines": [
-        "La pesca",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Il colmo per",
-        "un orologiaio?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Non avere",
-        "mai tempo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Il colmo per un",
-        "elettricista?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Restare al",
-        "buio",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Il colmo per un",
-        "giardiniere?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Essere sempre",
-        "al verde",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Perché il libro",
-        "di matematica",
-        "è triste?"
-      ]
-    },
-    {
-      "lines": [
-        "Ha troppi",
-        "problemi",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Cosa dice un",
-        "muro allaltro?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Ci vediamo",
-        "allangolo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Lo sport",
-        "preferito",
-        "degli insetti?"
-      ]
-    },
-    {
-      "lines": [
-        "Il cricket",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Che gatto",
-        "nuota?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Il pesce",
-        "gatto",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qual è",
-        "lanimale più",
-        "vecchio?"
-      ]
-    },
-    {
-      "lines": [
-        "La zebra è in",
-        "bianco e nero",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Perché i",
-        "fantasmi non",
-        "sanno mentire?"
-      ]
-    },
-    {
-      "lines": [
-        "Perché si vede",
-        "attraverso",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Perché gli",
-        "scheletri non",
-        "litigano?"
-      ]
-    },
-    {
-      "lines": [
-        "Non hanno",
-        "fegato",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Come costruisce",
-        "la casa il",
-        "pinguino?"
-      ]
-    },
-    {
-      "lines": [
-        "Con gli",
-        "igloo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Dove tiene i",
-        "soldi un",
-        "vampiro?"
-      ]
-    },
-    {
-      "lines": [
-        "In banca",
-        "del sangue",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Come si chiama",
-        "un orso senza",
-        "denti?"
-      ]
-    },
-    {
-      "lines": [
-        "Un orsetto",
-        "gommoso",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Perché la bici",
-        "non sta in",
-        "piedi?"
-      ]
-    },
-    {
-      "lines": [
-        "È troppo",
-        "stanca",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Perché il sei",
-        "ha paura del",
-        "sette?"
-      ]
-    },
-    {
-      "lines": [
-        "Perché il sette",
-        "mangiò il nove",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qual è il pesce",
-        "più musicale?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Il pesce",
-        "trombetta",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quanti pigri",
-        "per cambiare",
-        "una lampadina?"
-      ]
-    },
-    {
-      "lines": [
-        "Nessuno meglio",
-        "restare al",
-        "buio"
-      ]
-    },
-    {
-      "lines": [
-        "Come si",
-        "organizza una",
-        "festa spaziale?"
-      ]
-    },
-    {
-      "lines": [
-        "Si pianeta",
-        "tutto",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qual è il",
-        "colmo per un",
-        "pescatore?"
-      ]
-    },
-    {
-      "lines": [
-        "Perdere la",
-        "lenza e la",
-        "pazienza"
-      ]
-    },
-    {
-      "lines": [
-        "Perché le",
-        "mucche hanno il",
-        "campanaccio?"
-      ]
-    },
-    {
-      "lines": [
-        "Perché le",
-        "corna non",
-        "suonano"
-      ]
-    }
+ "groups": [
+  [
+   "La città preferita dei ragni?",
+   "Mosca"
+  ],
+  [
+   "Perché i pesci non giocano a tennis?",
+   "Hanno paura della rete"
+  ],
+  [
+   "Cosa dice lo zero allotto?",
+   "Che bella cintura"
+  ],
+  [
+   "Chi salta più in alto di una casa?",
+   "Tutti le case non saltano"
+  ],
+  [
+   "Il frutto preferito dei sub?",
+   "La pesca"
+  ],
+  [
+   "Il colmo per un orologiaio?",
+   "Non avere mai tempo"
+  ],
+  [
+   "Il colmo per un elettricista?",
+   "Restare al buio"
+  ],
+  [
+   "Il colmo per un giardiniere?",
+   "Essere sempre al verde"
+  ],
+  [
+   "Perché il libro di matematica è triste?",
+   "Ha troppi problemi"
+  ],
+  [
+   "Cosa dice un muro allaltro?",
+   "Ci vediamo allangolo"
+  ],
+  [
+   "Lo sport preferito degli insetti?",
+   "Il cricket"
+  ],
+  [
+   "Che gatto nuota?",
+   "Il pesce gatto"
+  ],
+  [
+   "Qual è lanimale più vecchio?",
+   "La zebra è in bianco e nero"
+  ],
+  [
+   "Perché i fantasmi non sanno mentire?",
+   "Perché si vede attraverso"
+  ],
+  [
+   "Perché gli scheletri non litigano?",
+   "Non hanno fegato"
+  ],
+  [
+   "Come costruisce la casa il pinguino?",
+   "Con gli igloo"
+  ],
+  [
+   "Dove tiene i soldi un vampiro?",
+   "In banca del sangue"
+  ],
+  [
+   "Come si chiama un orso senza denti?",
+   "Un orsetto gommoso"
+  ],
+  [
+   "Perché la bici non sta in piedi?",
+   "È troppo stanca"
+  ],
+  [
+   "Perché il sei ha paura del sette?",
+   "Perché il sette mangiò il nove"
+  ],
+  [
+   "Qual è il pesce più musicale?",
+   "Il pesce trombetta"
+  ],
+  [
+   "Quanti pigri per cambiare una lampadina?",
+   "Nessuno meglio restare al buio"
+  ],
+  [
+   "Come si organizza una festa spaziale?",
+   "Si pianeta tutto"
+  ],
+  [
+   "Qual è il colmo per un pescatore?",
+   "Perdere la lenza e la pazienza"
+  ],
+  [
+   "Perché le mucche hanno il campanaccio?",
+   "Perché le corna non suonano"
   ]
+ ]
 }

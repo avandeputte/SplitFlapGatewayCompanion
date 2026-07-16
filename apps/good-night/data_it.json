@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Buonanotte",
-        "Dormi bene",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Sogni doro",
-        "Ci vediamo",
-        "domattina"
-      ]
-    },
-    {
-      "lines": [
-        "Riposa bene",
-        "Domani è un",
-        "nuovo giorno"
-      ]
-    },
-    {
-      "lines": [
-        "Le stelle sono",
-        "fuori stanotte",
-        "Dormi bene"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Lascia andare",
-        "i pensieri"
-      ]
-    },
-    {
-      "lines": [
-        "Chiudi gli",
-        "occhi sogna",
-        "in grande"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Oggi sei stato",
-        "grande"
-      ]
-    },
-    {
-      "lines": [
-        "Dormi bene e",
-        "svegliati",
-        "riposato"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "La luna veglia",
-        "su di te"
-      ]
-    },
-    {
-      "lines": [
-        "Domani porta",
-        "nuove avventure",
-        "Riposa ora"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Sii grato per",
-        "oggi"
-      ]
-    },
-    {
-      "lines": [
-        "Le stelle",
-        "guidino i tuoi",
-        "sogni stanotte"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Rilassati e",
-        "respira a fondo"
-      ]
-    },
-    {
-      "lines": [
-        "Chiudi il",
-        "giorno con",
-        "gratitudine"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Pace e calma",
-        "ti circondano"
-      ]
-    },
-    {
-      "lines": [
-        "Addormentati",
-        "sapendo di",
-        "essere amato"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Lascia riposare",
-        "la mente"
-      ]
-    },
-    {
-      "lines": [
-        "La notte è",
-        "quieta e calma",
-        "Dormi bene"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Sogni doro",
-        "a domani"
-      ]
-    },
-    {
-      "lines": [
-        "Che i tuoi",
-        "sogni siano",
-        "pieni di gioia"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Il giorno è",
-        "fatto Riposa"
-      ]
-    },
-    {
-      "lines": [
-        "Stelle sopra",
-        "sogni davanti",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Domani può",
-        "aspettare"
-      ]
-    },
-    {
-      "lines": [
-        "Posa il giorno",
-        "con dolcezza",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Sei al sicuro",
-        "e amato"
-      ]
-    },
-    {
-      "lines": [
-        "La luna fa la",
-        "guardia",
-        "Dormi profondo"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Perdona il",
-        "giorno e riposa"
-      ]
-    },
-    {
-      "lines": [
-        "Ore quiete",
-        "sogni leggeri",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Domani è da",
-        "scrivere"
-      ]
-    },
-    {
-      "lines": [
-        "Chiudi il",
-        "giorno apri",
-        "un sogno"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Lascia che il",
-        "silenzio curi"
-      ]
-    },
-    {
-      "lines": [
-        "Il cielo di",
-        "notte è pieno",
-        "di desideri"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Anche il riposo",
-        "è produttivo"
-      ]
-    },
-    {
-      "lines": [
-        "Abbassa le luci",
-        "rallenta i",
-        "pensieri"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Oggi hai fatto",
-        "abbastanza"
-      ]
-    },
-    {
-      "lines": [
-        "Il sonno è la",
-        "migliore",
-        "meditazione"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Conta le gioie",
-        "non le pecore"
-      ]
-    },
-    {
-      "lines": [
-        "Che la notte",
-        "sia dolce e",
-        "gentile"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "I sogni sono",
-        "gratis Fanne 2"
-      ]
-    },
-    {
-      "lines": [
-        "Il giorno è",
-        "finito Lascialo",
-        "andare"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Ricaricati per",
-        "domani"
-      ]
-    },
-    {
-      "lines": [
-        "Anche il sole",
-        "deve",
-        "tramontare"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Sussurra i",
-        "tuoi desideri"
-      ]
-    },
-    {
-      "lines": [
-        "Stanotte",
-        "riposa domani",
-        "risorgi"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Il mondo può",
-        "aspettare"
-      ]
-    },
-    {
-      "lines": [
-        "Dormi bene",
-        "diventa forte",
-        "sogna lontano"
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "La luce delle",
-        "stelle è gratis"
-      ]
-    },
-    {
-      "lines": [
-        "Posa i tuoi",
-        "pensieri",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buonanotte",
-        "Ci vediamo",
-        "allalba"
-      ]
-    },
-    {
-      "lines": [
-        "La notte è una",
-        "ninnananna",
-        "Dormi ora"
-      ]
-    }
-  ]
+ "groups": [
+  "Buonanotte Dormi bene",
+  "Sogni doro Ci vediamo domattina",
+  "Riposa bene Domani è un nuovo giorno",
+  "Le stelle sono fuori stanotte Dormi bene",
+  "Buonanotte Lascia andare i pensieri",
+  "Chiudi gli occhi sogna in grande",
+  "Buonanotte Oggi sei stato grande",
+  "Dormi bene e svegliati riposato",
+  "Buonanotte La luna veglia su di te",
+  "Domani porta nuove avventure Riposa ora",
+  "Buonanotte Sii grato per oggi",
+  "Le stelle guidino i tuoi sogni stanotte",
+  "Buonanotte Rilassati e respira a fondo",
+  "Chiudi il giorno con gratitudine",
+  "Buonanotte Pace e calma ti circondano",
+  "Addormentati sapendo di essere amato",
+  "Buonanotte Lascia riposare la mente",
+  "La notte è quieta e calma Dormi bene",
+  "Buonanotte Sogni doro a domani",
+  "Che i tuoi sogni siano pieni di gioia",
+  "Buonanotte Il giorno è fatto Riposa",
+  "Stelle sopra sogni davanti",
+  "Buonanotte Domani può aspettare",
+  "Posa il giorno con dolcezza",
+  "Buonanotte Sei al sicuro e amato",
+  "La luna fa la guardia Dormi profondo",
+  "Buonanotte Perdona il giorno e riposa",
+  "Ore quiete sogni leggeri",
+  "Buonanotte Domani è da scrivere",
+  "Chiudi il giorno apri un sogno",
+  "Buonanotte Lascia che il silenzio curi",
+  "Il cielo di notte è pieno di desideri",
+  "Buonanotte Anche il riposo è produttivo",
+  "Abbassa le luci rallenta i pensieri",
+  "Buonanotte Oggi hai fatto abbastanza",
+  "Il sonno è la migliore meditazione",
+  "Buonanotte Conta le gioie non le pecore",
+  "Che la notte sia dolce e gentile",
+  "Buonanotte I sogni sono gratis Fanne 2",
+  "Il giorno è finito Lascialo andare",
+  "Buonanotte Ricaricati per domani",
+  "Anche il sole deve tramontare",
+  "Buonanotte Sussurra i tuoi desideri",
+  "Stanotte riposa domani risorgi",
+  "Buonanotte Il mondo può aspettare",
+  "Dormi bene diventa forte sogna lontano",
+  "Buonanotte La luce delle stelle è gratis",
+  "Posa i tuoi pensieri",
+  "Buonanotte Ci vediamo allalba",
+  "La notte è una ninnananna Dormi ora"
+ ]
 }

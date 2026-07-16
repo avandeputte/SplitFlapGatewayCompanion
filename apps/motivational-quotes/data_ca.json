@@ -1,354 +1,70 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "La gran feina",
-        "neix destimar",
-        "el que fas"
-      ]
-    },
-    {
-      "lines": [
-        "Creu que pots",
-        "i ja ets a mig",
-        "camí"
-      ]
-    },
-    {
-      "lines": [
-        "No importa com",
-        "de lent",
-        "avancis"
-      ]
-    },
-    {
-      "lines": [
-        "mentre no",
-        "taturis",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "El millor dia",
-        "per plantar un",
-        "arbre?"
-      ]
-    },
-    {
-      "lines": [
-        "Fa 20 anys",
-        "o ara mateix",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Tot el que",
-        "imagines és",
-        "real"
-      ]
-    },
-    {
-      "lines": [
-        "Mantén la fam",
-        "mantén la",
-        "bogeria"
-      ]
-    },
-    {
-      "lines": [
-        "Al mig de la",
-        "dificultat hi",
-        "ha la"
-      ]
-    },
-    {
-      "lines": [
-        "oportunitat",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Esdevenim allò",
-        "que pensem",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "El futur és de",
-        "qui creu en",
-        "la"
-      ]
-    },
-    {
-      "lines": [
-        "bellesa dels",
-        "seus somnis",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Fes el que",
-        "puguis amb el",
-        "que tens"
-      ]
-    },
-    {
-      "lines": [
-        "allà on siguis",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Lèxit no és",
-        "final el fracàs",
-        "no és fatal"
-      ]
-    },
-    {
-      "lines": [
-        "el que compta",
-        "és el coratge",
-        "de continuar"
-      ]
-    },
-    {
-      "lines": [
-        "Somia gran",
-        "comença petit",
-        "actua ara"
-      ]
-    },
-    {
-      "lines": [
-        "Cau set cops",
-        "aixecat vuit",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Fet és millor",
-        "que perfecte",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Fes de cada dia",
-        "la teva obra",
-        "mestra"
-      ]
-    },
-    {
-      "lines": [
-        "Passos petits",
-        "cada dia",
-        "sumen molt"
-      ]
-    },
-    {
-      "lines": [
-        "Si ho pots",
-        "somiar ho pots",
-        "fer"
-      ]
-    },
-    {
-      "lines": [
-        "Com més",
-        "treballo més",
-        "sort tinc"
-      ]
-    },
-    {
-      "lines": [
-        "No comptis els",
-        "dies fes que",
-        "comptin"
-      ]
-    },
-    {
-      "lines": [
-        "La qualitat no",
-        "és un acte és",
-        "un hàbit"
-      ]
-    },
-    {
-      "lines": [
-        "Feina ben",
-        "començada és",
-        "mig feta"
-      ]
-    },
-    {
-      "lines": [
-        "Sense pressió",
-        "no hi ha",
-        "diamants"
-      ]
-    },
-    {
-      "lines": [
-        "De mica en mica",
-        "somple la pica",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "El coratge és",
-        "gràcia sota",
-        "pressió"
-      ]
-    },
-    {
-      "lines": [
-        "Una meta sense",
-        "pla és només",
-        "un desig"
-      ]
-    },
-    {
-      "lines": [
-        "La motivació",
-        "arrenca lhàbit",
-        "et manté"
-      ]
-    },
-    {
-      "lines": [
-        "La millor",
-        "sortida és a",
-        "través"
-      ]
-    },
-    {
-      "lines": [
-        "Falles el 100%",
-        "dels tirs que",
-        "no intentes"
-      ]
-    },
-    {
-      "lines": [
-        "Energia i",
-        "constància ho",
-        "vencen tot"
-      ]
-    },
-    {
-      "lines": [
-        "Res de gran",
-        "neix de la",
-        "comoditat"
-      ]
-    },
-    {
-      "lines": [
-        "Progrés no",
-        "perfecció",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Sembla",
-        "impossible fins",
-        "que es fa"
-      ]
-    },
-    {
-      "lines": [
-        "La sort ajuda",
-        "les ments",
-        "preparades"
-      ]
-    },
-    {
-      "lines": [
-        "Fes ho amb",
-        "passió o no ho",
-        "facis"
-      ]
-    },
-    {
-      "lines": [
-        "Trobaré un",
-        "camí o en",
-        "faré un"
-      ]
-    },
-    {
-      "lines": [
-        "El que fas avui",
-        "millora el",
-        "teu demà"
-      ]
-    },
-    {
-      "lines": [
-        "Avui és un bon",
-        "dia per",
-        "començar"
-      ]
-    },
-    {
-      "lines": [
-        "Les estrelles",
-        "només brillen",
-        "a les fosques"
-      ]
-    },
-    {
-      "lines": [
-        "El secret",
-        "davançar és",
-        "senzillament"
-      ]
-    },
-    {
-      "lines": [
-        "començar",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Sigues tan bo",
-        "que no et",
-        "puguin ignorar"
-      ]
-    },
-    {
-      "lines": [
-        "La feina venç",
-        "el talent",
-        "mandrós"
-      ]
-    },
-    {
-      "lines": [
-        "Tot expert va",
-        "ser un dia",
-        "principiant"
-      ]
-    },
-    {
-      "lines": [
-        "El viatge és",
-        "la recompensa",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "La gran feina neix destimar el que fas",
+  "Creu que pots i ja ets a mig camí",
+  [
+   "No importa com de lent avancis",
+   "mentre no taturis"
+  ],
+  [
+   "El millor dia per plantar un arbre?",
+   "Fa 20 anys o ara mateix"
+  ],
+  "Tot el que imagines és real",
+  "Mantén la fam mantén la bogeria",
+  [
+   "Al mig de la dificultat hi ha la",
+   "oportunitat"
+  ],
+  "Esdevenim allò que pensem",
+  [
+   "El futur és de qui creu en la",
+   "bellesa dels seus somnis"
+  ],
+  [
+   "Fes el que puguis amb el que tens",
+   "allà on siguis"
+  ],
+  [
+   "Lèxit no és final el fracàs no és fatal",
+   "el que compta és el coratge de continuar"
+  ],
+  "Somia gran comença petit actua ara",
+  "Cau set cops aixecat vuit",
+  "Fet és millor que perfecte",
+  "Fes de cada dia la teva obra mestra",
+  "Passos petits cada dia sumen molt",
+  "Si ho pots somiar ho pots fer",
+  "Com més treballo més sort tinc",
+  "No comptis els dies fes que comptin",
+  "La qualitat no és un acte és un hàbit",
+  "Feina ben començada és mig feta",
+  "Sense pressió no hi ha diamants",
+  "De mica en mica somple la pica",
+  "El coratge és gràcia sota pressió",
+  "Una meta sense pla és només un desig",
+  "La motivació arrenca lhàbit et manté",
+  "La millor sortida és a través",
+  "Falles el 100% dels tirs que no intentes",
+  "Energia i constància ho vencen tot",
+  "Res de gran neix de la comoditat",
+  "Progrés no perfecció",
+  "Sembla impossible fins que es fa",
+  "La sort ajuda les ments preparades",
+  "Fes ho amb passió o no ho facis",
+  "Trobaré un camí o en faré un",
+  [
+   "El que fas avui millora el teu demà",
+   "Avui és un bon dia per començar"
+  ],
+  "Les estrelles només brillen a les fosques",
+  [
+   "El secret davançar és senzillament",
+   "començar"
+  ],
+  "Sigues tan bo que no et puguin ignorar",
+  "La feina venç el talent mandrós",
+  "Tot expert va ser un dia principiant",
+  "El viatge és la recompensa"
+ ]
 }

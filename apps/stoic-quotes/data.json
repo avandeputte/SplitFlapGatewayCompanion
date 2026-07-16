@@ -1,24 +1,24 @@
 {
-  "pages": [
-    {"lines": ["The obstacle", "is the way", "- Marcus"]},
-    {"lines": ["We suffer more", "in imagination", "- Seneca"]},
-    {"lines": ["Waste no time", "on arguments", "- Marcus"]},
-    {"lines": ["You have power", "over your mind", "- Marcus"]},
-    {"lines": ["Begin at once", "to live", "- Seneca"]},
-    {"lines": ["Dwell on the", "beauty of life", "- Marcus"]},
-    {"lines": ["Nothing great", "comes suddenly", "- Epictetus"]},
-    {"lines": ["Make the mind", "tougher by use", "- Seneca"]},
-    {"lines": ["Endure and", "renounce", "- Epictetus"]},
-    {"lines": ["Be tolerant", "with others", "- Marcus"]},
-    {"lines": ["Love the hand", "fate deals you", "- Marcus"]},
-    {"lines": ["Life is long", "if you know how", "- Seneca"]},
-    {"lines": ["Caretake this", "moment", "- Epictetus"]},
-    {"lines": ["True happiness", "is a virtue", "- Seneca"]},
-    {"lines": ["Master yourself", "then others", "- Epictetus"]},
-    {"lines": ["Choose not to", "be harmed", "- Marcus"]},
-    {"lines": ["What we do now", "echoes forever", "- Marcus"]},
-    {"lines": ["While we wait", "life passes", "- Seneca"]},
-    {"lines": ["Think of what", "you have", "- Marcus"]},
-    {"lines": ["Every new day", "is a chance", "- Seneca"]}
-  ]
+ "groups": [
+  "The obstacle is the way\n- Marcus",
+  "We suffer more in imagination\n- Seneca",
+  "Waste no time on arguments\n- Marcus",
+  "You have power over your mind\n- Marcus",
+  "Begin at once to live\n- Seneca",
+  "Dwell on the beauty of life\n- Marcus",
+  "Nothing great comes suddenly\n- Epictetus",
+  "Make the mind tougher by use\n- Seneca",
+  "Endure and renounce\n- Epictetus",
+  "Be tolerant with others\n- Marcus",
+  "Love the hand fate deals you\n- Marcus",
+  "Life is long if you know how\n- Seneca",
+  "Caretake this moment\n- Epictetus",
+  "True happiness is a virtue\n- Seneca",
+  "Master yourself then others\n- Epictetus",
+  "Choose not to be harmed\n- Marcus",
+  "What we do now echoes forever\n- Marcus",
+  "While we wait life passes\n- Seneca",
+  "Think of what you have\n- Marcus",
+  "Every new day is a chance\n- Seneca"
+ ]
 }

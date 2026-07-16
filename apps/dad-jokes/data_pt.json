@@ -1,354 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "O que o pato",
-        "disse à pata?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vem quá",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Por que o livro",
-        "de matemática",
-        "está triste?"
-      ]
-    },
-    {
-      "lines": [
-        "Tem muitos",
-        "problemas",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qual é o rei",
-        "dos queijos?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "O rei-queijão",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qual é o",
-        "animal mais",
-        "antigo?"
-      ]
-    },
-    {
-      "lines": [
-        "A zebra ainda",
-        "é a preto e",
-        "branco"
-      ]
-    },
-    {
-      "lines": [
-        "O que faz um",
-        "peixe o dia",
-        "todo?"
-      ]
-    },
-    {
-      "lines": [
-        "Nada",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "A cidade",
-        "preferida das",
-        "aranhas?"
-      ]
-    },
-    {
-      "lines": [
-        "Moscovo",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "O cúmulo do",
-        "eletricista?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Ficar às",
-        "escuras",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "O cúmulo do",
-        "jardineiro?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Deixarem-no",
-        "plantado",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "O que disse uma",
-        "parede à outra?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Encontramo-nos",
-        "na esquina",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qual é o",
-        "contrário de",
-        "volátil?"
-      ]
-    },
-    {
-      "lines": [
-        "Vem cá",
-        "sobrinho",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "O que o zero",
-        "disse ao oito?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Belo cinto",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "O que o tomate",
-        "foi fazer ao",
-        "banco?"
-      ]
-    },
-    {
-      "lines": [
-        "Tirar o",
-        "extrato",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Por que o filho",
-        "do jacaré",
-        "saiu da escola?"
-      ]
-    },
-    {
-      "lines": [
-        "Porque réptil",
-        "de ano",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quem salta mais",
-        "alto que uma",
-        "casa?"
-      ]
-    },
-    {
-      "lines": [
-        "Todos as casas",
-        "não saltam",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Por que os",
-        "esqueletos não",
-        "brigam?"
-      ]
-    },
-    {
-      "lines": [
-        "Não têm",
-        "estômago para",
-        "isso"
-      ]
-    },
-    {
-      "lines": [
-        "O que faz uma",
-        "abelha no",
-        "ginásio?"
-      ]
-    },
-    {
-      "lines": [
-        "Zumba",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Por que os",
-        "fantasmas",
-        "mentem mal?"
-      ]
-    },
-    {
-      "lines": [
-        "Vê-se mesmo",
-        "através deles",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Como se chama",
-        "um urso sem",
-        "dentes?"
-      ]
-    },
-    {
-      "lines": [
-        "Ursinho de",
-        "goma",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Como o pinguim",
-        "constrói a",
-        "casa?"
-      ]
-    },
-    {
-      "lines": [
-        "Iglu a",
-        "iglu",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Onde o vampiro",
-        "guarda o",
-        "dinheiro?"
-      ]
-    },
-    {
-      "lines": [
-        "No banco de",
-        "sangue",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Por que o mar",
-        "não seca?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Porque não",
-        "tem toalha",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "O que uma",
-        "impressora diz",
-        "à outra?"
-      ]
-    },
-    {
-      "lines": [
-        "Essa folha é",
-        "tua ou é",
-        "impressão minha"
-      ]
-    },
-    {
-      "lines": [
-        "Por que a",
-        "planta não foi",
-        "atendida?"
-      ]
-    },
-    {
-      "lines": [
-        "O médico era",
-        "de plantão",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Por que a",
-        "galinha",
-        "atravessou?"
-      ]
-    },
-    {
-      "lines": [
-        "Para chegar ao",
-        "outro lado",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "O que é um",
-        "pontinho verde",
-        "no canto?"
-      ]
-    },
-    {
-      "lines": [
-        "Uma ervilha de",
-        "castigo",
-        ""
-      ]
-    }
+ "groups": [
+  [
+   "O que o pato disse à pata?",
+   "Vem quá"
+  ],
+  [
+   "Por que o livro de matemática está triste?",
+   "Tem muitos problemas"
+  ],
+  [
+   "Qual é o rei dos queijos?",
+   "O rei-queijão"
+  ],
+  [
+   "Qual é o animal mais antigo?",
+   "A zebra ainda é a preto e branco"
+  ],
+  [
+   "O que faz um peixe o dia todo?",
+   "Nada"
+  ],
+  [
+   "A cidade preferida das aranhas?",
+   "Moscovo"
+  ],
+  [
+   "O cúmulo do eletricista?",
+   "Ficar às escuras"
+  ],
+  [
+   "O cúmulo do jardineiro?",
+   "Deixarem-no plantado"
+  ],
+  [
+   "O que disse uma parede à outra?",
+   "Encontramo-nos na esquina"
+  ],
+  [
+   "Qual é o contrário de volátil?",
+   "Vem cá sobrinho"
+  ],
+  [
+   "O que o zero disse ao oito?",
+   "Belo cinto"
+  ],
+  [
+   "O que o tomate foi fazer ao banco?",
+   "Tirar o extrato"
+  ],
+  [
+   "Por que o filho do jacaré saiu da escola?",
+   "Porque réptil de ano"
+  ],
+  [
+   "Quem salta mais alto que uma casa?",
+   "Todos as casas não saltam"
+  ],
+  [
+   "Por que os esqueletos não brigam?",
+   "Não têm estômago para isso"
+  ],
+  [
+   "O que faz uma abelha no ginásio?",
+   "Zumba"
+  ],
+  [
+   "Por que os fantasmas mentem mal?",
+   "Vê-se mesmo através deles"
+  ],
+  [
+   "Como se chama um urso sem dentes?",
+   "Ursinho de goma"
+  ],
+  [
+   "Como o pinguim constrói a casa?",
+   "Iglu a iglu"
+  ],
+  [
+   "Onde o vampiro guarda o dinheiro?",
+   "No banco de sangue"
+  ],
+  [
+   "Por que o mar não seca?",
+   "Porque não tem toalha"
+  ],
+  [
+   "O que uma impressora diz à outra?",
+   "Essa folha é tua ou é impressão minha"
+  ],
+  [
+   "Por que a planta não foi atendida?",
+   "O médico era de plantão"
+  ],
+  [
+   "Por que a galinha atravessou?",
+   "Para chegar ao outro lado"
+  ],
+  [
+   "O que é um pontinho verde no canto?",
+   "Uma ervilha de castigo"
   ]
+ ]
 }

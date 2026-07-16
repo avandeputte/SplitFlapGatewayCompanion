@@ -1,354 +1,70 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "El gran trabajo",
-        "nace de amar",
-        "lo que haces"
-      ]
-    },
-    {
-      "lines": [
-        "Cree que puedes",
-        "y ya estás a",
-        "medio camino"
-      ]
-    },
-    {
-      "lines": [
-        "No importa lo",
-        "lento que",
-        "vayas"
-      ]
-    },
-    {
-      "lines": [
-        "mientras no",
-        "te detengas",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "El mejor día",
-        "para plantar",
-        "un árbol?"
-      ]
-    },
-    {
-      "lines": [
-        "Hace 20 años",
-        "o ahora mismo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Todo lo que",
-        "imaginas es",
-        "real"
-      ]
-    },
-    {
-      "lines": [
-        "Sigue",
-        "hambriento",
-        "sigue loco"
-      ]
-    },
-    {
-      "lines": [
-        "En medio de la",
-        "dificultad",
-        "vive la"
-      ]
-    },
-    {
-      "lines": [
-        "oportunidad",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Nos convertimos",
-        "en lo que",
-        "pensamos"
-      ]
-    },
-    {
-      "lines": [
-        "El futuro es de",
-        "quienes creen",
-        "en la"
-      ]
-    },
-    {
-      "lines": [
-        "belleza de sus",
-        "sueños",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Haz lo que",
-        "puedas con lo",
-        "que tienes"
-      ]
-    },
-    {
-      "lines": [
-        "donde estés",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Éxito no es",
-        "final fracaso",
-        "no es fatal"
-      ]
-    },
-    {
-      "lines": [
-        "lo que cuenta",
-        "es el valor de",
-        "continuar"
-      ]
-    },
-    {
-      "lines": [
-        "Sueña grande",
-        "empieza pequeño",
-        "actúa ya"
-      ]
-    },
-    {
-      "lines": [
-        "Cae siete veces",
-        "levántate ocho",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hecho es mejor",
-        "que perfecto",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Haz de cada día",
-        "tu obra",
-        "maestra"
-      ]
-    },
-    {
-      "lines": [
-        "Pasos pequeños",
-        "cada día",
-        "suman mucho"
-      ]
-    },
-    {
-      "lines": [
-        "Si puedes",
-        "soñarlo puedes",
-        "hacerlo"
-      ]
-    },
-    {
-      "lines": [
-        "Cuanto más",
-        "trabajo más",
-        "suerte tengo"
-      ]
-    },
-    {
-      "lines": [
-        "No cuentes los",
-        "días haz que",
-        "cuenten"
-      ]
-    },
-    {
-      "lines": [
-        "La calidad no",
-        "es un acto es",
-        "un hábito"
-      ]
-    },
-    {
-      "lines": [
-        "Lo bien",
-        "empezado está",
-        "medio hecho"
-      ]
-    },
-    {
-      "lines": [
-        "Sin presión",
-        "no hay",
-        "diamantes"
-      ]
-    },
-    {
-      "lines": [
-        "Poco a poco",
-        "se llega",
-        "lejos"
-      ]
-    },
-    {
-      "lines": [
-        "El valor es",
-        "gracia bajo",
-        "presión"
-      ]
-    },
-    {
-      "lines": [
-        "Una meta sin",
-        "plan es solo",
-        "un deseo"
-      ]
-    },
-    {
-      "lines": [
-        "La motivación",
-        "arranca el",
-        "hábito sigue"
-      ]
-    },
-    {
-      "lines": [
-        "La mejor",
-        "salida es",
-        "a través"
-      ]
-    },
-    {
-      "lines": [
-        "Fallas el 100%",
-        "de tiros que",
-        "no intentas"
-      ]
-    },
-    {
-      "lines": [
-        "Energía y",
-        "constancia lo",
-        "conquistan todo"
-      ]
-    },
-    {
-      "lines": [
-        "Nada grande",
-        "nace de la",
-        "comodidad"
-      ]
-    },
-    {
-      "lines": [
-        "Busca progreso",
-        "no perfección",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Parece",
-        "imposible hasta",
-        "que se hace"
-      ]
-    },
-    {
-      "lines": [
-        "La suerte ayuda",
-        "a la mente",
-        "preparada"
-      ]
-    },
-    {
-      "lines": [
-        "Hazlo con",
-        "pasión o no",
-        "lo hagas"
-      ]
-    },
-    {
-      "lines": [
-        "Encontraré un",
-        "camino o lo",
-        "crearé"
-      ]
-    },
-    {
-      "lines": [
-        "Lo que hagas",
-        "hoy mejora",
-        "todos"
-      ]
-    },
-    {
-      "lines": [
-        "tus mañanas",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Las estrellas",
-        "brillan en la",
-        "oscuridad"
-      ]
-    },
-    {
-      "lines": [
-        "El secreto de",
-        "avanzar es",
-        "simplemente"
-      ]
-    },
-    {
-      "lines": [
-        "empezar",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Sé tan bueno",
-        "que no puedan",
-        "ignorarte"
-      ]
-    },
-    {
-      "lines": [
-        "El trabajo",
-        "vence al",
-        "talento vago"
-      ]
-    },
-    {
-      "lines": [
-        "Todo experto",
-        "fue alguna vez",
-        "principiante"
-      ]
-    },
-    {
-      "lines": [
-        "El viaje es",
-        "la recompensa",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "El gran trabajo nace de amar lo que haces",
+  "Cree que puedes y ya estás a medio camino",
+  [
+   "No importa lo lento que vayas",
+   "mientras no te detengas"
+  ],
+  [
+   "El mejor día para plantar un árbol?",
+   "Hace 20 años o ahora mismo"
+  ],
+  "Todo lo que imaginas es real",
+  "Sigue hambriento sigue loco",
+  [
+   "En medio de la dificultad vive la",
+   "oportunidad"
+  ],
+  "Nos convertimos en lo que pensamos",
+  [
+   "El futuro es de quienes creen en la",
+   "belleza de sus sueños"
+  ],
+  [
+   "Haz lo que puedas con lo que tienes",
+   "donde estés"
+  ],
+  [
+   "Éxito no es final fracaso no es fatal",
+   "lo que cuenta es el valor de continuar"
+  ],
+  "Sueña grande empieza pequeño actúa ya",
+  "Cae siete veces levántate ocho",
+  "Hecho es mejor que perfecto",
+  "Haz de cada día tu obra maestra",
+  "Pasos pequeños cada día suman mucho",
+  "Si puedes soñarlo puedes hacerlo",
+  "Cuanto más trabajo más suerte tengo",
+  "No cuentes los días haz que cuenten",
+  "La calidad no es un acto es un hábito",
+  "Lo bien empezado está medio hecho",
+  "Sin presión no hay diamantes",
+  "Poco a poco se llega lejos",
+  "El valor es gracia bajo presión",
+  "Una meta sin plan es solo un deseo",
+  "La motivación arranca el hábito sigue",
+  "La mejor salida es a través",
+  "Fallas el 100% de tiros que no intentas",
+  "Energía y constancia lo conquistan todo",
+  "Nada grande nace de la comodidad",
+  "Busca progreso no perfección",
+  "Parece imposible hasta que se hace",
+  "La suerte ayuda a la mente preparada",
+  "Hazlo con pasión o no lo hagas",
+  "Encontraré un camino o lo crearé",
+  [
+   "Lo que hagas hoy mejora todos",
+   "tus mañanas"
+  ],
+  "Las estrellas brillan en la oscuridad",
+  [
+   "El secreto de avanzar es simplemente",
+   "empezar"
+  ],
+  "Sé tan bueno que no puedan ignorarte",
+  "El trabajo vence al talento vago",
+  "Todo experto fue alguna vez principiante",
+  "El viaje es la recompensa"
+ ]
 }

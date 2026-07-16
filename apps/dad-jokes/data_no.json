@@ -1,354 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Hva kaller man",
-        "en snømann i",
-        "sola?"
-      ]
-    },
-    {
-      "lines": [
-        "En vanndam",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva sa den ene",
-        "veggen til den",
-        "andre?"
-      ]
-    },
-    {
-      "lines": [
-        "Vi møtes på",
-        "hjørnet",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor ble",
-        "klokka",
-        "arrestert?"
-      ]
-    },
-    {
-      "lines": [
-        "Fordi den",
-        "slo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva kaller man",
-        "en fisk uten",
-        "øyne?"
-      ]
-    },
-    {
-      "lines": [
-        "Fsk",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor har",
-        "elefanter ikke",
-        "PC?"
-      ]
-    },
-    {
-      "lines": [
-        "De er redde",
-        "for musa",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva sa nullet",
-        "til åttetallet?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Kult",
-        "belte",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva kaller man",
-        "ei ku uten",
-        "bein?"
-      ]
-    },
-    {
-      "lines": [
-        "Kjøttdeig",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor svømmer",
-        "fisk i",
-        "saltvann?"
-      ]
-    },
-    {
-      "lines": [
-        "Pepper får dem",
-        "til å nyse",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Det beste med",
-        "Sveits?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vet ikke men",
-        "flagget er et",
-        "stort pluss"
-      ]
-    },
-    {
-      "lines": [
-        "Hvordan holder",
-        "man fest i",
-        "verdensrommet?"
-      ]
-    },
-    {
-      "lines": [
-        "Man planet",
-        "legger den",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva kaller man",
-        "en bjørn uten",
-        "tenner?"
-      ]
-    },
-    {
-      "lines": [
-        "En gummi",
-        "bjørn",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor kan man",
-        "ikke stole på",
-        "atomer?"
-      ]
-    },
-    {
-      "lines": [
-        "De utgjør",
-        "alt",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Kelner hva gjør",
-        "flua i suppen",
-        "min?"
-      ]
-    },
-    {
-      "lines": [
-        "Den svømmer",
-        "tror jeg",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva er brunt og",
-        "løper gjennom",
-        "skogen?"
-      ]
-    },
-    {
-      "lines": [
-        "En kanelsnurr",
-        "på rømmen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva heter en",
-        "spanjol uten",
-        "bil?"
-      ]
-    },
-    {
-      "lines": [
-        "Carlos",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor er",
-        "matteboka",
-        "trist?"
-      ]
-    },
-    {
-      "lines": [
-        "Den har for",
-        "mange",
-        "problemer"
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor lyver",
-        "spøkelser",
-        "dårlig?"
-      ]
-    },
-    {
-      "lines": [
-        "Man ser rett",
-        "gjennom dem",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvordan bygger",
-        "en pingvin",
-        "huset sitt?"
-      ]
-    },
-    {
-      "lines": [
-        "Iglo for",
-        "iglo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor kan",
-        "ikke sykkelen",
-        "stå alene?"
-      ]
-    },
-    {
-      "lines": [
-        "Den er",
-        "sliten i",
-        "dekkene"
-      ]
-    },
-    {
-      "lines": [
-        "Hvor gjemmer",
-        "vampyrer",
-        "pengene sine?"
-      ]
-    },
-    {
-      "lines": [
-        "I blod",
-        "banken",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva kaller man",
-        "en bumerang som",
-        "blir borte?"
-      ]
-    },
-    {
-      "lines": [
-        "En pinne",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva er hvitt",
-        "og ødelegger",
-        "frokosten?"
-      ]
-    },
-    {
-      "lines": [
-        "Et snøskred",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hvorfor slåss",
-        "aldri",
-        "skjeletter?"
-      ]
-    },
-    {
-      "lines": [
-        "De har ikke",
-        "mage til det",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva sa havet",
-        "til stranden?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Ingenting det",
-        "bare vinket",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hva er oransje",
-        "og høres ut som",
-        "en papegøye?"
-      ]
-    },
-    {
-      "lines": [
-        "En gulrot",
-        "",
-        ""
-      ]
-    }
+ "groups": [
+  [
+   "Hva kaller man en snømann i sola?",
+   "En vanndam"
+  ],
+  [
+   "Hva sa den ene veggen til den andre?",
+   "Vi møtes på hjørnet"
+  ],
+  [
+   "Hvorfor ble klokka arrestert?",
+   "Fordi den slo"
+  ],
+  [
+   "Hva kaller man en fisk uten øyne?",
+   "Fsk"
+  ],
+  [
+   "Hvorfor har elefanter ikke PC?",
+   "De er redde for musa"
+  ],
+  [
+   "Hva sa nullet til åttetallet?",
+   "Kult belte"
+  ],
+  [
+   "Hva kaller man ei ku uten bein?",
+   "Kjøttdeig"
+  ],
+  [
+   "Hvorfor svømmer fisk i saltvann?",
+   "Pepper får dem til å nyse"
+  ],
+  [
+   "Det beste med Sveits?",
+   "Vet ikke men flagget er et stort pluss"
+  ],
+  [
+   "Hvordan holder man fest i verdensrommet?",
+   "Man planet legger den"
+  ],
+  [
+   "Hva kaller man en bjørn uten tenner?",
+   "En gummi bjørn"
+  ],
+  [
+   "Hvorfor kan man ikke stole på atomer?",
+   "De utgjør alt"
+  ],
+  [
+   "Kelner hva gjør flua i suppen min?",
+   "Den svømmer tror jeg"
+  ],
+  [
+   "Hva er brunt og løper gjennom skogen?",
+   "En kanelsnurr på rømmen"
+  ],
+  [
+   "Hva heter en spanjol uten bil?",
+   "Carlos"
+  ],
+  [
+   "Hvorfor er matteboka trist?",
+   "Den har for mange problemer"
+  ],
+  [
+   "Hvorfor lyver spøkelser dårlig?",
+   "Man ser rett gjennom dem"
+  ],
+  [
+   "Hvordan bygger en pingvin huset sitt?",
+   "Iglo for iglo"
+  ],
+  [
+   "Hvorfor kan ikke sykkelen stå alene?",
+   "Den er sliten i dekkene"
+  ],
+  [
+   "Hvor gjemmer vampyrer pengene sine?",
+   "I blod banken"
+  ],
+  [
+   "Hva kaller man en bumerang som blir borte?",
+   "En pinne"
+  ],
+  [
+   "Hva er hvitt og ødelegger frokosten?",
+   "Et snøskred"
+  ],
+  [
+   "Hvorfor slåss aldri skjeletter?",
+   "De har ikke mage til det"
+  ],
+  [
+   "Hva sa havet til stranden?",
+   "Ingenting det bare vinket"
+  ],
+  [
+   "Hva er oransje og høres ut som en papegøye?",
+   "En gulrot"
   ]
+ ]
 }

@@ -1,144 +1,24 @@
 {
- "pages": [
-  {
-   "lines": [
-    "Het obstakel",
-    "is de weg",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "We lijden meer",
-    "in de fantasie",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Verspil geen",
-    "tijd aan ruzie",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Je hebt macht",
-    "over je geest",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Begin meteen",
-    "te leven",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Zie het mooie",
-    "van het leven",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Niets groots",
-    "komt plotseling",
-    "- Epictetus"
-   ]
-  },
-  {
-   "lines": [
-    "Train de geest",
-    "door gebruik",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Verdraag en",
-    "verzaak",
-    "- Epictetus"
-   ]
-  },
-  {
-   "lines": [
-    "Wees mild voor",
-    "anderen",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Heb je lot lief",
-    "",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Leven is lang",
-    "als je 't benut",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Koester dit",
-    "moment",
-    "- Epictetus"
-   ]
-  },
-  {
-   "lines": [
-    "Echt geluk",
-    "is een deugd",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Beheers jezelf",
-    "dan anderen",
-    "- Epictetus"
-   ]
-  },
-  {
-   "lines": [
-    "Kies: word niet",
-    "gekwetst",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Wat we nu doen",
-    "echoot eeuwig",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Wie wacht, ziet",
-    "het leven gaan",
-    "- Seneca"
-   ]
-  },
-  {
-   "lines": [
-    "Denk aan wat",
-    "je hebt",
-    "- Marcus"
-   ]
-  },
-  {
-   "lines": [
-    "Elke nieuwe dag",
-    "is een kans",
-    "- Seneca"
-   ]
-  }
+ "groups": [
+  "Het obstakel is de weg\n- Marcus",
+  "We lijden meer in de fantasie\n- Seneca",
+  "Verspil geen tijd aan ruzie\n- Marcus",
+  "Je hebt macht over je geest\n- Marcus",
+  "Begin meteen te leven\n- Seneca",
+  "Zie het mooie van het leven\n- Marcus",
+  "Niets groots komt plotseling\n- Epictetus",
+  "Train de geest door gebruik\n- Seneca",
+  "Verdraag en verzaak\n- Epictetus",
+  "Wees mild voor anderen\n- Marcus",
+  "Heb je lot lief\n- Marcus",
+  "Leven is lang als je 't benut\n- Seneca",
+  "Koester dit moment\n- Epictetus",
+  "Echt geluk is een deugd\n- Seneca",
+  "Beheers jezelf dan anderen\n- Epictetus",
+  "Kies: word niet gekwetst\n- Marcus",
+  "Wat we nu doen echoot eeuwig\n- Marcus",
+  "Wie wacht, ziet het leven gaan\n- Seneca",
+  "Denk aan wat je hebt\n- Marcus",
+  "Elke nieuwe dag is een kans\n- Seneca"
  ]
 }

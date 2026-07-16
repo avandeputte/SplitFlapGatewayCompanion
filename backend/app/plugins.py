@@ -372,6 +372,16 @@ class PluginRuntime:
             log.error("plugin %s: %s error: %s", app_id, path.name, e)
             return None
 
+        # New format: {"groups": [...]} where a group is a STRING (one page) or a
+        # LIST of strings (a multi-page item — a joke's setup + punchline). Each
+        # string is the page's full text and the ENGINE wraps it to the wall, so
+        # the data no longer hard-codes line breaks for a 15-column sign. A ``\n``
+        # in a string forces a break (an attribution on its own line); everything
+        # else word-wraps. Grouping is structural, so a shuffle can never split a
+        # multi-page item.
+        if "groups" in data:
+            return self._read_groups(app_id, data["groups"])
+
         rendered = []      # (page_string, explicit_group_or_None)
         for page in data.get("pages", []):
             if isinstance(page, str):
@@ -394,6 +404,55 @@ class PluginRuntime:
         size = max(1, int(self._registry.get(app_id, {}).get("group_size", 1) or 1))
         texts = [text for text, _ in rendered]
         return [texts[i:i + size] for i in range(0, len(texts), size)]
+
+    @staticmethod
+    def _wrap_text(text: str, rows: int, cols: int) -> list:
+        """A page's text, wrapped to the wall: word-wrapped to ``cols``, then
+        paginated into pages of at most ``rows`` lines (a long segment spills to
+        more pages, kept in its group). ``\\n`` is a forced break."""
+        lines: list[str] = []
+        for part in str(text).split("\n"):
+            words = part.split()
+            if not words:
+                lines.append("")
+                continue
+            cur = ""
+            for w in words:
+                if len(w) > cols:                 # a single word longer than the wall
+                    if cur:
+                        lines.append(cur)
+                        cur = ""
+                    lines.append(w[:cols])
+                    continue
+                if cur and len(cur) + 1 + len(w) > cols:
+                    lines.append(cur)
+                    cur = w
+                else:
+                    cur = f"{cur} {w}".strip()
+            if cur:
+                lines.append(cur)
+        if not lines:
+            lines = [""]
+        return [lines[i:i + rows] for i in range(0, len(lines), rows)]
+
+    def _read_groups(self, app_id: str, groups: list) -> list:
+        """The ``groups`` channel format → items (page-groups). A group is one
+        string (single page) or a list of strings (one page each). Each string is
+        engine-wrapped; all pages of a group stay together and in order."""
+        rows, cols = self.get_rows(), self.get_cols()
+        align = self.vertical_align(app_id)
+        items = []
+        for group in groups:
+            segments = [group] if isinstance(group, str) else group
+            pages = []
+            for seg in segments:
+                if not isinstance(seg, str):
+                    continue
+                for page_lines in self._wrap_text(seg, rows, cols):
+                    pages.append(self.format_lines(*page_lines, align=align))
+            if pages:
+                items.append(pages)
+        return items
 
     def _load_channel(self, app_id: str, app_dir: Path) -> None:
         """Load a channel app's pages. ``data.json`` is the default set; an app may
@@ -1399,8 +1458,9 @@ class PluginRuntime:
                 data = json.loads(f.read_text("utf-8"))
             except Exception as e:
                 raise ValueError(f"invalid {f.name}: {e}")
-            if not isinstance(data, dict) or not data.get("pages"):
-                raise ValueError(f"channel app's {f.name} must have a non-empty 'pages' list")
+            if not isinstance(data, dict) or not (data.get("pages") or data.get("groups")):
+                raise ValueError(
+                    f"channel app's {f.name} must have a non-empty 'pages' or 'groups' list")
 
     def _scope_manifest_settings(self, manifest: dict, src: str) -> bool:
         """Ensure every non-global setting the app reads is declared as an app-level

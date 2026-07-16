@@ -41,42 +41,60 @@ CHANNELS = [(d, m) for d, m in _manifests() if m.get("type") == "channel"]
 FUNCTIONAL = [(d, m) for d, m in _manifests() if m.get("type") == "functional"]
 
 
+def _channel_texts(doc):
+    """Every piece of display text in a channel file, whichever format it's in:
+    the old ``pages``/``lines`` shape, or the new ``groups`` shape where each
+    group is a string (one page) or a list of page strings."""
+    out = []
+    if "groups" in doc:
+        for group in doc["groups"]:
+            out.extend([group] if isinstance(group, str) else
+                       [s for s in group if isinstance(s, str)])
+    else:
+        for page in doc.get("pages", []):
+            lines = page["lines"] if isinstance(page, dict) else [page]
+            out.extend(lines)
+    return out
+
+
 @pytest.mark.parametrize("app_dir,manifest", CHANNELS, ids=[d.name for d, _ in CHANNELS])
 def test_channel_min_cols_fits_its_data(app_dir, manifest):
-    min_cols = manifest.get("min_cols")
-    assert min_cols, f"{app_dir.name}: channel declares no min_cols"
+    """Old-format channels hard-split their lines, so a line wider than the wall
+    truncated — the minimum had to cover the widest line. New ``groups`` channels
+    hand the engine the whole text and it WRAPS to any width, so there's nothing
+    to bound; only the legacy shape is checked."""
+    assert manifest.get("min_cols"), f"{app_dir.name}: channel declares no min_cols"
     widest = 0
     for f in sorted(app_dir.glob("data*.json")):
         doc = json.loads(f.read_text("utf-8"))
-        for page in doc["pages"]:
-            for line in page["lines"]:
+        if "groups" in doc:
+            continue                       # engine-wrapped: no width to bound
+        for page in doc.get("pages", []):
+            for line in (page["lines"] if isinstance(page, dict) else [page]):
                 widest = max(widest, len(line))
-    assert min_cols >= widest, (
-        f"{app_dir.name}: data is {widest} wide but min_cols is {min_cols} — "
-        f"every page truncates on a {min_cols}-column wall")
+    assert manifest["min_cols"] >= widest, (
+        f"{app_dir.name}: data is {widest} wide but min_cols is {manifest['min_cols']}")
 
 
-def _channel_translation_lines():
+def _channel_translation_docs():
     for app_dir, _m in CHANNELS:
         for f in sorted(app_dir.glob("data_*.json")):
             lang = f.stem[len("data_"):].lower().split("-")[0]
             reel = REELS.get(lang)
             if not reel:
                 continue  # no published reel for this language — nothing to check
-            doc = json.loads(f.read_text("utf-8"))
-            yield app_dir.name, f.name, reel, doc
+            yield app_dir.name, f.name, reel, json.loads(f.read_text("utf-8"))
 
 
-CASES = list(_channel_translation_lines())
+CASES = list(_channel_translation_docs())
 
 
 @pytest.mark.parametrize("app,fname,reel,doc", CASES,
                          ids=[f"{a}:{f}" for a, f, _, _ in CASES])
 def test_channel_translation_is_on_the_reel(app, fname, reel, doc):
     holes = set()
-    for page in doc["pages"]:
-        for line in page["lines"]:
-            holes |= {ch for ch in line.upper() if ch not in reel}
+    for text in _channel_texts(doc):
+        holes |= {ch for ch in text.upper() if ch not in reel and ch != "\n"}
     assert not holes, (
         f"{app}/{fname}: {sorted(holes)} are not on that language's reel — "
         f"a physical module homes to BLANK for them")

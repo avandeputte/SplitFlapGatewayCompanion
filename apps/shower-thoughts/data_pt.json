@@ -1,179 +1,31 @@
 {
- "pages": [
-  {
-   "lines": [
-    "Nada pega fogo.",
-    "O fogo é que",
-    "pega nas coisas"
-   ]
-  },
-  {
-   "lines": [
-    "A palavra bed",
-    "tem a forma de",
-    "uma cama"
-   ]
-  },
-  {
-   "lines": [
-    "O teu eu do",
-    "futuro está a",
-    "ver-te"
-   ]
-  },
-  {
-   "lines": [
-    "Cada livro é",
-    "um remix do",
-    "alfabeto"
-   ]
-  },
-  {
-   "lines": [
-    "Nunca viste a",
-    "tua própria",
-    "cara ao vivo"
-   ]
-  },
-  {
-   "lines": [
-    "A lasanha é só",
-    "um bolo de",
-    "massa"
-   ]
-  },
-  {
-   "lines": [
-    "O mar é só",
-    "água com sabor",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Cada saída é",
-    "uma entrada",
-    "noutro sítio"
-   ]
-  },
-  {
-   "lines": [
-    "Nunca foste",
-    "tão velho como",
-    "agora"
-   ]
-  },
-  {
-   "lines": [
-    "Os dentes: os",
-    "únicos ossos",
-    "que lavas"
-   ]
-  },
-  {
-   "lines": [
-    "Os cisnes",
-    "podem ser gays",
-    "e isso é lindo"
-   ]
-  },
-  {
-   "lines": [
-    "A aula de",
-    "História cresce",
-    "todos os anos"
-   ]
-  },
-  {
-   "lines": [
-    "O teu cão não",
-    "sabe se corres",
-    "ou tropeças"
-   ]
-  },
-  {
-   "lines": [
-    "O café é só",
-    "água quente de",
-    "grãos"
-   ]
-  },
-  {
-   "lines": [
-    "O elevador é",
-    "uma sala",
-    "que anda"
-   ]
-  },
-  {
-   "lines": [
-    "À espera do",
-    "empregado não",
-    "serves de nada"
-   ]
-  },
-  {
-   "lines": [
-    "Todo o espelho",
-    "que compras é",
-    "em segunda mão"
-   ]
-  },
-  {
-   "lines": [
-    "A areia é uma",
-    "montanha",
-    "reformada"
-   ]
-  },
-  {
-   "lines": [
-    "Fazer anos faz",
-    "bem: quantos",
-    "mais, melhor."
-   ]
-  },
-  {
-   "lines": [
-    "Quem faz mais",
-    "anos vive mais",
-    "tempo"
-   ]
-  },
-  {
-   "lines": [
-    "Dormir é só",
-    "viajar no",
-    "tempo"
-   ]
-  },
-  {
-   "lines": [
-    "Um mapa é o",
-    "spoiler da",
-    "viagem"
-   ]
-  },
-  {
-   "lines": [
-    "A chuva é só",
-    "confetis do",
-    "céu"
-   ]
-  },
-  {
-   "lines": [
-    "As meias são",
-    "os sapatos dos",
-    "teus sapatos"
-   ]
-  },
-  {
-   "lines": [
-    "Aplaudir é",
-    "bater em ti",
-    "próprio"
-   ]
-  }
+ "groups": [
+  "Nada pega fogo. O fogo é que pega nas coisas",
+  "A palavra bed tem a forma de uma cama",
+  "O teu eu do futuro está a ver-te",
+  "Cada livro é um remix do alfabeto",
+  "Nunca viste a tua própria cara ao vivo",
+  "A lasanha é só um bolo de massa",
+  "O mar é só água com sabor",
+  "Cada saída é uma entrada noutro sítio",
+  "Nunca foste tão velho como agora",
+  "Os dentes: os únicos ossos que lavas",
+  "Os cisnes podem ser gays e isso é lindo",
+  "A aula de História cresce todos os anos",
+  "O teu cão não sabe se corres ou tropeças",
+  "O café é só água quente de grãos",
+  "O elevador é uma sala que anda",
+  "À espera do empregado não serves de nada",
+  "Todo o espelho que compras é em segunda mão",
+  "A areia é uma montanha reformada",
+  [
+   "Fazer anos faz bem: quantos mais, melhor.",
+   "Quem faz mais anos vive mais tempo"
+  ],
+  "Dormir é só viajar no tempo",
+  "Um mapa é o spoiler da viagem",
+  "A chuva é só confetis do céu",
+  "As meias são os sapatos dos teus sapatos",
+  "Aplaudir é bater em ti próprio"
  ]
 }

@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Good morning!",
-        "Today is full",
-        "of potential"
-      ]
-    },
-    {
-      "lines": [
-        "Rise and shine",
-        "Make today",
-        "amazing"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "You are enough",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Every morning",
-        "is a chance to",
-        "begin again"
-      ]
-    },
-    {
-      "lines": [
-        "Wake up with",
-        "determination",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Today is a",
-        "brand new day",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Be the reason",
-        "someone smiles"
-      ]
-    },
-    {
-      "lines": [
-        "Make it happen",
-        "Shock everyone",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Your only limit",
-        "is you"
-      ]
-    },
-    {
-      "lines": [
-        "Believe in",
-        "yourself today",
-        "and every day"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Chase your",
-        "dreams today"
-      ]
-    },
-    {
-      "lines": [
-        "Today is yours",
-        "Own it",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Stay positive",
-        "Work hard"
-      ]
-    },
-    {
-      "lines": [
-        "Rise up and",
-        "attack the day",
-        "with enthusiasm"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Great things",
-        "are coming"
-      ]
-    },
-    {
-      "lines": [
-        "You are",
-        "stronger than",
-        "you think"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Make yourself",
-        "proud today"
-      ]
-    },
-    {
-      "lines": [
-        "New day",
-        "new strength",
-        "new thoughts"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Spread kindness",
-        "everywhere"
-      ]
-    },
-    {
-      "lines": [
-        "The best time",
-        "for new",
-        "beginnings is"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "The sun rose",
-        "for you too"
-      ]
-    },
-    {
-      "lines": [
-        "Smile first",
-        "coffee second",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Today only",
-        "airs once"
-      ]
-    },
-    {
-      "lines": [
-        "One kind word",
-        "can change",
-        "someones day"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Start where",
-        "you are"
-      ]
-    },
-    {
-      "lines": [
-        "Eat the frog",
-        "first",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Do one brave",
-        "thing today"
-      ]
-    },
-    {
-      "lines": [
-        "Mornings are",
-        "fresh starts",
-        "on repeat"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Let yesterday",
-        "go"
-      ]
-    },
-    {
-      "lines": [
-        "Today is a",
-        "good day for",
-        "a good day"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Water your",
-        "dreams today"
-      ]
-    },
-    {
-      "lines": [
-        "Be the energy",
-        "you want to",
-        "attract"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Small steps",
-        "still count"
-      ]
-    },
-    {
-      "lines": [
-        "Wake up and",
-        "be awesome",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Your future is",
-        "watching"
-      ]
-    },
-    {
-      "lines": [
-        "Do it today",
-        "not tomorrow",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Breathe in",
-        "courage"
-      ]
-    },
-    {
-      "lines": [
-        "The early bird",
-        "gets the",
-        "coffee"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Make today",
-        "count"
-      ]
-    },
-    {
-      "lines": [
-        "A new day a",
-        "new chance a",
-        "new you"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Lead with",
-        "gratitude"
-      ]
-    },
-    {
-      "lines": [
-        "Shine like the",
-        "morning sun",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Today is a",
-        "gift"
-      ]
-    },
-    {
-      "lines": [
-        "Start the day",
-        "with a thank",
-        "you"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Plant seeds of",
-        "kindness"
-      ]
-    },
-    {
-      "lines": [
-        "You woke up",
-        "That is a win",
-        "already"
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Aim high",
-        "Start now"
-      ]
-    },
-    {
-      "lines": [
-        "Let the light",
-        "in",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Good morning",
-        "Write a great",
-        "story today"
-      ]
-    },
-    {
-      "lines": [
-        "Today the sun",
-        "shines for",
-        "you"
-      ]
-    }
-  ]
+ "groups": [
+  "Good morning! Today is full of potential",
+  "Rise and shine Make today amazing",
+  "Good morning You are enough",
+  "Every morning is a chance to begin again",
+  "Wake up with determination",
+  "Today is a brand new day",
+  "Good morning Be the reason someone smiles",
+  "Make it happen Shock everyone",
+  "Good morning Your only limit is you",
+  "Believe in yourself today and every day",
+  "Good morning Chase your dreams today",
+  "Today is yours Own it",
+  "Good morning Stay positive Work hard",
+  "Rise up and attack the day with enthusiasm",
+  "Good morning Great things are coming",
+  "You are stronger than you think",
+  "Good morning Make yourself proud today",
+  "New day new strength new thoughts",
+  "Good morning Spread kindness everywhere",
+  "The best time for new beginnings is",
+  "Good morning The sun rose for you too",
+  "Smile first coffee second",
+  "Good morning Today only airs once",
+  "One kind word can change someones day",
+  "Good morning Start where you are",
+  "Eat the frog first",
+  "Good morning Do one brave thing today",
+  "Mornings are fresh starts on repeat",
+  "Good morning Let yesterday go",
+  "Today is a good day for a good day",
+  "Good morning Water your dreams today",
+  "Be the energy you want to attract",
+  "Good morning Small steps still count",
+  "Wake up and be awesome",
+  "Good morning Your future is watching",
+  "Do it today not tomorrow",
+  "Good morning Breathe in courage",
+  "The early bird gets the coffee",
+  "Good morning Make today count",
+  "A new day a new chance a new you",
+  "Good morning Lead with gratitude",
+  "Shine like the morning sun",
+  "Good morning Today is a gift",
+  "Start the day with a thank you",
+  "Good morning Plant seeds of kindness",
+  "You woke up That is a win already",
+  "Good morning Aim high Start now",
+  "Let the light in",
+  "Good morning Write a great story today",
+  "Today the sun shines for you"
+ ]
 }

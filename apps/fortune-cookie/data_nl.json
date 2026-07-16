@@ -1,179 +1,29 @@
 {
- "pages": [
-  {
-   "lines": [
-    "Een leuke",
-    "verrassing",
-    "wacht op je"
-   ]
-  },
-  {
-   "lines": [
-    "Je harde werk",
-    "wordt snel",
-    "beloond"
-   ]
-  },
-  {
-   "lines": [
-    "Een lange reis",
-    "begint met één",
-    "stap"
-   ]
-  },
-  {
-   "lines": [
-    "Geduld is de",
-    "sleutel tot",
-    "vreugde"
-   ]
-  },
-  {
-   "lines": [
-    "Wie waagt,",
-    "die wint",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Goede dingen",
-    "komen naar wie",
-    "wacht"
-   ]
-  },
-  {
-   "lines": [
-    "Een glimlach",
-    "zet alles weer",
-    "recht"
-   ]
-  },
-  {
-   "lines": [
-    "Het beste moet",
-    "nog komen",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Geloof in",
-    "jezelf en je",
-    "dromen"
-   ]
-  },
-  {
-   "lines": [
-    "Een frisse",
-    "start brengt",
-    "je op weg"
-   ]
-  },
-  {
-   "lines": [
-    "Je talenten",
-    "worden gauw",
-    "erkend"
-   ]
-  },
-  {
-   "lines": [
-    "Avontuur kan",
-    "echt geluk",
-    "zijn"
-   ]
-  },
-  {
-   "lines": [
-    "Het geheim van",
-    "vooruitkomen",
-    "is beginnen"
-   ]
-  },
-  {
-   "lines": [
-    "Je goedheid",
-    "leidt je naar",
-    "succes"
-   ]
-  },
-  {
-   "lines": [
-    "Elke dag is",
-    "een kans om",
-    "te stralen"
-   ]
-  },
-  {
-   "lines": [
-    "Geluk komt",
-    "van binnenuit",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Een leven vol",
-    "vreugde wacht",
-    "op je"
-   ]
-  },
-  {
-   "lines": [
-    "Je glimlach",
-    "geeft anderen",
-    "licht"
-   ]
-  },
-  {
-   "lines": [
-    "Grote ideeën",
-    "komen uit het",
-    "hart"
-   ]
-  },
-  {
-   "lines": [
-    "Nu is het tijd",
-    "voor iets",
-    "nieuws"
-   ]
-  },
-  {
-   "lines": [
-    "Je zult vinden",
-    "wat je zoekt",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Blijf trouw",
-    "aan jezelf en",
-    "je waarden"
-   ]
-  },
-  {
-   "lines": [
-    "De ster van",
-    "rijkdom",
-    "schijnt op jou"
-   ]
-  },
-  {
-   "lines": [
-    "De liefde is",
-    "onderweg naar",
-    "jou"
-   ]
-  },
-  {
-   "lines": [
-    "Je toekomst is",
-    "stralend en",
-    "vol vreugde"
-   ]
-  }
+ "groups": [
+  "Een leuke verrassing wacht op je",
+  "Je harde werk wordt snel beloond",
+  "Een lange reis begint met één stap",
+  "Geduld is de sleutel tot vreugde",
+  "Wie waagt, die wint",
+  "Goede dingen komen naar wie wacht",
+  "Een glimlach zet alles weer recht",
+  "Het beste moet nog komen",
+  "Geloof in jezelf en je dromen",
+  "Een frisse start brengt je op weg",
+  "Je talenten worden gauw erkend",
+  "Avontuur kan echt geluk zijn",
+  "Het geheim van vooruitkomen is beginnen",
+  "Je goedheid leidt je naar succes",
+  "Elke dag is een kans om te stralen",
+  "Geluk komt van binnenuit",
+  "Een leven vol vreugde wacht op je",
+  "Je glimlach geeft anderen licht",
+  "Grote ideeën komen uit het hart",
+  "Nu is het tijd voor iets nieuws",
+  "Je zult vinden wat je zoekt",
+  "Blijf trouw aan jezelf en je waarden",
+  "De ster van rijkdom schijnt op jou",
+  "De liefde is onderweg naar jou",
+  "Je toekomst is stralend en vol vreugde"
  ]
 }

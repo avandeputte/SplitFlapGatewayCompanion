@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "God natt",
-        "Sov gott",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Söta drömmar",
-        "Vi ses i",
-        "morgon bitti"
-      ]
-    },
-    {
-      "lines": [
-        "Vila gott",
-        "Imorgon är en",
-        "ny dag"
-      ]
-    },
-    {
-      "lines": [
-        "Stjärnorna är",
-        "ute ikväll",
-        "Sov gott"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Släpp dagens",
-        "bekymmer"
-      ]
-    },
-    {
-      "lines": [
-        "Blunda och",
-        "dröm stort",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Du gjorde bra",
-        "ifrån dig idag"
-      ]
-    },
-    {
-      "lines": [
-        "Sov gott och",
-        "vakna",
-        "utvilad"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Månen vakar",
-        "över dig"
-      ]
-    },
-    {
-      "lines": [
-        "Imorgon väntar",
-        "nya äventyr",
-        "Vila nu"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Var tacksam",
-        "för idag"
-      ]
-    },
-    {
-      "lines": [
-        "Låt stjärnorna",
-        "leda dina",
-        "drömmar inatt"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Slappna av och",
-        "andas djupt"
-      ]
-    },
-    {
-      "lines": [
-        "Avsluta dagen",
-        "med ett",
-        "tacksamt hjärta"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Frid och lugn",
-        "omger dig"
-      ]
-    },
-    {
-      "lines": [
-        "Somna med",
-        "vetskapen att",
-        "du är älskad"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Låt tankarna",
-        "falla till ro"
-      ]
-    },
-    {
-      "lines": [
-        "Natten är",
-        "tyst och stilla",
-        "Sov gott"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Söta drömmar",
-        "tills imorgon"
-      ]
-    },
-    {
-      "lines": [
-        "Må dina",
-        "drömmar fyllas",
-        "av glädje"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Dagen är slut",
-        "Vila nu"
-      ]
-    },
-    {
-      "lines": [
-        "Stjärnor ovan",
-        "drömmar framför",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Imorgon kan",
-        "vänta"
-      ]
-    },
-    {
-      "lines": [
-        "Lägg ner dagen",
-        "varsamt",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Du är trygg",
-        "och älskad"
-      ]
-    },
-    {
-      "lines": [
-        "Månen håller",
-        "vakt inatt",
-        "Sov djupt"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Förlåt dagen",
-        "och vila"
-      ]
-    },
-    {
-      "lines": [
-        "Tysta timmar",
-        "mjuka drömmar",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Imorgon är",
-        "oskriven"
-      ]
-    },
-    {
-      "lines": [
-        "Stäng dagen",
-        "öppna en dröm",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Låt tystnaden",
-        "läka dig"
-      ]
-    },
-    {
-      "lines": [
-        "Natthimlen",
-        "är full av",
-        "önskningar"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Vila är också",
-        "produktivt"
-      ]
-    },
-    {
-      "lines": [
-        "Dämpa ljuset",
-        "sakta ner",
-        "tankarna"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Du gjorde nog",
-        "idag"
-      ]
-    },
-    {
-      "lines": [
-        "Sömn är den",
-        "bästa",
-        "meditationen"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Räkna glädjen",
-        "inte fåren"
-      ]
-    },
-    {
-      "lines": [
-        "Må natten vara",
-        "mjuk och",
-        "vänlig"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Drömmar är",
-        "gratis Ta två"
-      ]
-    },
-    {
-      "lines": [
-        "Dagen är över",
-        "Släpp den",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Ladda om för",
-        "imorgon"
-      ]
-    },
-    {
-      "lines": [
-        "Till och med",
-        "solen måste",
-        "gå ner"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Viska dina",
-        "önskningar"
-      ]
-    },
-    {
-      "lines": [
-        "Inatt vilar du",
-        "imorgon reser",
-        "du dig"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Världen kan",
-        "vänta"
-      ]
-    },
-    {
-      "lines": [
-        "Sov gott",
-        "bli stark",
-        "dröm långt"
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Stjärnljuset",
-        "bjuder huset på"
-      ]
-    },
-    {
-      "lines": [
-        "Lägg ner dina",
-        "bekymmer",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "God natt",
-        "Vi ses vid",
-        "soluppgången"
-      ]
-    },
-    {
-      "lines": [
-        "Natten är en",
-        "vaggvisa",
-        "Sov nu"
-      ]
-    }
-  ]
+ "groups": [
+  "God natt Sov gott",
+  "Söta drömmar Vi ses i morgon bitti",
+  "Vila gott Imorgon är en ny dag",
+  "Stjärnorna är ute ikväll Sov gott",
+  "God natt Släpp dagens bekymmer",
+  "Blunda och dröm stort",
+  "God natt Du gjorde bra ifrån dig idag",
+  "Sov gott och vakna utvilad",
+  "God natt Månen vakar över dig",
+  "Imorgon väntar nya äventyr Vila nu",
+  "God natt Var tacksam för idag",
+  "Låt stjärnorna leda dina drömmar inatt",
+  "God natt Slappna av och andas djupt",
+  "Avsluta dagen med ett tacksamt hjärta",
+  "God natt Frid och lugn omger dig",
+  "Somna med vetskapen att du är älskad",
+  "God natt Låt tankarna falla till ro",
+  "Natten är tyst och stilla Sov gott",
+  "God natt Söta drömmar tills imorgon",
+  "Må dina drömmar fyllas av glädje",
+  "God natt Dagen är slut Vila nu",
+  "Stjärnor ovan drömmar framför",
+  "God natt Imorgon kan vänta",
+  "Lägg ner dagen varsamt",
+  "God natt Du är trygg och älskad",
+  "Månen håller vakt inatt Sov djupt",
+  "God natt Förlåt dagen och vila",
+  "Tysta timmar mjuka drömmar",
+  "God natt Imorgon är oskriven",
+  "Stäng dagen öppna en dröm",
+  "God natt Låt tystnaden läka dig",
+  "Natthimlen är full av önskningar",
+  "God natt Vila är också produktivt",
+  "Dämpa ljuset sakta ner tankarna",
+  "God natt Du gjorde nog idag",
+  "Sömn är den bästa meditationen",
+  "God natt Räkna glädjen inte fåren",
+  "Må natten vara mjuk och vänlig",
+  "God natt Drömmar är gratis Ta två",
+  "Dagen är över Släpp den",
+  "God natt Ladda om för imorgon",
+  "Till och med solen måste gå ner",
+  "God natt Viska dina önskningar",
+  "Inatt vilar du imorgon reser du dig",
+  "God natt Världen kan vänta",
+  "Sov gott bli stark dröm långt",
+  "God natt Stjärnljuset bjuder huset på",
+  "Lägg ner dina bekymmer",
+  "God natt Vi ses vid soluppgången",
+  "Natten är en vaggvisa Sov nu"
+ ]
 }

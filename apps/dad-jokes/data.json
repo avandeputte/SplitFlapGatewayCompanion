@@ -1,342 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Why did the",
-        "scarecrow win?"
-      ]
-    },
-    {
-      "lines": [
-        "He was",
-        "outstanding in",
-        "his field"
-      ]
-    },
-    {
-      "lines": [
-        "I used to hate",
-        "facial hair"
-      ]
-    },
-    {
-      "lines": [
-        "but then",
-        "it grew on me",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "What do you",
-        "call a fake"
-      ]
-    },
-    {
-      "lines": [
-        "noodle?",
-        "An impasta!",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Why dont eggs",
-        "tell jokes?"
-      ]
-    },
-    {
-      "lines": [
-        "Theyd crack",
-        "each other up!",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "I only know 25",
-        "letters of the"
-      ]
-    },
-    {
-      "lines": [
-        "alphabet",
-        "I dont know Y",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "What do clouds",
-        "wear under?"
-      ]
-    },
-    {
-      "lines": [
-        "Thunderwear!",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Im reading a",
-        "book on anti"
-      ]
-    },
-    {
-      "lines": [
-        "gravity",
-        "Cant put it",
-        "down"
-      ]
-    },
-    {
-      "lines": [
-        "What did the",
-        "ocean say to"
-      ]
-    },
-    {
-      "lines": [
-        "the beach?",
-        "Nothing it",
-        "just waved"
-      ]
-    },
-    {
-      "lines": [
-        "Why do cows",
-        "wear bells?"
-      ]
-    },
-    {
-      "lines": [
-        "Because their",
-        "horns dont",
-        "work"
-      ]
-    },
-    {
-      "lines": [
-        "I got a job at",
-        "a bakery"
-      ]
-    },
-    {
-      "lines": [
-        "because I",
-        "kneaded dough",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Why did the",
-        "bike fall over?"
-      ]
-    },
-    {
-      "lines": [
-        "It was",
-        "two tired",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "What do you",
-        "call cheese",
-        "thats not yours"
-      ]
-    },
-    {
-      "lines": [
-        "Nacho cheese",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "How do you",
-        "organize a",
-        "space party?"
-      ]
-    },
-    {
-      "lines": [
-        "You planet",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Why did the",
-        "golfer bring",
-        "two pants?"
-      ]
-    },
-    {
-      "lines": [
-        "In case he got",
-        "a hole in one",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "What do you",
-        "call a bear",
-        "with no teeth?"
-      ]
-    },
-    {
-      "lines": [
-        "A gummy bear",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Why cant you",
-        "trust atoms?"
-      ]
-    },
-    {
-      "lines": [
-        "They make up",
-        "everything",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Why did the",
-        "math book look",
-        "so sad?"
-      ]
-    },
-    {
-      "lines": [
-        "It had too",
-        "many problems",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "What kind of",
-        "shoes do",
-        "ninjas wear?"
-      ]
-    },
-    {
-      "lines": [
-        "Sneakers",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "How does a",
-        "penguin build",
-        "its house?"
-      ]
-    },
-    {
-      "lines": [
-        "Igloos it",
-        "together",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Why did the",
-        "coffee file a",
-        "report?"
-      ]
-    },
-    {
-      "lines": [
-        "It got mugged",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "What do you",
-        "call a sad",
-        "strawberry?"
-      ]
-    },
-    {
-      "lines": [
-        "A blueberry",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Why do bees",
-        "have sticky",
-        "hair?"
-      ]
-    },
-    {
-      "lines": [
-        "They use",
-        "honeycombs",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "What did one",
-        "wall say to",
-        "the other?"
-      ]
-    },
-    {
-      "lines": [
-        "Meet you at",
-        "the corner",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Why was six",
-        "afraid of",
-        "seven?"
-      ]
-    },
-    {
-      "lines": [
-        "Because seven",
-        "ate nine",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "What do you",
-        "call a fish",
-        "with no eyes?"
-      ]
-    },
-    {
-      "lines": [
-        "A fsh",
-        "",
-        ""
-      ]
-    }
+ "groups": [
+  [
+   "Why did the scarecrow win?",
+   "He was outstanding in his field"
+  ],
+  [
+   "I used to hate facial hair",
+   "but then it grew on me"
+  ],
+  [
+   "What do you call a fake",
+   "noodle? An impasta!"
+  ],
+  [
+   "Why dont eggs tell jokes?",
+   "Theyd crack each other up!"
+  ],
+  [
+   "I only know 25 letters of the",
+   "alphabet I dont know Y"
+  ],
+  [
+   "What do clouds wear under?",
+   "Thunderwear!"
+  ],
+  [
+   "Im reading a book on anti",
+   "gravity Cant put it down"
+  ],
+  [
+   "What did the ocean say to",
+   "the beach? Nothing it just waved"
+  ],
+  [
+   "Why do cows wear bells?",
+   "Because their horns dont work"
+  ],
+  [
+   "I got a job at a bakery",
+   "because I kneaded dough"
+  ],
+  [
+   "Why did the bike fall over?",
+   "It was two tired"
+  ],
+  [
+   "What do you call cheese thats not yours",
+   "Nacho cheese"
+  ],
+  [
+   "How do you organize a space party?",
+   "You planet"
+  ],
+  [
+   "Why did the golfer bring two pants?",
+   "In case he got a hole in one"
+  ],
+  [
+   "What do you call a bear with no teeth?",
+   "A gummy bear"
+  ],
+  [
+   "Why cant you trust atoms?",
+   "They make up everything"
+  ],
+  [
+   "Why did the math book look so sad?",
+   "It had too many problems"
+  ],
+  [
+   "What kind of shoes do ninjas wear?",
+   "Sneakers"
+  ],
+  [
+   "How does a penguin build its house?",
+   "Igloos it together"
+  ],
+  [
+   "Why did the coffee file a report?",
+   "It got mugged"
+  ],
+  [
+   "What do you call a sad strawberry?",
+   "A blueberry"
+  ],
+  [
+   "Why do bees have sticky hair?",
+   "They use honeycombs"
+  ],
+  [
+   "What did one wall say to the other?",
+   "Meet you at the corner"
+  ],
+  [
+   "Why was six afraid of seven?",
+   "Because seven ate nine"
+  ],
+  [
+   "What do you call a fish with no eyes?",
+   "A fsh"
   ]
+ ]
 }

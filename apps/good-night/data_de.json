@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Gute Nacht",
-        "schlaf gut",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Süsse Träume",
-        "bis morgen",
-        "früh"
-      ]
-    },
-    {
-      "lines": [
-        "Ruh dich aus",
-        "morgen ist ein",
-        "neuer Tag"
-      ]
-    },
-    {
-      "lines": [
-        "Die Sterne sind",
-        "draussen",
-        "schlaf gut"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "lass die Sorgen",
-        "des Tages los"
-      ]
-    },
-    {
-      "lines": [
-        "Schliess die",
-        "Augen träum",
-        "gross"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "du warst heute",
-        "grossartig"
-      ]
-    },
-    {
-      "lines": [
-        "Schlaf gut und",
-        "wach erfrischt",
-        "auf"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "der Mond wacht",
-        "über dich"
-      ]
-    },
-    {
-      "lines": [
-        "Morgen bringt",
-        "neue Abenteuer",
-        "ruh dich aus"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "sei dankbar",
-        "für heute"
-      ]
-    },
-    {
-      "lines": [
-        "Die Sterne",
-        "leiten deine",
-        "Träume heute"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "entspann dich",
-        "atme tief"
-      ]
-    },
-    {
-      "lines": [
-        "Beende den Tag",
-        "mit dankbarem",
-        "Herzen"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "Frieden und",
-        "Ruhe um dich"
-      ]
-    },
-    {
-      "lines": [
-        "Schlaf ein im",
-        "Wissen dass du",
-        "geliebt bist"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "lass deinen",
-        "Kopf zur Ruhe"
-      ]
-    },
-    {
-      "lines": [
-        "Die Nacht ist",
-        "still und ruhig",
-        "schlaf gut"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "süsse Träume",
-        "bis morgen"
-      ]
-    },
-    {
-      "lines": [
-        "Mögen deine",
-        "Träume voller",
-        "Freude sein"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "der Tag ist um",
-        "ruh dich aus"
-      ]
-    },
-    {
-      "lines": [
-        "Sterne oben",
-        "Träume voraus",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "morgen kann",
-        "warten"
-      ]
-    },
-    {
-      "lines": [
-        "Leg den Tag",
-        "sanft zur",
-        "Seite"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "du bist sicher",
-        "und geliebt"
-      ]
-    },
-    {
-      "lines": [
-        "Der Mond hält",
-        "heute Wache",
-        "schlaf tief"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "verzeih dem Tag",
-        "und ruhe"
-      ]
-    },
-    {
-      "lines": [
-        "Stille Stunden",
-        "sanfte Träume",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "morgen ist",
-        "ungeschrieben"
-      ]
-    },
-    {
-      "lines": [
-        "Schliess den",
-        "Tag öffne",
-        "einen Traum"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "lass Stille",
-        "dich heilen"
-      ]
-    },
-    {
-      "lines": [
-        "Der Nachthimmel",
-        "ist voller",
-        "Wünsche"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "auch Ruhe ist",
-        "produktiv"
-      ]
-    },
-    {
-      "lines": [
-        "Licht dimmen",
-        "Gedanken",
-        "verlangsamen"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "du hast heute",
-        "genug getan"
-      ]
-    },
-    {
-      "lines": [
-        "Schlaf ist die",
-        "beste",
-        "Meditation"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "zähl Segen",
-        "keine Schafe"
-      ]
-    },
-    {
-      "lines": [
-        "Möge die Nacht",
-        "sanft und",
-        "gnädig sein"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "Träume sind",
-        "frei nimm zwei"
-      ]
-    },
-    {
-      "lines": [
-        "Der Tag ist",
-        "vorbei lass",
-        "ihn gehen"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "lade auf für",
-        "morgen"
-      ]
-    },
-    {
-      "lines": [
-        "Auch die Sonne",
-        "muss",
-        "untergehen"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "flüstere deine",
-        "Wünsche"
-      ]
-    },
-    {
-      "lines": [
-        "Heute ruhen",
-        "morgen",
-        "aufstehen"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "die Welt kann",
-        "warten"
-      ]
-    },
-    {
-      "lines": [
-        "Schlaf gut",
-        "werde stark",
-        "träum weit"
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "Sternenlicht",
-        "geht aufs Haus"
-      ]
-    },
-    {
-      "lines": [
-        "Leg deine",
-        "Sorgen ab",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Gute Nacht",
-        "bis zum",
-        "Sonnenaufgang"
-      ]
-    },
-    {
-      "lines": [
-        "Die Nacht ist",
-        "ein Wiegenlied",
-        "schlaf jetzt"
-      ]
-    }
-  ]
+ "groups": [
+  "Gute Nacht schlaf gut",
+  "Süsse Träume bis morgen früh",
+  "Ruh dich aus morgen ist ein neuer Tag",
+  "Die Sterne sind draussen schlaf gut",
+  "Gute Nacht lass die Sorgen des Tages los",
+  "Schliess die Augen träum gross",
+  "Gute Nacht du warst heute grossartig",
+  "Schlaf gut und wach erfrischt auf",
+  "Gute Nacht der Mond wacht über dich",
+  "Morgen bringt neue Abenteuer ruh dich aus",
+  "Gute Nacht sei dankbar für heute",
+  "Die Sterne leiten deine Träume heute",
+  "Gute Nacht entspann dich atme tief",
+  "Beende den Tag mit dankbarem Herzen",
+  "Gute Nacht Frieden und Ruhe um dich",
+  "Schlaf ein im Wissen dass du geliebt bist",
+  "Gute Nacht lass deinen Kopf zur Ruhe",
+  "Die Nacht ist still und ruhig schlaf gut",
+  "Gute Nacht süsse Träume bis morgen",
+  "Mögen deine Träume voller Freude sein",
+  "Gute Nacht der Tag ist um ruh dich aus",
+  "Sterne oben Träume voraus",
+  "Gute Nacht morgen kann warten",
+  "Leg den Tag sanft zur Seite",
+  "Gute Nacht du bist sicher und geliebt",
+  "Der Mond hält heute Wache schlaf tief",
+  "Gute Nacht verzeih dem Tag und ruhe",
+  "Stille Stunden sanfte Träume",
+  "Gute Nacht morgen ist ungeschrieben",
+  "Schliess den Tag öffne einen Traum",
+  "Gute Nacht lass Stille dich heilen",
+  "Der Nachthimmel ist voller Wünsche",
+  "Gute Nacht auch Ruhe ist produktiv",
+  "Licht dimmen Gedanken verlangsamen",
+  "Gute Nacht du hast heute genug getan",
+  "Schlaf ist die beste Meditation",
+  "Gute Nacht zähl Segen keine Schafe",
+  "Möge die Nacht sanft und gnädig sein",
+  "Gute Nacht Träume sind frei nimm zwei",
+  "Der Tag ist vorbei lass ihn gehen",
+  "Gute Nacht lade auf für morgen",
+  "Auch die Sonne muss untergehen",
+  "Gute Nacht flüstere deine Wünsche",
+  "Heute ruhen morgen aufstehen",
+  "Gute Nacht die Welt kann warten",
+  "Schlaf gut werde stark träum weit",
+  "Gute Nacht Sternenlicht geht aufs Haus",
+  "Leg deine Sorgen ab",
+  "Gute Nacht bis zum Sonnenaufgang",
+  "Die Nacht ist ein Wiegenlied schlaf jetzt"
+ ]
 }

@@ -1,179 +1,31 @@
 {
- "pages": [
-  {
-   "lines": [
-    "Inget står i",
-    "lågor. Lågorna",
-    "står på saker"
-   ]
-  },
-  {
-   "lines": [
-    "Engelska ordet",
-    "bed ser ut som",
-    "en säng"
-   ]
-  },
-  {
-   "lines": [
-    "Ditt framtida",
-    "jag tittar på",
-    "dig just nu"
-   ]
-  },
-  {
-   "lines": [
-    "Varje bok är",
-    "en remix av",
-    "alfabetet"
-   ]
-  },
-  {
-   "lines": [
-    "Du har aldrig",
-    "sett ditt eget",
-    "ansikte live"
-   ]
-  },
-  {
-   "lines": [
-    "Lasagne är",
-    "bara en",
-    "pastatårta"
-   ]
-  },
-  {
-   "lines": [
-    "Havet är bara",
-    "smaksatt",
-    "vatten"
-   ]
-  },
-  {
-   "lines": [
-    "Varje utgång",
-    "är en ingång",
-    "nån annanstans"
-   ]
-  },
-  {
-   "lines": [
-    "Du har aldrig",
-    "varit så",
-    "gammal som nu"
-   ]
-  },
-  {
-   "lines": [
-    "Tänder: de enda",
-    "ben du borstar",
-    "varje dag"
-   ]
-  },
-  {
-   "lines": [
-    "Svanar kan",
-    "vara gay och",
-    "det är vackert"
-   ]
-  },
-  {
-   "lines": [
-    "Historieämnet",
-    "blir längre",
-    "varje år"
-   ]
-  },
-  {
-   "lines": [
-    "Din hund vet ej",
-    "om du sprang",
-    "eller snubblade"
-   ]
-  },
-  {
-   "lines": [
-    "Kaffe är bara",
-    "varmt",
-    "bönvatten"
-   ]
-  },
-  {
-   "lines": [
-    "En hiss är bara",
-    "ett rum som",
-    "åker"
-   ]
-  },
-  {
-   "lines": [
-    "Servitören",
-    "serverar dig",
-    "väntan"
-   ]
-  },
-  {
-   "lines": [
-    "Alla speglar",
-    "du köper är",
-    "begagnade"
-   ]
-  },
-  {
-   "lines": [
-    "Sand heter sand",
-    "tack vare sjö",
-    "och land"
-   ]
-  },
-  {
-   "lines": [
-    "Födelsedagar",
-    "är nyttiga: ju",
-    "fler, desto"
-   ]
-  },
-  {
-   "lines": [
-    "bättre. Folk",
-    "med flest lever",
-    "längst"
-   ]
-  },
-  {
-   "lines": [
-    "Att sova är",
-    "bara en",
-    "tidsresa"
-   ]
-  },
-  {
-   "lines": [
-    "En karta är en",
-    "spoiler för",
-    "resan"
-   ]
-  },
-  {
-   "lines": [
-    "Regn är bara",
-    "konfetti från",
-    "himlen"
-   ]
-  },
-  {
-   "lines": [
-    "Strumpor är",
-    "skor för dina",
-    "skor"
-   ]
-  },
-  {
-   "lines": [
-    "Applåder är",
-    "bara att slå",
-    "sig själv"
-   ]
-  }
+ "groups": [
+  "Inget står i lågor. Lågorna står på saker",
+  "Engelska ordet bed ser ut som en säng",
+  "Ditt framtida jag tittar på dig just nu",
+  "Varje bok är en remix av alfabetet",
+  "Du har aldrig sett ditt eget ansikte live",
+  "Lasagne är bara en pastatårta",
+  "Havet är bara smaksatt vatten",
+  "Varje utgång är en ingång nån annanstans",
+  "Du har aldrig varit så gammal som nu",
+  "Tänder: de enda ben du borstar varje dag",
+  "Svanar kan vara gay och det är vackert",
+  "Historieämnet blir längre varje år",
+  "Din hund vet ej om du sprang eller snubblade",
+  "Kaffe är bara varmt bönvatten",
+  "En hiss är bara ett rum som åker",
+  "Servitören serverar dig väntan",
+  "Alla speglar du köper är begagnade",
+  "Sand heter sand tack vare sjö och land",
+  [
+   "Födelsedagar är nyttiga: ju fler, desto",
+   "bättre. Folk med flest lever längst"
+  ],
+  "Att sova är bara en tidsresa",
+  "En karta är en spoiler för resan",
+  "Regn är bara konfetti från himlen",
+  "Strumpor är skor för dina skor",
+  "Applåder är bara att slå sig själv"
  ]
 }

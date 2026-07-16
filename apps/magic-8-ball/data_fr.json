@@ -1,144 +1,24 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Boule magique",
-        "C'est certain",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Décidément oui",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Sans nul doute",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Oui, absolument",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Comptez dessus",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "À mon avis",
-        "oui"
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Très probable",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "C'est bien",
-        "parti"
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Oui",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Les signes",
-        "disent oui"
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Réponse floue",
-        "essayez encore"
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Redemandez",
-        "plus tard"
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Mieux vaut ne",
-        "rien dire"
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Impossible à",
-        "prédire"
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Concentrez-vous",
-        "et réessayez"
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "N'y comptez pas",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Ma réponse est",
-        "non"
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Mes sources",
-        "disent non"
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "C'est mal parti",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boule magique",
-        "Très douteux",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "Boule magique\nC'est certain",
+  "Boule magique\nDécidément oui",
+  "Boule magique\nSans nul doute",
+  "Boule magique\nOui, absolument",
+  "Boule magique\nComptez dessus",
+  "Boule magique\nÀ mon avis oui",
+  "Boule magique\nTrès probable",
+  "Boule magique\nC'est bien parti",
+  "Boule magique\nOui",
+  "Boule magique\nLes signes disent oui",
+  "Boule magique\nRéponse floue essayez encore",
+  "Boule magique\nRedemandez plus tard",
+  "Boule magique\nMieux vaut ne rien dire",
+  "Boule magique\nImpossible à prédire",
+  "Boule magique\nConcentrez-vous et réessayez",
+  "Boule magique\nN'y comptez pas",
+  "Boule magique\nMa réponse est non",
+  "Boule magique\nMes sources disent non",
+  "Boule magique\nC'est mal parti",
+  "Boule magique\nTrès douteux"
+ ]
 }

@@ -1,354 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Vad kallar man",
-        "en snögubbe i",
-        "solen?"
-      ]
-    },
-    {
-      "lines": [
-        "En vattenpöl",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vad sa den ena",
-        "väggen till",
-        "den andra?"
-      ]
-    },
-    {
-      "lines": [
-        "Vi ses i",
-        "hörnet",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Varför åkte",
-        "klockan fast?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Den slog",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vad kallar man",
-        "en fisk utan",
-        "ögon?"
-      ]
-    },
-    {
-      "lines": [
-        "Fsk",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Varför har",
-        "elefanter inte",
-        "datorer?"
-      ]
-    },
-    {
-      "lines": [
-        "De är rädda",
-        "för musen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vad sa nollan",
-        "till åttan?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Snyggt",
-        "bälte",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vad kallar man",
-        "en ko utan",
-        "ben?"
-      ]
-    },
-    {
-      "lines": [
-        "Köttfärs",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Varför simmar",
-        "fiskar i",
-        "saltvatten?"
-      ]
-    },
-    {
-      "lines": [
-        "Peppar får dem",
-        "att nysa",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Det bästa med",
-        "Schweiz?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vet ej men",
-        "flaggan är ett",
-        "stort plus"
-      ]
-    },
-    {
-      "lines": [
-        "Hur ordnar man",
-        "en fest i",
-        "rymden?"
-      ]
-    },
-    {
-      "lines": [
-        "Man",
-        "planeterar",
-        "den"
-      ]
-    },
-    {
-      "lines": [
-        "Vad kallar man",
-        "en björn utan",
-        "tänder?"
-      ]
-    },
-    {
-      "lines": [
-        "En gummi",
-        "björn",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Varför kan man",
-        "inte lita på",
-        "atomer?"
-      ]
-    },
-    {
-      "lines": [
-        "De utgör",
-        "allt",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hovmästarn vad",
-        "gör flugan i",
-        "min soppa?"
-      ]
-    },
-    {
-      "lines": [
-        "Den simmar",
-        "tror jag",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vad är brunt",
-        "och springer i",
-        "skogen?"
-      ]
-    },
-    {
-      "lines": [
-        "En kanelbulle",
-        "på rymmen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vad heter en",
-        "spanjor utan",
-        "bil?"
-      ]
-    },
-    {
-      "lines": [
-        "Carlos",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Varför är",
-        "matteboken",
-        "ledsen?"
-      ]
-    },
-    {
-      "lines": [
-        "Den har för",
-        "många problem",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Varför ljuger",
-        "spöken så",
-        "dåligt?"
-      ]
-    },
-    {
-      "lines": [
-        "Man ser rakt",
-        "igenom dem",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hur bygger en",
-        "pingvin sitt",
-        "hus?"
-      ]
-    },
-    {
-      "lines": [
-        "Iglo för",
-        "iglo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Varför kan",
-        "cykeln inte",
-        "stå själv?"
-      ]
-    },
-    {
-      "lines": [
-        "Den är",
-        "trött i",
-        "däcken"
-      ]
-    },
-    {
-      "lines": [
-        "Var gömmer",
-        "vampyrer sina",
-        "pengar?"
-      ]
-    },
-    {
-      "lines": [
-        "I blod",
-        "banken",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vad kallar man",
-        "en bumerang som",
-        "inte kommer?"
-      ]
-    },
-    {
-      "lines": [
-        "En pinne",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vad är vitt och",
-        "stör frukosten?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "En lavin",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Varför slåss",
-        "aldrig",
-        "skelett?"
-      ]
-    },
-    {
-      "lines": [
-        "De har inte",
-        "mage till det",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vad sa havet",
-        "till stranden?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Inget det",
-        "bara vinkade",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vad är orange",
-        "och låter som",
-        "en papegoja?"
-      ]
-    },
-    {
-      "lines": [
-        "En morot",
-        "",
-        ""
-      ]
-    }
+ "groups": [
+  [
+   "Vad kallar man en snögubbe i solen?",
+   "En vattenpöl"
+  ],
+  [
+   "Vad sa den ena väggen till den andra?",
+   "Vi ses i hörnet"
+  ],
+  [
+   "Varför åkte klockan fast?",
+   "Den slog"
+  ],
+  [
+   "Vad kallar man en fisk utan ögon?",
+   "Fsk"
+  ],
+  [
+   "Varför har elefanter inte datorer?",
+   "De är rädda för musen"
+  ],
+  [
+   "Vad sa nollan till åttan?",
+   "Snyggt bälte"
+  ],
+  [
+   "Vad kallar man en ko utan ben?",
+   "Köttfärs"
+  ],
+  [
+   "Varför simmar fiskar i saltvatten?",
+   "Peppar får dem att nysa"
+  ],
+  [
+   "Det bästa med Schweiz?",
+   "Vet ej men flaggan är ett stort plus"
+  ],
+  [
+   "Hur ordnar man en fest i rymden?",
+   "Man planeterar den"
+  ],
+  [
+   "Vad kallar man en björn utan tänder?",
+   "En gummi björn"
+  ],
+  [
+   "Varför kan man inte lita på atomer?",
+   "De utgör allt"
+  ],
+  [
+   "Hovmästarn vad gör flugan i min soppa?",
+   "Den simmar tror jag"
+  ],
+  [
+   "Vad är brunt och springer i skogen?",
+   "En kanelbulle på rymmen"
+  ],
+  [
+   "Vad heter en spanjor utan bil?",
+   "Carlos"
+  ],
+  [
+   "Varför är matteboken ledsen?",
+   "Den har för många problem"
+  ],
+  [
+   "Varför ljuger spöken så dåligt?",
+   "Man ser rakt igenom dem"
+  ],
+  [
+   "Hur bygger en pingvin sitt hus?",
+   "Iglo för iglo"
+  ],
+  [
+   "Varför kan cykeln inte stå själv?",
+   "Den är trött i däcken"
+  ],
+  [
+   "Var gömmer vampyrer sina pengar?",
+   "I blod banken"
+  ],
+  [
+   "Vad kallar man en bumerang som inte kommer?",
+   "En pinne"
+  ],
+  [
+   "Vad är vitt och stör frukosten?",
+   "En lavin"
+  ],
+  [
+   "Varför slåss aldrig skelett?",
+   "De har inte mage till det"
+  ],
+  [
+   "Vad sa havet till stranden?",
+   "Inget det bara vinkade"
+  ],
+  [
+   "Vad är orange och låter som en papegoja?",
+   "En morot"
   ]
+ ]
 }

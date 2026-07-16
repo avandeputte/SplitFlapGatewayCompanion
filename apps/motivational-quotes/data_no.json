@@ -1,354 +1,70 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Stort arbeid",
-        "krever at du",
-        "elsker det"
-      ]
-    },
-    {
-      "lines": [
-        "Tro på deg",
-        "selv så er du",
-        "halvveis"
-      ]
-    },
-    {
-      "lines": [
-        "Hvor sakte du",
-        "går spiller",
-        "ingen rolle"
-      ]
-    },
-    {
-      "lines": [
-        "så lenge du",
-        "ikke stopper",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Beste tid å",
-        "plante et tre?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "For 20 år",
-        "siden eller nå",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Alt du kan",
-        "forestille deg",
-        "er virkelig"
-      ]
-    },
-    {
-      "lines": [
-        "Forbli sulten",
-        "forbli gal",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Midt i",
-        "vanskeligheten",
-        "ligger"
-      ]
-    },
-    {
-      "lines": [
-        "muligheten",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vi blir det",
-        "vi tenker",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Fremtiden",
-        "tilhører dem",
-        "som tror på"
-      ]
-    },
-    {
-      "lines": [
-        "skjønnheten i",
-        "drømmene sine",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Gjør det du kan",
-        "med det du har",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "der du er",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Suksess er ikke",
-        "endelig fiasko",
-        "ikke fatal"
-      ]
-    },
-    {
-      "lines": [
-        "det som teller",
-        "er motet til å",
-        "fortsette"
-      ]
-    },
-    {
-      "lines": [
-        "Drøm stort",
-        "start smått",
-        "handle nå"
-      ]
-    },
-    {
-      "lines": [
-        "Fall syv ganger",
-        "reis deg åtte",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Ferdig slår",
-        "perfekt",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Gjør hver dag",
-        "til ditt",
-        "mesterverk"
-      ]
-    },
-    {
-      "lines": [
-        "Små steg hver",
-        "dag blir til",
-        "mye"
-      ]
-    },
-    {
-      "lines": [
-        "Kan du drømme",
-        "det kan du",
-        "gjøre det"
-      ]
-    },
-    {
-      "lines": [
-        "Jo mer jeg",
-        "jobber jo mer",
-        "flaks har jeg"
-      ]
-    },
-    {
-      "lines": [
-        "Ikke tell",
-        "dagene få dem",
-        "til å telle"
-      ]
-    },
-    {
-      "lines": [
-        "Kvalitet er en",
-        "vane ikke en",
-        "tilfeldighet"
-      ]
-    },
-    {
-      "lines": [
-        "Godt begynt er",
-        "halvt fullendt",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Intet press",
-        "ingen",
-        "diamanter"
-      ]
-    },
-    {
-      "lines": [
-        "Litt etter litt",
-        "kommer man",
-        "langt"
-      ]
-    },
-    {
-      "lines": [
-        "Mot er ynde",
-        "under press",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Et mål uten",
-        "plan er bare",
-        "et ønske"
-      ]
-    },
-    {
-      "lines": [
-        "Motivasjonen",
-        "starter vanen",
-        "fortsetter"
-      ]
-    },
-    {
-      "lines": [
-        "Den beste veien",
-        "ut er",
-        "gjennom"
-      ]
-    },
-    {
-      "lines": [
-        "Du bommer på",
-        "100% av skudd",
-        "du ikke tar"
-      ]
-    },
-    {
-      "lines": [
-        "Energi og",
-        "utholdenhet",
-        "vinner alt"
-      ]
-    },
-    {
-      "lines": [
-        "Store ting",
-        "kommer ikke fra",
-        "komfort"
-      ]
-    },
-    {
-      "lines": [
-        "Fremgang ikke",
-        "perfeksjon",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Det virker",
-        "umulig til det",
-        "er gjort"
-      ]
-    },
-    {
-      "lines": [
-        "Hell følger det",
-        "forberedte",
-        "sinnet"
-      ]
-    },
-    {
-      "lines": [
-        "Gjør det med",
-        "lidenskap",
-        "eller ikke"
-      ]
-    },
-    {
-      "lines": [
-        "Jeg finner en",
-        "vei eller",
-        "lager en"
-      ]
-    },
-    {
-      "lines": [
-        "Det du gjør i",
-        "dag forbedrer",
-        "alle"
-      ]
-    },
-    {
-      "lines": [
-        "morgendagene",
-        "dine",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Stjerner",
-        "trenger mørke",
-        "for å skinne"
-      ]
-    },
-    {
-      "lines": [
-        "Hemmeligheten",
-        "bak fremgang",
-        "er å"
-      ]
-    },
-    {
-      "lines": [
-        "komme i gang",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Vær så god at",
-        "de ikke kan",
-        "overse deg"
-      ]
-    },
-    {
-      "lines": [
-        "Hardt arbeid",
-        "slår lat",
-        "talent"
-      ]
-    },
-    {
-      "lines": [
-        "Hver ekspert",
-        "var en gang",
-        "nybegynner"
-      ]
-    },
-    {
-      "lines": [
-        "Reisen er",
-        "belønningen",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "Stort arbeid krever at du elsker det",
+  "Tro på deg selv så er du halvveis",
+  [
+   "Hvor sakte du går spiller ingen rolle",
+   "så lenge du ikke stopper"
+  ],
+  [
+   "Beste tid å plante et tre?",
+   "For 20 år siden eller nå"
+  ],
+  "Alt du kan forestille deg er virkelig",
+  "Forbli sulten forbli gal",
+  [
+   "Midt i vanskeligheten ligger",
+   "muligheten"
+  ],
+  "Vi blir det vi tenker",
+  [
+   "Fremtiden tilhører dem som tror på",
+   "skjønnheten i drømmene sine"
+  ],
+  [
+   "Gjør det du kan med det du har",
+   "der du er"
+  ],
+  [
+   "Suksess er ikke endelig fiasko ikke fatal",
+   "det som teller er motet til å fortsette"
+  ],
+  "Drøm stort start smått handle nå",
+  "Fall syv ganger reis deg åtte",
+  "Ferdig slår perfekt",
+  "Gjør hver dag til ditt mesterverk",
+  "Små steg hver dag blir til mye",
+  "Kan du drømme det kan du gjøre det",
+  "Jo mer jeg jobber jo mer flaks har jeg",
+  "Ikke tell dagene få dem til å telle",
+  "Kvalitet er en vane ikke en tilfeldighet",
+  "Godt begynt er halvt fullendt",
+  "Intet press ingen diamanter",
+  "Litt etter litt kommer man langt",
+  "Mot er ynde under press",
+  "Et mål uten plan er bare et ønske",
+  "Motivasjonen starter vanen fortsetter",
+  "Den beste veien ut er gjennom",
+  "Du bommer på 100% av skudd du ikke tar",
+  "Energi og utholdenhet vinner alt",
+  "Store ting kommer ikke fra komfort",
+  "Fremgang ikke perfeksjon",
+  "Det virker umulig til det er gjort",
+  "Hell følger det forberedte sinnet",
+  "Gjør det med lidenskap eller ikke",
+  "Jeg finner en vei eller lager en",
+  [
+   "Det du gjør i dag forbedrer alle",
+   "morgendagene dine"
+  ],
+  "Stjerner trenger mørke for å skinne",
+  [
+   "Hemmeligheten bak fremgang er å",
+   "komme i gang"
+  ],
+  "Vær så god at de ikke kan overse deg",
+  "Hardt arbeid slår lat talent",
+  "Hver ekspert var en gang nybegynner",
+  "Reisen er belønningen"
+ ]
 }

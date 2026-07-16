@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Bon dia",
-        "Avui és ple de",
-        "potencial"
-      ]
-    },
-    {
-      "lines": [
-        "Amunt i brilla",
-        "Fes el dia",
-        "increïble"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Tu ets",
-        "suficient"
-      ]
-    },
-    {
-      "lines": [
-        "Cada matí és",
-        "una ocasió per",
-        "recomençar"
-      ]
-    },
-    {
-      "lines": [
-        "Desperta amb",
-        "determinació",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Avui és un dia",
-        "completament",
-        "nou"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Sigues el motiu",
-        "dun somriure"
-      ]
-    },
-    {
-      "lines": [
-        "Fes que passi",
-        "Sorprèn",
-        "tothom"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "El teu únic",
-        "límit ets tu"
-      ]
-    },
-    {
-      "lines": [
-        "Creu en tu",
-        "avui i cada",
-        "dia"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Persegueix els",
-        "teus somnis"
-      ]
-    },
-    {
-      "lines": [
-        "Avui és teu",
-        "Aprofital",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Sigues positiu",
-        "Treballa fort"
-      ]
-    },
-    {
-      "lines": [
-        "Aixecat i",
-        "agafa el dia",
-        "amb ganes"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Vénen coses",
-        "grans"
-      ]
-    },
-    {
-      "lines": [
-        "Ets més fort",
-        "del que",
-        "penses"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Fes-te sentir",
-        "orgullós avui"
-      ]
-    },
-    {
-      "lines": [
-        "Nou dia",
-        "nova força",
-        "noves idees"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Escampa",
-        "amabilitat"
-      ]
-    },
-    {
-      "lines": [
-        "El millor dia",
-        "per recomençar",
-        "és avui"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "El sol ha",
-        "sortit per tu"
-      ]
-    },
-    {
-      "lines": [
-        "Somriu primer",
-        "cafè després",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Avui només",
-        "passa un cop"
-      ]
-    },
-    {
-      "lines": [
-        "Una paraula",
-        "amable canvia",
-        "un dia"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Comença allà",
-        "on ets"
-      ]
-    },
-    {
-      "lines": [
-        "El més difícil",
-        "primer",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Fes una cosa",
-        "valenta avui"
-      ]
-    },
-    {
-      "lines": [
-        "Cada matí és",
-        "un nou",
-        "començament"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Deixa anar",
-        "lahir"
-      ]
-    },
-    {
-      "lines": [
-        "Avui és un bon",
-        "dia per tenir",
-        "un bon dia"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Rega els teus",
-        "somnis"
-      ]
-    },
-    {
-      "lines": [
-        "Sigues lenergia",
-        "que vols",
-        "atraure"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Els passos",
-        "petits compten"
-      ]
-    },
-    {
-      "lines": [
-        "Despertat i",
-        "sigues genial",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "El teu futur",
-        "testà mirant"
-      ]
-    },
-    {
-      "lines": [
-        "Fes-ho avui",
-        "no demà",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Respira",
-        "coratge"
-      ]
-    },
-    {
-      "lines": [
-        "Qui matina",
-        "fa farina",
-        "i pren cafè"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Fes que avui",
-        "compti"
-      ]
-    },
-    {
-      "lines": [
-        "Nou dia",
-        "nova ocasió",
-        "nou tu"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Comença amb",
-        "gratitud"
-      ]
-    },
-    {
-      "lines": [
-        "Brilla com el",
-        "sol del matí",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Avui és un",
-        "regal"
-      ]
-    },
-    {
-      "lines": [
-        "Comença el dia",
-        "amb un",
-        "gràcies"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Sembra",
-        "amabilitat"
-      ]
-    },
-    {
-      "lines": [
-        "Thas despertat",
-        "Ja és una",
-        "victòria"
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Apunta alt",
-        "Comença ara"
-      ]
-    },
-    {
-      "lines": [
-        "Deixa entrar",
-        "la llum",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bon dia",
-        "Escriu avui una",
-        "gran història"
-      ]
-    },
-    {
-      "lines": [
-        "Avui el sol",
-        "brilla per",
-        "tu"
-      ]
-    }
-  ]
+ "groups": [
+  "Bon dia Avui és ple de potencial",
+  "Amunt i brilla Fes el dia increïble",
+  "Bon dia Tu ets suficient",
+  "Cada matí és una ocasió per recomençar",
+  "Desperta amb determinació",
+  "Avui és un dia completament nou",
+  "Bon dia Sigues el motiu dun somriure",
+  "Fes que passi Sorprèn tothom",
+  "Bon dia El teu únic límit ets tu",
+  "Creu en tu avui i cada dia",
+  "Bon dia Persegueix els teus somnis",
+  "Avui és teu Aprofital",
+  "Bon dia Sigues positiu Treballa fort",
+  "Aixecat i agafa el dia amb ganes",
+  "Bon dia Vénen coses grans",
+  "Ets més fort del que penses",
+  "Bon dia Fes-te sentir orgullós avui",
+  "Nou dia nova força noves idees",
+  "Bon dia Escampa amabilitat",
+  "El millor dia per recomençar és avui",
+  "Bon dia El sol ha sortit per tu",
+  "Somriu primer cafè després",
+  "Bon dia Avui només passa un cop",
+  "Una paraula amable canvia un dia",
+  "Bon dia Comença allà on ets",
+  "El més difícil primer",
+  "Bon dia Fes una cosa valenta avui",
+  "Cada matí és un nou començament",
+  "Bon dia Deixa anar lahir",
+  "Avui és un bon dia per tenir un bon dia",
+  "Bon dia Rega els teus somnis",
+  "Sigues lenergia que vols atraure",
+  "Bon dia Els passos petits compten",
+  "Despertat i sigues genial",
+  "Bon dia El teu futur testà mirant",
+  "Fes-ho avui no demà",
+  "Bon dia Respira coratge",
+  "Qui matina fa farina i pren cafè",
+  "Bon dia Fes que avui compti",
+  "Nou dia nova ocasió nou tu",
+  "Bon dia Comença amb gratitud",
+  "Brilla com el sol del matí",
+  "Bon dia Avui és un regal",
+  "Comença el dia amb un gràcies",
+  "Bon dia Sembra amabilitat",
+  "Thas despertat Ja és una victòria",
+  "Bon dia Apunta alt Comença ara",
+  "Deixa entrar la llum",
+  "Bon dia Escriu avui una gran història",
+  "Avui el sol brilla per tu"
+ ]
 }

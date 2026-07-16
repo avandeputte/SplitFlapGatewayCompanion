@@ -78,3 +78,30 @@ def test_the_shipped_defaults_are_sane():
         assert order(a) == "random", a
     for a in ("dad-jokes", "funny-one-liners"):
         assert order(a) == "sequential", a
+
+
+def test_shipped_channels_use_the_groups_format():
+    """The catalog channels were converted from hand-split `pages` to `groups`
+    (you write text, the engine wraps). A regression back to pre-split lines
+    would show here."""
+    import json
+    import pathlib
+    apps = pathlib.Path(__file__).resolve().parents[2] / "apps"
+    for app in ("dad-jokes", "magic-8-ball", "stoic-quotes", "office-quotes",
+                "shower-thoughts", "motivational-quotes", "harry-potter-quotes"):
+        doc = json.loads((apps / app / "data.json").read_text("utf-8"))
+        assert "groups" in doc and doc["groups"], f"{app}: not in groups format"
+
+
+def test_a_shipped_multipage_item_never_splits_under_random(tmp_path):
+    """office-quotes is order:random and has two 2-page items; render it many
+    times and assert the pages of each item are always consecutive."""
+    from conftest import make_runtime
+    rt = make_runtime(tmp_path, ["office-quotes"], rows=3, cols=15)
+    for _ in range(40):
+        pages = rt._channel_pages("office-quotes", "en-US")
+        # the Gretzky item's two pages: "...shots you don't take" then "Wayne Gretzky"
+        idx = next((i for i, p in enumerate(pages) if "Gretzky" in p), None)
+        if idx is not None:
+            assert "100%" in pages[idx - 1] or "shots" in pages[idx - 1], \
+                "the Gretzky quote's two pages came apart"

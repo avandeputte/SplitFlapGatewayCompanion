@@ -1,24 +1,28 @@
 {
-  "pages": [
-    {"lines": ["That's what", "she said", "- Michael"]},
-    {"lines": ["Bears beets", "Battlestar", "- Dwight"]},
-    {"lines": ["I am Beyonce", "always", "- Michael"]},
-    {"lines": ["I'm not", "superstitious", "- Michael"]},
-    {"lines": ["I declare", "bankruptcy!", "- Michael"]},
-    {"lines": ["Identity theft", "is not a joke", "- Dwight"]},
-    {"lines": ["Why are you the", "way that you", "are - Michael"]},
-    {"lines": ["Did I stutter?", "", "- Stanley"]},
-    {"lines": ["I am dead", "inside", "- Michael"]},
-    {"lines": ["Would I rather", "be feared or", "loved - Michael"]},
-    {"lines": ["I understand", "nothing", "- Michael"]},
-    {"lines": ["The worst thing", "about prison", "was - Michael"]},
-    {"lines": ["Sorry I annoyed", "you with my", "friendship-Andy"]},
-    {"lines": ["Sometimes I'll", "start a", "sentence -Mich."]},
-    {"lines": ["It's Britney", "b*tch", "- Kelly"]},
-    {"lines": ["Oh my God OK", "it's happening", "- Michael"]},
-    {"lines": ["I want people", "to be afraid of", "how much they"]},
-    {"lines": ["love me", "", "- Michael"]},
-    {"lines": ["You miss 100%", "of the shots", "you don't take"]},
-    {"lines": ["- Wayne Gretzky", "- Michael Scott", ""]}
+ "groups": [
+  "That's what she said\n- Michael",
+  "Bears beets Battlestar\n- Dwight",
+  "I am Beyonce always\n- Michael",
+  "I'm not superstitious\n- Michael",
+  "I declare bankruptcy!\n- Michael",
+  "Identity theft is not a joke\n- Dwight",
+  "Why are you the way that you are\n- Michael",
+  "Did I stutter?\n- Stanley",
+  "I am dead inside\n- Michael",
+  "Would I rather be feared or loved\n- Michael",
+  "I understand nothing\n- Michael",
+  "The worst thing about prison was\n- Michael",
+  "Sorry I annoyed you with my friendship\n- Andy",
+  "Sometimes I'll start a sentence\n- Mich.",
+  "It's Britney b*tch\n- Kelly",
+  "Oh my God OK it's happening\n- Michael",
+  [
+   "I want people to be afraid of how much they",
+   "love me\n- Michael"
+  ],
+  [
+   "You miss 100% of the shots you don't take",
+   "- Wayne Gretzky\n- Michael Scott"
   ]
+ ]
 }

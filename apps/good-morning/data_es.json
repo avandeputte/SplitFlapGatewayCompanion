@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Buenos días",
-        "Hoy está lleno",
-        "de potencial"
-      ]
-    },
-    {
-      "lines": [
-        "Arriba",
-        "Haz que hoy sea",
-        "increíble"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Eres suficiente",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Cada mañana",
-        "es una ocasión",
-        "de empezar"
-      ]
-    },
-    {
-      "lines": [
-        "Despierta con",
-        "determinación",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoy es un día",
-        "completamente",
-        "nuevo"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Sé el motivo de",
-        "una sonrisa"
-      ]
-    },
-    {
-      "lines": [
-        "Hazlo realidad",
-        "Sorprende a",
-        "todos"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Tu único límite",
-        "eres tú"
-      ]
-    },
-    {
-      "lines": [
-        "Cree en ti hoy",
-        "y cada día",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Persigue hoy",
-        "tus sueños"
-      ]
-    },
-    {
-      "lines": [
-        "El día es tuyo",
-        "Tómalo",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Sé positivo",
-        "Trabaja duro"
-      ]
-    },
-    {
-      "lines": [
-        "Levántate y",
-        "ataca el día",
-        "con entusiasmo"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Grandes cosas",
-        "se acercan"
-      ]
-    },
-    {
-      "lines": [
-        "Eres más fuerte",
-        "de lo que crees",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Siéntete hoy",
-        "orgulloso"
-      ]
-    },
-    {
-      "lines": [
-        "Nuevo día",
-        "nueva fuerza",
-        "nuevas ideas"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Siembra",
-        "amabilidad"
-      ]
-    },
-    {
-      "lines": [
-        "El mejor día",
-        "para empezar",
-        "es hoy"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "El sol salió",
-        "también por ti"
-      ]
-    },
-    {
-      "lines": [
-        "Primero sonríe",
-        "luego el café",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Hoy solo se",
-        "emite una vez"
-      ]
-    },
-    {
-      "lines": [
-        "Una palabra",
-        "amable cambia",
-        "un día"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Empieza donde",
-        "estás"
-      ]
-    },
-    {
-      "lines": [
-        "Lo difícil",
-        "primero",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Haz algo",
-        "valiente hoy"
-      ]
-    },
-    {
-      "lines": [
-        "Cada mañana es",
-        "un comienzo",
-        "nuevo"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Suelta el ayer",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hoy es un buen",
-        "día para un",
-        "buen día"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Riega tus",
-        "sueños hoy"
-      ]
-    },
-    {
-      "lines": [
-        "Sé la energía",
-        "que quieres",
-        "atraer"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Los pasitos",
-        "también cuentan"
-      ]
-    },
-    {
-      "lines": [
-        "Despierta y",
-        "sé increíble",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Tu futuro te",
-        "está mirando"
-      ]
-    },
-    {
-      "lines": [
-        "Hazlo hoy",
-        "no mañana",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Respira",
-        "valor"
-      ]
-    },
-    {
-      "lines": [
-        "Al que madruga",
-        "le espera",
-        "el café"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Haz que hoy",
-        "cuente"
-      ]
-    },
-    {
-      "lines": [
-        "Nuevo día",
-        "nueva",
-        "oportunidad"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Empieza con",
-        "gratitud"
-      ]
-    },
-    {
-      "lines": [
-        "Brilla como el",
-        "sol de la",
-        "mañana"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Hoy es un",
-        "regalo"
-      ]
-    },
-    {
-      "lines": [
-        "Empieza el día",
-        "con un",
-        "gracias"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Planta semillas",
-        "de bondad"
-      ]
-    },
-    {
-      "lines": [
-        "Te despertaste",
-        "Eso ya es una",
-        "victoria"
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Apunta alto",
-        "Empieza ya"
-      ]
-    },
-    {
-      "lines": [
-        "Deja entrar",
-        "la luz",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenos días",
-        "Escribe hoy una",
-        "gran historia"
-      ]
-    },
-    {
-      "lines": [
-        "Hoy el sol",
-        "brilla para",
-        "ti"
-      ]
-    }
-  ]
+ "groups": [
+  "Buenos días Hoy está lleno de potencial",
+  "Arriba Haz que hoy sea increíble",
+  "Buenos días Eres suficiente",
+  "Cada mañana es una ocasión de empezar",
+  "Despierta con determinación",
+  "Hoy es un día completamente nuevo",
+  "Buenos días Sé el motivo de una sonrisa",
+  "Hazlo realidad Sorprende a todos",
+  "Buenos días Tu único límite eres tú",
+  "Cree en ti hoy y cada día",
+  "Buenos días Persigue hoy tus sueños",
+  "El día es tuyo Tómalo",
+  "Buenos días Sé positivo Trabaja duro",
+  "Levántate y ataca el día con entusiasmo",
+  "Buenos días Grandes cosas se acercan",
+  "Eres más fuerte de lo que crees",
+  "Buenos días Siéntete hoy orgulloso",
+  "Nuevo día nueva fuerza nuevas ideas",
+  "Buenos días Siembra amabilidad",
+  "El mejor día para empezar es hoy",
+  "Buenos días El sol salió también por ti",
+  "Primero sonríe luego el café",
+  "Buenos días Hoy solo se emite una vez",
+  "Una palabra amable cambia un día",
+  "Buenos días Empieza donde estás",
+  "Lo difícil primero",
+  "Buenos días Haz algo valiente hoy",
+  "Cada mañana es un comienzo nuevo",
+  "Buenos días Suelta el ayer",
+  "Hoy es un buen día para un buen día",
+  "Buenos días Riega tus sueños hoy",
+  "Sé la energía que quieres atraer",
+  "Buenos días Los pasitos también cuentan",
+  "Despierta y sé increíble",
+  "Buenos días Tu futuro te está mirando",
+  "Hazlo hoy no mañana",
+  "Buenos días Respira valor",
+  "Al que madruga le espera el café",
+  "Buenos días Haz que hoy cuente",
+  "Nuevo día nueva oportunidad",
+  "Buenos días Empieza con gratitud",
+  "Brilla como el sol de la mañana",
+  "Buenos días Hoy es un regalo",
+  "Empieza el día con un gracias",
+  "Buenos días Planta semillas de bondad",
+  "Te despertaste Eso ya es una victoria",
+  "Buenos días Apunta alto Empieza ya",
+  "Deja entrar la luz",
+  "Buenos días Escribe hoy una gran historia",
+  "Hoy el sol brilla para ti"
+ ]
 }

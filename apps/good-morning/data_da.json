@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Godmorgen",
-        "I dag er fuld",
-        "af muligheder"
-      ]
-    },
-    {
-      "lines": [
-        "Op og strål",
-        "Gør dagen",
-        "fantastisk"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Du er nok",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Hver morgen kan",
-        "man starte",
-        "forfra"
-      ]
-    },
-    {
-      "lines": [
-        "Vågn op med",
-        "beslutsomhed",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "I dag er en",
-        "helt ny dag",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Vær grunden til",
-        "et smil"
-      ]
-    },
-    {
-      "lines": [
-        "Få det til at",
-        "ske Overrask",
-        "alle"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Din eneste",
-        "grænse er dig"
-      ]
-    },
-    {
-      "lines": [
-        "Tro på dig",
-        "selv i dag og",
-        "hver dag"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Jag dine",
-        "drømme i dag"
-      ]
-    },
-    {
-      "lines": [
-        "Dagen er din",
-        "Tag den",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Vær positiv",
-        "Arbejd hårdt"
-      ]
-    },
-    {
-      "lines": [
-        "Rejs dig og tag",
-        "dagen med",
-        "begejstring"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Store ting er",
-        "på vej"
-      ]
-    },
-    {
-      "lines": [
-        "Du er stærkere",
-        "end du tror",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Gør dig selv",
-        "stolt i dag"
-      ]
-    },
-    {
-      "lines": [
-        "Ny dag",
-        "ny styrke",
-        "nye tanker"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Spred venlighed",
-        "overalt"
-      ]
-    },
-    {
-      "lines": [
-        "Den bedste tid",
-        "til en ny start",
-        "er nu"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Solen stod også",
-        "op for dig"
-      ]
-    },
-    {
-      "lines": [
-        "Smil først",
-        "kaffe bagefter",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "I dag sendes",
-        "kun en gang"
-      ]
-    },
-    {
-      "lines": [
-        "Et venligt ord",
-        "kan ændre en",
-        "hel dag"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Start der hvor",
-        "du er"
-      ]
-    },
-    {
-      "lines": [
-        "Det sværeste",
-        "først",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Gør noget",
-        "modigt i dag"
-      ]
-    },
-    {
-      "lines": [
-        "Hver morgen er",
-        "en frisk start",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Giv slip på",
-        "i går"
-      ]
-    },
-    {
-      "lines": [
-        "I dag er en god",
-        "dag for en god",
-        "dag"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Vand dine",
-        "drømme i dag"
-      ]
-    },
-    {
-      "lines": [
-        "Vær den energi",
-        "du vil",
-        "tiltrække"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Små skridt",
-        "tæller også"
-      ]
-    },
-    {
-      "lines": [
-        "Vågn op og",
-        "vær fantastisk",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Din fremtid",
-        "kigger med"
-      ]
-    },
-    {
-      "lines": [
-        "Gør det i dag",
-        "ikke i morgen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Indånd",
-        "mod"
-      ]
-    },
-    {
-      "lines": [
-        "Den tidlige",
-        "fugl får",
-        "kaffen"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Få dagen til",
-        "at tælle"
-      ]
-    },
-    {
-      "lines": [
-        "Ny dag",
-        "ny chance",
-        "nyt dig"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Begynd med",
-        "taknemlighed"
-      ]
-    },
-    {
-      "lines": [
-        "Strål som",
-        "morgensolen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "I dag er en",
-        "gave"
-      ]
-    },
-    {
-      "lines": [
-        "Start dagen",
-        "med et tak",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Så venlighedens",
-        "frø"
-      ]
-    },
-    {
-      "lines": [
-        "Du vågnede",
-        "Det er allerede",
-        "en sejr"
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Sigt højt",
-        "Start nu"
-      ]
-    },
-    {
-      "lines": [
-        "Luk lyset ind",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godmorgen",
-        "Skriv en god",
-        "historie i dag"
-      ]
-    },
-    {
-      "lines": [
-        "I dag skinner",
-        "solen for",
-        "dig"
-      ]
-    }
-  ]
+ "groups": [
+  "Godmorgen I dag er fuld af muligheder",
+  "Op og strål Gør dagen fantastisk",
+  "Godmorgen Du er nok",
+  "Hver morgen kan man starte forfra",
+  "Vågn op med beslutsomhed",
+  "I dag er en helt ny dag",
+  "Godmorgen Vær grunden til et smil",
+  "Få det til at ske Overrask alle",
+  "Godmorgen Din eneste grænse er dig",
+  "Tro på dig selv i dag og hver dag",
+  "Godmorgen Jag dine drømme i dag",
+  "Dagen er din Tag den",
+  "Godmorgen Vær positiv Arbejd hårdt",
+  "Rejs dig og tag dagen med begejstring",
+  "Godmorgen Store ting er på vej",
+  "Du er stærkere end du tror",
+  "Godmorgen Gør dig selv stolt i dag",
+  "Ny dag ny styrke nye tanker",
+  "Godmorgen Spred venlighed overalt",
+  "Den bedste tid til en ny start er nu",
+  "Godmorgen Solen stod også op for dig",
+  "Smil først kaffe bagefter",
+  "Godmorgen I dag sendes kun en gang",
+  "Et venligt ord kan ændre en hel dag",
+  "Godmorgen Start der hvor du er",
+  "Det sværeste først",
+  "Godmorgen Gør noget modigt i dag",
+  "Hver morgen er en frisk start",
+  "Godmorgen Giv slip på i går",
+  "I dag er en god dag for en god dag",
+  "Godmorgen Vand dine drømme i dag",
+  "Vær den energi du vil tiltrække",
+  "Godmorgen Små skridt tæller også",
+  "Vågn op og vær fantastisk",
+  "Godmorgen Din fremtid kigger med",
+  "Gør det i dag ikke i morgen",
+  "Godmorgen Indånd mod",
+  "Den tidlige fugl får kaffen",
+  "Godmorgen Få dagen til at tælle",
+  "Ny dag ny chance nyt dig",
+  "Godmorgen Begynd med taknemlighed",
+  "Strål som morgensolen",
+  "Godmorgen I dag er en gave",
+  "Start dagen med et tak",
+  "Godmorgen Så venlighedens frø",
+  "Du vågnede Det er allerede en sejr",
+  "Godmorgen Sigt højt Start nu",
+  "Luk lyset ind",
+  "Godmorgen Skriv en god historie i dag",
+  "I dag skinner solen for dig"
+ ]
 }

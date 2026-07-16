@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Bona nit",
-        "Dorm bé",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Dolços somnis",
-        "Ens veiem al",
-        "matí"
-      ]
-    },
-    {
-      "lines": [
-        "Descansa bé",
-        "Demà és un",
-        "nou dia"
-      ]
-    },
-    {
-      "lines": [
-        "Les estrelles",
-        "han sortit",
-        "Dorm bé"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Deixa anar les",
-        "preocupacions"
-      ]
-    },
-    {
-      "lines": [
-        "Tanca els ulls",
-        "somia en",
-        "gran"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Avui ho has",
-        "fet molt bé"
-      ]
-    },
-    {
-      "lines": [
-        "Dorm bé i",
-        "despertat",
-        "renovat"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "La lluna vetlla",
-        "per tu"
-      ]
-    },
-    {
-      "lines": [
-        "Demà porta",
-        "noves",
-        "aventures"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Agraeix",
-        "aquest dia"
-      ]
-    },
-    {
-      "lines": [
-        "Que les",
-        "estrelles guiïn",
-        "els teus somnis"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Relaxat i",
-        "respira fondo"
-      ]
-    },
-    {
-      "lines": [
-        "Acaba el dia",
-        "amb el cor",
-        "agraït"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Pau i calma",
-        "tenvolten"
-      ]
-    },
-    {
-      "lines": [
-        "Adorm-te",
-        "sabent que",
-        "ets estimat"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Deixa reposar",
-        "la ment"
-      ]
-    },
-    {
-      "lines": [
-        "La nit és",
-        "quieta i calma",
-        "Dorm bé"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Dolços somnis",
-        "fins demà"
-      ]
-    },
-    {
-      "lines": [
-        "Que els teus",
-        "somnis siguin",
-        "plens de joia"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "El dia sha",
-        "acabat Descansa"
-      ]
-    },
-    {
-      "lines": [
-        "Estrelles dalt",
-        "somnis endavant",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Demà pot",
-        "esperar"
-      ]
-    },
-    {
-      "lines": [
-        "Deixa el dia",
-        "amb suavitat",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Estàs segur",
-        "i estimat"
-      ]
-    },
-    {
-      "lines": [
-        "La lluna fa",
-        "guàrdia avui",
-        "Dorm profund"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Perdona el dia",
-        "i descansa"
-      ]
-    },
-    {
-      "lines": [
-        "Hores quietes",
-        "somnis suaus",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Demà està per",
-        "escriure"
-      ]
-    },
-    {
-      "lines": [
-        "Tanca el dia",
-        "obre un somni",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Deixa que el",
-        "silenci et curi"
-      ]
-    },
-    {
-      "lines": [
-        "El cel de nit",
-        "és ple de",
-        "desitjos"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Descansar és",
-        "productiu"
-      ]
-    },
-    {
-      "lines": [
-        "Abaixa els",
-        "llums frena els",
-        "pensaments"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Avui has fet",
-        "prou"
-      ]
-    },
-    {
-      "lines": [
-        "Dormir és la",
-        "millor",
-        "meditació"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Compta joies",
-        "no ovelles"
-      ]
-    },
-    {
-      "lines": [
-        "Que la nit",
-        "sigui suau i",
-        "amable"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Els somnis són",
-        "gratis Pren dos"
-      ]
-    },
-    {
-      "lines": [
-        "El dia sha",
-        "acabat Deixal",
-        "anar"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Recarregat per",
-        "demà"
-      ]
-    },
-    {
-      "lines": [
-        "Fins i tot el",
-        "sol sha de",
-        "pondre"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Xiuxiueja els",
-        "teus desitjos"
-      ]
-    },
-    {
-      "lines": [
-        "Aquesta nit",
-        "descansa demà",
-        "brilla"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "El món pot",
-        "esperar"
-      ]
-    },
-    {
-      "lines": [
-        "Dorm bé",
-        "fes-te fort",
-        "somia lluny"
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "La llum dels",
-        "estels regalada"
-      ]
-    },
-    {
-      "lines": [
-        "Deixa les",
-        "preocupacions",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bona nit",
-        "Ens veiem a",
-        "lalba"
-      ]
-    },
-    {
-      "lines": [
-        "La nit és una",
-        "cançó de",
-        "bressol Dorm"
-      ]
-    }
-  ]
+ "groups": [
+  "Bona nit Dorm bé",
+  "Dolços somnis Ens veiem al matí",
+  "Descansa bé Demà és un nou dia",
+  "Les estrelles han sortit Dorm bé",
+  "Bona nit Deixa anar les preocupacions",
+  "Tanca els ulls somia en gran",
+  "Bona nit Avui ho has fet molt bé",
+  "Dorm bé i despertat renovat",
+  "Bona nit La lluna vetlla per tu",
+  "Demà porta noves aventures",
+  "Bona nit Agraeix aquest dia",
+  "Que les estrelles guiïn els teus somnis",
+  "Bona nit Relaxat i respira fondo",
+  "Acaba el dia amb el cor agraït",
+  "Bona nit Pau i calma tenvolten",
+  "Adorm-te sabent que ets estimat",
+  "Bona nit Deixa reposar la ment",
+  "La nit és quieta i calma Dorm bé",
+  "Bona nit Dolços somnis fins demà",
+  "Que els teus somnis siguin plens de joia",
+  "Bona nit El dia sha acabat Descansa",
+  "Estrelles dalt somnis endavant",
+  "Bona nit Demà pot esperar",
+  "Deixa el dia amb suavitat",
+  "Bona nit Estàs segur i estimat",
+  "La lluna fa guàrdia avui Dorm profund",
+  "Bona nit Perdona el dia i descansa",
+  "Hores quietes somnis suaus",
+  "Bona nit Demà està per escriure",
+  "Tanca el dia obre un somni",
+  "Bona nit Deixa que el silenci et curi",
+  "El cel de nit és ple de desitjos",
+  "Bona nit Descansar és productiu",
+  "Abaixa els llums frena els pensaments",
+  "Bona nit Avui has fet prou",
+  "Dormir és la millor meditació",
+  "Bona nit Compta joies no ovelles",
+  "Que la nit sigui suau i amable",
+  "Bona nit Els somnis són gratis Pren dos",
+  "El dia sha acabat Deixal anar",
+  "Bona nit Recarregat per demà",
+  "Fins i tot el sol sha de pondre",
+  "Bona nit Xiuxiueja els teus desitjos",
+  "Aquesta nit descansa demà brilla",
+  "Bona nit El món pot esperar",
+  "Dorm bé fes-te fort somia lluny",
+  "Bona nit La llum dels estels regalada",
+  "Deixa les preocupacions",
+  "Bona nit Ens veiem a lalba",
+  "La nit és una cançó de bressol Dorm"
+ ]
 }

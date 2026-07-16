@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Boa noite",
-        "Dorme bem",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Bons sonhos",
-        "Vemo-nos de",
-        "manhã"
-      ]
-    },
-    {
-      "lines": [
-        "Descansa bem",
-        "Amanhã é um",
-        "novo dia"
-      ]
-    },
-    {
-      "lines": [
-        "As estrelas",
-        "saíram hoje",
-        "Dorme bem"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Larga as",
-        "preocupações"
-      ]
-    },
-    {
-      "lines": [
-        "Fecha os olhos",
-        "sonha em",
-        "grande"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Hoje estiveste",
-        "muito bem"
-      ]
-    },
-    {
-      "lines": [
-        "Dorme bem e",
-        "acorda",
-        "renovado"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "A lua vela",
-        "por ti"
-      ]
-    },
-    {
-      "lines": [
-        "Amanhã traz",
-        "novas aventuras",
-        "Descansa já"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Agradece",
-        "este dia"
-      ]
-    },
-    {
-      "lines": [
-        "Que as estrelas",
-        "guiem os teus",
-        "sonhos"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Relaxa e",
-        "respira fundo"
-      ]
-    },
-    {
-      "lines": [
-        "Termina o dia",
-        "com o coração",
-        "grato"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Paz e calma",
-        "rodeiam-te"
-      ]
-    },
-    {
-      "lines": [
-        "Adormece",
-        "sabendo que",
-        "és amado"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Deixa a mente",
-        "descansar"
-      ]
-    },
-    {
-      "lines": [
-        "A noite está",
-        "quieta e calma",
-        "Dorme bem"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Bons sonhos",
-        "até amanhã"
-      ]
-    },
-    {
-      "lines": [
-        "Que os teus",
-        "sonhos tenham",
-        "alegria e paz"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "O dia acabou",
-        "Descansa já"
-      ]
-    },
-    {
-      "lines": [
-        "Estrelas em",
-        "cima sonhos à",
-        "frente"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Amanhã pode",
-        "esperar"
-      ]
-    },
-    {
-      "lines": [
-        "Pousa o dia",
-        "com suavidade",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Estás seguro",
-        "e és amado"
-      ]
-    },
-    {
-      "lines": [
-        "A lua fica de",
-        "vigia hoje",
-        "Dorme fundo"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Perdoa o dia",
-        "e descansa"
-      ]
-    },
-    {
-      "lines": [
-        "Horas quietas",
-        "sonhos suaves",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Amanhã está",
-        "por escrever"
-      ]
-    },
-    {
-      "lines": [
-        "Fecha o dia",
-        "abre um sonho",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Deixa o",
-        "silêncio curar"
-      ]
-    },
-    {
-      "lines": [
-        "O céu noturno",
-        "está cheio de",
-        "desejos"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Descansar é",
-        "produtivo"
-      ]
-    },
-    {
-      "lines": [
-        "Baixa as luzes",
-        "abranda os",
-        "pensamentos"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Hoje fizeste",
-        "o suficiente"
-      ]
-    },
-    {
-      "lines": [
-        "O sono é a",
-        "melhor",
-        "meditação"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Conta bênçãos",
-        "não ovelhas"
-      ]
-    },
-    {
-      "lines": [
-        "Que a noite",
-        "seja suave e",
-        "gentil"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Os sonhos são",
-        "grátis Leva 2"
-      ]
-    },
-    {
-      "lines": [
-        "O dia acabou",
-        "Deixa-o ir",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Recarrega para",
-        "amanhã"
-      ]
-    },
-    {
-      "lines": [
-        "Até o sol",
-        "precisa de se",
-        "pôr"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Sussurra os",
-        "teus desejos"
-      ]
-    },
-    {
-      "lines": [
-        "Hoje descansa",
-        "amanhã",
-        "levanta-te"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "O mundo pode",
-        "esperar"
-      ]
-    },
-    {
-      "lines": [
-        "Dorme bem",
-        "fica forte",
-        "sonha longe"
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "A luz dos",
-        "astros é grátis"
-      ]
-    },
-    {
-      "lines": [
-        "Pousa as tuas",
-        "preocupações",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Boa noite",
-        "Vemo-nos ao",
-        "nascer do sol"
-      ]
-    },
-    {
-      "lines": [
-        "A noite é uma",
-        "canção de",
-        "embalar Dorme"
-      ]
-    }
-  ]
+ "groups": [
+  "Boa noite Dorme bem",
+  "Bons sonhos Vemo-nos de manhã",
+  "Descansa bem Amanhã é um novo dia",
+  "As estrelas saíram hoje Dorme bem",
+  "Boa noite Larga as preocupações",
+  "Fecha os olhos sonha em grande",
+  "Boa noite Hoje estiveste muito bem",
+  "Dorme bem e acorda renovado",
+  "Boa noite A lua vela por ti",
+  "Amanhã traz novas aventuras Descansa já",
+  "Boa noite Agradece este dia",
+  "Que as estrelas guiem os teus sonhos",
+  "Boa noite Relaxa e respira fundo",
+  "Termina o dia com o coração grato",
+  "Boa noite Paz e calma rodeiam-te",
+  "Adormece sabendo que és amado",
+  "Boa noite Deixa a mente descansar",
+  "A noite está quieta e calma Dorme bem",
+  "Boa noite Bons sonhos até amanhã",
+  "Que os teus sonhos tenham alegria e paz",
+  "Boa noite O dia acabou Descansa já",
+  "Estrelas em cima sonhos à frente",
+  "Boa noite Amanhã pode esperar",
+  "Pousa o dia com suavidade",
+  "Boa noite Estás seguro e és amado",
+  "A lua fica de vigia hoje Dorme fundo",
+  "Boa noite Perdoa o dia e descansa",
+  "Horas quietas sonhos suaves",
+  "Boa noite Amanhã está por escrever",
+  "Fecha o dia abre um sonho",
+  "Boa noite Deixa o silêncio curar",
+  "O céu noturno está cheio de desejos",
+  "Boa noite Descansar é produtivo",
+  "Baixa as luzes abranda os pensamentos",
+  "Boa noite Hoje fizeste o suficiente",
+  "O sono é a melhor meditação",
+  "Boa noite Conta bênçãos não ovelhas",
+  "Que a noite seja suave e gentil",
+  "Boa noite Os sonhos são grátis Leva 2",
+  "O dia acabou Deixa-o ir",
+  "Boa noite Recarrega para amanhã",
+  "Até o sol precisa de se pôr",
+  "Boa noite Sussurra os teus desejos",
+  "Hoje descansa amanhã levanta-te",
+  "Boa noite O mundo pode esperar",
+  "Dorme bem fica forte sonha longe",
+  "Boa noite A luz dos astros é grátis",
+  "Pousa as tuas preocupações",
+  "Boa noite Vemo-nos ao nascer do sol",
+  "A noite é uma canção de embalar Dorme"
+ ]
 }

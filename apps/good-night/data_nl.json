@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Welterusten",
-        "slaap lekker",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Zoete dromen",
-        "tot morgen",
-        "vroeg"
-      ]
-    },
-    {
-      "lines": [
-        "Rust goed uit",
-        "morgen is een",
-        "nieuwe dag"
-      ]
-    },
-    {
-      "lines": [
-        "De sterren",
-        "staan aan",
-        "slaap lekker"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "laat de zorgen",
-        "van vandaag los"
-      ]
-    },
-    {
-      "lines": [
-        "Ogen dicht",
-        "droom groot",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "je deed het",
-        "goed vandaag"
-      ]
-    },
-    {
-      "lines": [
-        "Slaap lekker",
-        "en word fris",
-        "wakker"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "de maan waakt",
-        "over je"
-      ]
-    },
-    {
-      "lines": [
-        "Morgen brengt",
-        "nieuwe",
-        "avonturen"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "wees dankbaar",
-        "voor vandaag"
-      ]
-    },
-    {
-      "lines": [
-        "Laat de sterren",
-        "je dromen",
-        "leiden vannacht"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "ontspan en",
-        "adem diep"
-      ]
-    },
-    {
-      "lines": [
-        "Sluit de dag",
-        "met een",
-        "dankbaar hart"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "rust en vrede",
-        "om je heen"
-      ]
-    },
-    {
-      "lines": [
-        "Val in slaap",
-        "wetend dat je",
-        "geliefd bent"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "laat je hoofd",
-        "tot rust komen"
-      ]
-    },
-    {
-      "lines": [
-        "De nacht is",
-        "stil en kalm",
-        "slaap lekker"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "zoete dromen",
-        "tot morgen"
-      ]
-    },
-    {
-      "lines": [
-        "Mogen je",
-        "dromen vol",
-        "vreugde zijn"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "de dag is om",
-        "rust nu uit"
-      ]
-    },
-    {
-      "lines": [
-        "Sterren boven",
-        "dromen vooruit",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "morgen kan",
-        "wachten"
-      ]
-    },
-    {
-      "lines": [
-        "Leg de dag",
-        "zachtjes neer",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "je bent veilig",
-        "en geliefd"
-      ]
-    },
-    {
-      "lines": [
-        "De maan houdt",
-        "vannacht de",
-        "wacht slaap"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "vergeef de dag",
-        "en rust"
-      ]
-    },
-    {
-      "lines": [
-        "Stille uren",
-        "zachte dromen",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "morgen is nog",
-        "ongeschreven"
-      ]
-    },
-    {
-      "lines": [
-        "Sluit de dag",
-        "open een droom",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "laat stilte",
-        "je helen"
-      ]
-    },
-    {
-      "lines": [
-        "De nachthemel",
-        "zit vol",
-        "wensen"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "rust is ook",
-        "productief"
-      ]
-    },
-    {
-      "lines": [
-        "Dim de lichten",
-        "vertraag de",
-        "gedachten"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "je deed genoeg",
-        "vandaag"
-      ]
-    },
-    {
-      "lines": [
-        "Slaap is de",
-        "beste",
-        "meditatie"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "tel zegeningen",
-        "geen schapen"
-      ]
-    },
-    {
-      "lines": [
-        "Moge de nacht",
-        "zacht en lief",
-        "zijn"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "dromen zijn",
-        "gratis pak twee"
-      ]
-    },
-    {
-      "lines": [
-        "De dag is",
-        "voorbij laat",
-        "hem gaan"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "laad op voor",
-        "morgen"
-      ]
-    },
-    {
-      "lines": [
-        "Zelfs de zon",
-        "moet",
-        "ondergaan"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "fluister je",
-        "wensen"
-      ]
-    },
-    {
-      "lines": [
-        "Vannacht",
-        "rusten morgen",
-        "stralen"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "de wereld kan",
-        "wachten"
-      ]
-    },
-    {
-      "lines": [
-        "Slaap goed",
-        "word sterk",
-        "droom ver"
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "sterrenlicht",
-        "is gratis"
-      ]
-    },
-    {
-      "lines": [
-        "Leg je zorgen",
-        "neer",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Welterusten",
-        "tot bij",
-        "zonsopgang"
-      ]
-    },
-    {
-      "lines": [
-        "De nacht is een",
-        "slaapliedje",
-        "slaap nu"
-      ]
-    }
-  ]
+ "groups": [
+  "Welterusten slaap lekker",
+  "Zoete dromen tot morgen vroeg",
+  "Rust goed uit morgen is een nieuwe dag",
+  "De sterren staan aan slaap lekker",
+  "Welterusten laat de zorgen van vandaag los",
+  "Ogen dicht droom groot",
+  "Welterusten je deed het goed vandaag",
+  "Slaap lekker en word fris wakker",
+  "Welterusten de maan waakt over je",
+  "Morgen brengt nieuwe avonturen",
+  "Welterusten wees dankbaar voor vandaag",
+  "Laat de sterren je dromen leiden vannacht",
+  "Welterusten ontspan en adem diep",
+  "Sluit de dag met een dankbaar hart",
+  "Welterusten rust en vrede om je heen",
+  "Val in slaap wetend dat je geliefd bent",
+  "Welterusten laat je hoofd tot rust komen",
+  "De nacht is stil en kalm slaap lekker",
+  "Welterusten zoete dromen tot morgen",
+  "Mogen je dromen vol vreugde zijn",
+  "Welterusten de dag is om rust nu uit",
+  "Sterren boven dromen vooruit",
+  "Welterusten morgen kan wachten",
+  "Leg de dag zachtjes neer",
+  "Welterusten je bent veilig en geliefd",
+  "De maan houdt vannacht de wacht slaap",
+  "Welterusten vergeef de dag en rust",
+  "Stille uren zachte dromen",
+  "Welterusten morgen is nog ongeschreven",
+  "Sluit de dag open een droom",
+  "Welterusten laat stilte je helen",
+  "De nachthemel zit vol wensen",
+  "Welterusten rust is ook productief",
+  "Dim de lichten vertraag de gedachten",
+  "Welterusten je deed genoeg vandaag",
+  "Slaap is de beste meditatie",
+  "Welterusten tel zegeningen geen schapen",
+  "Moge de nacht zacht en lief zijn",
+  "Welterusten dromen zijn gratis pak twee",
+  "De dag is voorbij laat hem gaan",
+  "Welterusten laad op voor morgen",
+  "Zelfs de zon moet ondergaan",
+  "Welterusten fluister je wensen",
+  "Vannacht rusten morgen stralen",
+  "Welterusten de wereld kan wachten",
+  "Slaap goed word sterk droom ver",
+  "Welterusten sterrenlicht is gratis",
+  "Leg je zorgen neer",
+  "Welterusten tot bij zonsopgang",
+  "De nacht is een slaapliedje slaap nu"
+ ]
 }

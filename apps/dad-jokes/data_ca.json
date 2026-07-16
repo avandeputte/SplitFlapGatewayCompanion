@@ -1,354 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Què fa una",
-        "abella al",
-        "gimnàs?"
-      ]
-    },
-    {
-      "lines": [
-        "Zumba",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Què li diu una",
-        "paret a",
-        "laltra?"
-      ]
-    },
-    {
-      "lines": [
-        "Ens veiem a la",
-        "cantonada",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Per què el",
-        "llibre de mates",
-        "està trist?"
-      ]
-    },
-    {
-      "lines": [
-        "Té massa",
-        "problemes",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quin és",
-        "lanimal més",
-        "vell?"
-      ]
-    },
-    {
-      "lines": [
-        "La zebra va en",
-        "blanc i negre",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quin és el",
-        "súmmum dun",
-        "electricista?"
-      ]
-    },
-    {
-      "lines": [
-        "Quedar-se a",
-        "les fosques",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quin és el",
-        "súmmum dun",
-        "jardiner?"
-      ]
-    },
-    {
-      "lines": [
-        "Que el deixin",
-        "plantat",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Què li diu el",
-        "zero al vuit?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quin cinturó",
-        "més maco",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Qui salta més",
-        "alt que una",
-        "casa?"
-      ]
-    },
-    {
-      "lines": [
-        "Tothom les",
-        "cases no",
-        "salten"
-      ]
-    },
-    {
-      "lines": [
-        "Què fa un peix",
-        "tot el dia?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Neda... res",
-        "més",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Per què les",
-        "foques miren",
-        "amunt?"
-      ]
-    },
-    {
-      "lines": [
-        "Perquè allà hi",
-        "ha els focus",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Com es diu un",
-        "ós sense",
-        "dents?"
-      ]
-    },
-    {
-      "lines": [
-        "Un ós de",
-        "gominola",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Per què els",
-        "esquelets no es",
-        "barallen?"
-      ]
-    },
-    {
-      "lines": [
-        "No tenen",
-        "fetge",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Per què els",
-        "fantasmes",
-        "menteixen mal?"
-      ]
-    },
-    {
-      "lines": [
-        "Es veu a",
-        "través seu",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Com construeix",
-        "la casa un",
-        "pingüí?"
-      ]
-    },
-    {
-      "lines": [
-        "Iglú a",
-        "iglú",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "On guarda els",
-        "diners un",
-        "vampir?"
-      ]
-    },
-    {
-      "lines": [
-        "Al banc de",
-        "sang",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Per què el mar",
-        "no sasseca?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Perquè no",
-        "té tovallola",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Què és blanc i",
-        "molesta a",
-        "lesmorzar?"
-      ]
-    },
-    {
-      "lines": [
-        "Una allau",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Com es diu un",
-        "espanyol sense",
-        "cotxe?"
-      ]
-    },
-    {
-      "lines": [
-        "Carlos",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Cambrer què fa",
-        "aquesta mosca",
-        "a la sopa?"
-      ]
-    },
-    {
-      "lines": [
-        "Crec que",
-        "neda",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Què li diu una",
-        "impressora a",
-        "laltra?"
-      ]
-    },
-    {
-      "lines": [
-        "Full teu o",
-        "impressió",
-        "meva?"
-      ]
-    },
-    {
-      "lines": [
-        "Què fa una",
-        "vaca quan surt",
-        "el sol?"
-      ]
-    },
-    {
-      "lines": [
-        "Ombra",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quin és el",
-        "súmmum dun",
-        "rellotger?"
-      ]
-    },
-    {
-      "lines": [
-        "No tenir mai",
-        "temps",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quina fruita",
-        "té més",
-        "paciència?"
-      ]
-    },
-    {
-      "lines": [
-        "La pera:",
-        "espera",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Què és taronja",
-        "i sona com un",
-        "lloro?"
-      ]
-    },
-    {
-      "lines": [
-        "Una",
-        "pastanaga",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Per què la",
-        "bicicleta no",
-        "saguanta dreta?"
-      ]
-    },
-    {
-      "lines": [
-        "Perquè està",
-        "cansada de",
-        "rodar"
-      ]
-    }
+ "groups": [
+  [
+   "Què fa una abella al gimnàs?",
+   "Zumba"
+  ],
+  [
+   "Què li diu una paret a laltra?",
+   "Ens veiem a la cantonada"
+  ],
+  [
+   "Per què el llibre de mates està trist?",
+   "Té massa problemes"
+  ],
+  [
+   "Quin és lanimal més vell?",
+   "La zebra va en blanc i negre"
+  ],
+  [
+   "Quin és el súmmum dun electricista?",
+   "Quedar-se a les fosques"
+  ],
+  [
+   "Quin és el súmmum dun jardiner?",
+   "Que el deixin plantat"
+  ],
+  [
+   "Què li diu el zero al vuit?",
+   "Quin cinturó més maco"
+  ],
+  [
+   "Qui salta més alt que una casa?",
+   "Tothom les cases no salten"
+  ],
+  [
+   "Què fa un peix tot el dia?",
+   "Neda... res més"
+  ],
+  [
+   "Per què les foques miren amunt?",
+   "Perquè allà hi ha els focus"
+  ],
+  [
+   "Com es diu un ós sense dents?",
+   "Un ós de gominola"
+  ],
+  [
+   "Per què els esquelets no es barallen?",
+   "No tenen fetge"
+  ],
+  [
+   "Per què els fantasmes menteixen mal?",
+   "Es veu a través seu"
+  ],
+  [
+   "Com construeix la casa un pingüí?",
+   "Iglú a iglú"
+  ],
+  [
+   "On guarda els diners un vampir?",
+   "Al banc de sang"
+  ],
+  [
+   "Per què el mar no sasseca?",
+   "Perquè no té tovallola"
+  ],
+  [
+   "Què és blanc i molesta a lesmorzar?",
+   "Una allau"
+  ],
+  [
+   "Com es diu un espanyol sense cotxe?",
+   "Carlos"
+  ],
+  [
+   "Cambrer què fa aquesta mosca a la sopa?",
+   "Crec que neda"
+  ],
+  [
+   "Què li diu una impressora a laltra?",
+   "Full teu o impressió meva?"
+  ],
+  [
+   "Què fa una vaca quan surt el sol?",
+   "Ombra"
+  ],
+  [
+   "Quin és el súmmum dun rellotger?",
+   "No tenir mai temps"
+  ],
+  [
+   "Quina fruita té més paciència?",
+   "La pera: espera"
+  ],
+  [
+   "Què és taronja i sona com un lloro?",
+   "Una pastanaga"
+  ],
+  [
+   "Per què la bicicleta no saguanta dreta?",
+   "Perquè està cansada de rodar"
   ]
+ ]
 }

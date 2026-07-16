@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Buenas noches",
-        "Que descanses",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Dulces sueños",
-        "Nos vemos por",
-        "la mañana"
-      ]
-    },
-    {
-      "lines": [
-        "Descansa bien",
-        "Mañana es un",
-        "nuevo día"
-      ]
-    },
-    {
-      "lines": [
-        "Las estrellas",
-        "salieron hoy",
-        "Duerme bien"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Suelta las",
-        "preocupaciones"
-      ]
-    },
-    {
-      "lines": [
-        "Cierra los ojos",
-        "sueña en",
-        "grande"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Hoy lo hiciste",
-        "genial"
-      ]
-    },
-    {
-      "lines": [
-        "Duerme bien y",
-        "despierta",
-        "renovado"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "La luna te",
-        "cuida"
-      ]
-    },
-    {
-      "lines": [
-        "Mañana trae",
-        "nuevas",
-        "aventuras"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Agradece",
-        "este día"
-      ]
-    },
-    {
-      "lines": [
-        "Que las",
-        "estrellas guíen",
-        "tus sueños"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Relájate y",
-        "respira hondo"
-      ]
-    },
-    {
-      "lines": [
-        "Termina el día",
-        "con el corazón",
-        "agradecido"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Paz y calma",
-        "te rodean"
-      ]
-    },
-    {
-      "lines": [
-        "Duérmete",
-        "sabiendo que",
-        "eres amado"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Deja descansar",
-        "tu mente"
-      ]
-    },
-    {
-      "lines": [
-        "La noche está",
-        "quieta y serena",
-        "Duerme bien"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Dulces sueños",
-        "hasta mañana"
-      ]
-    },
-    {
-      "lines": [
-        "Que tus sueños",
-        "se llenen de",
-        "alegría y paz"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "El día terminó",
-        "Descansa ya"
-      ]
-    },
-    {
-      "lines": [
-        "Estrellas",
-        "arriba sueños",
-        "por delante"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Mañana puede",
-        "esperar"
-      ]
-    },
-    {
-      "lines": [
-        "Suelta el día",
-        "con suavidad",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Estás a salvo",
-        "y eres amado"
-      ]
-    },
-    {
-      "lines": [
-        "La luna vigila",
-        "esta noche",
-        "Duerme hondo"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Perdona el día",
-        "y descansa"
-      ]
-    },
-    {
-      "lines": [
-        "Horas quietas",
-        "sueños suaves",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Mañana está",
-        "por escribir"
-      ]
-    },
-    {
-      "lines": [
-        "Cierra el día",
-        "abre un sueño",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Deja que el",
-        "silencio sane"
-      ]
-    },
-    {
-      "lines": [
-        "El cielo de",
-        "noche está",
-        "lleno de deseos"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Descansar es",
-        "productivo"
-      ]
-    },
-    {
-      "lines": [
-        "Baja las luces",
-        "frena los",
-        "pensamientos"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Hoy hiciste",
-        "suficiente"
-      ]
-    },
-    {
-      "lines": [
-        "Dormir es la",
-        "mejor",
-        "meditación"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Cuenta dichas",
-        "no ovejas"
-      ]
-    },
-    {
-      "lines": [
-        "Que la noche",
-        "sea suave y",
-        "amable"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Los sueños son",
-        "gratis Pide dos"
-      ]
-    },
-    {
-      "lines": [
-        "El día acabó",
-        "Déjalo ir",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Recarga para",
-        "mañana"
-      ]
-    },
-    {
-      "lines": [
-        "Hasta el sol",
-        "necesita",
-        "ponerse"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Susurra tus",
-        "deseos"
-      ]
-    },
-    {
-      "lines": [
-        "Esta noche",
-        "descansa mañana",
-        "brilla"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "El mundo puede",
-        "esperar"
-      ]
-    },
-    {
-      "lines": [
-        "Duerme bien",
-        "hazte fuerte",
-        "sueña lejos"
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "La luz estelar",
-        "es gratis"
-      ]
-    },
-    {
-      "lines": [
-        "Deja tus",
-        "preocupaciones",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Buenas noches",
-        "Nos vemos al",
-        "amanecer"
-      ]
-    },
-    {
-      "lines": [
-        "La noche es una",
-        "canción de cuna",
-        "Duerme ya"
-      ]
-    }
-  ]
+ "groups": [
+  "Buenas noches Que descanses",
+  "Dulces sueños Nos vemos por la mañana",
+  "Descansa bien Mañana es un nuevo día",
+  "Las estrellas salieron hoy Duerme bien",
+  "Buenas noches Suelta las preocupaciones",
+  "Cierra los ojos sueña en grande",
+  "Buenas noches Hoy lo hiciste genial",
+  "Duerme bien y despierta renovado",
+  "Buenas noches La luna te cuida",
+  "Mañana trae nuevas aventuras",
+  "Buenas noches Agradece este día",
+  "Que las estrellas guíen tus sueños",
+  "Buenas noches Relájate y respira hondo",
+  "Termina el día con el corazón agradecido",
+  "Buenas noches Paz y calma te rodean",
+  "Duérmete sabiendo que eres amado",
+  "Buenas noches Deja descansar tu mente",
+  "La noche está quieta y serena Duerme bien",
+  "Buenas noches Dulces sueños hasta mañana",
+  "Que tus sueños se llenen de alegría y paz",
+  "Buenas noches El día terminó Descansa ya",
+  "Estrellas arriba sueños por delante",
+  "Buenas noches Mañana puede esperar",
+  "Suelta el día con suavidad",
+  "Buenas noches Estás a salvo y eres amado",
+  "La luna vigila esta noche Duerme hondo",
+  "Buenas noches Perdona el día y descansa",
+  "Horas quietas sueños suaves",
+  "Buenas noches Mañana está por escribir",
+  "Cierra el día abre un sueño",
+  "Buenas noches Deja que el silencio sane",
+  "El cielo de noche está lleno de deseos",
+  "Buenas noches Descansar es productivo",
+  "Baja las luces frena los pensamientos",
+  "Buenas noches Hoy hiciste suficiente",
+  "Dormir es la mejor meditación",
+  "Buenas noches Cuenta dichas no ovejas",
+  "Que la noche sea suave y amable",
+  "Buenas noches Los sueños son gratis Pide dos",
+  "El día acabó Déjalo ir",
+  "Buenas noches Recarga para mañana",
+  "Hasta el sol necesita ponerse",
+  "Buenas noches Susurra tus deseos",
+  "Esta noche descansa mañana brilla",
+  "Buenas noches El mundo puede esperar",
+  "Duerme bien hazte fuerte sueña lejos",
+  "Buenas noches La luz estelar es gratis",
+  "Deja tus preocupaciones",
+  "Buenas noches Nos vemos al amanecer",
+  "La noche es una canción de cuna Duerme ya"
+ ]
 }

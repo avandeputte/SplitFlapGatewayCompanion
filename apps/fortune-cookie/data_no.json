@@ -1,179 +1,29 @@
 {
- "pages": [
-  {
-   "lines": [
-    "En hyggelig",
-    "overraskelse",
-    "venter deg"
-   ]
-  },
-  {
-   "lines": [
-    "Ditt harde",
-    "arbeid lønner",
-    "seg snart"
-   ]
-  },
-  {
-   "lines": [
-    "En lang reise",
-    "begynner med",
-    "ett skritt"
-   ]
-  },
-  {
-   "lines": [
-    "Tålmodighet er",
-    "nøkkelen til",
-    "glede"
-   ]
-  },
-  {
-   "lines": [
-    "Lykken står",
-    "den kjekke bi",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Gode ting",
-    "kommer til den",
-    "som venter"
-   ]
-  },
-  {
-   "lines": [
-    "Et smil retter",
-    "opp alt",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Det beste",
-    "ligger foran",
-    "deg"
-   ]
-  },
-  {
-   "lines": [
-    "Tro på deg",
-    "selv og",
-    "drømmene dine"
-   ]
-  },
-  {
-   "lines": [
-    "En ny start",
-    "setter deg på",
-    "veien"
-   ]
-  },
-  {
-   "lines": [
-    "Talentene dine",
-    "blir snart",
-    "lagt merke til"
-   ]
-  },
-  {
-   "lines": [
-    "Eventyr kan",
-    "være ekte",
-    "lykke"
-   ]
-  },
-  {
-   "lines": [
-    "Hemmeligheten",
-    "bak fremgang",
-    "er å begynne"
-   ]
-  },
-  {
-   "lines": [
-    "Din vennlighet",
-    "fører deg til",
-    "suksess"
-   ]
-  },
-  {
-   "lines": [
-    "Hver dag er en",
-    "ny sjanse til",
-    "å skinne"
-   ]
-  },
-  {
-   "lines": [
-    "Lykken kommer",
-    "innenfra",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Et liv fullt",
-    "av glede",
-    "venter deg"
-   ]
-  },
-  {
-   "lines": [
-    "Smilet ditt",
-    "gir andre lys",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Store tanker",
-    "kommer fra",
-    "hjertet"
-   ]
-  },
-  {
-   "lines": [
-    "Nå er tiden",
-    "inne for å",
-    "prøve noe nytt"
-   ]
-  },
-  {
-   "lines": [
-    "Du vil finne",
-    "det du søker",
-    ""
-   ]
-  },
-  {
-   "lines": [
-    "Vær tro mot",
-    "deg selv og",
-    "verdiene dine"
-   ]
-  },
-  {
-   "lines": [
-    "Rikdommens",
-    "stjerne skinner",
-    "på deg"
-   ]
-  },
-  {
-   "lines": [
-    "Kjærligheten",
-    "er på vei til",
-    "deg"
-   ]
-  },
-  {
-   "lines": [
-    "Fremtiden din",
-    "er lys og full",
-    "av glede"
-   ]
-  }
+ "groups": [
+  "En hyggelig overraskelse venter deg",
+  "Ditt harde arbeid lønner seg snart",
+  "En lang reise begynner med ett skritt",
+  "Tålmodighet er nøkkelen til glede",
+  "Lykken står den kjekke bi",
+  "Gode ting kommer til den som venter",
+  "Et smil retter opp alt",
+  "Det beste ligger foran deg",
+  "Tro på deg selv og drømmene dine",
+  "En ny start setter deg på veien",
+  "Talentene dine blir snart lagt merke til",
+  "Eventyr kan være ekte lykke",
+  "Hemmeligheten bak fremgang er å begynne",
+  "Din vennlighet fører deg til suksess",
+  "Hver dag er en ny sjanse til å skinne",
+  "Lykken kommer innenfra",
+  "Et liv fullt av glede venter deg",
+  "Smilet ditt gir andre lys",
+  "Store tanker kommer fra hjertet",
+  "Nå er tiden inne for å prøve noe nytt",
+  "Du vil finne det du søker",
+  "Vær tro mot deg selv og verdiene dine",
+  "Rikdommens stjerne skinner på deg",
+  "Kjærligheten er på vei til deg",
+  "Fremtiden din er lys og full av glede"
  ]
 }

@@ -1,354 +1,104 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Que fait une",
-        "fraise sur un",
-        "cheval?"
-      ]
-    },
-    {
-      "lines": [
-        "Tagada",
-        "tagada",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Pourquoi les",
-        "plongeurs vont",
-        "en arrière?"
-      ]
-    },
-    {
-      "lines": [
-        "Sinon ils",
-        "tombent dans",
-        "le bateau"
-      ]
-    },
-    {
-      "lines": [
-        "Pourquoi les",
-        "chats évitent",
-        "leau?"
-      ]
-    },
-    {
-      "lines": [
-        "Dans leau",
-        "minet coule",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quel fruit est",
-        "dans toutes",
-        "les maisons?"
-      ]
-    },
-    {
-      "lines": [
-        "Les coings",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Pourquoi les",
-        "Bretons sont",
-        "tous frères?"
-      ]
-    },
-    {
-      "lines": [
-        "Ils ont",
-        "Quimper",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Que dit une",
-        "imprimante",
-        "dans leau?"
-      ]
-    },
-    {
-      "lines": [
-        "Jai papier",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Le sport",
-        "préféré des",
-        "insectes?"
-      ]
-    },
-    {
-      "lines": [
-        "Le criquet",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Pourquoi les",
-        "canards sont",
-        "à lheure?"
-      ]
-    },
-    {
-      "lines": [
-        "Ils sont dans",
-        "létang",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quest-ce qui",
-        "est jaune et",
-        "qui attend?"
-      ]
-    },
-    {
-      "lines": [
-        "Jonathan",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Que fait un",
-        "croco pour",
-        "séduire?"
-      ]
-    },
-    {
-      "lines": [
-        "Il Lacoste",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quel animal a",
-        "le plus de",
-        "dents?"
-      ]
-    },
-    {
-      "lines": [
-        "La petite",
-        "souris",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Pourquoi les",
-        "pêcheurs sont",
-        "minces?"
-      ]
-    },
-    {
-      "lines": [
-        "Ils surveillent",
-        "leur ligne",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Comment appeler",
-        "un chien sans",
-        "pattes?"
-      ]
-    },
-    {
-      "lines": [
-        "On ne lappelle",
-        "pas on va le",
-        "chercher"
-      ]
-    },
-    {
-      "lines": [
-        "Le comble pour",
-        "un joueur de",
-        "bowling?"
-      ]
-    },
-    {
-      "lines": [
-        "Perdre la",
-        "boule",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Un squelette",
-        "dans un",
-        "placard?"
-      ]
-    },
-    {
-      "lines": [
-        "Le champion de",
-        "cache cache",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quelle est la",
-        "femelle du",
-        "hamster?"
-      ]
-    },
-    {
-      "lines": [
-        "Lamsterdam",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Que dit un",
-        "escargot à",
-        "une limace?"
-      ]
-    },
-    {
-      "lines": [
-        "Regarde le",
-        "nudiste",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Pourquoi",
-        "Napoléon na pas",
-        "déménagé?"
-      ]
-    },
-    {
-      "lines": [
-        "Il avait un",
-        "bon appart",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Une chauve",
-        "souris avec une",
-        "perruque?"
-      ]
-    },
-    {
-      "lines": [
-        "Une souris",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Pourquoi la",
-        "vache ferme",
-        "les yeux?"
-      ]
-    },
-    {
-      "lines": [
-        "Pour faire du",
-        "lait concentré",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Le comble du",
-        "jardinier?",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Raconter des",
-        "salades",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quest-ce quun",
-        "chou au milieu",
-        "de la mer?"
-      ]
-    },
-    {
-      "lines": [
-        "Un chou",
-        "marin",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Pourquoi les",
-        "squelettes ne",
-        "se battent pas?"
-      ]
-    },
-    {
-      "lines": [
-        "Ils nont pas",
-        "les tripes",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Quel est",
-        "lanimal le",
-        "plus heureux?"
-      ]
-    },
-    {
-      "lines": [
-        "Le hibou sa",
-        "femme est",
-        "chouette"
-      ]
-    },
-    {
-      "lines": [
-        "Où un vampire",
-        "garde-t-il son",
-        "argent?"
-      ]
-    },
-    {
-      "lines": [
-        "À la banque",
-        "du sang",
-        ""
-      ]
-    }
+ "groups": [
+  [
+   "Que fait une fraise sur un cheval?",
+   "Tagada tagada"
+  ],
+  [
+   "Pourquoi les plongeurs vont en arrière?",
+   "Sinon ils tombent dans le bateau"
+  ],
+  [
+   "Pourquoi les chats évitent leau?",
+   "Dans leau minet coule"
+  ],
+  [
+   "Quel fruit est dans toutes les maisons?",
+   "Les coings"
+  ],
+  [
+   "Pourquoi les Bretons sont tous frères?",
+   "Ils ont Quimper"
+  ],
+  [
+   "Que dit une imprimante dans leau?",
+   "Jai papier"
+  ],
+  [
+   "Le sport préféré des insectes?",
+   "Le criquet"
+  ],
+  [
+   "Pourquoi les canards sont à lheure?",
+   "Ils sont dans létang"
+  ],
+  [
+   "Quest-ce qui est jaune et qui attend?",
+   "Jonathan"
+  ],
+  [
+   "Que fait un croco pour séduire?",
+   "Il Lacoste"
+  ],
+  [
+   "Quel animal a le plus de dents?",
+   "La petite souris"
+  ],
+  [
+   "Pourquoi les pêcheurs sont minces?",
+   "Ils surveillent leur ligne"
+  ],
+  [
+   "Comment appeler un chien sans pattes?",
+   "On ne lappelle pas on va le chercher"
+  ],
+  [
+   "Le comble pour un joueur de bowling?",
+   "Perdre la boule"
+  ],
+  [
+   "Un squelette dans un placard?",
+   "Le champion de cache cache"
+  ],
+  [
+   "Quelle est la femelle du hamster?",
+   "Lamsterdam"
+  ],
+  [
+   "Que dit un escargot à une limace?",
+   "Regarde le nudiste"
+  ],
+  [
+   "Pourquoi Napoléon na pas déménagé?",
+   "Il avait un bon appart"
+  ],
+  [
+   "Une chauve souris avec une perruque?",
+   "Une souris"
+  ],
+  [
+   "Pourquoi la vache ferme les yeux?",
+   "Pour faire du lait concentré"
+  ],
+  [
+   "Le comble du jardinier?",
+   "Raconter des salades"
+  ],
+  [
+   "Quest-ce quun chou au milieu de la mer?",
+   "Un chou marin"
+  ],
+  [
+   "Pourquoi les squelettes ne se battent pas?",
+   "Ils nont pas les tripes"
+  ],
+  [
+   "Quel est lanimal le plus heureux?",
+   "Le hibou sa femme est chouette"
+  ],
+  [
+   "Où un vampire garde-t-il son argent?",
+   "À la banque du sang"
   ]
+ ]
 }

@@ -1,354 +1,54 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Godnat",
-        "Sov godt",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Søde drømme",
-        "Vi ses i",
-        "morgen tidlig"
-      ]
-    },
-    {
-      "lines": [
-        "Hvil dig godt",
-        "I morgen er en",
-        "ny dag"
-      ]
-    },
-    {
-      "lines": [
-        "Stjernerne er",
-        "ude i nat",
-        "Sov godt"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Slip dagens",
-        "bekymringer"
-      ]
-    },
-    {
-      "lines": [
-        "Luk øjnene",
-        "drøm stort",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Du gjorde det",
-        "godt i dag"
-      ]
-    },
-    {
-      "lines": [
-        "Sov godt og",
-        "vågn udhvilet",
-        "op"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Månen våger",
-        "over dig"
-      ]
-    },
-    {
-      "lines": [
-        "I morgen byder",
-        "på nye eventyr",
-        "Hvil nu"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Vær taknemlig",
-        "for i dag"
-      ]
-    },
-    {
-      "lines": [
-        "Lad stjernerne",
-        "lede dine",
-        "drømme i nat"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Slap af og",
-        "træk vejret"
-      ]
-    },
-    {
-      "lines": [
-        "Slut dagen med",
-        "et taknemligt",
-        "hjerte"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Fred og ro",
-        "omgiver dig"
-      ]
-    },
-    {
-      "lines": [
-        "Fald i søvn",
-        "vel vidende at",
-        "du er elsket"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Lad dit sind",
-        "falde til ro"
-      ]
-    },
-    {
-      "lines": [
-        "Natten er",
-        "stille og rolig",
-        "Sov godt"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Søde drømme",
-        "til i morgen"
-      ]
-    },
-    {
-      "lines": [
-        "Må dine drømme",
-        "være fulde af",
-        "glæde og fred"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Dagen er omme",
-        "Hvil nu"
-      ]
-    },
-    {
-      "lines": [
-        "Stjerner over",
-        "drømme forude",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "I morgen kan",
-        "vente"
-      ]
-    },
-    {
-      "lines": [
-        "Læg dagen",
-        "blidt fra dig",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Du er tryg",
-        "og elsket"
-      ]
-    },
-    {
-      "lines": [
-        "Månen holder",
-        "vagt i nat",
-        "Sov dybt"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Tilgiv dagen",
-        "og hvil"
-      ]
-    },
-    {
-      "lines": [
-        "Stille timer",
-        "blide drømme",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "I morgen er",
-        "uskrevet"
-      ]
-    },
-    {
-      "lines": [
-        "Luk dagen",
-        "åbn en drøm",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Lad stilheden",
-        "hele dig"
-      ]
-    },
-    {
-      "lines": [
-        "Nattehimlen",
-        "er fuld af",
-        "ønsker"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Hvile er også",
-        "produktivt"
-      ]
-    },
-    {
-      "lines": [
-        "Dæmp lyset",
-        "sænk",
-        "tankerne"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Du gjorde nok",
-        "i dag"
-      ]
-    },
-    {
-      "lines": [
-        "Søvn er den",
-        "bedste",
-        "meditation"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Tæl glæder",
-        "ikke får"
-      ]
-    },
-    {
-      "lines": [
-        "Må natten være",
-        "blid og",
-        "venlig"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Drømme er",
-        "gratis Tag to"
-      ]
-    },
-    {
-      "lines": [
-        "Dagen er forbi",
-        "Lad den gå",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Lad op til",
-        "i morgen"
-      ]
-    },
-    {
-      "lines": [
-        "Selv solen",
-        "skal gå ned",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Hvisk dine",
-        "ønsker"
-      ]
-    },
-    {
-      "lines": [
-        "I nat hviler",
-        "du i morgen",
-        "rejser du dig"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Verden kan",
-        "vente"
-      ]
-    },
-    {
-      "lines": [
-        "Sov godt",
-        "bliv stærk",
-        "drøm langt"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Stjernelys er",
-        "gratis"
-      ]
-    },
-    {
-      "lines": [
-        "Læg dine",
-        "bekymringer",
-        "fra dig"
-      ]
-    },
-    {
-      "lines": [
-        "Godnat",
-        "Vi ses ved",
-        "solopgang"
-      ]
-    },
-    {
-      "lines": [
-        "Natten er en",
-        "vuggevise",
-        "Sov nu"
-      ]
-    }
-  ]
+ "groups": [
+  "Godnat Sov godt",
+  "Søde drømme Vi ses i morgen tidlig",
+  "Hvil dig godt I morgen er en ny dag",
+  "Stjernerne er ude i nat Sov godt",
+  "Godnat Slip dagens bekymringer",
+  "Luk øjnene drøm stort",
+  "Godnat Du gjorde det godt i dag",
+  "Sov godt og vågn udhvilet op",
+  "Godnat Månen våger over dig",
+  "I morgen byder på nye eventyr Hvil nu",
+  "Godnat Vær taknemlig for i dag",
+  "Lad stjernerne lede dine drømme i nat",
+  "Godnat Slap af og træk vejret",
+  "Slut dagen med et taknemligt hjerte",
+  "Godnat Fred og ro omgiver dig",
+  "Fald i søvn vel vidende at du er elsket",
+  "Godnat Lad dit sind falde til ro",
+  "Natten er stille og rolig Sov godt",
+  "Godnat Søde drømme til i morgen",
+  "Må dine drømme være fulde af glæde og fred",
+  "Godnat Dagen er omme Hvil nu",
+  "Stjerner over drømme forude",
+  "Godnat I morgen kan vente",
+  "Læg dagen blidt fra dig",
+  "Godnat Du er tryg og elsket",
+  "Månen holder vagt i nat Sov dybt",
+  "Godnat Tilgiv dagen og hvil",
+  "Stille timer blide drømme",
+  "Godnat I morgen er uskrevet",
+  "Luk dagen åbn en drøm",
+  "Godnat Lad stilheden hele dig",
+  "Nattehimlen er fuld af ønsker",
+  "Godnat Hvile er også produktivt",
+  "Dæmp lyset sænk tankerne",
+  "Godnat Du gjorde nok i dag",
+  "Søvn er den bedste meditation",
+  "Godnat Tæl glæder ikke får",
+  "Må natten være blid og venlig",
+  "Godnat Drømme er gratis Tag to",
+  "Dagen er forbi Lad den gå",
+  "Godnat Lad op til i morgen",
+  "Selv solen skal gå ned",
+  "Godnat Hvisk dine ønsker",
+  "I nat hviler du i morgen rejser du dig",
+  "Godnat Verden kan vente",
+  "Sov godt bliv stærk drøm langt",
+  "Godnat Stjernelys er gratis",
+  "Læg dine bekymringer fra dig",
+  "Godnat Vi ses ved solopgang",
+  "Natten er en vuggevise Sov nu"
+ ]
 }

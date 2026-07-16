@@ -1,144 +1,24 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Det er sikkert",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Helt afgjort",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Uden tvivl",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Ja, bestemt",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Du kan regne",
-        "med det"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Som jeg ser",
-        "det, ja"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Højst",
-        "sandsynligt"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Det ser godt ud",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Ja",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Alt peger på ja",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Uklart svar,",
-        "prøv igen"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Spørg igen",
-        "senere"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Bedst ikke at",
-        "sige det nu"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Kan ikke",
-        "forudsiges nu"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Koncentrer dig",
-        "og spørg igen"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Regn ikke",
-        "med det"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Mit svar er nej",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Mine kilder",
-        "siger nej"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Det ser ikke",
-        "så godt ud"
-      ]
-    },
-    {
-      "lines": [
-        "Magisk 8-kugle",
-        "Meget tvivlsomt",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "Magisk 8-kugle\nDet er sikkert",
+  "Magisk 8-kugle\nHelt afgjort",
+  "Magisk 8-kugle\nUden tvivl",
+  "Magisk 8-kugle\nJa, bestemt",
+  "Magisk 8-kugle\nDu kan regne med det",
+  "Magisk 8-kugle\nSom jeg ser det, ja",
+  "Magisk 8-kugle\nHøjst sandsynligt",
+  "Magisk 8-kugle\nDet ser godt ud",
+  "Magisk 8-kugle\nJa",
+  "Magisk 8-kugle\nAlt peger på ja",
+  "Magisk 8-kugle\nUklart svar, prøv igen",
+  "Magisk 8-kugle\nSpørg igen senere",
+  "Magisk 8-kugle\nBedst ikke at sige det nu",
+  "Magisk 8-kugle\nKan ikke forudsiges nu",
+  "Magisk 8-kugle\nKoncentrer dig og spørg igen",
+  "Magisk 8-kugle\nRegn ikke med det",
+  "Magisk 8-kugle\nMit svar er nej",
+  "Magisk 8-kugle\nMine kilder siger nej",
+  "Magisk 8-kugle\nDet ser ikke så godt ud",
+  "Magisk 8-kugle\nMeget tvivlsomt"
+ ]
 }

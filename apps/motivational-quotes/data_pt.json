@@ -1,354 +1,70 @@
 {
-  "pages": [
-    {
-      "lines": [
-        "Um grande",
-        "trabalho nasce",
-        "de o amar"
-      ]
-    },
-    {
-      "lines": [
-        "Acredita e já",
-        "estás a meio",
-        "do caminho"
-      ]
-    },
-    {
-      "lines": [
-        "Não importa o",
-        "quão devagar",
-        "vais"
-      ]
-    },
-    {
-      "lines": [
-        "desde que não",
-        "pares",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "A melhor hora",
-        "de plantar uma",
-        "árvore?"
-      ]
-    },
-    {
-      "lines": [
-        "Há 20 anos",
-        "ou agora",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Tudo o que",
-        "imaginas é",
-        "real"
-      ]
-    },
-    {
-      "lines": [
-        "Mantém a fome",
-        "mantém a",
-        "loucura"
-      ]
-    },
-    {
-      "lines": [
-        "No meio da",
-        "dificuldade",
-        "mora a"
-      ]
-    },
-    {
-      "lines": [
-        "oportunidade",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Tornamo-nos no",
-        "que pensamos",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "O futuro é de",
-        "quem acredita",
-        "na"
-      ]
-    },
-    {
-      "lines": [
-        "beleza dos",
-        "seus sonhos",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Faz o que",
-        "podes com o",
-        "que tens"
-      ]
-    },
-    {
-      "lines": [
-        "onde estiveres",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "O sucesso não é",
-        "final o erro",
-        "não é fatal"
-      ]
-    },
-    {
-      "lines": [
-        "o que conta é a",
-        "coragem de",
-        "continuar"
-      ]
-    },
-    {
-      "lines": [
-        "Sonha grande",
-        "começa pequeno",
-        "age já"
-      ]
-    },
-    {
-      "lines": [
-        "Cai sete vezes",
-        "levanta-te",
-        "oito"
-      ]
-    },
-    {
-      "lines": [
-        "Feito é melhor",
-        "que perfeito",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Faz de cada dia",
-        "uma obra-prima",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Pequenos passos",
-        "diários somam",
-        "muito"
-      ]
-    },
-    {
-      "lines": [
-        "Se podes",
-        "sonhá-lo podes",
-        "fazê-lo"
-      ]
-    },
-    {
-      "lines": [
-        "Quanto mais",
-        "trabalho mais",
-        "sorte tenho"
-      ]
-    },
-    {
-      "lines": [
-        "Não contes os",
-        "dias faz os",
-        "dias contarem"
-      ]
-    },
-    {
-      "lines": [
-        "A qualidade não",
-        "é um ato é um",
-        "hábito"
-      ]
-    },
-    {
-      "lines": [
-        "Bem começado",
-        "metade feito",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Sem pressão",
-        "não há",
-        "diamantes"
-      ]
-    },
-    {
-      "lines": [
-        "Devagar se vai",
-        "ao longe",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "A coragem é",
-        "graça sob",
-        "pressão"
-      ]
-    },
-    {
-      "lines": [
-        "Uma meta sem",
-        "plano é só um",
-        "desejo"
-      ]
-    },
-    {
-      "lines": [
-        "A motivação",
-        "começa o",
-        "hábito mantém"
-      ]
-    },
-    {
-      "lines": [
-        "A melhor saída",
-        "é sempre",
-        "através"
-      ]
-    },
-    {
-      "lines": [
-        "Falhas todos os",
-        "remates que não",
-        "tentas"
-      ]
-    },
-    {
-      "lines": [
-        "Energia e",
-        "persistência",
-        "vencem tudo"
-      ]
-    },
-    {
-      "lines": [
-        "Nada de grande",
-        "nasce do",
-        "conforto"
-      ]
-    },
-    {
-      "lines": [
-        "Progresso não",
-        "perfeição",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Parece",
-        "impossível até",
-        "estar feito"
-      ]
-    },
-    {
-      "lines": [
-        "A sorte ajuda",
-        "as mentes",
-        "preparadas"
-      ]
-    },
-    {
-      "lines": [
-        "Faz com paixão",
-        "ou não faças",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Encontrarei um",
-        "caminho ou",
-        "farei um"
-      ]
-    },
-    {
-      "lines": [
-        "O que fazes",
-        "hoje melhora",
-        "todos"
-      ]
-    },
-    {
-      "lines": [
-        "os teus",
-        "amanhãs",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "As estrelas só",
-        "brilham no",
-        "escuro"
-      ]
-    },
-    {
-      "lines": [
-        "O segredo de",
-        "avançar é",
-        "simplesmente"
-      ]
-    },
-    {
-      "lines": [
-        "começar",
-        "",
-        ""
-      ]
-    },
-    {
-      "lines": [
-        "Sê tão bom que",
-        "não te possam",
-        "ignorar"
-      ]
-    },
-    {
-      "lines": [
-        "O trabalho",
-        "vence o",
-        "talento ocioso"
-      ]
-    },
-    {
-      "lines": [
-        "Todo o perito",
-        "já foi",
-        "principiante"
-      ]
-    },
-    {
-      "lines": [
-        "A viagem é a",
-        "recompensa",
-        ""
-      ]
-    }
-  ]
+ "groups": [
+  "Um grande trabalho nasce de o amar",
+  "Acredita e já estás a meio do caminho",
+  [
+   "Não importa o quão devagar vais",
+   "desde que não pares"
+  ],
+  [
+   "A melhor hora de plantar uma árvore?",
+   "Há 20 anos ou agora"
+  ],
+  "Tudo o que imaginas é real",
+  "Mantém a fome mantém a loucura",
+  [
+   "No meio da dificuldade mora a",
+   "oportunidade"
+  ],
+  "Tornamo-nos no que pensamos",
+  [
+   "O futuro é de quem acredita na",
+   "beleza dos seus sonhos"
+  ],
+  [
+   "Faz o que podes com o que tens",
+   "onde estiveres"
+  ],
+  [
+   "O sucesso não é final o erro não é fatal",
+   "o que conta é a coragem de continuar"
+  ],
+  "Sonha grande começa pequeno age já",
+  "Cai sete vezes levanta-te oito",
+  "Feito é melhor que perfeito",
+  "Faz de cada dia uma obra-prima",
+  "Pequenos passos diários somam muito",
+  "Se podes sonhá-lo podes fazê-lo",
+  "Quanto mais trabalho mais sorte tenho",
+  "Não contes os dias faz os dias contarem",
+  "A qualidade não é um ato é um hábito",
+  "Bem começado metade feito",
+  "Sem pressão não há diamantes",
+  "Devagar se vai ao longe",
+  "A coragem é graça sob pressão",
+  "Uma meta sem plano é só um desejo",
+  "A motivação começa o hábito mantém",
+  "A melhor saída é sempre através",
+  "Falhas todos os remates que não tentas",
+  "Energia e persistência vencem tudo",
+  "Nada de grande nasce do conforto",
+  "Progresso não perfeição",
+  "Parece impossível até estar feito",
+  "A sorte ajuda as mentes preparadas",
+  "Faz com paixão ou não faças",
+  "Encontrarei um caminho ou farei um",
+  [
+   "O que fazes hoje melhora todos",
+   "os teus amanhãs"
+  ],
+  "As estrelas só brilham no escuro",
+  [
+   "O segredo de avançar é simplesmente",
+   "começar"
+  ],
+  "Sê tão bom que não te possam ignorar",
+  "O trabalho vence o talento ocioso",
+  "Todo o perito já foi principiante",
+  "A viagem é a recompensa"
+ ]
 }
