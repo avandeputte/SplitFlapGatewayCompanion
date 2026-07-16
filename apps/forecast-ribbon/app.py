@@ -59,7 +59,7 @@ def _latlon(settings, requests):
     return 42.3601, -71.0589
 
 
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_weather=None):
     import requests
     from datetime import datetime, timedelta, timezone
 
@@ -67,16 +67,29 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     mono = settings.get('disable_colors', 'no') == 'yes'
 
     try:
-        lat, lon = _latlon(settings, requests)
-        data = requests.get(
-            'https://api.open-meteo.com/v1/forecast',
-            params={'latitude': lat, 'longitude': lon,
-                    'hourly': 'temperature_2m',
-                    'timezone': 'auto', 'forecast_days': 2},
-            timeout=8).json()
-        hourly = data.get('hourly') or {}
-        times = hourly.get('time') or []
-        temps = hourly.get('temperature_2m') or []
+        # The shared helper carries an hourly series (keyless Open-Meteo, whatever
+        # the provider) — one fetch, cached, shared with the weather app. Without
+        # a helper (stock splitflap-os) we ask Open-Meteo ourselves, as before.
+        if get_weather is not None:
+            w = get_weather(days=1)
+            if not w or not w.get('ok'):
+                raise RuntimeError(str((w or {}).get('error') or 'offline'))
+            hourly = w.get('hourly') or {}
+            times = hourly.get('time') or []
+            temps = hourly.get('temp_c') or []
+            offset = int(hourly.get('utc_offset_s') or 0)
+        else:
+            lat, lon = _latlon(settings, requests)
+            data = requests.get(
+                'https://api.open-meteo.com/v1/forecast',
+                params={'latitude': lat, 'longitude': lon,
+                        'hourly': 'temperature_2m',
+                        'timezone': 'auto', 'forecast_days': 2},
+                timeout=8).json()
+            hourly = data.get('hourly') or {}
+            times = hourly.get('time') or []
+            temps = hourly.get('temperature_2m') or []
+            offset = int(data.get('utc_offset_seconds') or 0)
         if not times or not temps:
             return [format_lines('FORECAST', 'NO DATA', '')]
 
@@ -85,7 +98,6 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         # machine's clock lands you hours away: a companion in Boston asking about Brussels
         # would draw tomorrow morning and call it tonight. utc_offset_seconds is the
         # location's, so it is what "now" has to mean here.
-        offset = int(data.get('utc_offset_seconds') or 0)
         there = datetime.now(timezone.utc) + timedelta(seconds=offset)
         now = there.strftime('%Y-%m-%dT%H:00')
         start = next((i for i, t in enumerate(times) if t >= now), 0)

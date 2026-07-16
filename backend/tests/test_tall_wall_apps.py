@@ -80,6 +80,22 @@ def stub_net(monkeypatch):
 
     monkeypatch.setattr(requests, "get", fake_get)
 
+    # The weather app reads the shared helper now, which speaks httpx.
+    from app import weather
+
+    class _FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def get(self, url, **kw):
+            return fake_get(url, **kw)
+
+    weather._cache.clear()
+    monkeypatch.setattr(weather.httpx, "Client", lambda **kw: _FakeClient())
+
 
 def _runtime(rows, cols, tmp_path, app_id, **settings):
     from app.config import Config

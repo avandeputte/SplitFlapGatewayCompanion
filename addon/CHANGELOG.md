@@ -3,6 +3,18 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.4.0
+
+**One weather brain.** Every provider quirk — four providers' condition-code
+dialects, forecast bucketing (OpenWeather's worst-sky-of-the-day), the air
+quality / UV / pollen scales, location fallbacks — now lives in the shared
+weather helper; the weather app is pure presentation, half its former size.
+`get_weather` grows optional arguments: `days=N` adds a normalized forecast
+(a canonical sky token per day) and an hourly temperature series; `air=True`
+adds AQI/UV/pollen with labels and canonical bands, so one colour map fits
+every provider's scale. Forecast Ribbon rides the same helper — one cached
+fetch shared across the weather apps.
+
 ## 2.3.0
 
 **The wall states how it moves, and the companion believes it.** `/api/capabilities`

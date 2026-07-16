@@ -26,9 +26,28 @@ def _hourly(temps):
                        "temperature_2m": list(temps)}}
 
 
+class _FakeClient:
+    """The ribbon reads the shared weather HELPER now, which speaks httpx; the
+    requests mock stays for the no-helper fallback path."""
+
+    def __init__(self, handler):
+        self._handler = handler
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def get(self, url, **kw):
+        return self._handler(url, **kw)
+
+
 @pytest.fixture
 def stub(monkeypatch):
     import requests
+
+    from app import weather
 
     def go(temps):
         def fake_get(url, **kw):
@@ -37,6 +56,9 @@ def stub(monkeypatch):
                     return _hourly(temps)
             return R()
         monkeypatch.setattr(requests, "get", fake_get)
+        weather._cache.clear()
+        monkeypatch.setattr(weather.httpx, "Client",
+                            lambda **kw: _FakeClient(fake_get))
     return go
 
 
@@ -125,7 +147,11 @@ def test_a_flat_day_does_not_divide_by_zero(stub):
 def test_offline_says_so_rather_than_drawing_nothing(monkeypatch):
     import requests
 
+    from app import weather
+
     def boom(*a, **k):
         raise RuntimeError("no network")
     monkeypatch.setattr(requests, "get", boom)
+    weather._cache.clear()
+    monkeypatch.setattr(weather.httpx, "Client", lambda **kw: _FakeClient(boom))
     assert "OFFLINE" in _page(3, 15)

@@ -601,7 +601,10 @@ class PluginRuntime:
                     ps = self._plugin_settings(app_id, manifest, settings)
                     kwargs = {}
                     if self._wants_weather.get(app_id):
-                        kwargs["get_weather"] = lambda s=None: weather.fetch_current(s if s is not None else ps)
+                        # get_weather() = current conditions; days=N adds a forecast
+                        # and hourly temps; air=True adds AQI/UV/pollen (weather.py).
+                        kwargs["get_weather"] = lambda s=None, days=0, air=False: weather.fetch_weather(
+                            s if s is not None else ps, days=days, air=air)
                     if self._wants_location.get(app_id):
                         kwargs["get_location"] = lambda: location.resolve(ps)
                     if self._wants_i18n.get(app_id):
