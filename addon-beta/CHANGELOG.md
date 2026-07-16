@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.5.1-beta.2
+
+**A shared text layout, and a tidier binary clock.** The advice, quote, cat/dog
+fact, and random-fact apps each carried their own copy of the same
+"balance the words evenly across the lines" logic — it now lives in one place
+and the apps just ask the engine to lay their text out. No visible change,
+just less to go wrong. The Binary Clock's plain-time row now lines its digits
+up directly under the binary columns.
+
 ## 2.5.1-beta.1
 
 **Channel apps write text, not line breaks.** The quote / joke / fortune
