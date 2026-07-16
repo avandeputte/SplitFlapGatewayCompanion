@@ -1,5 +1,11 @@
 # SplitFlap Gateway Companion
 
+> ### 📖 [SplitFlap Wiki — the comprehensive documentation](https://github.com/avandeputte/SplitFlapGateway/wiki)
+> Quick start · choosing a configuration · provisioning & calibration · the SplitFlap and
+> Matrix Gateways · the companion and its apps · APIs and wire protocols — the whole
+> ecosystem, documented in one place.
+
+
 A web app that sends rich content — clocks, weather, stocks, sports, quotes,
 animations, composed messages — to a split-flap display driven by
 **[SplitFlapGateway](https://github.com/avandeputte/SplitFlapGateway)**.
