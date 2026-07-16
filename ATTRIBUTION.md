@@ -13,7 +13,7 @@ SplitFlap Gateway Companion is a **derivative work** and is licensed under
   / `get_cols` helpers, the manifest settings schema and field renderer, the
   `search_chips` helper endpoints, the emoji colour-tile map, and the
   transition/animation orderings are all ports of splitflap-os. Keeping them
-  identical is what makes plugins interchangeable in both directions. (Final
+  identical is what lets splitflap-os apps drop in here unmodified. (Final
   character normalization deliberately differs — see [Compatibility](https://github.com/avandeputte/SplitFlapGateway/wiki/Compatibility).)
 
   **Pinned upstream:** commit `12df2773cbbe9890a7d6f92fdc60d2be920129bd`
