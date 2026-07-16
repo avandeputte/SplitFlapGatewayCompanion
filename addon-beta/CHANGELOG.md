@@ -3,6 +3,35 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.5.0-beta.4
+
+**One calendar app, honest categories.** National Today is gone — folded into
+Public Holidays, which now works entirely offline from a ten-year dataset
+bundled with the app (185 language-region locales, built from python-holidays)
+and shows four layers, each with its own switch:
+
+  * **Public holidays** — always, for your country and province/state;
+  * **Religious observances** — off by default, and when on, filtered by
+    tradition (Christian, Islamic, Jewish, Hindu, Buddhist, Sikh);
+  * **Cultural traditions** — on by default: April Fools', Burns Night,
+    Nikolaus, la Befana, Dia de los Muertos... curated per language-region, so
+    a French wall in Montreal reads Fete du Canada and a Flemish wall in
+    Antwerp gets its own Dutch names;
+  * **A fun day, every day** — off by default: the "National Donut Day"
+    novelty calendar, there when you want it, out of the way when you don't.
+
+The layers know the difference between a day off, a feast, a folk custom and a
+novelty — a tradition that merely shares a date with a holiday (Fete du Muguet
+on Labour Day, la Befana on Epiphany) is kept; one the holiday layer already
+carries is not shown twice. A wall that had National Today installed — or in a
+playlist — is migrated to Public Holidays automatically.
+
+**Countdown rotation speed** is now a setting (it was pinned at one second with
+no way to change it), and the **Countdown target field opens a real calendar
+picker** instead of demanding a hand-typed ISO date — every app can now declare
+`datetime-local` / `date` / `time` settings. A far-off countdown leads with
+years ("8Y 267D 14H") instead of a four-digit day count.
+
 ## 2.5.0-beta.3
 
 **A countdown you can set from a calendar, to a date years away.** The
