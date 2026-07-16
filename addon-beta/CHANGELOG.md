@@ -3,6 +3,26 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.5.0-beta.3
+
+**A countdown you can set from a calendar, to a date years away.** The
+Countdown target field now opens the browser's native date & time picker —
+it was always meant to (the manifest said so); the form just fell back to a
+bare text box that gave no hint it wanted an ISO date. Dates saved before
+the picker existed still load.
+
+And a target thousands of days out finally reads like one: past a year,
+years lead — "8Y 267D 14H" instead of "3187D 14H 22M" — with the day total
+kept on signs too narrow for both. The tall-wall instrument panel gains a
+years row (of a decade), its day bar moves daily again (days within the
+year), and the panel can no longer show "999D" for six straight years —
+the clamp that produced that lie is gone by construction. On a five-row
+wall the ticking seconds yield to the years row; under a year, everything
+is exactly as before.
+
+Any app can now declare `datetime-local` / `date` / `time` settings and get
+the native picker — documented in Writing-Apps.
+
 ## 2.5.0-beta.2
 
 **The companion itself, audited the way the apps were.** Backend, web UI,
