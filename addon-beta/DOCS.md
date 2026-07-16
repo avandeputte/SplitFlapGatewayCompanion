@@ -113,9 +113,9 @@ existing device keeps its entity ids, so nothing in your automations breaks.
 A switcher appears in the header once you have more than one. With a single gateway it is
 hidden entirely and nothing about the app changes.
 
-## Matrix Portal displays
+## Matrix Gateway displays
 
-A Matrix Portal's modules are drawn rather than mechanical, so it has flaps a real reel does
+A Matrix Gateway's modules are drawn rather than mechanical, so it has flaps a real reel does
 not: every **lowercase** letter, fourteen **pictographs** (`♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`), and
 colours addressed by name. The companion uses them automatically — the message you type
 arrives as you wrote it rather than SHOUTED BACK AT YOU.

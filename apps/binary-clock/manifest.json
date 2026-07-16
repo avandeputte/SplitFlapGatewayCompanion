@@ -24,7 +24,7 @@
       "label": "Show seconds",
       "type": "toggle",
       "default": "yes",
-      "note": "Matrix Portal walls only — physical flaps can't keep up with seconds.",
+      "note": "Matrix Gateway walls only — physical flaps can't keep up with seconds.",
       "options": [
         {
           "value": "yes",

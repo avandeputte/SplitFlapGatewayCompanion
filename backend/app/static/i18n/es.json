@@ -161,7 +161,7 @@
   "Make default": "Establecer por defecto",
   "Manage %s displays": "Gestionar %s pantallas",
   "Manually sync this companion's settings with the gateway (needs Gateway 3.1+).": "Sincronizar manualmente los ajustes de este companion con la pasarela (Gateway 3.1+).",
-  "Matrix Portal walls only — physical flaps can't keep up with seconds.": "Solo en paredes Matrix Portal — las aletas físicas no pueden seguir los segundos.",
+  "Matrix Gateway walls only — physical flaps can't keep up with seconds.": "Solo en paredes Matrix Gateway — las aletas físicas no pueden seguir los segundos.",
   "Max Flights To Cycle": "Máx. de vuelos a rotar",
   "Max fact length (characters)": "Longitud máx. del dato (caracteres)",
   "Max quote length (characters)": "Longitud máx. de la cita (caracteres)",

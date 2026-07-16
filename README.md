@@ -12,9 +12,9 @@ between them, and the companion registers itself so a **Companion** tab appears 
 the gateway. Each side tells the other which tabs it has, so the navigation always
 matches what actually exists on both.
 
-The content apps are the **plugin library from
-[csader/splitflap-os](https://github.com/csader/splitflap-os)**, run through a
-**behavior-identical plugin runtime** so any splitflap-os app drops in unchanged.
+The companion ships **its own app library**, running on a plugin runtime that is a
+**behavior-identical port of [csader/splitflap-os](https://github.com/csader/splitflap-os)'s**
+— so any splitflap-os app drops in unchanged.
 Building your own? **[Writing Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Apps)**
 is a full guide; see also
 [Compatibility](https://github.com/avandeputte/SplitFlapGateway/wiki/Compatibility)
@@ -27,9 +27,9 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
 
 ## What it does
 
-- **Apps** — the vendored splitflap-os apps (functional + channel), loaded through a
-  drop-in-compatible runtime (a conformance test asserts every app satisfies the
-  contract). A tile grid with one-tap run and live "▶ running" state, an **App
+- **Apps** — the companion's own library (functional + channel), on a runtime that
+  stays drop-in compatible with splitflap-os apps (a conformance test asserts every
+  app satisfies the contract). A tile grid with one-tap run and live "▶ running" state, an **App
   Library** to add or remove apps, and **upload your own** (a `.zip` of the app
   folder) — persisted to the data volume. The library shows each app's description,
   type, version and category, with search and category filters.
@@ -40,7 +40,7 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
 - **Several displays at once** — drive more than one gateway from one companion. Each
   wall has its own geometry, apps, playlists, triggers and settings, and a switcher in
   the header moves between them. See **[Multiple displays](#multiple-displays)**.
-- **Matrix Portal walls get their full alphabet** — lowercase and accents in the text you
+- **Matrix Gateway walls get their full alphabet** — lowercase and accents in the text you
   type, fourteen **pictographs** (`♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀` …), and colours addressed by
   *name* rather than by spending seven letters on them. A physical split-flap is driven
   exactly as before. See **[Characters](#characters)**.
@@ -221,20 +221,20 @@ already means **red**. So text bound for one is folded to uppercase, in a
 **Windows-1252-aware** way: `É`, `Ü`, `ç` and `ß` survive, and `ß` is *not* expanded to
 `SS` (which would silently eat a cell).
 
-A **Matrix Portal** is different. Its modules are drawn rather than mechanical, so
+A **Matrix Gateway** is different. Its modules are drawn rather than mechanical, so
 nothing is rationed: 237 flaps, every Windows-1252 glyph, every lowercase letter, and
 fourteen pictographs. It is driven through an index-addressed API that reaches them, so
 the text you type in Compose, send to the Vestaboard endpoint or give an LLM arrives
 **as you wrote it** — and the seven colours are addressed by *name* instead of stealing
 seven letters.
 
-|  | split-flap | Matrix Portal |
+|  | split-flap | Matrix Gateway |
 |---|---|---|
 | lowercase | folded to caps | shown as written |
 | pictographs `♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀` | nearest character (`↑` → `^`) | shown |
 | colours 🟥🟩🟦🟨🟧🟪⬜ | yes | yes, addressed by name |
 
-Prefer the classic look on a Matrix Portal? **Always uppercase** in Global settings folds
+Prefer the classic look on a Matrix Gateway? **Always uppercase** in Global settings folds
 it anyway — and costs nothing else: the wall still gets its pictographs and its named
 colours, just in capitals. It is **per display**, so one wall can shout while another
 does not.
