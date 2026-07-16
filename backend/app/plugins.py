@@ -278,12 +278,36 @@ class PluginRuntime:
         scan = self._scan()
         # Let the settings store nest per-app keys by app id when it persists.
         self.settings.set_known_apps(list(scan.keys()))
+        self._migrate_renamed_apps()
         enabled = set(self.settings.installed_apps)
         for app_id, app_dir in scan.items():
             if app_id in enabled:
                 self._load_one(app_id, app_dir)
         # Multi-value settings (search_chips) are stored as JSON arrays on disk.
         self.settings.set_list_keys(self._list_keys())
+
+    # Apps that were absorbed into another. A wall that had the old id installed
+    # (or in a playlist) follows the merge instead of waking up to PLUGIN ERROR.
+    _RENAMED_APPS = {"national-today": "holidays"}
+
+    def _migrate_renamed_apps(self) -> None:
+        installed = list(self.settings.installed_apps)
+        migrated = [self._RENAMED_APPS.get(a, a) for a in installed]
+        deduped = list(dict.fromkeys(migrated))
+        if deduped != installed:
+            self.settings.set_installed(deduped)
+            log.info("migrated renamed apps in the installed list: %s", installed)
+        playlists = self.settings.get("saved_app_playlists")
+        if isinstance(playlists, dict):
+            changed = False
+            for doc in playlists.values():
+                for e in (doc or {}).get("entries", []):
+                    if isinstance(e, dict) and e.get("app") in self._RENAMED_APPS:
+                        e["app"] = self._RENAMED_APPS[e["app"]]
+                        changed = True
+            if changed:
+                self.settings.set("saved_app_playlists", playlists)
+                log.info("migrated renamed apps inside saved playlists")
 
     def on_grid_changed(self) -> None:
         """The grid dimensions changed. Drop cached pages (they were centered/

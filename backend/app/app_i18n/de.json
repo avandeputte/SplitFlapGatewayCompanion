@@ -1,235 +1,231 @@
 {
-  "advice": {
-    "description": "Ein zufälliger Ratschlag",
-    "name": "Ratschlag"
-  },
-  "anim_checker": {
-    "description": "Schachbrettmuster",
-    "name": "Schachbrett"
-  },
-  "anim_matrix": {
-    "description": "Kaskadeneffekt",
-    "name": "Matrix"
-  },
-  "anim_rainbow": {
-    "description": "Farbwelle",
-    "name": "Regenbogen"
-  },
-  "anim_random_spin": {
-    "description": "Dauerhaft zufällige Klappen",
-    "name": "Zufallsdreher"
-  },
-  "anim_sweep": {
-    "description": "Farbdurchlauf",
-    "name": "Farbdurchlauf"
-  },
-  "anim_twinkle": {
-    "description": "Glitzereffekt",
-    "name": "Funkeln"
-  },
-  "art-clock": {
-    "description": "Zeit als Farbkunst",
-    "name": "Kunstuhr"
-  },
-  "aurora": {
-    "description": "Geomagnetische Aktivität (Kp-Index)",
-    "name": "Polarlicht-Wache"
-  },
-  "birdnet": {
-    "description": "Live-Vogelerkennungen von BirdNET-Pi"
-  },
-  "bitcoin-fear-greed": {
-    "description": "Bitcoin Fear-and-Greed-Index",
-    "name": "BTC Angst & Gier"
-  },
-  "cat-facts": {
-    "description": "Ein knapper Katzenfakt",
-    "name": "Katzenfakten"
-  },
-  "chuck-norris": {
-    "description": "Chuck-Norris-Fakten"
-  },
-  "countdown": {
-    "description": "Zähler bis zum Ereignis",
-    "name": "Countdown"
-  },
-  "crypto": {
-    "description": "Coin-Kurse",
-    "name": "Krypto"
-  },
-  "dad-jokes": {
-    "description": "Etwas Leichtigkeit mit Flachwitzen",
-    "name": "Flachwitze"
-  },
-  "dashboard": {
-    "description": "Zeit + Wetter",
-    "name": "Dashboard"
-  },
-  "date": {
-    "description": "Vollständiges Datum",
-    "name": "Datum"
-  },
-  "earthquakes": {
-    "description": "Jüngste starke Erdbeben (USGS)",
-    "name": "Erdbeben"
-  },
-  "exchange-rates": {
-    "description": "Live-Wechselkurse (EZB)",
-    "name": "Wechselkurse"
-  },
-  "formula1": {
-    "description": "Nächster Grand Prix & WM-Führender"
-  },
-  "fortune-cookie": {
-    "description": "Ein Glückskeks an der Wand",
-    "name": "Glückskeks"
-  },
-  "funny-one-liners": {
-    "description": "Schneller Witz in einer Zeile",
-    "name": "Einzeiler"
-  },
-  "good-morning": {
-    "description": "Muntermacher am Morgen",
-    "name": "Guten Morgen"
-  },
-  "good-night": {
-    "description": "Sanfter Tagesausklang",
-    "name": "Gute Nacht"
-  },
-  "harry-potter-quotes": {
-    "description": "Zauberer-Weisheiten"
-  },
-  "holidays": {
-    "description": "Kommende Feiertage",
-    "name": "Feiertage"
-  },
-  "iss": {
-    "description": "Die Raumstation",
-    "name": "ISS-Tracker"
-  },
-  "livestream": {
-    "description": "Rotation am Starttag",
-    "name": "Livestream"
-  },
-  "magic-8-ball": {
-    "description": "Frag die magische Kugel",
-    "name": "Magische 8"
-  },
-  "metals": {
-    "description": "Gold- & Silberkurse",
-    "name": "Edelmetalle"
-  },
-  "metro": {
-    "description": "MBTA-Abfahrten",
-    "name": "Metro"
-  },
-  "moon-phase": {
-    "description": "Aktuelle Mondphase",
-    "name": "Mondphase"
-  },
-  "motivational-quotes": {
-    "description": "Tägliche Motivation auf der Anzeige",
-    "name": "Motivationszitate"
-  },
-  "national-today": {
-    "description": "Der heutige Aktionstag",
-    "name": "Welttag heute"
-  },
-  "news-headlines": {
-    "description": "Aktuelle Nachrichten per RSS",
-    "name": "Schlagzeilen"
-  },
-  "office-quotes": {
-    "description": "That's what she said"
-  },
-  "on-this-day": {
-    "description": "Historische Ereignisse von heute",
-    "name": "An diesem Tag"
-  },
-  "planes_overhead": {
-    "description": "Flugzeuge in der Nähe",
-    "name": "Flugzeuge über uns"
-  },
-  "quote": {
-    "description": "Ein inspirierendes Zitat",
-    "name": "Zitat"
-  },
-  "rocket-launch": {
-    "description": "Nächster Orbitalstart",
-    "name": "Raketenstart"
-  },
-  "sarcastic-fortune-cookies": {
-    "description": "Zynische Glückskeks-Weisheiten",
-    "name": "Sarkastische Kekse"
-  },
-  "shower-thoughts": {
-    "description": "Gedanken, die den Kopf verdrehen",
-    "name": "Duschgedanken"
-  },
-  "sports": {
-    "description": "Ergebnisse & Spielpläne",
-    "name": "Sport"
-  },
-  "star-wars-quotes": {
-    "description": "Möge die Macht mit dir sein"
-  },
-  "stocks": {
-    "description": "Live-Kurse",
-    "name": "Aktien"
-  },
-  "stoic-quotes": {
-    "description": "Antike Weisheit",
-    "name": "Stoische Zitate"
-  },
-  "sun-times": {
-    "description": "Auf-, Untergang & Tageslänge",
-    "name": "Sonnenzeiten"
-  },
-  "tides": {
-    "description": "Hoch- & Niedrigwasser heute (NOAA)",
-    "name": "Gezeiten"
-  },
-  "time": {
-    "description": "Live-Uhr",
-    "name": "Uhrzeit"
-  },
-  "time-since": {
-    "description": "Verstrichene Zeit verfolgen",
-    "name": "Zeit seit"
-  },
-  "trivia": {
-    "description": "Zufällige Quizfragen",
-    "name": "Quiz"
-  },
-  "useless-fact": {
-    "description": "Ein knapper Zufallsfakt",
-    "name": "Zufallsfakt"
-  },
-  "weather": {
-    "description": "Aktuelle Bedingungen",
-    "name": "Wetter"
-  },
-  "wiki-today": {
-    "description": "Artikel des Tages & Meistgelesenes",
-    "name": "Wikipedia heute"
-  },
-  "word-clock": {
-    "description": "Zeit in Worten",
-    "name": "Wortuhr"
-  },
-  "word-of-the-day": {
-    "description": "Täglich den Wortschatz erweitern",
-    "name": "Wort des Tages"
-  },
-  "world_clock": {
-    "description": "3 Zeitzonen",
-    "name": "Weltuhr"
-  },
-  "youtube": {
-    "description": "Abo-Zähler"
-  },
-  "yt_comments": {
-    "description": "YouTube-Kommentare",
-    "name": "Kommentare"
-  }
+ "advice": {
+  "description": "Ein zufälliger Ratschlag",
+  "name": "Ratschlag"
+ },
+ "anim_checker": {
+  "description": "Schachbrettmuster",
+  "name": "Schachbrett"
+ },
+ "anim_matrix": {
+  "description": "Kaskadeneffekt",
+  "name": "Matrix"
+ },
+ "anim_rainbow": {
+  "description": "Farbwelle",
+  "name": "Regenbogen"
+ },
+ "anim_random_spin": {
+  "description": "Dauerhaft zufällige Klappen",
+  "name": "Zufallsdreher"
+ },
+ "anim_sweep": {
+  "description": "Farbdurchlauf",
+  "name": "Farbdurchlauf"
+ },
+ "anim_twinkle": {
+  "description": "Glitzereffekt",
+  "name": "Funkeln"
+ },
+ "art-clock": {
+  "description": "Zeit als Farbkunst",
+  "name": "Kunstuhr"
+ },
+ "aurora": {
+  "description": "Geomagnetische Aktivität (Kp-Index)",
+  "name": "Polarlicht-Wache"
+ },
+ "birdnet": {
+  "description": "Live-Vogelerkennungen von BirdNET-Pi"
+ },
+ "bitcoin-fear-greed": {
+  "description": "Bitcoin Fear-and-Greed-Index",
+  "name": "BTC Angst & Gier"
+ },
+ "cat-facts": {
+  "description": "Ein knapper Katzenfakt",
+  "name": "Katzenfakten"
+ },
+ "chuck-norris": {
+  "description": "Chuck-Norris-Fakten"
+ },
+ "countdown": {
+  "description": "Zähler bis zum Ereignis",
+  "name": "Countdown"
+ },
+ "crypto": {
+  "description": "Coin-Kurse",
+  "name": "Krypto"
+ },
+ "dad-jokes": {
+  "description": "Etwas Leichtigkeit mit Flachwitzen",
+  "name": "Flachwitze"
+ },
+ "dashboard": {
+  "description": "Zeit + Wetter",
+  "name": "Dashboard"
+ },
+ "date": {
+  "description": "Vollständiges Datum",
+  "name": "Datum"
+ },
+ "earthquakes": {
+  "description": "Jüngste starke Erdbeben (USGS)",
+  "name": "Erdbeben"
+ },
+ "exchange-rates": {
+  "description": "Live-Wechselkurse (EZB)",
+  "name": "Wechselkurse"
+ },
+ "formula1": {
+  "description": "Nächster Grand Prix & WM-Führender"
+ },
+ "fortune-cookie": {
+  "description": "Ein Glückskeks an der Wand",
+  "name": "Glückskeks"
+ },
+ "funny-one-liners": {
+  "description": "Schneller Witz in einer Zeile",
+  "name": "Einzeiler"
+ },
+ "good-morning": {
+  "description": "Muntermacher am Morgen",
+  "name": "Guten Morgen"
+ },
+ "good-night": {
+  "description": "Sanfter Tagesausklang",
+  "name": "Gute Nacht"
+ },
+ "harry-potter-quotes": {
+  "description": "Zauberer-Weisheiten"
+ },
+ "holidays": {
+  "description": "Kommende Feiertage",
+  "name": "Feiertage"
+ },
+ "iss": {
+  "description": "Die Raumstation",
+  "name": "ISS-Tracker"
+ },
+ "livestream": {
+  "description": "Rotation am Starttag",
+  "name": "Livestream"
+ },
+ "magic-8-ball": {
+  "description": "Frag die magische Kugel",
+  "name": "Magische 8"
+ },
+ "metals": {
+  "description": "Gold- & Silberkurse",
+  "name": "Edelmetalle"
+ },
+ "metro": {
+  "description": "MBTA-Abfahrten",
+  "name": "Metro"
+ },
+ "moon-phase": {
+  "description": "Aktuelle Mondphase",
+  "name": "Mondphase"
+ },
+ "motivational-quotes": {
+  "description": "Tägliche Motivation auf der Anzeige",
+  "name": "Motivationszitate"
+ },
+ "news-headlines": {
+  "description": "Aktuelle Nachrichten per RSS",
+  "name": "Schlagzeilen"
+ },
+ "office-quotes": {
+  "description": "That's what she said"
+ },
+ "on-this-day": {
+  "description": "Historische Ereignisse von heute",
+  "name": "An diesem Tag"
+ },
+ "planes_overhead": {
+  "description": "Flugzeuge in der Nähe",
+  "name": "Flugzeuge über uns"
+ },
+ "quote": {
+  "description": "Ein inspirierendes Zitat",
+  "name": "Zitat"
+ },
+ "rocket-launch": {
+  "description": "Nächster Orbitalstart",
+  "name": "Raketenstart"
+ },
+ "sarcastic-fortune-cookies": {
+  "description": "Zynische Glückskeks-Weisheiten",
+  "name": "Sarkastische Kekse"
+ },
+ "shower-thoughts": {
+  "description": "Gedanken, die den Kopf verdrehen",
+  "name": "Duschgedanken"
+ },
+ "sports": {
+  "description": "Ergebnisse & Spielpläne",
+  "name": "Sport"
+ },
+ "star-wars-quotes": {
+  "description": "Möge die Macht mit dir sein"
+ },
+ "stocks": {
+  "description": "Live-Kurse",
+  "name": "Aktien"
+ },
+ "stoic-quotes": {
+  "description": "Antike Weisheit",
+  "name": "Stoische Zitate"
+ },
+ "sun-times": {
+  "description": "Auf-, Untergang & Tageslänge",
+  "name": "Sonnenzeiten"
+ },
+ "tides": {
+  "description": "Hoch- & Niedrigwasser heute (NOAA)",
+  "name": "Gezeiten"
+ },
+ "time": {
+  "description": "Live-Uhr",
+  "name": "Uhrzeit"
+ },
+ "time-since": {
+  "description": "Verstrichene Zeit verfolgen",
+  "name": "Zeit seit"
+ },
+ "trivia": {
+  "description": "Zufällige Quizfragen",
+  "name": "Quiz"
+ },
+ "useless-fact": {
+  "description": "Ein knapper Zufallsfakt",
+  "name": "Zufallsfakt"
+ },
+ "weather": {
+  "description": "Aktuelle Bedingungen",
+  "name": "Wetter"
+ },
+ "wiki-today": {
+  "description": "Artikel des Tages & Meistgelesenes",
+  "name": "Wikipedia heute"
+ },
+ "word-clock": {
+  "description": "Zeit in Worten",
+  "name": "Wortuhr"
+ },
+ "word-of-the-day": {
+  "description": "Täglich den Wortschatz erweitern",
+  "name": "Wort des Tages"
+ },
+ "world_clock": {
+  "description": "3 Zeitzonen",
+  "name": "Weltuhr"
+ },
+ "youtube": {
+  "description": "Abo-Zähler"
+ },
+ "yt_comments": {
+  "description": "YouTube-Kommentare",
+  "name": "Kommentare"
+ }
 }

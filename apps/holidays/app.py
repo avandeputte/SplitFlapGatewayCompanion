@@ -18,6 +18,15 @@ Christmas Day never disappears from a calendar it is statutory in. The
 Eve, Yom Kippur, Diwali, Eid al-Fitr...), filtered to the traditions picked in
 settings. Dates the source computes rather than observes (some lunar-calendar
 dates are announced by sighting) are marked estimated and shown with a ~.
+
+Two more layers absorbed from the retired National Today app, each with its
+own switch and its own files (M/D-keyed — they recur yearly — and kept OUT of
+data/, which scripts/extract_holidays.py wipes on a dataset rebuild):
+
+  * cultural/<locale>.json — genuine curated traditions (April Fools',
+    Nikolaus, Burns Night, Día del Amigo), locale-picked like the dataset;
+  * fun.json — the international one-a-day novelty calendar ("National Donut
+    Day"), English, OFF by default: 366 a year would drown the real holidays.
 """
 
 
@@ -58,15 +67,18 @@ def _dataset(locale):
     return doc
 
 
-def _pick_locale(lang, country):
-    """The dataset locale for (language, country): the wall's own language in
-    that country when it exists, else English there, else any locale for the
-    country. None when the dataset has nothing for the country at all. The
-    directory listing IS the index."""
+def _pick_locale(lang, country, subdir='data'):
+    """The locale file for (language, country) in ``subdir``: the wall's own
+    language in that country when it exists, else English there, else any
+    locale for the country. None when nothing exists for the country at all.
+    The directory listing IS the index."""
     import os
-    ddir = os.path.join(os.path.dirname(__file__), 'data')
-    have = {f[:-5] for f in os.listdir(ddir)
-            if f.endswith('.json') and not f.startswith('_')}
+    ddir = os.path.join(os.path.dirname(__file__), subdir)
+    try:
+        have = {f[:-5] for f in os.listdir(ddir)
+                if f.endswith('.json') and not f.startswith('_')}
+    except OSError:
+        return None
     cc = country.lower()
     for want in (f'{lang}-{cc}', f'en-{cc}'):
         if want in have:
@@ -75,6 +87,38 @@ def _pick_locale(lang, country):
         if loc.endswith(f'-{cc}'):
             return loc
     return None
+
+
+def _recurring_layer(subdir_file, today, horizon_days=366):
+    """M/D-keyed yearly layers (cultural traditions, fun days) → the same
+    (date, record, estimated=False) tuples the dataset yields: each entry's
+    next occurrence on or after today."""
+    import json
+    import os
+    from datetime import date
+    path = os.path.join(os.path.dirname(__file__), *subdir_file)
+    try:
+        with open(path, encoding='utf-8') as f:
+            doc = json.load(f)
+    except Exception:
+        return []
+    out = []
+    for key, names in (doc.items() if isinstance(doc, dict) else ()):
+        try:
+            m, d = (int(x) for x in key.split('/'))
+        except ValueError:
+            continue
+        for year in (today.year, today.year + 1):
+            try:
+                dt = date(year, m, d)
+            except ValueError:
+                continue        # Feb 29 in a non-leap year: skip to next
+            if dt >= today:
+                if (dt - today).days <= horizon_days:
+                    for n in names:
+                        out.append((dt, {'name': n}, False))
+                break
+    return out
 
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
@@ -101,12 +145,15 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
     lang = i18n.lang_base if i18n is not None else 'en'
     want_religious = on('religious_holidays')
     traditions = {tr for tr in TRADITIONS if on(f'tradition_{tr}', 'on')}
+    want_cultural = on('cultural_traditions', 'on')
+    want_fun = on('fun_days')          # off unless asked: one EVERY day
 
     try:
         locale = _pick_locale(lang, country)
-        if locale is None:
-            return [format_lines('Holidays', t('No data', 'holidays'), country)]
-        entries = _dataset(locale).get('holidays', [])
+        # No dataset locale for the country is not the end: the cultural and fun
+        # layers can still carry the page (and the empty-page fallback says
+        # "None found" if every layer comes up dry).
+        entries = _dataset(locale).get('holidays', []) if locale else []
 
         today = date.today()
         upcoming = []
@@ -131,7 +178,28 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
                 if dt >= today:
                     upcoming.append((dt, h, estimated))
                     break            # dates are sorted: the first future one is next
+
+        # The layers absorbed from National Today: curated traditions (locale-
+        # picked like the dataset) and the one-a-day novelty calendar.
+        if want_cultural:
+            cloc = _pick_locale(lang, country, 'cultural')
+            if cloc:
+                upcoming += _recurring_layer(('cultural', f'{cloc}.json'), today)
+        if want_fun:
+            upcoming += _recurring_layer(('fun.json',), today)
+
         upcoming.sort(key=lambda e: e[0])
+
+        # A tradition can shadow a dataset entry under the same name on the same
+        # day (Assomption is both a public holiday and a cultural fixture) —
+        # show it once.
+        seen, deduped = set(), []
+        for dt, h, est in upcoming:
+            k = (dt, str(h.get('name', '')).casefold())
+            if k not in seen:
+                seen.add(k)
+                deduped.append((dt, h, est))
+        upcoming = deduped
 
         pages = []
         for dt, h, estimated in upcoming[:4]:

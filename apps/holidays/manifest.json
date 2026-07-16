@@ -31,6 +31,38 @@
       "stepper": true
     },
     {
+      "key": "cultural_traditions",
+      "label": "Cultural traditions (April Fools', Nikolaus...)",
+      "type": "toggle",
+      "default": "on",
+      "options": [
+        {
+          "value": "on",
+          "label": "Show"
+        },
+        {
+          "value": "off",
+          "label": "Hide"
+        }
+      ]
+    },
+    {
+      "key": "fun_days",
+      "label": "A fun day, every day (National Donut Day...)",
+      "type": "toggle",
+      "default": "off",
+      "options": [
+        {
+          "value": "off",
+          "label": "No"
+        },
+        {
+          "value": "on",
+          "label": "Yes"
+        }
+      ]
+    },
+    {
       "key": "religious_holidays",
       "label": "Also show religious observances",
       "type": "toggle",
