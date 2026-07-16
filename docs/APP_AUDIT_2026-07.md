@@ -1,5 +1,13 @@
 # App audit — July 2026
 
+> **Status (2.5.0-beta.1):** §E executed in full — platform gaps A1/A2/A4, the
+> whole bug sweep (B), quick wins C3-C8, C1, the C9 translations (40 files), and
+> doctrine D1-D5 (now the Writing-Apps "house rules", enforced by
+> `test_app_conformance.py` / `test_injected_helpers.py`). Deliberately left:
+> A3 (`skip_rotation_wait` — wire or delete, engine work), A5 (refresh
+> multiplier), C2's per-country holiday *data* (the i18n mechanism landed; the
+> data would have to be curated, not invented), and D6-D10.
+
 Every app (64) audited for unexploited platform capabilities and structural drift:
 a mechanical scan of all manifests/signatures, then six parallel deep reviews
 (clocks, weather/nature, sky/markets, sports/news, quotes/channels, media/anims)
