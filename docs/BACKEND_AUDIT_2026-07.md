@@ -1,5 +1,12 @@
 # Backend audit — July 2026
 
+> **Status (executed, commits `aef6174`→`b3a0686`):** sections A-F done in
+> full, including both structurals (E1 router split: main.py 1798→916 lines
+> into `routes/`; E4 conftest with an autouse network guard) and the CI from B
+> (tests + hassfest + HACS validation, green). Deliberately left: the optional
+> app.js file split (E6 note), and the LICENSE/topics HACS checks are skipped
+> in CI pending a licensing decision — see the comments in ci.yml.
+
 Companion audit of everything *except* apps/ (audited separately, see
 [APP_AUDIT_2026-07.md](APP_AUDIT_2026-07.md)): the FastAPI backend, the web UI,
 the display engine, the HACS integration, packaging/CI, and the test suite.
