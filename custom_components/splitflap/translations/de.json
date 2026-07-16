@@ -8,7 +8,7 @@
           "url": "Companion-URL"
         },
         "data_description": {
-          "url": "Zum Beispiel http://homeassistant.local:8000, oder IP und Port des Companions."
+          "url": "Zum Beispiel homeassistant.local:8000, oder IP und Port des Companions."
         }
       },
       "display": {
