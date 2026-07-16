@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.5.0
+
+The 2.5.0 line promoted to a stable release — see the stable
+add-on changelog for the full summary. No code change from beta.5.
+
 ## 2.5.0-beta.5
 
 **A round of app polish across the catalog.**

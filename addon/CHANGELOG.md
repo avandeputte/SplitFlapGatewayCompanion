@@ -3,6 +3,46 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.5.0
+
+The 2.5.0 line, gathered into a stable release. Everything below shipped and
+soaked across the 2.5.0 betas.
+
+**The whole app catalog, audited and improved.** Every built-in app was reviewed
+against what the gateways can actually do, then fixed: apps stopped deleting
+accents the display could show, several stopped truncating their own content on
+narrow walls, colour tiles now mark severity (aurora, earthquakes, the Fear &
+Greed index, the moon's illumination), and a batch of small bugs went with them.
+Four channels (Magic 8 Ball, Fortune Cookie, Stoic Quotes, Shower Thoughts) gained
+ten languages each, and single-page channels can now shuffle while jokes keep
+their setup-then-punchline order.
+
+**Public Holidays, rebuilt.** It runs entirely offline now from a ten-year
+dataset bundled with the add-on (no API, no key) and shows four switchable
+layers: public holidays for your country and province/state, religious
+observances filtered by tradition, curated cultural traditions per
+language-region, and an optional fun-day-a-day novelty calendar. The old
+National Today app is folded into it; walls that had it installed migrate
+automatically.
+
+**Weather, sharper.** Colour swatches are balanced around a label instead of
+one lonely tile, the current condition carries its own sky colour, humidity
+shows on tall walls, and a five-row display fits five days of forecast on one
+page. All provider quirks live in one shared weather brain.
+
+**Countdown, Binary Clock, Exchange Rates, and more.** The countdown target is a
+calendar picker, far-off dates lead with years, and multiple countdowns rotate on
+a timer you set while the seconds keep ticking. The binary clock shows the plain
+time on its bottom row. Exchange rates line their decimals up into a column.
+
+**Under the hood.** A full companion-side audit hardened the app-upload path
+(escaping, zip-bomb and secret-leak fixes), added continuous integration that
+runs the full test suite plus Home Assistant's own validators on every change,
+fixed a class of multi-display bugs, and made the engine repaint reliably after
+an interruption. The Home Assistant integration (1.3.0) gained request timeouts,
+live grid refresh, and stable entity IDs. Motion capability, a board-image
+entity, and gateway auto-discovery from earlier in the line are all here too.
+
 ## 2.4.0
 
 **One weather brain.** Every provider quirk — four providers' condition-code
