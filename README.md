@@ -326,7 +326,9 @@ Configuration tab — no environment variables, no command line. Install it as i
 | [addon-beta/](addon-beta/) | SplitFlap Gateway Companion **(Beta)** |
 
 Pick the stable channel unless you want prereleases. Both run the same published image
-— there is no app-specific build.
+— there is no app-specific build. Both can be installed, but they publish the same host
+port (8000), so **only one runs at a time** unless you remap the port on one of them
+(Configuration tab → Network).
 
 **Options** (Configuration tab): `gateway_url` (required), `mqtt_password`,
 `companion_public_url`, `home_assistant`, `vestaboard` + `vestaboard_key`, `mcp` +

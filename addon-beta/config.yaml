@@ -8,7 +8,8 @@
 # They carry DIFFERENT slugs on purpose: a slug is the add-on's identity, so distinct
 # ones let both appear in the store, be installed alongside each other, and update
 # independently. Sharing a slug would make the stable entry collide with an installed
-# beta and force a reinstall.
+# beta and force a reinstall. Installed, not running: both publish host port 8000, so
+# the second to start fails to bind unless its port is remapped.
 #
 # The stable folder does not exist yet, and deliberately so: the add-on support (reading
 # /data/options.json, the ingress path handling, the theme) landed in 1.5.0-beta.1, and

@@ -7,7 +7,8 @@
 #
 # They carry DIFFERENT slugs on purpose: a slug is the add-on's identity, so distinct
 # ones let both appear in the store, be installed alongside each other, and update
-# independently. A user runs whichever channel they subscribe to.
+# independently. A user RUNS whichever channel they subscribe to — one at a time: both
+# publish host port 8000, so the second to start fails to bind unless its port is remapped.
 #
 # Both channels run the SAME image the project publishes on every release (see
 # .github/workflows/publish-image.yml) — there is no add-on-specific build. `version`
