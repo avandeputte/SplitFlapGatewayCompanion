@@ -3,7 +3,7 @@
   "i18n": true,
   "name": "Public Holidays",
   "icon": "📅",
-  "description": "Upcoming public holidays",
+  "description": "Upcoming holidays for your location — ten years bundled, works offline; optional religious observances by tradition",
   "type": "functional",
   "refresh_interval": 21600,
   "loop_delay": 6,
@@ -29,6 +29,136 @@
       "max": "30",
       "step": "1",
       "stepper": true
+    },
+    {
+      "key": "religious_holidays",
+      "label": "Also show religious observances",
+      "type": "toggle",
+      "default": "off",
+      "options": [
+        {
+          "value": "off",
+          "label": "No"
+        },
+        {
+          "value": "on",
+          "label": "Yes"
+        }
+      ]
+    },
+    {
+      "key": "tradition_christian",
+      "label": "Christian",
+      "type": "toggle",
+      "default": "on",
+      "options": [
+        {
+          "value": "on",
+          "label": "Show"
+        },
+        {
+          "value": "off",
+          "label": "Hide"
+        }
+      ],
+      "visible_when": {
+        "religious_holidays": "on"
+      }
+    },
+    {
+      "key": "tradition_islamic",
+      "label": "Islamic",
+      "type": "toggle",
+      "default": "on",
+      "options": [
+        {
+          "value": "on",
+          "label": "Show"
+        },
+        {
+          "value": "off",
+          "label": "Hide"
+        }
+      ],
+      "visible_when": {
+        "religious_holidays": "on"
+      }
+    },
+    {
+      "key": "tradition_jewish",
+      "label": "Jewish",
+      "type": "toggle",
+      "default": "on",
+      "options": [
+        {
+          "value": "on",
+          "label": "Show"
+        },
+        {
+          "value": "off",
+          "label": "Hide"
+        }
+      ],
+      "visible_when": {
+        "religious_holidays": "on"
+      }
+    },
+    {
+      "key": "tradition_hindu",
+      "label": "Hindu",
+      "type": "toggle",
+      "default": "on",
+      "options": [
+        {
+          "value": "on",
+          "label": "Show"
+        },
+        {
+          "value": "off",
+          "label": "Hide"
+        }
+      ],
+      "visible_when": {
+        "religious_holidays": "on"
+      }
+    },
+    {
+      "key": "tradition_buddhist",
+      "label": "Buddhist",
+      "type": "toggle",
+      "default": "on",
+      "options": [
+        {
+          "value": "on",
+          "label": "Show"
+        },
+        {
+          "value": "off",
+          "label": "Hide"
+        }
+      ],
+      "visible_when": {
+        "religious_holidays": "on"
+      }
+    },
+    {
+      "key": "tradition_sikh",
+      "label": "Sikh",
+      "type": "toggle",
+      "default": "on",
+      "options": [
+        {
+          "value": "on",
+          "label": "Show"
+        },
+        {
+          "value": "off",
+          "label": "Hide"
+        }
+      ],
+      "visible_when": {
+        "religious_holidays": "on"
+      }
     }
   ]
 }

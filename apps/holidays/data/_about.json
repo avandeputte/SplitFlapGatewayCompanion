@@ -1,0 +1,15 @@
+{
+ "source": "python-holidays 0.100 (public/regional holidays & Jewish/Islamic/Hindu/Buddhist observance dates) + CLDR official-language data via Babel; Christian movable feasts via Easter computus.",
+ "generated": "2026-07-16",
+ "year_range": [
+  2026,
+  2035
+ ],
+ "rebuilt_with": "scripts/extract_holidays.py",
+ "locales": 185,
+ "dropped_unsupported_languages": [
+  "fo-FO",
+  "fy-NL",
+  "lb-LU"
+ ]
+}

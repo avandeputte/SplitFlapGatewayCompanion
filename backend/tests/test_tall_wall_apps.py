@@ -185,7 +185,9 @@ def test_wiki_keeps_a_page_per_article_on_a_three_row_wall(stub_net, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# holidays — the reported bug is truncation
+# holidays — the reported bug is truncation. The full-page layout tests
+# moved to test_holidays_dataset.py when the app went offline (fixture
+# data instead of the retired Nager stub).
 # ---------------------------------------------------------------------------
 def test_a_long_holiday_name_wraps_rather_than_being_cut():
     h = _mod("holidays")
@@ -200,42 +202,3 @@ def test_wrap_never_emits_a_blank_first_line():
     h = _mod("holidays")
     assert h._wrap("SUPERCALIFRAGILISTICEXPI ALIDOCIOUS", 10, 2)[0] != ""
 
-
-def test_the_holiday_name_survives_a_tall_wall_intact(stub_net, tmp_path):
-    """MARTIN LUTHER KING JR. DAY is 26 characters on a 15-wide wall. It used to be
-    cut; now it wraps, and every word of it is on the page."""
-    rt = _runtime(5, 15, tmp_path, "holidays", country="US")
-    pages = rt.get_pages("holidays")
-    mlk = [p for p in pages if "Martin" in p]
-    assert mlk, "the long-named holiday is missing entirely"
-
-    body = _body(mlk[0], 5, 15)
-    text = " ".join(body)
-    for word in ("Martin", "Luther", "King"):
-        assert word in text, f"{word} was truncated away"
-    assert all(len(l) <= 15 for l in body)
-
-
-def test_a_tall_wall_spends_its_spare_row_on_the_date(stub_net, tmp_path):
-    """A short name (LABOR DAY) leaves a row over: say WHEN, don't show blank flaps."""
-    rt = _runtime(5, 15, tmp_path, "holidays", country="US")
-    labor = [p for p in rt.get_pages("holidays") if "Labor" in p][0]
-    body = _body(labor, 5, 15)
-    assert any("Sep" in l for l in body), f"no date line in {body}"
-    assert any(l.startswith("In ") for l in body), "the countdown is the point"
-
-
-def test_three_row_wall_gives_up_the_header_before_it_truncates(stub_net, tmp_path):
-    """On the common wall, a name that fits keeps 'Next holiday'; one that doesn't
-    takes that row rather than losing half of itself — the header says less than the
-    name it was cutting in half."""
-    rt = _runtime(3, 15, tmp_path, "holidays", country="US")
-    pages = rt.get_pages("holidays")
-
-    short = [p for p in pages if "Labor" in p][0]
-    assert "Next holiday" in short
-
-    long = [p for p in pages if "Martin" in p][0]
-    assert "Next holiday" not in long, "the header must yield to the name"
-    body = _body(long, 3, 15)
-    assert "Martin" in " ".join(body) and "King" in " ".join(body)
