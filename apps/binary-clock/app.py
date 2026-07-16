@@ -69,5 +69,11 @@ def fetch(settings, format_lines, get_rows, get_cols, caps=None):
     if rows >= 6:
         lines.append(_units_row(n_groups, gap))
     if rows >= 5:
-        lines.append(now.strftime('%H:%M:%S' if seconds else '%H:%M'))
+        # The decimal answer, built with the SAME group-and-gap geometry as the
+        # bit rows: two-digit zero-padded H/M/S units, the colon living in the gap
+        # between them — so each digit lands directly under its binary column.
+        units = [f'{now.hour:02d}', f'{now.minute:02d}']
+        if seconds:
+            units.append(f'{now.second:02d}')
+        lines.append((':'.center(len(gap))).join(units))
     return [format_lines(*lines)]

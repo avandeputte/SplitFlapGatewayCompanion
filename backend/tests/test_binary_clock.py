@@ -50,16 +50,25 @@ def test_tight_wall_uses_single_gaps():
     assert all(len(l) == 8 for l in lines)      # 6 tiles + 2 single gaps
 
 
-def test_decimal_time_is_the_bottom_row():
-    """The plain-language time is the answer key under the bits. Five rows: four
-    bit rows + the decimal time, 24h (the clock is BCD of a 24-hour time), and it
-    reflects the seconds setting."""
+def test_decimal_digits_align_under_the_binary_columns():
+    """The plain-language time is the answer key under the bits — and each digit
+    sits directly under its binary column. That means the decimal row has the
+    SAME geometry as a bit row (two-digit H/M/S groups, colon in the gap), so it
+    is exactly as wide and per-line centring drops the digits onto the columns."""
     import re
     m, lines = _fetch(5, 15)
     assert len(lines) == 5
+    dec = lines[4]
+    assert len(dec) == len(lines[0]), (dec, lines[0])   # same width -> aligned
+    assert re.fullmatch(r"\d\d: \d\d: \d\d", dec), dec   # colon in the 2-wide gap
+    # a narrow wall uses single gaps; the colon fills it and it still lines up
+    m, lines = _fetch(5, 8)
     assert re.fullmatch(r"\d\d:\d\d:\d\d", lines[4]), lines[4]
+    assert len(lines[4]) == len(lines[0])
+    # no seconds -> two groups, still aligned
     m, lines = _fetch(5, 15, show_seconds="false")
-    assert re.fullmatch(r"\d\d:\d\d", lines[4]), lines[4]
+    assert re.fullmatch(r"\d\d: \d\d", lines[4]), lines[4]
+    assert len(lines[4]) == len(lines[0])
 
 
 def test_units_row_sits_above_the_decimal_on_a_six_row_wall():
@@ -69,7 +78,7 @@ def test_units_row_sits_above_the_decimal_on_a_six_row_wall():
     # same width as the bit rows — per-line centring keeps H/M/S under the columns
     assert len(lines[4]) == len(lines[0])
     assert lines[4].replace(' ', '') == 'HMS'
-    assert re.fullmatch(r"\d\d:\d\d:\d\d", lines[5]), lines[5]
+    assert re.fullmatch(r"\d\d: \d\d: \d\d", lines[5]), lines[5]
 
 
 def test_zero_can_be_a_blank_flap():

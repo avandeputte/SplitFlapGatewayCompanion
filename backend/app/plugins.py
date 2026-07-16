@@ -27,7 +27,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import appaudit, device, i18n, location, renderer, weather
+from . import appaudit, device, i18n, location, renderer, textlayout, weather
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -590,7 +590,7 @@ class PluginRuntime:
     def _wanted_helpers(cls, fn) -> frozenset:
         """Which injected helpers ``fn`` opts into by parameter name — computed
         once at load, not re-inspected per call."""
-        return frozenset(n for n in ("get_weather", "get_location", "i18n", "caps")
+        return frozenset(n for n in ("get_weather", "get_location", "i18n", "caps", "paginate")
                          if cls._fetch_accepts(fn, n))
 
     def _helper_kwargs(self, app_id: str, wanted: frozenset, ps: dict, settings=None) -> dict:
@@ -617,6 +617,15 @@ class PluginRuntime:
             # where the wall has one and a WORD where it does not: ♥, ♪, ● and ☀
             # all degrade to "*" on a real reel, which says nothing at all.
             kwargs["caps"] = self._caps()
+        if "paginate" in wanted:
+            # paginate(text, title="") → the finished pages for a block of text,
+            # word-wrapped and balanced to THIS wall (textlayout.py). The advice /
+            # quote / fact apps each carried a copy of this; now it is one helper.
+            fmt = functools.partial(self.format_lines, align=self.vertical_align(app_id))
+            def _paginate(text, title="", _fmt=fmt):
+                return [_fmt(*page) for page in
+                        textlayout.balanced_pages(text, self.get_rows(), self.get_cols(), title)]
+            kwargs["paginate"] = _paginate
         return kwargs
 
     @staticmethod

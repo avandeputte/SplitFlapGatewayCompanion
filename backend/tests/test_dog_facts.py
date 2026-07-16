@@ -11,9 +11,16 @@ from __future__ import annotations
 
 import pytest
 
+from app.textlayout import balanced_pages
 from conftest import load_app, make_runtime
 
 dog = load_app("dog-facts")
+
+
+def _fits(rows, cols):
+    """The predicate _pick now takes: does this text land on one page? — the same
+    engine pagination the running app is handed."""
+    return lambda text: len(balanced_pages(text, rows, cols)) == 1
 
 SHORT = "Dogs have three eyelids."                                   # 24
 MEDIUM = "A dog's nose print is as unique as a human fingerprint."   # 55
@@ -25,22 +32,22 @@ def test_it_prefers_the_longest_fact_that_still_fits_one_page():
     """Longest, not shortest: a fact that fills the wall uses it better than three words
     floating in the middle — but never at the cost of spilling onto a second page."""
     # A 5x22 wall holds MEDIUM comfortably; LONG needs more.
-    assert dog._pick([SHORT, MEDIUM, LONG], 250, rows=5, cols=22) == MEDIUM
+    assert dog._pick([SHORT, MEDIUM, LONG], 250, _fits(5, 22)) == MEDIUM
 
 
 def test_it_falls_back_to_the_shortest_when_nothing_fits():
     """A 2x12 wall fits none of them; the shortest at least paginates the least."""
-    assert dog._pick([MEDIUM, LONG], 250, rows=2, cols=12) == MEDIUM
+    assert dog._pick([MEDIUM, LONG], 250, _fits(2, 12)) == MEDIUM
 
 
 def test_max_length_is_honoured_over_filling_the_wall():
     """If you asked for facts under 40 characters, a 55-character one is not an answer."""
-    assert dog._pick([SHORT, MEDIUM], 40, rows=5, cols=22) == SHORT
+    assert dog._pick([SHORT, MEDIUM], 40, _fits(5, 22)) == SHORT
 
 
 def test_blank_facts_are_ignored():
-    assert dog._pick(["", "   ", SHORT], 250, rows=5, cols=22) == SHORT
-    assert dog._pick(["", "  "], 250, rows=5, cols=22) == ""
+    assert dog._pick(["", "   ", SHORT], 250, _fits(5, 22)) == SHORT
+    assert dog._pick(["", "  "], 250, _fits(5, 22)) == ""
 
 
 # --- the page ---------------------------------------------------------------
