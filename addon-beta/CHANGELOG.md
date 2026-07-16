@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.5.1-beta.1
+
+**Channel apps write text, not line breaks.** The quote / joke / fortune
+channels are restructured: each entry is now the full text of a page, and the
+display wraps it to your wall — so the same joke reads correctly on a narrow
+sign and a wide one without anyone pre-splitting it. Multi-page items (a joke's
+setup and punchline, a two-page quote) are grouped in the data, so shuffling a
+channel can never separate a punchline from its setup. With that guarantee, the
+quote channels shuffle by default while jokes keep their order.
+
 ## 2.5.0
 
 The 2.5.0 line promoted to a stable release — see the stable
