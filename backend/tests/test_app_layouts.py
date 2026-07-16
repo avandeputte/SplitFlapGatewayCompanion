@@ -67,7 +67,11 @@ TIDES = {"predictions": [
     {"t": "2026-07-14 15:48", "type": "L", "v": "0.9"},
     {"t": "2026-07-14 21:57", "type": "H", "v": "10.8"},
 ]}
-ROCKET = {"results": [{"name": "FALCON 9 | STARLINK 12-5", "net": "2026-07-16T14:21:00Z"}]}
+# The launch must stay in the FUTURE relative to every run — a fixed date here
+# was a time bomb that started failing the day it quietly became the past.
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+ROCKET = {"results": [{"name": "FALCON 9 | STARLINK 12-5",
+                       "net": (_dt.now(_tz.utc) + _td(days=2, hours=3)).strftime("%Y-%m-%dT%H:%M:00Z")}]}
 
 
 @pytest.fixture

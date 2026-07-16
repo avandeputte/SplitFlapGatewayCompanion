@@ -45,11 +45,19 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
         # at the end of the line, and a 10S -> 9S rollover used to shorten the
         # line and shift everything left of it by a flap.
         day_u = u('D')
-        sections = [
-            f'{days}{day_u}',
-            f'{hrs}{u("H")}',
-            f'{mins}{u("M")}',
-        ]
+        # Past a year out, years lead: "8Y 267D 14H" reads where "3187D" only
+        # counts. Only when years AND days actually fit together — on a very
+        # narrow sign a bare "8Y" says less than the day total, so it keeps that.
+        years, remdays = divmod(days, 365)
+        lead = [f'{years}{u("Y")}', f'{remdays}{day_u}']
+        if years > 0 and len(' '.join(lead)) <= cols:
+            sections = lead + [f'{hrs}{u("H")}', f'{mins}{u("M")}']
+        else:
+            sections = [
+                f'{days}{day_u}',
+                f'{hrs}{u("H")}',
+                f'{mins}{u("M")}',
+            ]
         if show_secs:
             sections.append(f'{secs:>2}{u("S")}')
 
@@ -71,22 +79,38 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     # One colour per unit — cool to urgent, top to bottom. The empty bar cell is
     # the black square: it lands as a blank flap but keeps every line the same
     # width, so a bar growing or shrinking never re-centres the row.
-    BAR_TILES = {'D': '\U0001f7e6', 'H': '\U0001f7e9', 'M': '\U0001f7e8', 'S': '\U0001f7e5'}
+    BAR_TILES = {'Y': '\U0001f7ea', 'D': '\U0001f7e6', 'H': '\U0001f7e9',
+                 'M': '\U0001f7e8', 'S': '\U0001f7e5'}
     BAR_EMPTY = '⬛'
 
-    def build_unit_rows(total_seconds, cols):
+    def build_unit_rows(total_seconds, cols, max_rows):
         """A tall wall gets one row per unit: the value, then a colour bar of how
-        much of that unit's own cycle remains — days of the year, hours of the
-        day, minutes of the hour, seconds of the minute. Values sit right-aligned
-        in a fixed field so a tick only touches the flaps that changed."""
+        much of that unit's own cycle remains — years of a decade, days of the
+        year, hours of the day, minutes of the hour, seconds of the minute.
+        Values sit right-aligned in a fixed field so a tick only touches the
+        flaps that changed.
+
+        Past a year out, a years row leads and the day row becomes days-within-
+        the-year — which is also what keeps every value inside the 3-character
+        column (this used to clamp at 999D and lie for anything further out).
+        Rows are trimmed least-significant-first to what the wall has: on a
+        5-row wall an 8-year countdown shows Y/D/H/M and the ticking seconds
+        yield — seconds are for launch day, not a retirement eight years away."""
         days, rem = divmod(total_seconds, 86400)
         hrs, rem = divmod(rem, 3600)
         mins, secs = divmod(rem, 60)
-        units = [('D', min(days, 999), days / 365.0),
-                 ('H', hrs, hrs / 24.0),
-                 ('M', mins, mins / 60.0)]
+        years, remdays = divmod(days, 365)
+        units = []
+        if years > 0:
+            units.append(('Y', years, years / 10.0))
+            units.append(('D', remdays, remdays / 365.0))
+        else:
+            units.append(('D', days, days / 365.0))
+        units += [('H', hrs, hrs / 24.0),
+                  ('M', mins, mins / 60.0)]
         if show_secs:
             units.append(('S', secs, secs / 60.0))
+        units = units[:max_rows]
         labels = {key: u(key) for key, _, _ in units}
         label_w = max(len(v) for v in labels.values())
         lines = []
@@ -132,7 +156,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
 
         if rows >= 5:
             # Room for the full instrument panel: the event, then a row per unit.
-            return [format_lines(event, *build_unit_rows(total_seconds, cols))]
+            return [format_lines(event, *build_unit_rows(total_seconds, cols, rows - 1))]
         if rows == 1:
             return [format_lines(event[:cols]), format_lines(countdown_text[:cols])]
         if rows == 2:

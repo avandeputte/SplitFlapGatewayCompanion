@@ -743,17 +743,27 @@ function buildForm(schema, initial, { skip } = {}) {
     wrap._getValue = () => chips.map((c) => c.value).join(",");
     wrap._setValue = (v) => { chips = v ? String(v).split(",").filter(Boolean).map((x) => ({ value: x, label: chipLabel(x) })) : []; draw(); };
   } else {
-    // text / number / password (+ optional stepper)
+    // text / number / password / date-time (+ optional stepper). The date types
+    // pass straight through to the browser's native pickers — datetime-local
+    // yields exactly the ISO string datetime.fromisoformat parses, so the
+    // countdown's target field is a calendar instead of a guess-the-format box.
+    const NATIVE = { password: 1, number: 1, "datetime-local": 1, date: 1, time: 1 };
     const inp = el("input");
-    inp.type = f.type === "password" ? "password" : f.type === "number" ? "number" : "text";
+    inp.type = NATIVE[f.type] ? f.type : "text";
     if (f.min != null) inp.min = f.min;
     if (f.max != null) inp.max = f.max;
     if (f.step != null) inp.step = f.step;
     if (f.ph) inp.placeholder = t(f.ph);
-    inp.value = val != null && val !== "" ? val : "";
+    // A bare date saved before the picker existed ("2033-06-30") is valid to the
+    // backend but rejected by a datetime-local input (it demands a time part) —
+    // pad it so old values still show up in the calendar instead of blanking.
+    const coerce = (v) =>
+      f.type === "datetime-local" && /^\d{4}-\d{2}-\d{2}$/.test(String(v || ""))
+        ? `${v}T00:00` : (v != null ? v : "");
+    inp.value = val != null && val !== "" ? coerce(val) : "";
     inp.addEventListener("input", onFormChange);
     wrap._getValue = () => (f.type === "number" ? Number(inp.value) : inp.value);
-    wrap._setValue = (v) => { inp.value = v; };
+    wrap._setValue = (v) => { inp.value = coerce(v); };
     if (f.stepper) {
       const step = Number(f.step) || 1;
       const s = el("div", "stepper");
