@@ -6,9 +6,15 @@ helper and the ``get_location`` helper need the *same* location, so both go thro
 ``coordinates()`` here — cached, one Nominatim lookup instead of one per caller. It
 lets currency/holiday apps key off *where you are* rather than your language (the
 language can't tell France (EUR) from Canada (CAD) or Switzerland (CHF)).
+
+This module deliberately speaks ``requests`` (not httpx like its siblings): the
+test fixtures that stub the network for location-using apps do it by patching
+``requests.get`` — see stub_net in test_app_layouts.py / test_tall_wall_apps.py.
+Moving to httpx would slip past those stubs and hit the real Nominatim.
 """
 
 import re
+import time
 
 # Catalog globals this helper draws on (named in the app dialog's "also uses" hint).
 GLOBAL_KEYS = ["location_precise", "zip_code"]
@@ -16,6 +22,24 @@ GLOBAL_KEYS = ["location_precise", "zip_code"]
 _UA = {"User-Agent": "SplitFlapGatewayCompanion/1.0"}
 _geo_cache: dict = {}    # rounded (lat, lon) -> {"country", "subdivision"}
 _coord_cache: dict = {}  # geocode query string -> (lat, lon, CITY)
+
+# FAILURES are remembered too — briefly, not forever. Nominatim is a blocking
+# 6 s timeout against a 1-req/s-policy service, and coordinates()/_geo() run on
+# every fetch of every location app: without this, an un-geocodable ZIP or a
+# Nominatim outage costs two hung calls per fetch, every time.
+_NEG_TTL = 120.0         # seconds before a failed lookup is retried
+_neg_cache: dict = {}    # lookup key -> time.monotonic() of the failure
+
+
+def _neg_hit(key) -> bool:
+    """True while ``key``'s recorded failure is still fresh."""
+    t = _neg_cache.get(key)
+    if t is None:
+        return False
+    if time.monotonic() - t < _NEG_TTL:
+        return True
+    del _neg_cache[key]
+    return False
 
 
 def _currency_for(country):
@@ -50,8 +74,10 @@ def coordinates(settings):
         return None
     if query in _coord_cache:
         return _coord_cache[query]
+    if _neg_hit(("geocode", query)):
+        return None
     try:
-        import requests
+        import requests   # not httpx — see the module docstring
         params = {"q": query, "format": "json", "limit": 1, "addressdetails": 1}
         if re.fullmatch(r"\d{5}", query):      # a US ZIP — 02118 also exists abroad
             params["countrycodes"] = "us"
@@ -67,6 +93,9 @@ def coordinates(settings):
             return result
     except Exception:
         pass
+    # No answer or no service: negative-cache it, so the next app fetch doesn't
+    # hang on the same doomed lookup (retried after _NEG_TTL).
+    _neg_cache[("geocode", query)] = time.monotonic()
     return None
 
 
@@ -81,8 +110,10 @@ def _geo(settings):
     if key in _geo_cache:
         return _geo_cache[key]
     out = {"country": None, "subdivision": None}
+    if _neg_hit(("reverse", key)):
+        return out
     try:
-        import requests
+        import requests   # not httpx — see the module docstring
         r = requests.get("https://nominatim.openstreetmap.org/reverse",
                          params={"lat": lat, "lon": lon, "format": "json", "zoom": 5},
                          headers=_UA, timeout=6).json()
@@ -94,6 +125,9 @@ def _geo(settings):
             _geo_cache[key] = out
     except Exception:
         pass
+    if not out["country"]:
+        # Outage or an answer with no country: don't hang the next fetch on it.
+        _neg_cache[("reverse", key)] = time.monotonic()
     return out
 
 

@@ -56,7 +56,7 @@ def render_board(lines: list[str], cols: int, *, scale: int = 16) -> bytes:
     """
     from pathlib import Path
 
-    from PIL import Image, ImageDraw, ImageFont   # HA core ships Pillow
+    from PIL import Image, ImageDraw, ImageFont   # declared in manifest.json
 
     rows = len(lines)
     tw, th = scale * 3, scale * 4                 # tile size
@@ -100,7 +100,7 @@ def render_board(lines: list[str], cols: int, *, scale: int = 16) -> bytes:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
                             async_add_entities: AddEntitiesCallback) -> None:
     coordinator: SplitFlapCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([SplitFlapBoardImage(hass, coordinator, entry.entry_id)])
+    async_add_entities([SplitFlapBoardImage(hass, coordinator)])
 
 
 class SplitFlapBoardImage(SplitFlapEntity, ImageEntity):
@@ -109,11 +109,9 @@ class SplitFlapBoardImage(SplitFlapEntity, ImageEntity):
     _attr_content_type = "image/png"
     _attr_translation_key = "board"
 
-    def __init__(self, hass: HomeAssistant, coordinator: SplitFlapCoordinator,
-                 entry_id: str) -> None:
-        SplitFlapEntity.__init__(self, coordinator, entry_id)
+    def __init__(self, hass: HomeAssistant, coordinator: SplitFlapCoordinator) -> None:
+        SplitFlapEntity.__init__(self, coordinator, "board")
         ImageEntity.__init__(self, hass)
-        self._attr_unique_id = f"{entry_id}_board"
         self._lines: list[str] | None = None
         self._png: bytes | None = None
         self._attr_image_last_updated: datetime | None = None

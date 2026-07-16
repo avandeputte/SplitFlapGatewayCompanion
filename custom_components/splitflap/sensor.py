@@ -16,8 +16,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
                             async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([
-        SplitFlapMessageSensor(coordinator, entry.entry_id),
-        SplitFlapShowingSensor(coordinator, entry.entry_id),
+        SplitFlapMessageSensor(coordinator),
+        SplitFlapShowingSensor(coordinator),
     ])
 
 
@@ -27,9 +27,8 @@ class SplitFlapMessageSensor(SplitFlapEntity, SensorEntity):
     _attr_translation_key = "message"
     _attr_icon = "mdi:message-text"
 
-    def __init__(self, coordinator: SplitFlapCoordinator, entry_id: str) -> None:
-        super().__init__(coordinator, entry_id)
-        self._attr_unique_id = f"{entry_id}_message"
+    def __init__(self, coordinator: SplitFlapCoordinator) -> None:
+        super().__init__(coordinator, "message")
 
     @property
     def native_value(self) -> str:
@@ -47,9 +46,8 @@ class SplitFlapShowingSensor(SplitFlapEntity, SensorEntity):
     _attr_translation_key = "showing"
     _attr_icon = "mdi:eye"
 
-    def __init__(self, coordinator: SplitFlapCoordinator, entry_id: str) -> None:
-        super().__init__(coordinator, entry_id)
-        self._attr_unique_id = f"{entry_id}_showing"
+    def __init__(self, coordinator: SplitFlapCoordinator) -> None:
+        super().__init__(coordinator, "showing")
 
     @property
     def native_value(self) -> str:

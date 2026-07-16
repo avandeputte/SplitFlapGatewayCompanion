@@ -323,12 +323,18 @@ def for_legacy(ch: str) -> str:
     return PUA_TO_CODE.get(ch, PICTOGRAPH_FALLBACK.get(ch, ch))
 
 
+# The reverse of COLOR_MAP: the legacy colour code back to the tile a person would have
+# typed ('r' -> 🟥). Keyed on the CODE (the map's value), not the tile: testing the tile
+# against COLOR_CODES left this permanently empty, and MCP get_display leaked raw
+# U+E000-06 private-use characters instead of tiles.
+_CODE_TO_TILE = {code: tile for tile, code in COLOR_MAP.items() if code in COLOR_CODES}
+
+
 def for_text(ch: str) -> str:
     """One cell, as READABLE TEXT (an MCP tool's `lines`, a log line). A colour has no
     letter now — using one would be a lie, since `r` is the letter r — so it comes back as
     the tile a person would have typed."""
-    tile = {v: k for k, v in COLOR_MAP.items() if k in COLOR_CODES}
-    return tile.get(PUA_TO_CODE.get(ch, ""), ch)
+    return _CODE_TO_TILE.get(PUA_TO_CODE.get(ch, ""), ch)
 
 
 def get_animation_order(style: str = "ltr", rows: int = 3, cols: int = 15) -> list[int]:

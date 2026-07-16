@@ -101,3 +101,63 @@ def test_a_registered_custom_port_is_swept_too(monkeypatch):
     found = asyncio.run(discovery.discover(
         ["http://192.168.1.10:8080"], transport=httpx.MockTransport(lan), mdns=False))
     assert [f["url"] for f in found] == ["http://192.168.1.60:8080"]
+
+
+# ---------------------------------------------------------------------------
+# mDNS: in-flight resolves are gathered before zeroconf closes, with the FULL
+# window as their timeout (both fake modules — never a real multicast socket)
+# ---------------------------------------------------------------------------
+def test_mdns_resolves_are_gathered_before_zeroconf_closes(monkeypatch):
+    """Resolves used to be fire-and-forget: an answer landing after the browse
+    window was silently dropped, on top of a closed zeroconf — and the resolve
+    timeout was only window*500 ms, HALF the window."""
+    import sys
+    import types
+
+    window = 0.05
+    seen = {}
+
+    class _Info:
+        server = "splitflap-gw.local."
+        port = 80
+
+        def parsed_scoped_addresses(self):
+            return ["192.168.1.77", "fe80::1"]      # the v6 one must be skipped
+
+    class _AZC:
+        def __init__(self):
+            self.zeroconf = object()
+            self.closed = False
+
+        async def async_get_service_info(self, service_type, name, timeout=3000):
+            seen["timeout"] = timeout
+            await asyncio.sleep(window * 2)         # lands AFTER the browse window
+            assert not self.closed, "the resolve outlived zeroconf"
+            return _Info()
+
+        async def async_close(self):
+            self.closed = True
+
+    state = types.SimpleNamespace(Added=object(), Removed=object())
+
+    class _Browser:
+        def __init__(self, zc, service_type, handlers=()):
+            for h in handlers:
+                h(zc, service_type, "splitflap-gw._http._tcp.local.", state.Added)
+                h(zc, service_type, "a printer._http._tcp.local.", state.Added)
+
+        async def async_cancel(self):
+            pass
+
+    zc_mod = types.ModuleType("zeroconf")
+    zc_mod.ServiceStateChange = state
+    zc_async = types.ModuleType("zeroconf.asyncio")
+    zc_async.AsyncServiceBrowser = _Browser
+    zc_async.AsyncZeroconf = _AZC
+    monkeypatch.setitem(sys.modules, "zeroconf", zc_mod)
+    monkeypatch.setitem(sys.modules, "zeroconf.asyncio", zc_async)
+
+    urls = asyncio.run(discovery._mdns_candidates(window=window))
+    assert urls == ["http://192.168.1.77"], "the late resolve was dropped"
+    assert seen["timeout"] >= int(window * 1000), \
+        "the resolve timeout must cover the whole window, not half of it"

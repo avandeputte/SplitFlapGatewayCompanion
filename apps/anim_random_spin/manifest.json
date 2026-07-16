@@ -7,7 +7,6 @@
   "refresh_interval": 0,
   "loop_delay": 4,
   "animation": true,
-  "skip_rotation_wait": true,
   "settings": [
     {
       "key": "anim_speed",

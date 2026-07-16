@@ -102,6 +102,14 @@ def build(displays) -> APIRouter:
     """`displays` is the DisplayManager: which gateway we proxy depends on the URL."""
     router = APIRouter()
 
+    # ONE long-lived client with keep-alive, for every proxied request. A client per
+    # request meant a fresh TCP connection per asset against an ESP32 that has about
+    # four sockets to its name. Lives as long as the router (the process); redirects
+    # must pass through un-followed so we can rewrite their Location below.
+    client = httpx.AsyncClient(
+        timeout=30, follow_redirects=False,
+        limits=httpx.Limits(max_keepalive_connections=4, max_connections=8))
+
     def _resolve(path: str):
         """Split `<display-id>/<path>` from a plain `<path>` on the default gateway.
 
@@ -147,14 +155,29 @@ def build(displays) -> APIRouter:
         headers = {k: v for k, v in request.headers.items() if k.lower() not in skip}
 
         try:
-            async with httpx.AsyncClient(timeout=30, follow_redirects=False) as c:
-                r = await c.request(request.method, target, params=request.query_params,
-                                    content=body or None, headers=headers)
+            r = await client.request(request.method, target, params=request.query_params,
+                                     content=body or None, headers=headers)
         except Exception as e:
             log.warning("gateway proxy: %s %s failed: %s", request.method, target, e)
             return Response(f"gateway unreachable: {e}", status_code=502)
 
         ctype = r.headers.get("content-type", "")
+
+        # A gateway redirect points into the GATEWAY — absolute ("/update") or fully
+        # qualified ("http://192.168.1.229/update"). Passed through untouched, the
+        # browser follows it out of /gw/ and lands on the companion's SPA (or leaves
+        # Home Assistant entirely). Rewrite it to stay under the proxy.
+        if 300 <= r.status_code < 400 and r.headers.get("location"):
+            loc = r.headers["location"]
+            if loc == gw or loc.startswith(gw + "/"):
+                loc = loc[len(gw):] or "/"        # the gateway's own absolute URL
+            if loc.startswith("/") and not loc.startswith("//"):
+                out = {k: v for k, v in r.headers.items()
+                       if k.lower() not in ("content-encoding", "content-length",
+                                            "transfer-encoding", "location")}
+                out["location"] = base + loc
+                return Response(r.content, status_code=r.status_code, headers=out)
+            # anywhere else (another host) is not ours to rewrite — fall through
 
         if "text/html" in ctype:
             return Response(_rewrite_html(r.text, base, companion),

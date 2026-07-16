@@ -157,6 +157,37 @@ def test_the_two_channels_stay_in_sync():
     assert a["schema"] == b["schema"]
 
 
+def test_the_two_channels_translations_stay_in_sync():
+    """Same parity, for the Configuration-tab labels. Nothing in translations/ is
+    channel-specific — identity (name/slug/stage) lives in config.yaml, and the options
+    the labels describe are pinned identical above — so the files must match outright.
+    (They drifted once: stable's gateway_url help lacked the multi-display comma-list
+    wording the beta had, long after multi-display went stable.)"""
+    a_dir, b_dir = ROOT / "addon" / "translations", ROOT / "addon-beta" / "translations"
+    a_files = sorted(p.name for p in a_dir.glob("*.yaml"))
+    b_files = sorted(p.name for p in b_dir.glob("*.yaml"))
+    assert a_files and a_files == b_files, \
+        f"channels offer different translation files: {a_files} vs {b_files}"
+    for name in a_files:
+        a = yaml.safe_load((a_dir / name).read_text("utf-8"))
+        b = yaml.safe_load((b_dir / name).read_text("utf-8"))
+        assert a == b, f"translations/{name} drifted between the channels"
+
+
+@pytest.mark.parametrize("chan", CHANNEL_IDS)
+def test_every_option_has_a_configuration_label(chan):
+    """An option missing from translations shows as its raw key in the Configuration tab.
+    This also pins the nesting: ui_language once sat indented under `network:` — where HA
+    never looks for option labels — and dev_mode had no entry at all."""
+    trans = yaml.safe_load((ROOT / chan / "translations" / "en.yaml").read_text("utf-8"))
+    labelled = set(trans["configuration"])
+    offered = set(CHANNELS[chan]["options"]) | set(CHANNELS[chan]["schema"])
+    missing = offered - labelled
+    assert not missing, f"{chan}: options with no translation label: {sorted(missing)}"
+    for key in offered:
+        assert trans["configuration"][key].get("name"), f"{chan}: {key} has no name label"
+
+
 def test_the_defaults_are_safe():
     """The two write surfaces stay off until asked for."""
     assert ADDON["options"]["vestaboard"] is False

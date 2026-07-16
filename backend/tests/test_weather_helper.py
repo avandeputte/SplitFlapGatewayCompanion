@@ -157,3 +157,37 @@ def test_the_per_app_location_override_wins(monkeypatch):
     w = weather.fetch_weather(dict(SETTINGS, location="48.85,2.35|Paris"))
     assert w["ok"] and w["city"] == "Paris"
     assert round(seen["latitude"], 2) == 48.85 and round(seen["longitude"], 2) == 2.35
+
+
+# ---------------------------------------------------------------------------
+# the cache hands every caller its OWN document
+# ---------------------------------------------------------------------------
+def test_the_cache_hands_each_caller_its_own_copy(monkeypatch):
+    """The cache is shared by every app across executor threads. A doc must be
+    deepcopied on store AND on hit: one app mutating what it got back must not
+    poison weather for every other app until the TTL."""
+    calls = []
+
+    def fake(url, **kw):
+        calls.append(url)
+        return _Resp(OPENMETEO)
+    _mock(monkeypatch, fake)
+
+    first = weather.fetch_weather(dict(SETTINGS), days=2)
+    fetch_calls = len(calls)
+
+    # a badly-behaved app rewrites the document it was handed…
+    first["desc"] = "VANDALIZED"
+    first["forecast"][0]["sky"] = "lava"
+    del first["temp_f"]
+
+    again = weather.fetch_weather(dict(SETTINGS), days=2)
+    assert len(calls) == fetch_calls, "the second fetch must be a cache hit"
+    # …and the next app still gets the clean document (store-side copy)
+    assert again["desc"] == "Light rain" and again["temp_f"] == 70
+    assert again["forecast"][0]["sky"] == "clear"
+
+    # hit-side copy: mutating a cache HIT must not touch the cache either
+    again["city"] = "MUTATED"
+    third = weather.fetch_weather(dict(SETTINGS), days=2)
+    assert third["city"] == "BRUSSELS"

@@ -66,7 +66,8 @@ def test_nothing_shadows_a_global_helper(name):
 
 def test_the_running_app_badge_still_translates():
     """The exact line that threw: it must call t() and must not sit in a `t` scope."""
-    assert 'badge.textContent = on ? t("▶ RUNNING") : "";' in APP_JS
+    # (The badge now diffs before writing, so the t() call moved onto its own line.)
+    assert 'const want = on ? t("▶ RUNNING") : "";' in APP_JS
     assert 'forEach((tile) => {' in APP_JS
 
 
@@ -92,7 +93,8 @@ def test_sync_only_resizes_when_the_geometry_actually_moved():
     body = main[main.index("async def do_gateway_sync"):]
     body = body[:body.index("\nasync def ", 10)]
     assert "if config.grid != before:" in body
-    assert "on_grid_changed()" in body
+    # resize+cache-drop now travel together as Display.grid_changed()
+    assert "d.grid_changed()" in body
 
 
 def test_spa_rebuilds_the_board_when_the_module_count_changes():

@@ -165,9 +165,9 @@ class RestTransport(DisplayTransport):
         for us: one stray glyph from an app would blank the wall. So anything the reel
         cannot show is turned into something it can, HERE, before it is sent.
         """
-        # A colour is a colour because the PAGE said so (renderer.colorize), never because
-        # the character happens to be one of the seven letters. Guessing here is how "Hello"
-        # comes out as "Hell<orange>".
+        # A colour is a colour because the PAGE said so (renderer.normalize made it an
+        # explicit COLOR_PUA codepoint), never because the character happens to be one of
+        # the seven letters. Guessing here is how "Hello" comes out as "Hell<orange>".
         if renderer.is_color(ch):
             return {"color": renderer.PUA_TO_NAME[ch]}
         if ch in renderer.PICTOGRAPHS or renderer.in_cp1252(ch):
@@ -175,6 +175,23 @@ class RestTransport(DisplayTransport):
         return {"ch": " "}                      # no flap for it: a blank, not a 400
 
     async def _send_cells(self, frames: list[tuple[int, str]], step_ms: int) -> None:
+        """Duplicate module ids in ``frames`` are ORDERED repaints — the slot style spins
+        a module and then locks it in. Collapsing them into a dict would keep only the
+        last frame, so the whole spin phase silently vanished on this path. Split into
+        passes of unique ids and send them in order instead."""
+        seen: set[int] = set()
+        passes: list[list[tuple[int, str]]] = [[]]
+        for mid, ch in frames:
+            if mid in seen:
+                passes.append([])
+                seen = set()
+            seen.add(mid)
+            passes[-1].append((mid, ch))
+        for chunk in passes:
+            if chunk:
+                await self._send_cells_once(chunk, step_ms)
+
+    async def _send_cells_once(self, frames: list[tuple[int, str]], step_ms: int) -> None:
         base = min(m for m, _ in frames)
         by_id = dict(frames)
         cells, sent = [], 0
@@ -245,7 +262,20 @@ class RestTransport(DisplayTransport):
                     self._connected = False
                     self._last_error = str(e)
                     raise
-        payload = {"frames": [frame_for(mid, renderer.for_legacy(ch)) for mid, ch in frames],
+        # The same unchanged-cell diffing the cells path has: a clock moving one digit
+        # should occupy the gateway for one frame, not the whole board. Only when we
+        # KNOW what every one of these modules shows — a fresh connect, a failed send
+        # or a resize leaves `_shown` unknown/mismatched, and then the page goes whole.
+        # Duplicate ids are an ordered repaint (the slot spin); never diff those.
+        send = frames
+        ids = [m for m, _ in frames]
+        if len(set(ids)) == len(ids) and all(m in self._shown for m in ids):
+            send = [(m, c) for m, c in frames if self._shown.get(m) != c]
+            if not send:
+                self._connected = True       # the wall already says this
+                self._last_error = None
+                return
+        payload = {"frames": [frame_for(mid, renderer.for_legacy(ch)) for mid, ch in send],
                    "step_ms": int(step_ms)}
         try:
             # allow the gateway to pace a long page without a client timeout
@@ -255,7 +285,10 @@ class RestTransport(DisplayTransport):
             r.raise_for_status()
             self._connected = True
             self._last_error = None
+            self._shown.update(frames)       # dict semantics: the LAST frame per id wins
         except Exception as e:
+            # The wall is in an unknown state; the next page must be sent whole.
+            self._shown.clear()
             self._connected = False
             self._last_error = str(e)
             raise

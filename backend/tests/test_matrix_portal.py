@@ -28,13 +28,14 @@ import json
 import pytest
 
 from app import device, renderer
-from app.gateway import supports_cells
 from app.transport.rest import RestTransport
 
 
 # ---------------------------------------------------------------------------
 # capability — a property of the gateway on the other end
 # ---------------------------------------------------------------------------
+# (gateway.supports_cells is gone — it was dead code whose only caller was its own
+# test; device.of() is the real fallback inference and answers the same question.)
 @pytest.mark.parametrize("gw,expected", [
     ({"product": "Matrix Portal Gateway", "fwVersion": "1.7.0"}, True),
     ({"product": "Matrix Portal Gateway", "fwVersion": "1.6.0"}, True),
@@ -43,13 +44,13 @@ from app.transport.rest import RestTransport
     ({}, False),
 ])
 def test_only_a_matrix_portal_has_the_index_api(gw, expected):
-    assert supports_cells(gw) is expected
+    assert bool(device.of(gw)) is expected
 
 
 def test_the_api_level_is_not_the_capability():
     """The gateway API version stays 3.1 — that is the API level, not the firmware's. Keying
     off it would claim the capability for every 3.1 gateway, including physical walls."""
-    assert supports_cells({"version": "3.1.0", "product": "SplitFlap Gateway"}) is False
+    assert bool(device.of({"version": "3.1.0", "product": "SplitFlap Gateway"})) is False
 
 
 # ---------------------------------------------------------------------------

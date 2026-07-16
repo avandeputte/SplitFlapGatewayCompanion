@@ -1,5 +1,9 @@
 # Labels + help text for the add-on's Configuration tab. Without this HA falls back
 # to the raw option keys, which read like a config file rather than a settings page.
+#
+# Kept identical between addon/ and addon-beta/ (a test pins it): the two channels are
+# the same app and nothing here is channel-specific — identity (name/slug/stage) lives
+# in config.yaml, not in these labels.
 configuration:
   gateway_url:
     name: Gateway URL
@@ -47,6 +51,18 @@ configuration:
     description: >-
       The token MCP clients send as "Authorization: Bearer ...". Leave blank and one is
       generated on first use and kept with your settings.
+  ui_language:
+    name: UI language
+    description: >-
+      Language for the web UI itself (menus, buttons). "auto" follows your Home
+      Assistant language (per user, from your HA profile) and, outside Home
+      Assistant, the browser's. Pick a value to pin it instead. This is not the
+      flap content language — that is the Language setting inside the app.
+  dev_mode:
+    name: Developer mode
+    description: >-
+      Enables simulation mode in the ⚙ tools menu — run apps without driving the wall,
+      with a grid override while simulating. The menu itself is always available.
   log_level:
     name: Log level
     description: >-
@@ -56,10 +72,3 @@ network:
   8000/tcp: >-
     Direct access. Needed only for the Vestaboard-compatible API and the MCP server —
     the web UI is served through the sidebar and does not use this port.
-  ui_language:
-    name: UI language
-    description: >-
-      Language for the web UI itself (menus, buttons). "auto" follows your Home
-      Assistant language (per user, from your HA profile) and, outside Home
-      Assistant, the browser's. Pick a value to pin it instead. This is not the
-      flap content language — that is the Language setting inside the app.

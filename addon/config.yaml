@@ -70,11 +70,11 @@ options:
 schema:
   # Required: the app refuses to start without it.
   #
-  # `str`, not `url`: from 1.9 this takes a COMMA-DELIMITED LIST, one entry per gateway
-  # (http://192.168.1.218,http://192.168.1.50), and the `url` validator rejects a list
-  # outright. The two channels are the same app and their schemas must not drift (a test
-  # pins that), so stable carries it too — it is only ever a single URL here until 1.9
-  # goes stable, which is what this channel's docs describe.
+  # `str`, not `url`, because this takes a COMMA-DELIMITED LIST — one entry per gateway:
+  #   http://192.168.1.218,http://192.168.1.50
+  # The `url` validator would reject that outright. The first entry is the DEFAULT
+  # display (the one Home Assistant, the Vestaboard API and anything else that names no
+  # display drives); later entries each become a display of their own.
   gateway_url: str
   # The gateway never exposes the MQTT password; set it here if your broker needs auth.
   mqtt_password: password?

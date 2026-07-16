@@ -125,6 +125,7 @@ async def _mdns_candidates(window: float = MDNS_WINDOW) -> list[str]:
         return []
 
     found: list[str] = []
+    resolves: list[asyncio.Task] = []
     try:
         azc = AsyncZeroconf()
     except OSError as e:
@@ -138,7 +139,9 @@ async def _mdns_candidates(window: float = MDNS_WINDOW) -> list[str]:
             return
 
         async def resolve():
-            info = await azc.async_get_service_info(service_type, name, timeout=int(window * 500))
+            # The full window, in ms — an answer is legitimate right up to the
+            # end of the browse (this was window*500: half the window).
+            info = await azc.async_get_service_info(service_type, name, timeout=int(window * 1000))
             if not info:
                 return
             if "splitflap" not in (info.server or "").lower() and "splitflap" not in name.lower():
@@ -149,11 +152,17 @@ async def _mdns_candidates(window: float = MDNS_WINDOW) -> list[str]:
                 port = info.port or 80
                 found.append(f"http://{addr}" + (f":{port}" if port != 80 else ""))
 
-        asyncio.ensure_future(resolve())
+        resolves.append(asyncio.ensure_future(resolve()))
 
     try:
         browser = AsyncServiceBrowser(azc.zeroconf, "_http._tcp.local.", handlers=[on_change])
         await asyncio.sleep(window)
+        # Let in-flight resolves land BEFORE the browser is cancelled and
+        # zeroconf closed — fire-and-forget meant late answers were silently
+        # dropped on the floor. A resolve during the gather can add more.
+        while resolves:
+            pending, resolves = resolves[:], []
+            await asyncio.gather(*pending, return_exceptions=True)
         await browser.async_cancel()
     except Exception as e:
         log.debug("discovery: mDNS browse failed (%s)", e)

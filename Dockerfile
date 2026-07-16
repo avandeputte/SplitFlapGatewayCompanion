@@ -18,6 +18,14 @@ COPY backend/ ./backend/
 COPY apps/ ./apps/
 COPY VERSION ./VERSION
 
+# No USER directive — deliberately, not by omission. This same image IS the Home
+# Assistant add-on runtime (addon/config.yaml `image:` — there is no add-on build and
+# no s6/run script), and Supervisor bind-mounts the add-on's data dir at /data owned
+# by root; install.sh's bind-mount option and every existing named volume are likewise
+# root-owned. A non-root USER therefore breaks settings persistence in all three
+# deployments, and the usual fix (an entrypoint that chowns /data, then drops
+# privileges) is exactly the init layer this one-image-serves-both-worlds design
+# avoids. Revisit only alongside an entrypoint that can chown-then-drop.
 VOLUME ["/data"]
 EXPOSE 8000
 

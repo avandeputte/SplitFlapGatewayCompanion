@@ -16,8 +16,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
                             async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([
-        SplitFlapAppSelect(coordinator, entry.entry_id),
-        SplitFlapPlaylistSelect(coordinator, entry.entry_id),
+        SplitFlapAppSelect(coordinator),
+        SplitFlapPlaylistSelect(coordinator),
     ])
 
 
@@ -25,9 +25,8 @@ class SplitFlapAppSelect(SplitFlapEntity, SelectEntity):
     _attr_translation_key = "app"
     _attr_icon = "mdi:application"
 
-    def __init__(self, coordinator: SplitFlapCoordinator, entry_id: str) -> None:
-        super().__init__(coordinator, entry_id)
-        self._attr_unique_id = f"{entry_id}_app"
+    def __init__(self, coordinator: SplitFlapCoordinator) -> None:
+        super().__init__(coordinator, "app")
 
     @property
     def options(self) -> list[str]:
@@ -58,9 +57,8 @@ class SplitFlapPlaylistSelect(SplitFlapEntity, SelectEntity):
     _attr_translation_key = "playlist"
     _attr_icon = "mdi:playlist-play"
 
-    def __init__(self, coordinator: SplitFlapCoordinator, entry_id: str) -> None:
-        super().__init__(coordinator, entry_id)
-        self._attr_unique_id = f"{entry_id}_playlist"
+    def __init__(self, coordinator: SplitFlapCoordinator) -> None:
+        super().__init__(coordinator, "playlist")
 
     @property
     def options(self) -> list[str]:

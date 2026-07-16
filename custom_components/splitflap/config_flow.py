@@ -25,7 +25,9 @@ DATA_SCHEMA = vol.Schema({
 class SplitFlapConfigFlow(ConfigFlow, domain=DOMAIN):
     """Ask for the companion's URL, confirm it answers, then pick a display."""
 
-    VERSION = 1
+    # v2: entity unique_ids moved from {entry_id}_<key> to the stable
+    # netloc[/display] base (see async_migrate_entry in __init__.py).
+    VERSION = 2
 
     def __init__(self) -> None:
         self._url: str = ""

@@ -86,24 +86,35 @@ def _load_i18n_data():
 _DURATION_UNITS = _STRINGS.get("time", {})
 
 
-def _base_lang(lang):
-    """The base language subtag: ``pt-BR`` / ``pt_BR`` -> ``pt``, ``de`` -> ``de``."""
+def base_lang(lang):
+    """The base language subtag: ``pt-BR`` / ``pt_BR`` -> ``pt``, ``de`` -> ``de``.
+
+    THE one implementation — every helper that needs the base subtag (uilang,
+    weather, this module) calls this rather than re-spelling the split."""
     return str(lang or "").replace("_", "-").split("-")[0].lower()
 
 
+def fallback_chain(lang):
+    """Locale lookup order: the exact code first, then its base subtag —
+    ``pt-BR`` -> ``["pt-BR", "pt"]``, ``de`` -> ``["de"]``, blank -> ``[]``.
+    Separators are normalized (``_`` -> ``-``); the exact entry keeps its case
+    (callers with case-insensitive tables fold it themselves)."""
+    code = str(lang or "").strip().replace("_", "-")
+    if not code:
+        return []
+    return list(dict.fromkeys([code, base_lang(code)]))
+
+
 def _localized(table, key, lang, default):
-    """Look up ``key`` in a ``{lang: value}`` table, trying the full language code
-    first and then its base subtag, so a regional variant (``pt-BR``) inherits the
-    base language (``pt``) wherever it has no entry of its own."""
+    """Look up ``key`` in a ``{lang: value}`` table along the fallback chain, so a
+    regional variant (``pt-BR``) inherits the base language (``pt``) wherever it
+    has no entry of its own."""
     variants = table.get(str(key).casefold())    # see _translations: case is not identity
     if not variants:
         return default
-    code = str(lang or "").lower()
-    if code in variants:
-        return variants[code]
-    base = _base_lang(lang)
-    if base in variants:
-        return variants[base]
+    for code in fallback_chain(lang):
+        if code.lower() in variants:
+            return variants[code.lower()]
     return default
 
 
@@ -113,7 +124,7 @@ def translate(text, lang, ctx="common"):
     ``HIGH`` = a level, tides ``HIGH`` = high tide). Resolution order: the given
     domain, then the shared ``common`` domain, then the English text itself — so an
     unknown or English language always returns ``text`` and nothing breaks."""
-    if not lang or _base_lang(lang) == "en":
+    if not lang or base_lang(lang) == "en":
         return text
     hit = _localized(_STRINGS.get(ctx) or {}, text, lang, None)
     if hit is None and ctx != "common":
@@ -127,9 +138,9 @@ def _babel_locale(lang):
     'en_US'. Other languages just use their base code ('fr', 'de', …)."""
     if not lang:
         return "en_US"
-    parts = str(lang).replace("-", "_").split("_")
-    base = parts[0].lower()
+    base = base_lang(lang)
     if base == "en":
+        parts = str(lang).replace("-", "_").split("_")
         region = parts[1].upper() if len(parts) > 1 and parts[1] else "US"
         return f"en_{region}"
     return base
@@ -171,7 +182,7 @@ def duration_unit(key, lang):
 
 def uses_24h(lang):
     """AM/PM is essentially an English-language convention; everyone else is 24h."""
-    return bool(lang) and _base_lang(lang) != "en"
+    return bool(lang) and base_lang(lang) != "en"
 
 
 # Non-ASCII group separators CLDR uses (French narrow/no-break spaces) — the flap
@@ -202,7 +213,7 @@ def base_currency(lang):
     i18n_data.json; a regional variant (``pt-BR``) wins over its base (``pt``), and
     unknown languages default to USD. Users can override explicitly."""
     code = str(lang or "en").lower()
-    return _BASE_CURRENCY.get(code) or _BASE_CURRENCY.get(_base_lang(lang or "en"), "USD")
+    return _BASE_CURRENCY.get(code) or _BASE_CURRENCY.get(base_lang(lang or "en"), "USD")
 
 
 def currency_symbol(code):
@@ -231,7 +242,7 @@ def country(lang):
     and other country-scoped data. Regional variants split by country (``pt-BR`` ->
     BR, ``pt`` -> PT); from i18n_data.json, unknown languages default to US."""
     code = str(lang or "en").lower()
-    return _COUNTRY.get(code) or _COUNTRY.get(_base_lang(lang or "en"), "US")
+    return _COUNTRY.get(code) or _COUNTRY.get(base_lang(lang or "en"), "US")
 
 
 def holiday(name, lang):
@@ -252,7 +263,7 @@ def clock(dt, lang, seconds=False, ampm_space=True):
     every clock, in every app, on every French display. `h` is the form a French speaker writes
     anyway, and it is on the reel.
     """
-    hsep = "h" if _base_lang(lang) == "fr" else ":"
+    hsep = "h" if base_lang(lang) == "fr" else ":"
     if uses_24h(lang):
         body = dt.strftime(f"%H{hsep}%M")
         return f"{body}{hsep}{dt.strftime('%S')}" if seconds else body
@@ -328,4 +339,4 @@ class Localizer:
     def lang_base(self):
         """The 2-letter language without region ('en-GB' -> 'en'), for APIs that
         want a plain language code (Wikipedia editions, weather providers, …)."""
-        return self.lang.split("-")[0]
+        return base_lang(self.lang)

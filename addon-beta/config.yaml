@@ -11,12 +11,6 @@
 # beta and force a reinstall. Installed, not running: both publish host port 8000, so
 # the second to start fails to bind unless its port is remapped.
 #
-# The stable folder does not exist yet, and deliberately so: the add-on support (reading
-# /data/options.json, the ingress path handling, the theme) landed in 1.5.0-beta.1, and
-# the newest STABLE image is still 1.3.0. A stable entry pointed at it would install and
-# then refuse to start, because with no options.json reader gateway_url never gets set.
-# It gets added when v1.5.0 ships.
-#
 # Both channels run the SAME image the project already publishes on every release (see
 # .github/workflows/publish-image.yml) — there is no add-on-specific build. `version`
 # therefore has to match a published tag, and Supervisor pulls

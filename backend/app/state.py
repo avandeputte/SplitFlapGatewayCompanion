@@ -32,7 +32,7 @@ class DisplayState:
         # runs, active_app is None (the playlist is the driver) but one of its apps is on
         # screen. current_app is that app — or None during a composed message, or when a
         # manual message holds the board. playlist_index/playlist_entries place it in the
-        # rotation. Set by the engine as it renders; see engine._show_current.
+        # rotation. Set by the engine's app/playlist loops as they render.
         self.current_app: str | None = None
         self.playlist_index: int | None = None
         self.playlist_entries: list[str] | None = None

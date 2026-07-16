@@ -17,9 +17,10 @@ from __future__ import annotations
 import copy
 import json
 import logging
-import os
 import threading
 from pathlib import Path
+
+from .fsutil import atomic_write_json
 
 from .catalog import GLOBAL_STORAGE_KEYS
 
@@ -232,13 +233,7 @@ class PluginSettings:
         """Write a nested settings doc atomically: temp file, fsync, rename over the
         target. A crash/kill mid-write leaves the previous good file intact instead
         of a truncated JSON that would reset all settings on next start."""
-        data = json.dumps(doc, indent=2, ensure_ascii=False)
-        tmp = self.path.with_name(self.path.name + ".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
-            f.write(data)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, self.path)
+        atomic_write_json(self.path, doc)
 
     # -- gateway mirror ----------------------------------------------------
     def attach_gateway_sync(self, pusher, debounce: float = 3.0) -> None:

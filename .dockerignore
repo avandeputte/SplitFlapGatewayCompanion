@@ -7,3 +7,24 @@ node_modules
 .DS_Store
 *.md
 !VERSION
+
+# Dev-only: keep the test suite (and its cache churn, which would invalidate the
+# `COPY backend/` layer on every local pytest run) out of the shipped image.
+backend/tests/
+backend/requirements-dev.txt
+backend/pytest.ini
+**/.pytest_cache
+
+# Not part of the image at all (the Dockerfile copies only backend/, apps/ and
+# VERSION) — excluded to keep the build context small and cache-stable.
+.github/
+docs/
+scripts/
+addon/
+addon-beta/
+custom_components/
+hacs.json
+repository.yaml
+docker-compose.yml
+install.sh
+run-companion.command

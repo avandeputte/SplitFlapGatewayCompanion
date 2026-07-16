@@ -43,7 +43,8 @@ def test_a_rename_does_not_leave_the_old_one_behind():
     as a stale duplicate of the one you just edited."""
     body = _fn("savePlaylist")
     assert "PL_NAME !== name" in body
-    assert 'method: "DELETE"' in body
+    # the raw fetch became the shared del() helper (which is method: DELETE)
+    assert 'await del("/api/playlists/"' in body
 
 
 def test_a_rename_says_that_is_what_it_is():

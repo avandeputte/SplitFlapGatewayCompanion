@@ -6,10 +6,16 @@ gateway's ``/api/config`` at runtime; the gateway URL and (optional) MQTT
 password come from the environment. On restart everything is re-derived, so there
 is no config file to manage.
 
-Precedence: ``defaults <- gateway sync <- add-on options <- env``. Env vars always
-win, and a gateway-synced value never gets written to disk. The add-on layer reads
-``/data/options.json``, which exists only when we run as a Home Assistant add-on —
-see ``_addon_overrides``.
+Precedence — five layers, lowest first (see ``Config._recompute``):
+
+    defaults <- gateway sync <- options.json <- env <- identity
+
+A gateway-synced value never gets written to disk and never beats an explicit
+setting. ``options.json`` is the Home Assistant add-on's Configuration tab
+(``/data/options.json``, which exists only when we ARE an add-on — see
+``_addon_overrides``); env stays above it so a hand-run container can override
+anything. The identity layer is the display's own gateway_url from the registry,
+above even env: it is not a preference, it is which wall this Config IS.
 """
 
 from __future__ import annotations
@@ -42,7 +48,6 @@ DEFAULTS: dict = {
         "mqtt": {
             "broker": "",
             "port": 1883,
-            "prefix": "splitflap",
             "username": "",
             "password": "",
         },
@@ -113,67 +118,77 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return out
 
 
+# -- env parsing: one converter per value shape -----------------------------
+def _env_str(name, v):
+    return v
+
+
+def _env_stripped(name, v):
+    return v.strip()
+
+
+def _env_bool(name, v):
+    return v.lower() in ("1", "true", "yes", "on")
+
+
+def _env_int(name, v):
+    try:
+        return int(v)
+    except ValueError:
+        raise ValueError(f"{name} must be an integer, got {v!r}") from None
+
+
+def _env_store(name, v):
+    v = v.strip().lower()
+    # tolerant aliases: off/none/no -> local, only -> gateway
+    v = {"off": "local", "none": "local", "no": "local", "only": "gateway"}.get(v, v)
+    return v if v in ("mirror", "local", "gateway") else "mirror"
+
+
+def _env_tristate(name, v):
+    v = v.lower()
+    return True if v in ("1", "true", "yes", "on") \
+        else False if v in ("0", "false", "no", "off") else "auto"
+
+
+# Every recognized env var: where its value lands in the config tree, and how
+# the string is parsed. Adding a var is one line here, not a new if-block.
+_ENV_VARS = (
+    ("COMPANION_GRID_ROWS", ("grid", "rows"), _env_int),
+    ("COMPANION_GRID_COLS", ("grid", "cols"), _env_int),
+    ("COMPANION_MODULE_ID_BASE", ("grid", "module_id_base"), _env_int),
+    ("COMPANION_SYNC_FROM_GATEWAY", ("sync_from_gateway",), _env_bool),
+    ("COMPANION_SETTINGS_STORE", ("settings_store",), _env_store),
+    ("COMPANION_PUBLIC_URL", ("companion_url",), _env_str),
+    ("COMPANION_HOST", ("host",), _env_str),
+    ("COMPANION_PORT", ("port",), _env_int),
+    ("COMPANION_VESTABOARD", ("vestaboard", "enabled"), _env_bool),
+    ("COMPANION_VESTABOARD_KEY", ("vestaboard", "api_key"), _env_stripped),
+    ("COMPANION_VESTABOARD_ENABLEMENT_TOKEN", ("vestaboard", "enablement_token"), _env_stripped),
+    ("COMPANION_MCP", ("mcp", "enabled"), _env_bool),
+    ("COMPANION_MCP_TOKEN", ("mcp", "token"), _env_stripped),
+    ("COMPANION_HA", ("ha", "enabled"), _env_tristate),
+    ("COMPANION_HA_DISCOVERY_PREFIX", ("ha", "discovery_prefix"), _env_str),
+    ("GATEWAY_URL", ("transport", "gateway_url"), _env_str),
+    ("COMPANION_MQTT_BROKER", ("transport", "mqtt", "broker"), _env_str),
+    ("COMPANION_MQTT_PORT", ("transport", "mqtt", "port"), _env_int),
+    ("COMPANION_MQTT_USER", ("transport", "mqtt", "username"), _env_str),
+    ("COMPANION_MQTT_PASSWORD", ("transport", "mqtt", "password"), _env_str),
+)
+
+
 def _env_overrides() -> dict:
-    """Build a sparse override tree from COMPANION_* environment variables."""
-    e = os.environ
-    ov: dict = {"grid": {}, "transport": {"mqtt": {}}, "display": {}}
-
-    if "COMPANION_GRID_ROWS" in e:
-        ov["grid"]["rows"] = int(e["COMPANION_GRID_ROWS"])
-    if "COMPANION_GRID_COLS" in e:
-        ov["grid"]["cols"] = int(e["COMPANION_GRID_COLS"])
-    if "COMPANION_MODULE_ID_BASE" in e:
-        ov["grid"]["module_id_base"] = int(e["COMPANION_MODULE_ID_BASE"])
-
-    if "COMPANION_SYNC_FROM_GATEWAY" in e:
-        ov["sync_from_gateway"] = e["COMPANION_SYNC_FROM_GATEWAY"].lower() in ("1", "true", "yes", "on")
-    if "COMPANION_SETTINGS_STORE" in e:
-        v = e["COMPANION_SETTINGS_STORE"].strip().lower()
-        # tolerant aliases: off/none/no -> local, only -> gateway
-        v = {"off": "local", "none": "local", "no": "local", "only": "gateway"}.get(v, v)
-        ov["settings_store"] = v if v in ("mirror", "local", "gateway") else "mirror"
-    if "COMPANION_PUBLIC_URL" in e:
-        ov["companion_url"] = e["COMPANION_PUBLIC_URL"]
-    if "COMPANION_HOST" in e:
-        ov["host"] = e["COMPANION_HOST"]
-    if "COMPANION_PORT" in e:
-        ov["port"] = int(e["COMPANION_PORT"])
-    if "COMPANION_VESTABOARD" in e:
-        ov.setdefault("vestaboard", {})["enabled"] = \
-            e["COMPANION_VESTABOARD"].lower() in ("1", "true", "yes", "on")
-    if "COMPANION_VESTABOARD_KEY" in e:
-        ov.setdefault("vestaboard", {})["api_key"] = e["COMPANION_VESTABOARD_KEY"].strip()
-    if "COMPANION_VESTABOARD_ENABLEMENT_TOKEN" in e:
-        ov.setdefault("vestaboard", {})["enablement_token"] = \
-            e["COMPANION_VESTABOARD_ENABLEMENT_TOKEN"].strip()
-    if "COMPANION_MCP" in e:
-        ov.setdefault("mcp", {})["enabled"] = \
-            e["COMPANION_MCP"].lower() in ("1", "true", "yes", "on")
-    if "COMPANION_MCP_TOKEN" in e:
-        ov.setdefault("mcp", {})["token"] = e["COMPANION_MCP_TOKEN"].strip()
-    if "COMPANION_HA" in e:
-        v = e["COMPANION_HA"].lower()
-        ov.setdefault("ha", {})["enabled"] = True if v in ("1", "true", "yes", "on") \
-            else False if v in ("0", "false", "no", "off") else "auto"
-    if "COMPANION_HA_DISCOVERY_PREFIX" in e:
-        ov.setdefault("ha", {})["discovery_prefix"] = e["COMPANION_HA_DISCOVERY_PREFIX"]
-
-    if "GATEWAY_URL" in e:
-        ov["transport"]["gateway_url"] = e["GATEWAY_URL"]
-    if "COMPANION_MQTT_BROKER" in e:
-        ov["transport"]["mqtt"]["broker"] = e["COMPANION_MQTT_BROKER"]
-    if "COMPANION_MQTT_PORT" in e:
-        ov["transport"]["mqtt"]["port"] = int(e["COMPANION_MQTT_PORT"])
-    if "COMPANION_MQTT_PREFIX" in e:
-        ov["transport"]["mqtt"]["prefix"] = e["COMPANION_MQTT_PREFIX"]
-    if "COMPANION_MQTT_USER" in e:
-        ov["transport"]["mqtt"]["username"] = e["COMPANION_MQTT_USER"]
-    if "COMPANION_MQTT_PASSWORD" in e:
-        ov["transport"]["mqtt"]["password"] = e["COMPANION_MQTT_PASSWORD"]
-
-    # Drop empty branches so they don't clobber nested defaults.
-    ov["transport"] = {k: v for k, v in ov["transport"].items() if v != {}}
-    return {k: v for k, v in ov.items() if v != {}}
+    """Build a sparse override tree from the ``_ENV_VARS`` table: only the
+    branches a set variable creates exist, so nothing clobbers nested defaults."""
+    ov: dict = {}
+    for name, path, parse in _ENV_VARS:
+        if name not in os.environ:
+            continue
+        node = ov
+        for part in path[:-1]:
+            node = node.setdefault(part, {})
+        node[path[-1]] = parse(name, os.environ[name])
+    return ov
 
 
 # Where the Home Assistant Supervisor writes an add-on's configuration. It exists
@@ -309,7 +324,8 @@ class Config:
     # -- access -------------------------------------------------------------
     @property
     def effective(self) -> dict:
-        """The active config: defaults <- gateway sync <- env overrides."""
+        """The active config, all five layers merged:
+        defaults <- gateway sync <- options.json <- env <- identity."""
         return copy.deepcopy(self._effective)
 
     @property

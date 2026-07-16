@@ -21,9 +21,9 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from . import __version__, discovery, gwproxy, helpers, mcp_server, renderer, uilang, vestaboard, weather
+from . import __version__, discovery, gwproxy, helpers, mcp_server, renderer, uilang, vestaboard
 from .catalog import GLOBAL_STORAGE_KEYS
 from .config import Config, addon_option, default_data_dir
 from .display import DisplayManager
@@ -160,10 +160,19 @@ mcp = mcp_server.build(displays)
 
 
 def _redact(cfg: dict) -> dict:
+    """Every credential the config can carry, not just the MQTT password —
+    /api/config is readable by anything that can reach the UI, and the
+    Vestaboard enablement token was leaking here without appearing anywhere
+    else in the product."""
     cfg = copy.deepcopy(cfg)
     mqtt = cfg.get("transport", {}).get("mqtt", {})
     if mqtt.get("password"):
         mqtt["password"] = "********"
+    for section, key in (("vestaboard", "api_key"), ("vestaboard", "enablement_token"),
+                         ("mcp", "token")):
+        sec = cfg.get(section, {})
+        if isinstance(sec, dict) and sec.get(key):
+            sec[key] = "********"
     return cfg
 
 
@@ -209,8 +218,7 @@ async def do_gateway_sync(d=None) -> dict:
             log.info("gateway geometry changed [%s]: %sx%s -> %sx%s (%d modules)",
                      d.id, before.get("rows"), before.get("cols"),
                      config.grid["rows"], config.grid["cols"], config.module_count())
-            controller.resize_grid()
-            plugins.on_grid_changed()   # cached/channel pages were sized for the old grid
+            d.grid_changed()   # cached/channel pages were sized for the old grid
         # A sync only touches grid (resized above) and the HA MQTT broker; the
         # REST display transport depends only on gateway_url, which sync never
         # changes, so there's nothing to reload here.
@@ -387,13 +395,16 @@ async def _settings_flush_loop(d=None) -> None:
             pass
 
 
-def companion_status_string() -> str:
-    """Short human status for the gateway's status page."""
-    if controller.active_app:
-        m = plugins.manifest(controller.active_app)
-        return f"App: {m['name']}" if m and m.get("name") else f"App: {controller.active_app}"
-    if controller.active_playlist:
-        return f"Playlist: {controller.active_playlist}"
+def companion_status_string(d=None) -> str:
+    """Short human status for the gateway's status page — for THAT gateway's wall,
+    not whatever the default display happens to be running."""
+    d = d or displays.default
+    ctl, plg = d.controller, d.plugins
+    if ctl.active_app:
+        m = plg.manifest(ctl.active_app)
+        return f"App: {m['name']}" if m and m.get("name") else f"App: {ctl.active_app}"
+    if ctl.active_playlist:
+        return f"Playlist: {ctl.active_playlist}"
     return "Idle"
 
 
@@ -406,7 +417,7 @@ async def _companion_heartbeat(gateway_url: str, companion_url: str, display=Non
     display = display or displays.default
     try:
         ok = await post_companion(gateway_url, url=companion_url,
-                                  status=companion_status_string(), display=display)
+                                  status=companion_status_string(display), display=display)
         log.info("companion registered as %s (%s)", companion_url,
                  "ok" if ok else "gateway unreachable — will retry")
     except Exception as e:
@@ -415,7 +426,7 @@ async def _companion_heartbeat(gateway_url: str, companion_url: str, display=Non
         await asyncio.sleep(30)
         try:
             await post_companion(gateway_url, url=companion_url,
-                                 status=companion_status_string(), display=display)
+                                 status=companion_status_string(display), display=display)
         except Exception as e:
             log.debug("companion heartbeat error: %s", e)
         # Re-read the gateway's config on every heartbeat. Sync used to run ONCE, at
@@ -551,7 +562,10 @@ async def start_display(d, companion_url: str = "") -> list:
     # Settings storage (mirror / gateway-only) — before plugins.load() so a list of
     # installed apps restored from THIS gateway drives what gets loaded for it.
     await setup_settings_sync(d)
-    plg.load()
+    # load() executes every installed app.py. At boot nothing else is running, but
+    # start_display is also reached from POST/PATCH /api/displays — with other
+    # walls animating, so keep it off the event loop.
+    await asyncio.to_thread(plg.load)
     log.info("display %r loaded %d app plugins", d.id, len(plg.app_list()))
     d.scheduler.start()
 
@@ -666,8 +680,15 @@ class ComposeRequest(BaseModel):
     raw: bool = False
 
 
+class GridPatch(BaseModel):
+    rows: int = Field(ge=1, le=64)
+    cols: int = Field(ge=1, le=128)
+
+
 class ConfigPatch(BaseModel):
-    grid: dict | None = None
+    # grid is typed: a non-numeric rows/cols used to slip straight into the
+    # in-memory config and 500 /api/grid until restart.
+    grid: GridPatch | None = None
     transport: dict | None = None
     display: dict | None = None
     sync_from_gateway: bool | None = None
@@ -710,12 +731,14 @@ class InstallRequest(BaseModel):
 
 class PlaylistSave(BaseModel):
     name: str
-    entries: list = []
+    # list[dict], not list: a non-dict entry used to 500 deep in the engine's
+    # _entry_label — and PERSIST, so the playlist kept crashing on every run.
+    entries: list[dict] = []
     loop: bool = True
 
 
 class RunPlaylist(BaseModel):
-    entries: list = []
+    entries: list[dict] = []
     loop: bool = True
     name: str | None = None
 
@@ -920,8 +943,7 @@ async def update_config(request: Request, patch: ConfigPatch):
     old_url = d.config.transport.get("gateway_url")
     d.config.update(body)
     if "grid" in body:
-        d.controller.resize_grid()
-        d.plugins.on_grid_changed()   # cached/channel pages were sized for the old grid
+        d.grid_changed()   # cached/channel pages were sized for the old grid
     if "transport" in body:
         await d.controller.reload_transport()
     # If the gateway URL just changed and auto-sync is on, pull its config now.
@@ -929,12 +951,6 @@ async def update_config(request: Request, patch: ConfigPatch):
     if new_url and new_url != old_url and d.config.effective.get("sync_from_gateway"):
         await do_gateway_sync(d)
     return _redact(d.config.effective)
-
-
-@app.post("/api/gateway/sync")
-async def gateway_sync(request: Request):
-    """Pull grid geometry + MQTT settings from the gateway on demand."""
-    return await do_gateway_sync(display_for(request))
 
 
 # ---------------------------------------------------------------------------
@@ -955,7 +971,13 @@ def _require_dev():
 @app.get("/api/dev")
 async def dev_state(request: Request):
     d = display_for(request)
-    return d.config.dev_state()
+    state = d.config.dev_state()
+    # Sim/grid are per-display; the Vestaboard/MCP switches are process-wide
+    # (one HTTP surface) and live on the default config — report those, or the
+    # menu shows a stale switch while a second wall is selected.
+    state["vestaboard"] = displays.default.config.vestaboard_enabled
+    state["mcp"] = displays.default.config.mcp_enabled
+    return state
 
 
 @app.post("/api/dev/sim")
@@ -965,31 +987,31 @@ async def dev_sim(request: Request, req: DevSim):
     _require_dev()
     d.config.set_sim_mode(req.on)          # turning off also clears any grid override
     await d.controller.reload_transport()  # swap REST <-> sim
-    d.controller.resize_grid()             # geometry may have reverted
-    d.plugins.on_grid_changed()
+    d.grid_changed()                       # geometry may have reverted
     return d.config.dev_state()
 
 
 @app.post("/api/dev/vestaboard")
-async def dev_vestaboard(request: Request, req: DevVestaboard):
+async def dev_vestaboard(req: DevVestaboard):
     """Turn the Vestaboard-compatible Local API on/off at runtime (see the block at
-    the bottom of this file). COMPANION_VESTABOARD sets where it starts."""
-    d = display_for(request)
-    d.config.set_vestaboard(req.on)
+    the bottom of this file). COMPANION_VESTABOARD sets where it starts. The layer is
+    ONE process-wide HTTP surface, so the toggle deliberately ignores ?display= —
+    the guards read the default config, and writing another display's copy used to
+    make this a silent no-op while switched to a second wall."""
+    displays.default.config.set_vestaboard(req.on)
     if req.on:
         vestaboard_key()   # mint + persist the key now, so the menu can show it
     log.info("Vestaboard API %s (dev menu)", "enabled" if req.on else "disabled")
-    return d.config.dev_state()
+    return displays.default.config.dev_state()
 
 
 @app.get("/api/dev/vestaboard")
-async def dev_vestaboard_state(request: Request):
+async def dev_vestaboard_state():
     """The Vestaboard connection details, for the dev menu to display: the key a
     client must send, and the endpoint it posts to. (Not gated: the key guards the
     Vestaboard routes from OUTSIDE clients; anyone who can read this endpoint already
-    has the whole unauthenticated companion API.)"""
-    d = display_for(request)
-    on = d.config.vestaboard_enabled
+    has the whole unauthenticated companion API.) Process-wide, like the toggle."""
+    on = displays.default.config.vestaboard_enabled
     return {
         "enabled": on,
         "key": vestaboard_key() if on else "",
@@ -997,35 +1019,34 @@ async def dev_vestaboard_state(request: Request):
         # Same as MCP: a rest_command is not the browser, and under ingress the browser's
         # own origin is Home Assistant's, which does not reach this endpoint.
         "url": await _external_url("/local-api/message"),
-        "env_key": bool(d.config.vestaboard.get("api_key")),   # pinned via env, not generated
+        "env_key": bool(displays.default.config.vestaboard.get("api_key")),   # pinned via env
     }
 
 
 @app.post("/api/dev/mcp")
-async def dev_mcp(request: Request, req: DevMCP):
+async def dev_mcp(req: DevMCP):
     """Turn the MCP server on/off at runtime (see the block further down).
-    COMPANION_MCP sets where it starts."""
-    d = display_for(request)
-    d.config.set_mcp(req.on)
+    COMPANION_MCP sets where it starts. Process-wide, same reasoning as the
+    Vestaboard toggle above."""
+    displays.default.config.set_mcp(req.on)
     if req.on:
         mcp_token()        # mint + persist the token now, so the menu can show it
     log.info("MCP server %s (dev menu)", "enabled" if req.on else "disabled")
-    return d.config.dev_state()
+    return displays.default.config.dev_state()
 
 
 @app.get("/api/dev/mcp")
-async def dev_mcp_state(request: Request):
+async def dev_mcp_state():
     """The MCP connection details for the dev menu: the endpoint an LLM client
     points at and the bearer token it must send. (Not gated — same reasoning as the
-    Vestaboard key above.)"""
-    d = display_for(request)
-    on = d.config.mcp_enabled
+    Vestaboard key above.) Process-wide, like the toggle."""
+    on = displays.default.config.mcp_enabled
     return {
         "enabled": on,
         "token": mcp_token() if on else "",
         "path": "/mcp",
         "url": await _external_url("/mcp"),
-        "env_token": bool(d.config.mcp.get("token")),          # pinned via env, not generated
+        "env_token": bool(displays.default.config.mcp.get("token")),          # pinned via env
     }
 
 
@@ -1061,15 +1082,16 @@ async def dev_grid(request: Request, req: DevGrid):
     if not d.config.sim_mode:
         raise HTTPException(400, "turn simulation mode on before overriding the grid")
     d.config.set_grid_override(req.rows, req.cols)
-    d.controller.resize_grid()
-    d.plugins.on_grid_changed()
+    d.grid_changed()
     return d.config.dev_state()
 
 
-async def _gateway_settings_ready() -> tuple[str, dict] | dict:
-    """(url, gateway-config) if the gateway is reachable and supports settings storage
-    (3.1+); otherwise an error dict to return to the caller."""
-    url = (config.transport.get("gateway_url") or "").strip()
+async def _gateway_settings_ready(d) -> tuple[str, dict] | dict:
+    """(url, gateway-config) if THIS DISPLAY's gateway is reachable and supports
+    settings storage (3.1+); otherwise an error dict to return to the caller.
+    Scoped to the display: reading the module-level config here once made
+    /api/dev/settings/pull?display=X pull wall 1's blob into wall X's store."""
+    url = (d.config.transport.get("gateway_url") or "").strip()
     if not url:
         return {"ok": False, "error": "no gateway_url configured"}
     try:
@@ -1085,7 +1107,7 @@ async def _gateway_settings_ready() -> tuple[str, dict] | dict:
 async def dev_settings_pull(request: Request):
     """Force-retrieve the settings blob from the gateway and apply it."""
     d = display_for(request)
-    ready = await _gateway_settings_ready()
+    ready = await _gateway_settings_ready(d)
     if isinstance(ready, dict):
         return ready
     url, _ = ready
@@ -1093,7 +1115,9 @@ async def dev_settings_pull(request: Request):
     if doc is None:
         return {"ok": False, "error": "no settings are stored on the gateway yet"}
     d.settings.restore_from_doc(doc)
-    d.plugins.load()                 # apply the restored installed-apps list + settings
+    # load() re-executes every installed app.py — that belongs in an executor,
+    # not on the event loop while other walls are animating.
+    await asyncio.to_thread(d.plugins.load)   # apply the restored installed-apps list + settings
     d.ha.refresh_discovery()         # the app/playlist option lists may have changed
     log.info("dev: retrieved settings from the gateway (%d apps installed)", len(d.settings.installed_apps))
     return {"ok": True, "applied": True, "installed": len(d.settings.installed_apps)}
@@ -1103,11 +1127,16 @@ async def dev_settings_pull(request: Request):
 async def dev_settings_push(request: Request):
     """Force-write the current settings to the gateway now."""
     d = display_for(request)
-    ready = await _gateway_settings_ready()
+    ready = await _gateway_settings_ready(d)
     if isinstance(ready, dict):
         return ready
     url, _ = ready
-    ok = await asyncio.to_thread(push_gateway_settings, url, d.settings.snapshot())
+    # Match the debounced _pusher: the registry backup rides along. The PUT is a
+    # full replace, so omitting it here erased the displays list from the gateway
+    # until the next ordinary sync.
+    doc = d.settings.snapshot()
+    doc["displays"] = registry.snapshot()
+    ok = await asyncio.to_thread(push_gateway_settings, url, doc)
     log.info("dev: pushed settings to the gateway (ok=%s)", ok)
     return {"ok": ok, "error": None if ok else "push failed"}
 
@@ -1117,13 +1146,14 @@ async def dev_settings_push(request: Request):
 # ---------------------------------------------------------------------------
 def _ui_lang(request: Request) -> str:
     """The UI (chrome) language for this request — URL param, then the
-    explicitly-saved Language setting, then COMPANION_UI_LANGUAGE, then the
-    browser's Accept-Language. Chrome only: the flap content language stays
-    the single global Language setting."""
+    explicitly-saved Language setting OF THE REQUEST'S DISPLAY, then
+    COMPANION_UI_LANGUAGE, then the browser's Accept-Language. Chrome only: the
+    flap content language stays the per-display global Language setting."""
+    d = display_for(request)
     return uilang.resolve(
         request.query_params.get("lang"),
-        plugins.settings,
-        config.ui_language,
+        d.plugins.settings,
+        d.config.ui_language,
         request.headers.get("accept-language"),
     )
 
@@ -1321,7 +1351,7 @@ async def triggers_get(request: Request):
     trigs = []
     for t in d.settings.get("triggers", []):
         e = dict(t)
-        e["last_fired"] = scheduler.last_fired(t.get("id", ""))
+        e["last_fired"] = d.scheduler.last_fired(t.get("id", ""))
         trigs.append(e)
     return {
         "triggers": trigs,
@@ -1371,13 +1401,6 @@ async def h_crypto_search(q: str = ""):
 @app.get("/sports_search")
 async def h_sports_search(q: str = ""):
     return await helpers.sports_search(q)
-
-
-@app.get("/weather")
-async def h_weather():
-    """Current conditions via the global provider/key/location — the same shared
-    helper apps get injected as get_weather()."""
-    return await asyncio.to_thread(weather.fetch_current, plugin_settings)
 
 
 @app.post("/api/compose/send")
@@ -1490,21 +1513,26 @@ def _require_vestaboard() -> dict:
     return config.vestaboard
 
 
-def vestaboard_key() -> str:
-    """The Local API key: the env value if set, else one generated once and kept in
-    the settings store (which persists to /data and mirrors to the gateway). A key
-    that changed on every restart would silently break an already-configured client,
-    so it must outlive the process."""
-    env_key = config.vestaboard.get("api_key") or ""
-    if env_key:
-        return env_key
-    stored = plugin_settings.get(VESTABOARD_KEY_SETTING) or ""
+def _persistent_secret(env_value: str, setting_key: str, log_line: str) -> str:
+    """A credential that must outlive the process: the env value if pinned, else one
+    generated once and kept in the settings store (which persists to /data and
+    mirrors to the gateway). A secret that changed on every restart would silently
+    break an already-configured client."""
+    if env_value:
+        return env_value
+    stored = plugin_settings.get(setting_key) or ""
     if not stored:
         stored = secrets.token_urlsafe(24)
-        plugin_settings.set(VESTABOARD_KEY_SETTING, stored)
-        log.info("Vestaboard API: generated an API key (see the Dev menu, or set "
-                 "COMPANION_VESTABOARD_KEY to pin your own)")
+        plugin_settings.set(setting_key, stored)
+        log.info(log_line)
     return stored
+
+
+def vestaboard_key() -> str:
+    return _persistent_secret(
+        config.vestaboard.get("api_key") or "", VESTABOARD_KEY_SETTING,
+        "Vestaboard API: generated an API key (see the Dev menu, or set "
+        "COMPANION_VESTABOARD_KEY to pin your own)")
 
 
 # A wrong key must answer exactly this — plain text, this string — because that is what a
@@ -1555,8 +1583,10 @@ async def vb_read_message(request: Request, display_id: str | None = None):
     /local-api/message stays bound to the DEFAULT display: a Vestaboard IS one board, and
     every existing client (ha-vestaboard included) posts to that fixed path with no way to
     name a wall. /local-api/<display-id>/message addresses the others."""
-    d = display_by_id(display_id) if display_id else display_for(request)
+    # Guard BEFORE resolving the display: a disabled layer must be a flat 404,
+    # not an oracle that enumerates display ids through its error bodies.
     _require_vestaboard()
+    d = display_by_id(display_id) if display_id else display_for(request)
     if err := _key_error(request):
         return err
     g = d.config.grid
@@ -1580,8 +1610,8 @@ async def vb_send_message(request: Request, display_id: str | None = None):
     The bare path drives the DEFAULT display, because that is the only one an existing
     Vestaboard client can reach; /local-api/<display-id>/message drives a named wall.
     """
-    d = display_by_id(display_id) if display_id else display_for(request)
     _require_vestaboard()
+    d = display_by_id(display_id) if display_id else display_for(request)
     if err := _key_error(request):
         return err
     try:
@@ -1633,19 +1663,10 @@ MCP_TOKEN_SETTING = "mcp_token"
 
 
 def mcp_token() -> str:
-    """The MCP bearer token: the env value if set, else one generated once and kept
-    in the settings store. A token that changed on every restart would silently break
-    an already-configured client, so it has to outlive the process."""
-    env_token = config.mcp.get("token") or ""
-    if env_token:
-        return env_token
-    stored = plugin_settings.get(MCP_TOKEN_SETTING) or ""
-    if not stored:
-        stored = secrets.token_urlsafe(24)
-        plugin_settings.set(MCP_TOKEN_SETTING, stored)
-        log.info("MCP: generated a bearer token (see the Dev menu, or set "
-                 "COMPANION_MCP_TOKEN to pin your own)")
-    return stored
+    return _persistent_secret(
+        config.mcp.get("token") or "", MCP_TOKEN_SETTING,
+        "MCP: generated a bearer token (see the Dev menu, or set "
+        "COMPANION_MCP_TOKEN to pin your own)")
 
 
 async def _asgi_json(send, status: int, detail: str) -> None:

@@ -513,9 +513,9 @@ def test_location_helper_and_currency_map(tmp_path):
     so geography (not language) drives them."""
     from app import location
     rt = _runtime(tmp_path, ["holidays", "exchange-rates", "date"])
-    assert rt._wants_location.get("holidays") is True
-    assert rt._wants_location.get("exchange-rates") is True
-    assert rt._wants_location.get("date") is False           # date doesn't use it
+    assert "get_location" in rt._wants["holidays"]
+    assert "get_location" in rt._wants["exchange-rates"]
+    assert "get_location" not in rt._wants["date"]           # date doesn't use it
     # country -> currency comes from babel's CLDR data (via _currency_for)
     assert location._currency_for("CA") == "CAD"             # French Canada -> CAD, not EUR
     assert location._currency_for("CH") == "CHF"             # French Switzerland -> CHF
@@ -718,8 +718,8 @@ def test_i18n_injected_by_param_name(tmp_path):
     """An app opts into localization by declaring an i18n parameter; the runtime
     injects a language-bound helper (a classic app gets nothing)."""
     rt = _runtime(tmp_path, ["date", "cat-facts"])
-    assert rt._wants_i18n.get("date") is True     # date(...) declares i18n
-    assert rt._wants_i18n.get("cat-facts") is False  # cat-facts(...) does not
+    assert "i18n" in rt._wants["date"]            # date(...) declares i18n
+    assert "i18n" not in rt._wants["cat-facts"]      # cat-facts(...) does not
     rt.settings.set("language", "de")
     from datetime import datetime
 
@@ -739,8 +739,8 @@ def test_weather_helper_injected_only_when_opted_in(tmp_path):
     """An app opts into the shared weather helper by taking a get_weather param;
     a classic 4-arg app is called unchanged."""
     rt = _runtime(tmp_path, ["dashboard", "date"])
-    assert rt._wants_weather.get("dashboard") is True   # fetch(..., get_weather=None)
-    assert rt._wants_weather.get("date") is False       # classic 4-arg signature
+    assert "get_weather" in rt._wants["dashboard"]      # fetch(..., get_weather=None)
+    assert "get_weather" not in rt._wants["date"]       # classic 4-arg signature
 
 
 def test_weather_helper_app_credited_under_weather_globals(tmp_path):

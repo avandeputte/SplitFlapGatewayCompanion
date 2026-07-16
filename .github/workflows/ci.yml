@@ -1,0 +1,66 @@
+# Run the backend test suite and the Home Assistant packaging validators on every
+# push to main and every pull request. The suite carries the release guards
+# (channel parity, changelog headings, image-tag-exists) that only bite if they
+# actually run before a tag is cut — this workflow is what makes that automatic.
+#
+# Actions are pinned by commit SHA (the tag is the trailing comment): a tag can be
+# moved to malicious code, a SHA cannot.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A force-push or rapid PR update should supersede the previous run, not queue behind it.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          # The add-on tests read `git tag` (a channel may pin any already-tagged
+          # release, and every changelog heading must name a real tag) — a shallow,
+          # tagless checkout would fail them for the wrong reason.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          # Keep in sync with the Dockerfile's `FROM python:3.12-slim` — CI should
+          # test the interpreter the image actually ships.
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      # requirements-dev.txt pulls in requirements.txt plus pytest/pytest-asyncio.
+      - name: Install dependencies
+        run: pip install -r backend/requirements-dev.txt
+
+      - name: Run the test suite
+        run: cd backend && python -m pytest -q
+
+  # Home Assistant's own manifest/quality linter for custom_components/splitflap.
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: home-assistant/actions/hassfest@f4ca6f671bd429efb108c0f2fa0ae8af0215986c # master 2026-07
+
+  # HACS's installability checks for the same integration. `brands` is skipped on
+  # purpose: HA ≥2026.3 serves brand icons from the integration's own brand/ folder,
+  # so this domain is deliberately not in the home-assistant/brands repo.
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main 2026-07
+        with:
+          category: integration
+          ignore: brands

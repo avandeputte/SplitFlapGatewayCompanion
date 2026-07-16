@@ -51,19 +51,19 @@ Caching: one fetch per (provider, location, shape) per window, shared by every
 app. The window follows the app's polling_rate setting when present (the
 merged settings arrive per-app), else 10 minutes.
 
-Runs blocking httpx in the plugin threadpool (and via run_in_threadpool for
-the /weather endpoint), so it uses a synchronous client.
+Runs blocking httpx in the plugin threadpool, so it uses a synchronous client.
 """
 
 from __future__ import annotations
 
+import copy
 import logging
 import time
 from datetime import datetime, timezone
 
 import httpx
 
-from . import location
+from . import i18n, location
 
 log = logging.getLogger("companion.weather")
 
@@ -222,12 +222,9 @@ def sky_of_qweather(icon):
 
 # ---------------------------------------------------------------------------
 # Air-quality scales. Each provider grades on its own curve; the LABEL is the
-# provider-scale display text, the BAND is the canonical 4-step class every
-# consumer can colour with one map.
+# provider-scale display text, the BAND is the canonical 4-step class
+# ('good'/'moderate'/'poor'/'bad') every consumer can colour with one map.
 # ---------------------------------------------------------------------------
-_BANDS = ('good', 'moderate', 'poor', 'bad')
-
-
 def us_aqi_level(val):
     """US EPA AQI (0-500) -> (label, band)."""
     if val is None:
@@ -335,6 +332,12 @@ def _resolve_location(settings):
 # `forecast` (today excluded). Air is fetched separately below — except
 # WeatherAPI, whose weather payload already carries it (stashed under `_air`).
 # ---------------------------------------------------------------------------
+def _forecast_entry(date, hi, lo, sky):
+    """One forecast day, in the document's shape — every provider builds its
+    days through here so the shape can never drift per provider."""
+    return {"date": date, "hi_f": _i(hi), "lo_f": _i(lo), "sky": sky}
+
+
 def _openmeteo(client, lat, lon, city, _key, days, _lang):
     d = client.get("https://api.open-meteo.com/v1/forecast", params={
         "latitude": lat, "longitude": lon,
@@ -350,8 +353,7 @@ def _openmeteo(client, lat, lon, city, _key, days, _lang):
     los = daily.get("temperature_2m_min") or [cur.get("temperature_2m")]
     codes = daily.get("weather_code") or []
     code = cur.get("weather_code")
-    forecast = [{"date": t, "hi_f": _i(hi), "lo_f": _i(lo),
-                 "sky": sky_of_wmo(codes[i] if i < len(codes) else None)}
+    forecast = [_forecast_entry(t, hi, lo, sky_of_wmo(codes[i] if i < len(codes) else None))
                 for i, (t, hi, lo) in enumerate(zip(daily.get("time") or [], his, los))]
     return {
         "city": city, "temp_f": _i(cur.get("temperature_2m")),
@@ -412,7 +414,7 @@ def _openweather_days(client, lat, lon, key, lang, days):
         if 9 <= when.hour <= 18:      # the sky of the DAY, not of 3am
             b["skies"].append(sky_of_openweather((slot.get("weather") or [{}])[0].get("id")))
     today = datetime.fromtimestamp(int(time.time()) + shift, tz=timezone.utc).strftime("%Y-%m-%d")
-    out = [{"date": k, "hi_f": _i(b["hi"]), "lo_f": _i(b["lo"]), "sky": _worst_sky(b["skies"])}
+    out = [_forecast_entry(k, b["hi"], b["lo"], _worst_sky(b["skies"]))
            for k, b in sorted(buckets.items()) if k > today]
     return out[:days]
 
@@ -436,10 +438,10 @@ def _weatherapi(client, lat, lon, city, key, days, lang):
         "code": code, "sky": sky_of_weatherapi(code),
         "humidity": _i(cur.get("humidity")), "wind_mph": cur.get("wind_mph"),
         "cloud_cover": _i(cur.get("cloud")), "uv": cur.get("uv"),
-        "forecast": [{"date": f.get("date"),
-                      "hi_f": _i((f.get("day") or {}).get("maxtemp_f")),
-                      "lo_f": _i((f.get("day") or {}).get("mintemp_f")),
-                      "sky": sky_of_weatherapi(((f.get("day") or {}).get("condition") or {}).get("code"))}
+        "forecast": [_forecast_entry(f.get("date"),
+                                     (f.get("day") or {}).get("maxtemp_f"),
+                                     (f.get("day") or {}).get("mintemp_f"),
+                                     sky_of_weatherapi(((f.get("day") or {}).get("condition") or {}).get("code")))
                      for f in fdays[1:]],
         # WeatherAPI delivers air in the same payload; stash it for _fetch_air.
         "_air": {"epa6": (cur.get("air_quality") or {}).get("us-epa-index"),
@@ -480,9 +482,8 @@ def _qweather(client, lat, lon, city, key, days, lang):
         "code": icon, "sky": sky_of_qweather(icon),
         "humidity": _i(now.get("humidity")), "wind_mph": now.get("windSpeed"),
         "cloud_cover": _i(now.get("cloud")), "uv": None,
-        "forecast": [{"date": d.get("fxDate"),
-                      "hi_f": _i(d.get("tempMax")), "lo_f": _i(d.get("tempMin")),
-                      "sky": sky_of_qweather(d.get("iconDay"))}
+        "forecast": [_forecast_entry(d.get("fxDate"), d.get("tempMax"), d.get("tempMin"),
+                                     sky_of_qweather(d.get("iconDay")))
                      for d in daily[1:]][:days],
     }
 
@@ -504,47 +505,68 @@ def _openmeteo_air(client, lat, lon):
     }).json().get("current", {})
 
 
-def _fetch_air(client, provider, key, lat, lon, doc):
-    aqi = aqi_label = aqi_band = None
-    pollen: dict = {}
-    uv = doc.get("uv")
+# Each provider's air fetcher returns (aqi, aqi_label, aqi_band, pollen,
+# uv_fallback) on its own scale; _fetch_air composes the canonical block.
+def _weatherapi_air(client, key, lat, lon, doc):
+    """WeatherAPI ships air inside the weather payload — see `_air` above."""
+    stash = doc.pop("_air", {}) or {}
+    aqi = _i(stash.get("epa6"))
+    label, band = epa6_aqi_level(aqi)
+    return aqi, label, band, stash.get("pollen") or {}, None
 
-    if provider == "weatherapi":
-        stash = doc.pop("_air", {}) or {}
-        aqi = _i(stash.get("epa6"))
-        aqi_label, aqi_band = epa6_aqi_level(aqi)
-        pollen = stash.get("pollen") or {}
-    elif provider == "openweather":
-        try:
-            got = client.get("https://api.openweathermap.org/data/2.5/air_pollution",
-                             params={"lat": lat, "lon": lon, "appid": key}).json()
-            aqi = _i(got["list"][0]["main"]["aqi"])
-        except Exception:  # noqa: BLE001 — air is optional garnish, never fatal
-            aqi = None
-        aqi_label, aqi_band = openweather_aqi_level(aqi)
-    elif provider == "qweather":
-        try:
-            got = client.get("https://devapi.qweather.com/v7/air/now",
-                             params={"location": f"{lon:.2f},{lat:.2f}", "lang": "en"},
-                             headers={"Authorization": f"Bearer {key}"}).json()
-            aqi = _i((got.get("now") or {}).get("aqi"))
-        except Exception:  # noqa: BLE001
-            aqi = None
-        aqi_label, aqi_band = us_aqi_level(aqi)
-    else:  # openmeteo — its air API also carries UV and pollen, all keyless
-        try:
-            cur = _openmeteo_air(client, lat, lon)
-        except Exception:  # noqa: BLE001
-            cur = {}
-        aqi = _i(cur.get("us_aqi"))
-        aqi_label, aqi_band = us_aqi_level(aqi)
-        if uv is None:
-            uv = cur.get("uv_index")
-        tree = cur.get("birch_pollen")
-        weed = cur.get("weed_pollen") if cur.get("weed_pollen") is not None else cur.get("ragweed_pollen")
-        vals = [v for v in (cur.get("grass_pollen"), tree, weed) if v is not None]
-        pollen = {"grass": cur.get("grass_pollen"), "tree": tree, "weed": weed,
-                  "overall": max(vals) if vals else None} if vals else {}
+
+def _openweather_air(client, key, lat, lon, doc):
+    try:
+        got = client.get("https://api.openweathermap.org/data/2.5/air_pollution",
+                         params={"lat": lat, "lon": lon, "appid": key}).json()
+        aqi = _i(got["list"][0]["main"]["aqi"])
+    except Exception:  # noqa: BLE001 — air is optional garnish, never fatal
+        aqi = None
+    label, band = openweather_aqi_level(aqi)
+    return aqi, label, band, {}, None
+
+
+def _qweather_air(client, key, lat, lon, doc):
+    try:
+        got = client.get("https://devapi.qweather.com/v7/air/now",
+                         params={"location": f"{lon:.2f},{lat:.2f}", "lang": "en"},
+                         headers={"Authorization": f"Bearer {key}"}).json()
+        aqi = _i((got.get("now") or {}).get("aqi"))
+    except Exception:  # noqa: BLE001
+        aqi = None
+    label, band = us_aqi_level(aqi)
+    return aqi, label, band, {}, None
+
+
+def _openmeteo_air_block(client, key, lat, lon, doc):
+    """Open-Meteo's keyless air API also carries UV and pollen; the UV rides
+    along as the fallback for providers whose weather payload has none."""
+    try:
+        cur = _openmeteo_air(client, lat, lon)
+    except Exception:  # noqa: BLE001
+        cur = {}
+    aqi = _i(cur.get("us_aqi"))
+    label, band = us_aqi_level(aqi)
+    tree = cur.get("birch_pollen")
+    weed = cur.get("weed_pollen") if cur.get("weed_pollen") is not None else cur.get("ragweed_pollen")
+    vals = [v for v in (cur.get("grass_pollen"), tree, weed) if v is not None]
+    pollen = {"grass": cur.get("grass_pollen"), "tree": tree, "weed": weed,
+              "overall": max(vals) if vals else None} if vals else {}
+    return aqi, label, band, pollen, cur.get("uv_index")
+
+
+_AIR_PROVIDERS = {
+    "openmeteo": _openmeteo_air_block, "openweather": _openweather_air,
+    "weatherapi": _weatherapi_air, "qweather": _qweather_air,
+}
+
+
+def _fetch_air(client, provider, key, lat, lon, doc):
+    aqi, aqi_label, aqi_band, pollen, uv_fallback = \
+        _AIR_PROVIDERS.get(provider, _openmeteo_air_block)(client, key, lat, lon, doc)
+    uv = doc.get("uv")
+    if uv is None:
+        uv = uv_fallback
 
     if aqi is not None and aqi <= 0:      # a provider with nothing usable says 0
         aqi, aqi_label, aqi_band = None, 'Unknown', 'unknown'
@@ -572,8 +594,71 @@ def _fetch_hourly(client, lat, lon):
 
 
 # ---------------------------------------------------------------------------
-# The entry points
+# The entry point, in three pieces: resolve the request from settings,
+# consult the cache, dispatch to the provider and add the garnish.
 # ---------------------------------------------------------------------------
+def _resolve_provider(settings):
+    """(provider, key, request language) from the merged settings. An unknown
+    provider — or a keyed one missing its key — degrades to keyless Open-Meteo,
+    so weather works with no key at all."""
+    provider = str(settings.get("weather_provider", "openmeteo") or "openmeteo").lower()
+    key = str(settings.get("weather_api_key", "") or "").strip()
+    if provider not in _PROVIDERS or (provider != "openmeteo" and not key):
+        provider = "openmeteo"
+    lang = i18n.base_lang(settings.get("language") or "en") or "en"
+    return provider, key, lang
+
+
+def _cache_ttl(settings) -> float:
+    """The cache window: the app's polling_rate when present (the merged
+    settings arrive per-app), clamped to [1 min, 1 day], else 10 minutes."""
+    try:
+        return max(60.0, min(86400.0, float(settings.get("polling_rate") or _DEFAULT_TTL)))
+    except (TypeError, ValueError):
+        return float(_DEFAULT_TTL)
+
+
+def _fetch_document(provider, key, lat, lon, city, days, air, lang):
+    """One provider round-trip (with the Open-Meteo fallback ladder), then the
+    garnish: the air block when asked for, the keyless hourly ribbon when
+    days > 0. Returns (doc, the provider actually used); raises only when
+    Open-Meteo itself fails."""
+    with httpx.Client(timeout=10.0) as client:
+        doc = None
+        if provider != "openmeteo":
+            try:
+                got = _PROVIDERS[provider](client, lat, lon, city, key, days, lang)
+                # A keyed provider that 401s/429s still returns 200-ish JSON
+                # with no temperature: treat a missing temp as a failure.
+                if got.get("temp_f") is not None:
+                    doc = got
+                else:
+                    log.warning("weather provider %s returned no data; using open-meteo", provider)
+            except Exception as e:  # noqa: BLE001
+                log.warning("weather provider %s failed (%s); using open-meteo", provider, e)
+            if doc is None:
+                provider = "openmeteo"
+        if doc is None:
+            doc = _openmeteo(client, lat, lon, city, key, days, lang)
+        if not days:
+            doc["forecast"] = []
+        if air:
+            doc["air"] = _fetch_air(client, provider, key, lat, lon, doc)
+        else:
+            doc.pop("_air", None)
+        if days:
+            try:
+                h = _fetch_hourly(client, lat, lon)
+                # Open-Meteo's hourly endpoint speaks Celsius by default; keep
+                # both so no consumer converts.
+                h["temp_f"] = [None if c is None else round(c * 9.0 / 5.0 + 32.0, 1)
+                               for c in h["temp_c"]]
+                doc["hourly"] = h
+            except Exception:  # noqa: BLE001 — the ribbon is garnish for most apps
+                doc["hourly"] = {"time": [], "temp_f": [], "temp_c": [], "utc_offset_s": 0}
+    return doc, provider
+
+
 def fetch_weather(settings, days: int = 0, air: bool = False) -> dict:
     """The normalized weather document (see the module docstring). Falls back to
     keyless Open-Meteo when a keyed provider is missing its key OR fails /
@@ -581,66 +666,26 @@ def fetch_weather(settings, days: int = 0, air: bool = False) -> dict:
     ``{ok: False, error, provider}`` only if Open-Meteo itself fails; never
     raises."""
     days = max(0, min(7, int(days or 0)))
-    provider = str(settings.get("weather_provider", "openmeteo") or "openmeteo").lower()
-    key = str(settings.get("weather_api_key", "") or "").strip()
-    if provider not in _PROVIDERS or (provider != "openmeteo" and not key):
-        provider = "openmeteo"          # keyless default — weather works with no key
-    lang = str(settings.get("language", "en") or "en").split("-")[0]
+    provider, key, lang = _resolve_provider(settings)
     lat, lon, city = _resolve_location(settings)
+    ttl = _cache_ttl(settings)
 
-    try:
-        ttl = max(60.0, min(86400.0, float(settings.get("polling_rate") or _DEFAULT_TTL)))
-    except (TypeError, ValueError):
-        ttl = _DEFAULT_TTL
     cache_key = (provider, key, round(lat, 3), round(lon, 3), days, air, lang)
     hit = _cache.get(cache_key)
     if hit and (time.time() - hit[0]) < ttl:
-        return hit[1]
+        # Every caller gets its OWN copy. The cache is shared by every app across
+        # the plugin threadpool; handing out the stored dict itself would let one
+        # mutating app poison weather for all of them until the TTL.
+        return copy.deepcopy(hit[1])
 
     try:
-        with httpx.Client(timeout=10.0) as client:
-            doc = None
-            if provider != "openmeteo":
-                try:
-                    got = _PROVIDERS[provider](client, lat, lon, city, key, days, lang)
-                    # A keyed provider that 401s/429s still returns 200-ish JSON
-                    # with no temperature: treat a missing temp as a failure.
-                    if got.get("temp_f") is not None:
-                        doc = got
-                    else:
-                        log.warning("weather provider %s returned no data; using open-meteo", provider)
-                except Exception as e:  # noqa: BLE001
-                    log.warning("weather provider %s failed (%s); using open-meteo", provider, e)
-                if doc is None:
-                    provider = "openmeteo"
-            if doc is None:
-                doc = _openmeteo(client, lat, lon, city, key, days, lang)
-            if not days:
-                doc["forecast"] = []
-            if air:
-                doc["air"] = _fetch_air(client, provider, key, lat, lon, doc)
-            else:
-                doc.pop("_air", None)
-            if days:
-                try:
-                    h = _fetch_hourly(client, lat, lon)
-                    # Open-Meteo's hourly endpoint speaks Celsius by default; keep
-                    # both so no consumer converts.
-                    h["temp_f"] = [None if c is None else round(c * 9.0 / 5.0 + 32.0, 1)
-                                   for c in h["temp_c"]]
-                    doc["hourly"] = h
-                except Exception:  # noqa: BLE001 — the ribbon is garnish for most apps
-                    doc["hourly"] = {"time": [], "temp_f": [], "temp_c": [], "utc_offset_s": 0}
+        doc, provider = _fetch_document(provider, key, lat, lon, city, days, air, lang)
         doc.update(ok=True, provider=provider, lat=lat, lon=lon,
                    temp_c=_f2c(doc.get("temp_f")))
-        _cache[cache_key] = (time.time(), doc)   # cache only successful fetches
+        # Cache only successful fetches — and a private copy, for the same
+        # isolation reason as above.
+        _cache[cache_key] = (time.time(), copy.deepcopy(doc))
         return doc
     except Exception as e:  # noqa: BLE001
         log.warning("weather fetch failed: %s", e)
         return {"ok": False, "error": str(e), "provider": provider}
-
-
-def fetch_current(settings) -> dict:
-    """Current conditions only — the original helper surface, kept for the
-    /weather endpoint and any caller that never asked for more."""
-    return fetch_weather(settings)

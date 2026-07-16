@@ -58,8 +58,8 @@ def tide_api(monkeypatch):
 def test_the_runtime_only_injects_caps_when_an_app_asks(tide_api):
     """Additive: an app that never heard of it is called exactly as before."""
     rt = _runtime(device.MATRIX_PORTAL, "tides")
-    assert rt._wants_caps["tides"] is True
-    assert rt._wants_caps.get("time") in (False, None)     # time() does not ask
+    assert "caps" in rt._wants["tides"]
+    assert "caps" not in rt._wants.get("time", frozenset())     # not loaded here
 
 
 def test_a_matrix_portal_gets_arrows(tide_api):

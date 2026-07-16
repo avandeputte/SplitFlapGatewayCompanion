@@ -27,7 +27,6 @@ registry and makes it settable; here it is simply the one display we have, named
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -41,13 +40,8 @@ from .state import DisplayState
 
 log = logging.getLogger("companion.display")
 
-DEFAULT_ID = "default"
-
-
-def slugify(name: str, fallback: str = "display") -> str:
-    """A stable, URL-safe display id from a human name ("Kitchen wall" -> kitchen-wall)."""
-    s = re.sub(r"[^a-z0-9]+", "-", str(name or "").strip().lower()).strip("-")
-    return s or fallback
+# The id vocabulary is the registry's (it persists these); one implementation.
+from .registry import DEFAULT_ID, slugify  # noqa: E402  (re-export for callers)
 
 
 @dataclass
@@ -116,6 +110,13 @@ class Display:
     @property
     def gateway_url(self) -> str:
         return (self.config.transport.get("gateway_url") or "").strip()
+
+    def grid_changed(self) -> None:
+        """The one correct reaction to new geometry, in the one correct order:
+        resize the engine's canvas, then drop pages that were laid out for the
+        old grid. Callers used to repeat the pair by hand at every site."""
+        self.controller.resize_grid()
+        self.plugins.on_grid_changed()
 
     def status(self) -> dict:
         """What this display is doing — the shape the UI's switcher will want."""

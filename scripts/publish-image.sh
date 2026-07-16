@@ -23,13 +23,22 @@
 # ---------------------------------------------------------------------------
 # Common invocations
 # ---------------------------------------------------------------------------
-#   ./scripts/publish-image.sh                      # version + latest, both arches
+#   ./scripts/publish-image.sh                      # version + channel tags, both arches
 #   ./scripts/publish-image.sh --local             # native arch only, load locally
 #                                                     (for a quick test build; no push)
 #   ./scripts/publish-image.sh -p linux/amd64,linux/arm64,linux/arm/v7
 #                                                     # add 32-bit Raspberry Pi OS
-#   ./scripts/publish-image.sh --no-latest         # tag only :<version>
+#   ./scripts/publish-image.sh --no-channel-tags   # tag only :<version>
 #   ./scripts/publish-image.sh --install-emulators # one-time QEMU setup (Linux CI)
+#
+# Channel tags follow VERSION, exactly like .github/workflows/publish-image.yml:
+#   prerelease (1.5.1-beta.1) -> :beta only. :latest stays on the newest stable,
+#     which is what a plain `docker pull` and the stable add-on get.
+#   stable     (1.5.1)        -> :latest AND :beta. A stable release is by definition
+#     at least as new as any beta, so the beta channel should never be left pointing
+#     at an OLDER prerelease — it tracks the newest build.
+# There is deliberately no flag to force :latest onto a prerelease — that is the
+# mistake this logic exists to prevent.
 #
 # ---------------------------------------------------------------------------
 # Configuration (environment variables — all overridable)
@@ -55,7 +64,7 @@ PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 BUILDER_NAME="splitflap-companion-builder"
 
 PUSH=1                 # push to the registry (default). --local flips to load-only.
-TAG_LATEST=1           # also tag :latest
+CHANNEL_TAGS=1         # also move the channel tags (:beta, and :latest on stable)
 INSTALL_EMULATORS=0    # register QEMU binfmt handlers, then exit
 EXTRA_TAGS=()
 
@@ -73,7 +82,8 @@ usage() { sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//; /^s
 while [ $# -gt 0 ]; do
   case "$1" in
     -l|--local)            PUSH=0 ;;
-    --no-latest)           TAG_LATEST=0 ;;
+    --no-channel-tags)     CHANNEL_TAGS=0 ;;
+    --no-latest)           CHANNEL_TAGS=0 ;;   # old name, kept for muscle memory
     -p|--platforms)        PLATFORMS="${2:?--platforms needs a value}"; shift ;;
     -t|--tag)              EXTRA_TAGS+=("${2:?--tag needs a value}"); shift ;;
     --install-emulators)   INSTALL_EMULATORS=1 ;;
@@ -130,12 +140,32 @@ fi
 IMAGE="$REGISTRY/$OWNER/$IMAGE_NAME"
 
 # --- assemble tags ----------------------------------------------------------
-TAG_ARGS=(-t "$IMAGE:$VERSION")
-[ "$TAG_LATEST" -eq 1 ] && TAG_ARGS+=(-t "$IMAGE:latest")
-for t in "${EXTRA_TAGS[@]:-}"; do [ -n "$t" ] && TAG_ARGS+=(-t "$IMAGE:$t"); done
+# Same channel logic as .github/workflows/publish-image.yml (see the header): a
+# prerelease VERSION moves :beta only — a manual publish of a beta must never
+# hand :latest (the stable channel) a prerelease build.
+case "$VERSION" in
+  *-*) PRERELEASE=1 ;;
+  *)   PRERELEASE=0 ;;
+esac
+
+TAGS=("$VERSION")
+if [ "$CHANNEL_TAGS" -eq 1 ]; then
+  [ "$PRERELEASE" -eq 0 ] && TAGS+=(latest)
+  TAGS+=(beta)
+fi
+for t in "${EXTRA_TAGS[@]:-}"; do [ -n "$t" ] && TAGS+=("$t"); done
+
+TAG_ARGS=()
+for t in "${TAGS[@]}"; do TAG_ARGS+=(-t "$IMAGE:$t"); done
 
 info "Image      : ${C_B}$IMAGE${C_0}"
 info "Version    : $VERSION   (git $GIT_SHA)"
+if [ "$PRERELEASE" -eq 1 ]; then
+  info "Channel    : prerelease — :latest stays put"
+else
+  info "Channel    : stable"
+fi
+info "Tags       : ${TAGS[*]}"
 if [ "$PUSH" -eq 1 ]; then
   info "Platforms  : $PLATFORMS"
   info "Action     : build + ${C_B}push${C_0}"
@@ -191,7 +221,7 @@ docker buildx build \
 
 echo
 if [ "$PUSH" -eq 1 ]; then
-  ok "Pushed ${C_B}$IMAGE:$VERSION${C_0}${TAG_LATEST:+ (+ :latest)} for [$PLATFORMS]"
+  ok "Pushed ${C_B}$IMAGE${C_0} tags [${TAGS[*]}] for [$PLATFORMS]"
   echo
   echo "Pull it anywhere with:"
   echo "    docker pull $IMAGE:$VERSION"

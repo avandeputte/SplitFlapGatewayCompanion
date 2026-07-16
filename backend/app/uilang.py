@@ -44,7 +44,7 @@ OFFERED: list[str] = [o["value"] for o in i18n.LANGUAGE_OPTIONS] or [DEFAULT]
 _OFFERED_LC = {o.lower(): o for o in OFFERED}
 _OFFERED_BASE = {}  # base -> first offered code with that base ("fr" -> "fr")
 for _o in OFFERED:
-    _OFFERED_BASE.setdefault(_o.split("-")[0].lower(), _o)
+    _OFFERED_BASE.setdefault(i18n.base_lang(_o), _o)
 
 
 def normalize(code) -> str | None:
@@ -61,7 +61,7 @@ def normalize(code) -> str | None:
         return None
     if c.lower() in _OFFERED_LC:
         return _OFFERED_LC[c.lower()]
-    return _OFFERED_BASE.get(c.split("-")[0].lower())
+    return _OFFERED_BASE.get(i18n.base_lang(c))
 
 
 def parse_accept_language(header: str | None) -> list[str]:
@@ -142,21 +142,28 @@ _catalog_cache: dict[str, dict] = {}
 
 
 def _catalog(code: str) -> dict:
-    if code not in _catalog_cache:
+    hit = _catalog_cache.get(code)
+    if hit is None:
         try:
-            _catalog_cache[code] = json.loads((_CATALOG_DIR / f"{code}.json").read_text("utf-8"))
+            doc = json.loads((_CATALOG_DIR / f"{code}.json").read_text("utf-8"))
         except Exception:
-            _catalog_cache[code] = {}
-    return _catalog_cache[code]
+            # Deliberately NOT cached: a missing or unreadable catalog must not
+            # become {} for the life of the process — the next call retries, so
+            # a fixed file (or a transient read error) heals itself. Only a
+            # found-and-parsed catalog is cached, so the common case never
+            # touches the disk twice.
+            return {}
+        hit = _catalog_cache[code] = doc if isinstance(doc, dict) else {}
+    return hit
 
 
 def ui_t(lang, key: str) -> str:
-    """Translate one chrome string server-side (exact locale, then base)."""
-    code = str(lang or "").replace("_", "-")
-    base = code.split("-")[0].lower()
-    if not base or base == "en":
+    """Translate one chrome string server-side (exact locale, then base — the
+    shared ``i18n.fallback_chain``)."""
+    chain = i18n.fallback_chain(lang)
+    if not chain or chain[-1] == "en":
         return key
-    for c in dict.fromkeys([code, base]):
+    for c in chain:
         hit = _catalog(c).get(key)
         if isinstance(hit, str) and hit:
             return hit

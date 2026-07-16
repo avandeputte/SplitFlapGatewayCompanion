@@ -68,7 +68,9 @@ class Capabilities:
     # sub-second updates are honest. "mechanical": motion must physically complete; commands
     # queue behind it. "" means the gateway predates the key and motion must be inferred.
     motion: str = ""              # "drawn" | "mechanical" | "" (not reported)
-    settle_ms: int | None = None  # worst-case transition; a physical constraint only when mechanical
+    # Worst-case transition; a physical constraint only when mechanical. Not read yet:
+    # part of the published motion-capability contract, reserved for pacing decisions.
+    settle_ms: int | None = None
 
     # Every character the wall can show — the INTERSECTION across its modules, so sending one
     # of these is safe on all of them. Empty means "we do not know", which is what an older

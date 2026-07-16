@@ -34,11 +34,12 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import shutil
 import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+
+from .fsutil import atomic_write_json
 
 log = logging.getLogger("companion.registry")
 
@@ -142,13 +143,7 @@ class DisplayRegistry:
                 "default_display": self._default_id,
                 "displays": [r.to_dict() for r in sorted(self._records, key=lambda r: r.order)],
             }
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_name(self.path.name + ".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(doc, f, indent=2, ensure_ascii=False)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, self.path)
+        atomic_write_json(self.path, doc)
         if self.on_change is not None:
             try:
                 self.on_change()

@@ -113,11 +113,23 @@ function translateDom() {
 
 async function api(path, opts) {
   const r = await fetch(url(path), opts);
-  if (!r.ok) throw new Error(`${path} → ${r.status}`);
+  if (!r.ok) {
+    // Surface the server's own explanation (FastAPI's {"detail": ...}) instead of
+    // a bare status code — it's the difference between "422" and "name in use".
+    let detail = "";
+    try {
+      const j = await r.json();
+      if (j && j.detail) detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+    } catch { /* not JSON — the status is all we have */ }
+    throw new Error(`${path} → ${r.status}${detail ? ` — ${detail}` : ""}`);
+  }
   return r.status === 204 ? null : r.json();
 }
 const post = (path, body) =>
   api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+const patch = (path, body) =>
+  api(path, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+const del = (path) => api(path, { method: "DELETE" });
 
 // ---- rendering helpers -----------------------------------------------------
 function classForChar(ch) {
@@ -147,9 +159,27 @@ function buildBoard(board, count, cols) {
 }
 
 // ---- live preview ----------------------------------------------------------
+// One request drives both the board AND the offline badge: /api/current_state
+// already carries the transport, so a second 3 s poll for it was a second fetch
+// of the same document. The badge shows nothing while the display is reachable
+// -- only a red banner if the connection drops; no technical wording surfaces.
+let POLL_BUSY = false;           // 300 ms cadence: never stack a request on a slow link
+function setBadge(offline) {
+  const badge = $("statusBadge");
+  const cls = offline ? "badge err" : "badge hidden";
+  if (badge.className === cls) return;                       // diff: 300 ms is a hot path
+  badge.className = cls;
+  badge.textContent = offline ? t("⚠ Display offline") : "";
+}
 async function pollState() {
+  if (POLL_BUSY) return;
+  POLL_BUSY = true;
+  const disp = DISPLAY;          // the wall this request is ABOUT — drop it if we switch
   try {
     const st = await api("/api/current_state");
+    if (disp !== DISPLAY) return;                            // stale: answered for the old wall
+    const tr = st.transport || {};
+    setBadge(!(tr.connected || tr.type === "sim"));
     const board = $("preview");
     // The wall can change shape under us: the gateway may have been unreachable at
     // boot, or its Display Layout edited since. Re-read the geometry rather than
@@ -162,24 +192,20 @@ async function pollState() {
     st.chars.forEach((ch, i) => {
       const cell = board.children[i];
       if (!cell) return;
-      cell.className = classForChar(ch);
-      cell.textContent = glyph(ch);
+      // Diff before writing: most polls change nothing, and rewriting every cell's
+      // class + text 3× a second is layout work for identical pixels.
+      const cls = classForChar(ch), g = glyph(ch);
+      if (cell.className !== cls) cell.className = cls;
+      if (cell.textContent !== g) cell.textContent = g;
     });
-    $("previewMeta").textContent = `${GRID.rows}×${GRID.cols} · ${st.module_count} ${t("modules")}`;
+    const meta = `${GRID.rows}×${GRID.cols} · ${st.module_count} ${t("modules")}`;
+    if ($("previewMeta").textContent !== meta) $("previewMeta").textContent = meta;
     if (APPS.length) updateActiveUI(st.active_app, st.active_playlist);
-  } catch (e) { /* transient */ }
-}
-
-async function pollStatus() {
-  // Nothing is shown while the display is reachable -- only a red banner if the
-  // connection drops. No transport/technical wording surfaces in the UI.
-  const badge = $("statusBadge");
-  const down = () => { badge.className = "badge err"; badge.textContent = t("⚠ Display offline"); };
-  const ok = () => { badge.className = "badge hidden"; badge.textContent = ""; };
-  try {
-    const tr = (await api("/api/current_state")).transport;
-    if (tr.connected || tr.type === "sim") ok(); else down();
-  } catch { down(); }
+  } catch (e) {
+    if (disp === DISPLAY) setBadge(true);                    // transient or down: say so
+  } finally {
+    POLL_BUSY = false;
+  }
 }
 
 // ---- compose ---------------------------------------------------------------
@@ -314,13 +340,17 @@ function cmpBuild() {
   });
   const disp = GRID.display || {};
   $("cmpSpeed").value = disp.transition_speed ?? 15;
-  sel.addEventListener("change", () => {
+  // onchange (assignment), NOT addEventListener: cmpBuild reruns on every grid change
+  // and display switch, and each run used to stack one more listener on the same
+  // persistent <select> — after N switches one change wrote the speed N times.
+  sel.onchange = () => {
     // 'slot' is the spin effect and is paced by its own, much slower global.
     $("cmpSpeed").value = sel.value === "slot"
       ? (disp.slot_speed ?? 80)
       : (disp.transition_speed ?? 15);
-  });
+  };
 
+  // Same function reference each time, so re-adding is a no-op — no accumulation here.
   board.addEventListener("keydown", cmpKey);
   cmpRender();
 }
@@ -425,53 +455,70 @@ async function loadApps() {
     const fits = appFits(a);
     const tile = el("div", "app-tile" + (fits ? "" : " disabled"));
     tile.dataset.appId = a.id;
-    if (!fits) tile.title = t("Needs at least %s", appReq(a));
+    tile.setAttribute("role", "button");
+    tile.tabIndex = fits ? 0 : -1;
+    if (!fits) { tile.title = t("Needs at least %s", appReq(a)); tile.setAttribute("aria-disabled", "true"); }
+    // name/description/icon come from the app's MANIFEST — an uploaded zip, i.e.
+    // attacker-controlled. Everything of it that lands in markup goes through esc().
     tile.innerHTML =
-      `<div class="app-icon">${a.icon || "🧩"}</div>` +
-      `<div class="app-name">${a.name}</div>` +
-      `<div class="app-desc">${a.description || ""}</div>` +
-      (a.has_settings ? `<button class="app-gear" title="${t("Settings")}">⚙</button>` : "") +
+      `<div class="app-icon">${esc(a.icon || "🧩")}</div>` +
+      `<div class="app-name">${esc(a.name)}</div>` +
+      `<div class="app-desc">${esc(a.description || "")}</div>` +
+      (a.has_settings ? `<button class="app-gear" title="${esc(t("Settings"))}">⚙</button>` : "") +
       `<div class="app-foot">` +
-        (a.i18n ? `<span class="app-i18n" title="${t("Multilingual — adapts to the global Language")}">🌐</span>` : "") +
+        (a.i18n ? `<span class="app-i18n" title="${esc(t("Multilingual — adapts to the global Language"))}">🌐</span>` : "") +
         `<span class="app-badge"></span>` +
-        (fits ? "" : `<span class="app-req">${appReq(a)}</span>`) +
+        (fits ? "" : `<span class="app-req">${esc(appReq(a))}</span>`) +
       `</div>`;
-    tile.addEventListener("click", (e) => {
+    const activate = (e) => {
       if (e.target.closest(".app-gear")) { openAppSettings(a.id, a.name); return; }
       if (!fits) return;   // too big for this panel
       runApp(a.id);
+    };
+    tile.addEventListener("click", activate);
+    tile.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(e); }
     });
     grid.appendChild(tile);
   });
   updateActiveUI(data.active_app, data.active_playlist);
 }
 
+let ACTIVE_BANNER = null;   // last-painted banner markup — this runs every 300 ms poll
 function updateActiveUI(activeApp, activePlaylist) {
   const banner = $("activeBanner");
-  // Word order differs per language ("X is running" / "X läuft"), so the whole
-  // sentence is one catalog key with the app name spliced in bold.
-  const showRunning = (label) => {
-    $("activeText").innerHTML = t("▶ %s is running").replace("%s", `<b>${esc(label)}</b>`);
-    banner.classList.remove("hidden");
-  };
+  let label = "";
   if (activeApp) {
     const a = APPS.find((x) => x.id === activeApp);
-    showRunning(a ? a.name : activeApp);
+    label = a ? a.name : activeApp;
   } else if (activePlaylist) {
-    showRunning(t("Playlist · %s", activePlaylist));
-  } else {
-    banner.classList.add("hidden");
+    label = t("Playlist · %s", activePlaylist);
+  }
+  // Word order differs per language ("X is running" / "X läuft"), so the whole
+  // sentence is one catalog key with the app name spliced in bold.
+  const html = label ? t("▶ %s is running").replace("%s", `<b>${esc(label)}</b>`) : "";
+  if (html !== ACTIVE_BANNER) {         // diff: don't rebuild identical DOM 3×/second
+    ACTIVE_BANNER = html;
+    if (html) { $("activeText").innerHTML = html; banner.classList.remove("hidden"); }
+    else banner.classList.add("hidden");
   }
   document.querySelectorAll(".app-tile").forEach((tile) => {
     const on = tile.dataset.appId === activeApp;
-    tile.classList.toggle("running", on);
+    if (tile.classList.contains("running") !== on) tile.classList.toggle("running", on);
     const badge = tile.querySelector(".app-badge");
-    if (badge) badge.textContent = on ? t("▶ RUNNING") : "";
+    const want = on ? t("▶ RUNNING") : "";
+    if (badge && badge.textContent !== want) badge.textContent = want;
   });
 }
 
-async function runApp(id) { await post("/api/apps/run", { app: id }); updateActiveUI(id, null); }
-async function stopApp() { await post("/api/apps/stop"); updateActiveUI(null, null); }
+async function runApp(id) {
+  try { await post("/api/apps/run", { app: id }); updateActiveUI(id, null); }
+  catch (e) { alert(t("Failed: %s", e.message)); }
+}
+async function stopApp() {
+  try { await post("/api/apps/stop"); updateActiveUI(null, null); }
+  catch (e) { alert(t("Failed: %s", e.message)); }
+}
 
 // Physically home every module (stops whatever is playing, blanks the wall).
 async function homeAll() {
@@ -496,25 +543,28 @@ async function homeAll() {
 }
 
 // ---- modal -----------------------------------------------------------------
+let MODAL_RETURN = null;   // where focus goes back to when the dialog closes
 function openModal(title, bodyEl, footButtons) {
   $("modalTitle").textContent = title;
   const body = $("modalBody"); body.innerHTML = ""; body.appendChild(bodyEl);
   const foot = $("modalFoot"); foot.innerHTML = "";
   footButtons.forEach((b) => foot.appendChild(b));
+  // Focus moves INTO the dialog on open and back to the opener on close, and the
+  // card carries role="dialog"/aria-modal (index.html) — without this a keyboard
+  // or screen-reader user is left behind on the now-inert page underneath.
+  MODAL_RETURN = document.activeElement;
   $("modal").classList.remove("hidden");
+  document.querySelector(".modal-card").focus();
 }
-function closeModal() { $("modal").classList.add("hidden"); }
+function closeModal() {
+  $("modal").classList.add("hidden");
+  if (MODAL_RETURN && typeof MODAL_RETURN.focus === "function") MODAL_RETURN.focus();
+  MODAL_RETURN = null;
+}
 
 // ---- app settings form -----------------------------------------------------
-let _formFields = [];
 function normOpts(options) {
   return (options || []).map((o) => (typeof o === "object" ? o : { value: o, label: String(o) }));
-}
-function findField(key) { return _formFields.find((w) => w._field.key === key); }
-function currentValues() {
-  const c = {};
-  _formFields.forEach((w) => { const v = w._getValue && w._getValue(); if (v !== undefined) c[w._field.key] = v; });
-  return c;
 }
 function chipLabel(v) { return String(v).includes("|") ? String(v).split("|").pop() : v; }
 
@@ -528,45 +578,59 @@ const COMPUTES = {
   },
 };
 
-function onFormChange() { applyVisibility(); recompute(); }
-function recompute() {
-  const cur = currentValues();
-  _formFields.forEach((w) => {
-    if (w._field.type === "computed" && w._computeEl) {
-      const fn = COMPUTES[w._field.compute];
-      w._computeEl.textContent = fn ? fn(cur, w._field) : "";
-    }
-  });
-}
-function applyVisibility() {
-  const cur = currentValues();
-  _formFields.forEach((w) => {
-    const f = w._field;
-    if (f.visible_when) {
-      const show = Object.entries(f.visible_when).every(([k, v]) => String(cur[k]) === String(v));
-      w.style.display = show ? "" : "none";
-    }
-    if (f.disabled_when) {
-      const dis = Object.entries(f.disabled_when).every(([k, v]) => String(cur[k]) === String(v));
-      const ctrl = w.querySelector("input,select,textarea");
-      if (ctrl) ctrl.disabled = dis;
-    }
-  });
-}
+// The one form engine behind all three settings dialogs (app / playlist entry /
+// global). The field list lives in THIS closure — there is no shared global, so an
+// entry-settings dialog opened over the playlists page can never read another
+// form's fields. Returns { form, values() }.
+function buildForm(schema, initial, { skip } = {}) {
+  const fields = [];
+  const form = el("div");
 
-function applySync(f, newVal) {
-  if (f.sync_values && f.sync_values[newVal]) {
-    Object.entries(f.sync_values[newVal]).forEach(([tk, tv]) => {
-      const tw = findField(tk); if (tw && tw._setValue) tw._setValue(tv);
+  const findField = (key) => fields.find((w) => w._field.key === key);
+  const currentValues = () => {
+    const c = {};
+    fields.forEach((w) => { const v = w._getValue && w._getValue(); if (v !== undefined) c[w._field.key] = v; });
+    return c;
+  };
+  const recompute = () => {
+    const cur = currentValues();
+    fields.forEach((w) => {
+      if (w._field.type === "computed" && w._computeEl) {
+        const fn = COMPUTES[w._field.compute];
+        w._computeEl.textContent = fn ? fn(cur, w._field) : "";
+      }
     });
-  }
-  if (f.sync_parent) {
-    const pw = findField(f.sync_parent);
-    if (pw && pw._setValue) pw._setValue(f.sync_parent_custom_value || "custom");
-  }
-}
+  };
+  const applyVisibility = () => {
+    const cur = currentValues();
+    fields.forEach((w) => {
+      const f = w._field;
+      if (f.visible_when) {
+        const show = Object.entries(f.visible_when).every(([k, v]) => String(cur[k]) === String(v));
+        w.style.display = show ? "" : "none";
+      }
+      if (f.disabled_when) {
+        const dis = Object.entries(f.disabled_when).every(([k, v]) => String(cur[k]) === String(v));
+        const ctrl = w.querySelector("input,select,textarea");
+        if (ctrl) ctrl.disabled = dis;
+      }
+    });
+  };
+  const onFormChange = () => { applyVisibility(); recompute(); };
 
-function mkField(f, values) {
+  const applySync = (f, newVal) => {
+    if (f.sync_values && f.sync_values[newVal]) {
+      Object.entries(f.sync_values[newVal]).forEach(([tk, tv]) => {
+        const tw = findField(tk); if (tw && tw._setValue) tw._setValue(tv);
+      });
+    }
+    if (f.sync_parent) {
+      const pw = findField(f.sync_parent);
+      if (pw && pw._setValue) pw._setValue(f.sync_parent_custom_value || "custom");
+    }
+  };
+
+  function mkField(f, values) {
   const wrap = el("div", "field"); wrap._field = f; wrap._getValue = () => undefined;
   const val = values[f.key];
   if (f.type === "notice") { const n = el("div", "notice"); n.textContent = t(f.label || f.text || ""); wrap.appendChild(n); return wrap; }
@@ -574,7 +638,9 @@ function mkField(f, values) {
     if (f.label) { const l = el("span"); l.textContent = t(f.label); wrap.appendChild(l); }
     const n = el("div", "notice"); wrap.appendChild(n); wrap._computeEl = n; return wrap;
   }
-  const label = el("span"); label.innerHTML = t(f.label || f.key); wrap.appendChild(label);
+  // textContent, not innerHTML: labels arrive from the app's manifest (settings
+  // schema), which an uploaded zip controls. No chrome label carries markup.
+  const label = el("span"); label.textContent = t(f.label || f.key); wrap.appendChild(label);
   if (f.shared) { const b = el("span", "shared-badge"); b.textContent = t("shared"); b.title = t("Global setting — shared across apps"); label.appendChild(b); }
   if (f.note) { const nt = el("small", "field-note"); nt.textContent = t(f.note); wrap.appendChild(nt); }
 
@@ -651,18 +717,28 @@ function mkField(f, values) {
           results.innerHTML = "";
           items.forEach((it) => {
             const d = el("div"); d.textContent = it.label || it.name || it.value;
-            d.onclick = () => {
+            // Keyboard-reachable: each result is a button you can Tab to from the
+            // search box and pick with Enter/Space, not a mouse-only target.
+            d.setAttribute("role", "button"); d.tabIndex = 0;
+            const pick = () => {
               if (maxItems === 1) chips = [];
               if (chips.length < maxItems) { chips.push({ value: it.value ?? it.abbr ?? it.id, label: it.label || it.name || it.value }); draw(); onFormChange(); }
-              search.value = ""; hideResults();
+              search.value = ""; hideResults(); search.focus();
             };
+            d.onclick = pick;
+            d.addEventListener("keydown", (e) => {
+              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }
+            });
             results.appendChild(d);
           });
           if (items.length) showResults(); else hideResults();
         } catch { hideResults(); }
       }, 250);
     });
-    search.addEventListener("blur", () => setTimeout(hideResults, 150));
+    // Deferred, and only if focus didn't move INTO the list — Tabbing from the box
+    // to a result must not hide the result out from under the keypress.
+    search.addEventListener("blur", () =>
+      setTimeout(() => { if (!results.contains(document.activeElement)) hideResults(); }, 150));
     box.appendChild(chipsDiv); box.appendChild(search); box.appendChild(results); wrap.appendChild(box); draw();
     wrap._getValue = () => chips.map((c) => c.value).join(",");
     wrap._setValue = (v) => { chips = v ? String(v).split(",").filter(Boolean).map((x) => ({ value: x, label: chipLabel(x) })) : []; draw(); };
@@ -690,29 +766,30 @@ function mkField(f, values) {
       wrap.appendChild(inp);
     }
   }
-  return wrap;
+    return wrap;
+  }
+
+  schema.fields.forEach((f) => {
+    if (skip && skip(f)) return;
+    const w = mkField(f, initial); fields.push(w); form.appendChild(w);
+    if (f.inline_toggle) {
+      const it = f.inline_toggle;
+      const tw = mkField({ key: it.key, type: "toggle", label: "", options: it.options }, initial);
+      fields.push(tw); form.appendChild(tw);
+    }
+  });
+  onFormChange();
+  return { form, values: currentValues };
 }
 
 async function openAppSettings(id, name) {
   const schema = await api(`/api/apps/${id}/settings?lang=${LANG}`);
-  const form = el("div");
-  _formFields = [];
-  schema.fields.forEach((f) => {
-    const w = mkField(f, schema.values); _formFields.push(w); form.appendChild(w);
-    if (f.inline_toggle) {
-      const it = f.inline_toggle;
-      const tw = mkField({ key: it.key, type: "toggle", label: "", options: it.options }, schema.values);
-      _formFields.push(tw); form.appendChild(tw);
-    }
-  });
-  onFormChange();
+  const { form, values } = buildForm(schema, schema.values);
   const save = el("button", "btn primary"); save.textContent = t("Save");
   const msg = el("span", "hint"); msg.style.marginRight = "auto";
   save.addEventListener("click", async () => {
-    const values = {};
-    _formFields.forEach((w) => { const v = w._getValue && w._getValue(); if (v !== undefined) values[w._field.key] = v; });
     msg.textContent = t("Saving…");
-    try { await post(`/api/apps/${id}/settings`, { values }); closeModal(); }
+    try { await post(`/api/apps/${id}/settings`, { values: values() }); closeModal(); }
     catch (e) { msg.textContent = t("Error: %s", e.message); }
   });
   const close = el("button", "btn ghost"); close.textContent = t("Close"); close.addEventListener("click", closeModal);
@@ -726,21 +803,12 @@ async function openEntrySettings(entry) {
   const app = APPS.find((a) => a.id === entry.app);
   const schema = await api(`/api/apps/${entry.app}/settings?lang=${LANG}`);
   const base = Object.assign({}, schema.values, entry.overrides || {});   // entry values win in the form
-  const form = el("div");
+  const { form, values } = buildForm(schema, base, {
+    skip: (f) => f.key && f.key.startsWith("_globals_note_"),   // the shared-globals hint isn't overridable per entry
+  });
   const note = el("p", "hint");
   note.textContent = t("These apply to this playlist entry only. Unchanged fields follow the app's own settings.");
-  form.appendChild(note);
-  _formFields = [];
-  schema.fields.forEach((f) => {
-    if (f.key && f.key.startsWith("_globals_note_")) return;   // the shared-globals hint isn't overridable per entry
-    const w = mkField(f, base); _formFields.push(w); form.appendChild(w);
-    if (f.inline_toggle) {
-      const it = f.inline_toggle;
-      const tw = mkField({ key: it.key, type: "toggle", label: "", options: it.options }, base);
-      _formFields.push(tw); form.appendChild(tw);
-    }
-  });
-  onFormChange();
+  form.prepend(note);
   const save = el("button", "btn primary"); save.textContent = t("Save for this entry");
   const clear = el("button", "btn ghost"); clear.textContent = t("Clear");
   clear.title = t("Remove all per-entry overrides (follow the app's settings)");
@@ -748,10 +816,7 @@ async function openEntrySettings(entry) {
   clear.addEventListener("click", () => { entry.overrides = {}; closeModal(); plRender(); });
   save.addEventListener("click", () => {
     const ov = {};
-    _formFields.forEach((w) => {
-      const v = w._getValue && w._getValue();
-      if (v === undefined) return;
-      const k = w._field.key;
+    Object.entries(values()).forEach(([k, v]) => {
       if (String(v) !== String(schema.values[k] ?? "")) ov[k] = v;   // store only genuine overrides
     });
     entry.overrides = ov;
@@ -762,29 +827,18 @@ async function openEntrySettings(entry) {
 
 async function openGlobalSettings() {
   const schema = await api(`/api/global-settings?lang=${LANG}`);
-  const form = el("div", "gsettings");
+  const { form, values } = buildForm(schema, schema.values);
+  form.className = "gsettings";
   if (!schema.fields.length) {
     const p = el("p", "hint"); p.textContent = t("No global settings yet — install apps that use shared settings (weather, stocks, …).");
     form.appendChild(p);
   }
-  _formFields = [];
-  schema.fields.forEach((f) => {
-    const w = mkField(f, schema.values); _formFields.push(w); form.appendChild(w);
-    if (f.inline_toggle) {
-      const it = f.inline_toggle;
-      const tw = mkField({ key: it.key, type: "toggle", label: "", options: it.options }, schema.values);
-      _formFields.push(tw); form.appendChild(tw);
-    }
-  });
-  onFormChange();
   const save = el("button", "btn primary"); save.textContent = t("Save");
   const msg = el("span", "hint"); msg.style.marginRight = "auto";
   save.addEventListener("click", async () => {
-    const values = {};
-    _formFields.forEach((w) => { const v = w._getValue && w._getValue(); if (v !== undefined) values[w._field.key] = v; });
     msg.textContent = t("Saving…");
     try {
-      await post("/api/global-settings", { values });
+      await post("/api/global-settings", { values: values() });
       // "Always uppercase" changes what the wall will SHOW, so the Compose editor's preview
       // has to follow it — otherwise it goes on promising lowercase the wall will not give.
       await loadDisplays();
@@ -863,7 +917,8 @@ function libRow(a, reopen) {
     dl.style.background = "var(--hi)";
     dl.addEventListener("click", async () => {
       if (!confirm(t('Delete "%s"? This removes the uploaded app for good.', a.name))) return;
-      await fetch(url(`/api/apps/${encodeURIComponent(a.id)}`), { method: "DELETE" });
+      try { await del(`/api/apps/${encodeURIComponent(a.id)}`); }
+      catch (e) { alert(t("Failed: %s", e.message)); return; }
       reopen(); loadApps();
     });
     row.appendChild(dl);
@@ -969,19 +1024,32 @@ async function loadPlaylists() {
   if (!names.length) { saved.innerHTML = `<span class="hint">${t("None yet.")}</span>`; }
   names.forEach((n) => {
     const row = el("div", "saved-row" + (n === PL_NAME ? " editing" : ""));
+    row.dataset.name = n;      // identity, so plMarkEditing can move the highlight in place
     const nm = el("span", "grow"); nm.textContent = n; row.appendChild(nm);
     if (n === PL_NAME) { const tag = el("span", "pill sm"); tag.textContent = t("editing"); row.appendChild(tag); }
-    const run = el("button", "btn btn-sm primary"); run.textContent = t("Run"); run.onclick = () => post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n }); row.appendChild(run);
+    const run = el("button", "btn btn-sm primary"); run.textContent = t("Run");
+    run.onclick = async () => {
+      try { await post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n }); }
+      catch (e) { alert(t("Failed: %s", e.message)); }
+    };
+    row.appendChild(run);
     const load = el("button", "btn btn-sm ghost"); load.textContent = t("Edit"); load.onclick = () => plEdit(n); row.appendChild(load);
-    const del = el("button", "btn btn-sm ghost"); del.textContent = t("Delete"); del.onclick = async () => { await fetch(url("/api/playlists/" + encodeURIComponent(n)), { method: "DELETE" }); loadPlaylists(); }; row.appendChild(del);
+    const rm = el("button", "btn btn-sm ghost"); rm.textContent = t("Delete");
+    rm.onclick = async () => {
+      try { await del("/api/playlists/" + encodeURIComponent(n)); }
+      catch (e) { alert(t("Failed: %s", e.message)); return; }
+      loadPlaylists();
+    };
+    row.appendChild(rm);
     saved.appendChild(row);
   });
   if (!PL_ENTRIES.length) plRender();
   plSaveLabel();
 }
 async function runPlaylistNow() {
-  if (!PL_ENTRIES.length) { $("plSaved"); return; }
-  await post("/api/playlists/run", { entries: PL_ENTRIES, loop: $("plLoop").checked, name: PL_NAME || "(unsaved)" });
+  if (!PL_ENTRIES.length) return;
+  try { await post("/api/playlists/run", { entries: PL_ENTRIES, loop: $("plLoop").checked, name: PL_NAME || "(unsaved)" }); }
+  catch (e) { alert(t("Failed: %s", e.message)); }
 }
 // The editor's name field IS the identity. Saving writes to whatever it says: unchanged,
 // that updates the playlist you loaded; changed, it renames it (and the button says so, so
@@ -994,13 +1062,30 @@ function plSaveLabel() {
   btn.title = PL_NAME ? t("Update “%s”", PL_NAME) : t("Save as a new playlist");
 }
 
+// Move the "editing" mark to whatever PL_NAME now is, IN PLACE. Nothing about the
+// saved list's data changed, so refetching + rebuilding it (what plEdit/plNew used
+// to do via loadPlaylists) was a network round trip to move one highlight.
+function plMarkEditing() {
+  document.querySelectorAll("#plSaved .saved-row").forEach((row) => {
+    const on = row.dataset.name === PL_NAME;
+    row.classList.toggle("editing", on);
+    const pill = row.querySelector(".pill");
+    if (on && !pill) {
+      const tag = el("span", "pill sm"); tag.textContent = t("editing");
+      row.insertBefore(tag, row.children[1] || null);   // right after the name
+    } else if (!on && pill) {
+      pill.remove();
+    }
+  });
+}
+
 function plEdit(name) {
   PL_ENTRIES = JSON.parse(JSON.stringify(SAVED_PL[name].entries));
   PL_NAME = name;
   $("plName").value = name;
   $("plLoop").checked = SAVED_PL[name].loop !== false;
   plRender();
-  loadPlaylists();          // re-render the list so the edited row is marked
+  plMarkEditing();
 }
 
 function plNew() {
@@ -1009,18 +1094,23 @@ function plNew() {
   $("plName").value = "";
   $("plLoop").checked = true;
   plRender();
-  loadPlaylists();
+  plMarkEditing();
 }
 
 async function savePlaylist() {
   const name = $("plName").value.trim();
   if (!name) { $("plName").focus(); return; }
   if (!PL_ENTRIES.length) return;
-  await post("/api/playlists", { name, entries: PL_ENTRIES, loop: $("plLoop").checked });
-  // A rename is a save under the new name plus a delete of the old — otherwise the one
-  // you renamed away from lingers as a stale duplicate of what you just edited.
-  if (PL_NAME && PL_NAME !== name) {
-    await fetch(url("/api/playlists/" + encodeURIComponent(PL_NAME)), { method: "DELETE" });
+  try {
+    await post("/api/playlists", { name, entries: PL_ENTRIES, loop: $("plLoop").checked });
+    // A rename is a save under the new name plus a delete of the old — otherwise the one
+    // you renamed away from lingers as a stale duplicate of what you just edited.
+    if (PL_NAME && PL_NAME !== name) {
+      await del("/api/playlists/" + encodeURIComponent(PL_NAME));
+    }
+  } catch (e) {
+    alert(t("Failed: %s", e.message));
+    return;
   }
   PL_NAME = name;
   await loadPlaylists();
@@ -1058,8 +1148,13 @@ function addTrigger() {
   trigRender();
 }
 async function saveTriggers() {
-  await post("/api/triggers", { triggers: TRIGS, triggers_enabled: $("trigEnabled").checked });
-  $("trigMsg").textContent = t("Saved ✓"); setTimeout(() => ($("trigMsg").textContent = ""), 2000);
+  try {
+    await post("/api/triggers", { triggers: TRIGS, triggers_enabled: $("trigEnabled").checked });
+    $("trigMsg").textContent = t("Saved ✓");
+  } catch (e) {
+    $("trigMsg").textContent = t("Failed: %s", e.message);
+  }
+  setTimeout(() => ($("trigMsg").textContent = ""), 4000);
 }
 
 // ---- gateway link-tabs (unified nav) ---------------------------------------
@@ -1209,84 +1304,72 @@ async function openDevMenu() {
       wrap.appendChild(simF);
     }
 
-    // 1b) Vestaboard-compatible Local API
-    const vbF = el("div", "field");
-    const vbLbl = el("label"); vbLbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
-    const vb = el("input"); vb.type = "checkbox"; vb.checked = !!st.vestaboard; vb.style.width = "auto";
-    vbLbl.appendChild(vb);
-    vbLbl.appendChild(document.createTextNode(t("Vestaboard API"))); 
-    vbF.appendChild(vbLbl);
-    const vbNote = el("small", "field-note");
-    vbF.appendChild(vbNote);
+    // 1b + 1c) The two integration switches (Vestaboard Local API, MCP server) are
+    // the same control: a checkbox that flips /api/dev/<name>, and a note that shows
+    // the endpoint + credential lines while it's on. One factory, two configs.
+    const devToggle = ({ on, api: apiPath, title, offText, lines }) => {
+      const F = el("div", "field");
+      const lbl = el("label"); lbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
+      const cb = el("input"); cb.type = "checkbox"; cb.checked = on; cb.style.width = "auto";
+      lbl.appendChild(cb);
+      lbl.appendChild(document.createTextNode(title));
+      F.appendChild(lbl);
+      const note = el("small", "field-note");
+      F.appendChild(note);
 
-    // Details (the key + endpoint) only mean anything while it's on.
-    const showVb = async () => {
-      if (!vb.checked) {
-        vbNote.textContent = t("Off. Turn on to accept Vestaboard Local API calls (Home Assistant, scripts) at /local-api/message — this display then answers like a Vestaboard.");
-        return;
-      }
-      vbNote.textContent = t("Loading…");
-      try {
-        const d = await api("/api/dev/vestaboard");
-        vbNote.innerHTML = "";
+      // Details (the credential + endpoint) only mean anything while it's on.
+      const show = async () => {
+        if (!cb.checked) { note.textContent = offText; return; }
+        note.textContent = t("Loading…");
+        try {
+          const d = await api(apiPath);
+          note.innerHTML = "";
+          lines(d).forEach((txt, i) => {
+            const div = el("div");
+            if (i) div.style.marginTop = "2px";
+            div.textContent = txt;
+            note.appendChild(div);
+          });
+        } catch (e) { note.textContent = t("Failed: %s", e.message); }
+      };
+      cb.addEventListener("change", async () => {
+        cb.disabled = true;
+        try { render(await post(apiPath, { on: cb.checked })); }
+        catch (e) { note.textContent = t("Failed: %s", e.message); cb.disabled = false; }
+      });
+      show();
+      return F;
+    };
+
+    wrap.appendChild(devToggle({
+      on: !!st.vestaboard,
+      api: "/api/dev/vestaboard",
+      title: t("Vestaboard API"),
+      offText: t("Off. Turn on to accept Vestaboard Local API calls (Home Assistant, scripts) at /local-api/message — this display then answers like a Vestaboard."),
+      lines: (d) => [
         // d.url is the address a client OUTSIDE the browser must use. As an add-on our
         // own origin is Home Assistant's (ingress), which does not reach this endpoint.
-        const endpoint = d.url || `${location.origin}${d.path}`;
-        const l1 = el("div"); l1.textContent = `POST ${endpoint}`;
-        const l2 = el("div"); l2.style.marginTop = "2px";
-        l2.textContent = `X-Vestaboard-Local-Api-Key: ${d.key}`;
-        const l3 = el("div"); l3.style.marginTop = "2px";
-        l3.textContent = d.env_key
+        `POST ${d.url || `${location.origin}${d.path}`}`,
+        `X-Vestaboard-Local-Api-Key: ${d.key}`,
+        d.env_key
           ? t("Key pinned by COMPANION_VESTABOARD_KEY.")
-          : t("Key generated and stored with your settings. Pin your own with COMPANION_VESTABOARD_KEY.");
-        vbNote.append(l1, l2, l3);
-      } catch (e) { vbNote.textContent = t("Failed: %s", e.message); }
-    };
-    vb.addEventListener("change", async () => {
-      vb.disabled = true;
-      try { render(await post("/api/dev/vestaboard", { on: vb.checked })); }
-      catch (e) { vbNote.textContent = t("Failed: %s", e.message); vb.disabled = false; }
-    });
-    showVb();
-    wrap.appendChild(vbF);
+          : t("Key generated and stored with your settings. Pin your own with COMPANION_VESTABOARD_KEY."),
+      ],
+    }));
 
-    // 1c) MCP server — same shape as the Vestaboard switch above.
-    const mcF = el("div", "field");
-    const mcLbl = el("label"); mcLbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
-    const mc = el("input"); mc.type = "checkbox"; mc.checked = !!st.mcp; mc.style.width = "auto";
-    mcLbl.appendChild(mc);
-    mcLbl.appendChild(document.createTextNode(t("MCP server")));
-    mcF.appendChild(mcLbl);
-    const mcNote = el("small", "field-note");
-    mcF.appendChild(mcNote);
-
-    // The token + endpoint only mean anything while it's on.
-    const showMcp = async () => {
-      if (!mc.checked) {
-        mcNote.textContent = t("Off. Turn on to let an LLM client (Claude, an agent) drive the display as tools at /mcp — show a message, run an app, read the board.");
-        return;
-      }
-      mcNote.textContent = t("Loading…");
-      try {
-        const d = await api("/api/dev/mcp");
-        mcNote.innerHTML = "";
-        const l1 = el("div"); l1.textContent = d.url || `${location.origin}${d.path}`;
-        const l2 = el("div"); l2.style.marginTop = "2px";
-        l2.textContent = `Authorization: Bearer ${d.token}`;
-        const l3 = el("div"); l3.style.marginTop = "2px";
-        l3.textContent = d.env_token
+    wrap.appendChild(devToggle({
+      on: !!st.mcp,
+      api: "/api/dev/mcp",
+      title: t("MCP server"),
+      offText: t("Off. Turn on to let an LLM client (Claude, an agent) drive the display as tools at /mcp — show a message, run an app, read the board."),
+      lines: (d) => [
+        d.url || `${location.origin}${d.path}`,
+        `Authorization: Bearer ${d.token}`,
+        d.env_token
           ? t("Token pinned by COMPANION_MCP_TOKEN.")
-          : t("Token generated and stored with your settings. Pin your own with COMPANION_MCP_TOKEN.");
-        mcNote.append(l1, l2, l3);
-      } catch (e) { mcNote.textContent = t("Failed: %s", e.message); }
-    };
-    mc.addEventListener("change", async () => {
-      mc.disabled = true;
-      try { render(await post("/api/dev/mcp", { on: mc.checked })); }
-      catch (e) { mcNote.textContent = t("Failed: %s", e.message); mc.disabled = false; }
-    });
-    showMcp();
-    wrap.appendChild(mcF);
+          : t("Token generated and stored with your settings. Pin your own with COMPANION_MCP_TOKEN."),
+      ],
+    }));
 
     // 2) Force resync with the gateway
     const reF = el("div", "field");
@@ -1380,6 +1463,7 @@ async function switchDisplay(id) {
   try { await loadApps(); } catch { /* the rest must still come up */ }
   await loadPlaylists();
   await loadTriggers();
+  GW_TRIES = 0;             // the NEW wall's gateway gets its own round of re-asks
   setupGatewayTabs();
 }
 
@@ -1388,6 +1472,12 @@ async function openDisplays() {
   const body = el("div");
   const list = el("div");
   body.appendChild(list);
+
+  // One POST for both add paths — the manual form and a discovered gateway.
+  const addDisplay = async (name, gatewayUrl) => {
+    try { await post("/api/displays", { name, gateway_url: gatewayUrl }); return true; }
+    catch (e) { alert(e.message || t("Could not add it")); return false; }
+  };
 
   const render = async () => {
     const doc = await api("/api/displays");
@@ -1414,13 +1504,12 @@ async function openDisplays() {
       save.textContent = t("Save");
       // PATCH, not POST — a rename lands at once, a re-point needs a restart.
       save.onclick = async () => {
-        const res = await fetch(url(`/api/displays/${encodeURIComponent(d.id)}`), {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: name.value.trim(), gateway_url: gw.value.trim() }),
-        });
-        const doc2 = await res.json();
-        if (doc2.restart_required) {
+        let doc2;
+        try {
+          doc2 = await patch(`/api/displays/${encodeURIComponent(d.id)}`,
+            { name: name.value.trim(), gateway_url: gw.value.trim() });
+        } catch (e) { alert(t("Failed: %s", e.message)); return; }
+        if (doc2 && doc2.restart_required) {
           info.textContent = t("Restart the add-on to re-point this display");
           info.className = "warn sm";
         }
@@ -1438,14 +1527,14 @@ async function openDisplays() {
         await loadDisplays();
       };
 
-      const del = el("button", "btn btn-sm warn");
-      del.textContent = t("Remove");
-      del.disabled = DISPLAYS.length < 2;
-      del.onclick = async () => {
+      const rm = el("button", "btn btn-sm warn");
+      rm.textContent = t("Remove");
+      rm.disabled = DISPLAYS.length < 2;
+      rm.onclick = async () => {
         if (!confirm(t("Remove this display? Its settings, playlists and triggers are kept.")))
           return;
-        const res = await fetch(url(`/api/displays/${encodeURIComponent(d.id)}`), { method: "DELETE" });
-        if (!res.ok) { alert((await res.json()).detail || t("Could not remove it")); return; }
+        try { await del(`/api/displays/${encodeURIComponent(d.id)}`); }
+        catch (e) { alert(e.message || t("Could not remove it")); return; }
         if (DISPLAY === d.id) { DISPLAY = ""; localStorage.removeItem("splitflap.display"); }
         await render();
         await loadDisplays();
@@ -1455,7 +1544,7 @@ async function openDisplays() {
       // The buttons travel together: in a dialog this narrow the row always wraps, and
       // wrapping them one at a time strands "Remove" alone on a line of its own.
       const acts = el("div", "display-acts");
-      acts.append(info, save, mkDefault, del);
+      acts.append(info, save, mkDefault, rm);
       row.append(name, gw, acts);
       list.appendChild(row);
     });
@@ -1468,12 +1557,7 @@ async function openDisplays() {
     btn.textContent = t("Add display");
     btn.onclick = async () => {
       if (!ag.value.trim()) { ag.focus(); return; }
-      const res = await fetch(url("/api/displays"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: an.value.trim() || ag.value.trim(), gateway_url: ag.value.trim() }),
-      });
-      if (!res.ok) { alert((await res.json()).detail || t("Could not add it")); return; }
+      if (!await addDisplay(an.value.trim() || ag.value.trim(), ag.value.trim())) return;
       an.value = ""; ag.value = "";
       await render();
       await loadDisplays();
@@ -1524,12 +1608,7 @@ async function openDisplays() {
       btn.textContent = t("Add");
       btn.onclick = async () => {
         btn.disabled = true;
-        const res = await fetch(url("/api/displays"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: g.name || g.url, gateway_url: g.url }),
-        });
-        if (!res.ok) { alert((await res.json()).detail || t("Could not add it")); btn.disabled = false; return; }
+        if (!await addDisplay(g.name || g.url, g.url)) { btn.disabled = false; return; }
         await render();
         await loadDisplays();
         await scan();
@@ -1556,7 +1635,10 @@ async function init() {
   }
   await loadI18n();
   translateDom();
-  const h = await api("/api/health"); $("version").textContent = "v" + h.version;
+  // Guarded: the version string is cosmetic, and a throw here would abort init()
+  // and take the whole UI with it.
+  try { const h = await api("/api/health"); $("version").textContent = "v" + h.version; }
+  catch (e) { console.error("health failed:", e); }
   // Before ANY other /api call: DISPLAY decides which wall they are about.
   await loadDisplays();
   wireTabs();
@@ -1570,6 +1652,9 @@ async function init() {
   try { updateDevBtn(await api("/api/dev")); } catch { /* badge only */ }
   $("modalClose").addEventListener("click", closeModal);
   $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("modal").classList.contains("hidden")) closeModal();
+  });
   // compose
   $("cmpPush").addEventListener("click", cmpPush);
   $("cmpClear").addEventListener("click", cmpClear);
@@ -1589,9 +1674,8 @@ async function init() {
   setupGatewayTabs();
   openTabFromHash();
   window.addEventListener("hashchange", openTabFromHash);
-  pollState(); pollStatus();
-  setInterval(pollState, 300);
-  setInterval(pollStatus, 3000);
+  pollState();
+  setInterval(pollState, 300);   // also drives the offline badge — see pollState
 }
 
 init();

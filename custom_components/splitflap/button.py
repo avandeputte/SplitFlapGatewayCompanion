@@ -18,22 +18,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
                             async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([
-        SplitFlapButton(coordinator, entry.entry_id, "clear", "mdi:eraser",
-                        lambda c: c.clear()),
-        SplitFlapButton(coordinator, entry.entry_id, "stop", "mdi:stop",
-                        lambda c: c.stop_app()),
-        SplitFlapButton(coordinator, entry.entry_id, "home", "mdi:home",
-                        lambda c: c.home()),
+        SplitFlapButton(coordinator, "clear", "mdi:eraser", lambda c: c.clear()),
+        SplitFlapButton(coordinator, "stop", "mdi:stop", lambda c: c.stop_app()),
+        SplitFlapButton(coordinator, "home", "mdi:home", lambda c: c.home()),
     ])
 
 
 class SplitFlapButton(SplitFlapEntity, ButtonEntity):
-    def __init__(self, coordinator: SplitFlapCoordinator, entry_id: str, key: str,
+    def __init__(self, coordinator: SplitFlapCoordinator, key: str,
                  icon: str, action: Callable[..., Awaitable[None]]) -> None:
-        super().__init__(coordinator, entry_id)
+        super().__init__(coordinator, key)
         self._attr_translation_key = key
         self._attr_icon = icon
-        self._attr_unique_id = f"{entry_id}_{key}"
         self._action = action
 
     async def async_press(self) -> None:

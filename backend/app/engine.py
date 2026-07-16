@@ -46,8 +46,20 @@ class DisplayController:
         self._persist = None
         # Trigger interrupts briefly take over the display, then the driver resumes.
         self._interrupt_lock = asyncio.Lock()
-        self._interrupting = False
+        # Set = no interrupt in progress. The app/playlist loops await it rather than
+        # polling a boolean every 0.1 s.
+        self._interrupt_over = asyncio.Event()
+        self._interrupt_over.set()
         self._temp_task: asyncio.Task | None = None   # a timed show_temporary() message
+        # The page an app loop last put on the wall, for unchanged-page suppression.
+        # Valid only while the wall actually still shows it: _emit_page invalidates it
+        # on EVERY paint (an interrupt's text, a manual message, a failed send), and
+        # only a send that reached the wall re-validates it (record_as=). Without that,
+        # a static app was suppressed forever behind a trigger's text.
+        self._app_last_sent: str | None = None
+        # Bumped by every manual takeover (compose / home). fire_interrupt compares it
+        # so a message sent DURING a timed interrupt is not blanked when it ends.
+        self._takeovers = 0
 
     def attach_plugins(self, plugins) -> None:
         self.plugins = plugins
@@ -78,6 +90,7 @@ class DisplayController:
 
     async def stop(self) -> None:
         await self._cancel_task()
+        await self._cancel_temp()
         await self._safe_close(self.transport)
 
     async def _open_transport(self) -> None:
@@ -142,6 +155,17 @@ class DisplayController:
             except (asyncio.CancelledError, Exception):
                 pass
 
+    async def _cancel_temp(self) -> None:
+        """Cancel a timed show_temporary() message, if one is up. Without this, stop()
+        left the temp task alive to blank (or repaint) the wall seconds later."""
+        task, self._temp_task = self._temp_task, None
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+
     # -- manual compose -----------------------------------------------------
     def _clear_driver_flags(self) -> None:
         self.active_app = None
@@ -161,6 +185,7 @@ class DisplayController:
         COLOUR FLAPS. That is what an animation and a raw colour grid are."""
         clean = self._normalize(text, frame=frame)
         self._clear_driver_flags()
+        self._takeovers += 1
         # A manual message replaces whatever was playing, so there is nothing to come
         # back to — a restart should leave the board alone, not resurrect the old app.
         self._remember(None)
@@ -175,6 +200,7 @@ class DisplayController:
         """Send and await completion (used by tests / synchronous callers)."""
         await self._cancel_task()
         self._clear_driver_flags()
+        self._takeovers += 1
         self._remember(None)                       # as send_text_bg — a manual takeover
         clean = self._normalize(text, frame=frame)
         await self._run_manual(clean, style=style, speed=speed)
@@ -249,48 +275,99 @@ class DisplayController:
             speed = disp.get("slot_speed", 80) if style == "slot" else disp.get("transition_speed", 15)
         await self._emit_page(clean, style=style, speed=int(speed))
 
-    async def _emit_page(self, clean: str, *, style: str, speed: int) -> None:
-        """Render ``clean`` to frames and push them over the transport."""
+    async def _emit_page(self, clean: str, *, style: str, speed: int,
+                         unless=None, record_as: str | None = None) -> bool | None:
+        """Render ``clean`` to frames and push them over the transport.
+
+        Returns True when the page reached the wall, False when the send failed (the
+        wall's contents are then unknown), None when ``unless`` said to stand down
+        before anything was sent. ``unless`` is re-checked UNDER the send lock: it
+        closes the gap between a driver loop's interrupt check and its send, so an
+        interrupt that began in between is never painted over by a stale app page.
+
+        Every paint invalidates the app loops' unchanged-page record (whatever was on
+        the wall is about to stop being there); ``record_as`` re-validates it — set by
+        the page cycle, under the same lock, only when the send succeeded.
+        """
         grid = self.config.grid
         base = int(grid.get("module_id_base", 0))
         rows, cols = int(grid["rows"]), int(grid["cols"])
+        speed = int(speed)
+        if style == "slot" and speed <= 0:
+            speed = 80   # _plan_slot spins at its own 80 ms default; keep step_ms honest
         plan = renderer.build_send_plan(
-            clean, style=style, speed_ms=int(speed), rows=rows, cols=cols,
+            clean, style=style, speed_ms=speed, rows=rows, cols=cols,
         )
-        self.state.set_target(clean)
-        # Silently yield to a settings upload/download so we don't flood the gateway
-        # with frame traffic while it's busy storing/serving the settings blob. The
-        # transfer is small and quick; cap the wait so a stuck flag never wedges the
-        # display.
-        waited = 0.0
-        while gateway.settings_active() and waited < 5.0:
-            await asyncio.sleep(0.05)
-            waited += 0.05
-        if waited:
-            log.debug("held display send %.2fs for an in-flight settings transfer", waited)
+        await self._yield_to_settings_transfer()
         async with self._send_lock:
+            if unless is not None and unless():
+                return None
+            self.state.set_target(clean)
+            self._app_last_sent = None
+            ok = True
             try:
-                # Batch path (REST): draw the whole page in one request; the
-                # gateway (3.0+) paces the cascade. MQTT/sim send per frame.
+                # Batch path (REST): draw the whole page in one request per uniformly
+                # paced run of steps; the gateway (3.0+) paces the cascade. Sim/MQTT
+                # send per frame.
                 if getattr(self.transport, "batch_capable", False):
-                    ordered = [(base + gi, ch, gi) for step in plan for (gi, ch) in step.frames]
-                    await self.transport.send_batch([(m, c) for m, c, _ in ordered], int(speed))
-                    for _, char, gi in ordered:
-                        self.state.set_module(gi, char)
-                    return
-                for step in plan:
-                    for grid_index, char in step.frames:
-                        await self.transport.send_frame(base + grid_index, renderer.for_legacy(char))
-                        self.state.set_module(grid_index, char)
-                    if step.delay_after > 0:
-                        await asyncio.sleep(step.delay_after)
+                    await self._send_plan_batched(plan, base, speed)
+                else:
+                    for step in plan:
+                        for grid_index, char in step.frames:
+                            await self.transport.send_frame(base + grid_index, renderer.for_legacy(char))
+                            self.state.set_module(grid_index, char)
+                        if step.delay_after > 0:
+                            await asyncio.sleep(step.delay_after)
             except asyncio.CancelledError:
                 raise
             except Exception as e:
+                ok = False
                 self.state.last_error = str(e)
                 log.warning("send failed: %s", e)
             finally:
                 self._sync_transport_state()
+            if ok and record_as is not None:
+                self._app_last_sent = record_as
+            return ok
+
+    async def _send_plan_batched(self, plan, base: int, speed: int) -> None:
+        """One request per run of uniformly paced steps. ``step_ms`` paces the frames
+        device-side, so a step whose ``delay_after`` IS that pace folds into the run;
+        a step that holds for anything else (the slot style's 1.5 s spin-hold) ends
+        the run: flush, hold, continue. Ordered styles still collapse to exactly one
+        request — but the slot spin no longer vanishes and its hold is no longer
+        discarded, which is what ``dict()``-flattening the plan used to do."""
+        step_delay = max(0, speed) / 1000.0
+        pending: list[tuple[int, str, int]] = []      # (module_id, char, grid_index)
+
+        async def flush() -> None:
+            if not pending:
+                return
+            await self.transport.send_batch([(m, c) for m, c, _ in pending], speed)
+            for _, char, gi in pending:
+                self.state.set_module(gi, char)
+            pending.clear()
+
+        for step in plan:
+            pending.extend((base + gi, ch, gi) for gi, ch in step.frames)
+            if abs(step.delay_after - step_delay) > 1e-9:
+                await flush()
+                if step.delay_after > 0:
+                    await asyncio.sleep(step.delay_after)
+        await flush()
+
+    async def _yield_to_settings_transfer(self) -> None:
+        """Silently yield to a settings upload/download so we don't flood the gateway
+        with frame traffic while it's busy storing/serving the settings blob. Only
+        THIS display's gateway matters — another wall's transfer is none of our
+        business. The transfer is small and quick; the wait is capped so a stuck
+        transfer never wedges the display."""
+        url = (self.config.transport.get("gateway_url") or "").strip()
+        if not url or not gateway.settings_active(url):
+            return
+        waited = await asyncio.get_running_loop().run_in_executor(
+            None, gateway.wait_settings_idle, url, 5.0)
+        log.debug("held display send %.2fs for an in-flight settings transfer", waited)
 
     async def clear(self) -> str:
         """Blank the whole display."""
@@ -308,6 +385,7 @@ class DisplayController:
         """
         await self._cancel_task()
         self._clear_driver_flags()
+        self._takeovers += 1          # a manual takeover, like compose/clear
         ok = True
         async with self._send_lock:   # serialize with any in-flight/interrupt send
             if not self.config.sim_mode:
@@ -351,33 +429,62 @@ class DisplayController:
         await self.clear()
 
     async def _app_loop(self, app_id: str) -> None:
-        loop = asyncio.get_running_loop()
-        last_sent: str | None = None
         # A standalone app is the app on screen the whole time it runs.
         self.state.current_app = app_id
+        self._app_last_sent = None
         while self.active_app == app_id:
-            try:
-                pages = await loop.run_in_executor(None, self.plugins.get_pages, app_id)
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                log.warning("app %s get_pages error: %s", app_id, e)
-                pages = []
-            if not pages:
-                await asyncio.sleep(1)
-                continue
-            t = self.plugins.page_timing(app_id)
-            for page in pages:
-                if self.active_app != app_id:
-                    return
-                await self._wait_if_interrupted()
-                text = page if isinstance(page, str) else str(page.get("text", ""))
-                # Non-anim apps skip re-sending an unchanged page.
-                if t["is_anim"] or text != last_sent:
-                    clean = self._normalize(text, frame=t["is_anim"])
-                    await self._emit_page(clean, style=t["style"], speed=t["speed"])
-                    last_sent = text
-                await asyncio.sleep(max(0.0, float(t["loop_delay"])))
+            await self._play_app_pages(app_id, None,
+                                       lambda: self.active_app == app_id)
+
+    async def _play_app_pages(self, app_id: str, ov: dict | None, keep_going) -> None:
+        """ONE fetch → page-cycle pass of an app: the loop body shared by _app_loop and
+        a playlist's app entries. (It used to be duplicated in both, which meant the
+        stale-suppression bug had to be fixed twice.)
+
+        Suppression: a non-anim app skips re-sending an unchanged page — but only
+        while ``_app_last_sent`` is valid, i.e. the wall really still shows it. Every
+        paint through _emit_page (an interrupt's text, a failed send) invalidates it,
+        and only a send that reached the wall re-validates it (``record_as``), so the
+        driver repaints the moment an interrupt is over instead of leaving its text
+        up indefinitely.
+        """
+        rt_loop = asyncio.get_running_loop()
+        try:
+            pages = await rt_loop.run_in_executor(None, self.plugins.get_pages, app_id, ov)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log.warning("app %s get_pages error: %s", app_id, e)
+            pages = []
+        if not pages:
+            await asyncio.sleep(1)
+            return
+        t = self.plugins.page_timing(app_id, ov)
+        for page in pages:
+            if not keep_going():
+                return
+            text = page if isinstance(page, str) else str(page.get("text", ""))
+            if t["is_anim"] or text != self._app_last_sent:
+                clean = self._normalize(text, frame=t["is_anim"])
+                await self._emit_page_from_loop(clean, style=t["style"], speed=t["speed"],
+                                                record_as=text)
+            await asyncio.sleep(max(0.0, float(t["loop_delay"])))
+
+    async def _emit_page_from_loop(self, clean: str, *, style: str, speed: int,
+                                   record_as: str | None = None) -> bool:
+        """Emit on behalf of a driver loop — never over a live interrupt.
+
+        The old park-then-send was check-then-act: an interrupt that began between
+        ``_wait_if_interrupted`` and the send could be painted over by a stale app
+        page. _emit_page re-checks under the send lock and stands down (None); we
+        park again and retry."""
+        while True:
+            await self._wait_if_interrupted()
+            sent = await self._emit_page(clean, style=style, speed=speed,
+                                         unless=lambda: self._interrupting,
+                                         record_as=record_as)
+            if sent is not None:
+                return sent
 
     # -- app-playlist loop --------------------------------------------------
     async def run_playlist(self, entries: list[dict], loop: bool = True,
@@ -410,10 +517,9 @@ class DisplayController:
                 duration = float(entry.get("duration", entry.get("delay", 30)))
                 if etype == "compose":
                     self.state.current_app = None      # a composed entry, not an app
-                    await self._wait_if_interrupted()
                     clean = self._normalize(entry.get("text", ""))
-                    await self._emit_page(clean, style=entry.get("style", "ltr"),
-                                          speed=int(entry.get("speed", 15)))
+                    await self._emit_page_from_loop(clean, style=entry.get("style", "ltr"),
+                                                    speed=int(entry.get("speed", 15)))
                     await asyncio.sleep(duration)
                 else:  # app entry — run the app's pages until the deadline
                     app_id = entry.get("app", "")
@@ -426,28 +532,12 @@ class DisplayController:
                     # the same app can appear twice with different configuration.
                     ov = entry.get("overrides") or None
                     deadline = rt_loop.time() + duration
-                    last_sent = None
-                    while rt_loop.time() < deadline and self.active_playlist == want:
-                        try:
-                            pages = await rt_loop.run_in_executor(None, self.plugins.get_pages, app_id, ov)
-                        except asyncio.CancelledError:
-                            raise
-                        except Exception:
-                            pages = []
-                        if not pages:
-                            await asyncio.sleep(1)
-                            continue
-                        t = self.plugins.page_timing(app_id, ov)
-                        for page in pages:
-                            if rt_loop.time() >= deadline or self.active_playlist != want:
-                                break
-                            await self._wait_if_interrupted()
-                            text = page if isinstance(page, str) else str(page.get("text", ""))
-                            if t["is_anim"] or text != last_sent:
-                                clean = self._normalize(text, frame=t["is_anim"])
-                                await self._emit_page(clean, style=t["style"], speed=t["speed"])
-                                last_sent = text
-                            await asyncio.sleep(max(0.0, float(t["loop_delay"])))
+
+                    def keep_going() -> bool:
+                        return rt_loop.time() < deadline and self.active_playlist == want
+
+                    while keep_going():
+                        await self._play_app_pages(app_id, ov, keep_going)
             if not loop:
                 # A playlist that has run out is a display with nothing running, and it
                 # should show nothing — not the last page it happened to stop on.
@@ -462,9 +552,12 @@ class DisplayController:
                 return
 
     # -- trigger interrupts + quiet hours -----------------------------------
+    @property
+    def _interrupting(self) -> bool:
+        return not self._interrupt_over.is_set()
+
     async def _wait_if_interrupted(self) -> None:
-        while self._interrupting:
-            await asyncio.sleep(0.1)
+        await self._interrupt_over.wait()
 
     async def fire_interrupt(self, text: str, seconds: float, *, style: str = "ltr",
                              frame: bool = False, blank_if_idle: bool = False) -> None:
@@ -477,21 +570,28 @@ class DisplayController:
         out with an orange, a white and a yellow flap in the middle of the words.
 
         While interrupting, the app/playlist loops park on ``_wait_if_interrupted`` and pick
-        back up the moment it clears — that is what makes this a *temporary* takeover rather
-        than a permanent one. ``blank_if_idle`` covers the case where nothing was running to
-        redraw: the message would otherwise just linger, so blank the board instead."""
+        back up the moment it clears. Our paint invalidates their unchanged-page record
+        (see _emit_page), so a static app really does redraw — the wall does not keep the
+        trigger's text just because the app's next page equals its last one.
+
+        ``blank_if_idle`` covers the case where nothing was running to redraw: the message
+        would otherwise just linger, so blank the board instead — UNLESS a manual message
+        took the board over while we were up (``_takeovers`` moved): that message is the
+        newest intent, and blanking it would destroy it."""
         async with self._interrupt_lock:
-            self._interrupting = True
+            takeovers = self._takeovers
+            self._interrupt_over.clear()
             try:
                 clean = self._normalize(text, frame=frame)
                 await self._emit_page(clean, style=style,
                                       speed=int(self.config.display.get("transition_speed", 15)))
                 await asyncio.sleep(max(0.0, seconds))
             finally:
-                self._interrupting = False
+                self._interrupt_over.set()
         # A running app/playlist redraws itself now the interrupt is over; if there is none,
         # the message would just sit there, so revert to blank.
-        if blank_if_idle and not (self.active_app or self.active_playlist):
+        if blank_if_idle and takeovers == self._takeovers \
+                and not (self.active_app or self.active_playlist):
             await self.clear()
 
     def show_temporary(self, text: str, seconds: float, *, style: str = "ltr",
@@ -499,8 +599,15 @@ class DisplayController:
         """Show ``text`` for ``seconds``, then revert — to whatever was running, or to
         blank if nothing was. Runs in the background (a message can last minutes; the
         caller shouldn't block on it) and returns whether something was playing to come
-        back to."""
+        back to.
+
+        A second message REPLACES a live one rather than queueing behind it on the
+        interrupt lock: "Dinner!" superseded by "Dinner NOW" should not wait out the
+        first message's full timer before appearing."""
         running = bool(self.active_app or self.active_playlist)
+        old = self._temp_task
+        if old and not old.done():
+            old.cancel()   # its finally re-opens the interrupt gate; we take over cleanly
         # Keep a reference: a bare create_task() can be garbage-collected mid-sleep.
         self._temp_task = asyncio.create_task(
             self.fire_interrupt(text, seconds, style=style, frame=frame, blank_if_idle=True))

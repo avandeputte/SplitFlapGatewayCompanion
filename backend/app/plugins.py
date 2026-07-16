@@ -56,12 +56,33 @@ APP_I18N_DIR = Path(__file__).parent / "app_i18n"
 _META_STR_KEYS = ("name", "flap_name", "description")
 
 
-def _read_meta_file(path: Path) -> dict:
+_json_cache: dict = {}   # Path -> (mtime_ns, parsed dict)
+
+
+def _read_json_cached(path: Path) -> dict:
+    """A JSON file, parsed at most once per on-disk version. The central
+    app_i18n/<lang>.json used to be re-read once per app per /api/apps request
+    (~4 reads x N apps in a non-English locale); the mtime check makes every
+    repeat read free while still picking up edits. Callers must not mutate the
+    returned dict."""
+    try:
+        mt = path.stat().st_mtime_ns
+    except OSError:
+        return {}
+    hit = _json_cache.get(path)
+    if hit and hit[0] == mt:
+        return hit[1]
     try:
         d = json.loads(path.read_text("utf-8"))
-        return d if isinstance(d, dict) else {}
+        d = d if isinstance(d, dict) else {}
     except Exception:
-        return {}
+        d = {}
+    _json_cache[path] = (mt, d)
+    return d
+
+
+def _read_meta_file(path: Path) -> dict:
+    return _read_json_cached(path)
 
 
 def _merge_meta(into: dict, entry: dict) -> None:
@@ -118,16 +139,22 @@ class PluginRuntime:
         self._triggers: dict[str, object] = {}  # app_id -> trigger fn
         self._caches: dict[str, dict] = {}       # app_id -> {pages, fetched_at}
         self._reads: dict[str, dict] = {}        # app_id -> {settings key it reads: default}
-        self._wants_weather: dict[str, bool] = {}  # app_id -> fetch() accepts get_weather
-        self._wants_location: dict[str, bool] = {}  # app_id -> fetch() accepts get_location
-        self._wants_i18n: dict[str, bool] = {}     # app_id -> fetch() accepts i18n
-        self._wants_caps: dict[str, bool] = {}     # app_id -> fetch() accepts caps
+        # app_id -> the injected helpers its fetch()/trigger() opts into by
+        # parameter name. Precomputed once at load: signature inspection is not
+        # something to repeat on every fetch, and one structure serves both the
+        # injection path and the UI ("uses location", global-usage notes).
+        self._wants: dict[str, frozenset] = {}
+        self._trigger_wants: dict[str, frozenset] = {}
         # What THIS display's wall can show. A callable, because the answer is only known
         # once the transport has talked to the gateway — and it can change if the gateway
         # is swapped. Defaults to the pessimistic answer: a real reel, no pictographs.
         self._caps = lambda: device.SPLIT_FLAP
         self._fetch_locks: dict[str, threading.Lock] = {}  # app_id -> serialize its fetches
         self._first_error: dict[str, str] = {}     # cache key -> its first fetch error
+        # Bumped whenever settings change wholesale (load/global save): a fetch
+        # that started before the bump computed from the OLD settings and must
+        # not populate the fresh cache (see get_pages).
+        self._gen = 0
 
     def attach_caps(self, provider) -> None:
         """Tell the runtime how to ask what THIS display's wall can show (see Display.build).
@@ -236,16 +263,15 @@ class PluginRuntime:
         # The companion no longer defines a fixed flap character set, so nothing
         # is injected into __main__. A vendored app that still reads
         # ``__main__.FLAP_CHARS`` (e.g. countdown) falls back to its own default.
+        self._gen += 1
         self._registry.clear()
         self._modules.clear()
         self._channel.clear()
         self._triggers.clear()
         self._caches.clear()
         self._reads.clear()
-        self._wants_weather.clear()
-        self._wants_location.clear()
-        self._wants_i18n.clear()
-        self._wants_caps.clear()
+        self._wants.clear()
+        self._trigger_wants.clear()
         self._fetch_locks.clear()
         self._first_error.clear()
         # Scan the app dirs once and reuse it (discovery + per-app load).
@@ -287,7 +313,9 @@ class PluginRuntime:
 
     def _load_one(self, app_id: str, app_dir: Path) -> None:
         try:
-            manifest = json.loads((app_dir / "manifest.json").read_text("utf-8"))
+            manifest = dict(_read_json_cached(app_dir / "manifest.json"))
+            if not manifest:
+                raise ValueError("manifest.json missing or invalid")
         except Exception as e:
             log.error("plugin %s: bad manifest: %s", app_id, e)
             return
@@ -409,15 +437,13 @@ class PluginRuntime:
             return
         if hasattr(mod, "fetch") and callable(mod.fetch):
             self._modules[app_id] = mod
-            self._wants_weather[app_id] = self._fetch_accepts(mod.fetch, "get_weather")
-            self._wants_location[app_id] = self._fetch_accepts(mod.fetch, "get_location")
-            self._wants_i18n[app_id] = self._fetch_accepts(mod.fetch, "i18n")
-            self._wants_caps[app_id] = self._fetch_accepts(mod.fetch, "caps")
+            self._wants[app_id] = self._wanted_helpers(mod.fetch)
             self._fetch_locks[app_id] = threading.Lock()
         else:
             log.error("plugin %s: app.py has no fetch()", app_id)
         if hasattr(mod, "trigger") and callable(mod.trigger):
             self._triggers[app_id] = mod.trigger
+            self._trigger_wants[app_id] = self._wanted_helpers(mod.trigger)
         # Record which settings the app actually reads, so the UI can surface
         # settings it consumes but never declares in its manifest.
         try:
@@ -437,26 +463,33 @@ class PluginRuntime:
             return False
         return name in params or any(p.kind == p.VAR_KEYWORD for p in params.values())
 
-    def _helper_kwargs(self, app_id: str, fn, ps: dict, settings=None) -> dict:
-        """The injected-helper kwargs ``fn`` opts into by parameter name. One
-        assembly for fetch() and trigger() — a trigger needs the weather or the
-        timezone for exactly the same reasons a fetch does, and used to have to
-        hand-roll both."""
+    @classmethod
+    def _wanted_helpers(cls, fn) -> frozenset:
+        """Which injected helpers ``fn`` opts into by parameter name — computed
+        once at load, not re-inspected per call."""
+        return frozenset(n for n in ("get_weather", "get_location", "i18n", "caps")
+                         if cls._fetch_accepts(fn, n))
+
+    def _helper_kwargs(self, app_id: str, wanted: frozenset, ps: dict, settings=None) -> dict:
+        """The injected-helper kwargs for a fetch() or trigger() — a trigger needs
+        the weather or the timezone for exactly the same reasons a fetch does, and
+        used to have to hand-roll both. ``wanted`` is the precomputed set from
+        ``_wanted_helpers``."""
         settings = settings or self.settings
         kwargs = {}
-        if self._fetch_accepts(fn, "get_weather"):
+        if "get_weather" in wanted:
             # get_weather() = current conditions; days=N adds a forecast
             # and hourly temps; air=True adds AQI/UV/pollen (weather.py).
             kwargs["get_weather"] = lambda s=None, days=0, air=False: weather.fetch_weather(
                 s if s is not None else ps, days=days, air=air)
-        if self._fetch_accepts(fn, "get_location"):
+        if "get_location" in wanted:
             kwargs["get_location"] = lambda: location.resolve(ps)
-        if self._fetch_accepts(fn, "i18n"):
+        if "i18n" in wanted:
             # A per-app Language override (plugin_<id>_language) wins over
             # the global Language; blank/unset = follow global.
-            lang = self._perapp_value(app_id, "language", settings) or settings.get("language", "en-US")
+            lang = self.content_lang(app_id, settings)
             kwargs["i18n"] = i18n.Localizer(lang)
-        if self._fetch_accepts(fn, "caps"):
+        if "caps" in wanted:
             # What this wall can show. An app asks so it can offer a pictograph
             # where the wall has one and a WORD where it does not: ♥, ♪, ● and ☀
             # all degrade to "*" on a real reel, which says nothing at all.
@@ -529,12 +562,13 @@ class PluginRuntime:
         if "location" not in declared:                   # weather owns its own 'location' field
             loc_ovr = settings.get(f"plugin_{app_id}_location")
             if loc_ovr:
-                coords, _, nm = str(loc_ovr).partition("|")
-                lat, _, lon = coords.partition(",")
-                if lat.strip() and lon.strip():
-                    s["location_lat"], s["location_lon"] = lat.strip(), lon.strip()
-                    if nm.strip():
-                        s["location_name"] = nm.strip()
+                parts = self._parse_composite(
+                    ["location_lat", "location_lon", "location_name"], loc_ovr)
+                if parts["location_lat"] and parts["location_lon"]:
+                    s["location_lat"] = parts["location_lat"]
+                    s["location_lon"] = parts["location_lon"]
+                    if parts["location_name"]:
+                        s["location_name"] = parts["location_name"]
                     s["location"] = loc_ovr
         return s
 
@@ -602,7 +636,7 @@ class PluginRuntime:
         if app_type == "channel":
             # A per-app Language override (plugin_<id>_language) wins over the global
             # Language; blank/unset = follow global. Same rule as a functional app.
-            lang = self._perapp_value(app_id, "language", settings) or settings.get("language", "en-US")
+            lang = self.content_lang(app_id, settings)
             pages = self._channel_pages(app_id, lang)
             return pages or [self._flap_fallback(app_id, manifest, settings,
                                                  "{name}", "NO DATA", "")]
@@ -615,17 +649,23 @@ class PluginRuntime:
             # Serialize fetches for this app: get_pages runs in executor threads
             # (app loop + a preview can hit the same app at once), so this
             # coalesces duplicate fetches and protects non-reentrant app state.
-            lock = self._fetch_locks.get(ckey)
-            if lock is None:
-                lock = self._fetch_locks[ckey] = threading.Lock()
+            # setdefault, atomically: check-then-set here once let two executor
+            # threads (app loop + preview) each mint a lock for the same key and
+            # fetch twice — the exact duplication this lock exists to coalesce.
+            lock = self._fetch_locks.setdefault(ckey, threading.Lock())
             with lock:
                 now = time.time()
                 cached = self._caches.get(ckey)
                 if cached and (now - cached["fetched_at"]) < refresh:
                     return cached["pages"]
                 try:
+                    # A reload/global-save mid-fetch invalidates what this fetch is
+                    # computing (it read the OLD settings). Capture the generation
+                    # now; only a fetch from the current generation may be cached.
+                    gen = self._gen
                     ps = self._plugin_settings(app_id, manifest, settings)
-                    kwargs = self._helper_kwargs(app_id, mod.fetch, ps, settings)
+                    kwargs = self._helper_kwargs(
+                        app_id, self._wants.get(app_id, frozenset()), ps, settings)
                     # Bound to THIS app's alignment, so the app calls format_lines(*lines)
                     # exactly as it always has — the signature splitflap-os apps expect.
                     fmt = functools.partial(self.format_lines,
@@ -633,7 +673,9 @@ class PluginRuntime:
                     pages = mod.fetch(ps, fmt, self.get_rows, self.get_cols, **kwargs)
                     if not isinstance(pages, list):
                         pages = [str(pages)]
-                    self._caches[ckey] = {"pages": pages, "fetched_at": now}
+                    if gen == self._gen:
+                        self._caches[ckey] = {"pages": pages, "fetched_at": now}
+                    self._first_error.pop(ckey, None)   # a success retires the old story
                     log.debug("fetched %s: %d page(s) (refresh %ss)", ckey, len(pages), refresh)
                     return pages
                 except Exception as e:
@@ -681,7 +723,7 @@ class PluginRuntime:
         if not fn or not manifest:
             return False
         ps = self._plugin_settings(app_id, manifest)
-        kwargs = self._helper_kwargs(app_id, fn, ps)
+        kwargs = self._helper_kwargs(app_id, self._trigger_wants.get(app_id, frozenset()), ps)
         return bool(fn(ps, conditions or {}, **kwargs))
 
     # -- run metadata ------------------------------------------------------
@@ -706,8 +748,17 @@ class PluginRuntime:
     def _uses_location(self, app_id: str) -> bool:
         """True if the app is tied to a place — via the weather/location helpers or by
         reading a location key directly — so it should offer a per-app Location override."""
-        return bool(self._wants_weather.get(app_id) or self._wants_location.get(app_id)
+        wants = self._wants.get(app_id, frozenset())
+        return bool({"get_weather", "get_location"} & wants
                     or (set(self._reads.get(app_id, {})) & self._LOCATION_KEYS))
+
+    def content_lang(self, app_id: str, settings=None) -> str:
+        """The language this app renders in: its per-app Language override
+        (plugin_<id>_language) if set, else the global Language. The one rule,
+        written once — channels and functional apps used to each spell it out."""
+        settings = settings if settings is not None else self.settings
+        return (self._perapp_value(app_id, "language", settings)
+                or settings.get("language", "en-US"))
 
     def _perapp_value(self, app_id: str, key: str, settings=None):
         """Effective value of a runtime-consumed per-app setting: the saved value,
@@ -754,12 +805,14 @@ class PluginRuntime:
             # anim style is a per-app setting (each animation keeps its own).
             style = settings.get(f"plugin_{app_id}_anim_style", "ltr") or "ltr"
             return {"is_anim": True, "style": style, "speed": speed,
-                    "loop_delay": self.loop_delay(app_id, settings), "skip_rotation": True}
+                    "loop_delay": self.loop_delay(app_id, settings)}
         style = settings.get(f"plugin_{app_id}_transition_style") or \
             disp.get("transition_style", "ltr")
+        # (A "skip_rotation" flag used to ride along here, sourced from a
+        # "skip_rotation_wait" manifest key. Nothing in the engine ever consumed
+        # it — both ends are gone until a rotation loop actually honors it.)
         return {"is_anim": False, "style": style, "speed": speed,
-                "loop_delay": self.loop_delay(app_id, settings),
-                "skip_rotation": bool(m.get("skip_rotation_wait"))}
+                "loop_delay": self.loop_delay(app_id, settings)}
 
     # -- listings ----------------------------------------------------------
     def _entry(self, app_id: str, manifest: dict, installed: bool, builtin: bool,
@@ -802,9 +855,8 @@ class PluginRuntime:
         for app_id, app_dir in self._scan().items():
             manifest = self._registry.get(app_id)
             if manifest is None:
-                try:
-                    manifest = json.loads((app_dir / "manifest.json").read_text("utf-8"))
-                except Exception:
+                manifest = dict(_read_json_cached(app_dir / "manifest.json"))
+                if not manifest:
                     continue
             out.append(self._entry(app_id, manifest, app_id in enabled,
                                    app_dir.parent == self.apps_dir,
@@ -931,9 +983,10 @@ class PluginRuntime:
             for c in CATALOG:
                 if k in c.get("_composite", []):
                     used_global.add(c["key"])
-        if self._wants_weather.get(app_id):
+        wants = self._wants.get(app_id, frozenset())
+        if "get_weather" in wants:
             used_global |= set(weather.GLOBAL_KEYS)   # used via the shared weather helper
-        if self._wants_location.get(app_id):
+        if "get_location" in wants:
             used_global |= set(location.GLOBAL_KEYS)  # used via the shared location helper
         if used_global:
             names = ", ".join(CATALOG_BY_KEY[k]["label"]
@@ -961,6 +1014,17 @@ class PluginRuntime:
             "values": values,
         }
 
+    def _drop_caches(self, app_id: str) -> None:
+        """Forget every cached render of this app — the bare key AND the
+        override-keyed playlist entries (app_id\\x00...). Popping only the bare
+        key used to leave a playlist entry showing pre-edit pages until its
+        refresh elapsed."""
+        prefix = app_id + "\x00"
+        for k in [k for k in self._caches if k == app_id or k.startswith(prefix)]:
+            self._caches.pop(k, None)
+        for k in [k for k in self._first_error if k == app_id or k.startswith(prefix)]:
+            self._first_error.pop(k, None)
+
     def save_settings(self, app_id: str, values: dict) -> None:
         """Store this app's per-app settings. The app dialog only holds
         ``plugin_<id>_*`` keys now — globals live in the Global editor — so only
@@ -970,7 +1034,7 @@ class PluginRuntime:
         clean = {k: v for k, v in values.items() if k.startswith(f"plugin_{app_id}_")}
         if clean:
             self.settings.update(clean)
-            self._caches.pop(app_id, None)  # settings changed -> drop cache
+            self._drop_caches(app_id)       # settings changed -> drop cache
 
     # -- global (shared) settings editor ----------------------------------
     def _global_usage(self, keys) -> dict[str, set[str]]:
@@ -988,7 +1052,7 @@ class PluginRuntime:
             for k in self._reads.get(app_id, {}):
                 if k in keys:
                     usage[k].add(name)
-            if self._wants_weather.get(app_id):   # depends on the weather globals via get_weather
+            if "get_weather" in self._wants.get(app_id, frozenset()):   # via get_weather
                 for wk in weather.GLOBAL_KEYS:
                     if wk in keys:
                         usage[wk].add(name)
@@ -1100,6 +1164,7 @@ class PluginRuntime:
                 clean[k] = v
         if clean:
             self.settings.update(clean)
+            self._gen += 1          # in-flight fetches read the old globals
             self._caches.clear()
 
     # -- install / uninstall ----------------------------------------------
@@ -1142,7 +1207,17 @@ class PluginRuntime:
             tdp = Path(td)
             try:
                 with zipfile.ZipFile(io.BytesIO(data)) as z:
-                    for n in z.namelist():
+                    # The route caps the COMPRESSED size; a zip bomb is judged by
+                    # what it inflates to. In Docker the tempdir is tmpfs — RAM —
+                    # so an unchecked extractall is an OOM, not just a full disk.
+                    infos = z.infolist()
+                    if len(infos) > 512:
+                        raise ValueError("zip has too many files (max 512)")
+                    total = sum(i.file_size for i in infos)
+                    if total > 64 * 1024 * 1024:
+                        raise ValueError("zip expands too large (max 64 MB uncompressed)")
+                    for i in infos:
+                        n = i.filename
                         if n.startswith("/") or ".." in Path(n).parts:
                             raise ValueError("unsafe path in zip")
                     z.extractall(tdp)

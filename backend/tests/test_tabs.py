@@ -81,32 +81,25 @@ class _FakeResponse:
 
 
 class _FakeClient:
-    """Stands in for httpx.AsyncClient: records the body, replies with `payload`."""
+    """Stands in for the pooled request seam (gateway._request): records the
+    body, replies with `payload`. The per-call httpx.AsyncClient this used to
+    stub is gone — every gateway call now funnels through _request."""
 
     def __init__(self, payload, status=200):
         self.payload, self.status, self.body = payload, status, None
 
-    def __call__(self, *a, **kw):
-        return self
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *a):
-        return False
-
-    async def post(self, url, json=None):
-        self.body = json
+    def request(self, method, url, path, *, timeout, **kw):
+        self.body = kw.get("json")
         return _FakeResponse(self.payload, self.status)
 
 
 @pytest.fixture
 def fake_gateway(monkeypatch):
-    import httpx
-
     def _install(payload, status=200):
         client = _FakeClient(payload, status)
-        monkeypatch.setattr(httpx, "AsyncClient", client)
+        monkeypatch.setattr(gw, "_request",
+                            lambda method, url, path, *, timeout, **kw:
+                            client.request(method, url, path, timeout=timeout, **kw))
         return client
     return _install
 

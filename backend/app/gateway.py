@@ -11,34 +11,115 @@ it blank for an anonymous broker.
 
 from __future__ import annotations
 
+import asyncio
+import functools
 import logging
 import re
 import threading
+import time
+from contextlib import contextmanager
 
 from .tabs import COMPANION_TABS, clean_tabs
 
 log = logging.getLogger("companion.gateway")
 
-# Set while a settings blob is being uploaded to / downloaded from the gateway. The
-# engine yields to it so display frames don't compete for the gateway's attention
-# mid-transfer. Thread-safe (the transfer runs in a background thread).
-_settings_transfer = threading.Event()
+# --- one pooled HTTP client per gateway ----------------------------------------
+# The gateway is a ~4-socket ESP32, and five helpers each used to open (and tear
+# down) their own one-shot client per call — a fresh TCP handshake for every
+# heartbeat, config pull and settings transfer. One keep-alive httpx.Client per
+# gateway base URL instead; httpx.Client is documented thread-safe, which matters
+# because the settings transfers run in background threads while the async helpers
+# run on the event loop (they reach the SAME pool via a worker thread).
+_clients_lock = threading.Lock()
+_clients: dict[str, object] = {}
 
 
-def settings_active() -> bool:
-    """True while a settings upload/download is in flight (engine pauses sending)."""
-    return _settings_transfer.is_set()
+def _client(url: str):
+    import httpx
+
+    base = (url or "").rstrip("/")
+    with _clients_lock:
+        c = _clients.get(base)
+        # A cached client survives for the life of the process. The isinstance guard
+        # exists for the test suite: a client built from a monkeypatched httpx.Client
+        # must not outlive its test and leak into the next one.
+        try:
+            stale = c is None or not isinstance(c, httpx.Client) or getattr(c, "is_closed", False)
+        except TypeError:
+            stale = True
+        if stale:
+            c = httpx.Client(base_url=base, timeout=5.0,
+                             limits=httpx.Limits(max_keepalive_connections=2,
+                                                 max_connections=4))
+            _clients[base] = c
+        return c
+
+
+def _request(method: str, url: str, path: str, *, timeout: float, **kw):
+    """The shared wrapper: base-url rstrip + the pooled per-gateway client, one place."""
+    return _client(url).request(method, path, timeout=timeout, **kw)
+
+
+async def _arequest(method: str, url: str, path: str, *, timeout: float, **kw):
+    """Async callers go through the same pooled client via a worker thread — a per-call
+    AsyncClient would defeat the pooling this exists for."""
+    return await asyncio.get_running_loop().run_in_executor(
+        None, functools.partial(_request, method, url, path, timeout=timeout, **kw))
+
+
+# --- settings-transfer bookkeeping, per gateway ---------------------------------
+# Counted while a settings blob is being uploaded to / downloaded from a gateway.
+# The engine yields to it so display frames don't compete for the gateway's
+# attention mid-transfer. PER GATEWAY: one wall's settings push must not pause
+# sends to every other display. A COUNT, not a flag: two concurrent transfers to
+# the same gateway used to race the set/clear, and the first to finish dropped the
+# flag while the other was still mid-transfer.
+_transfer_cond = threading.Condition()
+_transfers: dict[str, int] = {}          # gateway base url -> transfers in flight
+
+
+@contextmanager
+def _settings_transfer(url: str):
+    key = (url or "").rstrip("/")
+    with _transfer_cond:
+        _transfers[key] = _transfers.get(key, 0) + 1
+    try:
+        yield
+    finally:
+        with _transfer_cond:
+            n = _transfers.get(key, 1) - 1
+            if n <= 0:
+                _transfers.pop(key, None)
+            else:
+                _transfers[key] = n
+            _transfer_cond.notify_all()
+
+
+def settings_active(url: str | None = None) -> bool:
+    """True while a settings upload/download is in flight — for ``url``'s gateway, or
+    for ANY gateway when called without one (the engine passes its own display's)."""
+    with _transfer_cond:
+        if url is None:
+            return bool(_transfers)
+        return _transfers.get((url or "").rstrip("/"), 0) > 0
+
+
+def wait_settings_idle(url: str, timeout: float = 5.0) -> float:
+    """Block until no transfer is in flight for this gateway (or ``timeout``), and
+    return the seconds waited. Runs in a worker thread on the engine's behalf, so the
+    engine awaits a condition instead of busy-polling a flag."""
+    key = (url or "").rstrip("/")
+    start = time.monotonic()
+    with _transfer_cond:
+        _transfer_cond.wait_for(lambda: _transfers.get(key, 0) == 0, timeout)
+    return time.monotonic() - start
 
 
 async def fetch_gateway_config(url: str, timeout: float = 5.0) -> dict:
     """GET ``{url}/api/config`` and return the parsed JSON (raises on failure)."""
-    import httpx
-
-    base = url.rstrip("/")
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        r = await client.get(f"{base}/api/config")
-        r.raise_for_status()
-        return r.json()
+    r = await _arequest("GET", url, "/api/config", timeout=timeout)
+    r.raise_for_status()
+    return r.json()
 
 
 def _host_of(url: str) -> str:
@@ -199,8 +280,6 @@ async def post_companion(gateway_url: str, *, url: str | None = None,
     stored there. Omit it and the reply's tabs are simply not recorded (which is what
     a caller that only wants to heartbeat, or a test, wants).
     """
-    import httpx
-
     if not gateway_url:
         return False
     body: dict = {}
@@ -214,21 +293,20 @@ async def post_companion(gateway_url: str, *, url: str | None = None,
     # away, and a status-only heartbeat has nothing to say about tabs.
     if url:
         body["tabs"] = COMPANION_TABS
-    base = gateway_url.rstrip("/")
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            r = await client.post(f"{base}/api/companion", json=body)
-            if r.status_code < 400:
-                try:
-                    tabs = clean_tabs(r.json().get("gwTabs"))
-                except Exception:
-                    tabs = []          # not JSON, or no gwTabs: a pre-3.4 gateway
-                if tabs and display is not None and tabs != display.gateway_tabs:
-                    log.info("gateway advertises %d tabs: %s", len(tabs),
-                             ", ".join(x["id"] for x in tabs))
-                if tabs and display is not None:
-                    display.gateway_tabs = tabs
-            return r.status_code < 400
+        r = await _arequest("POST", gateway_url, "/api/companion", json=body,
+                            timeout=timeout)
+        if r.status_code < 400:
+            try:
+                tabs = clean_tabs(r.json().get("gwTabs"))
+            except Exception:
+                tabs = []          # not JSON, or no gwTabs: a pre-3.4 gateway
+            if tabs and display is not None and tabs != display.gateway_tabs:
+                log.info("gateway advertises %d tabs: %s", len(tabs),
+                         ", ".join(x["id"] for x in tabs))
+            if tabs and display is not None:
+                display.gateway_tabs = tabs
+        return r.status_code < 400
     except Exception as e:
         log.debug("companion post skipped: %s", e)
         return False
@@ -241,19 +319,14 @@ async def home_all(gateway_url: str, timeout: float = 10.0) -> bool:
     (fire-and-forget), so this resolves quickly. Raises on an unreachable gateway
     or a non-2xx response; returns True when the gateway accepts the command.
     """
-    import httpx
-
-    base = gateway_url.rstrip("/")
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        r = await client.post(f"{base}/api/flap/home", json={"id": -1})
-        r.raise_for_status()
-        return r.status_code < 400
+    r = await _arequest("POST", gateway_url, "/api/flap/home", json={"id": -1},
+                        timeout=timeout)
+    r.raise_for_status()
+    return r.status_code < 400
 
 
 def gateway_version(gw: dict) -> tuple[int, int] | None:
     """(major, minor) parsed from a gateway /api/config document, or None."""
-    import re
-
     raw = gw.get("version") or gw.get("firmwareVersion") or gw.get("fw") or ""
     m = re.search(r"(\d+)\.(\d+)", str(raw))
     return (int(m.group(1)), int(m.group(2))) if m else None
@@ -263,13 +336,6 @@ def supports_settings(gw: dict) -> bool:
     """Whether the gateway can store the companion's settings (Gateway 3.1+)."""
     v = gateway_version(gw)
     return v is not None and v >= (3, 1)
-
-
-def supports_cells(gw: dict) -> bool:
-    """Deprecated: ask device.of(gw) instead — it says WHAT the wall can do, not merely
-    which endpoint it has. Kept because it reads well at a call site that only wants a yes."""
-    from .device import of
-    return bool(of(gw))
 
 
 # --- companion settings blob, stored on the gateway (3.1+), gzipped -----------
@@ -283,28 +349,22 @@ def fetch_gateway_settings(url: str, timeout: float = 8.0) -> dict | None:
     import gzip
     import json
 
-    import httpx
-
-    base = url.rstrip("/")
-    _settings_transfer.set()      # pause the display send loop for the transfer
-    try:
-        with httpx.Client(timeout=timeout) as client:
-            r = client.get(f"{base}/api/companion/settings")
-        log.debug("gateway settings GET -> %s (%d bytes)", r.status_code, len(r.content or b""))
-        if r.status_code != 200 or not r.content:
-            return None
-        raw = r.content
+    with _settings_transfer(url):     # pause THIS display's send loop for the transfer
         try:
-            raw = gzip.decompress(raw)
-        except (OSError, EOFError):
-            pass   # tolerate an uncompressed body
-        doc = json.loads(raw.decode("utf-8"))
-        return doc if isinstance(doc, dict) else None
-    except Exception as e:
-        log.warning("could not fetch settings from gateway: %s", e)
-        return None
-    finally:
-        _settings_transfer.clear()
+            r = _request("GET", url, "/api/companion/settings", timeout=timeout)
+            log.debug("gateway settings GET -> %s (%d bytes)", r.status_code, len(r.content or b""))
+            if r.status_code != 200 or not r.content:
+                return None
+            raw = r.content
+            try:
+                raw = gzip.decompress(raw)
+            except (OSError, EOFError):
+                pass   # tolerate an uncompressed body
+            doc = json.loads(raw.decode("utf-8"))
+            return doc if isinstance(doc, dict) else None
+        except Exception as e:
+            log.warning("could not fetch settings from gateway: %s", e)
+            return None
 
 
 def push_gateway_settings(url: str, doc: dict, timeout: float = 8.0) -> bool:
@@ -312,22 +372,16 @@ def push_gateway_settings(url: str, doc: dict, timeout: float = 8.0) -> bool:
     import gzip
     import json
 
-    import httpx
-
-    base = url.rstrip("/")
-    _settings_transfer.set()      # pause the display send loop for the transfer
-    try:
-        body = gzip.compress(json.dumps(doc, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), 6)
-        with httpx.Client(timeout=timeout) as client:
-            r = client.put(f"{base}/api/companion/settings", content=body,
-                           headers={"Content-Type": "application/gzip"})
-        log.debug("gateway settings PUT %d gzip bytes -> %s", len(body), r.status_code)
-        return r.status_code < 400
-    except Exception as e:
-        log.warning("could not push settings to gateway: %s", e)
-        return False
-    finally:
-        _settings_transfer.clear()
+    with _settings_transfer(url):     # pause THIS display's send loop for the transfer
+        try:
+            body = gzip.compress(json.dumps(doc, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), 6)
+            r = _request("PUT", url, "/api/companion/settings", content=body,
+                         headers={"Content-Type": "application/gzip"}, timeout=timeout)
+            log.debug("gateway settings PUT %d gzip bytes -> %s", len(body), r.status_code)
+            return r.status_code < 400
+        except Exception as e:
+            log.warning("could not push settings to gateway: %s", e)
+            return False
 
 
 def _as_int(v):
@@ -365,8 +419,8 @@ def build_sync_patch(gw: dict) -> dict:
         mqtt["port"] = port
     if isinstance(gw.get("mqUser"), str):
         mqtt["username"] = gw["mqUser"]
-    if isinstance(gw.get("mqPfx"), str) and gw["mqPfx"]:
-        mqtt["prefix"] = gw["mqPfx"]
+    # NB: mqPfx is deliberately NOT synced — transport.mqtt.prefix was written by three
+    # sources and read by nothing; the config side is gone too.
 
     patch: dict = {}
     if grid:
