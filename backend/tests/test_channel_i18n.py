@@ -11,10 +11,15 @@ import json
 import pytest
 
 from app.plugins import LANG_DATA_FILE, PluginRuntime
+from conftest import make_runtime
 
 
 def _runtime(tmp_path, files, settings=None):
-    """A PluginRuntime with one channel app built from `files` ({name: pages})."""
+    """A PluginRuntime with one channel app built from `files` ({name: pages}).
+
+    Built with the REAL constructor (via make_runtime): this used to go through
+    ``PluginRuntime.__new__``, which broke silently every time ``__init__`` gained
+    state (it did — ``_gen``, ``_wants``, ``_trigger_wants``)."""
     app_dir = tmp_path / "demo"
     app_dir.mkdir()
     (app_dir / "manifest.json").write_text(json.dumps(
@@ -23,11 +28,9 @@ def _runtime(tmp_path, files, settings=None):
         (app_dir / name).write_text(json.dumps(
             {"pages": [{"lines": [p, "", ""]} for p in pages]}), "utf-8")
 
-    rt = PluginRuntime.__new__(PluginRuntime)
-    rt.apps_dir = tmp_path
-    rt._registry, rt._channel, rt._modules, rt._caches = {}, {}, {}, {}
-    rt.settings = settings or {}
-    rt.get_cols, rt.get_rows = (lambda: 15), (lambda: 3)
+    rt = make_runtime(tmp_path / "_data", ["demo"], rows=3, cols=15,
+                      apps_dir=tmp_path, settings=settings, load=False)
+    # Keep the assertions readable: a "page" here is its first line, not a 45-flap wall.
     rt.format_lines = lambda *lines, cols=None, align="center": lines[0]
     rt._registry["demo"] = json.loads((app_dir / "manifest.json").read_text())
     rt._load_channel("demo", app_dir)

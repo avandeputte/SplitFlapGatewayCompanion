@@ -1,19 +1,14 @@
 """The binary clock: BCD bit math, layout widths, the label row, and the rule
 that seconds only tick where the wall's motion allows (caps.instant)."""
-import importlib.util
-from pathlib import Path
 from types import SimpleNamespace
 
-APPS = Path(__file__).resolve().parents[2] / "apps"
+from conftest import load_app
+
 DRAWN = SimpleNamespace(instant=True)      # a Matrix Portal-ish wall
 
 
 def _mod():
-    spec = importlib.util.spec_from_file_location(
-        "_binary_clock", APPS / "binary-clock" / "app.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
+    return load_app("binary-clock")
 
 
 def _fetch(rows, cols, caps=DRAWN, **settings):

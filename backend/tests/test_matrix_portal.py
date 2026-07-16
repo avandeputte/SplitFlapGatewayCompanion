@@ -282,14 +282,13 @@ def test_animation_apps_still_uppercase_their_own_text(app_id):
 # middle of "Hello world": a composed message is laid out by the caller (raw) and made of
 # words (keep_case), while an ANIMATION is laid out and made of COLOURS.
 def _controller(rich: bool):
-    import tempfile
-    from pathlib import Path
-
     from app.config import Config
     from app.engine import DisplayController
     from app.state import DisplayState
 
-    cfg = Config(Path(tempfile.mkdtemp()))
+    from conftest import fresh_dir
+
+    cfg = Config(fresh_dir())
     cfg.update({"grid": {"rows": 1, "cols": 16}})
     c = DisplayController(cfg, DisplayState(16))
 
@@ -379,22 +378,15 @@ def test_there_is_exactly_one_place_that_folds():
 # it is still driven by the index-addressed API, still shows its pictographs, still gets its
 # colours by name. It is simply in capitals.
 def _with_setting(value):
-    import tempfile
-    from pathlib import Path
-
-    from app.config import Config
     from app.engine import DisplayController
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
     from app.state import DisplayState
 
-    tmp = Path(tempfile.mkdtemp())
-    cfg = Config(tmp)
-    cfg.update({"grid": {"rows": 1, "cols": 20}})
-    st = PluginSettings(cfg.data_dir)
-    st.set("force_uppercase", value)
-    c = DisplayController(cfg, DisplayState(20))
-    c.attach_plugins(PluginRuntime(cfg, st, APPS, cfg.data_dir / "apps"))
+    from conftest import make_runtime
+
+    plugins = make_runtime(rows=1, cols=20, settings={"force_uppercase": value},
+                           load=False)
+    c = DisplayController(plugins.config, DisplayState(20))
+    c.attach_plugins(plugins)
 
     class T:
         caps = device.MATRIX_PORTAL

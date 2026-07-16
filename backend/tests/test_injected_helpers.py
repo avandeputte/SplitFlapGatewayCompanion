@@ -16,13 +16,8 @@ is UTC, the only zone that means the same thing on every wall.
 """
 
 import json
-from pathlib import Path
 
-from app.config import Config
-from app.plugin_settings import PluginSettings
-from app.plugins import PluginRuntime
-
-APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
+from conftest import make_runtime
 
 
 # -- get_location carries coordinates ---------------------------------------
@@ -103,12 +98,7 @@ def _runtime_with_app(tmp_path, app_py):
     (d / "manifest.json").write_text(json.dumps(
         {"id": "trigdemo", "name": "Trig Demo", "type": "functional"}), "utf-8")
     (d / "app.py").write_text(app_py, "utf-8")
-    ps = PluginSettings(tmp_path)
-    ps.set_installed(["trigdemo"])
-    rt = PluginRuntime(Config(data_dir=tmp_path), ps, APPS_DIR,
-                       user_apps_dir=tmp_path / "user_apps")
-    rt.load()
-    return rt
+    return make_runtime(tmp_path, ["trigdemo"])
 
 
 def test_trigger_receives_injected_helpers(tmp_path):

@@ -1,21 +1,14 @@
 """Seconds on the clock apps: opt-in, walls that say sub-second updates are honest (caps.instant), and only
 when the geometry has room. A physical module takes seconds per flip, so a
 ticking seconds field would keep the wall permanently mid-clatter."""
-import importlib.util
 import re
-from pathlib import Path
 from types import SimpleNamespace
 
-APPS = Path(__file__).resolve().parents[2] / "apps"
+from conftest import APPS_DIR as APPS
+from conftest import load_app as _mod
+
 DRAWN = SimpleNamespace(instant=True)
 REEL = SimpleNamespace(instant=False)
-
-
-def _mod(name):
-    spec = importlib.util.spec_from_file_location(f"_{name}", APPS / name / "app.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
 
 
 def _first_page(name, rows, cols, caps, **settings):

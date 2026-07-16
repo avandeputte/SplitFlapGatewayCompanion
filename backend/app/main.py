@@ -15,16 +15,15 @@ import json
 import logging
 import os
 import secrets
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
 
-from . import __version__, discovery, gwproxy, helpers, mcp_server, renderer, uilang, vestaboard
-from .catalog import GLOBAL_STORAGE_KEYS
+from . import __version__, gwproxy, mcp_server, uilang
 from .config import Config, addon_option, default_data_dir
 from .display import DisplayManager
 from .engine import DisplayController
@@ -35,6 +34,13 @@ from .homeassistant import HomeAssistant
 from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
 from .registry import DisplayRegistry
+from .routes import apps as routes_apps
+from .routes import dev as routes_dev
+from .routes import displays as routes_displays
+from .routes import helpers_api as routes_helpers_api
+from .routes import local_api as routes_local_api
+from .routes import message as routes_message
+from .routes import playlists as routes_playlists
 from .scheduler import Scheduler
 from .state import DisplayState
 
@@ -671,484 +677,29 @@ app = FastAPI(title="SplitFlapGatewayCompanion", version=__version__, lifespan=l
 
 
 # ---------------------------------------------------------------------------
-# Models
-# ---------------------------------------------------------------------------
-class ComposeRequest(BaseModel):
-    text: str
-    style: str | None = None
-    speed: int | None = None
-    raw: bool = False
-
-
-class GridPatch(BaseModel):
-    rows: int = Field(ge=1, le=64)
-    cols: int = Field(ge=1, le=128)
-
-
-class ConfigPatch(BaseModel):
-    # grid is typed: a non-numeric rows/cols used to slip straight into the
-    # in-memory config and 500 /api/grid until restart.
-    grid: GridPatch | None = None
-    transport: dict | None = None
-    display: dict | None = None
-    sync_from_gateway: bool | None = None
-
-
-class DevSim(BaseModel):
-    on: bool
-
-
-class DevVestaboard(BaseModel):
-    on: bool
-
-
-class DevMCP(BaseModel):
-    on: bool
-
-
-class MessageRequest(BaseModel):
-    text: str
-    style: str | None = None
-    seconds: int | None = None      # >0 = temporary, then revert to what was playing
-
-
-class DevGrid(BaseModel):
-    rows: int
-    cols: int
-
-
-class RunAppRequest(BaseModel):
-    app: str
-
-
-class AppSettingsPatch(BaseModel):
-    values: dict
-
-
-class InstallRequest(BaseModel):
-    installed: bool
-
-
-class PlaylistSave(BaseModel):
-    name: str
-    # list[dict], not list: a non-dict entry used to 500 deep in the engine's
-    # _entry_label — and PERSIST, so the playlist kept crashing on every run.
-    entries: list[dict] = []
-    loop: bool = True
-
-
-class RunPlaylist(BaseModel):
-    entries: list[dict] = []
-    loop: bool = True
-    name: str | None = None
-
-
-class TriggersPatch(BaseModel):
-    triggers: list | None = None
-    triggers_enabled: bool | None = None
-
-
-class DisplayCreate(BaseModel):
-    name: str
-    gateway_url: str
-    id: str | None = None
-    # Start this wall from another one's global settings (location, timezone, language,
-    # API keys, provider). A one-time COPY, not a link: the values then belong to the new
-    # display and mirror to its own gateway, like everything else it has. It exists only
-    # so that adding a second wall does not mean retyping an API key by hand.
-    copy_settings_from: str | None = None      # display id; None = the current default
-    copy_settings: bool = True
-
-
-class DisplayPatch(BaseModel):
-    name: str | None = None
-    gateway_url: str | None = None
-    enabled: bool | None = None
-    order: int | None = None
-
-
-# ---------------------------------------------------------------------------
-# API
+# API — the routes live in app/routes/, split along the seams the backend audit
+# named (E1): displays / dev / apps / playlists+triggers / message / vestaboard
+# local-api / the root app-data helpers. Each build() below is handed THIS
+# MODULE as its deps: the routers resolve every shared name (displays,
+# display_for, do_gateway_sync, vestaboard_key, _companion_url …) through it at
+# request time — the same late binding they had as module-level routes here, so
+# a monkeypatched main.vestaboard_key is still what /local-api checks, and
+# _companion_url is read after the lifespan has set it, not captured empty at
+# import. See routes/__init__.py.
 # ---------------------------------------------------------------------------
 @app.get("/api/health")
 async def health():
     return {"ok": True, "version": __version__}
 
 
-# ---------------------------------------------------------------------------
-# Displays — the registry (Phase 1). These are the only routes that are ABOUT the
-# set of displays rather than about one of them, so they talk to the manager and
-# the registry directly instead of resolving through display_for().
-# ---------------------------------------------------------------------------
-@app.get("/api/displays")
-async def list_displays():
-    """Every wall we drive, plus which one is the default. The UI's switcher reads this;
-    so does anything that wants to address a display explicitly."""
-    out = displays.status()
-    known = {d["id"] for d in out["displays"]}
-    # Registered but disabled displays have no runtime object — say so rather than
-    # hiding them, or the UI could not offer to turn one back on.
-    for rec in registry.all():
-        if rec.id not in known:
-            out["displays"].append({
-                "id": rec.id, "name": rec.name, "gateway_url": rec.gateway_url,
-                "enabled": False, "grid": None, "module_count": 0,
-                "active_app": None, "active_playlist": None,
-            })
-    for d in out["displays"]:
-        d.setdefault("enabled", True)
-    return out
-
-
-@app.post("/api/displays")
-async def add_display(body: DisplayCreate):
-    """Register a second gateway — and bring it up now, not on the next restart.
-
-    Adding a wall you then cannot use until you restart the add-on is a poor trade, and
-    everything a display needs to start is already per-display (Phase 0). If its gateway
-    happens to be unreachable, it comes up anyway and its heartbeat keeps trying, which
-    is exactly what the first display does.
-    """
-    url = (body.gateway_url or "").strip()
-    if not url:
-        raise HTTPException(400, "gateway_url is required")
-    if any(r.gateway_url == url for r in registry.all()):
-        raise HTTPException(409, f"a display already points at {url}")
-
-    rec = registry.add(name=body.name, gateway_url=url, display_id=body.id or "")
-    d = displays.build_from(rec)
-
-    # If the new gateway already holds a settings blob (it was driven by a companion
-    # before), that blob wins — start_display restores it, and we must not scribble over
-    # it first. Only a gateway with nothing to say gets seeded from an existing wall.
-    remote = await asyncio.to_thread(fetch_gateway_settings, url)
-    if body.copy_settings and remote is None:
-        src = displays.get(body.copy_settings_from) if body.copy_settings_from else displays.default
-        if src is not None and src is not d:
-            seed = {k: v for k, v in src.settings.all().items() if k in GLOBAL_STORAGE_KEYS}
-            d.settings.update(seed)      # a copy — it is this display's own from here on
-            log.info("display %r seeded its global settings from %r", d.id, src.id)
-
-    _display_tasks[d.id] = await start_display(d, _companion_url)
-    return {"ok": True, "display": rec.to_dict(), "status": d.status()}
-
-
-@app.patch("/api/displays/{display_id}")
-async def patch_display(display_id: str, body: DisplayPatch):
-    try:
-        rec = registry.update(display_id, **body.model_dump(exclude_none=True))
-    except KeyError:
-        raise HTTPException(404, f"no such display: {display_id}")
-
-    live = displays.get(display_id)
-    if live is not None and body.name:
-        live.name = rec.name
-
-    # Enabling/disabling starts and stops the wall's whole runtime — its app loop,
-    # settings mirror, HA device and heartbeat.
-    if body.enabled is True and live is None:
-        d = displays.build_from(rec)
-        _display_tasks[d.id] = await start_display(d, _companion_url)
-    elif body.enabled is False and live is not None:
-        await stop_display(live, _display_tasks.pop(display_id, []))
-        displays.remove(display_id)
-
-    # Re-pointing a running display at a different gateway is the one thing we don't do
-    # in place: the settings mirror, the HA device and the heartbeat are all bound to the
-    # old URL, and swapping it underneath them is how you end up mirroring one wall's
-    # playlists onto another's box.
-    restart = body.gateway_url is not None and live is not None
-    return {"ok": True, "display": rec.to_dict(), "restart_required": restart}
-
-
-@app.delete("/api/displays/{display_id}")
-async def remove_display(display_id: str):
-    """Deregister a wall. Its settings directory is deliberately left on disk: removing
-    a display should not silently destroy the playlists and triggers built for it."""
-    try:
-        rec = registry.remove(display_id)
-    except KeyError:
-        raise HTTPException(404, f"no such display: {display_id}")
-    except ValueError as e:
-        raise HTTPException(409, str(e))
-
-    live = displays.get(display_id)
-    if live is not None:
-        await stop_display(live, _display_tasks.pop(display_id, []))
-        displays.remove(display_id)
-    # The registry decides which display is the default; keep the runtime in step.
-    displays.adopt_default(registry.default_id)
-    return {"ok": True, "removed": rec.to_dict()}
-
-
-@app.get("/api/displays/discover")
-async def discover_displays():
-    """Scan the LAN for gateways — the Displays dialog's scan, and nothing else.
-
-    On demand only: a scan probes neighbours (and opens an mDNS socket where
-    multicast works at all), which is dialog behaviour, not background
-    behaviour. See discovery module docstring for why this is an HTTP sweep
-    first and mDNS second."""
-    known = [r.gateway_url for r in registry.all()]
-    found = await discovery.discover(known)
-    return {"ok": True, "found": found}
-
-
-@app.post("/api/displays/{display_id}/default")
-async def make_default(display_id: str):
-    """Choose which display the display-less surfaces mean: the bare /api/... routes,
-    /local-api/message (a Vestaboard client sends no display id), an MCP call with no
-    display argument, an existing HACS entry. A choice, never an inference — and it is
-    persisted, so a restart does not quietly hand it back."""
-    try:
-        displays.set_default(display_id)
-    except KeyError:
-        raise HTTPException(404, f"no such display: {display_id}")
-    return {"ok": True, "default": displays.default_id}
-
-
-@app.get("/api/current_state")
-async def current_state(request: Request):
-    d = display_for(request)
-    return d.state.snapshot()
-
-
-@app.get("/api/grid")
-async def grid(request: Request):
-    d = display_for(request)
-    g = d.config.grid
-    return {
-        "rows": int(g["rows"]),
-        "cols": int(g["cols"]),
-        "module_count": d.config.module_count(),
-        "module_id_base": int(g.get("module_id_base", 0)),
-        "styles": list(renderer.ALL_STYLES),
-        "color_map": renderer.COLOR_MAP,
-        "display": d.config.display,
-    }
-
-
-@app.get("/api/config")
-async def get_config(request: Request):
-    d = display_for(request)
-    return _redact(d.config.effective)
-
-
-@app.post("/api/config")
-async def update_config(request: Request, patch: ConfigPatch):
-    d = display_for(request)
-    body = {k: v for k, v in patch.model_dump().items() if v is not None}
-    if not body:
-        raise HTTPException(400, "empty config patch")
-    old_url = d.config.transport.get("gateway_url")
-    d.config.update(body)
-    if "grid" in body:
-        d.grid_changed()   # cached/channel pages were sized for the old grid
-    if "transport" in body:
-        await d.controller.reload_transport()
-    # If the gateway URL just changed and auto-sync is on, pull its config now.
-    new_url = d.config.transport.get("gateway_url")
-    if new_url and new_url != old_url and d.config.effective.get("sync_from_gateway"):
-        await do_gateway_sync(d)
-    return _redact(d.config.effective)
-
-
-# ---------------------------------------------------------------------------
-# Developer mode (gated by COMPANION_DEV_MODE). The GET is always safe to call
-# (the UI uses `enabled` to decide whether to show the dev menu); the actions
-# require dev mode to be on.
-# ---------------------------------------------------------------------------
-def _require_dev():
-    """Gate for SIMULATION MODE only. The ⚙ tools menu itself is permanent — the
-    Vestaboard/MCP switches, resync and settings sync are ordinary controls on an API
-    that is unauthenticated on the LAN anyway, so hiding them behind an env var never
-    added protection, just friction. Simulation stays dev-gated: silently not driving
-    the wall is a developer's tool, and a trap for anyone else."""
-    if not config.dev_mode:
-        raise HTTPException(404, "developer mode is off (set COMPANION_DEV_MODE=1)")
-
-
-@app.get("/api/dev")
-async def dev_state(request: Request):
-    d = display_for(request)
-    state = d.config.dev_state()
-    # Sim/grid are per-display; the Vestaboard/MCP switches are process-wide
-    # (one HTTP surface) and live on the default config — report those, or the
-    # menu shows a stale switch while a second wall is selected.
-    state["vestaboard"] = displays.default.config.vestaboard_enabled
-    state["mcp"] = displays.default.config.mcp_enabled
-    return state
-
-
-@app.post("/api/dev/sim")
-async def dev_sim(request: Request, req: DevSim):
-    """Toggle simulation mode: on = nothing is sent to the display."""
-    d = display_for(request)
-    _require_dev()
-    d.config.set_sim_mode(req.on)          # turning off also clears any grid override
-    await d.controller.reload_transport()  # swap REST <-> sim
-    d.grid_changed()                       # geometry may have reverted
-    return d.config.dev_state()
-
-
-@app.post("/api/dev/vestaboard")
-async def dev_vestaboard(req: DevVestaboard):
-    """Turn the Vestaboard-compatible Local API on/off at runtime (see the block at
-    the bottom of this file). COMPANION_VESTABOARD sets where it starts. The layer is
-    ONE process-wide HTTP surface, so the toggle deliberately ignores ?display= —
-    the guards read the default config, and writing another display's copy used to
-    make this a silent no-op while switched to a second wall."""
-    displays.default.config.set_vestaboard(req.on)
-    if req.on:
-        vestaboard_key()   # mint + persist the key now, so the menu can show it
-    log.info("Vestaboard API %s (dev menu)", "enabled" if req.on else "disabled")
-    return displays.default.config.dev_state()
-
-
-@app.get("/api/dev/vestaboard")
-async def dev_vestaboard_state():
-    """The Vestaboard connection details, for the dev menu to display: the key a
-    client must send, and the endpoint it posts to. (Not gated: the key guards the
-    Vestaboard routes from OUTSIDE clients; anyone who can read this endpoint already
-    has the whole unauthenticated companion API.) Process-wide, like the toggle."""
-    on = displays.default.config.vestaboard_enabled
-    return {
-        "enabled": on,
-        "key": vestaboard_key() if on else "",
-        "path": "/local-api/message",
-        # Same as MCP: a rest_command is not the browser, and under ingress the browser's
-        # own origin is Home Assistant's, which does not reach this endpoint.
-        "url": await _external_url("/local-api/message"),
-        "env_key": bool(displays.default.config.vestaboard.get("api_key")),   # pinned via env
-    }
-
-
-@app.post("/api/dev/mcp")
-async def dev_mcp(req: DevMCP):
-    """Turn the MCP server on/off at runtime (see the block further down).
-    COMPANION_MCP sets where it starts. Process-wide, same reasoning as the
-    Vestaboard toggle above."""
-    displays.default.config.set_mcp(req.on)
-    if req.on:
-        mcp_token()        # mint + persist the token now, so the menu can show it
-    log.info("MCP server %s (dev menu)", "enabled" if req.on else "disabled")
-    return displays.default.config.dev_state()
-
-
-@app.get("/api/dev/mcp")
-async def dev_mcp_state():
-    """The MCP connection details for the dev menu: the endpoint an LLM client
-    points at and the bearer token it must send. (Not gated — same reasoning as the
-    Vestaboard key above.) Process-wide, like the toggle."""
-    on = displays.default.config.mcp_enabled
-    return {
-        "enabled": on,
-        "token": mcp_token() if on else "",
-        "path": "/mcp",
-        "url": await _external_url("/mcp"),
-        "env_token": bool(displays.default.config.mcp.get("token")),          # pinned via env
-    }
-
-
-async def _external_url(path: str) -> str:
-    """The address a client OUTSIDE the browser has to use — an MCP client, a Home
-    Assistant rest_command.
-
-    The UI can't work this out for itself. As an add-on it is served through ingress, so
-    its own `location.origin` is Home Assistant's host and its path is
-    /api/hassio_ingress/<token>/ — neither of which reaches /mcp. The way in is the host
-    address and the published port, which only Supervisor knows (resolve_companion_url).
-    Empty if we can't tell, and the UI falls back to its own origin.
-    """
-    try:
-        base = (await resolve_companion_url()).rstrip("/")
-    except Exception:
-        base = ""
-    return f"{base}{path}" if base else ""
-
-
-@app.post("/api/dev/resync")
-async def dev_resync(request: Request):
-    """Force a settings resync with the gateway."""
-    return await do_gateway_sync(display_for(request))
-
-
-@app.post("/api/dev/grid")
-async def dev_grid(request: Request, req: DevGrid):
-    """Override the grid geometry — only while simulating (so the real display's
-    gateway-derived geometry is never touched)."""
-    d = display_for(request)
-    _require_dev()
-    if not d.config.sim_mode:
-        raise HTTPException(400, "turn simulation mode on before overriding the grid")
-    d.config.set_grid_override(req.rows, req.cols)
-    d.grid_changed()
-    return d.config.dev_state()
-
-
-async def _gateway_settings_ready(d) -> tuple[str, dict] | dict:
-    """(url, gateway-config) if THIS DISPLAY's gateway is reachable and supports
-    settings storage (3.1+); otherwise an error dict to return to the caller.
-    Scoped to the display: reading the module-level config here once made
-    /api/dev/settings/pull?display=X pull wall 1's blob into wall X's store."""
-    url = (d.config.transport.get("gateway_url") or "").strip()
-    if not url:
-        return {"ok": False, "error": "no gateway_url configured"}
-    try:
-        gw = await fetch_gateway_config(url)
-    except Exception as e:
-        return {"ok": False, "error": f"gateway unreachable: {e}"}
-    if not supports_settings(gw):
-        return {"ok": False, "error": "this gateway does not store settings (needs Gateway 3.1+)"}
-    return url, gw
-
-
-@app.post("/api/dev/settings/pull")
-async def dev_settings_pull(request: Request):
-    """Force-retrieve the settings blob from the gateway and apply it."""
-    d = display_for(request)
-    ready = await _gateway_settings_ready(d)
-    if isinstance(ready, dict):
-        return ready
-    url, _ = ready
-    doc = await asyncio.to_thread(fetch_gateway_settings, url)
-    if doc is None:
-        return {"ok": False, "error": "no settings are stored on the gateway yet"}
-    d.settings.restore_from_doc(doc)
-    # load() re-executes every installed app.py — that belongs in an executor,
-    # not on the event loop while other walls are animating.
-    await asyncio.to_thread(d.plugins.load)   # apply the restored installed-apps list + settings
-    d.ha.refresh_discovery()         # the app/playlist option lists may have changed
-    log.info("dev: retrieved settings from the gateway (%d apps installed)", len(d.settings.installed_apps))
-    return {"ok": True, "applied": True, "installed": len(d.settings.installed_apps)}
-
-
-@app.post("/api/dev/settings/push")
-async def dev_settings_push(request: Request):
-    """Force-write the current settings to the gateway now."""
-    d = display_for(request)
-    ready = await _gateway_settings_ready(d)
-    if isinstance(ready, dict):
-        return ready
-    url, _ = ready
-    # Match the debounced _pusher: the registry backup rides along. The PUT is a
-    # full replace, so omitting it here erased the displays list from the gateway
-    # until the next ordinary sync.
-    doc = d.settings.snapshot()
-    doc["displays"] = registry.snapshot()
-    ok = await asyncio.to_thread(push_gateway_settings, url, doc)
-    log.info("dev: pushed settings to the gateway (ok=%s)", ok)
-    return {"ok": ok, "error": None if ok else "push failed"}
-
-
-# ---------------------------------------------------------------------------
-# Apps / plugins
-# ---------------------------------------------------------------------------
 def _ui_lang(request: Request) -> str:
     """The UI (chrome) language for this request — URL param, then the
     explicitly-saved Language setting OF THE REQUEST'S DISPLAY, then
     COMPANION_UI_LANGUAGE, then the browser's Accept-Language. Chrome only: the
-    flap content language stays the per-display global Language setting."""
+    flap content language stays the per-display global Language setting.
+
+    Kept here rather than in a router: the SPA shell (spa_index below) needs it
+    too, and the apps router reaches it through deps."""
     d = display_for(request)
     return uilang.resolve(
         request.query_params.get("lang"),
@@ -1158,359 +709,13 @@ def _ui_lang(request: Request) -> str:
     )
 
 
-@app.get("/api/apps")
-async def apps_list(request: Request):
-    d = display_for(request)
-    return {"apps": d.plugins.app_list(lang=_ui_lang(request)),
-            "active_app": d.controller.active_app}
-
-
-@app.get("/api/apps/available")
-async def apps_available(request: Request):
-    d = display_for(request)
-    return {"apps": d.plugins.available_list(lang=_ui_lang(request))}
-
-
-@app.post("/api/apps/run")
-async def apps_run(request: Request, req: RunAppRequest):
-    d = display_for(request)
-    app_id = req.app[7:] if req.app.startswith("plugin_") else req.app
-    try:
-        await d.controller.run_app(app_id)
-    except KeyError:
-        raise HTTPException(404, f"app not installed: {app_id}")
-    d.ha.publish_state()
-    return {"ok": True, "active_app": app_id}
-
-
-@app.post("/api/apps/stop")
-async def apps_stop(request: Request):
-    d = display_for(request)
-    await d.controller.stop_app()
-    d.ha.publish_state()
-    return {"ok": True}
-
-
-@app.get("/api/apps/{app_id}/settings")
-async def apps_get_settings(app_id: str, request: Request):
-    d = display_for(request)
-    try:
-        return d.plugins.settings_schema(app_id, lang=_ui_lang(request))
-    except KeyError:
-        raise HTTPException(404, f"app not installed: {app_id}")
-
-
-@app.post("/api/apps/{app_id}/settings")
-async def apps_save_settings(request: Request, app_id: str, patch: AppSettingsPatch):
-    d = display_for(request)
-    try:
-        d.plugins.save_settings(app_id, patch.values)
-    except KeyError:
-        raise HTTPException(404, f"app not installed: {app_id}")
-    # If this app is on the display right now, restart it so the new settings
-    # (page dwell, refresh cadence, content options) take effect immediately.
-    if d.controller.active_app == app_id:
-        await d.controller.run_app(app_id)
-    return {"ok": True}
-
-
-@app.get("/api/global-settings")
-async def global_settings_get(request: Request):
-    """Shared settings apps rely on (weather_api_key, timezone, location, …)."""
-    d = display_for(request)
-    return d.plugins.global_settings_schema(lang=_ui_lang(request))
-
-
-@app.post("/api/global-settings")
-async def global_settings_save(request: Request, patch: AppSettingsPatch):
-    # A person changing the Language control marks it explicit, which is what
-    # lets it beat the browser's language in the UI-chrome chain (uilang.py).
-    # Compared against the stored value, not just presence: the form posts every
-    # field, so an untouched seeded en-US must not count as a choice.
-    d = display_for(request)
-    if "language" in patch.values and \
-            str(patch.values["language"]) != str(d.plugins.settings.get("language")):
-        d.plugins.settings.set("language_explicit", True)
-    d.plugins.save_global_settings(patch.values)
-    # Globals (location, provider, page dwell, …) can change what the running app
-    # shows or how fast it cycles — restart it so the change is visible at once.
-    if d.controller.active_app:
-        await d.controller.run_app(d.controller.active_app)
-    return {"ok": True}
-
-
-@app.get("/api/apps/{app_id}/preview")
-async def apps_preview(request: Request, app_id: str):
-    d = display_for(request)
-    if d.plugins.manifest(app_id) is None:
-        raise HTTPException(404, f"app not installed: {app_id}")
-    pages = await asyncio.get_running_loop().run_in_executor(None, d.plugins.get_pages, app_id)
-    return {"pages": pages, "rows": d.plugins.get_rows(), "cols": d.plugins.get_cols()}
-
-
-@app.post("/api/apps/{app_id}/install")
-async def apps_install(request: Request, app_id: str, req: InstallRequest):
-    d = display_for(request)
-    if app_id not in d.plugins.discover():
-        raise HTTPException(404, f"unknown app: {app_id}")
-    if not req.installed and d.controller.active_app == app_id:
-        await d.controller.stop_app()
-    # set_installed() reloads all plugins (re-executes each app.py), so run it off
-    # the event loop to avoid freezing the display loop and other requests.
-    await asyncio.get_running_loop().run_in_executor(
-        None, d.plugins.set_installed, app_id, req.installed)
-    d.ha.refresh_discovery()  # app option list changed
-    d.ha.publish_state()
-    return {"ok": True, "installed": req.installed}
-
-
-@app.post("/api/apps/upload")
-async def apps_upload(request: Request, file: UploadFile = File(...)):
-    """Upload + register a new app from a .zip (manifest.json + app.py/data.json).
-
-    Note: a functional app's app.py is executed to validate it — only upload
-    apps you trust."""
-    d = display_for(request)
-    data = await file.read()
-    if len(data) > 8 * 1024 * 1024:
-        raise HTTPException(413, "app too large (max 8 MB)")
-    try:
-        info = await asyncio.get_running_loop().run_in_executor(None, d.plugins.install_zip, data)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    d.ha.refresh_discovery()
-    log.info("uploaded app: %s (%s)", info["id"], info["type"])
-    return {"ok": True, **info}
-
-
-@app.delete("/api/apps/{app_id}")
-async def apps_delete(request: Request, app_id: str):
-    """Delete a user-uploaded app entirely (built-ins can't be deleted)."""
-    d = display_for(request)
-    if d.controller.active_app == app_id:
-        await d.controller.stop_app()
-    try:
-        # delete_app() reloads all plugins — run it off the event loop.
-        await asyncio.get_running_loop().run_in_executor(None, d.plugins.delete_app, app_id)
-    except KeyError:
-        raise HTTPException(404, f"unknown app: {app_id}")
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    d.ha.refresh_discovery()
-    return {"ok": True}
-
-
 # ---------------------------------------------------------------------------
-# Playlists
-# ---------------------------------------------------------------------------
-@app.get("/api/playlists")
-async def playlists_list(request: Request):
-    d = display_for(request)
-    return {"playlists": d.settings.get("saved_app_playlists", {})}
-
-
-@app.post("/api/playlists")
-async def playlists_save(request: Request, req: PlaylistSave):
-    d = display_for(request)
-    name = req.name.strip()
-    if not name:
-        raise HTTPException(400, "name required")
-    saved = dict(d.settings.get("saved_app_playlists", {}))
-    saved[name] = {"entries": req.entries, "loop": req.loop}
-    d.settings.set("saved_app_playlists", saved)
-    d.ha.refresh_discovery()  # playlist option list changed
-    return {"ok": True, "name": name}
-
-
-@app.delete("/api/playlists/{name}")
-async def playlists_delete(request: Request, name: str):
-    d = display_for(request)
-    saved = dict(d.settings.get("saved_app_playlists", {}))
-    saved.pop(name, None)
-    d.settings.set("saved_app_playlists", saved)
-    d.ha.refresh_discovery()
-    return {"ok": True}
-
-
-@app.post("/api/playlists/run")
-async def playlists_run(request: Request, req: RunPlaylist):
-    d = display_for(request)
-    if not req.entries:
-        raise HTTPException(400, "playlist has no entries")
-    await d.controller.run_playlist(req.entries, req.loop, req.name)
-    d.ha.publish_state()
-    return {"ok": True, "active_playlist": d.controller.active_playlist}
-
-
-# ---------------------------------------------------------------------------
-# Triggers
-# ---------------------------------------------------------------------------
-@app.get("/api/triggers")
-async def triggers_get(request: Request):
-    d = display_for(request)
-    trigs = []
-    for t in d.settings.get("triggers", []):
-        e = dict(t)
-        e["last_fired"] = d.scheduler.last_fired(t.get("id", ""))
-        trigs.append(e)
-    return {
-        "triggers": trigs,
-        "triggers_enabled": d.settings.get("triggers_enabled", True),
-        "trigger_apps": d.plugins.trigger_apps(),
-    }
-
-
-@app.post("/api/triggers")
-async def triggers_save(request: Request, patch: TriggersPatch):
-    d = display_for(request)
-    body = {k: v for k, v in patch.model_dump().items() if v is not None}
-    if body:
-        d.settings.update(body)
-    return {"ok": True}
-
-
-# ---------------------------------------------------------------------------
-# App-data helper endpoints — served at the fixed root paths that dropped-in app
-# manifests' searchUrl / resultKey point at, so they work unchanged.
-# ---------------------------------------------------------------------------
-@app.get("/location_search")
-async def h_location_search(q: str = ""):
-    return await helpers.location_search(q)
-
-
-@app.get("/location_timezone")
-async def h_location_timezone(lat: str = "", lon: str = ""):
-    return await helpers.location_timezone(lat, lon)
-
-
-@app.get("/timezones")
-async def h_timezones(q: str = ""):
-    return helpers.timezones(q)
-
-
-@app.get("/stocks_search")
-async def h_stocks_search(q: str = ""):
-    return await helpers.stocks_search(q)
-
-
-@app.get("/crypto_search")
-async def h_crypto_search(q: str = ""):
-    return await helpers.crypto_search(q)
-
-
-@app.get("/sports_search")
-async def h_sports_search(q: str = ""):
-    return await helpers.sports_search(q)
-
-
-@app.post("/api/compose/send")
-async def compose_send(request: Request, req: ComposeRequest):
-    d = display_for(request)
-    if req.style and req.style not in renderer.ALL_STYLES:
-        raise HTTPException(400, f"unknown style: {req.style}")
-    # A person typed this: on a wall that can show lowercase, show it as they typed it,
-    # rather than SHOUTING IT BACK AT THEM — which was all the one-byte protocol could do.
-    #
-    # …unless it is `raw`, which is the click-to-type GRID: there a lowercase r/o/y/g/b/p/w
-    # is a COLOUR CELL the user placed, not a letter they typed.
-    target = d.controller.send_text_bg(req.text, style=req.style, speed=req.speed,
-                                       frame=req.raw)
-    return {"ok": True, "target": target}
-
-
-@app.post("/api/message")
-async def show_message(request: Request, req: MessageRequest):
-    """Show a plain-text message, centred and word-wrapped onto the grid — the same layout
-    the apps and the Vestaboard endpoint use. Unlike /api/compose/send (which takes a raw
-    grid string from the click-to-type editor), this takes ordinary text.
-
-    `seconds` makes it temporary: after that long the display reverts to whatever was
-    playing (or blanks if nothing was). This is what the Home Assistant integration and a
-    `rest_command` use — no Vestaboard key needed."""
-    d = display_for(request)
-    if req.style and req.style not in renderer.ALL_STYLES:
-        raise HTTPException(400, f"unknown style: {req.style}")
-    g = d.config.grid
-    rows, cols = int(g["rows"]), int(g["cols"])
-    page = vestaboard.layout_text(req.text, rows, cols, d.controller.caps)
-    if req.seconds and req.seconds > 0:
-        running = d.controller.show_temporary(page, req.seconds, style=req.style or "ltr")
-        d.ha.publish_state()
-        return {"ok": True, "seconds": req.seconds,
-                "reverts_to": "app/playlist" if running else "blank"}
-    d.controller.send_text_bg(page, style=req.style)
-    d.ha.publish_state()
-    return {"ok": True}
-
-
-@app.post("/api/display/clear")
-async def display_clear(request: Request):
-    d = display_for(request)
-    await d.controller.clear()
-    return {"ok": True}
-
-
-@app.post("/api/display/home")
-async def display_home(request: Request):
-    """Physically home every module (gateway broadcast), stop any running
-    app/playlist, and blank the live preview. Best-effort: reports the reason on
-    failure rather than raising, so the UI can surface it inline."""
-    d = display_for(request)
-    try:
-        ok = await d.controller.home_all()
-        return {"ok": ok, "error": None if ok else "gateway rejected the home command"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-
-
-@app.get("/api/gateway/status")
-async def gateway_status(request: Request):
-    """Probe the gateway's /api/status and return its URL (for the Display tab).
-
-    ``tabs`` is the gateway's own tab list as it advertised it when we registered
-    (Gateway 3.4+); empty means it never did — an older firmware, or we haven't
-    reached it yet — and the UI falls back to its built-in list. See tabs.py.
-    """
-    d = display_for(request)
-    import httpx
-
-    tabs = list(d.gateway_tabs)
-    url = d.config.transport.get("gateway_url", "").rstrip("/")
-    if not url:
-        return {"ok": False, "url": "", "tabs": tabs, "error": "no gateway_url configured"}
-    try:
-        async with httpx.AsyncClient(timeout=4.0) as client:
-            r = await client.get(f"{url}/api/status")
-            return {"ok": r.status_code < 400, "url": url, "tabs": tabs,
-                    "status_code": r.status_code, "data": r.json()}
-    except Exception as e:
-        return {"ok": False, "url": url, "tabs": tabs, "error": str(e)}
-
-
-# ---------------------------------------------------------------------------
-# Vestaboard-compatible Local API (off unless COMPANION_VESTABOARD=1, or the dev
-# menu turns it on). Anything that speaks to a Vestaboard — a Home Assistant
-# rest_command, the HACS integration, a script — can then drive this display by
-# URL alone. The codec is in vestaboard.py; these are the endpoints.
-#
-# The paths are Vestaboard's, so they sit at the root rather than under /api/*,
-# like the app-data helpers above — and so they must be declared BEFORE the SPA
-# is mounted at "/". A real board answers on port 7000; publish the container as
-# `-p 7000:8000` and clients that hard-code that port are satisfied too.
-#
-# NOTE: this key guards these routes ONLY. The rest of the companion's API is
-# unauthenticated, as it always was — the key is Vestaboard compatibility, not a
-# security boundary for the host.
+# The Vestaboard Local API's key. Minted here, not in routes/local_api.py: it is
+# process-wide (one HTTP surface, one secret), the dev menu shows it, and the MCP
+# bearer token further down is minted by the same helper. The endpoints it guards
+# are in routes/local_api.py.
 # ---------------------------------------------------------------------------
 VESTABOARD_KEY_SETTING = "vestaboard_api_key"
-
-
-def _require_vestaboard() -> dict:
-    """The Vestaboard config, or 404 when the layer is off — so the whole surface
-    genuinely vanishes rather than answering 401s nobody can satisfy."""
-    if not config.vestaboard_enabled:
-        raise HTTPException(404, "Vestaboard API is off (set COMPANION_VESTABOARD=1)")
-    return config.vestaboard
 
 
 def _persistent_secret(env_value: str, setting_key: str, log_line: str) -> str:
@@ -1535,120 +740,34 @@ def vestaboard_key() -> str:
         "COMPANION_VESTABOARD_KEY to pin your own)")
 
 
-# A wrong key must answer exactly this — plain text, this string — because that is what a
-# real Vestaboard returns and what clients test for verbatim (the popular ha-vestaboard
-# does `resp.status == 401 and resp.text() == "Invalid API key"` to offer re-auth; a JSON
-# {"detail": ...} body instead just reads as an unknown error).
-VB_INVALID_KEY = "Invalid API key"
+def _include_flat(router) -> None:
+    """Add a router's routes to the app FLAT, not via include_router.
+
+    FastAPI 0.139 made include_router lazy: app.routes then holds an
+    _IncludedRouter wrapper and the real routes only materialise per request.
+    These routes have always been flat entries in app.routes — pinned by
+    test_multi_display, and what anything introspecting app.routes expects —
+    so keep them that way. This is byte-equivalent to the @app.<method>
+    declarations the routes used to be: every route in these routers is
+    declared with router-level defaults (no prefix, no extra dependencies,
+    default response class), and each APIRouter is built with this app as its
+    dependency_overrides_provider (see routes/*.build), which is exactly what
+    @app.<method> bakes into an APIRoute."""
+    app.router.routes.extend(router.routes)
 
 
-def _key_error(request: Request) -> PlainTextResponse | None:
-    """The 401 to return if the Vestaboard key is missing/wrong, else None. Returns the
-    response rather than raising so the caller controls the exact body (see VB_INVALID_KEY)."""
-    key = request.headers.get("X-Vestaboard-Local-Api-Key", "")
-    if not key or not secrets.compare_digest(key, vestaboard_key()):
-        return PlainTextResponse(VB_INVALID_KEY, status_code=401)
-    return None
+_SELF = sys.modules[__name__]           # the routers' deps — see the comment above
+_include_flat(routes_displays.build(_SELF))
+_include_flat(routes_dev.build(_SELF))
+_include_flat(routes_apps.build(_SELF))
+_include_flat(routes_playlists.build(_SELF))
+_include_flat(routes_helpers_api.build(_SELF))
+_include_flat(routes_message.build(_SELF))
+_include_flat(routes_local_api.build(_SELF))
 
-
-@app.post("/local-api/enablement")
-async def vb_enablement(request: Request):
-    """Vestaboard's enablement handshake: present the token, get the API key back.
-    On a real board the token is emailed to the owner; here it is whatever you set
-    in COMPANION_VESTABOARD_ENABLEMENT_TOKEN. With no token set there is nothing to
-    verify, so the exchange is refused (the key is in the Dev menu instead)."""
-    vb = _require_vestaboard()
-    token = vb.get("enablement_token") or ""
-    if not token:
-        raise HTTPException(403, "no enablement token configured "
-                                 "(set COMPANION_VESTABOARD_ENABLEMENT_TOKEN)")
-    sent = request.headers.get("X-Vestaboard-Local-Api-Enablement-Token", "")
-    if not sent or not secrets.compare_digest(sent, token):
-        raise HTTPException(403, "invalid enablement token")
-    return {"message": "Local API enabled", "apiKey": vestaboard_key()}
-
-
-@app.get("/local-api/{display_id}/message")
-@app.get("/local-api/message")
-async def vb_read_message(request: Request, display_id: str | None = None):
-    """The board as it stands — whatever the flaps are showing (a running app's output
-    included), not merely the last message someone posted, which is what this endpoint
-    means on real hardware.
-
-    The matrix is wrapped in ``{"message": [[...]]}``, matching the real Local API: every
-    Vestaboard client reads it back as ``response["message"]``. Returning a bare array
-    (as we did) makes a client crash the moment it does ``.get("message")`` on a list —
-    which is why the reference integration would not even finish setup against us.
-
-    /local-api/message stays bound to the DEFAULT display: a Vestaboard IS one board, and
-    every existing client (ha-vestaboard included) posts to that fixed path with no way to
-    name a wall. /local-api/<display-id>/message addresses the others."""
-    # Guard BEFORE resolving the display: a disabled layer must be a flat 404,
-    # not an oracle that enumerates display ids through its error bodies.
-    _require_vestaboard()
-    d = display_by_id(display_id) if display_id else display_for(request)
-    if err := _key_error(request):
-        return err
-    g = d.config.grid
-    rows, cols = int(g["rows"]), int(g["cols"])
-    return {"message": vestaboard.encode(d.state.current_chars, rows, cols)}
-
-
-@app.post("/local-api/{display_id}/message")
-@app.post("/local-api/message")
-async def vb_send_message(request: Request, display_id: str | None = None):
-    """Post a message. Takes every shape a Vestaboard client sends:
-
-        [[0,8,5,...], ...]                        a bare character-code matrix
-        {"characters": [[...]], "strategy": ...}  ...with an animation
-        {"text": "HELLO"}                         an extension of ours, because most
-                                                  Home Assistant setups send text
-
-    Like a compose push, this takes the display over: any running app or playlist is
-    cancelled (send_text_bg), which is what posting to a Vestaboard implies.
-
-    The bare path drives the DEFAULT display, because that is the only one an existing
-    Vestaboard client can reach; /local-api/<display-id>/message drives a named wall.
-    """
-    _require_vestaboard()
-    d = display_by_id(display_id) if display_id else display_for(request)
-    if err := _key_error(request):
-        return err
-    try:
-        body = await request.json()
-    except Exception:
-        raise HTTPException(400, "body must be JSON")
-
-    g = d.config.grid
-    rows, cols = int(g["rows"]), int(g["cols"])
-    strategy = None
-
-    try:
-        if isinstance(body, list):                       # the bare-matrix form
-            page = vestaboard.fit(vestaboard.decode(body), rows, cols)
-        elif isinstance(body, dict) and body.get("characters") is not None:
-            strategy = body.get("strategy")
-            page = vestaboard.fit(vestaboard.decode(body["characters"]), rows, cols)
-        elif isinstance(body, dict) and isinstance(body.get("text"), str):
-            strategy = body.get("strategy")
-            # The board has no lowercase flaps; uppercase exactly the way every other
-            # text path here does (cp1252-aware, so accents survive as one cell).
-            page = vestaboard.layout_text(body["text"], rows, cols, d.controller.caps)
-        else:
-            raise HTTPException(422, "expected a character matrix, {\"characters\": [[...]]}, "
-                                     "or {\"text\": \"...\"}")
-    except vestaboard.VestaboardError as e:
-        raise HTTPException(422, str(e))
-
-    style = vestaboard.style_for(strategy, d.config.display.get("transition_style", "ltr"))
-    # Not a frame: the codec already turned every colour chip into a COLOUR (its own
-    # codepoint), so nothing here is a lowercase letter standing in for one.
-    d.controller.send_text_bg(page, style=style)
-    d.ha.publish_state()
-    # 201, not 200: the real Local API returns 201 Created on a successful write, and
-    # clients treat anything else as failure (ha-vestaboard's coordinator raises
-    # UpdateFailed unless the write returns 201, so a 200 broke every message it sent).
-    return JSONResponse({"ok": True}, status_code=201)
+# Re-exported: the model lives with the playlist routes now; test_audit_fixes pins
+# from here that a non-dict playlist entry is rejected at the door.
+PlaylistSave = routes_playlists.PlaylistSave
 
 
 # ---------------------------------------------------------------------------

@@ -7,9 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from app.config import Config
-from app.plugin_settings import PluginSettings
-from app.plugins import PluginRuntime
+from conftest import make_runtime
 
 FUNC_APP = "def fetch(settings, format_lines, get_rows, get_cols):\n    return [format_lines('HI')]\n"
 
@@ -23,14 +21,10 @@ def _zip(files: dict) -> bytes:
 
 
 def _runtime(tmp_path):
-    cfg = Config(data_dir=tmp_path)
-    ps = PluginSettings(tmp_path)
-    ps.set_installed([])
-    builtin = tmp_path / "builtin"
+    builtin = tmp_path / "builtin"          # empty: every app here is an upload
     builtin.mkdir()
-    rt = PluginRuntime(cfg, ps, builtin, tmp_path / "userapps")
-    rt.load()
-    return rt
+    return make_runtime(tmp_path, [], apps_dir=builtin,
+                        user_apps_dir=tmp_path / "userapps")
 
 
 def test_upload_functional_app(tmp_path):

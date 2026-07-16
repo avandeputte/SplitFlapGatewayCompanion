@@ -12,29 +12,16 @@ Both are invisible in a unit test that only checks the text, which is why the gu
 is about WHERE the text lands.
 """
 import re
-import tempfile
 from pathlib import Path
 
 import pytest
 
-APPS = Path(__file__).resolve().parents[2] / "apps"
+from conftest import APPS_DIR as APPS
+from conftest import make_runtime
 
 
 def _runtime(rows, cols, app_id, **settings):
-    from app.config import Config
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-
-    tmp = Path(tempfile.mkdtemp())
-    cfg = Config(tmp)
-    cfg.update({"grid": {"rows": rows, "cols": cols}})
-    st = PluginSettings(cfg.data_dir)
-    st.set("installed_apps", [app_id])
-    for k, v in settings.items():
-        st.set(k, v)
-    rt = PluginRuntime(cfg, st, APPS, cfg.data_dir / "apps")
-    rt.load()
-    return rt
+    return make_runtime(installed=[app_id], rows=rows, cols=cols, settings=settings)
 
 
 def _rows(page, rows, cols):
@@ -59,6 +46,10 @@ def _assert_centred(lines):
 # ---------------------------------------------------------------------------
 # format_lines itself — the thing every app now delegates to
 # ---------------------------------------------------------------------------
+# NOTE (audit E4): these format_lines-centres-the-block assertions overlap with
+# test_grid_and_shadowing.py's vertical-centring checks. Deliberately left in both
+# places for now — that file guards the send pipeline end to end, this one guards
+# the app-facing format_lines contract; merge them when one file owns centring.
 @pytest.mark.parametrize("rows,n", [(3, 1), (3, 2), (5, 1), (5, 2), (5, 3), (5, 4), (6, 2)])
 def test_format_lines_centres_any_block_on_any_wall(rows, n):
     rt = _runtime(rows, 15, "time")

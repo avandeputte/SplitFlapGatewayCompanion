@@ -11,39 +11,19 @@ Two things here:
     a 3-row clock and returned it RAW, so on anything that was not exactly 3x15 it sat in
     the top-left corner.
 """
-import importlib.util
 import sys
-import tempfile
 import types
-from pathlib import Path
 
 import pytest
 
-APPS = Path(__file__).resolve().parents[2] / "apps"
-
-
-def _mod(name):
-    spec = importlib.util.spec_from_file_location(f"_{name}", APPS / name / "app.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
+from conftest import APPS_DIR as APPS
+from conftest import Resp as _Resp
+from conftest import load_app as _mod
+from conftest import make_runtime
 
 
 def _runtime(rows, cols, app_id, **settings):
-    from app.config import Config
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-
-    tmp = Path(tempfile.mkdtemp())
-    cfg = Config(tmp)
-    cfg.update({"grid": {"rows": rows, "cols": cols}})
-    st = PluginSettings(cfg.data_dir)
-    st.set("installed_apps", [app_id])
-    for k, v in settings.items():
-        st.set(k, v)
-    rt = PluginRuntime(cfg, st, APPS, cfg.data_dir / "apps")
-    rt.load()
-    return rt
+    return make_runtime(installed=[app_id], rows=rows, cols=cols, settings=settings)
 
 
 def _lines(page, rows, cols):
@@ -90,16 +70,10 @@ TIDES = {"predictions": [
 ROCKET = {"results": [{"name": "FALCON 9 | STARLINK 12-5", "net": "2026-07-16T14:21:00Z"}]}
 
 
-class _Resp:
-    def __init__(self, payload):
-        self._p = payload
-
-    def json(self):
-        return self._p
-
-
 @pytest.fixture
 def stub_net(monkeypatch):
+    # NOTE: this stubs the REQUESTS layer (the apps call requests.get themselves);
+    # conftest.stub_http is for the weather helper's httpx client — different seam.
     import requests
 
     def fake_get(url, **kw):

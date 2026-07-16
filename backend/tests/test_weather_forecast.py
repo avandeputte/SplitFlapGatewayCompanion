@@ -9,33 +9,17 @@ Three of the four providers already called a forecast endpoint and simply asked 
 OpenWeather has no daily endpoint on the free plan at all, so its days are built from the
 3-hourly list — which is where the interesting bugs live.
 """
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from app import renderer
-
-APPS = Path(__file__).resolve().parents[2] / "apps"
+from conftest import Resp as _Resp
+from conftest import make_runtime
 
 
 def _pages(rows, cols, provider="openmeteo", **settings):
-    from app.config import Config
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-
-    tmp = Path(tempfile.mkdtemp())
-    cfg = Config(tmp)
-    cfg.update({"grid": {"rows": rows, "cols": cols}})
-    st = PluginSettings(cfg.data_dir)
-    st.set("installed_apps", ["weather"])
-    st.set("weather_provider", provider)
-    st.set("location_lat", "50.85")
-    st.set("location_lon", "4.35")
-    for k, v in settings.items():
-        st.set(k, v)
-    rt = PluginRuntime(cfg, st, APPS, cfg.data_dir / "apps")
-    rt.load()
+    rt = make_runtime(installed=["weather"], rows=rows, cols=cols,
+                      settings={"weather_provider": provider, "location_lat": "50.85",
+                                "location_lon": "4.35", **settings})
     return rt.get_pages("weather")
 
 
@@ -49,46 +33,15 @@ OPENMETEO = {
 }
 
 
-class _Resp:
-    def __init__(self, p):
-        self._p = p
-
-    def json(self):
-        return self._p
-
-
-class _FakeClient:
-    """Stands in for httpx.Client inside the weather HELPER — the app itself no
-    longer talks to any provider; the helper does, over httpx."""
-
-    def __init__(self, handler):
-        self._handler = handler
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        return False
-
-    def get(self, url, **kw):
-        return self._handler(url, **kw)
-
-
-def _mock_weather(monkeypatch, handler):
-    from app import weather
-    weather._cache.clear()          # tests share (provider, lat, lon) — never a stale doc
-    monkeypatch.setattr(weather.httpx, "Client", lambda **kw: _FakeClient(handler))
-
-
 @pytest.fixture
-def openmeteo(monkeypatch):
+def openmeteo(stub_http):
     def fake(url, **kw):
         if "air-quality" in url:
             return _Resp({"current": {}})
         if "open-meteo" in url:
             return _Resp(OPENMETEO)
         raise AssertionError(url)
-    _mock_weather(monkeypatch, fake)
+    stub_http(fake)
 
 
 def _forecast(pages, rows, cols):
@@ -156,7 +109,7 @@ def test_five_letter_conditions_leave_the_day_its_three(openmeteo):
         assert len(l) == 15 and l[-1] != " "   # the highs still line up in a column
 
 
-def test_the_day_shrinks_before_the_condition_does(monkeypatch):
+def test_the_day_shrinks_before_the_condition_does(stub_http):
     """A six-letter condition ("Cloudy") takes the day's third letter. "We" is still
     Wednesday; a truncated condition is not a condition."""
     six = dict(OPENMETEO)
@@ -166,7 +119,7 @@ def test_the_day_shrinks_before_the_condition_does(monkeypatch):
         if "air-quality" in url:
             return _Resp({"current": {}})
         return _Resp(six)
-    _mock_weather(monkeypatch, fake)
+    stub_http(fake)
 
     rows, cols = 5, 15
     body = _forecast(_pages(rows, cols), rows, cols)[1:]
@@ -226,7 +179,7 @@ def test_colours_off_drops_the_dot_not_the_day(openmeteo):
 # ---------------------------------------------------------------------------
 # OpenWeather has no daily endpoint — the days are built from 3-hourly slots
 # ---------------------------------------------------------------------------
-def test_openweather_buckets_the_slots_into_the_citys_days(monkeypatch):
+def test_openweather_buckets_the_slots_into_the_citys_days(stub_http):
     # Slots on the next three days, for a city 2h ahead. Built relative to the real clock,
     # because the app drops TODAY (the conditions page already is today) — a fixed date would
     # be in the past by tomorrow and the test would evaporate.
@@ -252,7 +205,7 @@ def test_openweather_buckets_the_slots_into_the_citys_days(monkeypatch):
         return _Resp({"name": "Brussels", "main": {"temp": 70, "feels_like": 71,
                                                    "temp_max": 80, "temp_min": 60},
                       "weather": [{"description": "clear"}]})
-    _mock_weather(monkeypatch, fake)
+    stub_http(fake)
 
     rows, cols = 5, 15
     body = _forecast(_pages(rows, cols, provider="openweather",
@@ -262,7 +215,7 @@ def test_openweather_buckets_the_slots_into_the_citys_days(monkeypatch):
     assert body[0].endswith("75/60") or body[0].endswith("80/70"), body[0]
 
 
-def test_openweather_reports_the_worst_sky_of_the_day(monkeypatch):
+def test_openweather_reports_the_worst_sky_of_the_day(stub_http):
     """A day with one thunderstorm in it is a stormy day, however sunny the rest of it was."""
     import calendar
     import datetime as _dt
@@ -283,7 +236,7 @@ def test_openweather_reports_the_worst_sky_of_the_day(monkeypatch):
         return _Resp({"name": "X", "main": {"temp": 70, "feels_like": 70,
                                             "temp_max": 70, "temp_min": 70},
                       "weather": [{"description": "clear"}]})
-    _mock_weather(monkeypatch, fake)
+    stub_http(fake)
 
     rows, cols = 5, 22          # wide enough for the colour flap as well as the word
     pages = _pages(rows, cols, provider="openweather", weather_api_key="test-key")

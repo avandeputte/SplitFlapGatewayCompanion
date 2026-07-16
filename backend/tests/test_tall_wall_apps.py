@@ -16,19 +16,12 @@ app is checked at 3 rows too.
 The providers are stubbed. These assert LAYOUT, and a layout test that needs the
 internet is a layout test that fails on a train.
 """
-import importlib.util
-from pathlib import Path
-
 import pytest
 
-APPS = Path(__file__).resolve().parents[2] / "apps"
-
-
-def _mod(name):
-    spec = importlib.util.spec_from_file_location(f"_{name}", APPS / name / "app.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
+from conftest import APPS_DIR as APPS
+from conftest import Resp as _Resp
+from conftest import load_app as _mod
+from conftest import make_runtime
 
 
 # ---------------------------------------------------------------------------
@@ -53,16 +46,8 @@ HOLIDAYS = [
 ]
 
 
-class _Resp:
-    def __init__(self, payload):
-        self._payload = payload
-
-    def json(self):
-        return self._payload
-
-
 @pytest.fixture
-def stub_net(monkeypatch):
+def stub_net(monkeypatch, stub_http):
     import requests
 
     def fake_get(url, **kw):
@@ -81,36 +66,11 @@ def stub_net(monkeypatch):
     monkeypatch.setattr(requests, "get", fake_get)
 
     # The weather app reads the shared helper now, which speaks httpx.
-    from app import weather
-
-    class _FakeClient:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
-
-        def get(self, url, **kw):
-            return fake_get(url, **kw)
-
-    weather._cache.clear()
-    monkeypatch.setattr(weather.httpx, "Client", lambda **kw: _FakeClient())
+    stub_http(fake_get)
 
 
 def _runtime(rows, cols, tmp_path, app_id, **settings):
-    from app.config import Config
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-
-    cfg = Config(tmp_path)
-    cfg.update({"grid": {"rows": rows, "cols": cols}})
-    st = PluginSettings(cfg.data_dir)
-    st.set("installed_apps", [app_id])
-    for k, v in settings.items():
-        st.set(k, v)
-    rt = PluginRuntime(cfg, st, APPS, cfg.data_dir / "apps")
-    rt.load()
-    return rt
+    return make_runtime(tmp_path, [app_id], rows=rows, cols=cols, settings=settings)
 
 
 def _lines(page, rows, cols):

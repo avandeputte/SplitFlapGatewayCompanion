@@ -11,32 +11,16 @@ So `caps` is injected by parameter name, exactly like `i18n` and `get_location`,
 an app that asks. It defaults to None — which is also what a stock splitflap-os host passes,
 and which correctly means "a plain reel", so an app using it stays drop-in both ways.
 """
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from app import device, renderer
-
-APPS = Path(__file__).resolve().parents[2] / "apps"
+from conftest import APPS_DIR as APPS
+from conftest import make_runtime
 
 
 def _runtime(caps, app_id, rows=5, cols=15, **settings):
-    from app.config import Config
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-
-    tmp = Path(tempfile.mkdtemp())
-    cfg = Config(tmp)
-    cfg.update({"grid": {"rows": rows, "cols": cols}})
-    st = PluginSettings(cfg.data_dir)
-    st.set("installed_apps", [app_id])
-    for k, v in settings.items():
-        st.set(k, v)
-    rt = PluginRuntime(cfg, st, APPS, cfg.data_dir / "apps")
-    rt.attach_caps(lambda: caps)
-    rt.load()
-    return rt
+    return make_runtime(installed=[app_id], rows=rows, cols=cols,
+                        caps=caps, settings=settings)
 
 
 TIDES = {"predictions": [
@@ -77,13 +61,7 @@ def test_a_plain_reel_keeps_the_words(tide_api):
 def test_the_default_is_the_pessimistic_answer():
     """A runtime nobody told assumes a plain reel — a pictograph nobody can see is worse
     than a word everybody can."""
-    from app.config import Config
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-
-    tmp = Path(tempfile.mkdtemp())
-    cfg = Config(tmp)
-    rt = PluginRuntime(cfg, PluginSettings(cfg.data_dir), APPS, cfg.data_dir / "apps")
+    rt = make_runtime(load=False)
     assert rt._caps() == device.SPLIT_FLAP
 
 

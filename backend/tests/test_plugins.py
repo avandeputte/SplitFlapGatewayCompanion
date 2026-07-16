@@ -13,29 +13,17 @@ from pathlib import Path
 
 import pytest
 
-from app.config import Config
-from app.plugin_settings import PluginSettings
-from app.plugins import PluginRuntime
-
-APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
+from conftest import APPS_DIR, make_runtime
 
 
 def _runtime(tmp_path, installed):
-    cfg = Config(data_dir=tmp_path)
-    ps = PluginSettings(tmp_path)
-    ps.set_installed(installed)
-    rt = PluginRuntime(cfg, ps, APPS_DIR)
-    rt.load()
-    return rt
+    return make_runtime(tmp_path, installed)
 
 
 def _upload_runtime(tmp_path):
     """A runtime whose user-apps dir is isolated in tmp (so uploads never touch
-    the repo's apps/)."""
-    rt = PluginRuntime(Config(data_dir=tmp_path), PluginSettings(tmp_path),
-                       APPS_DIR, user_apps_dir=tmp_path / "user_apps")
-    rt.load()
-    return rt
+    the repo's apps/) — make_runtime's default."""
+    return make_runtime(tmp_path)
 
 
 def _make_app_zip(app_id, manifest, *, app_py=None, data_json=None):
@@ -50,7 +38,7 @@ def _make_app_zip(app_id, manifest, *, app_py=None, data_json=None):
 
 
 def test_apps_directory_populated():
-    rt_ids = PluginRuntime(Config(data_dir=Path("/tmp")), PluginSettings(Path("/tmp")), APPS_DIR).discover()
+    rt_ids = make_runtime(load=False).discover()
     assert len(rt_ids) >= 40, f"expected the vendored app library, found {len(rt_ids)}"
 
 
@@ -184,10 +172,7 @@ def test_app_dialog_infers_undeclared_perapp_setting(tmp_path):
     (apps / "widget" / "app.py").write_text(
         "def fetch(settings, format_lines, get_rows, get_cols):\n"
         "    return [format_lines(str(int(settings.get('widget_count', 3))))]\n")
-    ps = PluginSettings(tmp_path)
-    ps.set_installed(["widget"])
-    rt = PluginRuntime(Config(data_dir=tmp_path), ps, apps)
-    rt.load()
+    rt = make_runtime(tmp_path, ["widget"], apps_dir=apps)
     fields = {f["key"]: f for f in rt.settings_schema("widget")["fields"]}
     assert "plugin_widget_widget_count" in fields
     assert fields["plugin_widget_widget_count"]["type"] == "number"
@@ -367,11 +352,8 @@ def test_setting_default_applies_without_saving(tmp_path):
         "settings": [{"key": "loop_delay", "type": "number", "default": "20"}]}))
     (apps / "slowapp" / "app.py").write_text(
         "def fetch(s, f, r, c):\n    return [f('X')]\n")
-    ps = PluginSettings(tmp_path)
-    ps.set_installed(["slowapp"])
-    rt = PluginRuntime(Config(data_dir=tmp_path), ps, apps)
-    rt.load()
-    assert ps.get("global_loop_delay") == 8       # raised global default
+    rt = make_runtime(tmp_path, ["slowapp"], apps_dir=apps)
+    assert rt.settings.get("global_loop_delay") == 8       # raised global default
     assert rt.loop_delay("slowapp") == 20.0        # the setting default, not the global
     # a saved value still wins
     rt.save_settings("slowapp", {"plugin_slowapp_loop_delay": "3"})
@@ -685,9 +667,24 @@ def test_language_pinned_to_top_of_global_settings(tmp_path):
     assert fields[0]["key"] == "language"
 
 
-def test_playlist_entry_overrides(tmp_path):
+def test_playlist_entry_overrides(tmp_path, monkeypatch):
     """get_pages(app, overrides) renders one instance with its own config without
     touching saved settings, and two override sets don't share a cache."""
+    import requests
+
+    from conftest import Resp
+
+    # metals speaks requests: gold-api for the spot prices, frankfurter for the
+    # USD->local-currency rate (the de/fr renders ask for EUR). Stubbed — this
+    # was the suite's ONE test that needed live internet (11 calls per run).
+    def fake_get(url, params=None, **kw):
+        if "gold-api.com" in url:
+            return Resp({"price": 2400.0 if url.endswith("XAU") else 29.5})
+        if "frankfurter.app" in url:
+            return Resp({"rates": {(params or {}).get("to", "EUR"): 0.9}})
+        raise AssertionError(f"unstubbed call: {url}")
+    monkeypatch.setattr(requests, "get", fake_get)
+
     rt = _runtime(tmp_path, ["metals"])
     rt.settings.set("language", "en-US")
     us = " ".join(rt.get_pages("metals"))                                  # global
@@ -770,10 +767,8 @@ def test_the_first_fetch_error_survives_the_import_echo(tmp_path):
     that said what actually broke ("NumPy was built with baseline optimizations (X86_V2)
     but your machine doesn't support (X86_V2)"). Keep reporting the real cause.
     """
-    from app.plugins import PluginRuntime
-
-    rt = PluginRuntime.__new__(PluginRuntime)     # no disk, no apps — just the handler
-    rt._first_error = {}
+    rt = make_runtime(tmp_path, load=False)       # real constructor — __new__ breaks
+                                                  # silently when __init__ gains state
 
     real = "NumPy was built with baseline optimizations: (X86_V2) ..."
     echo = "cannot load module more than once per process"
@@ -786,10 +781,7 @@ def test_the_first_fetch_error_survives_the_import_echo(tmp_path):
 
 def test_an_unrelated_later_error_still_gets_reported(tmp_path):
     """Only the poisoned-import echo is suppressed — a genuinely new failure is not."""
-    from app.plugins import PluginRuntime
-
-    rt = PluginRuntime.__new__(PluginRuntime)
-    rt._first_error = {}
+    rt = make_runtime(tmp_path, load=False)
     rt._fetch_error_message("x", "x", RuntimeError("boom"))
     assert rt._fetch_error_message("x", "x", RuntimeError("network down")) == "network down"
 
@@ -797,14 +789,7 @@ def test_an_unrelated_later_error_still_gets_reported(tmp_path):
 def test_global_settings_lead_with_language_location_timezone(tmp_path):
     """The localization trio are what people configure first, so they're pinned to the top
     of the Global settings in this order — ahead of the weather/provider fields."""
-    from pathlib import Path
-    from app.config import Config
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-
-    rt = PluginRuntime(Config(), PluginSettings(tmp_path),
-                       Path(__file__).resolve().parents[2] / "apps", tmp_path / "apps")
-    rt.load()
+    rt = make_runtime(tmp_path)
     order = [f["key"] for f in rt.global_settings_schema()["fields"]]
     assert order[:4] == ["language", "zip_code", "location_precise", "timezone"], \
         f"localization trio not pinned to the top: {order[:4]}"

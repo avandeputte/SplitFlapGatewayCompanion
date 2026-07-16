@@ -17,27 +17,14 @@ quietly:
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-import tempfile
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import pytest
 import pytz
 
-APPS = Path(__file__).resolve().parents[2] / "apps"
+from conftest import load_app, make_runtime
 
-
-def _cal():
-    """Load the app by path: `app.py` would otherwise collide with the backend's `app` package."""
-    spec = importlib.util.spec_from_file_location("calapp", APPS / "calendar" / "app.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-cal = _cal()
+cal = load_app("calendar")
 TZ = pytz.timezone("US/Eastern")
 
 
@@ -190,22 +177,10 @@ def test_an_event_beyond_the_horizon_is_not_next():
 
 def _render(rows, cols, ics, **extra):
     """Through the real runtime, with the feed served from a stub instead of the network."""
-    from app.config import Config
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-
-    tmp = Path(tempfile.mkdtemp())
-    cfg = Config(data_dir=tmp)
-    cfg.update({"grid": {"rows": rows, "cols": cols}})
-    ps = PluginSettings(tmp)
-    ps.set_installed(["calendar"])
-    ps.set("timezone", "US/Eastern")
-    ps.set("language", "en-US")
-    ps.set("plugin_calendar_ical_url", "https://example.invalid/cal.ics")
-    for k, v in extra.items():
-        ps.set(f"plugin_calendar_{k}", v)
-    rt = PluginRuntime(cfg, ps, APPS)
-    rt.load()
+    settings = {"timezone": "US/Eastern", "language": "en-US",
+                "plugin_calendar_ical_url": "https://example.invalid/cal.ics"}
+    settings.update({f"plugin_calendar_{k}": v for k, v in extra.items()})
+    rt = make_runtime(installed=["calendar"], rows=rows, cols=cols, settings=settings)
     return rt.get_pages("calendar")
 
 

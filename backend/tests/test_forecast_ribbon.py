@@ -11,12 +11,12 @@ and both are easy to get wrong:
     merely because it was the warmest hour of a freezing day.
 """
 import json
-import tempfile
-from pathlib import Path
 
 import pytest
 
-APPS = Path(__file__).resolve().parents[2] / "apps"
+from conftest import APPS_DIR as APPS
+from conftest import make_runtime
+
 APP = "forecast-ribbon"
 
 
@@ -26,28 +26,11 @@ def _hourly(temps):
                        "temperature_2m": list(temps)}}
 
 
-class _FakeClient:
-    """The ribbon reads the shared weather HELPER now, which speaks httpx; the
-    requests mock stays for the no-helper fallback path."""
-
-    def __init__(self, handler):
-        self._handler = handler
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        return False
-
-    def get(self, url, **kw):
-        return self._handler(url, **kw)
-
-
 @pytest.fixture
-def stub(monkeypatch):
+def stub(monkeypatch, stub_http):
+    """The ribbon reads the shared weather HELPER (httpx — conftest.stub_http);
+    the requests mock stays for the no-helper fallback path."""
     import requests
-
-    from app import weather
 
     def go(temps):
         def fake_get(url, **kw):
@@ -56,28 +39,14 @@ def stub(monkeypatch):
                     return _hourly(temps)
             return R()
         monkeypatch.setattr(requests, "get", fake_get)
-        weather._cache.clear()
-        monkeypatch.setattr(weather.httpx, "Client",
-                            lambda **kw: _FakeClient(fake_get))
+        stub_http(fake_get)
     return go
 
 
 def _page(rows, cols, **settings):
-    from app.config import Config
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-
-    tmp = Path(tempfile.mkdtemp())
-    cfg = Config(tmp)
-    cfg.update({"grid": {"rows": rows, "cols": cols}})
-    st = PluginSettings(cfg.data_dir)
-    st.set("installed_apps", [APP])
-    st.set("location_lat", "0")      # skip the geocode
-    st.set("location_lon", "0")
-    for k, v in settings.items():
-        st.set(k, v)
-    rt = PluginRuntime(cfg, st, APPS, cfg.data_dir / "apps")
-    rt.load()
+    rt = make_runtime(installed=[APP], rows=rows, cols=cols,
+                      settings={"location_lat": "0",      # skip the geocode
+                                "location_lon": "0", **settings})
     return rt.get_pages(APP)[0]
 
 

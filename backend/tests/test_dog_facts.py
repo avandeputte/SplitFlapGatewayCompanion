@@ -9,23 +9,11 @@ then reads two thirds of a sentence about beagles.
 
 from __future__ import annotations
 
-import importlib.util
-import tempfile
-from pathlib import Path
-
 import pytest
 
-APPS = Path(__file__).resolve().parents[2] / "apps"
+from conftest import load_app, make_runtime
 
-
-def _dog():
-    spec = importlib.util.spec_from_file_location("dogapp", APPS / "dog-facts" / "app.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-dog = _dog()
+dog = load_app("dog-facts")
 
 SHORT = "Dogs have three eyelids."                                   # 24
 MEDIUM = "A dog's nose print is as unique as a human fingerprint."   # 55
@@ -58,17 +46,7 @@ def test_blank_facts_are_ignored():
 # --- the page ---------------------------------------------------------------
 
 def _render(rows, cols):
-    from app.config import Config
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-
-    tmp = Path(tempfile.mkdtemp())
-    cfg = Config(data_dir=tmp)
-    cfg.update({"grid": {"rows": rows, "cols": cols}})
-    ps = PluginSettings(tmp)
-    ps.set_installed(["dog-facts"])
-    rt = PluginRuntime(cfg, ps, APPS)
-    rt.load()
+    rt = make_runtime(installed=["dog-facts"], rows=rows, cols=cols)
     return rt.get_pages("dog-facts")
 
 

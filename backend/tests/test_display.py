@@ -160,10 +160,13 @@ def test_no_route_reaches_for_a_module_global():
     """main.py keeps module aliases (config, controller, plugins…) for the lifespan and
     the background loops, and they are the DEFAULT display's objects. A route using one
     would be pinned to that display forever — invisible today, wrong the moment a second
-    gateway exists. Routes must go through display_for(request)."""
-    src = MAIN_PY.read_text("utf-8")
-    tree = ast.parse(src)
-    lines = src.split("\n")
+    gateway exists. Routes must go through display_for(request).
+
+    Since the E1 router split the routes live in app/routes/*.py, nested inside each
+    module's build(deps) — so this scans those files too (ast.walk, not just the module
+    body) and accepts either decorator spelling, @app.* or @router.*. The intent is
+    unchanged: only BARE alias names are offenders, so a route that deliberately says
+    `displays.default.config` (the process-wide Vestaboard/MCP toggles) still passes."""
     names = ("config", "controller", "plugins", "state", "ha", "plugin_settings")
     pat = re.compile(r"(?<![\w.])(" + "|".join(names) + r")\.")
 
@@ -171,16 +174,22 @@ def test_no_route_reaches_for_a_module_global():
         for dec in fn.decorator_list:
             f = dec.func if isinstance(dec, ast.Call) else dec
             if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) \
-                    and f.value.id == "app":
+                    and f.value.id in ("app", "router"):
                 return True
         return False
 
+    files = [MAIN_PY] + sorted((MAIN_PY.parent / "routes").glob("*.py"))
+    assert len(files) > 1, "the router package is gone — did the E1 split get reverted?"
     offenders = []
-    for n in tree.body:
-        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and is_route(n):
-            body = "\n".join(lines[n.lineno - 1:n.end_lineno])
-            for m in pat.finditer(body):
-                offenders.append(f"{n.name}() uses the global `{m.group(1)}`")
+    for path in files:
+        src = path.read_text("utf-8")
+        lines = src.split("\n")
+        for n in ast.walk(ast.parse(src)):
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and is_route(n):
+                body = "\n".join(lines[n.lineno - 1:n.end_lineno])
+                for m in pat.finditer(body):
+                    offenders.append(
+                        f"{path.name}: {n.name}() uses the global `{m.group(1)}`")
     assert not offenders, "these routes bypass display_for(request):\n" + "\n".join(offenders)
 
 

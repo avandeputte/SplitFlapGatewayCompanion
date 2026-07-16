@@ -4,33 +4,7 @@ hold it to that."""
 import pytest
 
 from app import weather
-
-
-class _Resp:
-    def __init__(self, p):
-        self._p = p
-
-    def json(self):
-        return self._p
-
-
-class _FakeClient:
-    def __init__(self, handler):
-        self._handler = handler
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        return False
-
-    def get(self, url, **kw):
-        return self._handler(url, **kw)
-
-
-def _mock(monkeypatch, handler):
-    weather._cache.clear()
-    monkeypatch.setattr(weather.httpx, "Client", lambda **kw: _FakeClient(handler))
+from conftest import Resp as _Resp
 
 
 OPENMETEO = {
@@ -92,14 +66,14 @@ def test_unknown_is_a_band_too():
 # ---------------------------------------------------------------------------
 # the document
 # ---------------------------------------------------------------------------
-def test_the_document_carries_sky_forecast_hourly_and_air(monkeypatch):
+def test_the_document_carries_sky_forecast_hourly_and_air(stub_http):
     def fake(url, **kw):
         if "air-quality" in url:
             return _Resp({"current": {"us_aqi": 42, "uv_index": 5.0, "grass_pollen": 12.0,
                                       "birch_pollen": None, "ragweed_pollen": 3.0,
                                       "weed_pollen": None}})
         return _Resp(OPENMETEO)
-    _mock(monkeypatch, fake)
+    stub_http(fake)
 
     w = weather.fetch_weather(dict(SETTINGS), days=2, air=True)
     assert w["ok"] and w["provider"] == "openmeteo"
@@ -121,38 +95,38 @@ def test_the_document_carries_sky_forecast_hourly_and_air(monkeypatch):
     assert a["pollen"]["overall"] == 12.0 and a["pollen_band"] == "moderate"
 
 
-def test_current_only_stays_light(monkeypatch):
+def test_current_only_stays_light(stub_http):
     calls = []
 
     def fake(url, **kw):
         calls.append(url)
         return _Resp(OPENMETEO)
-    _mock(monkeypatch, fake)
+    stub_http(fake)
 
     w = weather.fetch_weather(dict(SETTINGS))
     assert w["ok"] and w["forecast"] == [] and "air" not in w and "hourly" not in w
     assert len(calls) == 1, "current-only must be a single request"
 
 
-def test_a_failing_keyed_provider_falls_back_to_openmeteo(monkeypatch):
+def test_a_failing_keyed_provider_falls_back_to_openmeteo(stub_http):
     def fake(url, **kw):
         if "openweathermap" in url:
             return _Resp({"cod": 401})            # bad key: no temperature in the body
         return _Resp(OPENMETEO)
-    _mock(monkeypatch, fake)
+    stub_http(fake)
 
     w = weather.fetch_weather(dict(SETTINGS, weather_provider="openweather",
                                    weather_api_key="bad"))
     assert w["ok"] and w["provider"] == "openmeteo"
 
 
-def test_the_per_app_location_override_wins(monkeypatch):
+def test_the_per_app_location_override_wins(stub_http):
     seen = {}
 
     def fake(url, **kw):
         seen.update(kw.get("params") or {})
         return _Resp(OPENMETEO)
-    _mock(monkeypatch, fake)
+    stub_http(fake)
 
     w = weather.fetch_weather(dict(SETTINGS, location="48.85,2.35|Paris"))
     assert w["ok"] and w["city"] == "Paris"
@@ -162,7 +136,7 @@ def test_the_per_app_location_override_wins(monkeypatch):
 # ---------------------------------------------------------------------------
 # the cache hands every caller its OWN document
 # ---------------------------------------------------------------------------
-def test_the_cache_hands_each_caller_its_own_copy(monkeypatch):
+def test_the_cache_hands_each_caller_its_own_copy(stub_http):
     """The cache is shared by every app across executor threads. A doc must be
     deepcopied on store AND on hit: one app mutating what it got back must not
     poison weather for every other app until the TTL."""
@@ -171,7 +145,7 @@ def test_the_cache_hands_each_caller_its_own_copy(monkeypatch):
     def fake(url, **kw):
         calls.append(url)
         return _Resp(OPENMETEO)
-    _mock(monkeypatch, fake)
+    stub_http(fake)
 
     first = weather.fetch_weather(dict(SETTINGS), days=2)
     fetch_calls = len(calls)

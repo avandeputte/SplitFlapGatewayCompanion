@@ -14,29 +14,20 @@ Two ways a display ends up with nothing running, and both must blank:
   * a playlist that does not loop simply ran out.
 """
 import asyncio
-import tempfile
 from pathlib import Path
 
 import pytest
 
-APPS = Path(__file__).resolve().parents[2] / "apps"
+from conftest import make_runtime
 
 
 def _controller():
-    from app.config import Config
     from app.engine import DisplayController
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
     from app.state import DisplayState
 
-    tmp = Path(tempfile.mkdtemp())
-    cfg = Config(tmp)
-    cfg.update({"grid": {"rows": 3, "cols": 15}})     # sim: no gateway, but state still moves
-    st = PluginSettings(cfg.data_dir)
-    st.set("installed_apps", ["time"])
-    plugins = PluginRuntime(cfg, st, APPS, cfg.data_dir / "apps")
-    plugins.load()
-    c = DisplayController(cfg, DisplayState(45))
+    # sim: no gateway, but state still moves
+    plugins = make_runtime(installed=["time"], rows=3, cols=15)
+    c = DisplayController(plugins.config, DisplayState(45))
     c.attach_plugins(plugins)
     return c
 

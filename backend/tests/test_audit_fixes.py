@@ -13,18 +13,11 @@ from pathlib import Path
 
 import pytest
 
-from app.config import Config
-from app.plugin_settings import PluginSettings
-from app.plugins import PluginRuntime
-
-APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
+from conftest import make_runtime
 
 
 def _upload_runtime(tmp_path):
-    rt = PluginRuntime(Config(data_dir=tmp_path), PluginSettings(tmp_path),
-                       APPS_DIR, user_apps_dir=tmp_path / "user_apps")
-    rt.load()
-    return rt
+    return make_runtime(tmp_path)
 
 
 def _zip_bytes(entries):
@@ -104,10 +97,6 @@ def test_wanted_helpers_precomputed_for_fetch_and_trigger(tmp_path):
         "    return ['X']\n"
         "def trigger(settings, conditions, caps=None):\n"
         "    return False\n", "utf-8")
-    ps = PluginSettings(tmp_path)
-    ps.set_installed(["wdemo"])
-    rt = PluginRuntime(Config(data_dir=tmp_path), ps, APPS_DIR,
-                       user_apps_dir=tmp_path / "user_apps")
-    rt.load()
+    rt = make_runtime(tmp_path, ["wdemo"])
     assert rt._wants["wdemo"] == frozenset({"i18n"})
     assert rt._trigger_wants["wdemo"] == frozenset({"caps"})
