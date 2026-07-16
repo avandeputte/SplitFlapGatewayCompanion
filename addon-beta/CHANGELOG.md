@@ -3,6 +3,49 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.5.0-beta.2
+
+**The companion itself, audited the way the apps were.** Backend, web UI,
+engine, integration, packaging and tests — every finding executed
+(docs/BACKEND_AUDIT_2026-07.md).
+
+*Closed before anyone hit them.* An uploaded app's name could run script in
+the companion's own page (manifest text now escaped everywhere it is shown);
+a crafted zip could balloon into RAM on upload (now capped by UNCOMPRESSED
+size); /api/config no longer returns the Vestaboard key, enablement token or
+MCP bearer token in the clear.
+
+*The wall stops going stale.* The engine repaints after a failed send or a
+trigger interruption instead of believing the page is still up — a rebooted
+gateway or an ended trigger used to leave the wall frozen until the content
+happened to change. Manual messages survive a trigger ending; back-to-back
+temporary messages replace instead of queueing; the slot animation's spin
+now survives on both gateway protocols.
+
+*Two walls, actually separate.* Six places quietly acted on the DEFAULT
+display no matter which wall you had selected — worst of all, the dev-menu
+settings pull, which could overwrite one wall's settings with another's.
+All scoped correctly; each gateway's status page now shows what ITS wall is
+running; one wall's settings push no longer pauses the other's; failing
+triggers back off instead of polling harder.
+
+*Faster and politer.* One pooled connection per gateway (an ESP32 has about
+four sockets — the companion used to open a fresh one per request, per
+heartbeat); geocoding failures are remembered briefly instead of hammering
+Nominatim on every refresh; the legacy protocol only resends modules that
+changed; the UI stops rebuilding what didn't change and is keyboard-usable
+(tiles, pickers and the dialog).
+
+*Home Assistant integration (1.3.0).* Timeouts, so a black-holed companion
+can't hang setup for minutes; a resized wall recovers without restarting HA;
+entity IDs migrate to stable ones so re-adding the integration keeps your
+history and customisations.
+
+*And the guardrails.* The repo now runs its full test suite — 3,814, with a
+guard that fails any test touching the live network — plus Home Assistant's
+own validators, on every push. main.py shrank from 1,800 lines to 900 with
+routes split into focused modules.
+
 ## 2.5.0-beta.1
 
 **The whole app catalog, audited and brought up to what the platform can do.**
