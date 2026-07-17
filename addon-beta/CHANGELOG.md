@@ -3,6 +3,21 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.5
+
+Two apps that were wasting a wide Matrix panel:
+
+- **Weather** — the forecast page stops abbreviating on a wide wall. Instead of
+  "Wed Rain- ..... 78/61" (day and temps flung to opposite edges), it spells the
+  condition out ("Light rain", "Partly cloudy", "Heavy snow"), gives the temps
+  degree signs, uses full weekday names where there's room, and lays the days,
+  conditions and highs/lows out as an aligned block centred on the wall. A 15-wide
+  wall keeps the compact form it has always used.
+- **Crypto** — on an ultra-wide panel each coin is now one line (ticker + price +
+  the day's change together), so the watchlist is a page of one-liners instead of
+  the name/price/change stacked over three rows — the same treatment stocks got.
+  A narrow wall keeps the stack.
+
 ## 2.7.0-beta.4
 
 - **Stocks** — on an ultra-wide Matrix panel the ticker, its price AND the day's

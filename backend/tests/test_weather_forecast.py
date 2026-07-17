@@ -139,6 +139,22 @@ def test_the_colour_comes_back_when_the_wall_is_wide_enough(openmeteo):
     assert "Sunny" in body[0] and body[0].startswith(" ") is False
 
 
+def test_a_wide_matrix_spells_the_forecast_out(openmeteo):
+    """On a wide Matrix wall the forecast stops abbreviating: the condition in full
+    ('Light rain', not 'Rain-'), full weekdays, the high/low with degree signs, laid
+    out as an aligned block CENTRED on the wall instead of the day and the temps
+    pinned to opposite edges with a lake of space between them."""
+    rows, cols = 5, 40
+    body = _forecast(_pages(rows, cols), rows, cols)[1:]
+    text = " ".join(body)
+    assert "Light rain" in text, "the condition is spelled out, not 'Rain-'"
+    assert "Sunny" in text and "Storm" in text
+    assert "Tuesday" in text and "Wednesday" in text        # full weekday, not 'Tue'
+    assert "\N{DEGREE SIGN}" in text                        # degree signs on the temps
+    assert len({len(l) for l in body}) == 1, "every day the same width => columns line up"
+    assert all(l.startswith(" ") for l in body), "the block is centred, not edge-pinned"
+
+
 def test_today_is_not_in_the_forecast(openmeteo):
     """The conditions page IS today. Repeating it costs a line and says nothing new."""
     rows, cols = 5, 15

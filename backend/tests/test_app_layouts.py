@@ -167,6 +167,49 @@ def test_stocks_three_columns_align_price_and_change():
 
 
 # ---------------------------------------------------------------------------
+# crypto — the stocks treatment: a coin, its price and change on one wide line
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def stub_coingecko(monkeypatch):
+    import requests
+
+    def fake_get(url, **kw):
+        if "coingecko" in url:
+            return _Resp({"bitcoin": {"usd": 67000.0, "usd_24h_change": 2.34},
+                          "ethereum": {"usd": 3450.55, "usd_24h_change": -1.12}})
+        if "nominatim" in url:                  # no location -> currency falls back to USD
+            return _Resp([])
+        raise AssertionError(f"unstubbed: {url}")
+
+    monkeypatch.setattr(requests, "get", fake_get)
+
+
+def test_crypto_combines_price_and_change_on_one_page_when_wide(stub_coingecko):
+    """On an ultra-wide Matrix panel each coin is one line — ticker, price AND the
+    day's change together — so the watchlist is a page of one-liners instead of the
+    name/price/change stacked over three rows. A narrow wall keeps the stack."""
+    wide = _runtime(6, 42, "crypto", plugin_crypto_crypto_list="bitcoin,ethereum")
+    pages = wide.get_pages("crypto")
+    assert len(pages) == 1                              # one page of one-liners
+    body = _body(pages[0], 6, 42)
+    assert len(body) == 2
+    for l in body:
+        assert "$" in l and l.rstrip().endswith("%")   # price AND change on the line
+    narrow = _runtime(5, 15, "crypto", plugin_crypto_crypto_list="bitcoin,ethereum")
+    assert len(narrow.get_pages("crypto")) == 2         # stacked: one coin per page
+
+
+def test_crypto_three_columns_align_price_and_change():
+    cols3 = _mod("crypto")._columns3
+    out = cols3([("BTC", "$67,000", "+2.3%"), ("ETH", "$3,451", "-1.1%")], 42)
+    assert len(out) == 2 and len({len(l) for l in out}) == 1
+    assert out[0].startswith("BTC") and out[1].startswith("ETH")
+    assert out[0].index("$67,000") + len("$67,000") == \
+           out[1].index("$3,451") + len("$3,451")
+    assert out[0].rstrip().endswith("+2.3%") and out[1].rstrip().endswith("-1.1%")
+
+
+# ---------------------------------------------------------------------------
 # world clock — city left, time right
 # ---------------------------------------------------------------------------
 def test_clock_times_line_up_in_a_column():

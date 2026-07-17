@@ -1,3 +1,37 @@
+def _three_widths(triples, gap):
+    tw = max((len(str(a)) for a, _, _ in triples), default=0)   # ticker
+    pw = max((len(str(b)) for _, b, _ in triples), default=0)   # price
+    cw = max((len(str(c)) for _, _, c in triples), default=0)   # change
+    return tw, pw, cw, tw + gap + pw + gap + cw                 # ...and the block width
+
+
+def _fits_three(triples, cols, gap=3):
+    """Do ticker + price + change fit together on ONE line at this width?"""
+    return _three_widths(triples, gap)[3] <= cols
+
+
+def _columns3(triples, cols, gap=3):
+    """Three aligned columns — coin flush left, price and change each flush right —
+    kept together as one centred block.
+
+    On an ultra-wide wall (a big Matrix panel) there is room to show a coin, its
+    price AND the day's change on ONE line, so the whole watchlist is a page of
+    one-liners instead of a coin's name, price and change stacked over three rows.
+    The price column and the change column each line up down the page. format_lines
+    centres the block, so it sits together in the middle, not spread to the edges.
+    """
+    triples = [(str(a), str(b), str(c)) for a, b, c in triples]
+    tw, pw, cw, block = _three_widths(triples, gap)
+    inner = min(cols, block)
+    lead = max(1, inner - pw - gap - cw)              # coin column width, incl. its gap
+    out = []
+    for a, b, c in triples:
+        if len(a) > lead - 1:
+            a = a[:max(0, lead - 1)]
+        out.append((a.ljust(lead) + b.rjust(pw) + (' ' * gap) + c.rjust(cw))[:cols])
+    return out
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
     import requests
 
@@ -76,6 +110,30 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         if rows == 2:
             return [f'{sym} {price_str(price)}'[:cols], chg_str]
         return [sym[:cols], price_str(price), chg_str]   # ticker / price / change
+
+    def coin_triple(c):
+        """One coin as (ticker, price, change) for the wide, one-line-per-coin layout."""
+        d = r.get(c, {})
+        price, chg = d.get(vs), d.get(f'{vs}_24h_change')
+        sym = tickers.get(c, c)
+        if price is None:
+            return (sym, 'Err', '')
+        if chg is None:
+            ch = 'N/A'
+        else:
+            arrow = '↑' if chg >= 0 else '↓'
+            tile = '' if no_color else ('🟩' if chg >= 0 else '🟥')
+            ch = f'{arrow}{tile} {pct(chg)}'
+        return (sym, price_str(price), ch)
+
+    # Ultra-wide wall (a big Matrix panel): a coin, its price AND change on ONE line,
+    # so the watchlist is a page of one-liners — the prices line up in a column, and so
+    # do the changes. Otherwise the name/price/change stack over the rows, as before.
+    triples = [coin_triple(c) for c in coins]
+    if _fits_three(triples, cols):
+        return [format_lines(*_columns3(triples[i:i + rows], cols))
+                for i in range(0, len(triples), rows)] or \
+            [format_lines('Crypto', t('No data'), '')]
 
     lines_per = 1 if rows == 1 else (2 if rows == 2 else 3)
     per_page = max(1, rows // lines_per)   # how many coins fit on one page

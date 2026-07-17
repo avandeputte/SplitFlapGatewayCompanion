@@ -144,15 +144,18 @@ _SKY = {
 _SKY_MAX = 6        # the longest word a forecast column can hold on a 15-wide wall
 
 
-def _sky_word(sky, t):
-    """The condition, translated and short enough for the wall.
+def _sky_word(sky, t, cap=True):
+    """The condition, translated — and, for a narrow wall, short enough for it.
 
     The `-`/`!` is dropped rather than the noun when a language's word is already as long as
     the column: knowing it is snow matters more than knowing it is light snow, and a
-    truncated noun ("Schne+") tells you neither.
+    truncated noun ("Schne+") tells you neither. ``cap=False`` lifts the width limit — a wide
+    Matrix wall has room for the whole (translated) word and its intensity mark.
     """
     word, suffix, _ = _SKY.get(sky or 'cloudy', _SKY['cloudy'])
     word = t(word)
+    if not cap:
+        return word + suffix
     return word + suffix if len(word) + len(suffix) <= _SKY_MAX else word[:_SKY_MAX]
 
 
@@ -160,6 +163,24 @@ def _sky_tile(sky, mono):
     if mono:
         return ''
     return _SKY.get(sky or 'cloudy', _SKY['cloudy'])[2]
+
+
+# The condition spelled OUT for a wide Matrix wall, where there is room for the whole
+# phrase instead of the narrow wall's 6-char word + '-'/'!' intensity mark. The eight
+# single-word forms are the same keys _SKY uses, so they are already translated; the six
+# two-word phrases fall back to English until translated — acceptable because they show
+# ONLY on a wide wall (the narrow wall keeps the fully-translated short word).
+_SKY_FULL = {
+    'clear': 'Sunny', 'pcloudy': 'Partly cloudy', 'cloudy': 'Cloudy', 'fog': 'Fog',
+    'rainl': 'Light rain', 'rain': 'Rain', 'rainh': 'Heavy rain', 'shwr': 'Showers',
+    'snowl': 'Light snow', 'snow': 'Snow', 'snowh': 'Heavy snow', 'sleet': 'Sleet',
+    'storm': 'Storm', 'hail': 'Hail',
+}
+
+
+def _sky_phrase(sky, t):
+    """The condition, spelled out and translated where the catalog has it."""
+    return t(_SKY_FULL.get(sky or 'cloudy', 'Cloudy'))
 
 
 def _metric_line(word, value, label, color, cols, mono=False):
@@ -192,6 +213,71 @@ def _paginate(lines, rows):
     pages = max(1, -(-len(lines) // rows))          # ceil: fewest pages that fit
     per = max(1, -(-len(lines) // pages))           # ceil: spread evenly over them
     return [lines[i:i + per] for i in range(0, len(lines), per)]
+
+
+def _forecast_lines(days, temp_unit, t, i18n, cols, no_color):
+    """The forecast: a day per line.
+
+    On a WIDE wall (a big Matrix panel) the day is spelled OUT — the condition in
+    full ('Partly cloudy', not 'PSunny'; 'Light rain', not 'Rain-'), the high/low
+    with degree signs, and the weekday in full where there is room — laid out as an
+    aligned, CENTRED block: the days, the conditions and the temperatures each line
+    up in a column you can read down, sitting together in the middle rather than
+    flung to the wall's edges. That is what turns the wide wall's room into more
+    weather instead of more empty space.
+
+    The fullest form that fits `cols` is used, degrading in this order:
+      1. full weekday + full condition + degrees   (Wednesday  Partly cloudy  84°/61°)
+      2. short weekday + full condition + degrees   (Wed  Partly cloudy  84°/61°)
+      3. the compact narrow form                    (Wed PSunny 84/61, edges pinned)
+    so the spelled-out condition survives down to a fairly narrow wall, and only a
+    truly 15-wide wall falls back to the abbreviations it has always used.
+
+    `days` is a list of (datetime, forecast-day-dict).
+    """
+    deg = '\N{DEGREE SIGN}'
+    gap = 2
+    pre = 0 if no_color else 2                        # 'X ' colour-tile prefix width
+
+    def temps(d):
+        return (f"{_short_temp(d['hi_f'], temp_unit)}{deg}/"
+                f"{_short_temp(d['lo_f'], temp_unit)}{deg}")
+
+    # --- the aligned, spelled-out block: full weekday if it fits, else short ------
+    for day_full in (True, False):
+        rich = []
+        for dt, d in days:
+            day = (i18n.weekday(dt, short=not day_full) if i18n is not None
+                   else dt.strftime('%A' if day_full else '%a')).replace('.', '')
+            rich.append((_sky_tile(d.get('sky'), no_color), day,
+                         _sky_phrase(d.get('sky'), t), temps(d)))
+        w_day = pre + max(len(day) for _, day, _, _ in rich)
+        w_word = max(len(word) for _, _, word, _ in rich)
+        w_temp = max(len(tmp) for _, _, _, tmp in rich)
+        if w_day + gap + w_word + gap + w_temp <= cols:
+            return [((f'{tile} {day}' if pre else day).ljust(w_day) + ' ' * gap
+                     + word.ljust(w_word) + ' ' * gap + tmp.rjust(w_temp))
+                    for tile, day, word, tmp in rich]
+
+    # --- the compact, narrow-wall form (the day shrinks before the condition) ----
+    words = [_sky_word(d.get('sky'), t) for _, d in days]
+    word_w = max(len(word) for word in words)
+    temp_w = max(len(f"{_short_temp(d['hi_f'], temp_unit)}/"
+                     f"{_short_temp(d['lo_f'], temp_unit)}") for _, d in days)
+    day_w = next((n for n in (3, 2, 1) if n + 1 + word_w + 1 + temp_w <= cols), 1)
+    # …and the colour flap only if it costs nobody a letter.
+    tile = not no_color and (2 + day_w + 1 + word_w + 1 + temp_w) <= cols
+    out = []
+    for (dt, d), word in zip(days, words):
+        day = (i18n.weekday(dt, short=True) if i18n is not None else dt.strftime('%a'))
+        day = day.replace('.', '')[:day_w]
+        left = f'{day} {word}'
+        if tile:
+            left = f'{_sky_tile(d.get("sky"), no_color)} {left}'
+        right = (f"{_short_temp(d['hi_f'], temp_unit)}/"
+                 f"{_short_temp(d['lo_f'], temp_unit)}")
+        out.append(_row(left, right, cols))
+    return out
 
 
 def _fallback_fetch(settings, days, air):
@@ -374,7 +460,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_weather=Non
         # A day per line: what the sky will do, and the high/low in a column you can read
         # down. The FORMAT is chosen once for the whole page, from the longest condition on
         # it, so the columns line up — a line that shrinks its day to make room for "PSunny"
-        # while its neighbour does not is a list you have to read twice.
+        # while its neighbour does not is a list you have to read twice. A wide Matrix wall
+        # spells the whole thing out (see _forecast_lines); a 15-wide wall gets the compact
+        # 'Wed Rain- 78/61'.
         fc_lines = []
         if forecast_days and rows >= 3:
             days = []
@@ -385,31 +473,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_weather=Non
                     dt = datetime.strptime(str(d.get('date'))[:10], '%Y-%m-%d')
                 except (TypeError, ValueError):
                     continue
-                days.append((dt, d, _sky_word(d.get('sky'), t)))
-
+                days.append((dt, d))
             if days:
-                word_w = max(len(word) for _, _, word in days)
-                temp_w = max(len(f"{_short_temp(d['hi_f'], temp_unit)}/"
-                                 f"{_short_temp(d['lo_f'], temp_unit)}") for _, d, _ in days)
-
-                # The day shrinks before the condition does: "We" is still Wednesday, but a
-                # truncated condition is not a condition. One letter is a last resort — Tue
-                # and Thu, Sat and Sun share one.
-                day_w = next((n for n in (3, 2, 1)
-                              if n + 1 + word_w + 1 + temp_w <= cols), 1)
-                # …and the colour flap only if it costs nobody a letter.
-                tile = not no_color and (2 + day_w + 1 + word_w + 1 + temp_w) <= cols
-
-                for dt, d, word in days:
-                    day = (i18n.weekday(dt, short=True) if i18n is not None
-                           else dt.strftime('%a'))
-                    day = day.replace('.', '')[:day_w]
-                    left = f'{day} {word}'
-                    if tile:
-                        left = f'{_sky_tile(d.get("sky"), no_color)} {left}'
-                    right = (f"{_short_temp(d['hi_f'], temp_unit)}/"
-                             f"{_short_temp(d['lo_f'], temp_unit)}")
-                    fc_lines.append(_row(left, right, cols))
+                fc_lines = _forecast_lines(days, temp_unit, t, i18n, cols, no_color)
 
         # --- the pages ----------------------------------------------------------
         # Only one location is supported, so we don't repeat it on every page.
