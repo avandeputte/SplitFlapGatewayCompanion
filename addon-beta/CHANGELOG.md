@@ -3,6 +3,24 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0-beta.1
+
+**Draw anything on a Matrix wall.** A Matrix Gateway can now do far more than
+imitate flaps — it advertises a *canvas* (a real framebuffer) and on-device
+visual effects, and the companion uses both. Three new apps, shown only on a
+Matrix wall that has a panel:
+
+- **Effects** — plasma, fire, and Matrix rain, rendered by the panel itself at
+  full frame rate.
+- **Analog Clock** — a real clock face with sweeping hands, drawn pixel by
+  pixel (something a flap grid can never show).
+- **Image** — mirror a picture onto the panel in full colour.
+
+For app authors, a new `canvas` drawing surface lets an app paint pixels,
+lines, rectangles, text, an on-device effect, or a whole image straight to the
+panel, free of the flap grid. On a physical split-flap wall none of this
+applies — those apps simply don't appear.
+
 ## 2.5.1-beta.2
 
 **A shared text layout, and a tidier binary clock.** The advice, quote, cat/dog
