@@ -46,6 +46,13 @@ class DisplayTransport(abc.ABC):
         """Emit one frame for ``module_id`` showing ``char``."""
         raise NotImplementedError
 
+    def forget(self) -> None:  # pragma: no cover - trivial default
+        """Forget what we believe each module is showing, so the next page is sent
+        in full. Call it whenever something OTHER than us (a canvas takeover, a
+        manual gateway action) may have changed the wall — otherwise unchanged-cell
+        diffing would skip cells the wall no longer actually shows."""
+        return None
+
 
 class SimTransport(DisplayTransport):
     """No hardware: just logs frames. Lets the whole app run with no gateway."""

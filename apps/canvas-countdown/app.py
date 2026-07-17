@@ -113,11 +113,13 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
     # The event name, centred on the black header (no panel/bar behind it), with a
     # thin colour line dividing it from the bars.
     if header_h > 0 and event:
-        hf, htop, hh = _bar_font(canvas, max(5, header_h - 2))
+        # Size the title to ~60% of the header so it has clear air above and below
+        # (the 1px outline included) and never clips — plus centre it by ITS ink.
+        hf, htop, hh = _bar_font(canvas, max(5, int(header_h * 0.6)))
         etext = _truncate(hf, event, W - 4)
         ex = (W - hf.getlength(etext)) / 2.0
-        ey = (header_h - 2 - hh) / 2.0 - htop
-        _shadow_text(draw, ex, max(0, ey), etext, hf, fill=(240, 240, 245))
+        ey = (header_h - 1 - hh) / 2.0 - htop     # centre the ink above the divider
+        _shadow_text(draw, ex, ey, etext, hf, fill=(240, 240, 245))
         draw.rectangle([0, header_h - 1, W - 1, header_h - 1], fill=_UNITS[keys[0]][0])
 
     # Bar edges: rounded so the units EXACTLY tile [header_h, H) with no gaps.
@@ -125,7 +127,8 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
     top, area = header_h, H - header_h
     edges = [top + round(i * area / n) for i in range(n + 1)]
     min_bh = min(edges[i + 1] - edges[i] for i in range(n))
-    font, ink_top, ink_h = _bar_font(canvas, max(5, min_bh - 1))
+    # Leave 3px so the value has margin inside the bar and the 1px outline fits.
+    font, ink_top, ink_h = _bar_font(canvas, max(5, min_bh - 3))
 
     for i, key in enumerate(keys):
         color = _UNITS[key][0]

@@ -3,6 +3,24 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0-beta.7
+
+**Canvas apps: more polish, and a switch-back fix.**
+
+- **Fixed:** switching from a Matrix-panel app back to an ordinary app could leave
+  the wall stuck — the flap display's "unchanged cell" cache went stale while the
+  canvas app drew straight to the panel, so cells that matched it were skipped and
+  never repainted. Leaving canvas mode now forces a full repaint.
+- **Canvas apps stand out in the library** — the whole tile takes a tinted shade
+  and border, not just a small marker, so you can tell Matrix-panel apps at a glance.
+- **Countdown Bars** — the event-title font is smaller and no longer clips at the
+  bottom; the bar numbers have more breathing room too.
+- **Weather Sky** — the place name gets its own line, so a long city (e.g.
+  "Mt Lebanon") no longer collides with the condition; high/low sit on one line
+  below it.
+- **Removed the News Ticker** — smooth horizontal scrolling isn't achievable over
+  the panel's frame-push path, so it never looked good enough to keep.
+
 ## 2.6.0-beta.6
 
 **Effects picker now follows the wall.** The Effects app's list of effects is no

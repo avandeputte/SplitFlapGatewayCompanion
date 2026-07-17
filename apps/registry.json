@@ -141,16 +141,6 @@
       "version": "1.0"
     },
     {
-      "id": "canvas-ticker",
-      "name": "News Ticker",
-      "icon": "📰",
-      "description": "A smooth scrolling news crawl from any RSS feed (Matrix walls)",
-      "category": "news",
-      "type": "functional",
-      "surface": "canvas",
-      "version": "1.0"
-    },
-    {
       "id": "canvas-date",
       "name": "Date Card",
       "icon": "📅",

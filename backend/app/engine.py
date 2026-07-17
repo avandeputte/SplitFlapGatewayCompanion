@@ -173,6 +173,13 @@ class DisplayController:
                 await asyncio.to_thread(canvas.release, url)
             except Exception as e:
                 log.debug("canvas release failed: %s", e)
+        # The canvas app drew straight to the framebuffer, bypassing the flap
+        # transport's shown-cell cache — so it's now stale. Forget it, or the next
+        # flap app's unchanged cells would be skipped and never come back on the wall.
+        try:
+            self.transport.forget()
+        except Exception as e:
+            log.debug("transport.forget failed: %s", e)
 
     async def _cancel_temp(self) -> None:
         """Cancel a timed show_temporary() message, if one is up. Without this, stop()

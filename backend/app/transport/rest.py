@@ -139,6 +139,14 @@ class RestTransport(DisplayTransport):
     def last_error(self) -> str | None:
         return self._last_error
 
+    def forget(self) -> None:
+        """Drop the shown-cell cache so the next page repaints every module. Used
+        after a Matrix panel leaves canvas mode: while a canvas app had the panel,
+        it drew straight to the framebuffer without going through ``_shown``, so
+        what we last recorded there no longer matches the wall — and the unchanged-
+        cell diff would otherwise skip flaps that need to come back."""
+        self._shown.clear()
+
     async def send_frame(self, module_id: int, char: str) -> None:
         if self._client is None:
             raise RuntimeError("REST transport not connected")

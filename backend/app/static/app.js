@@ -460,7 +460,7 @@ async function loadApps() {
     const needsPanel = isCanvas && !CANVAS;
     const fits = appFits(a) && !needsPanel;
     const reqLabel = needsPanel ? t("Matrix panel only") : appReq(a);
-    const tile = el("div", "app-tile" + (fits ? "" : " disabled"));
+    const tile = el("div", "app-tile" + (fits ? "" : " disabled") + (isCanvas ? " is-canvas" : ""));
     tile.dataset.appId = a.id;
     tile.setAttribute("role", "button");
     tile.tabIndex = fits ? 0 : -1;

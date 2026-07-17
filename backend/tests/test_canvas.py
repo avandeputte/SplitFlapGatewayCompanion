@@ -186,7 +186,7 @@ def test_the_canvas_apps_are_marked_canvas_surface():
     apps = Path(__file__).resolve().parents[2] / "apps"
     import json
     for app in ("effects", "canvas-art-clock", "canvas-image", "canvas-weather",
-                "canvas-ticker", "canvas-date", "canvas-world", "canvas-countdown"):
+                "canvas-date", "canvas-world", "canvas-countdown"):
         m = json.loads((apps / app / "manifest.json").read_text())
         assert m.get("surface") == "canvas", app
 
@@ -338,31 +338,6 @@ def test_countdown_arrived_and_no_target_do_not_crash(gw_calls):
         assert len(content) == 128 * 32 * 3
 
 
-def test_news_ticker_scrolls_headlines(gw_calls, monkeypatch):
-    app = _load("canvas-ticker")
-    import urllib.request
-
-    class _Resp:
-        def read(self):
-            return (b"<rss><channel>"
-                    b"<item><title>Markets rally to record highs today</title></item>"
-                    b"<item><title>Weather warning for the weekend ahead</title></item>"
-                    b"</channel></rss>")
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
-
-    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: _Resp())
-    content = None
-    for _ in range(6):                              # fetch once, then scroll
-        _h, img, content = _push(gw_calls, app, 128, 32, {"feed_url": "http://x"})
-    assert len(content) == 128 * 32 * 3 and _bright(img) > 20
-    assert app.fetch({}, None, None, None, canvas=None) is None
-
-
 # --- the effect picker is driven by what the wall advertises ----------------
 
 def _effect_field(schema):
@@ -386,3 +361,36 @@ def test_effects_picker_falls_back_where_the_wall_advertises_none(tmp_path):
     rt = make_runtime(tmp_path=tmp_path, installed=["effects"], caps=device.SPLIT_FLAP)
     field = _effect_field(rt.settings_schema("effects"))
     assert [o["value"] for o in field["options"]] == ["plasma", "fire", "matrix"]   # the manifest's own
+
+
+def test_leaving_a_canvas_app_forgets_the_flap_cache(gw_calls, tmp_path):
+    """Regression: a canvas app draws straight to the framebuffer, bypassing the
+    flap transport's shown-cell cache. When you switch back to a flap app, that
+    cache is stale — so its unchanged cells were skipped and never repainted, and
+    the wall looked stuck on the canvas. Leaving canvas mode must forget the cache."""
+    from pathlib import Path
+
+    async def run():
+        cfg = Config(data_dir=tmp_path)
+        cfg.update({"transport": {"gateway_url": "http://gw"}})
+        ctl = DisplayController(cfg, DisplayState(45))
+        ps = PluginSettings(tmp_path)
+        ps.set_installed(["effects", "time"])
+        rt = PluginRuntime(cfg, ps, Path(__file__).resolve().parents[2] / "apps")
+        rt.load()
+        rt.attach_caps(lambda: device.from_capabilities(CANVAS_DOC))
+        ctl.attach_plugins(rt)
+        await ctl.start()
+
+        forgot = []
+        real = ctl.transport.forget
+        ctl.transport.forget = lambda: (forgot.append(True), real())[1]
+
+        await ctl.run_app("effects")            # a canvas app takes the panel over
+        await asyncio.sleep(0.2)
+        assert ctl._canvas_active
+        await ctl.run_app("time")               # switch back to a flap app
+        assert forgot, "the flap shown-cell cache was not forgotten leaving canvas mode"
+        await ctl.stop()
+
+    asyncio.run(run())

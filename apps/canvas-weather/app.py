@@ -225,36 +225,48 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
         draw.text((x, y), s, font=font, fill=col, anchor=anchor)
 
     temp = _num(wx.get('temp_f'), unit)
-    big = canvas.font(int(H * 0.50))
-    small = canvas.font(max(8, int(H * 0.24)))
-    tiny = canvas.font(max(7, int(H * 0.20)))
+    hi, lo = _num(wx.get('hi_f'), unit), _num(wx.get('lo_f'), unit)
     deg = '\N{DEGREE SIGN}'
+    tiny = canvas.font(max(6, int(H * 0.17)))       # the place name — a touch smaller
+    wide = W >= 96
+    word = _WORD.get(sky, 'Weather')
 
-    # place name, top-left
+    # A TOP ROW for the place name, on its own line, so nothing is drawn under it
+    # (a long city like "Mt Lebanon" used to collide with the condition).
+    top = 0
     if show_city and wx.get('city'):
-        text(2, 0, str(wx['city'])[:max(3, int(W * 0.55) // max(4, tiny.size // 2 + 1))],
-             tiny, (206, 216, 236))
+        cs = str(wx['city'])
+        while cs and tiny.getlength(cs) > int(W * 0.60):
+            cs = cs[:-1]
+        if cs:
+            text(2, 0, cs, tiny, (208, 218, 238))
+            top = tiny.size + 1                     # everything else drops below the city
 
-    # the temperature, big, left
-    ty = int(H * 0.26)
+    # On a narrow wall the condition rides the bottom row; the temperature fills
+    # the band between the city and it.
+    bottom = 0 if wide else (tiny.size if word else 0)
+    band = H - top - bottom
+    big = canvas.font(max(10, int(band * (0.74 if wide else 0.92))))
+    small = canvas.font(max(7, int((H - top) * 0.30)))
+
     s = f'{temp}{deg}' if temp is not None else '--'
+    ty = top + max(0, (band - big.size) // 2)
     text(2, ty, s, big, (255, 255, 255) if temp is not None else (200, 200, 200))
     tw = big.getlength(s)
 
-    # a right-hand column: condition, then today's high / low
-    hi, lo = _num(wx.get('hi_f'), unit), _num(wx.get('lo_f'), unit)
-    if W >= 96:
-        rx, ry = int(tw) + 8, int(H * 0.06)
-        step = small.size + 2
-        text(rx, ry, _WORD.get(sky, 'Weather')[:11], small, (208, 222, 242))
+    if wide:
+        # A right-hand column, also BELOW the city: the condition, then today's
+        # high / low on ONE line (high warm, low cool) so all of it clears the row.
+        rx, ry = int(tw) + 8, top + 1
+        text(rx, ry, word[:11], small, (208, 222, 242))
+        ly, lx = ry + small.size + 3, rx
         if hi is not None:
-            text(rx, ry + step, f'{hi}{deg}', small, (255, 208, 150))
+            text(lx, ly, f'{hi}{deg}', small, (255, 208, 150))
+            lx += int(small.getlength(f'{hi}{deg}')) + 5
         if lo is not None:
-            text(rx, ry + 2 * step, f'{lo}{deg}', small, (150, 200, 255))
-    elif temp is not None:
-        # narrow wall: just the condition, tucked under the temperature
-        text(2, min(H - tiny.size, ty + big.size - 1), _WORD.get(sky, '')[:9],
-             tiny, (206, 220, 240))
+            text(lx, ly, f'{lo}{deg}', small, (150, 200, 255))
+    elif bottom:
+        text(2, H - bottom, word[:9], tiny, (206, 220, 240))
 
     canvas.frame(img)
     return 0.16
