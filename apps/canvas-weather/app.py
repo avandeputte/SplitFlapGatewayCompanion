@@ -211,73 +211,64 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
         draw.line([(bx, int(H * 0.3)), (bx - 3, int(H * 0.55)), (bx + 2, int(H * 0.55)),
                    (bx - 2, int(H * 0.8))], fill=(255, 255, 170), width=1)
 
-    # --- the numbers ------------------------------------------------------------
-    # A soft dark scrim on the left so white text always reads over the sky.
+    # --- the text -----------------------------------------------------------
+    # ALL text lives in a left column over a dark scrim, so it always reads —
+    # even on a bright day sky — while the sky itself (sun/moon/cloud/rain) stays
+    # bright on the right. The column stacks: place, big temperature, then the
+    # condition with today's high/low. Nothing overlaps, nothing sits on the sky.
+    pad = 2
+    text_w = int(W * 0.66)
     scrim = Image.new('L', (W, H), 0)
-    ImageDraw.Draw(scrim).rectangle([0, 0, int(W * 0.62), H], fill=150)
+    ImageDraw.Draw(scrim).rectangle([0, 0, text_w, H], fill=180)
     img = Image.composite(Image.new('RGB', (W, H), (0, 0, 0)), img,
                           scrim.filter(ImageFilter.GaussianBlur(6)))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"                         # crisp 1-bit text — no anti-aliased fuzz
 
-    def text(x, y, s, font, col, anchor='la'):
-        draw.text((x + 1, y + 1), s, font=font, fill=(0, 0, 0), anchor=anchor)
-        draw.text((x, y), s, font=font, fill=col, anchor=anchor)
+    def text(x, y, s, font, col):
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):   # a dark outline for contrast
+            draw.text((x + dx, y + dy), s, font=font, fill=(0, 0, 0), anchor='la')
+        draw.text((x, y), s, font=font, fill=col, anchor='la')
 
     temp = _num(wx.get('temp_f'), unit)
     hi, lo = _num(wx.get('hi_f'), unit), _num(wx.get('lo_f'), unit)
     deg = '\N{DEGREE SIGN}'
-    tiny = canvas.font(max(6, int(H * 0.17)))       # the place name — a touch smaller
-    wide = W >= 96
+    tiny = canvas.font(max(6, int(H * 0.17)))
+    small = canvas.font(max(7, int(H * 0.24)))
     word = _WORD.get(sky, 'Weather')
 
-    # A TOP ROW for the place name, on its own line, so nothing is drawn under it
-    # (a long city like "Mt Lebanon" used to collide with the condition).
     top = 0
     if show_city and wx.get('city'):
         cs = str(wx['city'])
-        while cs and tiny.getlength(cs) > int(W * 0.60):
+        while cs and tiny.getlength(cs) > text_w - pad:
             cs = cs[:-1]
         if cs:
-            text(2, 0, cs, tiny, (208, 218, 238))
-            top = tiny.size + 1                     # everything else drops below the city
+            text(pad, 0, cs, tiny, (216, 226, 244))
+            top = tiny.size + 1
 
-    # On a narrow wall the condition rides the bottom row; the temperature fills
-    # the band between the city and it.
-    bottom = 0 if wide else (tiny.size if word else 0)
-    band = H - top - bottom
-    big = canvas.font(max(10, int(band * (0.74 if wide else 0.92))))
-    small = canvas.font(max(7, int((H - top) * 0.30)))
-
+    info_y = H - (small.size + 1)
+    band = info_y - top
+    big = canvas.font(max(10, int(band * 0.96)))
     s = f'{temp}{deg}' if temp is not None else '--'
     ty = top + max(0, (band - big.size) // 2)
-    text(2, ty, s, big, (255, 255, 255) if temp is not None else (200, 200, 200))
-    tw = big.getlength(s)
+    text(pad, ty, s, big, (255, 255, 255) if temp is not None else (200, 200, 200))
 
-    if wide:
-        # A right-hand column, also BELOW the city: the condition, then today's
-        # high / low on ONE line (high warm, low cool). The condition is trimmed to
-        # its space, and the high/low pair is RIGHT-ALIGNED to the panel edge so
-        # neither number — especially a 3-digit one — ever runs off the screen.
-        rx, ry = int(tw) + 8, top + 1
-        cond = word
-        while cond and small.getlength(cond) > W - 2 - rx:
-            cond = cond[:-1]
-        text(rx, ry, cond, small, (208, 222, 242))
-        parts = []
-        if hi is not None:
-            parts.append((f'{hi}{deg}', (255, 208, 150)))
-        if lo is not None:
-            parts.append((f'{lo}{deg}', (150, 200, 255)))
-        if parts:
-            gap = 5
-            total = sum(small.getlength(s) for s, _ in parts) + gap * (len(parts) - 1)
-            x, ly = W - 2 - total, ry + small.size + 3
-            for s, col in parts:
-                text(x, ly, s, small, col)
-                x += small.getlength(s) + gap
-    elif bottom:
-        text(2, H - bottom, word[:9], tiny, (206, 220, 240))
+    # The info line: condition, then high (warm) / low (cool). The condition is
+    # shown only when the whole line fits the column; the numbers always are.
+    hi_s = f'{hi}{deg}' if hi is not None else ''
+    lo_s = f'{lo}{deg}' if lo is not None else ''
+    x = pad
+    if word and small.getlength(word + '  ' + hi_s + '/' + lo_s) <= text_w - pad:
+        text(x, info_y, word, small, (214, 226, 246))
+        x += small.getlength(word + '  ')
+    if hi_s:
+        text(x, info_y, hi_s, small, (255, 202, 140))
+        x += small.getlength(hi_s)
+    if hi_s and lo_s:
+        text(x, info_y, '/', small, (186, 196, 216))
+        x += small.getlength('/')
+    if lo_s:
+        text(x, info_y, lo_s, small, (150, 200, 255))
 
     canvas.frame(img)
     return 0.16

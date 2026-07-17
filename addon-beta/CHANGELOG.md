@@ -3,6 +3,17 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0-beta.9
+
+**Canvas app readability fixes.**
+
+- **Weather Sky** — all the text now sits in a left column over a dark scrim, so
+  it reads clearly even on a bright day sky (the light-on-light contrast is gone),
+  and it's a clean place / temperature / condition·high·low stack with no
+  overlap. The sky, sun or moon still shine on the right.
+- **Date Card** — dropped the tinted background; it's solid black now.
+- **Countdown Bars** — removed the lines between the bars.
+
 ## 2.6.0-beta.8
 
 **The live preview and the Home Assistant board image now show canvas apps.**

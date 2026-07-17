@@ -136,8 +136,6 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
         fw = int(round(min(1.0, max(0.0, frac[key])) * W))
         if fw > 0:
             draw.rectangle([0, y0, fw - 1, y1 - 1], fill=color)
-        if i < len(keys) - 1:                                        # thin row divider
-            draw.rectangle([0, y1 - 1, W - 1, y1 - 1], fill=(24, 24, 28))
         vtext = _label(key, val[key], font, W - 2 * pad)
         ty = y0 + (bh - ink_h) / 2.0 - ink_top                       # vertically centred
         _shadow_text(draw, pad, ty, vtext, font)

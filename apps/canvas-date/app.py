@@ -131,7 +131,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         total = sum(ln["h"] for ln in lines) + 2 * gap_v
 
     # -- compose: dark gradient, gradient-filled day, then the stack --------
-    base = canvas.vgrad((8, 12, 28), (0, 0, 3))
+    base = canvas.blank((0, 0, 0))          # solid black — no tinted card behind it
 
     m = Image.new("L", (W, H), 0)
     dm = ImageDraw.Draw(m)
