@@ -34,7 +34,7 @@ CATALOG: list[dict] = [
      "ph": "02118",
      "note": "Geocoded to place you — used unless a precise location is set below."},
     {"key": "location_precise", "label": "Location — precise (optional)", "type": "search_chips",
-     "searchUrl": "/location_search", "resultKey": "results", "maxItems": 1,
+     "searchUrl": "/location_search", "resultKey": "results", "maxItems": 1, "geolocate": True,
      "note": "Search a place for exact coordinates; overrides the ZIP/city above.",
      "_composite": ["location_lat", "location_lon", "location_name"]},
     {"key": "timezone", "label": "Timezone", "type": "search_chips",

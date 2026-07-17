@@ -1,4 +1,4 @@
-def fetch(settings, format_lines, get_rows, get_cols):
+def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
     import math
     import re
     import time
@@ -465,7 +465,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
     base_loop_seconds = 4.0
 
-    location_raw = settings.get("location", "42.3601,-71.0589")
+    location_raw = str(settings.get("location", "") or "")
     radius_value = max(
         1.0,
         _to_float(settings.get("radius", 100), 100.0),
@@ -508,9 +508,23 @@ def fetch(settings, format_lines, get_rows, get_cols):
     radius_km = radius_value * 1.609344 if radius_unit == "mi" else radius_value
     radius_km = max(10.0, min(250.0, radius_km))
 
-    center = _resolve_location(location_raw)
-    if not center:
-        return [format_lines("Planes", "Bad location", "Use lat,lon")] * dwell_repeat
+    # Where to look. Prefer the GLOBAL precise location (the Location set in the main
+    # settings, shared with weather / tides / sun-times); the per-app field below is only
+    # an override, used when someone types one in or no global location is set at all.
+    center = None
+    if get_location is not None:
+        loc = get_location() or {}
+        if loc.get("lat") is not None and loc.get("lon") is not None:
+            try:
+                center = (float(loc["lat"]), float(loc["lon"]))
+            except (TypeError, ValueError):
+                center = None
+    if center is None and location_raw.strip():
+        center = _resolve_location(location_raw)
+        if not center:
+            return [format_lines("Planes", "Bad location", "Use lat,lon")] * dwell_repeat
+    if center is None:
+        center = (42.3601, -71.0589)                 # last resort: nothing set anywhere
 
     for key, label in _provider_requirements(data_source):
         if not str(settings.get(key, "")).strip():
@@ -528,6 +542,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
     settings_sig = (
         location_raw,
+        center,                                      # global location changes -> refetch
         radius_value,
         radius_unit,
         max_results,
@@ -606,20 +621,31 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
     rows, cols = get_rows(), get_cols()
     gap = 2
-    cw = max(len(p[0]) for p in planes)
-    dw = max(len(p[1]) for p in planes)
-    aw = max(len(p[2]) for p in planes)
-    sw = max(len(p[3]) for p in planes)
-    row_w = cw + gap + dw + gap + aw + gap + sw
+    g = ' ' * gap
+    cw = max(len(p[0]) for p in planes)              # callsign
+    dw = max(len(p[1]) for p in planes)              # distance (with direction)
+    aw = max(len(p[2]) for p in planes)              # altitude
+    sw = max(len(p[3]) for p in planes)              # speed
 
     pages = []
-    if rows >= 2 and row_w <= cols:
-        # Wide wall: a TABLE — one aircraft per row, callsign / distance / altitude /
-        # speed in aligned columns, several planes to a page, instead of one plane on a
-        # near-empty page. The unit on each field (NM, FL, KT) labels its own column.
-        g = ' ' * gap
-        lines = [f'{c.ljust(cw)}{g}{d.ljust(dw)}{g}{a.ljust(aw)}{g}{s.rjust(sw)}'
-                 for c, d, a, s in planes]
+    if rows >= 2 and cw + gap + dw <= cols:
+        # Wide wall: a TABLE — one aircraft per LINE, several planes to a page. Show the
+        # callsign and distance always, then altitude, then speed, adding each extra
+        # column only while it still fits — so even a moderately wide wall gets the
+        # one-plane-per-line table instead of one plane on a near-empty page. Each field's
+        # unit (NM, FL, KT) labels its own column.
+        w = cw + gap + dw
+        show_alt = w + gap + aw <= cols
+        w += gap + aw if show_alt else 0
+        show_spd = w + gap + sw <= cols
+        lines = []
+        for c, d, a, s in planes:
+            row = f'{c.ljust(cw)}{g}{d.ljust(dw)}'
+            if show_alt:
+                row += f'{g}{a.ljust(aw)}'
+            if show_spd:
+                row += f'{g}{s.rjust(sw)}'
+            lines.append(row)
         for i in range(0, len(lines), rows):
             pages.extend([format_lines(*lines[i:i + rows])] * dwell_repeat)
     else:
@@ -654,10 +680,19 @@ def trigger(settings, conditions):
     flights = fetch_state['flights'] if fetch_state and fetch_state.get('flights') else []
 
     if not flights:
-        # No cached data — do a quick OpenSky poll
+        # No cached data — do a quick OpenSky poll. Look where the fetch looks: the
+        # GLOBAL precise location first (location_lat/lon in the main settings), then the
+        # per-app override field, then a default.
         try:
-            loc = settings.get('location', '41.97,-87.90')
-            lat, lon = [float(x.strip()) for x in loc.split(',')]
+            lat_s = str(settings.get('location_lat', '') or '').strip()
+            lon_s = str(settings.get('location_lon', '') or '').strip()
+            loc = str(settings.get('location', '') or '').strip()
+            if lat_s and lon_s:
+                lat, lon = float(lat_s), float(lon_s)
+            elif loc:
+                lat, lon = [float(x.strip()) for x in loc.split(',')]
+            else:
+                lat, lon = 42.3601, -71.0589
             radius_km = 50
             d = radius_km / 111.0
             r = requests.get(

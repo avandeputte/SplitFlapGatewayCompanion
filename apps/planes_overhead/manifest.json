@@ -10,9 +10,10 @@
   "settings": [
     {
       "key": "location",
-      "label": "Location (lat,lon)",
+      "label": "Location override (lat,lon)",
+      "note": "Leave blank to use your global location from the main settings.",
       "type": "text",
-      "default": "41.97596460174016,-87.90326919959064"
+      "default": ""
     },
     {
       "key": "radius",

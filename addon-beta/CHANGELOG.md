@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.9
+
+- **Planes Overhead** — now uses your **global location** (the Location in the main
+  settings, shared with weather / tides), instead of its own separate lat/lon box.
+  That box is still there as an optional per-app override — leave it blank to follow
+  the global location.
+- **Planes Overhead** — the wide-screen table now shows **one plane per line** on
+  more panel widths: it always shows the callsign and distance, then adds altitude
+  and speed as the width allows, instead of only switching to a table when all four
+  columns fit.
+- **Settings** — the precise-location field has a **"📍 Use my location"** button.
+  On a phone (or any device with location services) it fills in your exact
+  coordinates in one tap, via the browser's geolocation.
+
 ## 2.7.0-beta.8
 
 - **Art Clock** — the AM/PM on a wide wall is now drawn in colour flaps like the

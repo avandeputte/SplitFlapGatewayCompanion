@@ -95,6 +95,33 @@ async def location_search(q: str) -> dict:
         return {"results": [], "error": str(e)}
 
 
+async def location_reverse(lat: str, lon: str) -> dict:
+    """A GPS fix (lat, lon) -> a place chip, so the browser's geolocation can fill the
+    precise-location field the same way a picked search result does. The coordinates are
+    the payload; the name is looked up for a friendly label, and if that fails the raw
+    coordinates stand in — the fix still works either way."""
+    if not lat or not lon:
+        return {"result": None}
+    try:
+        flat, flon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        return {"result": None}
+    name = f"{flat:.4f}, {flon:.4f}"
+    try:
+        data = await _get_json(
+            "https://nominatim.openstreetmap.org/reverse",
+            params={"lat": lat, "lon": lon, "format": "json", "zoom": 10, "addressdetails": 1},
+            headers={"User-Agent": "SplitFlapGatewayCompanion/1.0"}, timeout=6.0)
+        addr = data.get("address", {})
+        name = (addr.get("city") or addr.get("town") or addr.get("village")
+                or addr.get("municipality") or addr.get("county")
+                or (data.get("display_name", "") or "").split(",")[0].strip() or name)
+    except Exception as e:
+        log.warning("location reverse error: %s", e)
+    return {"result": {"lat": lat, "lon": lon, "name": name,
+                       "value": f"{lat},{lon}|{name}", "label": name}}
+
+
 async def location_timezone(lat: str, lon: str) -> dict:
     if not lat or not lon:
         return {"timezone": ""}

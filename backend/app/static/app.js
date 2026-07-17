@@ -781,7 +781,29 @@ function buildForm(schema, initial, { skip } = {}) {
     // to a result must not hide the result out from under the keypress.
     search.addEventListener("blur", () =>
       setTimeout(() => { if (!results.contains(document.activeElement)) hideResults(); }, 150));
-    box.appendChild(chipsDiv); box.appendChild(search); box.appendChild(results); wrap.appendChild(box); draw();
+    box.appendChild(chipsDiv); box.appendChild(search);
+    // A phone (or any device with a GPS/Wi-Fi fix) can fill this in one tap: ask the
+    // browser for coordinates, reverse-geocode them to a place chip, and drop it in.
+    if (f.geolocate && "geolocation" in navigator) {
+      const gpsLabel = "📍 " + t("Use my location");
+      const gps = el("button", "gps-btn"); gps.type = "button"; gps.textContent = gpsLabel;
+      gps.addEventListener("click", () => {
+        gps.disabled = true; gps.textContent = t("Locating…");
+        const reset = () => { gps.disabled = false; gps.textContent = gpsLabel; };
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          try {
+            const d = await api(`/location_reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+            if (d.result) { chips = [{ value: d.result.value, label: d.result.label }]; draw(); onFormChange(); }
+          } catch { /* keep whatever was there */ }
+          reset();
+        }, () => {
+          reset();
+          alert(t("Couldn't get your location — check the browser's location permission."));
+        }, { enableHighAccuracy: true, timeout: 10000 });
+      });
+      box.appendChild(gps);
+    }
+    box.appendChild(results); wrap.appendChild(box); draw();
     wrap._getValue = () => chips.map((c) => c.value).join(",");
     wrap._setValue = (v) => { chips = v ? String(v).split(",").filter(Boolean).map((x) => ({ value: x, label: chipLabel(x) })) : []; draw(); };
   } else {
