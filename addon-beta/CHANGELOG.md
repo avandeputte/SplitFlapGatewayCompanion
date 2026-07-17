@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0-beta.10
+
+**Compose now works on iPhone and iPad.** Tapping a cell in the Compose tab
+opened no keyboard on iOS — a focused grid cell (a `<div>`) never triggers the
+on-screen keyboard. Compose now routes typing through a real (hidden) text input,
+so the keyboard appears and you can type onto the wall from a phone or tablet.
+
 ## 2.6.0-beta.9
 
 **Canvas app readability fixes.**

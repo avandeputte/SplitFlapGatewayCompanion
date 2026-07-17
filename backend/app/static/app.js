@@ -293,9 +293,8 @@ function cmpKey(e) {
   else if (k === "Enter")      cmpFocus(CMP_AT - (CMP_AT % cols) + cols);
   else if (k === "Backspace") { cmpFocus(CMP_AT - 1); CMP[CMP_AT] = ""; cmpRender(); }
   else if (k === "Delete")     cmpSet("", false);
-  else if (k === " ")          cmpSet("");            // space blanks and advances
-  else if (k.length === 1)     cmpSet(k);             // any single printable char
-  else return;                                        // leave modifiers etc. alone
+  else return;              // printable chars (incl. space) go through the `input` event,
+                            // so a soft keyboard that doesn't keydown per char still types
   e.preventDefault();
 }
 
@@ -327,8 +326,23 @@ function cmpBuild() {
   buildBoard(board, GRID.module_count, GRID.cols);
   CMP = Array(GRID.module_count).fill("");
   CMP_AT = 0;
+
+  // Tapping a cell focuses the hidden <input> (which opens the on-screen keyboard
+  // on iOS/iPadOS — a focused <div> never does). Its keystrokes drive the grid:
+  // navigation/backspace through keydown, the printed characters through `input`
+  // (so soft keyboards, which don't always keydown per character, work too).
+  const catcher = $("cmpCatcher");
+  catcher.setAttribute("aria-label", t("Compose"));
+  if (!catcher.dataset.wired) {
+    catcher.dataset.wired = "1";
+    catcher.addEventListener("keydown", cmpKey);
+    catcher.addEventListener("input", () => {
+      for (const ch of catcher.value) cmpSet(ch === " " ? "" : ch);
+      catcher.value = "";
+    });
+  }
   [...board.children].forEach((cell, i) =>
-    cell.addEventListener("click", () => { board.focus(); cmpFocus(i); }));
+    cell.addEventListener("click", () => { catcher.focus(); cmpFocus(i); }));
 
   // Swatches come from the server's COLOR_MAP so the two can never drift apart.
   EMOJI2CODE = GRID.color_map || {};
@@ -342,7 +356,7 @@ function cmpBuild() {
     b.classList.add(blank ? "swatch-blank" : `color-${code}`);
     b.title = blank ? t("Blank") : t("Colour %s", code);
     b.addEventListener("click", () => {
-      $("composeBoard").focus();
+      $("cmpCatcher").focus();
       cmpSet(blank ? "" : emoji);
     });
     sw.appendChild(b);
@@ -368,8 +382,6 @@ function cmpBuild() {
       : (disp.transition_speed ?? 15);
   };
 
-  // Same function reference each time, so re-adding is a no-op — no accumulation here.
-  board.addEventListener("keydown", cmpKey);
   cmpRender();
 }
 
@@ -439,7 +451,7 @@ function wireTabs() {
         .forEach((p) => $("page-" + p).classList.toggle("hidden", p !== tab));
       const loaders = { apps: loadApps, playlists: loadPlaylists, triggers: loadTriggers };
       if (loaders[tab]) loaders[tab]();
-      if (tab === "compose") $("composeBoard").focus();
+      if (tab === "compose") $("cmpCatcher").focus();   // opens the keyboard on iOS
       current.textContent = btn.textContent;
       closeMenu();
     })

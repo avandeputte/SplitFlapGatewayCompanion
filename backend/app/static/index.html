@@ -79,6 +79,10 @@
         <h2 data-i18n="Compose">Compose</h2>
         <span class="hint" data-i18n="click a cell to type · arrows to move · a swatch paints the cell">click a cell to type · arrows to move · a swatch paints the cell</span>
       </div>
+      <!-- A real (hidden) input so iOS/iPadOS opens its on-screen keyboard when
+           you tap a cell — a focused <div> never does. Its keystrokes drive the grid. -->
+      <input id="cmpCatcher" class="cmp-catcher" type="text" autocomplete="off"
+             autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="-1">
       <div class="board compose-board" id="composeBoard" tabindex="0"></div>
       <div class="controls compose-controls">
         <label class="field inline" style="margin:0"><input type="checkbox" id="cmpCenter" style="width:auto"><span style="min-width:0" data-i18n="Center">Center</span></label>

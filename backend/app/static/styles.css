@@ -99,6 +99,16 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
   image-rendering: pixelated; background: #000;
   border-radius: 10px; border: 1px solid #333;
 }
+/* The compose keyboard-catcher: a real <input> (so iOS opens its keyboard) that is
+   invisible but NOT display:none / visibility:hidden — those stop the keyboard.
+   Anchored inside the compose panel to avoid a focus scroll-jump; 16px font keeps
+   iOS from zooming on focus. */
+#page-compose { position: relative; }
+.cmp-catcher {
+  position: absolute; top: 0; left: 0; width: 1px; height: 1px;
+  opacity: 0; border: 0; padding: 0; margin: 0; font-size: 16px;
+  color: transparent; background: transparent; pointer-events: none; z-index: -1;
+}
 /* The glyph. Three things were fighting legibility once the flaps got small:
  *
  * 1. Courier New is a thin, wide typewriter face — it thins out badly below ~14px, and
