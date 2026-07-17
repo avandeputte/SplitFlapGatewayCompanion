@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.7
+
+- **Stocks** — a new "Pause When Markets Closed" option (on by default). yfinance's
+  quick feed carries no open/closed flag, but it does carry each stock's exchange
+  timezone, so the app now knows when a market is shut and stops polling it overnight
+  and on weekends — showing the last prices meanwhile — instead of hammering the
+  feed around the clock. A watchlist spanning several exchanges keeps refreshing as
+  long as any one of them is trading. Turn it off to always refresh on your schedule.
+
 ## 2.7.0-beta.6
 
 A sweep of apps that were wasting a wide Matrix panel, plus two clock tweaks:

@@ -56,8 +56,41 @@ def _columns3(triples, cols, gap=3):
     return out
 
 
+def _tz_of(info):
+    """The exchange timezone from a yfinance fast_info, if it exposes one."""
+    for key in ('timezone', 'exchangeTimezoneName'):
+        try:
+            v = info[key]
+        except Exception:
+            v = None
+        if v:
+            return str(v)
+    return None
+
+
+def _exchange_open(tz_name, now_utc):
+    """Is an exchange in `tz_name` plausibly trading right now?
+
+    Weekday and roughly 04:00-20:00 in the exchange's OWN time — a generous window
+    that spans the regular session plus pre-/after-hours, so we only ever call a
+    market 'closed' when it is CLEARLY shut (overnight, weekend). An unknown timezone
+    counts as open: we never skip a refresh on a guess. (Public holidays are not
+    modelled — the cost of an extra poll on a holiday is one stale-priced fetch.)
+    """
+    try:
+        import pytz
+        local = now_utc.astimezone(pytz.timezone(tz_name))
+    except Exception:
+        return True
+    if local.weekday() >= 5:                          # Saturday / Sunday
+        return False
+    mins = local.hour * 60 + local.minute
+    return 4 * 60 <= mins < 20 * 60
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import yfinance as yf
+    from datetime import datetime, timezone
 
     def t(s):
         return i18n.t(s, "stocks") if i18n is not None else s
@@ -67,6 +100,25 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         return [format_lines('Stocks', t('No tickers'), t('Configure'))]
     no_color = settings.get('disable_colors', 'no') == 'yes'
     rows, cols = get_rows(), get_cols()
+
+    # Pause polling when every followed market is shut (overnight, weekend): yfinance is
+    # the slow part, and a closed market's price does not move. We remember each ticker's
+    # exchange timezone (fast_info carries it) and the last good pages, and simply re-show
+    # them while all those markets are closed. Any unknown timezone counts as open, so we
+    # never go stale on a guess; a settings change (different tickers / geometry) misses
+    # the cache and refetches at once.
+    market_hours = settings.get('market_hours_only', 'yes') == 'yes'
+    st = getattr(fetch, '_state', None)
+    if st is None:
+        st = {'pages': None, 'tzs': None, 'sig': None}
+        setattr(fetch, '_state', st)
+    lang = getattr(i18n, 'lang', '') if i18n is not None else ''
+    sig = (tuple(tickers), rows, cols, no_color, lang)
+    now_utc = datetime.now(timezone.utc)
+    if (market_hours and st['pages'] is not None and st['sig'] == sig and st['tzs']
+            and not any(_exchange_open(tz, now_utc) for tz in st['tzs'])):
+        return st['pages']
+    tzs = set()
 
     # Each ticker is quoted in its exchange's own currency (AAPL->USD, VOD.L->GBP,
     # SAP.DE->EUR); show that currency's symbol, not a single hardcoded one.
@@ -95,6 +147,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 info = yf.Ticker(sym).fast_info
                 price = info['lastPrice']
                 prev = info['previousClose']
+                tz = _tz_of(info)                # remember the exchange's hours
+                if tz:
+                    tzs.add(tz)
                 try:
                     cur = (info['currency'] or 'USD')
                 except Exception:
@@ -122,7 +177,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         else:
             pages.append(format_lines(*_columns([(s, p) for s, p, _ in triples], cols)))
             pages.append(format_lines(*_columns([(s, c) for s, _, c in triples], cols)))
-    return pages or [format_lines('Stocks', t('No data'), '')]
+    result = pages or [format_lines('Stocks', t('No data'), '')]
+    st['pages'], st['tzs'], st['sig'] = result, tzs, sig
+    return result
 
 
 def trigger(settings, conditions):

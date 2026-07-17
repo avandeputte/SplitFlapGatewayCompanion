@@ -99,6 +99,17 @@
       "stepper": true
     },
     {
+      "key": "market_hours_only",
+      "label": "Pause When Markets Closed",
+      "note": "Skip price updates overnight and on weekends, when the exchange is shut.",
+      "type": "toggle",
+      "default": "yes",
+      "options": [
+        {"value": "yes", "label": "On"},
+        {"value": "no", "label": "Off"}
+      ]
+    },
+    {
       "key": "loop_delay",
       "label": "Delay Between Pages (seconds)",
       "type": "number",
