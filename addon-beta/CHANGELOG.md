@@ -3,6 +3,25 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.1
+
+**Apps that use a big Matrix panel.** On a large panel (say 256×64) most apps used
+to leave the space empty. Now:
+
+- **Overview** — a NEW canvas app: a drawn dashboard that fills a big panel — a
+  large clock and the date on the left, a weather column on the right
+  (temperature, condition, high/low, feels-like, humidity, wind) with a day/night
+  sun or moon and a seconds sweep. It shrinks gracefully to a clock + a line of
+  weather on a small panel.
+- **Weather Sky** — on a big panel it opens into a full info panel: feels-like,
+  humidity and wind beside the temperature, and a three-day forecast strip across
+  the bottom (instead of clustering in the left third).
+- **Date Card** — on a big panel it adds a facts column: the ISO week, the day of
+  the year, and how many days of the year remain.
+- **Dashboard** (the flap app) — on a tall wall (5+ rows) it now drops the time
+  and weather onto one dense page that spreads to the edges, instead of two sparse
+  three-line pages floating in a big grid.
+
 ## 2.6.0
 
 The 2.6.0 line promoted to a stable release — see the stable

@@ -1,0 +1,323 @@
+"""Overview — a drawn time + date + weather dashboard for a Matrix panel.
+
+A canvas app (surface: canvas). It renders one whole frame with Pillow and
+pushes it (PUT /api/canvas/frame): a big clock as the focal point on the left,
+the date beneath it, and — on any panel with room — a weather column on the
+right (the temperature coloured by how warm it is, the condition, today's
+high/low, and on a large panel feels-like, humidity and wind with a warm sun /
+cool moon accent). A thin seconds bar sweeps the bottom. Solid black behind it,
+crisp 1-bit text, curated high-contrast colour, no pink.
+
+It fills whatever panel it's on: a small 128x32 shows a compact clock and a
+little temperature/condition; a big 256x64 spreads a large clock and full date
+on the left against a rich weather column on the right. Fonts are fitted to the
+panel's height and shrunk/trimmed to its width, so nothing clips.
+
+The clock ticks every frame. Live conditions come from the shared get_weather
+helper (so it honours the wall's configured location/provider), cached ten
+minutes while the clock keeps time; if it's missing or fails the clock and date
+still show and the weather column is simply left out. Timezone follows the app's
+timezone setting (pytz), else the host clock — exactly like the canvas clock.
+"""
+
+# The canonical `sky` token -> a condition word (full, and a short form for a
+# narrow column). Same tokens the shared weather helper emits.
+_SKY_WORD = {'clear': 'Clear', 'pcloudy': 'Partly', 'cloudy': 'Cloudy', 'fog': 'Fog',
+             'rainl': 'Light rain', 'rain': 'Rain', 'rainh': 'Heavy rain', 'shwr': 'Showers',
+             'snowl': 'Light snow', 'snow': 'Snow', 'snowh': 'Heavy snow', 'sleet': 'Sleet',
+             'storm': 'Storm', 'hail': 'Hail'}
+_SKY_SHORT = {'clear': 'Clear', 'pcloudy': 'Partly', 'cloudy': 'Cloudy', 'fog': 'Fog',
+              'rainl': 'Rain', 'rain': 'Rain', 'rainh': 'Rain', 'shwr': 'Showers',
+              'snowl': 'Snow', 'snow': 'Snow', 'snowh': 'Snow', 'sleet': 'Sleet',
+              'storm': 'Storm', 'hail': 'Hail'}
+
+_WEEKDAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+_MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+# Curated palette — high contrast on black, and it never passes through pink.
+_C_CLOCK = (255, 244, 224)     # the time: a warm white, the focal point
+_C_DATE = (150, 164, 192)      # the date: a muted slate, clearly secondary
+_C_DIV = (40, 46, 62)          # the faint divider between the two columns
+_C_WORD = (198, 216, 238)      # the condition word: a bright cool white
+_C_HI_L = (240, 176, 110)      # today's high — warm (label / value)
+_C_HI_V = (255, 204, 150)
+_C_LO_L = (128, 184, 242)      # today's low — cool (label / value)
+_C_LO_V = (172, 210, 250)
+_C_SEP = (96, 104, 124)        # muted separators between fields
+_C_MUTE = (150, 164, 190)      # feels/humidity/wind labels
+_C_MUTE_V = (206, 216, 236)    # ...and their values
+_C_SUN = (255, 200, 70)        # day accent disc
+_C_SUN_CORE = (255, 232, 150)
+_C_MOON = (216, 226, 248)      # night accent disc
+_C_SB_TRK = (24, 26, 34)       # the seconds bar: track / fill / leading pixel
+_C_SB_FIL = (222, 168, 92)
+_C_SB_HEAD = (255, 250, 240)
+
+# Temperature colour ramp by Fahrenheit — cold blues, near-white in the mild
+# middle, warm ambers when hot. Anchors chosen so no lerp ever hits pink.
+_TEMP_STOPS = [(5, (120, 176, 255)), (32, (150, 208, 255)), (48, (176, 226, 236)),
+               (62, (216, 236, 222)), (72, (248, 236, 190)), (82, (255, 206, 130)),
+               (92, (255, 170, 92)), (104, (255, 138, 74))]
+
+
+def _lerp(a, b, t):
+    return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))
+
+
+def _ramp(stops, v):
+    if v <= stops[0][0]:
+        return stops[0][1]
+    if v >= stops[-1][0]:
+        return stops[-1][1]
+    for i in range(len(stops) - 1):
+        x0, c0 = stops[i]
+        x1, c1 = stops[i + 1]
+        if x0 <= v <= x1:
+            return _lerp(c0, c1, (v - x0) / ((x1 - x0) or 1))
+    return stops[-1][1]
+
+
+def _num(v, unit):
+    """A Fahrenheit value -> the chosen unit, as an int (or None)."""
+    if v is None:
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    if unit == 'c':
+        return int(round((f - 32) * 5 / 9))
+    if unit == 'k':
+        return int(round((f - 32) * 5 / 9 + 273.15))
+    return int(round(f))
+
+
+def _wind(v, unit):
+    """Wind (native mph) -> (value, suffix); km/h when the unit is metric."""
+    if v is None:
+        return None, ''
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None, ''
+    if unit in ('c', 'k'):
+        return int(round(f * 1.60934)), 'kph'
+    return int(round(f)), 'mph'
+
+
+def _fit(canvas, text, max_w, want, lo=6):
+    """Largest bundled font <= `want` px whose `text` still fits `max_w`."""
+    size = max(lo, int(want))
+    f = canvas.font(size)
+    guard = 0
+    while size > lo and f.getlength(text) > max_w and guard < 240:
+        size -= 1
+        f = canvas.font(size)
+        guard += 1
+    return f
+
+
+def _truncate(font, text, max_w):
+    while text and font.getlength(text) > max_w:
+        text = text[:-1]
+    return text
+
+
+def _line(font, segs):
+    """A drawable line: (font, [(text,colour)...], ink_height, ink_top)."""
+    txt = ''.join(s for s, _ in segs) or '8'
+    bb = font.getbbox(txt)
+    return (font, segs, bb[3] - bb[1], bb[1])
+
+
+def _draw_stack(draw, x, top, region_h, lines, gap):
+    """Left-align `lines` in a column at `x`, the block centred in [top, top+region_h)."""
+    total = sum(ln[2] for ln in lines) + gap * max(0, len(lines) - 1)
+    y = top + max(0, (region_h - total) // 2)
+    for font, segs, ih, itop in lines:
+        cx = x
+        for s, col in segs:                     # each segment shares the line's top
+            draw.text((cx, y - itop), s, font=font, fill=col, anchor='la')
+            cx += font.getlength(s)
+        y += ih + gap
+
+
+def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=None):
+    if canvas is None:
+        return None
+    from datetime import datetime
+    from PIL import Image, ImageDraw
+
+    st = getattr(fetch, '_state', None)
+    if st is None:
+        st = {'wx': None, 'at': None, 'tried': None}
+        setattr(fetch, '_state', st)
+
+    # --- time (per the app's timezone, else the host clock) --------------------
+    tzname = str(settings.get('timezone') or '').strip()
+    try:
+        now = datetime.now(__import__('pytz').timezone(tzname)) if tzname else datetime.now()
+    except Exception:
+        now = datetime.now()
+
+    # --- weather: cached ~10 min, retried at most every 30s while it's missing --
+    nowt = datetime.now()
+    have = st['wx'] is not None
+    fresh = st['at'] is not None and (nowt - st['at']).total_seconds() <= 600
+    may_retry = st['tried'] is None or (nowt - st['tried']).total_seconds() > 30
+    if get_weather is not None and (not have or not fresh) and may_retry:
+        st['tried'] = nowt
+        try:
+            wx = get_weather(days=1, air=False)
+            if wx and wx.get('ok'):
+                st['wx'], st['at'] = wx, nowt
+        except Exception:
+            pass
+    wx = st['wx'] or {}
+
+    # --- settings --------------------------------------------------------------
+    fmt = str(settings.get('clock_format', '24h') or '24h').lower()
+    unit = str(settings.get('temperature_unit', 'f') or 'f').lower()
+    if unit not in ('f', 'c', 'k'):
+        unit = 'f'
+
+    deg = '\N{DEGREE SIGN}'
+    hour = (now.hour % 12 or 12) if fmt == '12h' else now.hour
+    clock = f'{hour:02d}:{now.minute:02d}'
+    h24 = now.hour
+    night = h24 < 6 or h24 >= 20
+
+    sky = wx.get('sky')
+    tf = wx.get('temp_f')
+    have_wx = bool(wx) and (tf is not None or bool(sky))
+    temp = _num(tf, unit)
+    hi, lo = _num(wx.get('hi_f'), unit), _num(wx.get('lo_f'), unit)
+    feels = _num(wx.get('feels_like_f'), unit)
+    hum = wx.get('humidity')
+    wind_v, wind_u = _wind(wx.get('wind_mph'), unit)
+
+    # --- panel + regions -------------------------------------------------------
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"                          # crisp 1-bit text — no AA fuzz
+
+    pad = 2 if W >= 96 else 1
+    sb_h = 2 if H >= 48 else (1 if H >= 40 else 0)   # seconds bar height (0 on tiny)
+    region_h = H - sb_h
+
+    two_col = have_wx and W >= 112
+    if two_col:
+        rcw = max(46, int(W * 0.35))
+        rcw = min(rcw, W - 58)                   # always leave the clock a wide column
+        rx = W - rcw                             # divider / right-column left edge
+    else:
+        rx = W
+    Lw = rx - 2 * pad                            # usable left width
+    gap_l = 2 if H >= 40 else 1
+    gap_r = 2 if H >= 48 else 1
+
+    # --- LEFT column: the big clock, the date beneath it -----------------------
+    clock_cap = int(H * (0.58 if H >= 48 else 0.54))
+    cfont = _fit(canvas, clock, Lw, clock_cap / 0.72, lo=8)
+
+    wd, mo = _WEEKDAY[now.weekday()], _MONTH[now.month - 1]
+    if Lw >= 150:                                # room for the year on a big panel
+        date_cands = [f'{wd} {now.day} {mo} {now.year}', f'{wd} {now.day} {mo}',
+                      f'{wd} {now.day}', wd]
+    else:
+        date_cands = [f'{wd} {now.day} {mo}', f'{wd} {now.day}', f'{now.day} {mo}', wd]
+    dsize = max(7, min(int(H * 0.23), 15))
+    dfloor = max(7, int(dsize * 0.6))
+    date_str, dfont = None, None
+    for c in date_cands:                         # richest that fits, shrinking to a floor
+        f = _fit(canvas, c, Lw, dsize, lo=dfloor)
+        if f.getlength(c) <= Lw:
+            date_str, dfont = c, f
+            break
+    if date_str is None:
+        dfont = canvas.font(dfloor)
+        date_str = _truncate(dfont, date_cands[-1], Lw)
+
+    _draw_stack(draw, pad, 0, region_h,
+                [_line(cfont, [(clock, _C_CLOCK)]), _line(dfont, [(date_str, _C_DATE)])], gap_l)
+
+    # --- RIGHT column: the weather -------------------------------------------
+    if two_col:
+        draw.line([(rx, 3), (rx, region_h - 3)], fill=_C_DIV)   # subtle divider
+        wx0 = rx + pad + 2
+        wxw = max(8, W - pad - wx0)
+        rich_h = wxw >= 78                       # room for feels/humidity/wind labels
+        rich_v = H >= 48                         # room for many stacked lines
+
+        # a warm sun (day) / cool crescent moon (night) accent, top-right, big panels
+        if rich_v and rich_h:
+            r = max(3, int(H * 0.095))
+            cx, cy = W - pad - r - 1, 2 + r
+            if night:
+                draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=_C_MOON)
+                o = max(1, int(r * 0.55))
+                draw.ellipse([cx - r + o, cy - r, cx + r + o, cy + r], fill=(0, 0, 0))
+            else:
+                draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=_C_SUN)
+                draw.ellipse([cx - r + 1, cy - r + 1, cx + r - 1, cy + r - 1], fill=_C_SUN_CORE)
+
+        lines = []
+        # the temperature — big, the focus of the column, coloured by how warm
+        temp_s = f'{temp}{deg}' if temp is not None else '--'
+        temp_col = _ramp(_TEMP_STOPS, float(tf)) if tf is not None else (232, 238, 246)
+        tfont = _fit(canvas, temp_s, wxw, int(H * (0.42 if rich_v else 0.46)), lo=9)
+        lines.append(_line(tfont, [(temp_s, temp_col)]))
+
+        # the condition word (full where wide, short where narrow)
+        if sky:
+            word = (_SKY_WORD if rich_h else _SKY_SHORT).get(sky, 'Weather')
+            wfont = _fit(canvas, word, wxw, int(H * (0.18 if rich_v else 0.26)), lo=7)
+            lines.append(_line(wfont, [(_truncate(wfont, word, wxw), _C_WORD)]))
+
+        # today's high / low — warm high, cool low
+        if (rich_v or wxw >= 52) and (hi is not None or lo is not None):
+            if hi is not None and lo is not None and rich_h:
+                hl = [('H ', _C_HI_L), (f'{hi}{deg}', _C_HI_V), ('  ', _C_SEP),
+                      ('L ', _C_LO_L), (f'{lo}{deg}', _C_LO_V)]
+            elif hi is not None and lo is not None:
+                hl = [(f'{hi}{deg}', _C_HI_V), (' / ', _C_SEP), (f'{lo}{deg}', _C_LO_V)]
+            elif hi is not None:
+                hl = [('H ', _C_HI_L), (f'{hi}{deg}', _C_HI_V)]
+            else:
+                hl = [('L ', _C_LO_L), (f'{lo}{deg}', _C_LO_V)]
+            hfont = _fit(canvas, ''.join(s for s, _ in hl), wxw, int(H * 0.16), lo=6)
+            lines.append(_line(hfont, hl))
+
+        # feels-like, then humidity + wind — only where the panel is generous
+        if rich_v and rich_h:
+            if feels is not None:
+                segs = [('Feels ', _C_MUTE), (f'{feels}{deg}', _C_MUTE_V)]
+                ff = _fit(canvas, ''.join(s for s, _ in segs), wxw, int(H * 0.15), lo=6)
+                lines.append(_line(ff, segs))
+            hw = []
+            if hum is not None:
+                hw += [('Hum ', _C_MUTE), (f'{hum}%', _C_MUTE_V)]
+            if wind_v is not None:
+                if hw:
+                    hw += [('  ', _C_SEP)]
+                hw += [('Wind ', _C_MUTE), (f'{wind_v}{wind_u}', _C_MUTE_V)]
+            if hw:
+                hf = _fit(canvas, ''.join(s for s, _ in hw), wxw, int(H * 0.14), lo=6)
+                lines.append(_line(hf, hw))
+
+        _draw_stack(draw, wx0, 0, region_h, lines, gap_r)
+
+    # --- a thin seconds bar sweeping the bottom edge --------------------------
+    if sb_h:
+        frac = (now.second + now.microsecond / 1_000_000.0) / 60.0
+        by = H - sb_h
+        draw.rectangle([0, by, W - 1, H - 1], fill=_C_SB_TRK)
+        fw = int(round(W * frac))
+        if fw > 0:
+            draw.rectangle([0, by, fw - 1, H - 1], fill=_C_SB_FIL)
+        if 0 <= fw < W:
+            draw.rectangle([fw, by, fw, H - 1], fill=_C_SB_HEAD)
+
+    canvas.frame(img)
+    return 0.5                                    # it ticks; clock every ~0.5s, weather cached

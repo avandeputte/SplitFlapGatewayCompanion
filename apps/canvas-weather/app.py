@@ -142,7 +142,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
     stale = st['at'] is None or (nowt - st['at']).total_seconds() > 600
     if st['wx'] is None or stale:
         try:
-            wx = get_weather(days=1, air=False) if get_weather is not None else None
+            wx = get_weather(days=3, air=False) if get_weather is not None else None
             if wx and wx.get('ok'):
                 st['wx'], st['at'] = wx, nowt
             elif st['wx'] is None:
@@ -159,6 +159,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
     sky = wx.get('sky') or 'cloudy'
 
     W, H = canvas.width, canvas.height
+    large = W >= 192 and H >= 48                # a large panel gets the richer layout
     top, bot = _sky_colors(hour, sky, night)
     img = canvas.vgrad(top, bot).copy()
     draw = ImageDraw.Draw(img)
@@ -212,63 +213,125 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
                    (bx - 2, int(H * 0.8))], fill=(255, 255, 170), width=1)
 
     # --- the text -----------------------------------------------------------
-    # ALL text lives in a left column over a dark scrim, so it always reads —
-    # even on a bright day sky — while the sky itself (sun/moon/cloud/rain) stays
-    # bright on the right. The column stacks: place, big temperature, then the
-    # condition with today's high/low. Nothing overlaps, nothing sits on the sky.
-    pad = 2
-    text_w = int(W * 0.66)
-    scrim = Image.new('L', (W, H), 0)
-    ImageDraw.Draw(scrim).rectangle([0, 0, text_w, H], fill=180)
-    img = Image.composite(Image.new('RGB', (W, H), (0, 0, 0)), img,
-                          scrim.filter(ImageFilter.GaussianBlur(6)))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"                         # crisp 1-bit text — no anti-aliased fuzz
+    # All text sits over a dark scrim so it reads even on a bright day sky, while
+    # the sky itself stays bright. A small panel gets a compact left column; a big
+    # panel (256x64) gets a full info dashboard, so the space isn't wasted.
+    temp = _num(wx.get('temp_f'), unit)
+    hi, lo = _num(wx.get('hi_f'), unit), _num(wx.get('lo_f'), unit)
+    deg = '\N{DEGREE SIGN}'
+    word = _WORD.get(sky, 'Weather')
 
-    def text(x, y, s, font, col):
+    def _outline(draw, x, y, s, font, col):
         for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):   # a dark outline for contrast
             draw.text((x + dx, y + dy), s, font=font, fill=(0, 0, 0), anchor='la')
         draw.text((x, y), s, font=font, fill=col, anchor='la')
 
-    temp = _num(wx.get('temp_f'), unit)
-    hi, lo = _num(wx.get('hi_f'), unit), _num(wx.get('lo_f'), unit)
-    deg = '\N{DEGREE SIGN}'
-    tiny = canvas.font(max(6, int(H * 0.17)))
-    small = canvas.font(max(7, int(H * 0.24)))
-    word = _WORD.get(sky, 'Weather')
+    if large:
+        # A dark info column on the left holds the place, a big temperature, the
+        # condition, high/low, feels-like, humidity, wind and a 3-day forecast; the
+        # sky scene fills the right.
+        pad, left_w = 3, int(W * 0.58)
+        name_f = canvas.font(max(7, int(H * 0.15)))
+        temp_f = canvas.font(max(12, int(H * 0.38)))
+        info_f = canvas.font(max(8, int(H * 0.15)))
+        step = info_f.size + 2
+        fy = H - info_f.size - 2                            # the forecast strip's top
+        scrim = Image.new('L', (W, H), 0)
+        _sd = ImageDraw.Draw(scrim)
+        _sd.rectangle([0, 0, left_w, fy], fill=196)          # left info panel
+        _sd.rectangle([0, fy - 1, W - 1, H - 1], fill=196)   # full-width forecast strip
+        img = Image.composite(Image.new('RGB', (W, H), (0, 0, 0)), img,
+                              scrim.filter(ImageFilter.GaussianBlur(6)))
+        draw = ImageDraw.Draw(img)
+        draw.fontmode = "1"
 
-    top = 0
-    if show_city and wx.get('city'):
-        cs = str(wx['city'])
-        while cs and tiny.getlength(cs) > text_w - pad:
-            cs = cs[:-1]
-        if cs:
-            text(pad, 0, cs, tiny, (216, 226, 244))
-            top = tiny.size + 1
+        if show_city and wx.get('city'):
+            cs = str(wx['city'])
+            while cs and name_f.getlength(cs) > left_w - pad:
+                cs = cs[:-1]
+            _outline(draw, pad, 1, cs, name_f, (216, 226, 244))
 
-    info_y = H - (small.size + 1)
-    band = info_y - top
-    big = canvas.font(max(10, int(band * 0.96)))
-    s = f'{temp}{deg}' if temp is not None else '--'
-    ty = top + max(0, (band - big.size) // 2)
-    text(pad, ty, s, big, (255, 255, 255) if temp is not None else (200, 200, 200))
+        ty = int(H * 0.20)
+        ts = f'{temp}{deg}' if temp is not None else '--'
+        _outline(draw, pad, ty, ts, temp_f, (255, 255, 255) if temp is not None else (200, 200, 200))
+        _outline(draw, pad, ty + temp_f.size, word[:14], info_f, (214, 226, 246))
 
-    # The info line: condition, then high (warm) / low (cool). The condition is
-    # shown only when the whole line fits the column; the numbers always are.
-    hi_s = f'{hi}{deg}' if hi is not None else ''
-    lo_s = f'{lo}{deg}' if lo is not None else ''
-    x = pad
-    if word and small.getlength(word + '  ' + hi_s + '/' + lo_s) <= text_w - pad:
-        text(x, info_y, word, small, (214, 226, 246))
-        x += small.getlength(word + '  ')
-    if hi_s:
-        text(x, info_y, hi_s, small, (255, 202, 140))
-        x += small.getlength(hi_s)
-    if hi_s and lo_s:
-        text(x, info_y, '/', small, (186, 196, 216))
-        x += small.getlength('/')
-    if lo_s:
-        text(x, info_y, lo_s, small, (150, 200, 255))
+        dx, dyy = int(pad + temp_f.getlength(ts) + 8), ty
+        if hi is not None:
+            _outline(draw, dx, dyy, f'H {hi}{deg}', info_f, (255, 206, 150))
+            if lo is not None:
+                _outline(draw, dx + info_f.getlength(f'H {hi}{deg}') + 7, dyy,
+                         f'L {lo}{deg}', info_f, (150, 200, 255))
+            dyy += step
+        feels = _num(wx.get('feels_like_f'), unit)
+        if feels is not None:
+            _outline(draw, dx, dyy, f'Feels {feels}{deg}', info_f, (198, 208, 228))
+            dyy += step
+        extra = []
+        if wx.get('humidity') is not None:
+            extra.append(f'Hum {int(wx["humidity"])}%')
+        if wx.get('wind_mph') is not None:
+            extra.append(f'Wind {int(wx["wind_mph"])}')
+        if extra:
+            _outline(draw, dx, dyy, '  '.join(extra), info_f, (198, 208, 228))
+
+        fc = wx.get('forecast') or []
+        if fc:
+            from datetime import datetime as _dt
+            n = min(3, len(fc))
+            cw = W // n                                     # spread across the FULL width
+            for i, day in enumerate(fc[:n]):
+                dhi, dlo = _num(day.get('hi_f'), unit), _num(day.get('lo_f'), unit)
+                try:
+                    lbl = _dt.strptime(str(day.get('date'))[:10], '%Y-%m-%d').strftime('%a')
+                except Exception:
+                    lbl = ''
+                fs = f'{lbl}  {dhi}/{dlo}' if (dhi is not None and dlo is not None) else (lbl or '')
+                _outline(draw, i * cw + pad + 2, fy, fs, info_f, (206, 216, 234))
+    else:
+        # Compact: place, big temperature, then condition + high/low, all in a left
+        # column over the scrim.
+        pad = 2
+        text_w = int(W * 0.66)
+        scrim = Image.new('L', (W, H), 0)
+        ImageDraw.Draw(scrim).rectangle([0, 0, text_w, H], fill=180)
+        img = Image.composite(Image.new('RGB', (W, H), (0, 0, 0)), img,
+                              scrim.filter(ImageFilter.GaussianBlur(6)))
+        draw = ImageDraw.Draw(img)
+        draw.fontmode = "1"
+        tiny = canvas.font(max(6, int(H * 0.17)))
+        small = canvas.font(max(7, int(H * 0.24)))
+
+        top = 0
+        if show_city and wx.get('city'):
+            cs = str(wx['city'])
+            while cs and tiny.getlength(cs) > text_w - pad:
+                cs = cs[:-1]
+            if cs:
+                _outline(draw, pad, 0, cs, tiny, (216, 226, 244))
+                top = tiny.size + 1
+
+        info_y = H - (small.size + 1)
+        band = info_y - top
+        big = canvas.font(max(10, int(band * 0.96)))
+        s = f'{temp}{deg}' if temp is not None else '--'
+        ty = top + max(0, (band - big.size) // 2)
+        _outline(draw, pad, ty, s, big, (255, 255, 255) if temp is not None else (200, 200, 200))
+
+        hi_s = f'{hi}{deg}' if hi is not None else ''
+        lo_s = f'{lo}{deg}' if lo is not None else ''
+        x = pad
+        if word and small.getlength(word + '  ' + hi_s + '/' + lo_s) <= text_w - pad:
+            _outline(draw, x, info_y, word, small, (214, 226, 246))
+            x += small.getlength(word + '  ')
+        if hi_s:
+            _outline(draw, x, info_y, hi_s, small, (255, 202, 140))
+            x += small.getlength(hi_s)
+        if hi_s and lo_s:
+            _outline(draw, x, info_y, '/', small, (186, 196, 216))
+            x += small.getlength('/')
+        if lo_s:
+            _outline(draw, x, info_y, lo_s, small, (150, 200, 255))
 
     canvas.frame(img)
     return 0.16

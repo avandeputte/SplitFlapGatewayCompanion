@@ -171,6 +171,16 @@
       "version": "1.0"
     },
     {
+      "id": "canvas-overview",
+      "name": "Overview",
+      "icon": "📊",
+      "description": "A drawn dashboard — a big clock, the date, and the weather (temp, condition, high/low, feels/humidity/wind) — that fills a Matrix panel (Matrix walls)",
+      "category": "time",
+      "type": "functional",
+      "surface": "canvas",
+      "version": "1.0"
+    },
+    {
       "id": "magic-8-ball",
       "name": "Magic 8 Ball",
       "icon": "🎱",

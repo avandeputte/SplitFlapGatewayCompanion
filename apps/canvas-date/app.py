@@ -106,8 +106,13 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     day_top = day_center_y - day["h"] / 2.0
 
     # -- the weekday / month / year stack on the right ----------------------
+    large = W >= 192                         # a big panel gets a third, facts column
     col_x = pad_x + day["w"] + gap_inner
-    col_w = max(10, W - col_x - pad_x)
+    if large:
+        info_x = int(W * 0.70)
+        col_w = max(10, info_x - col_x - gap_inner)
+    else:
+        col_w = max(10, W - col_x - pad_x)
     avail = max(6, content_h - 2 * gap_v)
     wk_cap, mo_cap, yr_cap = avail * 0.38, avail * 0.32, avail * 0.30
 
@@ -150,6 +155,23 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         draw.text((col_x - ln["l"], y - ln["t"]), ln["text"],
                   fill=col, font=ln["font"], anchor="la")
         y += ln["h"] + gap_v
+
+    # -- a far-right facts column on a big panel, so the width isn't wasted --
+    if large:
+        yr2 = now.year
+        leap2 = (yr2 % 4 == 0 and yr2 % 100 != 0) or (yr2 % 400 == 0)
+        yday = now.timetuple().tm_yday
+        facts = [f"WEEK {now.isocalendar()[1]}", f"DAY {yday}",
+                 f"{(366 if leap2 else 365) - yday} LEFT"]
+        info_w = max(10, W - info_x - pad_x)
+        icap = content_h * 0.26
+        ifs = [_fit(canvas, s, icap, info_w) for s in facts]
+        itot = sum(f["h"] for f in ifs) + 2 * gap_v
+        iy = content_top + (content_h - itot) / 2.0
+        for f, col in zip(ifs, ((214, 224, 240), (192, 202, 224), (168, 180, 206))):
+            draw.text((info_x - f["l"], iy - f["t"]), f["text"], fill=col,
+                      font=f["font"], anchor="la")
+            iy += f["h"] + gap_v
 
     # -- accent: the year's progress along the bottom -----------------------
     yr = now.year

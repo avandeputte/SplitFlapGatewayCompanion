@@ -186,7 +186,7 @@ def test_the_canvas_apps_are_marked_canvas_surface():
     apps = Path(__file__).resolve().parents[2] / "apps"
     import json
     for app in ("effects", "canvas-art-clock", "canvas-image", "canvas-weather",
-                "canvas-date", "canvas-world", "canvas-countdown"):
+                "canvas-date", "canvas-world", "canvas-countdown", "canvas-overview"):
         m = json.loads((apps / app / "manifest.json").read_text())
         assert m.get("surface") == "canvas", app
 
@@ -316,6 +316,7 @@ def test_weather_caches_the_reading(gw_calls):
     ("canvas-date", {}),
     ("canvas-world", {"world_clock_zones": "America/New_York,Europe/London,Asia/Tokyo"}),
     ("canvas-countdown", {"countdown_event": "Launch", "countdown_target": "2027-06-01T00:00"}),
+    ("canvas-overview", {}),                         # renders clock/date even with no weather
 ])
 @pytest.mark.parametrize("size", [(128, 32), (64, 32), (128, 64)])
 def test_new_canvas_apps_push_a_frame(gw_calls, app_id, settings, size):
@@ -323,6 +324,22 @@ def test_new_canvas_apps_push_a_frame(gw_calls, app_id, settings, size):
     _hold, img, content = _push(gw_calls, _load(app_id), W, H, settings)
     assert gw_calls[-1][1] == "/api/canvas/frame" and len(content) == W * H * 3
     assert img is not None and _bright(img) > 20
+
+
+def test_canvas_apps_fill_a_big_256x64_panel(gw_calls):
+    """The rich apps must use a large Matrix panel, not cluster in a corner — this
+    just pins that the big-panel branches render a full, non-black 256x64 frame."""
+    def gww(days=3, air=False):
+        return {"ok": True, "sky": "clear", "temp_f": 68, "hi_f": 88, "lo_f": 64,
+                "city": "Boston", "humidity": 40, "feels_like_f": 71, "wind_mph": 6,
+                "forecast": [{"date": "2026-07-16", "hi_f": 90, "lo_f": 66},
+                             {"date": "2026-07-17", "hi_f": 84, "lo_f": 61},
+                             {"date": "2026-07-18", "hi_f": 79, "lo_f": 58}]}
+    for app_id, kw in (("canvas-weather", {"get_weather": gww}),
+                       ("canvas-overview", {"get_weather": gww}),
+                       ("canvas-date", {})):
+        _h, img, content = _push(gw_calls, _load(app_id), 256, 64, {}, **kw)
+        assert len(content) == 256 * 64 * 3 and _bright(img) > 30, app_id
 
 
 @pytest.mark.parametrize("app_id", ["canvas-date", "canvas-world", "canvas-countdown"])

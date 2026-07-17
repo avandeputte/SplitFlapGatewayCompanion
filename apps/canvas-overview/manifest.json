@@ -1,0 +1,60 @@
+{
+  "id": "canvas-overview",
+  "name": "Overview",
+  "icon": "📊",
+  "description": "A drawn dashboard for a Matrix panel — a big clock, the date, and a weather column (temperature, condition, today's high/low, feels-like, humidity, wind), sized to fill the panel",
+  "type": "functional",
+  "surface": "canvas",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "category": "time",
+  "settings": [
+    {
+      "key": "clock_format",
+      "label": "Time format",
+      "type": "toggle",
+      "size": "sm",
+      "default": "24h",
+      "options": [
+        {
+          "value": "24h",
+          "label": "24h"
+        },
+        {
+          "value": "12h",
+          "label": "12h"
+        }
+      ]
+    },
+    {
+      "key": "temperature_unit",
+      "label": "Temperature Unit",
+      "type": "toggle",
+      "size": "sm",
+      "default": "f",
+      "options": [
+        {
+          "value": "f",
+          "label": "F"
+        },
+        {
+          "value": "c",
+          "label": "C"
+        },
+        {
+          "value": "k",
+          "label": "K"
+        }
+      ]
+    },
+    {
+      "key": "timezone",
+      "label": "Timezone (override global)",
+      "type": "search_chips",
+      "searchUrl": "/timezones",
+      "resultKey": "zones",
+      "maxItems": 1,
+      "global_key": true
+    }
+  ]
+}
