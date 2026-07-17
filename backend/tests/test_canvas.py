@@ -342,6 +342,39 @@ def test_canvas_apps_fill_a_big_256x64_panel(gw_calls):
         assert len(content) == 256 * 64 * 3 and _bright(img) > 30, app_id
 
 
+def test_overview_weather_column_never_clips_off_the_bottom(gw_calls, monkeypatch):
+    """Regression: the weather column stacks up to five lines (temp, condition,
+    high/low, feels, humidity/wind). Their natural height can exceed the drawable
+    region on a short panel — _fit_stack must shrink the column together so the
+    last line never spills past the bottom edge. Spy on _draw_stack and assert
+    every stack fits its region, for ordinary AND all-3-digit extreme readings."""
+    app = _load("canvas-overview")
+    seen = []
+    orig = app._draw_stack
+
+    def spy(draw, x, top, region_h, lines, gap):
+        total = sum(ln[2] for ln in lines) + gap * max(0, len(lines) - 1)
+        seen.append((total, region_h))
+        return orig(draw, x, top, region_h, lines, gap)
+
+    monkeypatch.setattr(app, "_draw_stack", spy)
+
+    for reading in (
+        {"ok": True, "sky": "cloudy", "temp_f": 84, "hi_f": 87, "lo_f": 64,
+         "humidity": 47, "feels_like_f": 87, "wind_mph": 4},
+        {"ok": True, "sky": "storm", "temp_f": 104, "hi_f": 108, "lo_f": 99,
+         "humidity": 100, "feels_like_f": 112, "wind_mph": 25},
+    ):
+        for W, H in ((256, 64), (192, 48), (128, 64)):
+            app.fetch._state = None                     # bypass the 10-min weather cache
+            seen.clear()
+            _push(gw_calls, app, W, H, {}, get_weather=lambda days=1, air=False: reading)
+            assert seen, f"{W}x{H}: nothing drawn"
+            for total, region_h in seen:
+                assert total <= region_h, \
+                    f"{W}x{H}: a {total}px stack overflows the {region_h}px region"
+
+
 @pytest.mark.parametrize("app_id", ["canvas-date", "canvas-world", "canvas-countdown"])
 def test_new_canvas_apps_are_none_without_a_panel(app_id):
     assert _load(app_id).fetch({}, None, None, None, canvas=None) is None

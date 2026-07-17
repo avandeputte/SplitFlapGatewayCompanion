@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.3
+
+- **Overview** — on a big panel the bottom humidity/wind line was clipped off the
+  edge: the taller font from beta.2 pushed the five-line weather column past the
+  bottom of the panel. The column now fits itself to the panel — if the day's
+  readings make it tall (a long condition word, three-digit values), the whole
+  column shrinks together so the last line always stays fully on screen.
+
 ## 2.7.0-beta.2
 
 Readability fixes on the apps from beta.1:

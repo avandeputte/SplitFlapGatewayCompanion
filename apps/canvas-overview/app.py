@@ -142,6 +142,34 @@ def _draw_stack(draw, x, top, region_h, lines, gap):
         y += ih + gap
 
 
+def _fit_stack(canvas, specs, max_w, budget_h, gap):
+    """Build a vertical stack of lines that FITS `budget_h` — no line ever clips.
+
+    `specs` is a list of (segs, want_px, lo_px). Each line uses the largest bundled
+    font <= want that still fits `max_w`. If the assembled stack (sum of ink heights
+    + gaps) is taller than budget_h, every want is scaled down by a shared factor and
+    the stack rebuilt — so the whole column shrinks together, keeping its relative
+    sizes, until it fits (or reaches the per-line floor). Returns _line() tuples.
+
+    This is what keeps a crowded weather column (temp, condition, high/low, feels,
+    humidity/wind) inside a short panel instead of spilling the last line off the
+    bottom edge, whatever the day's numbers happen to be.
+    """
+    gaps = gap * max(0, len(specs) - 1)
+    scale = 1.0
+    lines = []
+    for _ in range(8):
+        lines = [_line(_fit(canvas, ''.join(s for s, _ in segs) or '8', max_w,
+                            max(lo, want * scale), lo=lo), segs)
+                 for segs, want, lo in specs]
+        ink = sum(ln[2] for ln in lines)
+        if ink + gaps <= budget_h or scale <= 0.5:
+            return lines
+        # shrink proportionally to close the overflow (a nudge past 1.0 for rounding)
+        scale *= max(0.5, (budget_h - gaps) / max(1, ink)) * 0.97
+    return lines
+
+
 def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=None):
     if canvas is None:
         return None
@@ -262,18 +290,18 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
                 draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=_C_SUN)
                 draw.ellipse([cx - r + 1, cy - r + 1, cx + r - 1, cy + r - 1], fill=_C_SUN_CORE)
 
-        lines = []
+        specs = []
         # the temperature — big, the focus of the column, coloured by how warm
         temp_s = f'{temp}{deg}' if temp is not None else '--'
         temp_col = _ramp(_TEMP_STOPS, float(tf)) if tf is not None else (232, 238, 246)
-        tfont = _fit(canvas, temp_s, wxw, int(H * (0.42 if rich_v else 0.46)), lo=9)
-        lines.append(_line(tfont, [(temp_s, temp_col)]))
+        specs.append(([(temp_s, temp_col)], int(H * (0.42 if rich_v else 0.46)), 9))
 
         # the condition word (full where wide, short where narrow)
         if sky:
             word = (_SKY_WORD if rich_h else _SKY_SHORT).get(sky, 'Weather')
-            wfont = _fit(canvas, word, wxw, int(H * (0.18 if rich_v else 0.26)), lo=7)
-            lines.append(_line(wfont, [(_truncate(wfont, word, wxw), _C_WORD)]))
+            wwant = int(H * (0.18 if rich_v else 0.26))
+            wf0 = _fit(canvas, word, wxw, wwant, lo=7)     # trim only if it won't fit at all
+            specs.append(([(_truncate(wf0, word, wxw), _C_WORD)], wwant, 7))
 
         # today's high / low — warm high, cool low
         if (rich_v or wxw >= 52) and (hi is not None or lo is not None):
@@ -286,15 +314,13 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
                 hl = [('H ', _C_HI_L), (f'{hi}{deg}', _C_HI_V)]
             else:
                 hl = [('L ', _C_LO_L), (f'{lo}{deg}', _C_LO_V)]
-            hfont = _fit(canvas, ''.join(s for s, _ in hl), wxw, int(H * 0.16), lo=6)
-            lines.append(_line(hfont, hl))
+            specs.append((hl, int(H * 0.16), 6))
 
         # feels-like, then humidity + wind — only where the panel is generous
         if rich_v and rich_h:
             if feels is not None:
-                segs = [('Feels ', _C_MUTE), (f'{feels}{deg}', _C_MUTE_V)]
-                ff = _fit(canvas, ''.join(s for s, _ in segs), wxw, int(H * 0.15), lo=6)
-                lines.append(_line(ff, segs))
+                specs.append(([('Feels ', _C_MUTE), (f'{feels}{deg}', _C_MUTE_V)],
+                              int(H * 0.15), 6))
             # Humidity + wind on one line — the '%' and the mph/km-h unit already
             # say which is which, so drop the word labels: a shorter string fits a
             # much taller, readable font in the narrow column.
@@ -306,9 +332,11 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
                     hw += [('  ', _C_SEP)]
                 hw += [(f'{wind_v}{wind_u}', _C_MUTE_V)]
             if hw:
-                hf = _fit(canvas, ''.join(s for s, _ in hw), wxw, int(H * 0.19), lo=8)
-                lines.append(_line(hf, hw))
+                specs.append((hw, int(H * 0.20), 8))
 
+        # Fit the whole column to the region so the last line never clips off the
+        # bottom edge — shrinks the stack together when the day's numbers make it tall.
+        lines = _fit_stack(canvas, specs, wxw, region_h - 1, gap_r)
         _draw_stack(draw, wx0, 0, region_h, lines, gap_r)
 
     # --- a thin seconds bar sweeping the bottom edge --------------------------
