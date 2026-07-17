@@ -1,0 +1,45 @@
+{
+  "id": "canvas-countdown",
+  "name": "Countdown Bars",
+  "icon": "⏳",
+  "description": "The remaining time as full-width draining bars — Days, Hours, Minutes and Seconds (plus Years when far off), each a no-gap bar with the value and label inside it. A canvas countdown for Matrix panels.",
+  "type": "functional",
+  "surface": "canvas",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "category": "time",
+  "settings": [
+    {
+      "key": "countdown_event",
+      "label": "Event name",
+      "type": "text",
+      "default": "New Year",
+      "global_key": true
+    },
+    {
+      "key": "countdown_target",
+      "label": "Target date & time",
+      "type": "datetime-local",
+      "global_key": true
+    },
+    {
+      "key": "show_seconds",
+      "label": "Show seconds",
+      "type": "toggle",
+      "default": "yes",
+      "options": [
+        {"value": "yes", "label": "On"},
+        {"value": "no", "label": "Off"}
+      ]
+    },
+    {
+      "key": "timezone",
+      "label": "Timezone (override global)",
+      "type": "search_chips",
+      "searchUrl": "/timezones",
+      "resultKey": "zones",
+      "maxItems": 1,
+      "global_key": true
+    }
+  ]
+}

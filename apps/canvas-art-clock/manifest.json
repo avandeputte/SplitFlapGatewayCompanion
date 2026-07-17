@@ -1,8 +1,8 @@
 {
   "id": "canvas-art-clock",
-  "name": "Aurora Clock",
-  "icon": "🌈",
-  "description": "Time as flowing colour — a living aurora behind two-tone digits, the palette drifting through the day. A canvas art clock for Matrix panels.",
+  "name": "Lumina Clock",
+  "icon": "🕰️",
+  "description": "The time as luminous colour — big anti-aliased digits with a gradient, glow, flowing aurora or minimal fill, in curated palettes. A canvas clock for Matrix panels.",
   "type": "functional",
   "surface": "canvas",
   "refresh_interval": 1,
@@ -10,15 +10,28 @@
   "category": "time",
   "settings": [
     {
-      "key": "theme",
-      "label": "Theme",
+      "key": "treatment",
+      "label": "Treatment",
       "type": "toggle",
-      "default": "daylight",
+      "default": "glow",
       "options": [
-        {"value": "daylight", "label": "Daylight"},
-        {"value": "spectrum", "label": "Spectrum"},
-        {"value": "ocean", "label": "Ocean"},
-        {"value": "ember", "label": "Ember"}
+        {"value": "glow", "label": "Glow"},
+        {"value": "aurora", "label": "Aurora"},
+        {"value": "neon", "label": "Neon"},
+        {"value": "minimal", "label": "Minimal"}
+      ]
+    },
+    {
+      "key": "palette",
+      "label": "Palette",
+      "type": "toggle",
+      "default": "amber",
+      "options": [
+        {"value": "amber", "label": "Amber"},
+        {"value": "ice", "label": "Ice"},
+        {"value": "mint", "label": "Mint"},
+        {"value": "duotone", "label": "Duotone"},
+        {"value": "daylight", "label": "Daylight"}
       ]
     },
     {
@@ -29,6 +42,16 @@
       "options": [
         {"value": "24h", "label": "24h"},
         {"value": "12h", "label": "12h"}
+      ]
+    },
+    {
+      "key": "show_seconds",
+      "label": "Show seconds",
+      "type": "toggle",
+      "default": "yes",
+      "options": [
+        {"value": "yes", "label": "On"},
+        {"value": "no", "label": "Off"}
       ]
     },
     {

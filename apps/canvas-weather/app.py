@@ -1,27 +1,17 @@
-"""Weather Sky — the forecast, drawn instead of spelled.
+"""Weather Sky — the weather as a rich, colourful scene on a Matrix panel.
 
-A canvas app (surface: canvas): instead of returning flap pages it paints an
-animated sky straight onto a Matrix panel through the injected `canvas` helper —
-a sun with slowly turning rays, drifting clouds, rain that falls, snow that
-wobbles down, a lightning flash for storms, a moon and stars at night — with the
-current temperature in a big colour that runs from icy blue to hot orange. A
-flap grid can spell "Rain"; only a framebuffer can show it falling.
+A canvas app (surface: canvas). It renders a whole frame with Pillow and pushes
+it (PUT /api/canvas/frame): a sky whose colour is the time of day *and* the
+conditions — deep blue nights with a glowing moon and coloured stars, warm dawn
+and dusk, bright day blue, greying over for cloud and rain — with a glowing sun
+or moon, drifting cloud, and rain or snow that falls. Over it sits the numbers:
+a big temperature, the condition, today's high/low, and the place.
 
-The live conditions come from the same shared `get_weather` helper the ordinary
-weather app uses (so it honours the wall's configured location and provider),
-cached here for ten minutes while the animation redraws several times a second.
-The one canonical `sky` token the helper returns picks which scene to draw.
-
-The panel's op set has no circle or diagonal line (only pixels, h/v lines, rects,
-text), so discs are filled row by row and every slanted stroke is a tiny
-Bresenham line.
+Live conditions come from the shared `get_weather` helper (so it honours the
+wall's configured location/provider), cached ten minutes while the scene
+animates. The canonical `sky` token picks the scene.
 """
 
-import math
-
-# WMO weather code -> the helper's canonical sky token, for the keyless fallback
-# used only when get_weather is somehow absent (canvas is companion-only, so the
-# helper is normally injected — this just keeps the app a working module alone).
 _SKY_OF_WMO = {
     0: 'clear', 1: 'clear', 2: 'pcloudy', 3: 'cloudy', 45: 'fog', 48: 'fog',
     51: 'rainl', 53: 'rainl', 55: 'rain', 56: 'sleet', 57: 'sleet',
@@ -30,164 +20,56 @@ _SKY_OF_WMO = {
     81: 'shwr', 82: 'rainh', 85: 'snowl', 86: 'snowh',
     95: 'storm', 96: 'hail', 99: 'hail',
 }
-
-# How many streaks/flakes each intensity draws.
-_DENSITY = {
-    'rainl': 7, 'rain': 13, 'rainh': 20, 'shwr': 12,
-    'snowl': 9, 'snow': 15, 'snowh': 22, 'sleet': 13,
-}
-
-_GREY = (110, 115, 130)
-_DARK = (70, 72, 88)
-_RAIN = (90, 145, 255)
-_SNOW = (235, 238, 255)
+_WORD = {'clear': 'Clear', 'pcloudy': 'Partly', 'cloudy': 'Cloudy', 'fog': 'Fog',
+         'rainl': 'Light rain', 'rain': 'Rain', 'rainh': 'Heavy rain', 'shwr': 'Showers',
+         'snowl': 'Light snow', 'snow': 'Snow', 'snowh': 'Heavy snow', 'sleet': 'Sleet',
+         'storm': 'Storm', 'hail': 'Hail'}
+_RAIN = {'rainl': 8, 'rain': 14, 'rainh': 22, 'shwr': 13, 'sleet': 10}
+_SNOW = {'snowl': 10, 'snow': 16, 'snowh': 24}
+_WET = ('rainl', 'rain', 'rainh', 'shwr', 'sleet')
+_CLOUDY = ('pcloudy', 'cloudy', 'fog', 'rainl', 'rain', 'rainh', 'shwr', 'sleet',
+           'snowl', 'snow', 'snowh', 'storm', 'hail')
 
 
-# --- primitives -------------------------------------------------------------
-def _disc(canvas, cx, cy, r, color):
-    """A filled circle, one horizontal line per row (the panel has no circle op)."""
-    cx, cy, r = int(cx), int(cy), int(r)
-    for dy in range(-r, r + 1):
-        dx = int((r * r - dy * dy) ** 0.5)
-        canvas.hline(cx - dx, cy + dy, 2 * dx + 1, color)
+def _mix(a, b, t):
+    return tuple(int(round(a[k] + (b[k] - a[k]) * t)) for k in range(3))
 
 
-def _line(canvas, x0, y0, x1, y1, color):
-    x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
-    dx, dy = abs(x1 - x0), -abs(y1 - y0)
-    sx, sy = (1 if x0 < x1 else -1), (1 if y0 < y1 else -1)
-    err = dx + dy
-    while True:
-        canvas.pixel(x0, y0, color)
-        if x0 == x1 and y0 == y1:
-            break
-        e2 = 2 * err
-        if e2 >= dy:
-            err += dy; x0 += sx
-        if e2 <= dx:
-            err += dx; y0 += sy
-
-
-# --- sky elements -----------------------------------------------------------
-def _sun(canvas, cx, cy, r, frame):
-    base = frame * 0.10                       # rays turn a little each frame
-    for i in range(8):
-        a = base + i * (math.pi / 4)
-        pulse = 1.0 + 0.25 * math.sin(frame * 0.3 + i)
-        _line(canvas, cx + math.cos(a) * (r + 1), cy + math.sin(a) * (r + 1),
-              cx + math.cos(a) * (r * 1.7 * pulse), cy + math.sin(a) * (r * 1.7 * pulse),
-              (255, 190, 40))
-    _disc(canvas, cx, cy, r, (255, 205, 55))
-    _disc(canvas, cx, cy, max(1, r - 2), (255, 235, 120))
-
-
-def _moon(canvas, cx, cy, r):
-    _disc(canvas, cx, cy, r, (210, 216, 236))
-    _disc(canvas, cx + r * 0.5, cy - r * 0.2, r, (0, 0, 0))   # carve the crescent
-
-
-def _stars(canvas, w, h, frame):
-    pts = [(0.12, 0.10), (0.30, 0.22), (0.52, 0.12), (0.68, 0.28), (0.84, 0.08), (0.44, 0.32)]
-    for i, (fx, fy) in enumerate(pts):
-        if (frame // 6 + i) % 4:              # each star winks out now and then
-            canvas.pixel(int(w * fx), int(h * fy), (200, 200, 175))
-
-
-def _cloud(canvas, x, y, s, color):
-    _disc(canvas, x, y, s, color)
-    _disc(canvas, x - s, y + s * 0.3, s * 0.75, color)
-    _disc(canvas, x + s, y + s * 0.3, s * 0.8, color)
-    canvas.hline(int(x - s * 1.7), int(y + s * 0.9), int(s * 3.4) + 1, color)
-
-
-def _drift(frame, speed, offset, span):
-    """A cloud's x, scrolling right and wrapping around the panel edges."""
-    return int((frame * speed + offset) % span - span * 0.25)
-
-
-def _rain(canvas, w, h, frame, count):
-    top = int(h * 0.28)
-    span = max(1, h - top)                    # head stays on-panel; the 3px tail flows off
-    for i in range(count):
-        x = (i * 53 + 7) % w
-        y = top + (frame * 3 + i * 11) % span
-        _line(canvas, x, y, x - 1, min(h - 1, y + 3), _RAIN)
-
-
-def _snow(canvas, w, h, frame, count):
-    top = int(h * 0.26)
-    span = max(1, h - top)
-    for i in range(count):
-        x = (i * 41 + 5 + int(2 * math.sin(frame * 0.15 + i))) % w
-        y = top + (frame + i * 9) % span
-        canvas.pixel(x, y, _SNOW)
-
-
-def _fog(canvas, w, h, frame):
-    for band in range(4):
-        y = int(h * (0.2 + band * 0.2))
-        x = -((frame * 2 + band * 13) % 8)
-        while x < w:
-            canvas.hline(x, y, 3, (120, 122, 132))
-            x += 6
-
-
-def _bolt(canvas, h, frame, cx, cy):
-    if frame % 22 < 2:                        # a brief flash every ~22 frames
-        d = int(h * 0.25)
-        pts = [(cx, cy), (cx - 3, cy + d), (cx + 2, cy + d), (cx - 2, cy + 2 * d)]
-        for a, b in zip(pts, pts[1:]):
-            _line(canvas, a[0], a[1], b[0], b[1], (255, 255, 160))
-
-
-# --- temperature ------------------------------------------------------------
-_CHAR_W = {18: 9, 13: 8, 8: 5}
-
-
-def _temp_color(c):
-    if c <= -5:
-        return (140, 200, 255)
-    if c <= 5:
-        return (120, 220, 255)
-    if c <= 15:
-        return (200, 240, 255)
-    if c <= 24:
-        return (255, 255, 255)
-    if c <= 30:
-        return (255, 200, 70)
-    return (255, 120, 40)
-
-
-def _degree(canvas, x, y, color):
-    for dx, dy in ((1, 0), (2, 0), (0, 1), (3, 1), (0, 2), (3, 2), (1, 3), (2, 3)):
-        canvas.pixel(x + dx, y + dy, color)
-
-
-def _draw_temp(canvas, w, h, temp_f, unit):
-    size = 18 if h >= 30 else (13 if h >= 20 else 8)
-    cw = _CHAR_W[size]
-    y = h - size
-    if temp_f is None:
-        canvas.text(1, y, '--', (150, 150, 150), size)
-        return
-    c = (float(temp_f) - 32.0) * 5.0 / 9.0
-    if unit == 'c':
-        disp = int(round(c))
-    elif unit == 'k':
-        disp = int(round(c + 273.15))
+def _sky_colors(hour, sky, night):
+    """(top, bottom) gradient for the panel — time of day, then greyed by cloud."""
+    if night:
+        top, bot = (10, 16, 44), (3, 5, 16)
+    elif hour < 7:
+        top, bot = (66, 86, 158), (240, 150, 96)          # dawn
+    elif hour < 17:
+        top, bot = (52, 120, 226), (150, 196, 250)         # day
+    elif hour < 20:
+        top, bot = (44, 56, 120), (238, 126, 66)           # dusk
     else:
-        disp = int(round(float(temp_f)))
-    s = str(disp)
-    color = _temp_color(c)
-    canvas.text(1, y, s, color, size)
-    end = 1 + len(s) * cw
-    if unit == 'k':
-        canvas.text(end + 1, y, 'K', color, size)
-    else:
-        _degree(canvas, end + 1, y, color)
+        top, bot = (10, 16, 44), (3, 5, 16)
+    if sky in ('cloudy', 'fog') or sky in _WET:
+        top, bot = _mix(top, (78, 84, 100), 0.5), _mix(bot, (54, 58, 72), 0.5)
+    if sky in ('snowl', 'snow', 'snowh'):
+        top, bot = _mix(top, (120, 130, 150), 0.5), _mix(bot, (86, 96, 116), 0.5)
+    if sky in ('storm', 'hail'):
+        top, bot = _mix(top, (34, 36, 48), 0.72), _mix(bot, (20, 22, 30), 0.72)
+    return top, bot
 
 
-# --- when the helper is missing (companion always injects it) ---------------
+def _glow(ImageChops, Image, ImageDraw, ImageFilter, img, shapes, blur):
+    """Additive glow: draw bright `shapes` on black, blur, add onto img."""
+    layer = Image.new('RGB', img.size, (0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    for box, col in shapes:
+        d.ellipse(box, fill=col)
+    layer = layer.filter(ImageFilter.GaussianBlur(blur))
+    return ImageChops.add(img, layer)
+
+
+def _disc(draw, cx, cy, r, col):
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=col)
+
+
 def _fallback(settings):
     try:
         import re
@@ -207,106 +89,171 @@ def _fallback(settings):
                 city = city or g[0].get('display_name', q).split(',')[0].strip()
         d = requests.get('https://api.open-meteo.com/v1/forecast', params={
             'latitude': lat or 42.35, 'longitude': lon or -71.08,
-            'current': 'temperature_2m,weather_code', 'temperature_unit': 'fahrenheit',
-        }, timeout=8).json().get('current', {})
-        return {'ok': True, 'temp_f': d.get('temperature_2m'), 'city': city,
-                'sky': _SKY_OF_WMO.get(d.get('weather_code'), 'cloudy')}
+            'current': 'temperature_2m,weather_code',
+            'daily': 'temperature_2m_max,temperature_2m_min',
+            'temperature_unit': 'fahrenheit', 'timezone': 'auto', 'forecast_days': 1,
+        }, timeout=8).json()
+        cur, daily = d.get('current', {}), d.get('daily', {})
+        return {'ok': True, 'temp_f': cur.get('temperature_2m'), 'city': city,
+                'sky': _SKY_OF_WMO.get(cur.get('weather_code'), 'cloudy'),
+                'hi_f': (daily.get('temperature_2m_max') or [None])[0],
+                'lo_f': (daily.get('temperature_2m_min') or [None])[0]}
     except Exception:
         return {'ok': False}
 
 
-def _is_night(settings):
-    from datetime import datetime
-    tzname = str(settings.get('timezone') or '').strip()
+def _num(v, unit):
+    if v is None:
+        return None
     try:
-        if tzname:
-            import pytz
-            hour = datetime.now(pytz.timezone(tzname)).hour
-        else:
-            hour = datetime.now().hour       # the add-on's clock is the wall's local time
+        f = float(v)
     except Exception:
-        hour = datetime.now().hour
-    return hour < 6 or hour >= 20
+        return None
+    if unit == 'c':
+        return int(round((f - 32) * 5 / 9))
+    if unit == 'k':
+        return int(round((f - 32) * 5 / 9 + 273.15))
+    return int(round(f))
 
 
 def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=None):
     if canvas is None:
         return None
+    import math
     from datetime import datetime
+    from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
-    state = getattr(fetch, '_state', None)
-    if state is None:
-        state = {'frame': 0, 'wx': None, 'at': None}
-        setattr(fetch, '_state', state)
-    state['frame'] += 1
-    frame = state['frame']
+    st = getattr(fetch, '_state', None)
+    if st is None:
+        st = {'frame': 0, 'wx': None, 'at': None}
+        setattr(fetch, '_state', st)
+    st['frame'] += 1
+    frame = st['frame']
 
-    # The animation redraws several times a second; the weather itself only every
-    # ten minutes. Last good reading survives a hiccup — the sky keeps moving.
-    now = datetime.now()
-    stale = state['at'] is None or (now - state['at']).total_seconds() > 600
-    if state['wx'] is None or stale:
+    tzname = str(settings.get('timezone') or '').strip()
+    try:
+        now = datetime.now(__import__('pytz').timezone(tzname)) if tzname else datetime.now()
+    except Exception:
+        now = datetime.now()
+    hour = now.hour
+    night = hour < 6 or hour >= 20
+
+    nowt = datetime.now()
+    stale = st['at'] is None or (nowt - st['at']).total_seconds() > 600
+    if st['wx'] is None or stale:
         try:
-            wx = get_weather(days=0, air=False) if get_weather is not None else None
+            wx = get_weather(days=1, air=False) if get_weather is not None else None
             if wx and wx.get('ok'):
-                state['wx'], state['at'] = wx, now
-            elif state['wx'] is None:
-                state['wx'], state['at'] = _fallback(settings), now
+                st['wx'], st['at'] = wx, nowt
+            elif st['wx'] is None:
+                st['wx'], st['at'] = _fallback(settings), nowt
         except Exception:
-            if state['wx'] is None:
-                state['wx'], state['at'] = {'ok': False}, now
-    wx = state['wx'] or {}
+            if st['wx'] is None:
+                st['wx'], st['at'] = {'ok': False}, nowt
+    wx = st['wx'] or {}
 
     unit = str(settings.get('temperature_unit', 'f') or 'f').lower()
     if unit not in ('f', 'c', 'k'):
         unit = 'f'
     show_city = str(settings.get('show_city', 'yes') or 'yes') != 'no'
-
     sky = wx.get('sky') or 'cloudy'
-    w, h = canvas.width, canvas.height
-    r = max(4, h // 4)
-    ox, oy = w - r - 2, r + 1                 # sun / moon, top-right
-    night = _is_night(settings)
-    span = w + 4 * r
 
-    canvas.clear((0, 0, 0))
+    W, H = canvas.width, canvas.height
+    top, bot = _sky_colors(hour, sky, night)
+    img = canvas.vgrad(top, bot).copy()
+    draw = ImageDraw.Draw(img)
 
-    if sky in ('clear', 'pcloudy'):
-        if night:
-            _stars(canvas, w, h, frame)
-            _moon(canvas, ox, oy, r)
-        else:
-            _sun(canvas, ox, oy, r, frame)
-        if sky == 'pcloudy':
-            _cloud(canvas, _drift(frame, 0.4, 0, span), int(h * 0.55), max(3, r - 1), _GREY)
-    elif sky == 'cloudy':
-        _cloud(canvas, _drift(frame, 0.35, 0, span), int(h * 0.34), max(3, r - 1), _GREY)
-        _cloud(canvas, _drift(frame, 0.3, span * 0.55, span), int(h * 0.5), max(3, r - 1), _DARK)
-    elif sky == 'fog':
-        _fog(canvas, w, h, frame)
-    elif sky in ('rainl', 'rain', 'rainh', 'shwr'):
-        _cloud(canvas, int(w * 0.35), int(h * 0.26), max(3, r - 1), _GREY)
-        _cloud(canvas, int(w * 0.72), int(h * 0.3), max(3, r - 2), _DARK)
-        _rain(canvas, w, h, frame, _DENSITY.get(sky, 12))
-    elif sky in ('snowl', 'snow', 'snowh', 'sleet'):
-        _cloud(canvas, int(w * 0.4), int(h * 0.26), max(3, r - 1), _GREY)
-        _snow(canvas, w, h, frame, _DENSITY.get(sky, 14))
-        if sky == 'sleet':
-            _rain(canvas, w, h, frame, 6)
-    elif sky in ('storm', 'hail'):
-        _cloud(canvas, int(w * 0.38), int(h * 0.26), max(3, r - 1), _DARK)
-        _cloud(canvas, int(w * 0.72), int(h * 0.3), max(3, r - 2), _DARK)
-        if sky == 'hail':
-            _snow(canvas, w, h, frame, 14)
-        else:
-            _rain(canvas, w, h, frame, 16)
-        _bolt(canvas, h, frame, int(w * 0.38), int(h * 0.26) + r)
+    # --- celestial: a glowing sun (day) or moon + coloured stars (night) --------
+    icx, icy, ir = W - int(H * 0.42) - 1, int(H * 0.40), max(4, int(H * 0.26))
+    if night:
+        stars = [(0.06, 0.18, (200, 210, 255)), (0.16, 0.42, (255, 240, 200)),
+                 (0.30, 0.12, (180, 220, 255)), (0.40, 0.55, (255, 220, 220)),
+                 (0.52, 0.24, (210, 235, 255)), (0.63, 0.10, (255, 245, 210))]
+        for i, (fx, fy, col) in enumerate(stars):
+            if (frame // 7 + i) % 4:
+                draw.point((int(W * fx), int(H * fy)), fill=col)
+        if sky in ('clear', 'pcloudy'):
+            img = _glow(ImageChops, Image, ImageDraw, ImageFilter, img,
+                        [([icx - ir, icy - ir, icx + ir, icy + ir], (120, 130, 180))], ir * 0.8)
+            draw = ImageDraw.Draw(img)
+            _disc(draw, icx, icy, ir, (232, 236, 250))
+            _disc(draw, icx + int(ir * 0.55), icy - int(ir * 0.2), ir, _mix(top, bot, 0.3))
     else:
-        _cloud(canvas, _drift(frame, 0.35, 0, span), int(h * 0.4), max(3, r - 1), _GREY)
+        if sky in ('clear', 'pcloudy'):
+            img = _glow(ImageChops, Image, ImageDraw, ImageFilter, img,
+                        [([icx - ir, icy - ir, icx + ir, icy + ir], (255, 200, 60))], ir * 1.1)
+            draw = ImageDraw.Draw(img)
+            _disc(draw, icx, icy, ir, (255, 226, 120))
+            _disc(draw, icx, icy, max(1, ir - 2), (255, 240, 175))
 
-    if show_city and wx.get('city') and w >= 64:
-        canvas.text(1, 0, str(wx['city'])[:max(1, (w - 2) // 6)], (170, 180, 200), 8)
-    _draw_temp(canvas, w, h, wx.get('temp_f'), unit)
+    # --- clouds -----------------------------------------------------------------
+    if sky in _CLOUDY:
+        dark = sky in ('storm', 'hail')
+        cc = (70, 74, 88) if dark else (150, 156, 172)
+        cx = int((frame * 0.4) % (W + 40) - 20)
+        for dx, dy, rr in ((0, 0, ir), (ir, 5, int(ir * 0.8)), (-ir, 4, int(ir * 0.7))):
+            _disc(draw, icx + dx - int(W * 0.1), icy + dy, rr, cc)
+        _disc(draw, cx, int(H * 0.30), max(3, int(ir * 0.7)), _mix(cc, (255, 255, 255), 0.06))
 
-    canvas.show()
-    return 0.12                               # ~8 fps — the ops path's ceiling
+    # --- precipitation ----------------------------------------------------------
+    if sky in _RAIN:
+        for i in range(_RAIN[sky]):
+            x = (i * 53 + 7) % W
+            y = int(H * 0.30) + (frame * 3 + i * 11) % max(1, int(H * 0.7))
+            draw.line([(x, y), (x - 1, min(H - 1, y + 3))], fill=(120, 170, 255))
+    elif sky in _SNOW:
+        for i in range(_SNOW[sky]):
+            x = (i * 41 + 5 + int(2 * math.sin(frame * 0.15 + i))) % W
+            y = int(H * 0.28) + (frame + i * 9) % max(1, int(H * 0.72))
+            draw.point((x, y), fill=(238, 244, 255))
+    if sky in ('storm', 'hail') and frame % 22 < 2:
+        bx = int(W * 0.3)
+        draw.line([(bx, int(H * 0.3)), (bx - 3, int(H * 0.55)), (bx + 2, int(H * 0.55)),
+                   (bx - 2, int(H * 0.8))], fill=(255, 255, 170), width=1)
+
+    # --- the numbers ------------------------------------------------------------
+    # A soft dark scrim on the left so white text always reads over the sky.
+    scrim = Image.new('L', (W, H), 0)
+    ImageDraw.Draw(scrim).rectangle([0, 0, int(W * 0.62), H], fill=150)
+    img = Image.composite(Image.new('RGB', (W, H), (0, 0, 0)), img,
+                          scrim.filter(ImageFilter.GaussianBlur(6)))
+    draw = ImageDraw.Draw(img)
+
+    def text(x, y, s, font, col, anchor='la'):
+        draw.text((x + 1, y + 1), s, font=font, fill=(0, 0, 0), anchor=anchor)
+        draw.text((x, y), s, font=font, fill=col, anchor=anchor)
+
+    temp = _num(wx.get('temp_f'), unit)
+    big = canvas.font(int(H * 0.50))
+    small = canvas.font(max(8, int(H * 0.24)))
+    tiny = canvas.font(max(7, int(H * 0.20)))
+    deg = '\N{DEGREE SIGN}'
+
+    # place name, top-left
+    if show_city and wx.get('city'):
+        text(2, 0, str(wx['city'])[:max(3, int(W * 0.55) // max(4, tiny.size // 2 + 1))],
+             tiny, (206, 216, 236))
+
+    # the temperature, big, left
+    ty = int(H * 0.26)
+    s = f'{temp}{deg}' if temp is not None else '--'
+    text(2, ty, s, big, (255, 255, 255) if temp is not None else (200, 200, 200))
+    tw = big.getlength(s)
+
+    # a right-hand column: condition, then today's high / low
+    hi, lo = _num(wx.get('hi_f'), unit), _num(wx.get('lo_f'), unit)
+    if W >= 96:
+        rx, ry = int(tw) + 8, int(H * 0.06)
+        step = small.size + 2
+        text(rx, ry, _WORD.get(sky, 'Weather')[:11], small, (208, 222, 242))
+        if hi is not None:
+            text(rx, ry + step, f'{hi}{deg}', small, (255, 208, 150))
+        if lo is not None:
+            text(rx, ry + 2 * step, f'{lo}{deg}', small, (150, 200, 255))
+    elif temp is not None:
+        # narrow wall: just the condition, tucked under the temperature
+        text(2, min(H - tiny.size, ty + big.size - 1), _WORD.get(sky, '')[:9],
+             tiny, (206, 220, 240))
+
+    canvas.frame(img)
+    return 0.16

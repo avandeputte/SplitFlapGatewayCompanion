@@ -463,6 +463,34 @@ class DisplayController:
             # long hold and just sits there.
             await asyncio.sleep(max(0.05, float(delay or 5)))
 
+    async def _play_canvas_entry(self, app_id: str, deadline: float, want) -> None:
+        """Drive a canvas app for one playlist entry — take the panel over (once)
+        and redraw on its own timer until the entry's ``deadline``. The caller
+        releases the panel afterwards, so an effect/frame never outlives its slot.
+
+        The per-frame sleep is capped at the time left in the slot: a canvas app
+        that asks to hold a long time (an on-device effect returns its whole
+        loop_delay) must not sleep past its turn in the playlist."""
+        rt_loop = asyncio.get_running_loop()
+        url = str(self.config.transport.get("gateway_url") or "").strip()
+        if url and not self._canvas_active:
+            await asyncio.to_thread(canvas.set_active, url, True)
+            self._canvas_active = True
+        render = getattr(self.plugins, "render_canvas", None)
+        while rt_loop.time() < deadline and self.active_playlist == want:
+            try:
+                hold = await asyncio.to_thread(render, app_id) if render else None
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log.warning("canvas app %s draw error: %s", app_id, e)
+                hold = None
+            remaining = deadline - rt_loop.time()
+            if remaining <= 0:
+                break
+            delay = hold if hold else self.plugins.loop_delay(app_id)
+            await asyncio.sleep(max(0.05, min(float(delay or 5), remaining)))
+
     async def stop_app(self) -> None:
         """Stop whatever is running — and BLANK the wall.
 
@@ -590,8 +618,19 @@ class DisplayController:
                     def keep_going() -> bool:
                         return rt_loop.time() < deadline and self.active_playlist == want
 
-                    while keep_going():
-                        await self._play_app_pages(app_id, ov, keep_going)
+                    is_canvas = getattr(self.plugins, "is_canvas_app", None)
+                    if is_canvas and is_canvas(app_id):
+                        # A canvas app draws on the Matrix panel, not the flaps. Drive
+                        # it like the standalone canvas loop — take the panel over, redraw
+                        # until the entry's deadline — then HAND THE PANEL BACK before the
+                        # next entry. Without that release, an on-device effect in a
+                        # playlist stayed lit forever (it never went through _cancel_task,
+                        # and _canvas_active was never set, so release was a no-op).
+                        await self._play_canvas_entry(app_id, deadline, want)
+                        await self._release_canvas()
+                    else:
+                        while keep_going():
+                            await self._play_app_pages(app_id, ov, keep_going)
             if not loop:
                 # A playlist that has run out is a display with nothing running, and it
                 # should show nothing — not the last page it happened to stop on.

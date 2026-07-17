@@ -212,7 +212,10 @@ a.btn { text-decoration: none; display: inline-block; }
 .row-card select, .row-card input { margin: 0; width: auto; }
 .row-card .grow { flex: 1; min-width: 120px; }
 .row-card .del { background: none; border: none; color: var(--hi); cursor: pointer; font-size: 16px; margin: 0; }
-.row-card .handle { color: var(--dim); }
+.row-card .handle { color: var(--dim); cursor: grab; user-select: none; white-space: nowrap; }
+.row-card .handle:active { cursor: grabbing; }
+.row-card.dragging { opacity: 0.45; }
+.row-card.drop-target { outline: 2px dashed var(--brand); outline-offset: 2px; }
 .saved-row { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-bottom: 1px solid var(--acc); }
 .saved-row .grow { flex: 1; font-weight: 600; }
 

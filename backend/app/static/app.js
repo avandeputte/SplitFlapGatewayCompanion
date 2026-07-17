@@ -1021,7 +1021,27 @@ function plRender() {
   if (!PL_ENTRIES.length) box.innerHTML = `<span class="hint">${t("Add an app or message.")}</span>`;
   PL_ENTRIES.forEach((e, i) => {
     const row = el("div", "row-card");
-    const tag = el("span", "handle"); tag.textContent = e.type === "app" ? t("▸ App") : t("▸ Msg"); row.appendChild(tag);
+    // Drag the handle to reorder. The handle is the grip (so dragging never
+    // starts from the select / inputs); every row is a drop target — dropping
+    // onto row i moves the dragged entry to that position.
+    const tag = el("span", "handle"); tag.textContent = "⠿ " + (e.type === "app" ? t("App") : t("Msg"));
+    tag.draggable = true; tag.title = t("Drag to reorder");
+    tag.addEventListener("dragstart", (ev) => {
+      ev.dataTransfer.setData("text/plain", String(i));
+      ev.dataTransfer.effectAllowed = "move"; row.classList.add("dragging");
+    });
+    tag.addEventListener("dragend", () => row.classList.remove("dragging"));
+    row.addEventListener("dragover", (ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; row.classList.add("drop-target"); });
+    row.addEventListener("dragleave", () => row.classList.remove("drop-target"));
+    row.addEventListener("drop", (ev) => {
+      ev.preventDefault(); row.classList.remove("drop-target");
+      const from = Number(ev.dataTransfer.getData("text/plain"));
+      if (Number.isNaN(from) || from === i) return;
+      const [moved] = PL_ENTRIES.splice(from, 1);
+      PL_ENTRIES.splice(i, 0, moved);
+      plRender();
+    });
+    row.appendChild(tag);
     if (e.type === "app") {
       const sel = el("select"); sel.className = "grow";
       APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}${a.i18n ? " 🌐" : ""}`; if (a.id === e.app) o.selected = true; sel.appendChild(o); });

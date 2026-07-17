@@ -3,6 +3,32 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0-beta.4
+
+**A whole shelf of new Matrix-panel apps, and the clock redesigned.** Canvas apps
+now render with a real anti-aliased font, so the panel's full pixel definition is
+put to work — smooth type, gradients and glow instead of a blocky grid.
+
+- **Lumina Clock** (replaces the old canvas Aurora Clock) — big smooth digits in
+  four treatments (Glow / Aurora / Neon / Minimal) over curated palettes that
+  never go pink. 12h/24h, a smooth seconds bar.
+- **Weather Sky** is now a colourful scene: the sky's colour is the hour *and*
+  the conditions (deep-blue nights with a glowing moon and coloured stars, warm
+  dawn and dusk, greying over for cloud and rain), with the temperature, the
+  condition, and today's high/low — not just the temperature.
+- **News Ticker** — a smooth scrolling news crawl from any RSS feed.
+- **Date Card** — a big typographic date with a year-progress bar.
+- **World Time** — several cities at once, each badged with a day/night sun or moon.
+- **Countdown Bars** — a countdown as full-width colour bars with the numbers
+  inside each bar.
+
+**Playlists**
+- **Drag to reorder** items in the playlist editor — grab a row's handle and drop
+  it where you want it.
+- **Fixed:** an on-device effect placed in a playlist stayed lit forever — it was
+  never handed back when its slot ended. Canvas apps in a playlist now take the
+  panel over and release it properly between items.
+
 ## 2.6.0-beta.3
 
 **A new canvas app: Aurora Clock** — a much richer take on the flap *Art Clock*.

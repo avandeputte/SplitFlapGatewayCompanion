@@ -1,0 +1,22 @@
+{
+  "id": "canvas-world",
+  "name": "World Time",
+  "icon": "🌍",
+  "description": "Several cities, their local hour written in light — one anti-aliased row each, the city on the left and a large HH:MM on the right, the whole row tinted warm amber by day and cool blue by night with a small sun or moon. A canvas world clock for Matrix panels.",
+  "type": "functional",
+  "surface": "canvas",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "category": "time",
+  "settings": [
+    {
+      "key": "world_clock_zones",
+      "label": "Cities (as many as the wall has rows)",
+      "type": "search_chips",
+      "searchUrl": "/timezones",
+      "resultKey": "zones",
+      "maxItems": 4,
+      "default": "America/New_York,Europe/London,Asia/Tokyo"
+    }
+  ]
+}

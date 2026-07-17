@@ -90,6 +90,12 @@ def _apps():
             continue
         if m.get("animation"):
             continue          # its capitals are colour flaps — see the module docstring
+        if m.get("surface") == "canvas":
+            # A canvas app draws its own pixels with a real font (Pillow) straight onto
+            # the Matrix panel — it never returns flap pages and never passes through
+            # renderer.fold. Its case is rendered literally, so uppercase labels
+            # ("DAYS", "MIN") are a deliberate typographic choice, not shouting.
+            continue
         app = manifest.parent / "app.py"
         if app.exists():
             yield manifest.parent.name, app

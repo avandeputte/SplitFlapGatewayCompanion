@@ -18,10 +18,17 @@ every other gateway call (gateway.py)."""
 from __future__ import annotations
 
 import logging
+import os
 
 from . import gateway
 
 log = logging.getLogger("companion.canvas")
+
+# A real anti-aliased font, bundled once in the backend so every canvas app can
+# draw smooth text (via canvas.font) without carrying its own copy. Ships with
+# the image through `COPY backend/` (see Dockerfile).
+_FONT_DIR = os.path.join(os.path.dirname(__file__), "fonts")
+_FONT_CACHE: dict = {}
 
 
 def _ok(r) -> bool:
@@ -192,3 +199,40 @@ class CanvasSurface:
         except Exception as e:
             log.debug("canvas.frame render failed: %s", e)
             return False
+
+    # -- rich rendering helpers (Pillow) -------------------------------------
+    # A canvas app that wants smooth type / gradients renders a whole PIL image
+    # and pushes it with frame(). These three cover the common needs so each app
+    # doesn't reinvent them: the bundled font, a blank panel-sized image, and a
+    # vertical gradient (a sky, a backdrop). Pillow is imported lazily so the
+    # module still loads where it isn't installed.
+    def font(self, size, name: str = "DejaVuSans-Bold.ttf"):
+        """A cached PIL ImageFont at ``size`` px from the bundled face."""
+        from PIL import ImageFont
+        key = (name, max(5, int(size)))
+        f = _FONT_CACHE.get(key)
+        if f is None:
+            f = ImageFont.truetype(os.path.join(_FONT_DIR, name), key[1])
+            _FONT_CACHE[key] = f
+        return f
+
+    def blank(self, color=(0, 0, 0)):
+        """A fresh RGB image the exact size of the panel."""
+        from PIL import Image
+        return Image.new("RGB", (self.width, self.height), tuple(_rgb(color)))
+
+    def vgrad(self, top, bottom):
+        """A panel-sized image with a vertical gradient from ``top`` to ``bottom``
+        (each a colour name / (r,g,b) / #hex). Built one column then stretched, so
+        it's cheap enough to redraw every frame."""
+        from PIL import Image
+        t, b = _rgb(top), _rgb(bottom)
+        col = Image.new("RGB", (1, self.height))
+        px = col.load()
+        h = max(1, self.height - 1)
+        for y in range(self.height):
+            r = y / h
+            px[0, y] = (int(t[0] + (b[0] - t[0]) * r),
+                        int(t[1] + (b[1] - t[1]) * r),
+                        int(t[2] + (b[2] - t[2]) * r))
+        return col.resize((self.width, self.height))
