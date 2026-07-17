@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.4
+
+- **Stocks** — on an ultra-wide Matrix panel the ticker, its price AND the day's
+  change now sit together on one line, so the whole watchlist is a single page
+  instead of flipping between a price page and a change page. The prices line up
+  in a column and the changes line up in a column, to read straight down. A
+  narrower panel (or a split-flap), where all three won't fit, keeps the two-page
+  price-then-change split.
+
 ## 2.7.0-beta.3
 
 - **Overview** — on a big panel the bottom humidity/wind line was clipped off the

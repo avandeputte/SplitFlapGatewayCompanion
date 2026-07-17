@@ -138,6 +138,34 @@ def test_stock_prices_line_up_in_a_column(stub_yf):
     assert len(body[0].rstrip()) == len(body[1].rstrip()) == 15
 
 
+def test_stocks_combine_price_and_change_on_one_page_when_wide(stub_yf):
+    """On an ultra-wide Matrix panel the ticker, its price AND the day's change fit
+    on one line, so the watchlist is a SINGLE page — not a price page and then a
+    change page. A narrow wall, where all three won't fit, keeps the two-page split."""
+    wide = _runtime(6, 42, "stocks", plugin_stocks_stocks_list="AAPL,MSFT")
+    pages = wide.get_pages("stocks")
+    assert len(pages) == 1                                  # combined onto one page
+    body = _body(pages[0], 6, 42)
+    assert len(body) == 2
+    for l in body:
+        assert "$" in l and l.rstrip().endswith("%")        # price AND change on the line
+    narrow = _runtime(6, 15, "stocks", plugin_stocks_stocks_list="AAPL,MSFT")
+    assert len(narrow.get_pages("stocks")) == 2             # split-flap keeps two pages
+
+
+def test_stocks_three_columns_align_price_and_change():
+    """ticker flush left, price and change each flush right — every line the same
+    width, so the price column and the change column both line up down the page."""
+    cols3 = _mod("stocks")._columns3
+    out = cols3([("AAPL", "$231.40", "+1.4%"), ("MSFT", "$1,420.55", "-2.0%")], 42)
+    assert len(out) == 2 and len({len(l) for l in out}) == 1
+    assert out[0].startswith("AAPL") and out[1].startswith("MSFT")
+    # the price column is right-aligned: both prices END at the same column
+    assert out[0].index("$231.40") + len("$231.40") == \
+           out[1].index("$1,420.55") + len("$1,420.55")
+    assert out[0].rstrip().endswith("+1.4%") and out[1].rstrip().endswith("-2.0%")
+
+
 # ---------------------------------------------------------------------------
 # world clock — city left, time right
 # ---------------------------------------------------------------------------

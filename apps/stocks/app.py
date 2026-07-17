@@ -21,6 +21,41 @@ def _columns(pairs, cols, gap=3):
     return out
 
 
+def _three_widths(triples, gap):
+    tw = max((len(str(a)) for a, _, _ in triples), default=0)   # ticker
+    pw = max((len(str(b)) for _, b, _ in triples), default=0)   # price
+    cw = max((len(str(c)) for _, _, c in triples), default=0)   # change
+    return tw, pw, cw, tw + gap + pw + gap + cw                 # ...and the block width
+
+
+def _fits_three(triples, cols, gap=3):
+    """Do ticker + price + change fit together on ONE line at this width?"""
+    return _three_widths(triples, gap)[3] <= cols
+
+
+def _columns3(triples, cols, gap=3):
+    """Three aligned columns — ticker flush left, price and change each flush
+    right — kept together as one centred block.
+
+    On an ultra-wide wall (a big Matrix panel) there is room to show a ticker,
+    its price AND the day's change on ONE line, so the whole watchlist is a single
+    page instead of flipping between a price page and a change page. The price
+    column and the change column each line up down the page. format_lines centres
+    the block, so — like _columns — it sits together in the middle, not spread to
+    the wall's edges. Only used where the three columns actually fit.
+    """
+    triples = [(str(a), str(b), str(c)) for a, b, c in triples]
+    tw, pw, cw, block = _three_widths(triples, gap)
+    inner = min(cols, block)
+    lead = max(1, inner - pw - gap - cw)              # ticker column width, incl. its gap
+    out = []
+    for a, b, c in triples:
+        if len(a) > lead - 1:
+            a = a[:max(0, lead - 1)]
+        out.append((a.ljust(lead) + b.rjust(pw) + (' ' * gap) + c.rjust(cw))[:cols])
+    return out
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import yfinance as yf
 
@@ -54,7 +89,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     pages = []
     for i in range(0, len(tickers), rows):
         chunk = tickers[i:i+rows]
-        price_pairs, change_pairs = [], []
+        triples = []                                 # (ticker, price, change)
         for sym in chunk:
             try:
                 info = yf.Ticker(sym).fast_info
@@ -75,16 +110,18 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 # still reads. The colour comes along as well when it can.
                 arrow = '\u2191' if chg >= 0 else '\u2193'
                 icon = arrow if no_color else arrow + ('🟩' if chg >= 0 else '🟥')
-                # Ticker flush left, price flush right: prices line up in a column and
-                # you can read down them, which is what a list of stocks is for.
-                price_pairs.append((sym, f'{cs}{sep}{n(price, 2)}'))
-                change_pairs.append((sym, f'{icon}{pct(chg)}'))
+                triples.append((sym, f'{cs}{sep}{n(price, 2)}', f'{icon}{pct(chg)}'))
             except Exception:
-                price_pairs.append((sym, 'Err'))
-                change_pairs.append((sym, 'Err'))
-        # No padding: two tickers on a five-row wall are centred by format_lines.
-        pages.append(format_lines(*_columns(price_pairs, cols)))
-        pages.append(format_lines(*_columns(change_pairs, cols)))
+                triples.append((sym, 'Err', 'Err'))
+        # Ultra-wide wall (a big Matrix panel): ticker, price AND change on ONE line,
+        # so the watchlist is a single page. Otherwise the price and the change each
+        # get their own page - both number columns don't fit at this width. Either
+        # way the prices (and the changes) line up in a column, to read down them.
+        if _fits_three(triples, cols):
+            pages.append(format_lines(*_columns3(triples, cols)))
+        else:
+            pages.append(format_lines(*_columns([(s, p) for s, p, _ in triples], cols)))
+            pages.append(format_lines(*_columns([(s, c) for s, _, c in triples], cols)))
     return pages or [format_lines('Stocks', t('No data'), '')]
 
 
