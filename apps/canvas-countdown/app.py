@@ -35,8 +35,9 @@ _UNITS = {
 }
 
 
-def _dim(color, f=0.26):
-    """A dark 'track' tint of a unit's colour — the unlit part of its bar."""
+def _dim(color, f=0.13):
+    """A dark 'track' tint of a unit's colour — the unlit part of its bar. Kept
+    deep so the lit fill and the white value read strongly against it."""
     return tuple(int(c * f) for c in color)
 
 
@@ -93,17 +94,31 @@ def _truncate(font, text, max_w):
 
 
 def _shadow_text(draw, x, y, text, font, fill=(255, 255, 255)):
-    """White (or ``fill``) text with a 1px dark shadow, anchored top-left."""
-    draw.text((x + 1, y + 1), text, font=font, fill=(0, 0, 0), anchor='la')
+    """White (or ``fill``) text with a 1px dark OUTLINE on all sides — so it stays
+    legible over a bright bar fill and a dark track alike. Anchored top-left."""
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)):
+        draw.text((x + dx, y + dy), text, font=font, fill=(0, 0, 0), anchor='la')
     draw.text((x, y), text, font=font, fill=fill, anchor='la')
 
 
-def _render_bars(canvas, ImageDraw, keys, val, frac, event, use_header, header_h):
-    """The countdown itself: one full-width, no-gap bar per unit, plus the event."""
+def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
+    """The countdown itself: one full-width, no-gap bar per unit, and the event
+    name on the plain black header above them — never on a bar."""
     W, H = canvas.width, canvas.height
     pad = 2
-    img = canvas.blank((8, 8, 10))
+    img = canvas.blank((0, 0, 0))          # pure black — the title sits on THIS
     draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"                     # crisp 1-bit text — no anti-aliased fuzz
+
+    # The event name, centred on the black header (no panel/bar behind it), with a
+    # thin colour line dividing it from the bars.
+    if header_h > 0 and event:
+        hf, htop, hh = _bar_font(canvas, max(5, header_h - 2))
+        etext = _truncate(hf, event, W - 4)
+        ex = (W - hf.getlength(etext)) / 2.0
+        ey = (header_h - 2 - hh) / 2.0 - htop
+        _shadow_text(draw, ex, max(0, ey), etext, hf, fill=(240, 240, 245))
+        draw.rectangle([0, header_h - 1, W - 1, header_h - 1], fill=_UNITS[keys[0]][0])
 
     # Bar edges: rounded so the units EXACTLY tile [header_h, H) with no gaps.
     n = len(keys)
@@ -112,39 +127,17 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, use_header, header_h
     min_bh = min(edges[i + 1] - edges[i] for i in range(n))
     font, ink_top, ink_h = _bar_font(canvas, max(5, min_bh - 1))
 
-    top_value_w = 0.0
     for i, key in enumerate(keys):
         color = _UNITS[key][0]
         y0, y1 = edges[i], edges[i + 1]
         bh = y1 - y0
-        draw.rectangle([0, y0, W - 1, y1 - 1], fill=_dim(color))     # full-width track
+        draw.rectangle([0, y0, W - 1, y1 - 1], fill=_dim(color))     # deep full-width track
         fw = int(round(min(1.0, max(0.0, frac[key])) * W))           # fill from the left
         if fw > 0:
             draw.rectangle([0, y0, fw - 1, y1 - 1], fill=color)
         vtext = _label(key, val[key], font, W - 2 * pad)
-        if i == 0:
-            top_value_w = font.getlength(vtext)
         ty = y0 + (bh - ink_h) / 2.0 - ink_top                       # vertically centred
         _shadow_text(draw, pad, ty, vtext, font)
-
-    if use_header:
-        # A slim dark header carries the event name, underlined in the top unit's hue.
-        draw.rectangle([0, 0, W - 1, header_h - 1], fill=(14, 14, 18))
-        hf, htop, hh = _bar_font(canvas, max(5, header_h - 3))
-        etext = _truncate(hf, event, W - 4)
-        ex = (W - hf.getlength(etext)) / 2.0
-        ey = (header_h - 1 - hh) / 2.0 - htop
-        _shadow_text(draw, ex, ey, etext, hf, fill=(238, 238, 245))
-        draw.rectangle([0, header_h - 1, W - 1, header_h - 1], fill=_UNITS[keys[0]][0])
-    elif event:
-        # No header room: ride the event on the top bar, right-aligned clear of the value.
-        y0, y1 = edges[0], edges[1]
-        avail = int(W - top_value_w - 2 * pad - 3)
-        if avail >= 8:
-            etext = _truncate(font, event, avail)
-            ex = W - pad - font.getlength(etext)
-            ey = y0 + ((y1 - y0) - ink_h) / 2.0 - ink_top
-            _shadow_text(draw, ex, ey, etext, font)
     return img
 
 
@@ -162,6 +155,7 @@ def _render_arrived(canvas, Image, ImageDraw, event, frame):
             od.line([(cx + dx, 0), (cx + dx, H)], fill=(255, 255, 255, a))
     img = Image.alpha_composite(base, overlay).convert('RGB')
     draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"                     # crisp 1-bit text — no anti-aliased fuzz
 
     hero = 'ARRIVED!'
     hf = _fit_width(canvas, hero, W - 4, int(H * 0.52))
@@ -187,6 +181,7 @@ def _render_message(canvas, ImageDraw, line1, line2):
     W, H = canvas.width, canvas.height
     img = canvas.vgrad((34, 40, 52), (12, 14, 20))
     draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"                     # crisp 1-bit text — no anti-aliased fuzz
     f1 = _fit_width(canvas, line1, W - 4, int(H * 0.40))
     b1 = f1.getbbox(line1)
     h1 = b1[3] - b1[1]
@@ -283,15 +278,9 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         'Y': min(1.0, days_f / 3650.0),
     }
 
-    # The event gets its own line where there is room to read it: a header on a
-    # tall panel, or a slim header on a narrow one (too skinny to overlay a
-    # multi-digit value AND a name). A wide-but-short panel overlays the top bar.
-    if H >= 44:
-        use_header, header_h = True, max(12, min(18, int(H * 0.22)))
-    elif W < 96:
-        use_header, header_h = True, max(8, int(H * 0.30))
-    else:
-        use_header, header_h = False, 0
+    # The event ALWAYS gets its own line on the plain black header — never a bar
+    # behind it. A little taller on a tall panel, slim on a short one.
+    header_h = max(9, min(18, int(H * 0.24))) if event else 0
 
     # As many bars as fit legibly, trimmed least-significant-first (seconds go
     # first on a small wall — they are for launch day, not a decade away).
@@ -305,5 +294,5 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         keys.append('S')
     keys = keys[:max_bars]
 
-    canvas.frame(_render_bars(canvas, ImageDraw, keys, val, frac, event, use_header, header_h))
+    canvas.frame(_render_bars(canvas, ImageDraw, keys, val, frac, event, header_h))
     return 0.2                                      # ~5 fps: a smooth seconds sweep

@@ -218,6 +218,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
     img = Image.composite(Image.new('RGB', (W, H), (0, 0, 0)), img,
                           scrim.filter(ImageFilter.GaussianBlur(6)))
     draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"                         # crisp 1-bit text — no anti-aliased fuzz
 
     def text(x, y, s, font, col, anchor='la'):
         draw.text((x + 1, y + 1), s, font=font, fill=(0, 0, 0), anchor=anchor)

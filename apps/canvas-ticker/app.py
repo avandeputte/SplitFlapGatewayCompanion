@@ -18,11 +18,11 @@ The bundled font and panel size come from the injected ``canvas``. Adapts to
 """
 
 _SEP = "   •   "                 # gap + bullet + gap between headlines
-_FG = (255, 244, 220)                 # warm white headline text
+_FG = (255, 255, 255)                 # pure white headline text — max contrast
 _ACCENT = (255, 150, 40)              # amber bullet between stories
-_BG_TOP = (12, 14, 20)                # near-black, faint cool cast at the top
-_BG_BOTTOM = (2, 2, 4)                # to true black at the bottom
-_SPEED = 2.0                          # px advanced per frame
+_BG_TOP = (0, 0, 0)                   # pure black behind the text, so the type
+_BG_BOTTOM = (0, 0, 0)                # carries at full contrast
+_SPEED = 5.0                          # px advanced per frame (~40 px/s at ~8 fps)
 _REFRESH_S = 600.0                    # re-fetch the feed at most this often
 _DEFAULT_FEED = "https://feeds.bbci.co.uk/news/rss.xml"
 
@@ -56,10 +56,11 @@ def _load_headlines(feed_url):
 
 
 def _pick_font(canvas, H):
-    """The bundled font sized so capital letters fill ~65% of the panel height,
-    while a full accent-to-descender span (É … gpqy) still fits within H — so no
+    """The bundled font sized so capital letters fill about half the panel height
+    (a comfortable crawl size — small enough that plenty of the line is on screen),
+    while a full accent-to-descender span (É … gpqy) still fits within H so no
     glyph, accented capitals and international feeds included, is ever clipped."""
-    target_cap = max(6, int(round(H * 0.66)))
+    target_cap = max(6, int(round(H * 0.42)))
     size = max(8, int(round(target_cap / 0.62)))          # start generous, shrink to fit
     font = canvas.font(size)
     for _ in range(size):
@@ -110,6 +111,7 @@ def _build_strip(canvas, headlines, font):
 
     strip = _bg_strip(strip_w, H)
     draw = ImageDraw.Draw(strip)
+    draw.fontmode = "1"                       # crisp 1-bit text — no anti-aliased fuzz
 
     # Vertical centre: place the ink box of a tall+low sample in the middle of H,
     # then draw every segment on that same baseline (default 'la' anchor).

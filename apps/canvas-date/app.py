@@ -134,13 +134,16 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     base = canvas.vgrad((8, 12, 28), (0, 0, 3))
 
     m = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(m).text((pad_x - day["l"], day_top - day["t"]), day_str,
-                           fill=255, font=day["font"], anchor="la")
+    dm = ImageDraw.Draw(m)
+    dm.fontmode = "1"                           # crisp 1-bit glyph mask — no AA edges
+    dm.text((pad_x - day["l"], day_top - day["t"]), day_str,
+            fill=255, font=day["font"], anchor="la")
     fill = _vfill(Image, W, H, (255, 255, 255), _lerp((255, 255, 255), accent, 0.16),
                   day_top, day_top + day["h"])
     base = Image.composite(fill, base, m)
 
     draw = ImageDraw.Draw(base)
+    draw.fontmode = "1"                         # crisp 1-bit text — no anti-aliased fuzz
     colors = (accent, (232, 236, 244), (150, 166, 196))
     y = content_top + (content_h - total) / 2.0
     for ln, col in zip(lines, colors):

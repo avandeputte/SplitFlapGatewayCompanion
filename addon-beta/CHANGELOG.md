@@ -3,6 +3,22 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0-beta.5
+
+**Canvas apps: crisper type and a round of polish from real-panel feedback.**
+
+- **Crisp text everywhere.** The Matrix-panel apps now render their type without
+  anti-aliasing — hard-edged pixels that stay sharp on the LEDs instead of the
+  soft grey fuzz the smoothed font left at these sizes.
+- **World Time** — dark, high-contrast rows; city names shown in full (no more
+  "New Y…"); the sun/moon icons are gone (the day/night cue is the tint and the
+  coloured left stripe).
+- **News Ticker** — scrolls faster, the text is smaller (more of the line on
+  screen), and it's pure white on black for maximum contrast.
+- **Countdown Bars** — the bar tracks are much darker so the fill and numbers
+  stand out, the numbers are outlined for legibility over any colour, and the
+  event name now sits on plain black with no bar behind it.
+
 ## 2.6.0-beta.4
 
 **A whole shelf of new Matrix-panel apps, and the clock redesigned.** Canvas apps

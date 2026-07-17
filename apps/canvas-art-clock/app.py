@@ -142,7 +142,9 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
 
     def mask(text, x):
         m = Image.new('L', (W, H), 0)
-        ImageDraw.Draw(m).text((x, y), text, fill=255, font=font, anchor='la')
+        md = ImageDraw.Draw(m)
+        md.fontmode = "1"                       # crisp 1-bit glyph mask — no AA edges
+        md.text((x, y), text, fill=255, font=font, anchor='la')
         return m
 
     m_hh, m_mm = mask(hh, x0), mask(mm, x_min)
