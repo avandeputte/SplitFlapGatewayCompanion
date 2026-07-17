@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0
+
+The 2.6.0 line promoted to a stable release — see the stable
+add-on changelog for the full summary. No code change from beta.10.
+
 ## 2.6.0-beta.10
 
 **Compose now works on iPhone and iPad.** Tapping a cell in the Compose tab

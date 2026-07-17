@@ -3,6 +3,52 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0
+
+The 2.6.0 line, gathered into a stable release. Everything below shipped and
+soaked across the 2.6.0 betas.
+
+**A Matrix wall is now a canvas.** A Matrix Gateway — the split-flap firmware
+ported to an LED panel — advertises a *canvas* (a real framebuffer) and on-device
+effects, and the companion now uses both. A new kind of app, a **canvas app**,
+draws straight onto the panel instead of returning flap pages, free of the module
+grid. Canvas apps appear only on a Matrix wall; a physical split-flap has no
+framebuffer, so they simply don't show there.
+
+- **Lumina Clock** — the time as luminous colour: big anti-aliased digits with a
+  glow, gradient, aurora or minimal fill, in curated palettes.
+- **Weather Sky** — the weather as a scene: a sky coloured by the hour and the
+  conditions, a glowing sun or moon, drifting cloud, falling rain or snow, with
+  the temperature, the condition and today's high/low.
+- **Countdown Bars** — a countdown as full-width colour bars, the numbers inside
+  each, draining like the flap Countdown.
+- **World Time** — several cities' local times at once, each on its own
+  day/night-tinted row.
+- **Date Card** — a big typographic date with a year-progress bar.
+- **Image** — mirror any picture onto the panel in full colour.
+- **Effects** — on-device plasma, fire and Matrix rain, rendered by the panel
+  itself at full frame rate; the list of effects is read from what the wall
+  actually advertises.
+
+**Rich, smooth rendering.** Canvas apps draw with a real anti-aliased font and
+push whole frames to the panel, so the type is crisp and the colour is the
+panel's own, not the blocky flap font. App authors get a `canvas` drawing surface
+— pixels, lines, rectangles, text, gradients, a bundled font, on-device effects
+and whole images — documented in the wiki.
+
+**The panel, mirrored.** The web live preview and the Home Assistant board image
+now show what a canvas app is drawing, instead of the flap grid it bypasses.
+
+**Playlists.** Drag to reorder the entries in the editor. And a canvas app — an
+on-device effect especially — placed in a playlist now hands the panel back when
+its turn ends, instead of staying lit forever.
+
+**Compose from a phone or tablet.** Tapping a cell in Compose now opens the
+on-screen keyboard on iOS and iPadOS, so you can type onto the wall from a
+touch device.
+
+Plus a long round of readability and layout polish across the new canvas apps.
+
 ## 2.5.0
 
 The 2.5.0 line, gathered into a stable release. Everything below shipped and
