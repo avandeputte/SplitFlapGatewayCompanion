@@ -131,6 +131,16 @@
       "version": "1.0"
     },
     {
+      "id": "canvas-weather",
+      "name": "Weather Sky",
+      "icon": "🌦️",
+      "description": "The weather drawn as an animated sky, with the temperature (Matrix walls)",
+      "category": "weather",
+      "type": "functional",
+      "surface": "canvas",
+      "version": "1.0"
+    },
+    {
       "id": "magic-8-ball",
       "name": "Magic 8 Ball",
       "icon": "🎱",

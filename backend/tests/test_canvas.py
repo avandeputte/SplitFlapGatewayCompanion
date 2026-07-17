@@ -149,6 +149,116 @@ def test_the_canvas_apps_are_marked_canvas_surface():
     from pathlib import Path
     apps = Path(__file__).resolve().parents[2] / "apps"
     import json
-    for app in ("effects", "canvas-clock", "canvas-image"):
+    for app in ("effects", "canvas-clock", "canvas-image", "canvas-weather"):
         m = json.loads((apps / app / "manifest.json").read_text())
         assert m.get("surface") == "canvas", app
+
+
+# --- the canvas-weather app: the sky, drawn ---------------------------------
+
+class _FakeCanvas:
+    """Records the draw calls a canvas app makes, standing in for CanvasSurface."""
+
+    def __init__(self, w=64, h=32):
+        self.width, self.height = w, h
+        self.ops = []
+        self.shown = 0
+
+    def clear(self, color=(0, 0, 0)):
+        self.ops.append(("clear",)); return self
+
+    def pixel(self, x, y, color=(255, 255, 255)):
+        self.ops.append(("pixel", x, y)); return self
+
+    def hline(self, x, y, w, color=(255, 255, 255)):
+        self.ops.append(("hline", x, y, w)); return self
+
+    def vline(self, x, y, h, color=(255, 255, 255)):
+        self.ops.append(("vline",)); return self
+
+    def rect(self, x, y, w, h, color=(255, 255, 255), fill=False):
+        self.ops.append(("rect",)); return self
+
+    def text(self, x, y, s, color=(255, 255, 255), size=10):
+        self.ops.append(("text", x, y, s, size)); return self
+
+    def show(self):
+        self.shown += 1; return True
+
+    def _texts(self):
+        return "".join(o[3] for o in self.ops if o[0] == "text")
+
+
+def _weather_app():
+    from conftest import load_app
+    return load_app("canvas-weather")
+
+
+def _gw(sky="clear", temp_f=72, city="Boston"):
+    return lambda days=0, air=False: {"ok": True, "sky": sky, "temp_f": temp_f, "city": city}
+
+
+def test_canvas_weather_draws_nothing_without_a_panel():
+    assert _weather_app().fetch({}, None, None, None, canvas=None) is None
+
+
+def test_canvas_weather_draws_the_sky_and_temperature():
+    app = _weather_app()
+    cv = _FakeCanvas(64, 32)
+    hold = app.fetch({"temperature_unit": "f", "show_city": "yes"}, None, None, None,
+                     canvas=cv, get_weather=_gw("clear", 72, "Boston"))
+    assert cv.shown == 1
+    assert cv.ops[0] == ("clear",)              # a fresh frame every redraw
+    assert "72" in cv._texts() and "Boston" in cv._texts()
+    assert hold and hold > 0                     # a short hold => the engine reanimates
+
+
+@pytest.mark.parametrize("sky", [
+    "clear", "pcloudy", "cloudy", "fog", "rainl", "rain", "rainh", "shwr",
+    "snowl", "snow", "snowh", "sleet", "storm", "hail", "mystery"])
+def test_canvas_weather_every_sky_animates_without_error(sky):
+    app = _weather_app()
+    cv = _FakeCanvas(128, 32)
+    gw = _gw(sky, 5, "X")
+    for _ in range(30):                          # enough frames to hit the bolt flash / twinkle
+        assert app.fetch({}, None, None, None, canvas=cv, get_weather=gw) == 0.12
+    assert cv.shown == 30
+
+
+def test_canvas_weather_night_clear_draws_a_moon(monkeypatch):
+    app = _weather_app()
+    monkeypatch.setattr(app, "_is_night", lambda s: True)
+    cv = _FakeCanvas(64, 32)
+    app.fetch({}, None, None, None, canvas=cv, get_weather=_gw("clear", 30, ""))
+    assert cv.shown == 1                          # a night scene drew without error
+
+
+def test_canvas_weather_units_convert():
+    app = _weather_app()
+    for unit, want in (("c", "0"), ("k", "273"), ("f", "32")):
+        cv = _FakeCanvas(64, 32)
+        _weather_app_fetch = _weather_app()       # fresh module => fresh cache per unit
+        _weather_app_fetch.fetch({"temperature_unit": unit}, None, None, None,
+                                 canvas=cv, get_weather=_gw("clear", 32, ""))
+        assert want in cv._texts(), unit
+
+
+def test_canvas_weather_missing_temp_shows_dashes():
+    app = _weather_app()
+    cv = _FakeCanvas(64, 32)
+    app.fetch({}, None, None, None, canvas=cv, get_weather=_gw("cloudy", None, ""))
+    assert "--" in cv._texts()
+
+
+def test_canvas_weather_caches_the_reading():
+    app = _weather_app()
+    cv = _FakeCanvas(64, 32)
+    calls = {"n": 0}
+
+    def gw(days=0, air=False):
+        calls["n"] += 1
+        return {"ok": True, "sky": "rain", "temp_f": 50, "city": "Y"}
+
+    for _ in range(20):
+        app.fetch({}, None, None, None, canvas=cv, get_weather=gw)
+    assert calls["n"] == 1                         # fetched once, cached for the animation

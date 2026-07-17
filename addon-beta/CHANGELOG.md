@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0-beta.2
+
+**A new canvas app: Weather Sky.** The weather, drawn instead of spelled. On a
+Matrix wall it paints an animated sky for the current conditions — a sun whose
+rays slowly turn, clouds that drift, rain that falls and snow that wobbles down,
+a lightning flash in a storm, a moon and stars at night — with the temperature
+in a big colour that runs from icy blue to hot orange. It reads the same live
+weather and location as the ordinary Weather app. Like every canvas app it
+appears only on a wall that has a panel.
+
+Animated canvas apps also got smoother: the redraw floor dropped so an app can
+pick its own frame rate (up to the panel's ~8 fps ops ceiling) instead of being
+capped at five.
+
 ## 2.6.0-beta.1
 
 **Draw anything on a Matrix wall.** A Matrix Gateway can now do far more than

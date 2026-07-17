@@ -458,7 +458,10 @@ class DisplayController:
                 log.warning("canvas app %s draw error: %s", app_id, e)
                 hold = None
             delay = hold if hold else self.plugins.loop_delay(app_id)
-            await asyncio.sleep(max(0.2, float(delay or 5)))
+            # A canvas app can animate: a low floor lets it pick its own frame rate
+            # (the HTTP ops path tops out around 8 fps anyway). A still app returns a
+            # long hold and just sits there.
+            await asyncio.sleep(max(0.05, float(delay or 5)))
 
     async def stop_app(self) -> None:
         """Stop whatever is running — and BLANK the wall.
