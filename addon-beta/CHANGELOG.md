@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0-beta.6
+
+**Effects picker now follows the wall.** The Effects app's list of effects is no
+longer a hard-coded plasma / fire / matrix — it's read from what the Matrix panel
+actually advertises (GET /api/capabilities), so if the firmware gains or renames
+an effect, the picker shows exactly what that panel can do (with a sensible
+fallback where a wall advertises none).
+
 ## 2.6.0-beta.5
 
 **Canvas apps: crisper type and a round of polish from real-panel feedback.**

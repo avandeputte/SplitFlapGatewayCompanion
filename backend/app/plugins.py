@@ -1041,6 +1041,28 @@ class PluginRuntime:
         # other setting is per-app. A manifest's ``global_key`` flag is ignored.
         return raw_key if raw_key in GLOBAL_STORAGE_KEYS else f"plugin_{app_id}_{raw_key}"
 
+    # Effect names get a friendlier label; anything the firmware adds later is
+    # title-cased automatically (new_effect -> "New Effect").
+    _EFFECT_LABELS = {"plasma": "Plasma", "fire": "Fire", "matrix": "Matrix rain"}
+
+    def _dynamic_options(self, setting: dict):
+        """Options a setting draws from the LIVE wall instead of the manifest.
+
+        With ``"options_source": "effects"`` the picker offers exactly the effects
+        THIS Matrix panel advertises in GET /api/capabilities — so it tracks the
+        firmware instead of a hard-coded three. Returns None to fall back to the
+        manifest's own options (a wall that advertises none, or a physical wall)."""
+        if setting.get("options_source") != "effects":
+            return None
+        try:
+            effects = list(self._caps().effects)
+        except Exception:
+            effects = []
+        if not effects:
+            return None
+        return [{"value": e, "label": self._EFFECT_LABELS.get(e, e.replace("_", " ").title())}
+                for e in effects]
+
     def _field(self, app_id: str, setting: dict, resolved: dict) -> dict:
         raw = setting["key"]
         key = resolved[raw]
@@ -1056,7 +1078,9 @@ class PluginRuntime:
         label = setting.get("label") or ("" if ftype == "notice" else raw)
         field = {"key": key, "label": label, "type": ftype}
         if "options" in setting:
-            field["options"] = setting["options"]
+            # options_source (e.g. "effects") overrides the manifest list with what
+            # the live wall advertises; falls back to the manifest's own options.
+            field["options"] = self._dynamic_options(setting) or setting["options"]
         for pk in _PASSTHROUGH:
             if pk in setting:
                 field[pk] = setting[pk]

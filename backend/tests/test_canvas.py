@@ -361,3 +361,28 @@ def test_news_ticker_scrolls_headlines(gw_calls, monkeypatch):
         _h, img, content = _push(gw_calls, app, 128, 32, {"feed_url": "http://x"})
     assert len(content) == 128 * 32 * 3 and _bright(img) > 20
     assert app.fetch({}, None, None, None, canvas=None) is None
+
+
+# --- the effect picker is driven by what the wall advertises ----------------
+
+def _effect_field(schema):
+    return next(f for f in schema["fields"]
+                if any(isinstance(o, dict) and o.get("value") == "plasma"
+                       for o in (f.get("options") or [])))
+
+
+def test_effects_picker_offers_the_walls_advertised_effects(tmp_path):
+    from conftest import make_runtime
+    caps = device.from_capabilities(dict(CANVAS_DOC, effects=["plasma", "fire", "matrix", "sparkle"]))
+    rt = make_runtime(tmp_path=tmp_path, installed=["effects"], caps=caps)
+    field = _effect_field(rt.settings_schema("effects"))
+    labels = {o["value"]: o["label"] for o in field["options"]}
+    assert list(labels) == ["plasma", "fire", "matrix", "sparkle"]   # from the wall, not the manifest
+    assert labels["sparkle"] == "Sparkle"                            # a new firmware effect, auto-labelled
+
+
+def test_effects_picker_falls_back_where_the_wall_advertises_none(tmp_path):
+    from conftest import make_runtime
+    rt = make_runtime(tmp_path=tmp_path, installed=["effects"], caps=device.SPLIT_FLAP)
+    field = _effect_field(rt.settings_schema("effects"))
+    assert [o["value"] for o in field["options"]] == ["plasma", "fire", "matrix"]   # the manifest's own

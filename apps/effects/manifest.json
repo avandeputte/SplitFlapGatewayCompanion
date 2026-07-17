@@ -2,7 +2,7 @@
   "id": "effects",
   "name": "Effects",
   "icon": "🎆",
-  "description": "On-device panel effects — plasma, fire, matrix rain — rendered by a Matrix wall itself",
+  "description": "On-device panel effects — whichever ones the Matrix wall advertises — rendered by the panel itself",
   "type": "functional",
   "surface": "canvas",
   "category": "animation",
@@ -11,6 +11,7 @@
   "settings": [
     {
       "key": "effect", "label": "Effect", "type": "toggle", "default": "plasma",
+      "options_source": "effects",
       "options": [
         {"value": "plasma", "label": "Plasma"},
         {"value": "fire", "label": "Fire"},
