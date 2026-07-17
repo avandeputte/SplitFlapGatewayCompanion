@@ -68,3 +68,30 @@ def test_packs_multiple_aircraft_even_when_wrapped(monkeypatch):
     lines = _run(monkeypatch, 14, 6, {})
     # two aircraft × two lines each = four lines on ONE page, not one aircraft per page
     assert len(lines) == 4
+
+
+def test_rows_stay_the_same_width_so_the_columns_align(monkeypatch):
+    """Regression: a right-stripped short row was re-centred a column over, drifting the
+    columns down the page. With mixed-width last columns (altitude A4050 vs A38K) every
+    aircraft line must still be the SAME width."""
+    def alt_plane(cs, lat, lon, alt_m):
+        return {"lat": lat, "lng": lon, "alt": alt_m, "speed": 800, "dir": 200,
+                "updated": int(time.time()), "flight_iata": cs, "status": "en-route"}
+
+    def get(url, **kw):
+        return _Resp({"response": [alt_plane("UAL1", 42.40, -71.10, 1234),    # ~A4050 ft
+                                   alt_plane("DAL2", 42.30, -71.00, 11582)]})  # ~A38K ft
+
+    monkeypatch.setitem(sys.modules, "requests", types.SimpleNamespace(
+        get=get, post=lambda *a, **k: _Resp({}),
+        Timeout=Exception, ConnectionError=Exception, HTTPError=Exception))
+    app = _mod("planes_overhead")
+    if hasattr(app.fetch, "_state"):
+        del app.fetch._state
+    s = {"data_source": "airlabs", "airlabs_api_key": "k", "units_preset": "imperial",
+         "radius": "200", "max_results": "6", "dwell_seconds": "4",
+         "location": "42.3601,-71.0589", "show_route": "no", "show_speed": "no"}
+    pages = app.fetch(s, lambda *a: "|".join(a), lambda: 6, lambda: 30, None)
+    lines = [ln for ln in pages[0].split("|") if ln.strip()]
+    assert len(lines) == 2
+    assert len({len(l) for l in lines}) == 1, f"rows differ in width: {lines}"

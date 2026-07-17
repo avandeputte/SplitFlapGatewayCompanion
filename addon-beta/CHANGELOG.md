@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.11
+
+- **Planes Overhead** — fixed the column alignment in the table. Rows with a shorter
+  last field (e.g. altitude `A38K` vs `A4050`) were being re-centred a column over, so
+  the columns drifted down the page. Every row is now the same width, and the distance
+  is aligned inside its column too — the number flush right so the decimals line up,
+  the compass direction flush left.
+
 ## 2.7.0-beta.10
 
 **Planes Overhead** got route info and a much more adaptive display:

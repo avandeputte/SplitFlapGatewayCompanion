@@ -122,13 +122,6 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
             return f"{int(round(speed_ms * 3.6))}KPH"
         return f"{int(round(speed_ms * 1.94384))}KT"
 
-    def _format_distance(distance_km, direction, unit):
-        if unit == "mi":
-            return f"{distance_km * 0.621371:.1f}MI {direction}".strip()
-        if unit == "nm":
-            return f"{distance_km * 0.539957:.1f}NM {direction}".strip()
-        return f"{distance_km:.1f}KM {direction}".strip()
-
     def _clean_code(value):
         """An airport code (IATA/ICAO) uppercased and trimmed, or '' — the route feed's
         codes; only the keyed providers carry these (OpenSky's free feed has no route)."""
@@ -638,16 +631,31 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
             return f"{o}→{d}"                       # PIT->SFO
         return (o and f"{o}→") or (d and f"→{d}") or ""
 
+    def _dist_val(km):
+        if distance_unit == "mi":
+            return f"{km * 0.621371:.1f}MI"
+        if distance_unit == "nm":
+            return f"{km * 0.539957:.1f}NM"
+        return f"{km:.1f}KM"
+
     rows_data = []
     for item in nearby[:max_results]:
         f = item["flight"]
         rows_data.append({
             "callsign": f["callsign"],
             "route": _route(f),
-            "distance": _format_distance(item["distance"], item["direction"], distance_unit),
+            "_dval": _dist_val(item["distance"]),
+            "_ddir": item["direction"],
             "altitude": _format_altitude(f["altitude_m"], altitude_unit),
             "speed": _format_speed(f["speed_ms"], speed_unit),
         })
+    # Distance aligned INSIDE its column: the number flush right (so the decimals line up)
+    # and the compass letters flush left (so they line up too) — one plain "3.0MI SE"
+    # string per row would put the MI and the direction at ragged columns.
+    dvw = max(len(r["_dval"]) for r in rows_data)
+    ddw = max(len(r["_ddir"]) for r in rows_data)
+    for r in rows_data:
+        r["distance"] = f"{r['_dval']:>{dvw}} {r['_ddir']:<{ddw}}"
 
     # --- which fields to show (the user picks; callsign always) ----------------
     def _yes(key):
@@ -678,8 +686,11 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
 
     pages = []
     if line_w(kept) <= cols and (len(kept) >= 2 or len(cols_shown) <= 1):
-        # ONE LINE per aircraft, columns aligned, packed `rows` aircraft to a page.
-        lines = [g.join(cell(r, k) for k in kept).rstrip() for r in rows_data]
+        # ONE LINE per aircraft, columns aligned, packed `rows` aircraft to a page. The
+        # lines are NOT stripped: every row is padded to the same width so format_lines
+        # centres them identically and the columns line up down the page (a right-stripped
+        # short row would be re-centred a column over).
+        lines = [g.join(cell(r, k) for k in kept) for r in rows_data]
         step = max(1, rows)
         for i in range(0, len(lines), step):
             pages.extend([format_lines(*lines[i:i + step])] * dwell_repeat)
@@ -691,7 +702,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
         bot = [k for k in ("distance", "altitude", "speed") if k in cols_shown]
 
         def grp(r, keys):
-            return g.join(cell(r, k) for k in keys).rstrip()
+            return g.join(cell(r, k) for k in keys)
 
         lpp = 2 if bot else 1
         per = max(1, rows // lpp)
