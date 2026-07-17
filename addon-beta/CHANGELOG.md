@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.8
+
+- **Art Clock** — the AM/PM on a wide wall is now drawn in colour flaps like the
+  digits (a slightly smaller 3×3 letter), instead of as plain text.
+
 ## 2.7.0-beta.7
 
 - **Stocks** — a new "Pause When Markets Closed" option (on by default). yfinance's

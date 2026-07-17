@@ -76,14 +76,25 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         line += glyphs[m_str[1]][row].replace('#', c2)
         lines.append(line)
 
-    # On a wide wall, a 12-hour clock says WHICH HALF of the day it is: AM/PM to the
-    # right of the digits, vertically centred. Every line is padded to the same width
-    # so format_lines keeps the block aligned. A 15-wide wall has no room, so it goes
-    # without (and 24-hour never needs it).
-    if not h24 and cols >= 19:
+    # On a wide wall, a 12-hour clock says WHICH HALF of the day it is: AM/PM drawn in
+    # COLOUR FLAPS like the digits — a little shorter, a 3x3 letter — to the right and
+    # vertically centred. Every line is padded to the same width so format_lines keeps
+    # the block aligned. A narrower wall has no room, so it goes without (and 24-hour
+    # never needs it).
+    if not h24 and cols >= 24:
+        # 3x3 A / M / P. The first row tells A (peak) from P (bar); in a clock the
+        # trailing M is unambiguous. Drawn white, like the colon, so the indicator
+        # reads apart from the hour/minute colours.
+        letters = {'A': [' # ', '###', '# #'],
+                   'M': ['# #', '###', '# #'],
+                   'P': ['###', '###', '#  ']}
         marker = 'PM' if now.hour >= 12 else 'AM'
-        mid = height // 2
-        lines = [ln + ('  ' + marker if i == mid else '    ') for i, ln in enumerate(lines)]
+        block = [' '.join(letters[ch][r] for ch in marker).replace('#', 'w')
+                 for r in range(3)]                     # 3 rows x 7 cols, white flaps
+        off = (height - 3) // 2                         # centre the 3-row mark vertically
+        for i in range(len(lines)):
+            mi = i - off
+            lines[i] += ('  ' + block[mi]) if 0 <= mi < 3 else (' ' * 9)
 
     # Through format_lines, not returned raw: it centres the block on the wall, both
     # horizontally (the digits are 15 wide, whatever the wall is) and vertically. Returned
