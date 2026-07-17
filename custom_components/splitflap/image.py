@@ -114,13 +114,27 @@ class SplitFlapBoardImage(SplitFlapEntity, ImageEntity):
         ImageEntity.__init__(self, hass)
         self._lines: list[str] | None = None
         self._png: bytes | None = None
+        self._canvas_png: bytes | None = None      # a Matrix panel's live frame, if any
         self._attr_image_last_updated: datetime | None = None
 
     def _handle_coordinator_update(self) -> None:
-        # Only a changed board is a new picture — the frontend re-fetches on the
-        # timestamp, and a clock app would otherwise re-download every poll.
+        # A canvas app draws on the Matrix panel — show that frame instead of the
+        # flap grid it bypasses. Its frame changes constantly, so bump the timestamp
+        # (which HA re-fetches on) whenever the bytes differ.
+        cp = self.coordinator.data.get("canvas_png")
+        if cp is not None:
+            if cp != self._canvas_png:
+                self._canvas_png = cp
+                self._attr_image_last_updated = dt_util.utcnow()
+            super()._handle_coordinator_update()
+            return
+        # Back to the flaps. Only a changed board is a new picture — the frontend
+        # re-fetches on the timestamp, and a clock app would otherwise re-download
+        # every poll — but leaving canvas mode always forces one fresh render.
+        was_canvas = self._canvas_png is not None
+        self._canvas_png = None
         lines = self.coordinator.data["lines"]
-        if lines != self._lines:
+        if was_canvas or lines != self._lines:
             self._lines = list(lines)
             self._png = None                       # drawn lazily, off the loop
             self._attr_image_last_updated = dt_util.utcnow()
@@ -128,6 +142,8 @@ class SplitFlapBoardImage(SplitFlapEntity, ImageEntity):
 
     def image(self) -> bytes | None:
         """PNG bytes — called by HA in an executor, so drawing here is fine."""
+        if self._canvas_png is not None:
+            return self._canvas_png                # the panel a canvas app is drawing
         if self._lines is None:
             self._lines = list(self.coordinator.data["lines"])
             self._attr_image_last_updated = dt_util.utcnow()

@@ -75,6 +75,23 @@ class SplitFlapClient:
     async def playlists(self) -> dict:
         return await self._request("GET", "/api/playlists")
 
+    async def canvas_png(self) -> bytes | None:
+        """The PNG a canvas app is currently drawing on the Matrix panel, or None
+        when there is none (a flap app, or an on-device effect with no frame). Raw
+        bytes, not JSON — so the board image can show the panel, not stale flaps."""
+        kw: dict = {"timeout": _TIMEOUT}
+        if self._display:
+            kw["params"] = {"display": self._display}
+        try:
+            async with self._session.request(
+                    "GET", f"{self._base}/api/current_state/canvas.png", **kw) as r:
+                if r.status == 404:
+                    return None
+                r.raise_for_status()
+                return await r.read()
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            return None
+
     # --- writes --------------------------------------------------------------
     async def run_app(self, app_id: str) -> None:
         await self._request("POST", "/api/apps/run", json={"app": app_id})

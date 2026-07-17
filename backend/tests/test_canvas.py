@@ -363,6 +363,54 @@ def test_effects_picker_falls_back_where_the_wall_advertises_none(tmp_path):
     assert [o["value"] for o in field["options"]] == ["plasma", "fire", "matrix"]   # the manifest's own
 
 
+# --- the live-preview / HA-image canvas frame cache -------------------------
+
+def test_canvas_frame_is_cached_then_released_for_the_preview(gw_calls):
+    """A canvas app's pushed frame is remembered per gateway URL so the live
+    preview and the HA board image can show the panel (both otherwise render the
+    flap grid a canvas app bypasses). Releasing the panel drops it."""
+    from PIL import Image
+    url = "http://preview-gw"
+    surf = canvas.CanvasSurface(url, 64, 32, ("rgb888",), ())
+    assert not canvas.has_frame(url)
+    surf.frame(Image.new("RGB", (64, 32), (30, 60, 90)))
+    assert canvas.has_frame(url)
+    png = canvas.last_frame_png(url)
+    assert png and png[:4] == b"\x89PNG"                # a real PNG
+    canvas.release(url)
+    assert not canvas.has_frame(url)                    # released -> preview gone
+
+
+def test_controller_serves_a_canvas_preview_only_while_a_canvas_app_draws(gw_calls, tmp_path):
+    from pathlib import Path
+
+    async def run():
+        cfg = Config(data_dir=tmp_path)
+        cfg.update({"transport": {"gateway_url": "http://gw"}})
+        ctl = DisplayController(cfg, DisplayState(45))
+        ps = PluginSettings(tmp_path)
+        ps.set_installed(["canvas-art-clock", "time"])
+        rt = PluginRuntime(cfg, ps, Path(__file__).resolve().parents[2] / "apps")
+        rt.load()
+        rt.attach_caps(lambda: device.from_capabilities(CANVAS_DOC))
+        ctl.attach_plugins(rt)
+        await ctl.start()
+
+        await ctl.run_app("canvas-art-clock")           # a frame-push canvas app
+        await asyncio.sleep(0.4)
+        assert ctl.has_canvas_preview()
+        png = ctl.canvas_preview_png()
+        assert png and png[:4] == b"\x89PNG"
+
+        await ctl.run_app("time")                       # a flap app: no preview
+        await asyncio.sleep(0.1)
+        assert not ctl.has_canvas_preview()
+        assert ctl.canvas_preview_png() is None
+        await ctl.stop()
+
+    asyncio.run(run())
+
+
 def test_leaving_a_canvas_app_forgets_the_flap_cache(gw_calls, tmp_path):
     """Regression: a canvas app draws straight to the framebuffer, bypassing the
     flap transport's shown-cell cache. When you switch back to a flap app, that

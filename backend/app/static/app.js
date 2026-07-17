@@ -189,16 +189,33 @@ async function pollState() {
       await bootGrid();          // refetches rows/cols and rebuilds both boards
       loadApps();                // min_rows/min_cols gating changes with the grid
     }
-    if (board.children.length !== st.chars.length) buildBoard(board, st.chars.length, GRID.cols);
-    st.chars.forEach((ch, i) => {
-      const cell = board.children[i];
-      if (!cell) return;
-      // Diff before writing: most polls change nothing, and rewriting every cell's
-      // class + text 3× a second is layout work for identical pixels.
-      const cls = classForChar(ch), g = glyph(ch);
-      if (cell.className !== cls) cell.className = cls;
-      if (cell.textContent !== g) cell.textContent = g;
-    });
+    // A canvas app draws on the Matrix panel, not the flaps — show its live frame
+    // (a PNG, cache-busted each poll) in place of the flap grid. An on-device
+    // effect has no frame, so st.canvas is false and the flap board shows.
+    let cimg = $("canvasPreview");
+    if (st.canvas) {
+      if (!cimg) {
+        cimg = el("img"); cimg.id = "canvasPreview"; cimg.className = "canvas-preview"; cimg.alt = "";
+        board.parentNode.insertBefore(cimg, board.nextSibling);
+      }
+      const src = url("/api/current_state/canvas.png");
+      cimg.src = src + (src.includes("?") ? "&" : "?") + "t=" + Date.now();
+      cimg.style.display = "";
+      board.style.display = "none";
+    } else {
+      if (cimg) cimg.style.display = "none";
+      board.style.display = "";
+      if (board.children.length !== st.chars.length) buildBoard(board, st.chars.length, GRID.cols);
+      st.chars.forEach((ch, i) => {
+        const cell = board.children[i];
+        if (!cell) return;
+        // Diff before writing: most polls change nothing, and rewriting every cell's
+        // class + text 3× a second is layout work for identical pixels.
+        const cls = classForChar(ch), g = glyph(ch);
+        if (cell.className !== cls) cell.className = cls;
+        if (cell.textContent !== g) cell.textContent = g;
+      });
+    }
     const meta = `${GRID.rows}×${GRID.cols} · ${st.module_count} ${t("modules")}`;
     if ($("previewMeta").textContent !== meta) $("previewMeta").textContent = meta;
     if (APPS.length) updateActiveUI(st.active_app, st.active_playlist);

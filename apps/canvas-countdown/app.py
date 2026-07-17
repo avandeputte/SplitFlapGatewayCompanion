@@ -35,30 +35,26 @@ _UNITS = {
 }
 
 
-def _dim(color, f=0.13):
-    """A dark 'track' tint of a unit's colour — the unlit part of its bar. Kept
-    deep so the lit fill and the white value read strongly against it."""
-    return tuple(int(c * f) for c in color)
-
-
 def _valstr(key, value):
     """Hours/minutes/seconds are zero-padded to two digits ('07 MIN'); years and
     days show their natural width (a day count runs past two digits)."""
     return f'{value:02d}' if key in ('H', 'M', 'S') else str(value)
 
 
-def _bar_font(canvas, avail_h):
-    """The largest bundled font whose digit ink fits ``avail_h`` px tall.
-    Returns (font, ink_top, ink_height) so callers can vertically centre by ink."""
+def _bar_font(canvas, avail_h, sample='80'):
+    """The largest bundled font whose ``sample`` ink fits ``avail_h`` px tall.
+    Returns (font, ink_top, ink_height) so callers can vertically centre by ink.
+    The title passes its own text so a capital's slight overshoot above the digits
+    is measured — sizing by '80' alone clipped the tops of letters."""
     size = max(5, int(avail_h * 1.5))
     font = canvas.font(size)
     for _ in range(64):
-        _, t, _, b = font.getbbox('80')
+        _, t, _, b = font.getbbox(sample or '80')
         if (b - t) <= avail_h or size <= 5:
             return font, t, b - t
         size -= 1
         font = canvas.font(size)
-    _, t, _, b = font.getbbox('80')
+    _, t, _, b = font.getbbox(sample or '80')
     return font, t, b - t
 
 
@@ -113,13 +109,14 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
     # The event name, centred on the black header (no panel/bar behind it), with a
     # thin colour line dividing it from the bars.
     if header_h > 0 and event:
-        # Size the title to ~60% of the header so it has clear air above and below
-        # (the 1px outline included) and never clips — plus centre it by ITS ink.
-        hf, htop, hh = _bar_font(canvas, max(5, int(header_h * 0.6)))
+        # Size to ~half the header, measured by the event's OWN caps so nothing
+        # clips top or bottom; centre by that ink and never let the top outline
+        # cross y=0.
+        hf, htop, hh = _bar_font(canvas, max(5, int(header_h * 0.5)), sample=event)
         etext = _truncate(hf, event, W - 4)
         ex = (W - hf.getlength(etext)) / 2.0
-        ey = (header_h - 1 - hh) / 2.0 - htop     # centre the ink above the divider
-        _shadow_text(draw, ex, ey, etext, hf, fill=(240, 240, 245))
+        ey = max(1.0, (header_h - 1 - hh) / 2.0 - htop)
+        _shadow_text(draw, ex, ey, etext, hf, fill=(238, 238, 244))
         draw.rectangle([0, header_h - 1, W - 1, header_h - 1], fill=_UNITS[keys[0]][0])
 
     # Bar edges: rounded so the units EXACTLY tile [header_h, H) with no gaps.
@@ -134,10 +131,13 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
         color = _UNITS[key][0]
         y0, y1 = edges[i], edges[i + 1]
         bh = y1 - y0
-        draw.rectangle([0, y0, W - 1, y1 - 1], fill=_dim(color))     # deep full-width track
-        fw = int(round(min(1.0, max(0.0, frac[key])) * W))           # fill from the left
+        # The ELAPSED part of the bar is solid black (like the flap app's blank
+        # flaps) — so only the remaining fraction is drawn, filled from the left.
+        fw = int(round(min(1.0, max(0.0, frac[key])) * W))
         if fw > 0:
             draw.rectangle([0, y0, fw - 1, y1 - 1], fill=color)
+        if i < len(keys) - 1:                                        # thin row divider
+            draw.rectangle([0, y1 - 1, W - 1, y1 - 1], fill=(24, 24, 28))
         vtext = _label(key, val[key], font, W - 2 * pad)
         ty = y0 + (bh - ink_h) / 2.0 - ink_top                       # vertically centred
         _shadow_text(draw, pad, ty, vtext, font)

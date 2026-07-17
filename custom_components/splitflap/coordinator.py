@@ -68,6 +68,16 @@ class SplitFlapCoordinator(DataUpdateCoordinator[dict]):
         chars = state.get("chars") or []
         lines = ["".join(chars[r * cols:(r + 1) * cols]) for r in range(rows)]
 
+        # A canvas app draws on the Matrix panel, not the flaps — so the board image
+        # should show that frame, not the (bypassed, stale) flap grid. Only fetch the
+        # PNG when one is live; a flap app or an on-device effect has none.
+        canvas_png = None
+        if state.get("canvas"):
+            try:
+                canvas_png = await self.client.canvas_png()
+            except SplitFlapError:
+                canvas_png = None
+
         return {
             "state": state,
             "rows": rows,
@@ -79,4 +89,5 @@ class SplitFlapCoordinator(DataUpdateCoordinator[dict]):
             "active_playlist": state.get("active_playlist"),
             "current_app": state.get("current_app"),
             "playlists": self._playlists,
+            "canvas_png": canvas_png,
         }

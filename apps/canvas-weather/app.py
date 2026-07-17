@@ -256,15 +256,26 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
 
     if wide:
         # A right-hand column, also BELOW the city: the condition, then today's
-        # high / low on ONE line (high warm, low cool) so all of it clears the row.
+        # high / low on ONE line (high warm, low cool). The condition is trimmed to
+        # its space, and the high/low pair is RIGHT-ALIGNED to the panel edge so
+        # neither number — especially a 3-digit one — ever runs off the screen.
         rx, ry = int(tw) + 8, top + 1
-        text(rx, ry, word[:11], small, (208, 222, 242))
-        ly, lx = ry + small.size + 3, rx
+        cond = word
+        while cond and small.getlength(cond) > W - 2 - rx:
+            cond = cond[:-1]
+        text(rx, ry, cond, small, (208, 222, 242))
+        parts = []
         if hi is not None:
-            text(lx, ly, f'{hi}{deg}', small, (255, 208, 150))
-            lx += int(small.getlength(f'{hi}{deg}')) + 5
+            parts.append((f'{hi}{deg}', (255, 208, 150)))
         if lo is not None:
-            text(lx, ly, f'{lo}{deg}', small, (150, 200, 255))
+            parts.append((f'{lo}{deg}', (150, 200, 255)))
+        if parts:
+            gap = 5
+            total = sum(small.getlength(s) for s, _ in parts) + gap * (len(parts) - 1)
+            x, ly = W - 2 - total, ry + small.size + 3
+            for s, col in parts:
+                text(x, ly, s, small, col)
+                x += small.getlength(s) + gap
     elif bottom:
         text(2, H - bottom, word[:9], tiny, (206, 220, 240))
 

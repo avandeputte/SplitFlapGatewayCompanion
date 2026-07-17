@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from .. import discovery, renderer
@@ -196,7 +196,24 @@ def build(deps) -> APIRouter:
     @router.get("/api/current_state")
     async def current_state(request: Request):
         d = deps.display_for(request)
-        return d.state.snapshot()
+        snap = d.state.snapshot()
+        # A canvas app draws on the Matrix panel, not the flaps — flag it so the
+        # live preview shows the panel (via /api/current_state/canvas.png) instead
+        # of the stale flap grid.
+        snap["canvas"] = d.controller.has_canvas_preview()
+        return snap
+
+    @router.get("/api/current_state/canvas.png")
+    async def current_canvas_png(request: Request):
+        """The frame a canvas app is currently drawing on this display's Matrix
+        panel, as a PNG — for the live preview and the HA board image. 404 when no
+        canvas app is drawing (or it's an on-device effect, which has no frame)."""
+        d = deps.display_for(request)
+        png = d.controller.canvas_preview_png()
+        if png is None:
+            raise HTTPException(404, "no canvas frame")
+        return Response(content=png, media_type="image/png",
+                        headers={"Cache-Control": "no-store"})
 
     @router.get("/api/grid")
     async def grid(request: Request):

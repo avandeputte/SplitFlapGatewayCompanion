@@ -446,6 +446,20 @@ class DisplayController:
         prov = getattr(self.plugins, "_caps", None)
         return prov() if callable(prov) else device.SPLIT_FLAP
 
+    def has_canvas_preview(self) -> bool:
+        """True when a canvas app is drawing here AND its last frame is cached — so
+        the live preview / HA image can show the panel instead of the (bypassed,
+        stale) flap grid. An on-device effect has no frame, so this stays False."""
+        url = str(self.config.transport.get("gateway_url") or "").strip()
+        return self._canvas_active and canvas.has_frame(url)
+
+    def canvas_preview_png(self, scale: int = 1):
+        """PNG of the last frame the running canvas app drew here, or None."""
+        if not self._canvas_active:
+            return None
+        url = str(self.config.transport.get("gateway_url") or "").strip()
+        return canvas.last_frame_png(url, scale=scale)
+
     async def _canvas_loop(self, app_id: str) -> None:
         """Drive a canvas app: take the panel over, then re-run its draw on a timer.
         The app draws through the injected ``canvas`` helper (an effect, ops, or a

@@ -30,6 +30,47 @@ log = logging.getLogger("companion.canvas")
 _FONT_DIR = os.path.join(os.path.dirname(__file__), "fonts")
 _FONT_CACHE: dict = {}
 
+# The last full frame a canvas app rendered, kept per gateway URL so the live
+# preview (web UI) and the Home Assistant board image can show what a Matrix panel
+# is drawing — both otherwise render the flap grid, which a canvas app bypasses.
+# Only frame-push apps land here (rgb888); an on-device effect has no pixels the
+# companion ever sees. Cleared on release().
+_LAST_FRAME: dict = {}   # url -> (width, height, rgb888 bytes)
+
+
+def _remember_frame(url: str, w: int, h: int, rgb: bytes) -> None:
+    if url and len(rgb) == w * h * 3:
+        _LAST_FRAME[url] = (int(w), int(h), rgb)
+
+
+def forget_frame(url: str) -> None:
+    _LAST_FRAME.pop(url, None)
+
+
+def has_frame(url: str) -> bool:
+    return url in _LAST_FRAME
+
+
+def last_frame_png(url: str, scale: int = 1):
+    """The cached frame as PNG bytes (optionally nearest-neighbour upscaled), or None."""
+    f = _LAST_FRAME.get(url)
+    if not f:
+        return None
+    try:
+        import io
+
+        from PIL import Image
+        w, h, rgb = f
+        img = Image.frombytes("RGB", (w, h), rgb)
+        if scale > 1:
+            img = img.resize((w * scale, h * scale), Image.NEAREST)
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        return buf.getvalue()
+    except Exception as e:
+        log.debug("last_frame_png failed: %s", e)
+        return None
+
 
 def _ok(r) -> bool:
     return getattr(r, "status_code", 500) < 400
@@ -95,6 +136,7 @@ def get_state(url: str, timeout: float = 5.0) -> dict:
 def release(url: str, timeout: float = 5.0) -> bool:
     """Return the panel to the reel wall — stop any effect AND drop raw-canvas mode.
     Called when a canvas app is replaced by an ordinary flap app, or stopped."""
+    forget_frame(url)                      # the preview is no longer live
     stopped = play_effect(url, "none", timeout=timeout)   # effect none marks the wall dirty
     active_off = set_active(url, False, timeout=timeout)   # and drop raw-canvas takeover
     return stopped or active_off
@@ -192,10 +234,14 @@ class CanvasSurface:
         """Push a full raw frame. ``image`` is a PIL image (resized/converted to
         the panel and sent as rgb888) or raw bytes already sized for the wall."""
         if isinstance(image, (bytes, bytearray)):
-            return put_frame(self.url, bytes(image))
+            b = bytes(image)
+            _remember_frame(self.url, self.width, self.height, b)   # for the previews
+            return put_frame(self.url, b)
         try:
             img = image.convert("RGB").resize((self.width, self.height))
-            return put_frame(self.url, img.tobytes())
+            b = img.tobytes()
+            _remember_frame(self.url, self.width, self.height, b)   # for the previews
+            return put_frame(self.url, b)
         except Exception as e:
             log.debug("canvas.frame render failed: %s", e)
             return False

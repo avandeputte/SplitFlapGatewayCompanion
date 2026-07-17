@@ -92,6 +92,13 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
   width: fit-content; max-width: 100%; margin-inline: auto;
   overflow-x: auto; padding: 10px; background: #1a1a1a; border-radius: 10px; border: 1px solid #333;
 }
+/* A canvas app's live frame (a Matrix panel), shown in place of the flap board.
+   Native res is tiny (e.g. 128×32) — upscale it crisp and frame it like the board. */
+.canvas-preview {
+  display: block; margin-inline: auto; width: min(100%, 640px);
+  image-rendering: pixelated; background: #000;
+  border-radius: 10px; border: 1px solid #333;
+}
 /* The glyph. Three things were fighting legibility once the flaps got small:
  *
  * 1. Courier New is a thin, wide typewriter face — it thins out badly below ~14px, and

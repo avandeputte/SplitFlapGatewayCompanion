@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0-beta.8
+
+**The live preview and the Home Assistant board image now show canvas apps.**
+While a Matrix-panel app (the clock, weather, and the rest) is drawing, both used
+to show the stale flap grid it bypasses — now they show the panel's actual frame.
+(An on-device effect has no frame the companion can see, so it still shows the
+flaps.)
+
+- **Weather Sky** — the high/low are right-aligned to the edge, so a 3-digit
+  temperature no longer runs off the screen.
+- **Countdown Bars** — the event title no longer clips (top or bottom) and is a
+  touch smaller; the *elapsed* part of each bar is now solid black, like the
+  flap Countdown, instead of a dim colour.
+
 ## 2.6.0-beta.7
 
 **Canvas apps: more polish, and a switch-back fix.**
