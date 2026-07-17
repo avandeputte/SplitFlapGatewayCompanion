@@ -1,3 +1,25 @@
+def _columns(pairs, cols, gap=3):
+    """Two aligned columns — destination flush left, time flush right — kept together
+    as one CENTRED block rather than pinned to the wall's edges.
+
+    format_lines centres each line, so the block is only as wide as its content plus a
+    small gap: on a wide wall the destination and its time sit together in the middle
+    instead of stranded at opposite ends. The times still line up in a column (every
+    line the same width). A narrow wall falls back to the full width, trimming the
+    destination, never the time."""
+    pairs = [(str(left), str(right)) for left, right in pairs]
+    rw = max((len(r) for _, r in pairs), default=0)
+    lw = max((len(l) for l, _ in pairs), default=0)
+    inner = min(cols, lw + gap + rw)
+    lspace = max(1, inner - rw)                       # destination column, incl. the gap
+    out = []
+    for left, right in pairs:
+        if len(left) > lspace - 1:
+            left = left[:max(0, lspace - 1)]
+        out.append((left.ljust(lspace) + right.rjust(rw))[:cols])
+    return out
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import requests
     from datetime import datetime, timezone
@@ -9,6 +31,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     # disagree, so a blank setting rode a different platform than the dialog showed.
     stop = settings.get('mbta_stop', 'place-NSTAT')
     route = settings.get('mbta_route', 'Orange')
+    rows, cols = get_rows(), get_cols()
     try:
         r = requests.get(
             'https://api-v3.mbta.com/predictions',
@@ -24,16 +47,36 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 dt = datetime.fromisoformat(arr)
                 mins = max(0, int((dt - now).total_seconds() // 60))
                 preds[d_id] = f'{mins} {t("min")}'
+
+        # Where each direction actually GOES — "Forest Hills", not "Dir0". The route
+        # carries a destination per direction_id; it never changes, so look it up once
+        # and cache it. A generic label is the fallback if the lookup ever fails.
+        cache = getattr(fetch, '_dests', None)
+        if cache is None:
+            cache = {}
+            setattr(fetch, '_dests', cache)
+        if route not in cache:
+            try:
+                rt = requests.get(f'https://api-v3.mbta.com/routes/{route}', timeout=8).json()
+                dd = (rt.get('data') or {}).get('attributes', {}).get('direction_destinations') or []
+                cache[route] = {i: name for i, name in enumerate(dd) if name}
+            except Exception:
+                cache[route] = {}
+        dests = cache[route]
+
+        def dname(d_id):
+            return dests.get(d_id) or f'Dir{d_id}'
+
         no_color = settings.get('disable_colors', 'no') == 'yes'
         header = f'{route} {t("Line")}' if no_color else f'🟧 {route} {t("Line")} 🟧'
         line0 = preds.get(0, t('No data'))
         line1 = preds.get(1, t('No data'))
-        rows = get_rows()
         if rows == 1:
-            return [format_lines(f'Dir0 {line0} Dir1 {line1}')]
+            return [format_lines(f'{dname(0)} {line0}  {dname(1)} {line1}'[:cols])]
+        pairs = [(dname(0), line0), (dname(1), line1)]
         if rows == 2:
-            return [format_lines(f'Dir0 {line0}', f'Dir1 {line1}')]
-        return [format_lines(header, f'Dir0 {line0}', f'Dir1 {line1}')]
+            return [format_lines(*_columns(pairs, cols))]
+        return [format_lines(header, *_columns(pairs, cols))]
     except Exception:
         return [format_lines('Metro', t('Error'), t('Check config'))]
 

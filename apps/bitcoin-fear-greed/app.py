@@ -29,6 +29,15 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             return [format_lines(f"{tile} F&G {value} {label}"[:cols])]
         if rows == 2:
             return [format_lines("BTC Fear&Greed", f"{tile} {value}/100 {label}"[:cols])]
+        # A wide wall gets a full-width gauge: the bar fills to the index (0-100) across
+        # the whole wall, in the zone's colour — a red sliver at Extreme Fear, a long
+        # green bar at Greed — so the mood reads at a glance from across the room. Colour
+        # tiles render everywhere (matrix pixels / the matching colour FLAP on a reel),
+        # like moon-phase. A narrow wall keeps the concise three-line text.
+        if cols >= 24:
+            filled = max(0, min(cols, round(n / 100 * cols)))
+            bar = tile * filled + '⬛' * (cols - filled)
+            return [format_lines("BTC Fear & Greed", bar, f"{value}/100  {label}")]
         return [format_lines("BTC Fear&Greed", f"Index: {value}/100", f"{tile} {label}")]
     except Exception:
         return [format_lines("BTC Fear&Greed", t("Offline"), "")]

@@ -19,7 +19,7 @@ def _label(kp):
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import requests
-    rows = get_rows()
+    rows, cols = get_rows(), get_cols()
 
     def t(s):
         return i18n.t(s, "aurora") if i18n is not None else s
@@ -47,6 +47,15 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             return [format_lines(f'{t("Aurora")} KP {kps}')]
         if rows == 2:
             return [format_lines(f'{t("Aurora")} KP {kps}', label)]
+        # A wide wall gets a full-width gauge: the bar fills to Kp (0-9) across the whole
+        # wall, in the severity colour — a short green bar when it is quiet, a long red
+        # one in a storm — so aurora chances read at a glance. Colour tiles render
+        # everywhere (matrix pixels / the matching colour FLAP on a reel), like
+        # moon-phase. A narrow wall keeps the concise three-line text.
+        if cols >= 24:
+            filled = max(0, min(cols, round(kp / 9 * cols)))
+            bar = tile * filled + '⬛' * (cols - filled)
+            return [format_lines(t('Aurora'), bar, f'KP {kps}  {t(_label(kp))}')]
         return [format_lines(t('Aurora'), f'KP index {kps}', label)]
     except Exception:
         return [format_lines(t('Aurora'), t('Offline'), '')]

@@ -3,6 +3,29 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.6
+
+A sweep of apps that were wasting a wide Matrix panel, plus two clock tweaks:
+
+- **Sun Times, Tides, Metals, Exchange Rates** — stopped stranding a label at one
+  edge and its value at the other with a lake of empty space between. Sun Times and
+  Tides now centre the label/value block; Metals puts both metals on one line;
+  Exchange Rates lays several currencies out in columns across the width.
+- **BTC Fear & Greed** and **Aurora** — on a wide wall each draws a full-width gauge
+  bar, filled to the value and coloured by the zone (green→red), so it reads from
+  across the room instead of a few characters in the middle.
+- **Metro** — shows where each direction actually GOES ("Forest Hills", "Oak Grove")
+  instead of the cryptic "Dir0 / Dir1".
+- **BirdNET** — spells the species out in full ("Northern Cardinal") when the wall
+  has room, abbreviating only when it must.
+- **Planes Overhead** and **Sports** — on a wide wall each becomes a table: one
+  aircraft (callsign / distance / altitude / speed) or one game (league / score /
+  status) per row, several to a page, instead of one item on a near-empty page.
+- **Art Clock** — a new Clock Format setting (Auto / 12-hour / 24-hour). On Auto it
+  shows AM/PM on an English wall (where there's width for it) and 24-hour otherwise.
+- **Stocks** — a Refresh Frequency setting, so you can change how often prices
+  update (default 60s).
+
 ## 2.7.0-beta.5
 
 Two apps that were wasting a wide Matrix panel:

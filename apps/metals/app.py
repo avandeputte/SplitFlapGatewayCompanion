@@ -57,6 +57,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
             if silver is not None:
                 pages.append(f'{s} {fmt(silver)}/OZ'[:cols].center(cols))
             return pages
+        # Wide wall: both metals on ONE line, so the width carries them instead of two
+        # short lines stranded in the middle of it.
+        if gold is not None and silver is not None:
+            one = f'{g} {fmt(gold)}/OZ   {s} {fmt(silver)}/OZ'
+            if len(one) <= cols:
+                return ([format_lines(f'{t("Spot price")} /OZ', one)] if rows >= 3
+                        else [format_lines(one)])
         if rows == 2:
             return [format_lines(f'{g:<{w}} {fmt(gold)}', f'{s:<{w}} {fmt(silver)}')]
         return [format_lines(f'{t("Spot price")} /OZ', f'{g:<{w}} {fmt(gold)}', f'{s:<{w}} {fmt(silver)}')]

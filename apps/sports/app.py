@@ -95,6 +95,27 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     rows = get_rows()
     cols = get_cols()
 
+    # Wide wall, standard layout: a TABLE — one game per row, league / score / status in
+    # aligned columns, several games to a page, instead of one game on a 3-line page with
+    # the width to spare. (Golf and UFC bring their own multi-line pages, so this only
+    # kicks in when every game is a regular team score, and only when the row fits.)
+    if not compact and rows >= 2:
+        tabular = [g for g in all_games if g.get('score_line')]
+        if tabular and len(tabular) == len(all_games):
+            lw = max((len(g.get('league', '')) for g in tabular), default=0) if show_league else 0
+            sw = max(len(g['score_line']) for g in tabular)
+            tw = max(len(g['status']) for g in tabular)
+            gap = 2
+            row_w = (lw + gap if lw else 0) + sw + gap + tw
+            if row_w <= cols:
+                gg = ' ' * gap
+                lines = []
+                for g in tabular:
+                    parts = ([g.get('league', '').ljust(lw)] if lw else []) + \
+                            [g['score_line'].ljust(sw), g['status'].rjust(tw)]
+                    lines.append(gg.join(parts))
+                return [format_lines(*lines[i:i + rows]) for i in range(0, len(lines), rows)]
+
     if rows == 1:
         # Just score line
         return [g['score_line'][:cols].center(cols) for g in all_games]
@@ -208,7 +229,8 @@ def _fetch_last_game(info, team_abbr, format_lines, get_cols, requests, game_fil
             h_score = hs_.get('displayValue', str(hs_)) if isinstance(hs_, dict) else str(hs_)
             score_line = f"{aa} {a_score}  {ha} {h_score}"
             page = format_lines(info['name'], score_line, _t("Final"))
-            return {'page': page, 'score_line': score_line, 'status': _t("Final"), 'state': 'post'}
+            return {'page': page, 'score_line': score_line, 'status': _t("Final"),
+                    'state': 'post', 'league': info['name']}
         return None
     except Exception as e:
         logging.error(f"Schedule fetch error for {team_abbr}: {e}")
@@ -249,7 +271,8 @@ def _parse_events(events, info, team_filter, show_all, format_lines, get_cols, g
             score_line = f"{aa} {away.get('score','0')}  {ha} {home.get('score','0')}"
         status = _t("Final") if state == 'post' else detail[:15]
         page = format_lines(info['name'], score_line, status)
-        game = {'page': page, 'score_line': score_line, 'status': status, 'state': state}
+        game = {'page': page, 'score_line': score_line, 'status': status,
+                'state': state, 'league': info['name']}
         (live if state == 'in' else upcoming if state == 'pre' else final).append(game)
     return live + upcoming + final
 

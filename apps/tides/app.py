@@ -1,15 +1,25 @@
 """Today's tide predictions for a NOAA station (keyless: NOAA CO-OPS)."""
 
 
-def _row(left, right, cols):
-    """One full-width line: `left` flush left, `right` flush right. format_lines centres
-    each line, so a line already `cols` wide passes through untouched — which is what makes
-    the heights line up in a column."""
-    left, right = str(left), str(right)
-    if len(right) >= cols:
-        return right[:cols]
-    left = left[:cols - len(right) - 1]
-    return left + ' ' * (cols - len(left) - len(right)) + right
+def _columns(pairs, cols, gap=3):
+    """Two aligned columns — time flush left, height flush right — kept together as
+    one CENTRED block rather than pinned to the wall's edges.
+
+    format_lines centres each line, so the block is only as wide as its content plus a
+    small gap: on a wide wall the time and its height sit together in the middle, not
+    stranded at opposite ends. The heights still line up in a column you can read down
+    (every line the same width). A narrow wall falls back to the full width."""
+    pairs = [(str(left), str(right)) for left, right in pairs]
+    rw = max((len(r) for _, r in pairs), default=0)
+    lw = max((len(l) for l, _ in pairs), default=0)
+    inner = min(cols, lw + gap + rw)
+    lspace = max(1, inner - rw)                       # time column width, incl. the gap
+    out = []
+    for left, right in pairs:
+        if len(left) > lspace - 1:
+            left = left[:max(0, lspace - 1)]
+        out.append((left.ljust(lspace) + right.rjust(rw))[:cols])
+    return out
 
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
@@ -51,7 +61,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
             # back to "^", which is not what you want a tide table to say — so there it
             # keeps the word, and shortens it to an initial only if it must.
             arrows = bool(caps and caps.pictographs)
-            lines = [t('Tides')]
+            pairs = []
             for p in preds[:rows - 1]:
                 raw = str(p.get('t', ''))
                 hhmm = fmt_time(raw.split(' ')[-1] if ' ' in raw else raw)
@@ -64,8 +74,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
                 left = f'{kind} {hhmm}'
                 if len(left) + len(height) + 1 > cols:   # narrow wall: initial will do
                     left = f'{kind[:1]} {hhmm}'
-                lines.append(_row(left, height, cols))
-            return [format_lines(*lines)]
+                pairs.append((left, height))
+            return [format_lines(t('Tides'), *_columns(pairs, cols))]
 
         pages = []
         for p in preds[:6]:

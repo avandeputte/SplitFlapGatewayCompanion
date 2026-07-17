@@ -11,6 +11,17 @@
   "animation": true,
   "settings": [
     {
+      "key": "clock_format",
+      "label": "Clock Format",
+      "type": "toggle",
+      "default": "auto",
+      "options": [
+        {"value": "auto", "label": "Auto (AM/PM in English)"},
+        {"value": "12h",  "label": "12-hour (AM/PM)"},
+        {"value": "24h",  "label": "24-hour"}
+      ]
+    },
+    {
       "key": "timezone",
       "label": "Timezone (override global)",
       "type": "search_chips",

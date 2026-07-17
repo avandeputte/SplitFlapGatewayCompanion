@@ -29,18 +29,27 @@ def _latlon(settings, requests):
     return 42.3601, -71.0589
 
 
-def _row(left, right, cols):
-    """One full-width line: `left` flush left, `right` flush right.
+def _columns(pairs, cols, gap=3):
+    """Two aligned columns — label flush left, value flush right — kept together as
+    one CENTRED block rather than pinned to the wall's edges.
 
-    format_lines centres each line horizontally, so a line that is ALREADY `cols` wide
-    passes through untouched — that is what pins these columns. The left part is trimmed
-    to make room, never the right: the number is the thing you are reading.
+    format_lines centres each line, so the block is only as wide as its content plus
+    a small gap: on a wide wall the label and its time sit together in the middle
+    instead of stranded at opposite ends with a lake of empty space between them. The
+    value column still lines up down the page (every line the same width). A narrow
+    wall falls back to the full width, trimming the label, never the time.
     """
-    left, right = str(left), str(right)
-    if len(right) >= cols:
-        return right[:cols]
-    left = left[:cols - len(right) - 1]
-    return left + ' ' * (cols - len(left) - len(right)) + right
+    pairs = [(str(left), str(right)) for left, right in pairs]
+    rw = max((len(r) for _, r in pairs), default=0)
+    lw = max((len(l) for l, _ in pairs), default=0)
+    inner = min(cols, lw + gap + rw)
+    lspace = max(1, inner - rw)                       # label column width, incl. the gap
+    out = []
+    for left, right in pairs:
+        if len(left) > lspace - 1:
+            left = left[:max(0, lspace - 1)]
+        out.append((left.ljust(lspace) + right.rjust(rw))[:cols])
+    return out
 
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
@@ -53,9 +62,6 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
 
     def u(k):                               # localized H/M duration suffix (Dutch U for uur, etc.)
         return i18n.unit(k) if i18n is not None else k
-
-    def line(label, value):                 # label left, time right — they line up
-        return _row(label, value, cols)
 
     def fmt_time(iso):                       # ISO is already the location's local time
         if not iso:
@@ -86,9 +92,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         length = f'{secs // 3600}{u("H")}{(secs % 3600) // 60:02d}{u("M")}'
         if rows == 1:
             return [format_lines(f'{t("Up")} {rise} {t("Dn")} {sett}')]
-        if rows == 2:
-            return [format_lines(line(t('Sunrise'), rise), line(t('Sunset'), sett))]
-        return [format_lines(line(t('Sunrise'), rise), line(t('Sunset'), sett),
-                             line(t('Daylight'), length))]
+        pairs = [(t('Sunrise'), rise), (t('Sunset'), sett)]
+        if rows >= 3:
+            pairs.append((t('Daylight'), length))
+        return [format_lines(*_columns(pairs, cols))]
     except Exception:
         return [format_lines('Sun times', t('Offline'), '')]

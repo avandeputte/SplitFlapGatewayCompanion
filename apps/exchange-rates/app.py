@@ -53,7 +53,16 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         rate_lines = [f'{t.ljust(wc)} {ip.rjust(wi)}{fr.ljust(wf)}'
                       for (t, _), (ip, fr) in zip(pairs, parts)]
 
-        lines = [f'1 {base} ='] + rate_lines
+        # Wide wall: several rates per row, in aligned columns across the width, so all
+        # of them show at once instead of a narrow single column paginated down a wide
+        # wall. Every cell is the same width, so the columns line up down the page too.
+        gap = 3
+        cw = len(rate_lines[0]) if rate_lines else 0
+        per = max(1, (cols + gap) // (cw + gap)) if cw else 1
+        rows_of_cells = ([(' ' * gap).join(rate_lines[i:i + per])
+                          for i in range(0, len(rate_lines), per)] if per >= 2
+                         else rate_lines)
+        lines = [f'1 {base} ='] + rows_of_cells
         return [format_lines(*lines[i:i + rows]) for i in range(0, len(lines), rows)]
     except Exception:
         return [format_lines('FX rates', 'Offline', '')]

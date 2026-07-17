@@ -89,6 +89,16 @@
       "global_key": true
     },
     {
+      "key": "polling_rate",
+      "label": "Refresh Frequency (seconds)",
+      "type": "number",
+      "default": 60,
+      "min": 30,
+      "max": 3600,
+      "step": 30,
+      "stepper": true
+    },
+    {
       "key": "loop_delay",
       "label": "Delay Between Pages (seconds)",
       "type": "number",

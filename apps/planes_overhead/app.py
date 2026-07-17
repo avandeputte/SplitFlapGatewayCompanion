@@ -594,14 +594,38 @@ def fetch(settings, format_lines, get_rows, get_cols):
         return [format_lines("Planes", "None nearby", f"Rad {radius_text}")] * dwell_repeat
 
     nearby.sort(key=lambda item: item["distance"])
-    pages = []
+    planes = []
     for item in nearby[:max_results]:
         flight = item["flight"]
-        distance = _format_distance(item["distance"], item["direction"], distance_unit)
-        alt = _format_altitude(flight["altitude_m"], altitude_unit)
-        speed = _format_speed(flight["speed_ms"], speed_unit)
-        page = format_lines(flight["callsign"], distance, f"{alt} {speed}")
-        pages.extend([page] * dwell_repeat)
+        planes.append((
+            flight["callsign"],
+            _format_distance(item["distance"], item["direction"], distance_unit),
+            _format_altitude(flight["altitude_m"], altitude_unit),
+            _format_speed(flight["speed_ms"], speed_unit),
+        ))
+
+    rows, cols = get_rows(), get_cols()
+    gap = 2
+    cw = max(len(p[0]) for p in planes)
+    dw = max(len(p[1]) for p in planes)
+    aw = max(len(p[2]) for p in planes)
+    sw = max(len(p[3]) for p in planes)
+    row_w = cw + gap + dw + gap + aw + gap + sw
+
+    pages = []
+    if rows >= 2 and row_w <= cols:
+        # Wide wall: a TABLE — one aircraft per row, callsign / distance / altitude /
+        # speed in aligned columns, several planes to a page, instead of one plane on a
+        # near-empty page. The unit on each field (NM, FL, KT) labels its own column.
+        g = ' ' * gap
+        lines = [f'{c.ljust(cw)}{g}{d.ljust(dw)}{g}{a.ljust(aw)}{g}{s.rjust(sw)}'
+                 for c, d, a, s in planes]
+        for i in range(0, len(lines), rows):
+            pages.extend([format_lines(*lines[i:i + rows])] * dwell_repeat)
+    else:
+        # Narrow wall: one aircraft per page — callsign / distance / altitude+speed.
+        for c, d, a, s in planes:
+            pages.extend([format_lines(c, d, f'{a} {s}')] * dwell_repeat)
 
     return pages
 

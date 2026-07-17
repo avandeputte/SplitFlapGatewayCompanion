@@ -30,6 +30,10 @@ def fetch(settings, format_lines, get_rows, get_cols):
     }
 
     def shorten_name(species, max_len):
+        # Spell the whole name out when the wall has room for it — a wide Matrix panel
+        # shows "Northern Cardinal", not "N. Cardinal". Abbreviate only to make it fit.
+        if len(species) <= max_len:
+            return species
         words = species.split()
         parts = []
         for word in words:
