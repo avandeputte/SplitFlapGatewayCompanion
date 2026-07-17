@@ -149,7 +149,7 @@ def test_the_canvas_apps_are_marked_canvas_surface():
     from pathlib import Path
     apps = Path(__file__).resolve().parents[2] / "apps"
     import json
-    for app in ("effects", "canvas-clock", "canvas-image", "canvas-weather"):
+    for app in ("effects", "canvas-art-clock", "canvas-image", "canvas-weather"):
         m = json.loads((apps / app / "manifest.json").read_text())
         assert m.get("surface") == "canvas", app
 
@@ -262,3 +262,51 @@ def test_canvas_weather_caches_the_reading():
     for _ in range(20):
         app.fetch({}, None, None, None, canvas=cv, get_weather=gw)
     assert calls["n"] == 1                         # fetched once, cached for the animation
+
+
+# --- the aurora art clock ---------------------------------------------------
+
+def _clock_app():
+    from conftest import load_app
+    return load_app("canvas-art-clock")
+
+
+def test_art_clock_draws_nothing_without_a_panel():
+    assert _clock_app().fetch({}, None, None, None, canvas=None) is None
+
+
+def test_art_clock_draws_the_time_over_an_aurora():
+    app = _clock_app()
+    cv = _FakeCanvas(128, 32)
+    hold = app.fetch({"theme": "daylight", "clock_format": "24h"}, None, None, None, canvas=cv)
+    assert cv.shown == 1 and hold and hold > 0
+    # the aurora is one hline per row => a full-height gradient
+    assert len([o for o in cv.ops if o[0] == "hline"]) >= 32
+    # HH and MM are drawn as text (two digits each)
+    digits = "".join(o[3] for o in cv.ops if o[0] == "text")
+    assert sum(ch.isdigit() for ch in digits) >= 4
+
+
+def test_art_clock_hsv_is_a_valid_rgb():
+    app = _clock_app()
+    for hue in (0, 90, 200, 359):
+        r, g, b = app._hsv(hue, 0.85, 1.0)
+        assert all(0 <= c <= 255 for c in (r, g, b))
+    assert app._hsv(0, 0, 0) == (0, 0, 0)
+
+
+@pytest.mark.parametrize("theme", ["daylight", "spectrum", "ocean", "ember", "mystery"])
+def test_art_clock_every_theme_animates(theme):
+    app = _clock_app()
+    cv = _FakeCanvas(64, 32)
+    for _ in range(20):                            # advance the animation frame
+        assert app.fetch({"theme": theme}, None, None, None, canvas=cv) == 0.1
+    assert cv.shown == 20
+
+
+def test_art_clock_12h_shows_a_meridiem():
+    app = _clock_app()
+    cv = _FakeCanvas(64, 48)                        # tall enough for the date row
+    app.fetch({"clock_format": "12h"}, None, None, None, canvas=cv)
+    text = "".join(o[3] for o in cv.ops if o[0] == "text")
+    assert "AM" in text or "PM" in text

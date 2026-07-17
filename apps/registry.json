@@ -2,16 +2,6 @@
   "version": 1,
   "apps": [
     {
-      "id": "canvas-clock",
-      "name": "Analog Clock",
-      "icon": "🕐",
-      "description": "An analog clock drawn on the panel (Matrix walls)",
-      "category": "time",
-      "type": "functional",
-      "surface": "canvas",
-      "version": "1.0"
-    },
-    {
       "id": "art-clock",
       "name": "Art Clock",
       "icon": "🎨",
@@ -136,6 +126,16 @@
       "icon": "🌦️",
       "description": "The weather drawn as an animated sky, with the temperature (Matrix walls)",
       "category": "weather",
+      "type": "functional",
+      "surface": "canvas",
+      "version": "1.0"
+    },
+    {
+      "id": "canvas-art-clock",
+      "name": "Aurora Clock",
+      "icon": "🌈",
+      "description": "Time as flowing colour — a living aurora behind two-tone digits, the palette drifting through the day (Matrix walls)",
+      "category": "time",
       "type": "functional",
       "surface": "canvas",
       "version": "1.0"

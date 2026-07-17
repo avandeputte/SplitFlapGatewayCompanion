@@ -1,0 +1,44 @@
+{
+  "id": "canvas-art-clock",
+  "name": "Aurora Clock",
+  "icon": "🌈",
+  "description": "Time as flowing colour — a living aurora behind two-tone digits, the palette drifting through the day. A canvas art clock for Matrix panels.",
+  "type": "functional",
+  "surface": "canvas",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "category": "time",
+  "settings": [
+    {
+      "key": "theme",
+      "label": "Theme",
+      "type": "toggle",
+      "default": "daylight",
+      "options": [
+        {"value": "daylight", "label": "Daylight"},
+        {"value": "spectrum", "label": "Spectrum"},
+        {"value": "ocean", "label": "Ocean"},
+        {"value": "ember", "label": "Ember"}
+      ]
+    },
+    {
+      "key": "clock_format",
+      "label": "Time format",
+      "type": "toggle",
+      "default": "24h",
+      "options": [
+        {"value": "24h", "label": "24h"},
+        {"value": "12h", "label": "12h"}
+      ]
+    },
+    {
+      "key": "timezone",
+      "label": "Timezone (override global)",
+      "type": "search_chips",
+      "searchUrl": "/timezones",
+      "resultKey": "zones",
+      "maxItems": 1,
+      "global_key": true
+    }
+  ]
+}

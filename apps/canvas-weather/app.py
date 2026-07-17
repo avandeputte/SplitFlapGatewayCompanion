@@ -14,7 +14,7 @@ The one canonical `sky` token the helper returns picks which scene to draw.
 
 The panel's op set has no circle or diagonal line (only pixels, h/v lines, rects,
 text), so discs are filled row by row and every slanted stroke is a tiny
-Bresenham line — the same primitives the analog-clock canvas app is built from.
+Bresenham line.
 """
 
 import math

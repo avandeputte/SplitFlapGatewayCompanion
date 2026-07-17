@@ -3,6 +3,18 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.6.0-beta.3
+
+**A new canvas app: Aurora Clock** — a much richer take on the flap *Art Clock*.
+On a Matrix wall it paints time as flowing colour: a living aurora of rippling,
+drifting bands behind big two-tone digits (hours one colour, minutes another),
+a blinking colon, and a smooth seconds bar sweeping along the bottom. On the
+default **Daylight** theme the whole palette rotates through the spectrum over
+the course of a day, so the colour alone hints at the hour; **Spectrum**,
+**Ocean** and **Ember** round out the themes. 12h/24h and a timezone override.
+
+The old **Analog Clock** canvas app has been removed.
+
 ## 2.6.0-beta.2
 
 **A new canvas app: Weather Sky.** The weather, drawn instead of spelled. On a
