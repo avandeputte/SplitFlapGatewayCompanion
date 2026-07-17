@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from . import device, gateway, renderer
+from . import canvas, device, gateway, renderer
 from .config import Config
 from .state import DisplayState
 from .transport import DisplayTransport, SimTransport, build_transport
@@ -60,6 +60,10 @@ class DisplayController:
         # Bumped by every manual takeover (compose / home). fire_interrupt compares it
         # so a message sent DURING a timed interrupt is not blanked when it ends.
         self._takeovers = 0
+        # True while a CANVAS app owns the Matrix panel (it drew straight to the
+        # framebuffer, bypassing the flaps). The next driver to take over must hand
+        # the panel back to the reel wall first — see _cancel_task.
+        self._canvas_active = False
 
     def attach_plugins(self, plugins) -> None:
         self.plugins = plugins
@@ -154,6 +158,21 @@ class DisplayController:
                 await task
             except (asyncio.CancelledError, Exception):
                 pass
+        await self._release_canvas()
+
+    async def _release_canvas(self) -> None:
+        """Hand the Matrix panel back to the reel wall if a canvas app had it. The
+        single choke point every driver switch passes through, so a canvas app is
+        always released before flaps (or another canvas app) take the panel."""
+        if not self._canvas_active:
+            return
+        self._canvas_active = False
+        url = str(self.config.transport.get("gateway_url") or "").strip()
+        if url:
+            try:
+                await asyncio.to_thread(canvas.release, url)
+            except Exception as e:
+                log.debug("canvas release failed: %s", e)
 
     async def _cancel_temp(self) -> None:
         """Cancel a timed show_temporary() message, if one is up. Without this, stop()
@@ -399,15 +418,47 @@ class DisplayController:
 
     # -- app play-loop ------------------------------------------------------
     async def run_app(self, app_id: str) -> None:
-        """Start continuously running an app (fetch → page cycle)."""
+        """Start continuously running an app. A flap app fetches pages and the
+        engine rotates them; a CANVAS app draws straight to the Matrix panel."""
         if self.plugins is None or self.plugins.manifest(app_id) is None:
             raise KeyError(app_id)
+        is_canvas = getattr(self.plugins, "is_canvas_app", None)
+        canvas_app = bool(is_canvas and is_canvas(app_id))
+        if canvas_app and not self._caps().has_canvas:
+            # A canvas app on a wall with no framebuffer has nothing to draw on.
+            raise KeyError(f"{app_id} needs a canvas the wall does not have")
         await self._cancel_task()
         self._clear_driver_flags()
         self.active_app = app_id
         self.state.active_app = app_id
         self._remember({"kind": "app", "app": app_id})
-        self._task = asyncio.create_task(self._app_loop(app_id))
+        loop = self._canvas_loop if canvas_app else self._app_loop
+        self._task = asyncio.create_task(loop(app_id))
+
+    def _caps(self):
+        prov = getattr(self.plugins, "_caps", None)
+        return prov() if callable(prov) else device.SPLIT_FLAP
+
+    async def _canvas_loop(self, app_id: str) -> None:
+        """Drive a canvas app: take the panel over, then re-run its draw on a timer.
+        The app draws through the injected ``canvas`` helper (an effect, ops, or a
+        raw frame); its return value, if a number, is the seconds to hold before
+        the next redraw — an effect sets once and holds, a clock redraws each tick."""
+        self.state.current_app = app_id
+        url = str(self.config.transport.get("gateway_url") or "").strip()
+        if url:
+            await asyncio.to_thread(canvas.set_active, url, True)
+            self._canvas_active = True
+        while self.active_app == app_id:
+            try:
+                hold = await asyncio.to_thread(self.plugins.render_canvas, app_id)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log.warning("canvas app %s draw error: %s", app_id, e)
+                hold = None
+            delay = hold if hold else self.plugins.loop_delay(app_id)
+            await asyncio.sleep(max(0.2, float(delay or 5)))
 
     async def stop_app(self) -> None:
         """Stop whatever is running — and BLANK the wall.

@@ -81,6 +81,13 @@ def build(deps) -> APIRouter:
                 })
         for d in out["displays"]:
             d.setdefault("enabled", True)
+            # Whether THIS wall has a framebuffer a canvas app can draw to (a Matrix
+            # panel does; a physical reel does not). Sits beside `rich` so the UI can
+            # gate canvas apps exactly as it gates lowercase — read per wall, since one
+            # companion may drive both kinds. A disabled/registry-only entry has no live
+            # controller, so it is simply not a canvas wall.
+            live = deps.displays.get(d["id"])
+            d["canvas"] = bool(live and live.controller.caps.has_canvas)
         return out
 
     @router.post("/api/displays")

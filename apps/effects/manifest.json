@@ -1,0 +1,25 @@
+{
+  "id": "effects",
+  "name": "Effects",
+  "icon": "🎆",
+  "description": "On-device panel effects — plasma, fire, matrix rain — rendered by a Matrix wall itself",
+  "type": "functional",
+  "surface": "canvas",
+  "category": "animation",
+  "refresh_interval": 1,
+  "loop_delay": 600,
+  "settings": [
+    {
+      "key": "effect", "label": "Effect", "type": "toggle", "default": "plasma",
+      "options": [
+        {"value": "plasma", "label": "Plasma"},
+        {"value": "fire", "label": "Fire"},
+        {"value": "matrix", "label": "Matrix rain"}
+      ]
+    },
+    {
+      "key": "speed", "label": "Speed", "type": "number", "default": "5",
+      "min": "1", "max": "10", "step": "1", "stepper": true
+    }
+  ]
+}

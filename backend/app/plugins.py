@@ -27,7 +27,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import appaudit, device, i18n, location, renderer, textlayout, weather
+from . import appaudit, canvas, device, i18n, location, renderer, textlayout, weather
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -590,7 +590,8 @@ class PluginRuntime:
     def _wanted_helpers(cls, fn) -> frozenset:
         """Which injected helpers ``fn`` opts into by parameter name — computed
         once at load, not re-inspected per call."""
-        return frozenset(n for n in ("get_weather", "get_location", "i18n", "caps", "paginate")
+        return frozenset(n for n in ("get_weather", "get_location", "i18n", "caps",
+                                     "paginate", "canvas")
                          if cls._fetch_accepts(fn, n))
 
     def _helper_kwargs(self, app_id: str, wanted: frozenset, ps: dict, settings=None) -> dict:
@@ -626,6 +627,19 @@ class PluginRuntime:
                 return [_fmt(*page) for page in
                         textlayout.balanced_pages(text, self.get_rows(), self.get_cols(), title)]
             kwargs["paginate"] = _paginate
+        if "canvas" in wanted:
+            # A drawing surface — but ONLY on a wall that has a framebuffer. On a
+            # physical split-flap it is None, and an app that wants it checks: a
+            # flap app can offer richer graphics where the panel allows and fall
+            # back to flaps where it does not. (A pure canvas app is gated so it
+            # never runs on a non-canvas wall at all — see the engine.)
+            caps = self._caps()
+            if caps.has_canvas:
+                url = str(self.config.transport.get("gateway_url") or "").strip()
+                kwargs["canvas"] = canvas.CanvasSurface(
+                    url, caps.canvas_w, caps.canvas_h, caps.canvas_formats, caps.effects)
+            else:
+                kwargs["canvas"] = None
         return kwargs
 
     @staticmethod
@@ -862,6 +876,28 @@ class PluginRuntime:
     def manifest(self, app_id: str) -> dict | None:
         return self._registry.get(app_id)
 
+    def is_canvas_app(self, app_id: str) -> bool:
+        """A canvas app draws straight to the Matrix panel (manifest
+        ``"surface": "canvas"``) instead of returning flap pages."""
+        return self._registry.get(app_id, {}).get("surface") == "canvas"
+
+    def render_canvas(self, app_id: str):
+        """Run a canvas app's fetch once — it draws through the injected ``canvas``
+        helper (the drawing is the point; there are no pages to return). Its return
+        value, if a number, is the seconds the engine should hold before redrawing."""
+        mod = self._modules.get(app_id)
+        manifest = self._registry.get(app_id)
+        if not mod or not manifest:
+            return None
+        ps = self._plugin_settings(app_id, manifest)
+        kwargs = self._helper_kwargs(app_id, self._wants.get(app_id, frozenset()), ps)
+        fmt = functools.partial(self.format_lines, align=self.vertical_align(app_id))
+        result = mod.fetch(ps, fmt, self.get_rows, self.get_cols, **kwargs)
+        try:
+            return float(result) if result is not None else None
+        except (TypeError, ValueError):
+            return None
+
     def is_anim(self, app_id: str) -> bool:
         m = self._registry.get(app_id, {})
         return app_id.startswith("anim_") or bool(m.get("animation"))
@@ -966,6 +1002,9 @@ class PluginRuntime:
             "min_rows": manifest.get("min_rows"),
             "min_cols": manifest.get("min_cols"),
             "min_modules": manifest.get("min_modules"),   # total-module minimum (any shape)
+            # "canvas" apps draw straight to a Matrix panel's framebuffer and need
+            # a wall that has one — the UI hides them where it can't be run.
+            "surface": manifest.get("surface", "flap"),
             "builtin": builtin,
         }
 

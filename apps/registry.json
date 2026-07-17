@@ -2,6 +2,16 @@
   "version": 1,
   "apps": [
     {
+      "id": "canvas-clock",
+      "name": "Analog Clock",
+      "icon": "🕐",
+      "description": "An analog clock drawn on the panel (Matrix walls)",
+      "category": "time",
+      "type": "functional",
+      "surface": "canvas",
+      "version": "1.0"
+    },
+    {
       "id": "art-clock",
       "name": "Art Clock",
       "icon": "🎨",
@@ -56,6 +66,16 @@
       "version": "1.0"
     },
     {
+      "id": "effects",
+      "name": "Effects",
+      "icon": "🎆",
+      "description": "On-device panel effects (Matrix walls)",
+      "category": "animation",
+      "type": "functional",
+      "surface": "canvas",
+      "version": "1.0"
+    },
+    {
       "id": "forecast-ribbon",
       "name": "Forecast Ribbon",
       "icon": "🌈",
@@ -69,15 +89,6 @@
       "name": "Fortune Cookie",
       "icon": "🥠",
       "description": "Mounted fortune cookie",
-      "category": "entertainment",
-      "type": "channel",
-      "version": "1.0"
-    },
-    {
-      "id": "funny-one-liners",
-      "name": "One Liners",
-      "icon": "😄",
-      "description": "Quick witty laughs",
       "category": "entertainment",
       "type": "channel",
       "version": "1.0"
@@ -107,6 +118,16 @@
       "description": "Wizarding wisdom",
       "category": "entertainment",
       "type": "channel",
+      "version": "1.0"
+    },
+    {
+      "id": "canvas-image",
+      "name": "Image",
+      "icon": "🖼️",
+      "description": "Mirror a picture onto the panel (Matrix walls)",
+      "category": "animation",
+      "type": "functional",
+      "surface": "canvas",
       "version": "1.0"
     },
     {
@@ -146,21 +167,21 @@
       "version": "1.0"
     },
     {
-      "id": "office-quotes",
-      "name": "The Office",
-      "icon": "📎",
-      "description": "That's what she said",
-      "category": "entertainment",
-      "type": "channel",
-      "version": "1.0"
-    },
-    {
       "id": "on-this-day",
       "name": "On This Day",
       "icon": "📜",
       "description": "Historical events today",
       "category": "education",
       "type": "functional",
+      "version": "1.0"
+    },
+    {
+      "id": "funny-one-liners",
+      "name": "One Liners",
+      "icon": "😄",
+      "description": "Quick witty laughs",
+      "category": "entertainment",
+      "type": "channel",
       "version": "1.0"
     },
     {
@@ -196,6 +217,15 @@
       "icon": "🏛️",
       "description": "Ancient wisdom",
       "category": "lifestyle",
+      "type": "channel",
+      "version": "1.0"
+    },
+    {
+      "id": "office-quotes",
+      "name": "The Office",
+      "icon": "📎",
+      "description": "That's what she said",
+      "category": "entertainment",
       "type": "channel",
       "version": "1.0"
     },

@@ -161,6 +161,9 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 .app-tile .app-foot { display: flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 8px; min-height: 1em; }
 .app-tile .app-foot .app-i18n { font-size: .82rem; opacity: .7; cursor: help; }
 .app-tile .app-foot .app-i18n:hover { opacity: 1; }
+/* "Draws on the panel" marker — subtle, sits with the other foot glyphs. */
+.app-tile .app-foot .app-canvas { font-size: .82rem; color: var(--brand); opacity: .8; cursor: help; }
+.app-tile .app-foot .app-canvas:hover { opacity: 1; }
 .app-tile .app-foot .app-badge { font-size: .62rem; color: var(--brand); font-weight: 700; letter-spacing: .5px; }
 .app-tile .app-foot .app-req { margin-left: auto; font-size: .62rem; color: var(--hi); font-weight: 700; }
 
@@ -233,6 +236,7 @@ a.btn { text-decoration: none; display: inline-block; }
 .lib-tag { background: var(--input); border: 1px solid var(--acc); color: var(--dim);
   border-radius: 10px; padding: 1px 7px; font-size: .7rem; }
 .lib-tag.cat { border-color: var(--brand); color: var(--brand); }
+.lib-tag.canvas { border-color: var(--brand); color: var(--brand); }
 
 /* search_chips */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }

@@ -49,6 +49,8 @@ ACRONYMS = {
     # The guarded-timezone fallback (pytz.timezone(... or 'UTC')) — a zone name
     # handed to pytz, and an acronym when it does appear as text.
     "UTC",
+    # Pillow image-mode constant in the canvas-image app, not display text.
+    "RGB",
 }
 
 # Uppercase strings that are NOT display text: they are matched against what an API sends back,

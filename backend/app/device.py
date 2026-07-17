@@ -80,8 +80,24 @@ class Capabilities:
     uniform: bool = True                    # do all the modules carry the same reel?
     colours: tuple[str, ...] = ()
 
+    # CANVAS — a Matrix wall with a framebuffer can draw ANYTHING, free of the flap grid:
+    # arbitrary pixels/lines/rects/text (POST /api/canvas/ops), a full raw frame
+    # (PUT /api/canvas/frame), or an on-device effect that the panel renders itself at
+    # ~70 fps (POST /api/canvas/effect). A physical split-flap wall has no framebuffer, so
+    # these stay empty and every canvas gate is False.
+    canvas_w: int = 0                       # framebuffer size (0 = no canvas)
+    canvas_h: int = 0
+    canvas_formats: tuple[str, ...] = ()    # raw-frame pixel formats, e.g. ("rgb888", "rgb565")
+    effects: tuple[str, ...] = ()           # on-device effect names, e.g. ("plasma", "fire", "matrix")
+
     def __bool__(self) -> bool:
         return self.indexed
+
+    @property
+    def has_canvas(self) -> bool:
+        """Can this wall draw arbitrary graphics — pixels, a raw frame — bypassing the
+        flap grid entirely? Only a Matrix wall with a framebuffer."""
+        return self.canvas_w > 0 and self.canvas_h > 0
 
     @property
     def instant(self) -> bool:
@@ -173,6 +189,18 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     except (KeyError, TypeError, ValueError):
         settle = None
 
+    # The canvas framebuffer and the on-device effect set (Matrix Portal 1.x+). Both are
+    # objects/lists the gateway only emits when it HAS them; a physical wall omits them and
+    # every canvas gate stays False. The feature flags "canvas"/"effects" corroborate but the
+    # canvas dimensions are what actually decide can-it-draw.
+    canvas = doc.get("canvas") if isinstance(doc.get("canvas"), dict) else {}
+    try:
+        canvas_w, canvas_h = int(canvas.get("width") or 0), int(canvas.get("height") or 0)
+    except (TypeError, ValueError):
+        canvas_w = canvas_h = 0
+    canvas_formats = tuple(str(f) for f in (canvas.get("formats") or []) if isinstance(f, str))
+    effects = tuple(str(e) for e in (doc.get("effects") or []) if isinstance(e, str))
+
     return Capabilities(
         lowercase="lowercase" in features,
         pictographs="pictographs" in features,
@@ -196,4 +224,8 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         colours=colours,
         motion=kind,
         settle_ms=settle,
+        canvas_w=canvas_w,
+        canvas_h=canvas_h,
+        canvas_formats=canvas_formats,
+        effects=effects,
     )

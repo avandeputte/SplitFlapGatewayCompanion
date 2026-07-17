@@ -17,7 +17,10 @@ from types import SimpleNamespace
 import pytest
 
 APP_DIR = Path(__file__).resolve().parents[2] / "apps" / "holidays"
-_today = datetime.now(timezone.utc)
+# The app computes "today" with date.today() (local), so the fixture must key its
+# cultural record to the SAME local date — keying to UTC drifts by a day across a
+# UTC/local midnight boundary and the "shows today" assertion then fails by one day.
+_today = datetime.now().date()
 KEY = f"{_today.month}/{_today.day}"
 
 

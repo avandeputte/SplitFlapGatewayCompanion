@@ -27,6 +27,7 @@ const BASE = window.__BASE__ || "";
 // links and a query param would be lost on the first click inside it.
 let DISPLAY = "";                 // active display id ("" until we've loaded them)
 let RICH = false;                 // can THIS wall show lowercase? (a Matrix Portal can)
+let CANVAS = false;               // does THIS wall have a framebuffer? (a Matrix panel does)
 let DISPLAYS = [];                // [{id, name, grid, module_count, ...}]
 let DEFAULT_DISPLAY = "default";
 
@@ -452,12 +453,21 @@ async function loadApps() {
   const grid = $("appsGrid");
   grid.innerHTML = "";
   APPS.forEach((a) => {
-    const fits = appFits(a);
+    // A canvas app draws to a framebuffer, so it only runs on a wall that has one.
+    // On a flap wall it is shown DISABLED with a "Matrix panel only" hint — the same
+    // treatment a too-big app gets — rather than hidden, so it is still discoverable.
+    const isCanvas = a.surface === "canvas";
+    const needsPanel = isCanvas && !CANVAS;
+    const fits = appFits(a) && !needsPanel;
+    const reqLabel = needsPanel ? t("Matrix panel only") : appReq(a);
     const tile = el("div", "app-tile" + (fits ? "" : " disabled"));
     tile.dataset.appId = a.id;
     tile.setAttribute("role", "button");
     tile.tabIndex = fits ? 0 : -1;
-    if (!fits) { tile.title = t("Needs at least %s", appReq(a)); tile.setAttribute("aria-disabled", "true"); }
+    if (!fits) {
+      tile.title = needsPanel ? t("Matrix panel only") : t("Needs at least %s", appReq(a));
+      tile.setAttribute("aria-disabled", "true");
+    }
     // name/description/icon come from the app's MANIFEST — an uploaded zip, i.e.
     // attacker-controlled. Everything of it that lands in markup goes through esc().
     tile.innerHTML =
@@ -467,8 +477,11 @@ async function loadApps() {
       (a.has_settings ? `<button class="app-gear" title="${esc(t("Settings"))}">⚙</button>` : "") +
       `<div class="app-foot">` +
         (a.i18n ? `<span class="app-i18n" title="${esc(t("Multilingual — adapts to the global Language"))}">🌐</span>` : "") +
+        // A subtle "draws on the panel" marker so a canvas app reads as one at a glance,
+        // whether or not this wall can run it.
+        (isCanvas ? `<span class="app-canvas" title="${esc(t("Matrix panel"))}">▦</span>` : "") +
         `<span class="app-badge"></span>` +
-        (fits ? "" : `<span class="app-req">${esc(appReq(a))}</span>`) +
+        (fits ? "" : `<span class="app-req">${esc(reqLabel)}</span>`) +
       `</div>`;
     const activate = (e) => {
       if (e.target.closest(".app-gear")) { openAppSettings(a.id, a.name); return; }
@@ -911,6 +924,13 @@ function libRow(a, reopen) {
   if (a.category) {
     const cat = el("span", "lib-tag cat"); cat.textContent = t(titleCase(a.category));
     tags.appendChild(cat);
+  }
+  // A canvas app draws to a Matrix panel's framebuffer — flag it so it reads as one
+  // here too (it will run only on a canvas-capable wall).
+  if (a.surface === "canvas") {
+    const surf = el("span", "lib-tag canvas");
+    surf.textContent = "▦ " + t("Matrix panel");
+    tags.appendChild(surf);
   }
   meta.append(name, desc, tags);
 
@@ -1446,6 +1466,7 @@ async function loadDisplays() {
 
   const me = DISPLAYS.find((d) => d.id === DISPLAY);
   RICH = !!(me && me.rich);
+  CANVAS = !!(me && me.canvas);
 
   const sel = $("displaySel");
   sel.innerHTML = "";
@@ -1466,6 +1487,11 @@ async function switchDisplay(id) {
   if (!id || id === DISPLAY) return;
   DISPLAY = id;
   localStorage.setItem("splitflap.display", id);
+  // The caps belong to the wall too: re-derive them from the (already loaded) list so
+  // the compose preview and the canvas-app gates follow the wall we just switched to.
+  const me = DISPLAYS.find((d) => d.id === id);
+  RICH = !!(me && me.rich);
+  CANVAS = !!(me && me.canvas);
   // Everything on screen belongs to the OLD wall — its geometry, its apps, its
   // playlists, its triggers, its gateway's tabs. Re-read the lot rather than trying to
   // patch it, which is how you end up showing one wall's apps on another's grid.

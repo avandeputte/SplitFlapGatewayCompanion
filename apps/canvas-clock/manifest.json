@@ -1,0 +1,18 @@
+{
+  "id": "canvas-clock",
+  "name": "Analog Clock",
+  "icon": "🕐",
+  "description": "A real analog clock drawn on a Matrix panel — a face and sweeping hands, impossible on a flap grid",
+  "type": "functional",
+  "surface": "canvas",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "category": "time",
+  "settings": [
+    {"key": "timezone", "label": "Timezone (override global)", "type": "search_chips",
+     "searchUrl": "/timezones", "resultKey": "zones", "maxItems": 1, "global_key": true},
+    {"key": "hand_color", "label": "Hands", "type": "toggle", "default": "white",
+     "options": [{"value": "white", "label": "White"}, {"value": "green", "label": "Green"},
+                 {"value": "cyan", "label": "Cyan"}, {"value": "orange", "label": "Orange"}]}
+  ]
+}
