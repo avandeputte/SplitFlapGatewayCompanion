@@ -295,15 +295,18 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
                 segs = [('Feels ', _C_MUTE), (f'{feels}{deg}', _C_MUTE_V)]
                 ff = _fit(canvas, ''.join(s for s, _ in segs), wxw, int(H * 0.15), lo=6)
                 lines.append(_line(ff, segs))
+            # Humidity + wind on one line — the '%' and the mph/km-h unit already
+            # say which is which, so drop the word labels: a shorter string fits a
+            # much taller, readable font in the narrow column.
             hw = []
             if hum is not None:
-                hw += [('Hum ', _C_MUTE), (f'{hum}%', _C_MUTE_V)]
+                hw += [(f'{hum}%', _C_MUTE_V)]
             if wind_v is not None:
                 if hw:
                     hw += [('  ', _C_SEP)]
-                hw += [('Wind ', _C_MUTE), (f'{wind_v}{wind_u}', _C_MUTE_V)]
+                hw += [(f'{wind_v}{wind_u}', _C_MUTE_V)]
             if hw:
-                hf = _fit(canvas, ''.join(s for s, _ in hw), wxw, int(H * 0.14), lo=6)
+                hf = _fit(canvas, ''.join(s for s, _ in hw), wxw, int(H * 0.19), lo=8)
                 lines.append(_line(hf, hw))
 
         _draw_stack(draw, wx0, 0, region_h, lines, gap_r)

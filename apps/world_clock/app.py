@@ -1,15 +1,24 @@
-def _row(left, right, cols):
-    """One full-width line: `left` flush left, `right` flush right.
+def _columns(pairs, cols, gap=3):
+    """Two aligned columns — `left` flush, `right` flush — kept CLOSE together
+    rather than spread to the wall's edges.
 
-    format_lines centres each line horizontally, so a line that is ALREADY `cols` wide
-    passes through untouched — that is what pins these columns. The left part is trimmed
-    to make room, never the right: the number is the thing you are reading.
+    format_lines centres each line, so the block is only as wide as its content
+    plus a small gap: on a wide wall the pair sits in the middle instead of the
+    city and the time stranded at opposite edges. The right column still lines up
+    down the page (every line is the same width, so centring keeps them aligned).
+    A narrow wall falls back to the full width, trimming the left, never the right.
     """
-    left, right = str(left), str(right)
-    if len(right) >= cols:
-        return right[:cols]
-    left = left[:cols - len(right) - 1]
-    return left + ' ' * (cols - len(left) - len(right)) + right
+    pairs = [(str(left), str(right)) for left, right in pairs]
+    rw = max((len(r) for _, r in pairs), default=0)
+    lw = max((len(l) for l, _ in pairs), default=0)
+    inner = min(cols, lw + gap + rw)
+    lspace = max(1, inner - rw)                       # left column width, incl. the gap
+    out = []
+    for left, right in pairs:
+        if len(left) > lspace - 1:
+            left = left[:max(0, lspace - 1)]
+        out.append((left.ljust(lspace) + right.rjust(rw))[:cols])
+    return out
 
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
@@ -17,7 +26,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     import pytz
     cols = get_cols()
     zones = [s.strip() for s in settings.get('world_clock_zones', 'US/Eastern,US/Pacific,Europe/London').split(',') if s.strip()]
-    lines = []
+    pairs = []
     for z in zones[:get_rows()]:
         try:
             tz = pytz.timezone(z)
@@ -31,14 +40,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         else:
             t = now.strftime('%I:%M%p').lstrip('0')
         city = z.split('/')[-1].replace('_', ' ')
-        # City flush left, time flush right: the times line up in a column, which is
-        # the whole point of putting several clocks on a wall.
-        lines.append(_row(city, t, cols))
-    if not lines:
-        lines = ['No valid', 'timezones']
+        pairs.append((city, t))
+    if not pairs:
+        return [format_lines('No valid', 'timezones')]
     # No bottom padding: format_lines centres what it is given. Filling the page here
     # would pin three zones to the top of a five-row wall.
-    return [format_lines(*lines)]
+    return [format_lines(*_columns(pairs, cols))]
 
 
 def trigger(settings, conditions):

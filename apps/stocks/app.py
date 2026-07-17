@@ -1,15 +1,24 @@
-def _row(left, right, cols):
-    """One full-width line: `left` flush left, `right` flush right.
+def _columns(pairs, cols, gap=3):
+    """Two aligned columns — `left` (ticker) flush, `right` (value) flush — kept
+    CLOSE together rather than spread to the wall's edges.
 
-    format_lines centres each line horizontally, so a line that is ALREADY `cols` wide
-    passes through untouched — that is what pins these columns. The left part is trimmed
-    to make room, never the right: the number is the thing you are reading.
+    format_lines centres each line, so the block is only as wide as its content
+    plus a small gap: on a wide wall the ticker and its price sit together in the
+    middle instead of stranded at opposite edges. The value column still lines up
+    down the page (every line is the same width, so centring keeps it aligned).
+    A narrow wall falls back to the full width, trimming the ticker, never the value.
     """
-    left, right = str(left), str(right)
-    if len(right) >= cols:
-        return right[:cols]
-    left = left[:cols - len(right) - 1]
-    return left + ' ' * (cols - len(left) - len(right)) + right
+    pairs = [(str(left), str(right)) for left, right in pairs]
+    rw = max((len(r) for _, r in pairs), default=0)
+    lw = max((len(l) for l, _ in pairs), default=0)
+    inner = min(cols, lw + gap + rw)
+    lspace = max(1, inner - rw)                       # ticker column width, incl. the gap
+    out = []
+    for left, right in pairs:
+        if len(left) > lspace - 1:
+            left = left[:max(0, lspace - 1)]
+        out.append((left.ljust(lspace) + right.rjust(rw))[:cols])
+    return out
 
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
@@ -45,7 +54,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     pages = []
     for i in range(0, len(tickers), rows):
         chunk = tickers[i:i+rows]
-        price_lines, change_lines = [], []
+        price_pairs, change_pairs = [], []
         for sym in chunk:
             try:
                 info = yf.Ticker(sym).fast_info
@@ -68,14 +77,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 icon = arrow if no_color else arrow + ('🟩' if chg >= 0 else '🟥')
                 # Ticker flush left, price flush right: prices line up in a column and
                 # you can read down them, which is what a list of stocks is for.
-                price_lines.append(_row(sym, f'{cs}{sep}{n(price, 2)}', cols))
-                change_lines.append(_row(sym, f'{icon}{pct(chg)}', cols))
+                price_pairs.append((sym, f'{cs}{sep}{n(price, 2)}'))
+                change_pairs.append((sym, f'{icon}{pct(chg)}'))
             except Exception:
-                price_lines.append(_row(sym, 'Err', cols))
-                change_lines.append(_row(sym, 'Err', cols))
+                price_pairs.append((sym, 'Err'))
+                change_pairs.append((sym, 'Err'))
         # No padding: two tickers on a five-row wall are centred by format_lines.
-        pages.append(format_lines(*price_lines))
-        pages.append(format_lines(*change_lines))
+        pages.append(format_lines(*_columns(price_pairs, cols)))
+        pages.append(format_lines(*_columns(change_pairs, cols)))
     return pages or [format_lines('Stocks', t('No data'), '')]
 
 

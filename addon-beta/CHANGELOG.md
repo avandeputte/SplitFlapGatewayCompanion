@@ -3,6 +3,18 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.2
+
+Readability fixes on the apps from beta.1:
+
+- **Overview** — the humidity/wind line at the bottom of the weather column was
+  too small to read. It now drops the word labels (the `%` and the mph/km-h unit
+  already say which is which) and uses that room for a taller font.
+- **Stocks** and **World Clock** — on a wide panel the two columns were flung to
+  opposite edges with a lake of space between them. They now stay together as a
+  block in the middle, so you can read a ticker across to its price, or a city
+  across to its time, at a glance. The value column still lines up down the page.
+
 ## 2.7.0-beta.1
 
 **Apps that use a big Matrix panel.** On a large panel (say 256×64) most apps used

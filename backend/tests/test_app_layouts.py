@@ -37,7 +37,7 @@ def _body(page, rows, cols):
 # ---------------------------------------------------------------------------
 # the shared trick: a full-width line survives centring untouched
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize("app", ["world_clock", "stocks", "tides"])
+@pytest.mark.parametrize("app", ["tides"])
 def test_row_pins_the_left_and_right_edges(app):
     row = _mod(app)._row
     line = row("AAPL", "$231.40", 15)
@@ -46,7 +46,7 @@ def test_row_pins_the_left_and_right_edges(app):
     assert line.endswith("$231.40")
 
 
-@pytest.mark.parametrize("app", ["world_clock", "stocks", "tides"])
+@pytest.mark.parametrize("app", ["tides"])
 def test_row_trims_the_label_never_the_number(app):
     """The number is the thing you are reading. A long city name gives way; the time does
     not get its digits cut off."""
@@ -54,6 +54,22 @@ def test_row_trims_the_label_never_the_number(app):
     line = row("SOME VERY LONG CITY NAME", "11:45PM", 15)
     assert len(line) == 15
     assert line.endswith("11:45PM")
+
+
+@pytest.mark.parametrize("app", ["world_clock", "stocks"])
+def test_columns_keep_the_pair_together_on_a_wide_wall(app):
+    """stocks / world_clock lay their two columns with _columns: on a WIDE wall the
+    block stays only as wide as its content (+ a gap) so format_lines centres the
+    pair, instead of stranding the label and the value at opposite edges. The value
+    column still lines up down the page, and a narrow wall trims the label, never
+    the value."""
+    columns = _mod(app)._columns
+    out = columns([("AAPL", "$231.40"), ("MSFT", "$1420.55")], 40)
+    assert all(len(ln) < 40 for ln in out), "the pair must not spread to the full width"
+    assert len({len(ln) for ln in out}) == 1, "every line the same width => values align"
+    assert out[0].startswith("AAPL") and out[0].rstrip().endswith("$231.40")
+    narrow = columns([("SOME VERY LONG CITY", "11:45PM")], 15)
+    assert len(narrow[0]) == 15 and narrow[0].endswith("11:45PM")
 
 
 # ---------------------------------------------------------------------------
