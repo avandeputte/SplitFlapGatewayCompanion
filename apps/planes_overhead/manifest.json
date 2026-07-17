@@ -16,6 +16,35 @@
       "default": ""
     },
     {
+      "key": "show_route",
+      "label": "Show route (from → to)",
+      "note": "Where it's coming from and going to. Needs a keyed provider — OpenSky's free feed has no route.",
+      "type": "toggle",
+      "default": "yes",
+      "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}]
+    },
+    {
+      "key": "show_distance",
+      "label": "Show distance",
+      "type": "toggle",
+      "default": "yes",
+      "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}]
+    },
+    {
+      "key": "show_altitude",
+      "label": "Show altitude",
+      "type": "toggle",
+      "default": "yes",
+      "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}]
+    },
+    {
+      "key": "show_speed",
+      "label": "Show speed",
+      "type": "toggle",
+      "default": "yes",
+      "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}]
+    },
+    {
       "key": "radius",
       "label": "Search Radius",
       "type": "number",

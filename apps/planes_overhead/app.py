@@ -129,7 +129,15 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
             return f"{distance_km * 0.539957:.1f}NM {direction}".strip()
         return f"{distance_km:.1f}KM {direction}".strip()
 
-    def _normalize_flight(callsign, latitude, longitude, *, altitude_m=None, speed_ms=None, heading=None, on_ground=False, last_seen=None):
+    def _clean_code(value):
+        """An airport code (IATA/ICAO) uppercased and trimmed, or '' — the route feed's
+        codes; only the keyed providers carry these (OpenSky's free feed has no route)."""
+        code = str(value or "").strip().upper()
+        return code if code and code.isalnum() and len(code) <= 4 else ""
+
+    def _normalize_flight(callsign, latitude, longitude, *, altitude_m=None, speed_ms=None,
+                          heading=None, on_ground=False, last_seen=None,
+                          origin=None, destination=None):
         if latitude is None or longitude is None:
             return None
         try:
@@ -148,6 +156,8 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
             "heading": None,
             "on_ground": bool(on_ground),
             "last_seen": _parse_timestamp(last_seen),
+            "origin": _clean_code(origin),
+            "destination": _clean_code(destination),
         }
         try:
             if altitude_m is not None:
@@ -244,6 +254,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
             pos = item.get("last_position") or {}
             altitude_ft = pos.get("altitude")
             speed_kt = pos.get("groundspeed")
+            org, dst = item.get("origin") or {}, item.get("destination") or {}
             flight = _normalize_flight(
                 item.get("ident_icao") or item.get("ident_iata") or item.get("ident") or item.get("registration"),
                 pos.get("latitude"),
@@ -253,6 +264,8 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
                 heading=pos.get("heading"),
                 on_ground=False,
                 last_seen=pos.get("timestamp") or item.get("last_position_time"),
+                origin=org.get("code_iata") or org.get("code"),
+                destination=dst.get("code_iata") or dst.get("code"),
             )
             if flight:
                 flights.append(flight)
@@ -264,7 +277,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
             params={
                 "api_key": api_key,
                 "bbox": f"{lamin:.5f},{lomin:.5f},{lamax:.5f},{lomax:.5f}",
-                "_fields": "lat,lng,alt,dir,speed,updated,flight_iata,flight_icao,flight_number,reg_number,status",
+                "_fields": "lat,lng,alt,dir,speed,updated,flight_iata,flight_icao,flight_number,reg_number,status,dep_iata,arr_iata",
             },
             timeout=15,
         )
@@ -283,6 +296,8 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
                 heading=item.get("dir"),
                 on_ground=str(item.get("status", "")).lower() in ("landed", "scheduled", "ground"),
                 last_seen=item.get("updated"),
+                origin=item.get("dep_iata"),
+                destination=item.get("arr_iata"),
             )
             if flight:
                 flights.append(flight)
@@ -305,6 +320,8 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
             live = item.get("live") or {}
             flight_info = item.get("flight") or {}
             aircraft = item.get("aircraft") or {}
+            dep = item.get("departure") or {}
+            arr = item.get("arrival") or {}
             speed_kmh = live.get("speed_horizontal")
             flight = _normalize_flight(
                 flight_info.get("iata") or flight_info.get("icao") or flight_info.get("number") or aircraft.get("registration"),
@@ -315,6 +332,8 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
                 heading=live.get("direction"),
                 on_ground=live.get("is_ground", False),
                 last_seen=live.get("updated"),
+                origin=dep.get("iata"),
+                destination=arr.get("iata"),
             )
             if flight:
                 flights.append(flight)
@@ -368,6 +387,8 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
                 heading=item.get("track") or item.get("heading"),
                 on_ground=str(item.get("status", "")).lower() in ("landed", "scheduled", "ground"),
                 last_seen=item.get("timestamp") or item.get("last_seen") or item.get("time"),
+                origin=item.get("origin") or item.get("orig") or item.get("from"),
+                destination=item.get("destination") or item.get("dest") or item.get("to"),
             )
             if flight:
                 flights.append(flight)
@@ -609,49 +630,78 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
         return [format_lines("Planes", "None nearby", f"Rad {radius_text}")] * dwell_repeat
 
     nearby.sort(key=lambda item: item["distance"])
-    planes = []
+
+    # --- each aircraft's field values ------------------------------------------
+    def _route(f):
+        o, d = f.get("origin", ""), f.get("destination", "")
+        if o and d:
+            return f"{o}→{d}"                       # PIT->SFO
+        return (o and f"{o}→") or (d and f"→{d}") or ""
+
+    rows_data = []
     for item in nearby[:max_results]:
-        flight = item["flight"]
-        planes.append((
-            flight["callsign"],
-            _format_distance(item["distance"], item["direction"], distance_unit),
-            _format_altitude(flight["altitude_m"], altitude_unit),
-            _format_speed(flight["speed_ms"], speed_unit),
-        ))
+        f = item["flight"]
+        rows_data.append({
+            "callsign": f["callsign"],
+            "route": _route(f),
+            "distance": _format_distance(item["distance"], item["direction"], distance_unit),
+            "altitude": _format_altitude(f["altitude_m"], altitude_unit),
+            "speed": _format_speed(f["speed_ms"], speed_unit),
+        })
+
+    # --- which fields to show (the user picks; callsign always) ----------------
+    def _yes(key):
+        return str(settings.get(key, "yes")).strip().lower() != "no"
+    ORDER = ["callsign", "route", "distance", "altitude", "speed"]     # display + priority
+    picked = {"callsign", *(k for k in ("route", "distance", "altitude", "speed")
+                            if _yes(f"show_{k}"))}
+    # a column shows only if it's picked AND some aircraft actually has a value for it
+    cols_shown = [k for k in ORDER if k in picked and any(r[k] for r in rows_data)]
 
     rows, cols = get_rows(), get_cols()
     gap = 2
-    g = ' ' * gap
-    cw = max(len(p[0]) for p in planes)              # callsign
-    dw = max(len(p[1]) for p in planes)              # distance (with direction)
-    aw = max(len(p[2]) for p in planes)              # altitude
-    sw = max(len(p[3]) for p in planes)              # speed
+    g = " " * gap
+    RIGHT = {"speed"}                                    # numbers read better flush right
+    width = {k: max(len(r[k]) for r in rows_data) for k in cols_shown}
+
+    def cell(r, k):
+        return r[k].rjust(width[k]) if k in RIGHT else r[k].ljust(width[k])
+
+    def line_w(keys):
+        return sum(width[k] for k in keys) + gap * max(0, len(keys) - 1)
+
+    # Prefer DROPPING a field to WRAPPING: keep the longest priority-prefix that fits one
+    # line. Only when that would strip everything but the callsign do we wrap instead.
+    kept = cols_shown[:]
+    while len(kept) > 1 and line_w(kept) > cols:
+        kept.pop()
 
     pages = []
-    if rows >= 2 and cw + gap + dw <= cols:
-        # Wide wall: a TABLE — one aircraft per LINE, several planes to a page. Show the
-        # callsign and distance always, then altitude, then speed, adding each extra
-        # column only while it still fits — so even a moderately wide wall gets the
-        # one-plane-per-line table instead of one plane on a near-empty page. Each field's
-        # unit (NM, FL, KT) labels its own column.
-        w = cw + gap + dw
-        show_alt = w + gap + aw <= cols
-        w += gap + aw if show_alt else 0
-        show_spd = w + gap + sw <= cols
-        lines = []
-        for c, d, a, s in planes:
-            row = f'{c.ljust(cw)}{g}{d.ljust(dw)}'
-            if show_alt:
-                row += f'{g}{a.ljust(aw)}'
-            if show_spd:
-                row += f'{g}{s.rjust(sw)}'
-            lines.append(row)
-        for i in range(0, len(lines), rows):
-            pages.extend([format_lines(*lines[i:i + rows])] * dwell_repeat)
+    if line_w(kept) <= cols and (len(kept) >= 2 or len(cols_shown) <= 1):
+        # ONE LINE per aircraft, columns aligned, packed `rows` aircraft to a page.
+        lines = [g.join(cell(r, k) for k in kept).rstrip() for r in rows_data]
+        step = max(1, rows)
+        for i in range(0, len(lines), step):
+            pages.extend([format_lines(*lines[i:i + step])] * dwell_repeat)
     else:
-        # Narrow wall: one aircraft per page — callsign / distance / altitude+speed.
-        for c, d, a, s in planes:
-            pages.extend([format_lines(c, d, f'{a} {s}')] * dwell_repeat)
+        # The picked fields don't fit one line: wrap each aircraft onto TWO lines —
+        # identity (callsign + route) then the metrics — and still pack rows//2 aircraft
+        # per page. (Turn fields off to keep it to one line.)
+        top = [k for k in ("callsign", "route") if k in cols_shown]
+        bot = [k for k in ("distance", "altitude", "speed") if k in cols_shown]
+
+        def grp(r, keys):
+            return g.join(cell(r, k) for k in keys).rstrip()
+
+        lpp = 2 if bot else 1
+        per = max(1, rows // lpp)
+        for i in range(0, len(rows_data), per):
+            lines = []
+            for r in rows_data[i:i + per]:
+                lines.append(grp(r, top))
+                if bot:
+                    lines.append(grp(r, bot))
+            pages.extend([format_lines(*lines)] * dwell_repeat)
 
     return pages
 

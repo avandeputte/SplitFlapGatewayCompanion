@@ -3,6 +3,22 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.10
+
+**Planes Overhead** got route info and a much more adaptive display:
+
+- **Route (from → to)** — each aircraft can now show where it's coming from and
+  going to, e.g. `PIT→SFO`. This comes from the route in the keyed providers
+  (FlightAware / FlightRadar24 / AirLabs / AviationStack); OpenSky's free feed has
+  no route, so it's blank there.
+- **Pick your fields** — new on/off switches for Route, Distance, Altitude and
+  Speed (the callsign is always shown), so you choose what appears.
+- **Smarter fit** — the display now prefers to DROP a field rather than wrap: it
+  shows as many of your chosen fields as fit on one line per aircraft, packing
+  several aircraft to a page. If your selection genuinely can't fit one line, it
+  wraps to two lines per aircraft but STILL packs several per page, instead of
+  falling back to one aircraft on a near-empty page.
+
 ## 2.7.0-beta.9
 
 - **Planes Overhead** — now uses your **global location** (the Location in the main
