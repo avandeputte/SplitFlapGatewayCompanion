@@ -3,6 +3,28 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.8.0
+
+**The companion uses the Matrix panel's new canvas features (firmware 1.18+).** It reads them
+from the wall's capabilities and lights up where present, falling back cleanly on an older
+panel — so nothing changes for a physical split-flap or a pre-1.18 Matrix.
+
+- **Frames cross far less WiFi.** Every canvas app (the drawn clocks, Weather Sky, Overview,
+  Date Card, the image app, …) now sends its frames **QOI-compressed** wherever the wall
+  accepts it — the same picture in 2–4× fewer bytes (a 256×64 frame ≈16 KB instead of 49 KB).
+  That matters because the panel and the radio share one bus. It is fully transparent: no app
+  changed, and a frame that will not compress falls back to raw.
+- **Ticker** — a NEW app: one line scrolling across the panel, rendered **on-device** — the
+  companion sends it once and the panel scrolls it smoothly itself, so it stays smooth where a
+  pushed-frame crawl janked. A custom message or a live RSS feed's headlines.
+- **Animation** — a NEW app: play a looping **GIF on-device**. Its frames upload once and the
+  panel plays the loop itself from spare memory, so it is smooth and costs no ongoing WiFi
+  (longer GIFs are sub-sampled to fit).
+- **Effect parameters** — the Effects app gains **Hue** and **Density** knobs (recolour the
+  matrix rain, tint plasma / Life, set the Life seed or flip-o-rama churn) where the panel
+  supports them. The newer on-device effects — flip-o-rama, clock, Game of Life — appear in
+  the picker automatically.
+
 ## 2.7.1
 
 - **Image** — fixed the **Fit** mode (letterbox the whole picture into the panel).
