@@ -15,16 +15,21 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
                  in ('1', 'true', 'yes', 'on')
                  and bool(getattr(caps, 'instant', False)))
 
+    def _drop1zero(s):
+        # A single leading zero looks cleaner (9:30, not 09:30) — but drop only ONE, or
+        # midnight in 24h (00:30) loses its hour entirely and reads ":30".
+        return s[1:] if s[:1] == "0" and s[1:2].isdigit() else s
+
     def clock(seconds):
         # An explicit Time Format wins; otherwise the Language decides (12h AM/PM
         # for English, 24h elsewhere) via the injected i18n helper.
         tf = settings.get('time_format')
         if tf in ('12hr', '24hr'):
             f24, f12 = ("%H:%M:%S", "%I:%M:%S%p") if seconds else ("%H:%M", "%I:%M%p")
-            return now.strftime(f24 if tf == '24hr' else f12).lstrip("0")
+            return _drop1zero(now.strftime(f24 if tf == '24hr' else f12))
         if i18n is not None:
             return i18n.time(now, seconds=seconds, ampm_space=False)
-        return now.strftime("%I:%M:%S%p" if seconds else "%I:%M%p").lstrip("0")
+        return _drop1zero(now.strftime("%I:%M:%S%p" if seconds else "%I:%M%p"))
 
     time_str = clock(want_secs)
     if want_secs and len(time_str) > get_cols():

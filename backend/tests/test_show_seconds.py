@@ -41,6 +41,23 @@ def test_time_defaults_to_no_seconds():
     assert re.fullmatch(r"\d{1,2}:\d{2}", lines[0])
 
 
+def test_time_at_midnight_keeps_its_hour(monkeypatch):
+    """Regression: 24h at hour 0 must read 0:30, not ':30'. lstrip('0') used to eat the
+    WHOLE hour at midnight, so a CI run at 00:00 UTC failed and a wall showed ':30'."""
+    import datetime as _dt
+    real = _dt.datetime
+
+    class _Frozen(real):
+        @classmethod
+        def now(cls, tz=None):
+            return real(2026, 7, 18, 0, 30, 45, tzinfo=tz)
+
+    monkeypatch.setattr(_dt, "datetime", _Frozen)
+    assert _first_page("time", 1, 15, DRAWN, show_seconds="true",
+                       time_format="24hr")[0] == "0:30:45"
+    assert _first_page("time", 1, 15, DRAWN, time_format="24hr")[0] == "0:30"
+
+
 # ---- countdown ----------------------------------------------------------
 def _countdown(caps, cols=15, **settings):
     from datetime import datetime, timedelta

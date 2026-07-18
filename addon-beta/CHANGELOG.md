@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0-beta.12
+
+- **Time** — fixed the clock showing `:30` instead of `0:30` during the midnight
+  hour on a 24-hour wall. Trimming the leading zero for a cleaner `9:30` was eating
+  the whole hour when it was `00`.
+
 ## 2.7.0-beta.11
 
 - **Planes Overhead** — fixed the column alignment in the table. Rows with a shorter
