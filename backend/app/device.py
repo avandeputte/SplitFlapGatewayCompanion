@@ -87,8 +87,14 @@ class Capabilities:
     # these stay empty and every canvas gate is False.
     canvas_w: int = 0                       # framebuffer size (0 = no canvas)
     canvas_h: int = 0
-    canvas_formats: tuple[str, ...] = ()    # raw-frame pixel formats, e.g. ("rgb888", "rgb565")
+    canvas_formats: tuple[str, ...] = ()    # raw-frame pixel formats, e.g. ("rgb888", "rgb565", "qoi")
     effects: tuple[str, ...] = ()           # on-device effect names, e.g. ("plasma", "fire", "matrix")
+    # The canvas extras a newer Matrix Portal (1.18+) advertises. A gateway too old to state
+    # them leaves each False/empty, and the companion falls back to the raw-frame path.
+    canvas_rect: bool = False               # PUT /api/canvas/rect — update one rectangle only
+    canvas_anim: bool = False               # PUT /api/canvas/anim — upload a loop, plays on-device
+    canvas_ticker: bool = False             # POST /api/canvas/ticker — on-device scrolling text
+    effect_params: tuple[str, ...] = ()     # effect knobs, e.g. ("hue", "density")
 
     def __bool__(self) -> bool:
         return self.indexed
@@ -98,6 +104,12 @@ class Capabilities:
         """Can this wall draw arbitrary graphics — pixels, a raw frame — bypassing the
         flap grid entirely? Only a Matrix wall with a framebuffer."""
         return self.canvas_w > 0 and self.canvas_h > 0
+
+    @property
+    def canvas_qoi(self) -> bool:
+        """Whether the wall accepts a QOI-encoded frame (PUT /api/canvas/qoi) — lossless,
+        2–4× smaller than raw, so the same picture over far less WiFi."""
+        return "qoi" in self.canvas_formats
 
     @property
     def instant(self) -> bool:
@@ -200,6 +212,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_w = canvas_h = 0
     canvas_formats = tuple(str(f) for f in (canvas.get("formats") or []) if isinstance(f, str))
     effects = tuple(str(e) for e in (doc.get("effects") or []) if isinstance(e, str))
+    effect_params = tuple(str(p) for p in (doc.get("effectParams") or []) if isinstance(p, str))
 
     return Capabilities(
         lowercase="lowercase" in features,
@@ -228,4 +241,8 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_h=canvas_h,
         canvas_formats=canvas_formats,
         effects=effects,
+        canvas_rect=bool(canvas.get("rect")),
+        canvas_anim=bool(canvas.get("anim")),
+        canvas_ticker=bool(canvas.get("ticker")),
+        effect_params=effect_params,
     )

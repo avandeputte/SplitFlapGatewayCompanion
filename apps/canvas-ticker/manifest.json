@@ -1,0 +1,61 @@
+{
+  "id": "canvas-ticker",
+  "name": "Ticker",
+  "icon": "📰",
+  "description": "A smooth scrolling ticker, rendered on-device (Matrix panel)",
+  "type": "functional",
+  "surface": "canvas",
+  "refresh_interval": 300,
+  "loop_delay": 30,
+  "category": "text",
+  "settings": [
+    {
+      "key": "ticker_source",
+      "label": "Source",
+      "type": "toggle",
+      "default": "message",
+      "options": [
+        {"value": "message", "label": "Message"},
+        {"value": "news", "label": "News (RSS)"}
+      ]
+    },
+    {
+      "key": "ticker_text",
+      "label": "Message",
+      "type": "text",
+      "default": "Hello from SplitFlap",
+      "visible_when": {"ticker_source": "message"}
+    },
+    {
+      "key": "feed_url",
+      "label": "RSS feed URL",
+      "type": "text",
+      "default": "https://feeds.bbci.co.uk/news/rss.xml",
+      "visible_when": {"ticker_source": "news"}
+    },
+    {
+      "key": "ticker_color",
+      "label": "Colour",
+      "type": "toggle",
+      "default": "amber",
+      "options": [
+        {"value": "white", "label": "White"},
+        {"value": "amber", "label": "Amber"},
+        {"value": "green", "label": "Green"},
+        {"value": "cyan", "label": "Cyan"}
+      ]
+    },
+    {
+      "key": "ticker_speed",
+      "label": "Speed",
+      "type": "number",
+      "default": 4,
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "stepper": true
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 15
+}

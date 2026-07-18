@@ -21,6 +21,16 @@
     {
       "key": "speed", "label": "Speed", "type": "number", "default": "5",
       "min": "1", "max": "10", "step": "1", "stepper": true
+    },
+    {
+      "key": "hue", "label": "Hue", "type": "number",
+      "min": "0", "max": "255", "step": "5", "stepper": true, "ph": "Effect default",
+      "note": "Recolours the matrix rain and tints plasma / Life — on panels that support it. Blank keeps the effect's own colours."
+    },
+    {
+      "key": "density", "label": "Density", "type": "number",
+      "min": "1", "max": "100", "step": "5", "stepper": true, "ph": "Effect default",
+      "note": "Life seed density or flip-o-rama churn. Blank keeps the default."
     }
   ]
 }

@@ -1,0 +1,42 @@
+{
+  "id": "canvas-anim",
+  "name": "Animation",
+  "icon": "🎞️",
+  "description": "Play a looping GIF on-device (Matrix panel)",
+  "type": "functional",
+  "surface": "canvas",
+  "refresh_interval": 600,
+  "loop_delay": 30,
+  "category": "fun",
+  "settings": [
+    {
+      "key": "gif_url",
+      "label": "GIF URL",
+      "type": "text",
+      "default": "",
+      "ph": "https://example.com/loop.gif"
+    },
+    {
+      "key": "fit",
+      "label": "Fit",
+      "type": "toggle",
+      "default": "cover",
+      "options": [
+        {"value": "cover", "label": "Fill"},
+        {"value": "contain", "label": "Fit"}
+      ]
+    },
+    {
+      "key": "fps",
+      "label": "Frame rate",
+      "type": "number",
+      "min": "1",
+      "max": "30",
+      "step": "1",
+      "stepper": true,
+      "ph": "From the GIF"
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 15
+}

@@ -88,13 +88,19 @@ def set_active(url: str, active: bool, timeout: float = 5.0) -> bool:
         return False
 
 
-def play_effect(url: str, effect: str, speed: int = 5, timeout: float = 5.0) -> bool:
-    """Start an on-device effect (plasma/fire/matrix), or "none" to return to the
-    wall. The panel renders it itself — the companion sends one request and stops."""
+def play_effect(url: str, effect: str, speed: int = 5, hue=None, density=None,
+                timeout: float = 5.0) -> bool:
+    """Start an on-device effect (plasma/fire/matrix/…), or "none" to return to the
+    wall. The panel renders it itself — the companion sends one request and stops.
+    Optional ``hue`` (0–255) and ``density`` (1–100) tint/seed effects that support them
+    (see caps.effect_params); omitted, each effect keeps its own default look."""
     try:
-        sp = max(1, min(10, int(speed)))
-        return _ok(gateway._request("POST", url, "/api/canvas/effect",
-                                    json={"type": str(effect), "speed": sp}, timeout=timeout))
+        body = {"type": str(effect), "speed": max(1, min(10, int(speed)))}
+        if hue is not None:
+            body["hue"] = max(0, min(255, int(hue)))
+        if density is not None:
+            body["density"] = max(1, min(100, int(density)))
+        return _ok(gateway._request("POST", url, "/api/canvas/effect", json=body, timeout=timeout))
     except Exception as e:
         log.debug("canvas play_effect(%s) failed: %s", effect, e)
         return False
@@ -121,6 +127,115 @@ def put_frame(url: str, data: bytes, timeout: float = 15.0) -> bool:
                                     timeout=timeout))
     except Exception as e:
         log.debug("canvas put_frame(%d bytes) failed: %s", len(data), e)
+        return False
+
+
+# --- QOI encode (qoiformat.org) — a full frame, lossless, 2–4× smaller than raw, so the
+# same picture crosses far less WiFi (the board's panel DMA and radio share one bus). The
+# firmware decodes it straight to the panel. Pure Python, no dependency: the standard
+# run/index/diff coder, one pass over the pixels. ------------------------------------------
+def _s8(v: int) -> int:
+    """A byte difference as a signed 8-bit value (the wraparound QOI diffs use)."""
+    v &= 0xFF
+    return v - 256 if v >= 128 else v
+
+
+def qoi_encode(rgb: bytes, w: int, h: int) -> bytes:
+    """Encode a row-major rgb888 buffer (``w*h*3`` bytes) as a QOI image (3 channels, sRGB)."""
+    out = bytearray(b"qoif")
+    out += w.to_bytes(4, "big") + h.to_bytes(4, "big") + bytes((3, 0))
+    index = [0] * 64                       # seen-pixel table, keyed r<<24|g<<16|b<<8|a
+    pr = pg = pb = 0                       # previous pixel; alpha is a constant 255
+    run = 0
+    mv = memoryview(rgb)
+    n = w * h
+    app = out.append
+    for i in range(n):
+        j = i * 3
+        r, g, b = mv[j], mv[j + 1], mv[j + 2]
+        if r == pr and g == pg and b == pb:
+            run += 1
+            if run == 62 or i == n - 1:
+                app(0xC0 | (run - 1)); run = 0
+            continue
+        if run:
+            app(0xC0 | (run - 1)); run = 0
+        ih = (r * 3 + g * 5 + b * 7 + 255 * 11) & 63
+        key = (r << 24) | (g << 16) | (b << 8) | 255
+        if index[ih] == key:
+            app(ih)                                                    # QOI_OP_INDEX
+        else:
+            index[ih] = key
+            vr, vg, vb = _s8(r - pr), _s8(g - pg), _s8(b - pb)
+            vgr, vgb = _s8(vr - vg), _s8(vb - vg)
+            if -2 <= vr <= 1 and -2 <= vg <= 1 and -2 <= vb <= 1:
+                app(0x40 | ((vr + 2) << 4) | ((vg + 2) << 2) | (vb + 2))  # QOI_OP_DIFF
+            elif -32 <= vg <= 31 and -8 <= vgr <= 7 and -8 <= vgb <= 7:
+                app(0x80 | (vg + 32)); app(((vgr + 8) << 4) | (vgb + 8))  # QOI_OP_LUMA
+            else:
+                app(0xFE); app(r); app(g); app(b)                        # QOI_OP_RGB
+        pr, pg, pb = r, g, b
+    out += bytes((0, 0, 0, 0, 0, 0, 0, 1))                              # end marker
+    return bytes(out)
+
+
+def put_qoi(url: str, data: bytes, timeout: float = 15.0) -> bool:
+    """Push a QOI-encoded full frame (PUT /api/canvas/qoi)."""
+    try:
+        return _ok(gateway._request("PUT", url, "/api/canvas/qoi", content=bytes(data),
+                                    headers={"Content-Type": "application/octet-stream"},
+                                    timeout=timeout))
+    except Exception as e:
+        log.debug("canvas put_qoi(%d bytes) failed: %s", len(data), e)
+        return False
+
+
+def put_rect(url: str, x: int, y: int, w: int, h: int, rgb: bytes, timeout: float = 15.0) -> bool:
+    """Update ONE rectangle (PUT /api/canvas/rect): an 8-byte header [x, y, w, h] (u16 BE)
+    then ``w*h`` rgb888 pixels, drawn over the live frame — animating a small area costs
+    only that area's bytes, not the whole panel's."""
+    try:
+        head = (int(x).to_bytes(2, "big") + int(y).to_bytes(2, "big")
+                + int(w).to_bytes(2, "big") + int(h).to_bytes(2, "big"))
+        return _ok(gateway._request("PUT", url, "/api/canvas/rect", content=head + bytes(rgb),
+                                    headers={"Content-Type": "application/octet-stream"},
+                                    timeout=timeout))
+    except Exception as e:
+        log.debug("canvas put_rect failed: %s", e)
+        return False
+
+
+def put_ticker(url: str, text: str, color=(255, 255, 255), speed: int = 2,
+               timeout: float = 5.0) -> bool:
+    """Scroll one line of text across the panel ON-DEVICE (POST /api/canvas/ticker) — smooth,
+    nothing streamed. Empty text hands the panel back. Speed 1–20."""
+    try:
+        body = {"text": str(text), "color": list(_rgb(color)),
+                "speed": max(1, min(20, int(speed)))}
+        return _ok(gateway._request("POST", url, "/api/canvas/ticker", json=body, timeout=timeout))
+    except Exception as e:
+        log.debug("canvas put_ticker failed: %s", e)
+        return False
+
+
+def put_anim(url: str, frames: list, w: int, h: int, fps: int = 12, loop: bool = True,
+             timeout: float = 30.0) -> bool:
+    """Upload a looping animation that plays ON-DEVICE from PSRAM (PUT /api/canvas/anim), so
+    the companion sends it once and can stop. ``frames`` is a list of rgb888 buffers (each
+    ``w*h*3`` bytes). Header (14 B, BE): MPGA · ver=1 · fmt=3(rgb888) · fps · flags(bit0=loop)
+    · w · h · frames."""
+    try:
+        fr = len(frames)
+        hdr = (b"MPGA" + bytes((1, 3, max(1, min(60, int(fps))), 1 if loop else 0))
+               + int(w).to_bytes(2, "big") + int(h).to_bytes(2, "big") + fr.to_bytes(2, "big"))
+        body = bytearray(hdr)
+        for f in frames:
+            body += bytes(f)
+        return _ok(gateway._request("PUT", url, "/api/canvas/anim", content=bytes(body),
+                                    headers={"Content-Type": "application/octet-stream"},
+                                    timeout=timeout))
+    except Exception as e:
+        log.debug("canvas put_anim(%d frames) failed: %s", len(frames), e)
         return False
 
 
@@ -182,12 +297,21 @@ class CanvasSurface:
     at all, so an app that wants it declares ``canvas`` and checks it for None."""
 
     def __init__(self, url: str, width: int, height: int,
-                 formats: tuple = (), effects: tuple = ()):
+                 formats: tuple = (), effects: tuple = (),
+                 rect: bool = False, anim: bool = False, ticker: bool = False,
+                 effect_params: tuple = ()):
         self.url = url
         self.width = int(width)
         self.height = int(height)
         self.formats = tuple(formats)
         self.effects = tuple(effects)
+        # Newer-firmware canvas extras (see device.Capabilities). An app checks these before
+        # reaching for ticker()/anim()/paste() so it can fall back on an older wall.
+        self.can_qoi = "qoi" in self.formats
+        self.can_rect = bool(rect)
+        self.can_anim = bool(anim)
+        self.can_ticker = bool(ticker)
+        self.effect_params = tuple(effect_params)
         self._ops: list = []
 
     # -- drawing (batched until show) ----------------------------------------
@@ -225,25 +349,64 @@ class CanvasSurface:
         return draw_ops(self.url, ops)
 
     # -- whole-panel content -------------------------------------------------
-    def effect(self, name, speed: int = 5) -> bool:
+    def effect(self, name, speed: int = 5, hue=None, density=None) -> bool:
         """Play an on-device effect (from ``canvas.effects``); "none" returns to
-        the wall. The panel renders it — one request, then nothing."""
-        return play_effect(self.url, name, speed)
+        the wall. The panel renders it — one request, then nothing. ``hue`` (0–255) and
+        ``density`` (1–100) tint/seed effects that support them (``canvas.effect_params``)."""
+        return play_effect(self.url, name, speed, hue, density)
+
+    def _push_rgb(self, b: bytes) -> bool:
+        _remember_frame(self.url, self.width, self.height, b)       # for the previews
+        # QOI where the wall takes it: the same picture over far less WiFi. Any encode
+        # hiccup falls back to the raw frame, so a frame is never lost to compression.
+        if self.can_qoi:
+            try:
+                return put_qoi(self.url, qoi_encode(b, self.width, self.height))
+            except Exception as e:
+                log.debug("canvas.frame QOI encode failed, sending raw: %s", e)
+        return put_frame(self.url, b)
 
     def frame(self, image) -> bool:
-        """Push a full raw frame. ``image`` is a PIL image (resized/converted to
-        the panel and sent as rgb888) or raw bytes already sized for the wall."""
+        """Push a full frame. ``image`` is a PIL image (resized/converted to the panel) or
+        raw rgb888 bytes already sized for the wall. Sent QOI-compressed where the wall
+        advertises it, raw otherwise — transparently, so apps never think about it."""
         if isinstance(image, (bytes, bytearray)):
-            b = bytes(image)
-            _remember_frame(self.url, self.width, self.height, b)   # for the previews
-            return put_frame(self.url, b)
+            return self._push_rgb(bytes(image))
         try:
-            img = image.convert("RGB").resize((self.width, self.height))
-            b = img.tobytes()
-            _remember_frame(self.url, self.width, self.height, b)   # for the previews
-            return put_frame(self.url, b)
+            b = image.convert("RGB").resize((self.width, self.height)).tobytes()
         except Exception as e:
             log.debug("canvas.frame render failed: %s", e)
+            return False
+        return self._push_rgb(b)
+
+    def ticker(self, text, color=(255, 255, 255), speed: int = 2) -> bool:
+        """Scroll one line of text across the panel ON-DEVICE — smooth, nothing streamed.
+        Empty text hands the panel back. Needs ``canvas.can_ticker``."""
+        forget_frame(self.url)                 # a scrolling ticker has no single still frame
+        return put_ticker(self.url, text, color, speed)
+
+    def anim(self, images, fps: int = 12, loop: bool = True) -> bool:
+        """Upload a short loop that plays ON-DEVICE from PSRAM (sent once, then nothing on the
+        network). ``images`` is a list of PIL images. Needs ``canvas.can_anim``."""
+        try:
+            frames = [im.convert("RGB").resize((self.width, self.height)).tobytes()
+                      for im in images]
+        except Exception as e:
+            log.debug("canvas.anim render failed: %s", e)
+            return False
+        if not frames:
+            return False
+        _remember_frame(self.url, self.width, self.height, frames[0])   # preview = frame 0
+        return put_anim(self.url, frames, self.width, self.height, fps, loop)
+
+    def paste(self, x, y, image) -> bool:
+        """Update just a RECTANGLE of the live panel (cheap partial animation). ``image`` is
+        a PIL image drawn with its top-left at (x, y). Needs ``canvas.can_rect``."""
+        try:
+            img = image.convert("RGB")
+            return put_rect(self.url, int(x), int(y), img.width, img.height, img.tobytes())
+        except Exception as e:
+            log.debug("canvas.paste failed: %s", e)
             return False
 
     # -- rich rendering helpers (Pillow) -------------------------------------

@@ -380,6 +380,113 @@ def test_new_canvas_apps_are_none_without_a_panel(app_id):
     assert _load(app_id).fetch({}, None, None, None, canvas=None) is None
 
 
+# --- the 1.18 canvas extras: qoi, ticker, anim, rect, effect params ----------
+def _qoi_decode(data):
+    """A reference QOI decoder, so the round-trip test proves the encoder is correct."""
+    w = int.from_bytes(data[4:8], "big"); h = int.from_bytes(data[8:12], "big")
+    out = bytearray(); index = [(0, 0, 0, 0)] * 64
+    r, g, b, a = 0, 0, 0, 255; p, count, n = 14, 0, w * h
+    while count < n:
+        byte = data[p]; p += 1
+        if byte == 0xFE:
+            r, g, b = data[p], data[p + 1], data[p + 2]; p += 3
+        elif byte == 0xFF:
+            r, g, b, a = data[p:p + 4]; p += 4
+        elif byte >> 6 == 0:
+            r, g, b, a = index[byte & 0x3F]
+        elif byte >> 6 == 1:
+            r = (r + ((byte >> 4) & 3) - 2) & 0xFF
+            g = (g + ((byte >> 2) & 3) - 2) & 0xFF
+            b = (b + (byte & 3) - 2) & 0xFF
+        elif byte >> 6 == 2:
+            b2 = data[p]; p += 1; vg = (byte & 0x3F) - 32
+            r = (r + vg + ((b2 >> 4) & 0xF) - 8) & 0xFF
+            g = (g + vg) & 0xFF
+            b = (b + vg + (b2 & 0xF) - 8) & 0xFF
+        else:
+            run = (byte & 0x3F) + 1
+            out += bytes((r, g, b)) * run; count += run
+            index[(r * 3 + g * 5 + b * 7 + a * 11) & 63] = (r, g, b, a); continue
+        index[(r * 3 + g * 5 + b * 7 + a * 11) & 63] = (r, g, b, a)
+        out += bytes((r, g, b)); count += 1
+    return bytes(out)
+
+
+def test_capabilities_parse_the_canvas_extras():
+    doc = dict(CANVAS_DOC,
+               canvas={"formats": ["rgb888", "rgb565", "qoi"], "width": 256, "height": 64,
+                       "rect": True, "anim": True, "ticker": True},
+               effects=["plasma", "clock", "life"], effectParams=["hue", "density"])
+    caps = device.from_capabilities(doc)
+    assert caps.canvas_qoi and caps.canvas_rect and caps.canvas_anim and caps.canvas_ticker
+    assert caps.effect_params == ("hue", "density")
+
+
+def test_qoi_encode_round_trips_to_the_exact_pixels():
+    from PIL import Image
+    w, h = 64, 32
+    img = Image.new("RGB", (w, h))
+    px = img.load()
+    for y in range(h):
+        for x in range(w):
+            px[x, y] = (x * 4 % 256, y * 8 % 256, (x + y) % 256)
+    raw = img.tobytes()
+    q = canvas.qoi_encode(raw, w, h)
+    assert q[:4] == b"qoif" and q[-8:] == bytes((0, 0, 0, 0, 0, 0, 0, 1))
+    assert _qoi_decode(q) == raw            # the wall draws exactly what we rendered
+
+
+def test_frame_uses_qoi_when_advertised_else_raw(gw_calls):
+    from PIL import Image
+    img = Image.new("RGB", (64, 32), (10, 20, 30))
+    canvas.CanvasSurface("http://gw", 64, 32, ("rgb888", "rgb565", "qoi"), ()).frame(img)
+    m, path, _b, content = gw_calls[-1]
+    assert m == "PUT" and path == "/api/canvas/qoi" and content[:4] == b"qoif"
+    canvas.CanvasSurface("http://gw", 64, 32, ("rgb888",), ()).frame(img)
+    m, path, _b, content = gw_calls[-1]
+    assert m == "PUT" and path == "/api/canvas/frame" and len(content) == 64 * 32 * 3
+
+
+def test_ticker_posts_text_colour_speed(gw_calls):
+    cv = canvas.CanvasSurface("http://gw", 128, 32, ("rgb888",), (), ticker=True)
+    assert cv.can_ticker
+    cv.ticker("HELLO", (0, 255, 0), speed=6)
+    m, path, body, _ = gw_calls[-1]
+    assert m == "POST" and path == "/api/canvas/ticker"
+    assert body == {"text": "HELLO", "color": [0, 255, 0], "speed": 6}
+
+
+def test_effect_passes_hue_and_density(gw_calls):
+    cv = canvas.CanvasSurface("http://gw", 128, 32, ("rgb888",), ("matrix",),
+                              effect_params=("hue", "density"))
+    cv.effect("matrix", speed=6, hue=120, density=40)
+    _m, path, body, _ = gw_calls[-1]
+    assert path == "/api/canvas/effect" and body["hue"] == 120 and body["density"] == 40
+
+
+def test_anim_uploads_an_mpga_loop(gw_calls):
+    from PIL import Image
+    cv = canvas.CanvasSurface("http://gw", 8, 4, ("rgb888",), (), anim=True)
+    cv.anim([Image.new("RGB", (8, 4), c) for c in ((255, 0, 0), (0, 255, 0), (0, 0, 255))],
+            fps=10, loop=True)
+    m, path, _b, content = gw_calls[-1]
+    assert m == "PUT" and path == "/api/canvas/anim"
+    assert content[:4] == b"MPGA" and content[4] == 1 and content[5] == 3   # ver=1, fmt=rgb888
+    assert content[6] == 10 and (content[7] & 1) == 1                       # fps, loop flag
+    assert int.from_bytes(content[12:14], "big") == 3                       # 3 frames
+    assert len(content) == 14 + 3 * 8 * 4 * 3
+
+
+def test_ticker_app_scrolls_a_message(gw_calls):
+    cv = canvas.CanvasSurface("http://gw", 256, 64, ("rgb888", "qoi"), (), ticker=True)
+    hold = _load("canvas-ticker").fetch(
+        {"ticker_source": "message", "ticker_text": "HI THERE", "ticker_color": "green",
+         "ticker_speed": "6"}, None, lambda: 8, lambda: 42, canvas=cv)
+    m, path, body, _ = gw_calls[-1]
+    assert m == "POST" and path == "/api/canvas/ticker"
+    assert body["text"] == "HI THERE" and body["speed"] == 6 and hold > 0
+
+
 def test_canvas_image_both_fit_modes_produce_a_frame():
     """Regression: 'Fit' (contain) called img.__class__.new — not a real method, so it
     raised AttributeError and fell back to the demo gradient. Both modes must return a

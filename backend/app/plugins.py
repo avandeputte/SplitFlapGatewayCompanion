@@ -637,7 +637,9 @@ class PluginRuntime:
             if caps.has_canvas:
                 url = str(self.config.transport.get("gateway_url") or "").strip()
                 kwargs["canvas"] = canvas.CanvasSurface(
-                    url, caps.canvas_w, caps.canvas_h, caps.canvas_formats, caps.effects)
+                    url, caps.canvas_w, caps.canvas_h, caps.canvas_formats, caps.effects,
+                    rect=caps.canvas_rect, anim=caps.canvas_anim, ticker=caps.canvas_ticker,
+                    effect_params=caps.effect_params)
             else:
                 kwargs["canvas"] = None
         return kwargs

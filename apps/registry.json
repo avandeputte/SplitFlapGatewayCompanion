@@ -314,6 +314,26 @@
       "category": "education",
       "type": "functional",
       "version": "1.0"
+    },
+    {
+      "id": "canvas-ticker",
+      "name": "Ticker",
+      "icon": "📰",
+      "description": "A smooth scrolling ticker, rendered on-device (Matrix panel)",
+      "category": "text",
+      "type": "functional",
+      "surface": "canvas",
+      "version": "1.0"
+    },
+    {
+      "id": "canvas-anim",
+      "name": "Animation",
+      "icon": "🎞️",
+      "description": "Play a looping GIF on-device (Matrix panel)",
+      "category": "fun",
+      "type": "functional",
+      "surface": "canvas",
+      "version": "1.0"
     }
   ]
 }
