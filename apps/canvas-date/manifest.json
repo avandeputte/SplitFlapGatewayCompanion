@@ -2,7 +2,7 @@
   "id": "canvas-date",
   "name": "Date Card",
   "icon": "📅",
-  "description": "The date as bold typography — a huge anti-aliased day-of-month numeral with the weekday, month and year stacked beside it, over a dark gradient, with a slim year-progress bar tinted by the day of the week. A canvas date card for Matrix panels.",
+  "description": "A big typographic date card (Matrix panel)",
   "type": "functional",
   "surface": "canvas",
   "refresh_interval": 2,

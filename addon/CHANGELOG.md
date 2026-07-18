@@ -3,6 +3,59 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0
+
+The 2.7.0 line, gathered into a stable release. Everything below shipped and
+soaked across the 2.7.0 betas.
+
+**Apps that use the whole panel.** A big Matrix panel (say 256×64) has far more
+room than a physical reel, and this release spends it — canvas apps that fill the
+panel, and text apps that spread into a wide character grid instead of clustering
+in a corner or stranding a label at one edge and its value at the other.
+
+- **Overview** — a NEW canvas dashboard that fills a big panel: a large clock and
+  the date on the left, a weather column on the right (temperature, condition,
+  high/low, feels-like, humidity, wind) with a day/night sun or moon and a seconds
+  sweep. It shrinks gracefully to a clock and a line of weather on a small panel.
+- **Weather Sky** and **Date Card** — open into full big-panel layouts on a large
+  Matrix (a rich info panel and a forecast strip; a facts column) instead of
+  clustering in one corner.
+- **Weather forecast** — on a wide wall it spells the forecast out: the condition
+  in full ("Light rain", "Partly cloudy"), full weekdays, degree signs — laid out
+  as an aligned block instead of abbreviations flung to opposite edges. A 15-wide
+  wall keeps the compact form.
+- **Stocks** and **Crypto** — on an ultra-wide panel each ticker/coin is one line
+  (name, price and the day's change together), the whole watchlist on one page,
+  instead of paging or stacking.
+- **Sun Times, Tides, Metals, Exchange Rates** — centre their columns (or lay
+  several across the width) instead of stranding a label and its value at opposite
+  edges.
+- **BTC Fear & Greed** and **Aurora** — draw a full-width gauge bar, filled to the
+  value and coloured by the zone, so it reads from across the room.
+- **Metro** — shows where each direction actually goes ("Forest Hills") instead of
+  the cryptic "Dir0 / Dir1".
+- **BirdNET** — spells species names out in full ("Northern Cardinal") when there
+  is room.
+- **Planes Overhead** — a one-aircraft-per-line table on a wide wall (dropping
+  fields to fit, or wrapping while still packing several aircraft to a page); the
+  route (from → to) from the keyed providers; on/off switches for each field; and
+  it now uses your global location.
+- **Dashboard** and other flap apps — pack a dense, full-width page on a tall wall.
+
+**Clocks and settings.**
+
+- **Art Clock** — a Clock Format setting (Auto / 12-hour / 24-hour). On Auto it
+  shows AM/PM — drawn in colour flaps like the digits — on an English wall, and
+  24-hour elsewhere.
+- **Stocks** — a Refresh Frequency setting, plus an option to pause polling when a
+  market is closed (judged per the exchange's own timezone).
+- **Settings** — a "Use my location" button fills the precise-location field from
+  your phone's GPS in one tap, storing the exact coordinates the location apps need.
+
+**Fixes.** The Planes table columns no longer drift when a row's last field is
+shorter; the Time app no longer drops the whole hour (showing ":30") during the
+midnight hour on a 24-hour wall.
+
 ## 2.6.0
 
 The 2.6.0 line, gathered into a stable release. Everything below shipped and

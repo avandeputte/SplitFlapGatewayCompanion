@@ -2,7 +2,7 @@
   "id": "canvas-overview",
   "name": "Overview",
   "icon": "📊",
-  "description": "A drawn dashboard for a Matrix panel — a big clock, the date, and a weather column (temperature, condition, today's high/low, feels-like, humidity, wind), sized to fill the panel",
+  "description": "A clock, date and weather dashboard (Matrix panel)",
   "type": "functional",
   "surface": "canvas",
   "refresh_interval": 1,

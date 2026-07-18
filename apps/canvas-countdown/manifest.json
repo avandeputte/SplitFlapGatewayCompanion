@@ -2,7 +2,7 @@
   "id": "canvas-countdown",
   "name": "Countdown Bars",
   "icon": "⏳",
-  "description": "The remaining time as full-width draining bars — Days, Hours, Minutes and Seconds (plus Years when far off), each a no-gap bar with the value and label inside it. A canvas countdown for Matrix panels.",
+  "description": "A countdown as full-width colour bars (Matrix panel)",
   "type": "functional",
   "surface": "canvas",
   "refresh_interval": 1,

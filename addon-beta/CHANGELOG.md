@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.0
+
+The 2.7.0 line promoted to a stable release — see the stable
+add-on changelog for the full summary. Only the (over-long) Matrix
+app descriptions were trimmed since beta.12.
+
 ## 2.7.0-beta.12
 
 - **Time** — fixed the clock showing `:30` instead of `0:30` during the midnight

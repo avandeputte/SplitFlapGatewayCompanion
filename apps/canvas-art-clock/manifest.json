@@ -2,7 +2,7 @@
   "id": "canvas-art-clock",
   "name": "Lumina Clock",
   "icon": "🕰️",
-  "description": "The time as luminous colour — big anti-aliased digits with a gradient, glow, flowing aurora or minimal fill, in curated palettes. A canvas clock for Matrix panels.",
+  "description": "The time as luminous colour digits (Matrix panel)",
   "type": "functional",
   "surface": "canvas",
   "refresh_interval": 1,

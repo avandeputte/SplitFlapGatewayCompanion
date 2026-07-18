@@ -2,7 +2,7 @@
   "id": "canvas-weather",
   "name": "Weather Sky",
   "icon": "🌦️",
-  "description": "The weather as a picture — an animated sky (sun, clouds, drifting rain, falling snow, storms) with the temperature, drawn on a Matrix panel",
+  "description": "A colourful animated weather sky (Matrix panel)",
   "type": "functional",
   "surface": "canvas",
   "refresh_interval": 1,
