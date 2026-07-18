@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.7.1
+
+- **Image** — fixed the **Fit** mode (letterbox the whole picture into the panel).
+  It was crashing internally and falling back to the demo gradient, so only **Fill**
+  worked. Both fit modes work now. (This bug was present since the app shipped.)
+- **Moon Phase** — no longer abbreviates "5 Days" to "5D" on a wide wall; it spells
+  the day unit out wherever there is room, abbreviating only where there isn't.
+
 ## 2.7.0
 
 The 2.7.0 line, gathered into a stable release. Everything below shipped and

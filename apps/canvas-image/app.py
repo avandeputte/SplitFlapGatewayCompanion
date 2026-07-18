@@ -21,11 +21,14 @@ def _demo(Image, w, h):
 
 
 def _fit(img, w, h, mode):
+    from PIL import Image
     iw, ih = img.size
     if mode == "contain":
         scale = min(w / iw, h / ih)
         img = img.resize((max(1, int(iw * scale)), max(1, int(ih * scale))))
-        canvas_img = img.__class__.new("RGB", (w, h), (0, 0, 0))
+        # Image.new is a module function, not a method of the Image CLASS —
+        # img.__class__.new raised AttributeError, so "Fit" fell back to the demo.
+        canvas_img = Image.new("RGB", (w, h), (0, 0, 0))
         canvas_img.paste(img, ((w - img.size[0]) // 2, (h - img.size[1]) // 2))
         return canvas_img
     # cover: scale to fill, centre-crop

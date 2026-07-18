@@ -40,6 +40,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
     cols = get_cols()
 
+    # "Full in 5 Days" where there's room, "Full in 5D" only where there isn't — a wide
+    # Matrix wall has no reason to abbreviate. Both the full word and the compact suffix
+    # are localized (the time domain: Days->Jours/Tage, D->J/T).
+    def days_line(label, n):
+        n = int(n)
+        full = f'{t(label)} {n} {u("Days")}'
+        return full if len(full) <= cols else f'{t(label)} {n}{u("D")}'
+
     # Visual bar: colour tiles render everywhere — yellow pixels on a matrix wall,
     # the yellow colour FLAP on a physical one, where a literal 'w' was just the
     # letter W repeated across the row.
@@ -51,12 +59,12 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         # Everything is already computed; a 3-row wall just couldn't show it at once.
         return [
             format_lines(name, bar, f'{illum_pct}% {t("Lit")}',
-                         f'{t("Full in")} {int(days_to_full)}{u("D")}',
-                         f'{t("New in")} {int(days_to_new)}{u("D")}'),
+                         days_line("Full in", days_to_full),
+                         days_line("New in", days_to_new)),
         ]
     pages = [
-        format_lines(name, f'{illum_pct}% {t("Lit")}', f'{t("Full in")} {int(days_to_full)}{u("D")}'),
-        format_lines(name, bar, f'{t("New in")} {int(days_to_new)}{u("D")}'),
+        format_lines(name, f'{illum_pct}% {t("Lit")}', days_line("Full in", days_to_full)),
+        format_lines(name, bar, days_line("New in", days_to_new)),
     ]
     return pages
 

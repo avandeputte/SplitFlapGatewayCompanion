@@ -380,6 +380,20 @@ def test_new_canvas_apps_are_none_without_a_panel(app_id):
     assert _load(app_id).fetch({}, None, None, None, canvas=None) is None
 
 
+def test_canvas_image_both_fit_modes_produce_a_frame():
+    """Regression: 'Fit' (contain) called img.__class__.new — not a real method, so it
+    raised AttributeError and fell back to the demo gradient. Both modes must return a
+    panel-sized frame: contain letterboxes (black border), cover fills to the edges."""
+    from PIL import Image
+    fit = _load("canvas-image")._fit
+    img = Image.new("RGB", (200, 50), (255, 0, 0))     # wide image onto a square panel
+    contained = fit(img, 64, 64, "contain")
+    covered = fit(img, 64, 64, "cover")
+    assert contained.size == (64, 64) and covered.size == (64, 64)
+    assert contained.getpixel((0, 0)) == (0, 0, 0)     # letterbox corner is black
+    assert covered.getpixel((0, 0)) == (255, 0, 0)     # cover fills, no border
+
+
 def test_countdown_arrived_and_no_target_do_not_crash(gw_calls):
     app = _load("canvas-countdown")
     for settings in ({"countdown_event": "Party", "countdown_target": "2000-01-01T00:00"},  # past
