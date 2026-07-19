@@ -83,14 +83,24 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
  * glyphs stop being legible, so the board scrolls instead (overflow-x). */
 .board {
   --gap: 4px;
-  --flap: clamp(14px,
-                calc((100vw - var(--board-chrome) - (var(--cols, 15) - 1) * var(--gap)) / var(--cols, 15)),
+  /* Size the flaps so the WHOLE board fits the same ~640px footprint as the canvas
+     preview (.canvas-preview), so switching between a canvas app and the flap grid does
+     not jump in size. Each flap fills its share of that width (min(viewport, 620px)),
+     still capped at 34px so a narrow wall's flaps don't balloon. */
+  --flap: clamp(12px,
+                calc((min(100vw - var(--board-chrome), 620px) - (var(--cols, 15) - 1) * var(--gap)) / var(--cols, 15)),
                 34px);
   display: grid;
   grid-template-columns: repeat(var(--cols, 15), var(--flap));
   gap: var(--gap); justify-content: center;
-  width: fit-content; max-width: 100%; margin-inline: auto;
+  width: fit-content; max-width: min(100%, 642px); margin-inline: auto;
   overflow-x: auto; padding: 10px; background: #1a1a1a; border-radius: 10px; border: 1px solid #333;
+}
+/* How the live preview is being fed — SSE stream, fallback poll, or local (sim). Tiny and
+   muted, directly under the board, so it never competes with the display itself. */
+.preview-src {
+  margin: 6px auto 0; text-align: center;
+  font-size: 11px; letter-spacing: .04em; color: var(--muted, #888); opacity: .8;
 }
 /* A canvas app's live frame (a Matrix panel), shown in place of the flap board.
    Native res is tiny (e.g. 128×32) — upscale it crisp and frame it like the board. */

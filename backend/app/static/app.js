@@ -194,6 +194,16 @@ function stopCanvasRefresh() {
   if (CANVAS_TIMER) { clearInterval(CANVAS_TIMER); CANVAS_TIMER = null; }
 }
 
+// The tiny "how is the preview being fed" line under the board: the live SSE stream, the
+// fallback poll, or "local" when the wall is simulated (no gateway). Diffed — this runs on
+// every frame.
+function setPreviewSrc(mode) {
+  const el = $("previewSrc");
+  if (!el) return;
+  const txt = t("Updates: %s", mode);
+  if (el.textContent !== txt) el.textContent = txt;
+}
+
 // Paint the preview from one state document — whether it arrived over the stream or a
 // fallback poll. Idempotent (a diff-render), so applying the same state twice is harmless.
 let APPLY_BUSY = false;          // guards the rare async re-boot when the grid resizes under us
@@ -201,6 +211,7 @@ async function applyState(st, disp) {
   if (disp !== DISPLAY) return;                             // stale: for a wall we've left
   const tr = st.transport || {};
   setBadge(!(tr.connected || tr.type === "sim"));
+  setPreviewSrc(tr.type === "sim" ? "local" : (ES_LIVE ? "SSE" : "poll"));
   const board = $("preview");
   // The wall can change shape under us: the gateway may have been unreachable at boot, or
   // its Display Layout edited since. Re-read the geometry rather than reusing a stale
@@ -685,6 +696,19 @@ function closeModal() {
 function normOpts(options) {
   return (options || []).map((o) => (typeof o === "object" ? o : { value: o, label: String(o) }));
 }
+// Append this wall's stored animations (firmware 2.1 library, GET /api/panel/library) to a
+// select. Best-effort: a non-Matrix or older wall returns none and the field keeps just its
+// manifest options. Re-selects the saved value once its option exists.
+async function fillAnimLibrary(sel, current) {
+  try {
+    const lib = await api("/api/panel/library");
+    ((lib && lib.anims) || []).forEach((name) => {
+      if ([...sel.options].some((o) => o.value === name)) return;      // never duplicate
+      const op = el("option"); op.value = name; op.textContent = name; sel.appendChild(op);
+    });
+    if (current != null && current !== "") sel.value = current;
+  } catch (e) { /* no library here — the manifest's fallback option stands */ }
+}
 function chipLabel(v) { return String(v).includes("|") ? String(v).split("|").pop() : v; }
 
 const COMPUTES = {
@@ -785,6 +809,10 @@ function buildForm(schema, initial, { skip } = {}) {
       wrap.appendChild(sel);
       wrap._getValue = () => sel.value;
       wrap._setValue = (v) => { sel.value = v; };
+      // A select fed by the LIVE wall: append the animations stored on the gateway
+      // (GET /api/panel/library). The manifest options stay as the leading fallback,
+      // so an empty/older/non-Matrix wall still has its "none" choice.
+      if (f.options_source === "anim_library") fillAnimLibrary(sel, val);
     }
   } else if (f.type === "textarea") {
     const ta = el("textarea"); ta.rows = 3; ta.value = val ?? "";

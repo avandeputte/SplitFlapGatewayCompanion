@@ -162,6 +162,22 @@ def test_conditional_headers_are_not_forwarded(client):
     assert not any(k.lower() == "if-none-match" for k in sent)
 
 
+def test_long_browser_headers_are_not_forwarded_to_the_gateway(client):
+    """The gateway's esp_http_server (firmware 3.0) has small header buffers and 431s on a
+    big Cookie or a long ingress Referer. Only a short whitelist reaches it; the body's
+    content type still does (the gateway needs it to parse a POST)."""
+    c, fake = client()
+    c.post("/gw/api/config", content=b"{}", headers={
+        "Cookie": "ingress_session=" + "z" * 900,
+        "Referer": "https://ha.example/api/hassio_ingress/" + "t" * 400 + "/gw/",
+        "User-Agent": "Mozilla/5.0 " + "x" * 300,
+        "Content-Type": "application/json",
+    })
+    sent = {k.lower() for k in fake.requested[0][2]}
+    assert "cookie" not in sent and "referer" not in sent and "user-agent" not in sent
+    assert "content-type" in sent          # the one the gateway actually needs
+
+
 def test_an_unreachable_gateway_is_a_502_not_a_crash(client, monkeypatch):
     class Boom(_FakeGateway):
         async def request(self, *a, **kw):

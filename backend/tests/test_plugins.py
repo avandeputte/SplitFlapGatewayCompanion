@@ -160,6 +160,17 @@ def test_noncatalog_setting_is_per_app(tmp_path):
     assert "anim_style" not in fields   # not the bare/shared key
 
 
+def test_canvas_anim_offers_a_gateway_library_picker(tmp_path):
+    """The Animation app can play an animation already stored on the gateway: its
+    library_anim field carries options_source through to the client (which fills the
+    dropdown from GET /api/panel/library) and keeps the manifest's 'none' fallback."""
+    rt = _runtime(tmp_path, ["canvas-anim"])
+    fields = {f["key"]: f for f in rt.settings_schema("canvas-anim")["fields"]}
+    lib = fields["plugin_canvas-anim_library_anim"]
+    assert lib["options_source"] == "anim_library"     # passed through, so the client fills it
+    assert lib["options"][0]["value"] == ""            # the "none, use a GIF" fallback survives
+
+
 def test_app_dialog_infers_undeclared_perapp_setting(tmp_path):
     """A dropped-in app that READS a setting it never declares gets it surfaced as
     an inferred per-app field, typed from the default it's read with. (No vendored

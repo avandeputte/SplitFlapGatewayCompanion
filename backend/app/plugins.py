@@ -39,6 +39,10 @@ _PASSTHROUGH = (
     "size", "ph", "min", "max", "step", "stepper", "searchUrl", "resultKey",
     "maxItems", "compute", "watches", "variant", "title", "text", "items",
     "icon", "linkText", "linkHref", "default", "note",
+    # A select whose options come from the LIVE wall rather than the manifest. "effects"
+    # is resolved server-side (_dynamic_options); "anim_library" is filled in the browser
+    # from GET /api/panel/library, so the field must carry the source to the client.
+    "options_source",
 )
 
 

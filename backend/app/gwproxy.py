@@ -147,12 +147,18 @@ def build(displays) -> APIRouter:
         base, companion = _bases(request, display_id)
         target = f"{gw}/{path.lstrip('/')}"
         body = await request.body()
-        # Drop the conditional headers: we rewrite the page, so the gateway's ETag is not
-        # an ETag for what we return, and a 304 would hand the browser an un-rewritten copy
-        # from its cache. Host/accept-encoding are ours to set, not to forward.
-        skip = {"host", "accept-encoding", "if-none-match", "if-modified-since",
-                "content-length", "connection"}
-        headers = {k: v for k, v in request.headers.items() if k.lower() not in skip}
+        # Forward only the few short headers an ESP32 web server actually needs, as a
+        # WHITELIST — not a blacklist. The gateway's HTTP server (ESP-IDF esp_http_server,
+        # firmware 3.0) has small per-request header buffers and answers 431 "Header fields
+        # are too long" to anything larger; a browser request — especially through Home
+        # Assistant ingress — carries a big Cookie and a long Referer that blow straight
+        # past that. So we pass the body's content type, content negotiation, and byte
+        # ranges (all short) and drop everything else, which is either ours to set
+        # (host / accept-encoding / content-length) or irrelevant to the gateway (cookies,
+        # referer, user-agent, the ingress and forwarded-for families). Conditional headers
+        # go too: we rewrite the page, so the gateway's ETag doesn't match what we return.
+        keep = {"content-type", "accept", "range"}
+        headers = {k: v for k, v in request.headers.items() if k.lower() in keep}
 
         try:
             r = await client.request(request.method, target, params=request.query_params,

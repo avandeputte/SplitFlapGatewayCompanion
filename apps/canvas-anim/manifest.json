@@ -10,6 +10,17 @@
   "category": "fun",
   "settings": [
     {
+      "key": "library_anim",
+      "label": "Gateway animation",
+      "type": "select",
+      "options_source": "anim_library",
+      "default": "",
+      "options": [
+        {"value": "", "label": "— none (play a GIF below) —"}
+      ],
+      "note": "Play an animation already stored on the Matrix gateway. Takes priority over the GIF URL."
+    },
+    {
       "key": "gif_url",
       "label": "GIF URL",
       "type": "text",

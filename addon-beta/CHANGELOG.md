@@ -3,6 +3,22 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.6
+
+- **Fix — the gateway's Display / Files / Settings / Status tabs no longer error with "Header
+  fields are too long."** The gateway's HTTP server (firmware 3.0) has small header buffers, and
+  the proxy was forwarding the browser's full headers — including a big cookie and the long
+  ingress `Referer` — which overflowed them. It now forwards only the short handful the gateway
+  actually needs.
+- **The live preview shows how it's being fed** — a tiny line under it reads `Updates: SSE`,
+  `poll`, or `local`, so you can tell at a glance whether the near-real-time stream is running.
+- **The flap preview no longer jumps in size when a canvas app starts or stops.** The split-flap
+  grid is now sized to the same footprint as the canvas preview, so switching between them is
+  smooth instead of a big resize.
+- **The Animation app can play an animation already stored on the gateway.** Its settings now
+  offer a *Gateway animation* picker listing the panel's saved animation library (firmware 2.1);
+  pick one and it plays on-device, no GIF needed. Leave it on "none" to use a GIF URL as before.
+
 ## 2.9.0-beta.5
 
 - **The live-preview stream is attempted behind Home Assistant ingress too.** beta.4 played it

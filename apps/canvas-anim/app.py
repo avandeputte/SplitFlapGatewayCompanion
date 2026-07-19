@@ -53,6 +53,14 @@ def _load(url, w, h, mode):
 def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     if canvas is None:
         return None
+
+    # A stored gateway animation is the first choice: it already lives on the panel (saved to
+    # its library, firmware 2.1), so we just tell it to play — nothing is fetched or uploaded.
+    lib = str(settings.get("library_anim", "") or "").strip()
+    if lib and getattr(canvas, "can_anim_library", False):
+        if canvas.play_anim(lib).get("ok"):
+            return 3600.0                                        # loops on-device; nothing to do
+
     url = str(settings.get("gif_url", "") or "").strip()
     mode = "contain" if str(settings.get("fit", "cover")).lower() == "contain" else "cover"
     if not url:
