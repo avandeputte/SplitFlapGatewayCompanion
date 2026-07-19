@@ -45,6 +45,18 @@ _PASSTHROUGH = (
     "options_source",
 )
 
+# Friendly name + icon per on-device effect, for the one-app-per-effect split. An effect a
+# future firmware adds still gets an app, named from its own token.
+_EFFECT_META = {
+    "plasma": ("Plasma", "🌀"), "fire": ("Fire", "🔥"), "matrix": ("Matrix Rain", "💚"),
+    "fliporama": ("Flip-o-rama", "🎞️"), "clock": ("Panel Clock", "🕛"),
+    "life": ("Game of Life", "🦠"), "rainbow": ("Rainbow", "🌈"),
+}
+
+
+def _effect_name_icon(token: str):
+    return _EFFECT_META.get(token, (token.replace("_", " ").title(), "🎆"))
+
 
 # A channel app's translated page set: data_fr.json, data_pt-BR.json. The default
 # (untranslated) pages stay in data.json, which is also the fallback.
@@ -286,8 +298,24 @@ class PluginRuntime:
         self._migrate_renamed_apps()
         enabled = set(self.settings.installed_apps)
         for app_id, app_dir in scan.items():
+            if app_id == "effects":
+                continue                          # a template for the per-effect apps (below)
             if app_id in enabled:
                 self._load_one(app_id, app_dir)
+        # The "Effects" app is presented as ONE app per effect the wall advertises (Plasma,
+        # Fire, Matrix Rain…), all sharing its module. Load that module once, then register a
+        # thin per-effect entry for each installed one.
+        eff_dir = scan.get("effects")
+        if eff_dir and self._effect_defs():
+            self._load_one("effects", eff_dir)    # loads the shared module (and a temp entry)
+            eff_mod = self._modules.get("effects")
+            eff_wants = self._wants.get("effects", frozenset())
+            self._registry.pop("effects", None)   # the generic app itself is never listed
+            for effect_id, token in self._effect_defs():
+                if effect_id in enabled and eff_mod is not None:
+                    self._registry[effect_id] = self._effect_manifest(effect_id, token)
+                    self._modules[effect_id] = eff_mod
+                    self._wants[effect_id] = eff_wants
         # Multi-value settings (search_chips) are stored as JSON arrays on disk.
         self.settings.set_list_keys(self._list_keys())
 
@@ -725,6 +753,10 @@ class PluginRuntime:
                     if parts["location_name"]:
                         s["location_name"] = parts["location_name"]
                     s["location"] = loc_ovr
+        # A per-effect app pins its effect (there is no picker): hand the shared effects
+        # module the effect its id stands for.
+        if manifest.get("pinned_effect"):
+            s["effect"] = manifest["pinned_effect"]
         return s
 
     def _refresh_secs(self, app_id: str, manifest: dict, settings=None) -> int:
@@ -1028,11 +1060,42 @@ class PluginRuntime:
         out.sort(key=lambda a: a["name"].lower())
         return out
 
+    def _effect_defs(self) -> list[tuple[str, str]]:
+        """``(effect_id, token)`` for each on-device effect THIS wall advertises — one app
+        each. Empty on a wall with no effects (a physical wall, or caps not yet known) or
+        when the ``effects`` template app isn't on disk."""
+        if "effects" not in self._scan():
+            return []
+        try:
+            effects = list(self._caps().effects)
+        except Exception:
+            effects = []
+        return [(f"effect_{e}", e) for e in effects if e]
+
+    def _effect_manifest(self, effect_id: str, token: str) -> dict:
+        """A per-effect app's manifest, derived from the shared ``effects`` manifest: the
+        effect PICKER is dropped (the app IS one effect, pinned via ``pinned_effect``), the
+        speed/hue/density knobs stay."""
+        d = self._scan().get("effects")
+        tmpl = dict(_read_json_cached(d / "manifest.json")) if d else {}
+        name, icon = _effect_name_icon(token)
+        m = dict(tmpl)
+        m["id"] = effect_id
+        m["name"] = name
+        m["icon"] = icon
+        m["description"] = f"The {name} effect, rendered on the panel itself"
+        m["pinned_effect"] = token
+        m["settings"] = [s for s in tmpl.get("settings", []) if s.get("key") != "effect"]
+        return m
+
     def available_list(self, lang=None) -> list[dict]:
-        """Every app on disk, with an ``installed`` flag (for the library)."""
+        """Every app on disk, with an ``installed`` flag (for the library). The generic
+        ``effects`` app is replaced by one entry per effect the wall advertises."""
         enabled = set(self.settings.installed_apps)
         out = []
         for app_id, app_dir in self._scan().items():
+            if app_id == "effects":
+                continue
             manifest = self._registry.get(app_id)
             if manifest is None:
                 manifest = dict(_read_json_cached(app_dir / "manifest.json"))
@@ -1041,6 +1104,9 @@ class PluginRuntime:
             out.append(self._entry(app_id, manifest, app_id in enabled,
                                    app_dir.parent == self.apps_dir,
                                    lang=lang, app_dir=app_dir))
+        for effect_id, token in self._effect_defs():
+            out.append(self._entry(effect_id, self._effect_manifest(effect_id, token),
+                                   effect_id in enabled, True, lang=lang, app_dir=None))
         out.sort(key=lambda a: a["name"].lower())
         return out
 

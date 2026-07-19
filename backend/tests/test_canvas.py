@@ -105,15 +105,15 @@ def test_engine_takes_over_and_releases_the_panel(gw_calls, tmp_path):
         cfg.update({"transport": {"gateway_url": "http://gw"}})
         ctl = DisplayController(cfg, DisplayState(45))
         ps = PluginSettings(tmp_path)
-        ps.set_installed(["effects", "time"])
+        ps.set_installed(["effect_plasma", "time"])
         rt = PluginRuntime(cfg, ps, __import__("pathlib").Path(__file__).resolve().parents[2] / "apps")
-        rt.load()
         caps = device.from_capabilities(CANVAS_DOC)
-        rt.attach_caps(lambda: caps)
+        rt.attach_caps(lambda: caps)            # before load: the per-effect apps synthesize from caps
+        rt.load()
         ctl.attach_plugins(rt)
         await ctl.start()
 
-        await ctl.run_app("effects")            # a canvas app
+        await ctl.run_app("effect_plasma")      # a canvas (effect) app
         await asyncio.sleep(0.25)
         assert ctl._canvas_active
         paths = [p for _, p, _, _ in gw_calls]
@@ -151,14 +151,14 @@ def test_effect_in_a_playlist_is_released_when_its_slot_ends(gw_calls, tmp_path)
         cfg.update({"transport": {"gateway_url": "http://gw"}})
         ctl = DisplayController(cfg, DisplayState(45))
         ps = PluginSettings(tmp_path)
-        ps.set_installed(["effects", "time"])
+        ps.set_installed(["effect_plasma", "time"])
         rt = PluginRuntime(cfg, ps, Path(__file__).resolve().parents[2] / "apps")
-        rt.load()
         rt.attach_caps(lambda: device.from_capabilities(CANVAS_DOC))
+        rt.load()
         ctl.attach_plugins(rt)
         await ctl.start()
 
-        await ctl.run_playlist([{"type": "app", "app": "effects", "duration": 0.25},
+        await ctl.run_playlist([{"type": "app", "app": "effect_plasma", "duration": 0.25},
                                 {"type": "app", "app": "time", "duration": 0.25}], loop=False)
         await asyncio.sleep(0.7)                 # effect slot -> release -> flap slot
 
@@ -180,14 +180,14 @@ def test_a_canvas_app_will_not_run_on_a_non_canvas_wall(tmp_path):
     async def run():
         ctl = DisplayController(Config(data_dir=tmp_path), DisplayState(45))
         ps = PluginSettings(tmp_path)
-        ps.set_installed(["effects"])
+        ps.set_installed(["canvas-art-clock"])
         rt = PluginRuntime(Config(data_dir=tmp_path), ps,
                            __import__("pathlib").Path(__file__).resolve().parents[2] / "apps")
-        rt.load()
         rt.attach_caps(lambda: device.SPLIT_FLAP)   # a physical wall: no canvas
+        rt.load()
         ctl.attach_plugins(rt)
         with pytest.raises(KeyError):
-            await ctl.run_app("effects")
+            await ctl.run_app("canvas-art-clock")
 
     asyncio.run(run())
 
@@ -522,27 +522,34 @@ def test_countdown_arrived_and_no_target_do_not_crash(gw_calls):
 
 # --- the effect picker is driven by what the wall advertises ----------------
 
-def _effect_field(schema):
-    return next(f for f in schema["fields"]
-                if any(isinstance(o, dict) and o.get("value") == "plasma"
-                       for o in (f.get("options") or [])))
-
-
-def test_effects_picker_offers_the_walls_advertised_effects(tmp_path):
+def test_effects_become_one_app_per_advertised_effect(tmp_path):
+    """The single 'Effects' app is presented as one app per effect the WALL advertises,
+    named from the effect; the generic app itself is not listed."""
     from conftest import make_runtime
     caps = device.from_capabilities(dict(CANVAS_DOC, effects=["plasma", "fire", "matrix", "sparkle"]))
-    rt = make_runtime(tmp_path=tmp_path, installed=["effects"], caps=caps)
-    field = _effect_field(rt.settings_schema("effects"))
-    labels = {o["value"]: o["label"] for o in field["options"]}
-    assert list(labels) == ["plasma", "fire", "matrix", "sparkle"]   # from the wall, not the manifest
-    assert labels["sparkle"] == "Sparkle"                            # a new firmware effect, auto-labelled
+    rt = make_runtime(tmp_path=tmp_path, installed=[], caps=caps)
+    apps = {a["id"]: a for a in rt.available_list()}
+    assert "effects" not in apps
+    assert {"effect_plasma", "effect_fire", "effect_matrix", "effect_sparkle"} <= set(apps)
+    assert apps["effect_sparkle"]["name"] == "Sparkle"       # a new firmware effect, auto-named
+    assert apps["effect_fire"]["surface"] == "canvas"
 
 
-def test_effects_picker_falls_back_where_the_wall_advertises_none(tmp_path):
+def test_no_effect_apps_on_a_wall_without_effects(tmp_path):
     from conftest import make_runtime
-    rt = make_runtime(tmp_path=tmp_path, installed=["effects"], caps=device.SPLIT_FLAP)
-    field = _effect_field(rt.settings_schema("effects"))
-    assert [o["value"] for o in field["options"]] == ["plasma", "fire", "matrix"]   # the manifest's own
+    rt = make_runtime(tmp_path=tmp_path, installed=[], caps=device.SPLIT_FLAP)
+    ids = {a["id"] for a in rt.available_list()}
+    assert "effects" not in ids and not any(i.startswith("effect_") for i in ids)
+
+
+def test_a_per_effect_app_pins_its_effect(tmp_path):
+    """Each per-effect app hands the shared effects module its own effect (no picker)."""
+    from conftest import make_runtime
+    rt = make_runtime(tmp_path=tmp_path, installed=["effect_fire"], caps=device.from_capabilities(CANVAS_DOC))
+    ps = rt._plugin_settings("effect_fire", rt.manifest("effect_fire"))
+    assert ps["effect"] == "fire"
+    keys = {f.get("key") for f in rt.settings_schema("effect_fire")["fields"]}
+    assert "plugin_effect_fire_effect" not in keys           # the effect picker is gone
 
 
 # --- the live-preview / HA-image canvas frame cache -------------------------
@@ -605,10 +612,10 @@ def test_leaving_a_canvas_app_forgets_the_flap_cache(gw_calls, tmp_path):
         cfg.update({"transport": {"gateway_url": "http://gw"}})
         ctl = DisplayController(cfg, DisplayState(45))
         ps = PluginSettings(tmp_path)
-        ps.set_installed(["effects", "time"])
+        ps.set_installed(["effect_plasma", "time"])
         rt = PluginRuntime(cfg, ps, Path(__file__).resolve().parents[2] / "apps")
-        rt.load()
         rt.attach_caps(lambda: device.from_capabilities(CANVAS_DOC))
+        rt.load()
         ctl.attach_plugins(rt)
         await ctl.start()
 
@@ -616,7 +623,7 @@ def test_leaving_a_canvas_app_forgets_the_flap_cache(gw_calls, tmp_path):
         real = ctl.transport.forget
         ctl.transport.forget = lambda: (forgot.append(True), real())[1]
 
-        await ctl.run_app("effects")            # a canvas app takes the panel over
+        await ctl.run_app("effect_plasma")      # a canvas (effect) app takes the panel over
         await asyncio.sleep(0.2)
         assert ctl._canvas_active
         await ctl.run_app("time")               # switch back to a flap app

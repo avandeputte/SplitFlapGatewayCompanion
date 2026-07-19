@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.12
+
+- **Effects are now one app per effect.** Instead of a single "Effects" app with an effect
+  picker, the library offers one app for each effect your wall advertises — Plasma, Fire,
+  Matrix Rain, Flip-o-rama, Panel Clock, Game of Life — each with the speed/hue/density knobs.
+  Add just the ones you want; they schedule and playlist like any app. (An effect a future
+  firmware adds appears automatically, named from the effect.)
+
 ## 2.9.0-beta.11
 
 Fixes for the two new canvas apps on a real panel:

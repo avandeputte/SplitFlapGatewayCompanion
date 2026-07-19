@@ -50,6 +50,8 @@ def test_every_app_loads(tmp_path):
 
     failures = []
     for app_id in all_ids:
+        if app_id == "effects":
+            continue          # a template for the per-effect apps (see test_canvas), never listed itself
         manifest = rt.manifest(app_id)
         if manifest is None:
             failures.append(f"{app_id}: manifest missing/failed")
