@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.10
+
+- **New app — Weather Panel.** Current conditions drawn on the panel with draw-ops and a sprite
+  atlas: a gradient sky, a condition icon (sun / moon / cloud / rain / snow / storm / fog), a big
+  temperature, and a 3-day strip. Adapts to small panels. Uses your configured weather location.
+
 ## 2.9.0-beta.9
 
 - **New app — Aquarium.** A canvas app for the Matrix panel drawn entirely with on-device
