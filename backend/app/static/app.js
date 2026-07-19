@@ -714,6 +714,25 @@ async function fillAnimLibrary(sel, current) {
 }
 function chipLabel(v) { return String(v).includes("|") ? String(v).split("|").pop() : v; }
 
+// entity_table <-> the app's `entity_id | Name | low,high` config (one line per row).
+function parseEntityRows(val) {
+  return String(val || "").split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
+    const parts = line.split("|").map((p) => p.trim());
+    let low = "", high = "";
+    if (parts[2]) { const n = parts[2].split(",").map((x) => x.trim()); if (n.length === 2) { low = n[0]; high = n[1]; } }
+    return { eid: parts[0], name: parts[1] || "", low, high };
+  }).filter((r) => r.eid);
+}
+function serializeEntityRows(rows) {
+  return rows.map((r) => {
+    const hasThr = r.low !== "" && r.high !== "";
+    let line = r.eid;
+    if (r.name || hasThr) line += " | " + (r.name || "");
+    if (hasThr) line += " | " + r.low + "," + r.high;
+    return line;
+  }).join("\n");
+}
+
 const COMPUTES = {
   polling_usage_estimate(cur) {
     const k = Object.keys(cur).find((x) => x.endsWith("polling_rate"));
@@ -821,6 +840,81 @@ function buildForm(schema, initial, { skip } = {}) {
     const ta = el("textarea"); ta.rows = 3; ta.value = val ?? "";
     ta.addEventListener("input", onFormChange); wrap.appendChild(ta);
     wrap._getValue = () => ta.value; wrap._setValue = (v) => { ta.value = v; };
+  } else if (f.type === "entity_table") {
+    // A table of entities: reorder, rename, and set numeric thresholds in one place.
+    // Serialises to the app's `entity_id | Name | low,high` config (one line per row, in order).
+    let rows = parseEntityRows(val);
+    const box = el("div", "entity-table");
+    const head = el("div", "et-head");
+    ["", t("Entity"), t("Name"), t("Low"), t("High"), ""].forEach((h) => { const c = el("div"); c.textContent = h; head.appendChild(c); });
+    const body = el("div", "et-rows");
+    const swap = (i, j) => { [rows[i], rows[j]] = [rows[j], rows[i]]; draw(); onFormChange(); };
+    const draw = () => {
+      body.innerHTML = "";
+      if (!rows.length) { const em = el("div", "et-empty"); em.textContent = t("No entities yet — search below to add."); body.appendChild(em); return; }
+      rows.forEach((r, i) => {
+        const row = el("div", "et-row");
+        const ord = el("div", "et-ord");
+        const up = el("button"); up.type = "button"; up.textContent = "▲"; up.title = t("Move up"); up.disabled = i === 0;
+        up.onclick = () => swap(i, i - 1);
+        const dn = el("button"); dn.type = "button"; dn.textContent = "▼"; dn.title = t("Move down"); dn.disabled = i === rows.length - 1;
+        dn.onclick = () => swap(i, i + 1);
+        ord.appendChild(up); ord.appendChild(dn);
+        const eid = el("div", "et-eid"); eid.textContent = r.eid; eid.title = r.eid;
+        const name = el("input", "et-name"); name.value = r.name; name.placeholder = t("Name");
+        name.addEventListener("input", () => { r.name = name.value; onFormChange(); });
+        const low = el("input", "et-num"); low.type = "number"; low.value = r.low; low.placeholder = t("Low");
+        low.addEventListener("input", () => { r.low = low.value; onFormChange(); });
+        const high = el("input", "et-num"); high.type = "number"; high.value = r.high; high.placeholder = t("High");
+        high.addEventListener("input", () => { r.high = high.value; onFormChange(); });
+        const del = el("button", "et-del"); del.type = "button"; del.textContent = "✕"; del.title = t("Remove");
+        del.onclick = () => { rows.splice(i, 1); draw(); onFormChange(); };
+        row.append(ord, eid, name, low, high, del);
+        body.appendChild(row);
+      });
+    };
+    box.appendChild(head); box.appendChild(body);
+    // Add entities: the same search-and-pick the chip picker uses, results in a floating overlay.
+    const searchBox = el("div", "chip-search");
+    const search = el("input"); search.placeholder = t("Search…");
+    const results = el("div", "chip-results"); results.style.display = "none";
+    const placeResults = () => {
+      const rc = search.getBoundingClientRect();
+      results.style.left = rc.left + "px"; results.style.top = rc.bottom + 2 + "px"; results.style.width = rc.width + "px";
+    };
+    const onReposition = () => placeResults();
+    const showResults = () => { results.style.display = ""; placeResults(); window.addEventListener("scroll", onReposition, true); window.addEventListener("resize", onReposition); };
+    const hideResults = () => { results.style.display = "none"; window.removeEventListener("scroll", onReposition, true); window.removeEventListener("resize", onReposition); };
+    let timer;
+    search.addEventListener("input", () => {
+      clearTimeout(timer); const q = search.value.trim();
+      if (!q) { hideResults(); return; }
+      timer = setTimeout(async () => {
+        try {
+          const data = await api(`${f.searchUrl}?q=${encodeURIComponent(q)}`);
+          const items = data[f.resultKey] || [];
+          results.innerHTML = "";
+          items.forEach((it) => {
+            const d = el("div"); d.textContent = it.label || it.name || it.value;
+            d.setAttribute("role", "button"); d.tabIndex = 0;
+            const pick = () => {
+              const eid = it.value ?? it.id;
+              if (eid && !rows.some((r) => r.eid === eid)) { rows.push({ eid, name: "", low: "", high: "" }); draw(); onFormChange(); }
+              search.value = ""; hideResults(); search.focus();
+            };
+            d.onclick = pick;
+            d.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+            results.appendChild(d);
+          });
+          if (items.length) showResults(); else hideResults();
+        } catch { hideResults(); }
+      }, 250);
+    });
+    search.addEventListener("blur", () => setTimeout(() => { if (!results.contains(document.activeElement)) hideResults(); }, 150));
+    searchBox.appendChild(search); searchBox.appendChild(results); box.appendChild(searchBox);
+    wrap.appendChild(box); draw();
+    wrap._getValue = () => serializeEntityRows(rows);
+    wrap._setValue = (v) => { rows = parseEntityRows(v); draw(); };
   } else if (f.type === "search_chips") {
     const box = el("div", "chip-search");
     const chipsDiv = el("div", "chips");

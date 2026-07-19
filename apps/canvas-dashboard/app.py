@@ -80,12 +80,10 @@ def _parse_config(text):
     return cfg, order
 
 
-def _entities(settings, cfg_order):
-    """Entities to show: the picker's list, then any config-only ids, in order, deduped."""
-    raw = settings.get('entities', '')
-    items = raw if isinstance(raw, list) else str(raw or '').split(',')
+def _entities(cfg_order):
+    """Entities to show, in config order, deduped and capped."""
     out = []
-    for it in list(items) + list(cfg_order):
+    for it in cfg_order:
         eid = str(it).split('|')[0].strip()
         if eid and eid not in out:
             out.append(eid)
@@ -194,7 +192,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states
     canvas.clear((0, 0, 0))                                    # black — best contrast on the panel
 
     cfg, cfg_order = _parse_config(settings.get('config', ''))
-    ids = _entities(settings, cfg_order)
+    ids = _entities(cfg_order)
     if not ids:
         _txt(canvas, W // 2, H // 2 - 5, 'Pick entities', (210, 216, 232), _face(min(13, H // 3)), align='center')
         canvas.show()

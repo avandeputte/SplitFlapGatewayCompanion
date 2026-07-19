@@ -10,20 +10,12 @@
   "category": "other",
   "settings": [
     {
-      "key": "entities",
+      "key": "config",
       "label": "Entities",
-      "type": "search_chips",
+      "type": "entity_table",
       "searchUrl": "/ha_entities",
       "resultKey": "results",
-      "maxItems": 12,
-      "note": "Pick the Home Assistant entities to show. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set."
-    },
-    {
-      "key": "config",
-      "label": "Rename / thresholds",
-      "type": "textarea",
-      "ph": "sensor.co2 | CO2 | 1000,2000\nlight.kitchen | Kitchen",
-      "note": "One entity per line: entity_id | Name | low,high. Name and thresholds are optional. A numeric value is green below low, amber between, red above high. Lines here can also add entities."
+      "note": "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value is green below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set."
     },
     {
       "key": "columns",

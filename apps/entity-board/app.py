@@ -43,12 +43,10 @@ def _parse_config(text):
     return cfg, order
 
 
-def _entities(settings, cfg_order):
-    """Entities to show: the picker's list, then any config-only ids, in order, deduped."""
-    raw = settings.get('entities', '')
-    items = raw if isinstance(raw, list) else str(raw or '').split(',')
+def _entities(cfg_order):
+    """Entities to show, in config order, deduped and capped."""
     out = []
-    for it in list(items) + list(cfg_order):
+    for it in cfg_order:
         eid = str(it).split('|')[0].strip()
         if eid and eid not in out:
             out.append(eid)
@@ -87,7 +85,7 @@ def _row(name, val, flap, cols):
 
 def fetch(settings, format_lines, get_rows, get_cols, get_ha_states=None):
     cfg, cfg_order = _parse_config(settings.get('config', ''))
-    ids = _entities(settings, cfg_order)
+    ids = _entities(cfg_order)
     if not ids:
         return [format_lines('Pick entities', 'in settings')]
 

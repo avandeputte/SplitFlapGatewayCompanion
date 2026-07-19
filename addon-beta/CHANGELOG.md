@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.18
+
+- **Dashboards: one editable table.** The HA Dashboard and Entity Board now pick entities in a
+  single table — **search to add**, **reorder** with the up/down arrows, **rename**, and set the
+  numeric **low/high thresholds** all in one place, instead of a separate chip picker plus a
+  free-text config box. The row order is the display order.
+
 ## 2.9.0-beta.17
 
 - **Fix: installing an effect from the library.** Adding a per-effect app (Plasma, Fire, Fliporama, …)

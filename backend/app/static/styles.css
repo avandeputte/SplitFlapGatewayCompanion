@@ -289,6 +289,21 @@ a.btn { text-decoration: none; display: inline-block; }
 .chip-results div:hover { background: var(--acc); }
 .gps-btn { margin-top: 6px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--acc);
   background: var(--input); color: var(--txt); cursor: pointer; font: inherit; font-size: .85rem; }
+
+/* entity_table */
+.entity-table { display: flex; flex-direction: column; gap: 6px; }
+.et-head, .et-row { display: grid; grid-template-columns: 22px minmax(0,1fr) minmax(0,1.1fr) 54px 54px 20px;
+  gap: 6px; align-items: center; }
+.et-head { font-size: .68rem; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; padding: 0 2px; }
+.et-rows { display: flex; flex-direction: column; gap: 5px; }
+.et-row input { width: 100%; padding: 4px 6px; font-size: .8rem; box-sizing: border-box; }
+.et-ord { display: flex; flex-direction: column; gap: 2px; }
+.et-ord button { padding: 0; margin: 0; line-height: 1; font-size: .55rem; height: 13px;
+  border: 1px solid var(--acc); background: var(--input); color: var(--txt); cursor: pointer; border-radius: 3px; }
+.et-ord button:disabled { opacity: .3; cursor: default; }
+.et-eid { font-size: .72rem; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.et-del { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 13px; padding: 0; margin: 0; }
+.et-empty { font-size: .8rem; color: var(--dim); padding: 6px 2px; }
 .gps-btn:hover:not(:disabled) { background: var(--acc); }
 .gps-btn:disabled { opacity: .6; cursor: default; }
 .stepper { display: inline-flex; align-items: center; gap: 6px; }
