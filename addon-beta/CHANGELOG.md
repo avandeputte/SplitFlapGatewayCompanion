@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.14
+
+- **New app — HA Dashboard.** A grid of Home Assistant entity cards on the panel: a device icon
+  (light / switch / sensor / lock / cover / climate / …), the value, and the name, coloured by
+  state. Pick entities with a **search picker** in the app's settings. Works automatically as the
+  HA add-on (via the Supervisor proxy); standalone Docker sets `COMPANION_HA_URL` +
+  `COMPANION_HA_TOKEN`.
+- **Degree signs and accents are back** in the canvas text apps (Weather Panel, Scoreboard,
+  Dashboard) now that the firmware decodes the text to CP1252 — e.g. a real `72°` again.
+
 ## 2.9.0-beta.13
 
 - **New app — Scoreboard.** Live scores on the Matrix panel with real team **badges** (each

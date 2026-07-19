@@ -1,0 +1,31 @@
+{
+  "id": "canvas-dashboard",
+  "name": "HA Dashboard",
+  "icon": "🏠",
+  "description": "A grid of Home Assistant entity cards on the Matrix panel",
+  "type": "functional",
+  "surface": "canvas",
+  "refresh_interval": 1,
+  "loop_delay": 15,
+  "category": "other",
+  "settings": [
+    {
+      "key": "entities",
+      "label": "Entities",
+      "type": "search_chips",
+      "searchUrl": "/ha_entities",
+      "resultKey": "results",
+      "maxItems": 12,
+      "note": "Pick the Home Assistant entities to show. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set."
+    },
+    {
+      "key": "columns",
+      "label": "Columns",
+      "type": "number",
+      "default": "0",
+      "min": "0", "max": "6", "step": "1", "stepper": true,
+      "ph": "Auto",
+      "note": "0 = fit to the panel."
+    }
+  ]
+}

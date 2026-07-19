@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from .. import helpers
+from .. import ha_rest, helpers
 
 
 def build(deps) -> APIRouter:
@@ -46,5 +46,12 @@ def build(deps) -> APIRouter:
     @router.get("/sports_search")
     async def h_sports_search(q: str = ""):
         return await helpers.sports_search(q)
+
+    @router.get("/ha_entities")
+    async def h_ha_entities(q: str = ""):
+        """The Dashboard entity picker — Home Assistant entities matching q, via the Supervisor
+        proxy (add-on) or COMPANION_HA_URL/TOKEN (standalone). Empty when HA isn't reachable."""
+        import asyncio
+        return {"results": await asyncio.to_thread(ha_rest.search, q)}
 
     return router

@@ -27,7 +27,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import appaudit, canvas, device, i18n, location, renderer, textlayout, weather
+from . import appaudit, canvas, device, ha_rest, i18n, location, renderer, textlayout, weather
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -622,8 +622,8 @@ class PluginRuntime:
     def _wanted_helpers(cls, fn) -> frozenset:
         """Which injected helpers ``fn`` opts into by parameter name — computed
         once at load, not re-inspected per call."""
-        return frozenset(n for n in ("get_weather", "get_location", "i18n", "caps",
-                                     "paginate", "canvas")
+        return frozenset(n for n in ("get_weather", "get_location", "get_ha_states", "i18n",
+                                     "caps", "paginate", "canvas")
                          if cls._fetch_accepts(fn, n))
 
     def _helper_kwargs(self, app_id: str, wanted: frozenset, ps: dict, settings=None) -> dict:
@@ -640,6 +640,10 @@ class PluginRuntime:
                 s if s is not None else ps, days=days, air=air)
         if "get_location" in wanted:
             kwargs["get_location"] = lambda: location.resolve(ps)
+        if "get_ha_states" in wanted:
+            # All Home Assistant entity states (Supervisor proxy or configured URL/token),
+            # cached; the Dashboard app filters to the entities it was told to show.
+            kwargs["get_ha_states"] = lambda: ha_rest.fetch_states()
         if "i18n" in wanted:
             # A per-app Language override (plugin_<id>_language) wins over
             # the global Language; blank/unset = follow global.

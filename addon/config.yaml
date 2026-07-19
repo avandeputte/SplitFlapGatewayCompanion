@@ -39,6 +39,9 @@ startup: application
 # actually published on, are only knowable by asking Supervisor (/network/info and
 # /addons/self/info), which needs this. See gateway.addon_public_url().
 hassio_api: true
+# Access Home Assistant's core REST API through the Supervisor proxy (entity states
+# for the Dashboard app). Standalone Docker uses COMPANION_HA_URL/COMPANION_HA_TOKEN instead.
+homeassistant_api: true
 
 # The UI is served straight into the HA sidebar. The app reads Supervisor's
 # X-Ingress-Path header and prefixes every asset/API URL with it (see main.spa_index),

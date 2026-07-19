@@ -5,12 +5,11 @@ team's LOGO), downloads and caches the logos, and blits them from the sprite atl
 scores and a status line — rotating one game at a time. A team whose logo can't be fetched
 falls back to a colour badge with its abbreviation.
 
-On-device text is CP1252 one-byte-per-glyph (ASCII only) and only has faces {8,9,10,13,18,20};
-the atlas is a single shared slot, so the two badges are re-uploaded every draw. All handled here.
+On-device text draws CP1252 glyphs (``_cp`` keeps what the panel can draw) and only has faces
+{8,9,10,13,18,20}; the atlas is a single shared slot, so the two badges are re-uploaded every draw.
 """
 
 _MAGENTA = (255, 0, 255)
-_FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}
 _FACES = (8, 9, 10, 13, 18, 20)
 _SHADOW = (8, 8, 10)
 
@@ -33,12 +32,13 @@ def _face(sz):
     return max(ok) if ok else 8
 
 
-def _ascii(s):
-    return ''.join(c if 32 <= ord(c) < 127 else ' ' for c in str(s))
+def _cp(s):
+    """Keep CP1252-representable characters (the on-device font's charset)."""
+    return str(s).encode('cp1252', 'ignore').decode('cp1252')
 
 
 def _txt(canvas, x, y, s, color, size, align='left'):
-    s = _ascii(s)
+    s = _cp(s)
     canvas.text(x + 1, y + 1, s, _SHADOW, size=size, align=align)
     canvas.text(x, y, s, color, size=size, align=align)
 
@@ -100,7 +100,7 @@ def _games(follow, filt):
             detail = ev.get('status', {}).get('type', {}).get('shortDetail', '') or ''
             games.append({
                 'lg': name, 'state': state,
-                'status': 'Final' if state == 'post' else _ascii(detail)[:16],
+                'status': 'Final' if state == 'post' else _cp(detail)[:16],
                 'aa': aa, 'ha': ha,
                 'as': str(away.get('score', '') or ('' if state == 'pre' else '0')),
                 'hs': str(home.get('score', '') or ('' if state == 'pre' else '0')),

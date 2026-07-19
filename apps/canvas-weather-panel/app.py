@@ -5,11 +5,10 @@ ICON from a generated sprite atlas, and writes the temperature and a three-day s
 text ops. The icons (sun, moon, cloud, rain, snow, storm, fog) are drawn once with Pillow
 and uploaded to the panel's atlas; a wall without the sprite op falls back to a coloured disc.
 
-Two things the on-device text op demands, learned the hard way:
-  * it renders ONE CP1252 byte per glyph with no UTF-8 decode — so text must be ASCII
-    (the degree mark is drawn as a little ring, not a "°" character);
-  * `size` must be one of the bundled faces {8,9,10,13,18,20} — anything else falls back
-    to a small 6×10 face — so sizes are snapped with `_face()`.
+Two things about the on-device text op: it draws CP1252 glyphs (the firmware decodes the
+UTF-8 we send back to CP1252), so ``_cp()`` keeps the degree sign / Latin accents and drops
+only what the panel can't draw; and ``size`` must be one of the bundled faces
+{8,9,10,13,18,20} — anything else falls back to a small 6×10 face — so sizes snap via ``_face()``.
 
 Conditions come from the shared ``get_weather`` helper (the wall's configured location and
 the ten-minute cache are honoured).
@@ -24,8 +23,6 @@ _WORD = {'clear': 'Clear', 'pcloudy': 'Partly', 'cloudy': 'Cloudy', 'fog': 'Fog'
          'snowl': 'Light snow', 'snow': 'Snow', 'snowh': 'Heavy snow', 'sleet': 'Sleet',
          'storm': 'Storm', 'hail': 'Hail'}
 _WET = ('rainl', 'rain', 'rainh', 'shwr', 'sleet')
-# The panel's bundled faces and their fixed glyph widths.
-_FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}
 _FACES = (8, 9, 10, 13, 18, 20)
 _SHADOW = (10, 12, 20)
 
@@ -36,13 +33,15 @@ def _face(sz):
     return max(ok) if ok else 8
 
 
-def _ascii(s):
-    return ''.join(c if 32 <= ord(c) < 127 else ' ' for c in str(s))
+def _cp(s):
+    """Keep CP1252-representable characters (the on-device font's charset): degree signs and
+    Latin accents pass through, other scripts are dropped."""
+    return str(s).encode('cp1252', 'ignore').decode('cp1252')
 
 
 def _txt(canvas, x, y, s, color, size, align='left'):
-    """Text with a dark drop-shadow so it reads on any sky. ASCII only (see module docs)."""
-    s = _ascii(s)
+    """Text with a dark drop-shadow so it reads on any sky."""
+    s = _cp(s)
     canvas.text(x + 1, y + 1, s, _SHADOW, size=size, align=align)
     canvas.text(x, y, s, color, size=size, align=align)
 
@@ -210,11 +209,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
     tsize = _face(int(tile * (1.0 if compact else 0.95)))
     tx = 2 + tile + 3
     ty = iy + (tile - tsize) // 2
-    digits = str(temp) if temp is not None else '--'
-    _txt(canvas, tx, ty, digits, (255, 255, 255), tsize)
-    dw = len(digits) * _FACE_W.get(tsize, 6)
-    dr = 2 if tsize >= 18 else 1
-    canvas.circle(tx + dw + dr + 1, ty + dr + 1, dr, (255, 255, 255))       # the degree mark
+    _txt(canvas, tx, ty, f'{temp}°' if temp is not None else '--°', (255, 255, 255), tsize)
 
     if compact:
         sub = _WORD.get(tok, tok.title())
