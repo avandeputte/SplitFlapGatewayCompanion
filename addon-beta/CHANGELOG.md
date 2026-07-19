@@ -3,6 +3,18 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.15
+
+- **HA Dashboard, redone for contrast and control.** Cards now draw on **black** (bright content
+  on black reads best on the panel), each card shows the entity's **name**, and you can **rename**
+  entities and set **numeric thresholds** — a value is green below the low mark, amber between,
+  red above the high. Both go in one **Rename / thresholds** box: `entity_id | Name | low,high`
+  per line (name and thresholds optional; a line here can also add an entity).
+- **New app — Entity Board (split-flap).** The same Home Assistant dashboard for a flap wall:
+  one row per entity — name on the left, value on the right, and a colour flap as a status dot
+  (green for "on"; green / amber / red by threshold band). Same entity picker and
+  `Rename / thresholds` box; extra entities spill onto the next page of the loop.
+
 ## 2.9.0-beta.14
 
 - **New app — HA Dashboard.** A grid of Home Assistant entity cards on the panel: a device icon

@@ -2,26 +2,30 @@
 
 A canvas app: it reads entity states through the injected ``get_ha_states`` helper (the
 backend reaches HA via the Supervisor proxy in the add-on, or COMPANION_HA_URL/TOKEN
-standalone), then draws a roundrect card per entity with a DEVICE ICON from a generated
-sprite atlas, the value, and the name — coloured by state.
+standalone), then draws a black card per entity with a DEVICE ICON from a generated sprite
+atlas, a name, and the value — the card border and the value coloured by state, or by
+per-entity thresholds for numeric sensors.
 
-On-device text draws CP1252 glyphs (``_cp`` keeps what the panel can draw); sizes snap to the
-bundled faces {8,9,10,13,18,20}; the shared atlas is re-uploaded every draw.
+Bright content on BLACK reads best on an LED panel. On-device text draws CP1252 glyphs (``_cp``
+keeps what the panel can draw); sizes snap to the bundled faces {8,9,10,13,18,20}; the shared
+atlas is re-uploaded every draw.
 """
 
 import math
 
 _MAGENTA = (255, 0, 255)
 _FACES = (8, 9, 10, 13, 18, 20)
-_SHADOW = (6, 7, 10)
-# domain -> icon index in the atlas; anything else -> the generic dot (last tile).
+_FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}      # the panel's fixed glyph widths
+_SHADOW = (0, 0, 0)
 _DOMAIN = {'light': 0, 'switch': 1, 'sensor': 2, 'binary_sensor': 3, 'lock': 4, 'cover': 5,
            'climate': 6, 'fan': 7, 'media_player': 8, 'person': 9}
 _N_ICONS = 11
 _ON = {'on', 'home', 'open', 'unlocked', 'playing', 'active', 'heat', 'cool', 'auto', 'detected'}
 _OFF = {'off', 'away', 'closed', 'locked', 'idle', 'standby', 'paused', 'not_home', 'clear'}
 _DEAD = {'unavailable', 'unknown', 'none', ''}
-_GREEN, _GREY, _BLUE, _RED = (70, 205, 120), (120, 128, 150), (90, 160, 245), (235, 120, 110)
+_GREEN, _GREY, _BLUE, _RED, _AMBER = (70, 210, 120), (150, 158, 178), (110, 175, 250), (245, 95, 85), (250, 200, 70)
+_SHORT = {'unlocked': 'OPEN', 'locked': 'LOCK', 'closed': 'SHUT', 'not_home': 'AWAY',
+          'detected': 'DET', 'clear': 'CLR', 'standby': 'IDLE', 'playing': 'PLAY', 'paused': 'PAUS'}
 
 
 def _face(sz):
@@ -29,9 +33,17 @@ def _face(sz):
     return max(ok) if ok else 8
 
 
+def _fit(text, maxw, maxh):
+    """The largest bundled face for which ``text`` fits in maxw × maxh (min 8)."""
+    best = 8
+    for f in _FACES:
+        if f <= maxh and len(text) * _FACE_W[f] <= maxw:
+            best = f
+    return best
+
+
 def _cp(s):
-    """Keep only CP1252-representable characters — the on-device font's charset. Degree signs
-    and Latin accents pass through; anything else (the firmware can't draw it) is dropped."""
+    """Keep only CP1252-representable characters — the on-device font's charset."""
     return str(s).encode('cp1252', 'ignore').decode('cp1252')
 
 
@@ -43,11 +55,70 @@ def _txt(canvas, x, y, s, color, size, align='left'):
     canvas.text(x, y, s, color, size=size, align=align)
 
 
+def _parse_config(text):
+    """`entity_id | Name | low,high` per line -> {eid: (name|None, (lo,hi)|None)} + ordered ids."""
+    cfg, order = {}, []
+    for line in str(text or '').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        parts = [p.strip() for p in line.split('|')]
+        eid = parts[0]
+        if not eid:
+            continue
+        name = parts[1] if len(parts) > 1 and parts[1] else None
+        thr = None
+        if len(parts) > 2 and parts[2]:
+            try:
+                nums = [float(x) for x in parts[2].split(',')[:2]]
+                if len(nums) == 2:
+                    thr = (min(nums), max(nums))
+            except ValueError:
+                pass
+        cfg[eid] = (name, thr)
+        order.append(eid)
+    return cfg, order
+
+
+def _entities(settings, cfg_order):
+    """Entities to show: the picker's list, then any config-only ids, in order, deduped."""
+    raw = settings.get('entities', '')
+    items = raw if isinstance(raw, list) else str(raw or '').split(',')
+    out = []
+    for it in list(items) + list(cfg_order):
+        eid = str(it).split('|')[0].strip()
+        if eid and eid not in out:
+            out.append(eid)
+    return out[:12]
+
+
+def _value(state, attrs, thr):
+    """(text, colour). Numeric values with a threshold colour green/amber/red by band."""
+    st = str(state or '').lower()
+    if st in _DEAD:
+        return '--', _GREY
+    if st in _ON or st in _OFF:
+        return _SHORT.get(st, st.upper())[:5], (_GREEN if st in _ON else _GREY)
+    try:
+        f = float(state)
+        unit = _cp((attrs or {}).get('unit_of_measurement', '')).strip()
+        unit = unit if len(unit) <= 2 else ''                  # keep °F/%/W; drop long units (the name says it)
+        txt = f'{round(f)}{unit}' if abs(f) >= 10 else f'{f:.1f}{unit}'
+        if thr:
+            lo, hi = thr
+            col = _RED if f > hi else _GREEN if f < lo else _AMBER
+        else:
+            col = _BLUE
+        return txt, col
+    except (TypeError, ValueError):
+        return _cp(state).upper()[:6], _BLUE
+
+
 def _icons(s):
     """The device-icon atlas (on magenta), indexed by _DOMAIN; last tile is the generic dot."""
     from PIL import Image, ImageDraw
     W = max(1, int(s * 0.09))
-    C = (230, 235, 245)
+    C = (232, 236, 246)
     out = []
 
     def blank():
@@ -61,7 +132,7 @@ def _icons(s):
     out.append(im)
 
     im, d = blank()                                            # 1 switch — toggle
-    d.rounded_rectangle([s * 0.14, s * 0.34, s * 0.86, s * 0.66], radius=int(s * 0.16), fill=(90, 190, 120))
+    d.rounded_rectangle([s * 0.14, s * 0.34, s * 0.86, s * 0.66], radius=int(s * 0.16), fill=(90, 200, 130))
     d.ellipse([s * 0.52, s * 0.36, s * 0.52 + s * 0.28, s * 0.36 + s * 0.28], fill=(245, 250, 255))
     out.append(im)
 
@@ -77,7 +148,7 @@ def _icons(s):
 
     im, d = blank()                                            # 4 lock — padlock
     d.arc([s * 0.30, s * 0.16, s * 0.70, s * 0.56], 180, 360, fill=C, width=W)
-    d.rounded_rectangle([s * 0.26, s * 0.44, s * 0.74, s * 0.82], radius=int(s * 0.08), fill=(210, 180, 90))
+    d.rounded_rectangle([s * 0.26, s * 0.44, s * 0.74, s * 0.82], radius=int(s * 0.08), fill=(230, 195, 95))
     out.append(im)
 
     im, d = blank()                                            # 5 cover — blinds
@@ -87,8 +158,8 @@ def _icons(s):
 
     im, d = blank()                                            # 6 climate — thermometer
     d.rounded_rectangle([s * 0.42, s * 0.16, s * 0.58, s * 0.70], radius=int(s * 0.08), fill=C)
-    d.ellipse([s * 0.36, s * 0.62, s * 0.64, s * 0.90], fill=(235, 110, 100))
-    d.rectangle([s * 0.47, s * 0.30, s * 0.53, s * 0.74], fill=(235, 110, 100))
+    d.ellipse([s * 0.36, s * 0.62, s * 0.64, s * 0.90], fill=(240, 120, 110))
+    d.rectangle([s * 0.47, s * 0.30, s * 0.53, s * 0.74], fill=(240, 120, 110))
     out.append(im)
 
     im, d = blank()                                            # 7 fan — blades
@@ -96,7 +167,7 @@ def _icons(s):
     for a in range(3):
         ang = a * 2.09
         d.polygon([(c, c), (c + math.cos(ang) * s * 0.34, c + math.sin(ang) * s * 0.34),
-                   (c + math.cos(ang + 0.6) * s * 0.30, c + math.sin(ang + 0.6) * s * 0.30)], fill=(120, 190, 240))
+                   (c + math.cos(ang + 0.6) * s * 0.30, c + math.sin(ang + 0.6) * s * 0.30)], fill=(130, 195, 245))
     d.ellipse([c - s * 0.08, c - s * 0.08, c + s * 0.08, c + s * 0.08], fill=C)
     out.append(im)
 
@@ -110,39 +181,9 @@ def _icons(s):
     out.append(im)
 
     im, d = blank()                                            # 10 generic — dot
-    d.ellipse([s * 0.32, s * 0.32, s * 0.68, s * 0.68], fill=(150, 160, 185))
+    d.ellipse([s * 0.32, s * 0.32, s * 0.68, s * 0.68], fill=(160, 168, 190))
     out.append(im)
     return out
-
-
-def _entities(settings):
-    raw = settings.get('entities', '')
-    items = raw if isinstance(raw, list) else str(raw or '').split(',')
-    out = []
-    for it in items:
-        eid = str(it).split('|')[0].strip()
-        if eid:
-            out.append(eid)
-    return out[:12]
-
-
-# Short, legible labels for verbose on/off-type states (a small panel has no room for "LOCKED").
-_SHORT = {'unlocked': 'OPEN', 'locked': 'LOCK', 'closed': 'SHUT', 'not_home': 'AWAY',
-          'detected': 'DET', 'clear': 'CLR', 'standby': 'IDLE', 'playing': 'PLAY', 'paused': 'PAUS'}
-
-
-def _value(state, attrs):
-    st = str(state or '').lower()
-    if st in _DEAD:
-        return '--', _GREY
-    if st in _ON or st in _OFF:
-        return _SHORT.get(st, st.upper())[:5], (_GREEN if st in _ON else _GREY)
-    try:
-        f = float(state)
-        unit = _cp((attrs or {}).get('unit_of_measurement', '')).strip()[:2]
-        return (f'{round(f)}{unit}' if abs(f) >= 10 else f'{f:.1f}{unit}'), _BLUE
-    except (TypeError, ValueError):
-        return _cp(state).upper()[:6], _BLUE
 
 
 def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states=None):
@@ -150,9 +191,10 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states
         return None
     W, H = canvas.width, canvas.height
     use_sprites = bool(getattr(canvas, 'can_sprite', False))
-    canvas.gradient(0, 0, W, H, (16, 18, 30), (5, 6, 14), 'v')
+    canvas.clear((0, 0, 0))                                    # black — best contrast on the panel
 
-    ids = _entities(settings)
+    cfg, cfg_order = _parse_config(settings.get('config', ''))
+    ids = _entities(settings, cfg_order)
     if not ids:
         _txt(canvas, W // 2, H // 2 - 5, 'Pick entities', (210, 216, 232), _face(min(13, H // 3)), align='center')
         canvas.show()
@@ -175,7 +217,8 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states
     cols = max(1, min(6, cols))
     rows = max(1, math.ceil(n / cols))
     cw, ch = W // cols, H // rows
-    tile = max(8, min(18, min(cw, ch) // 2)) & ~1
+    tile = max(8, min(16, min(cw, ch) // 2)) & ~1
+    show_name = ch >= tile + 12
 
     if use_sprites:
         canvas.upload_atlas(_icons(tile))
@@ -186,19 +229,20 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states
         s = states.get(eid, {})
         domain = eid.split('.')[0]
         attrs = s.get('attributes') or {}
-        name = _cp(attrs.get('friendly_name') or eid.split('.', 1)[-1].replace('_', ' '))
-        val, col = _value(s.get('state'), attrs)
+        cname, thr = cfg.get(eid, (None, None))
+        name = _cp(cname or attrs.get('friendly_name') or eid.split('.', 1)[-1].replace('_', ' '))
+        val, col = _value(s.get('state'), attrs, thr)
 
-        canvas.roundrect(x + 1, y + 1, cw - 2, ch - 2, 3, (26, 30, 48), fill=True)
-        canvas.roundrect(x + 1, y + 1, cw - 2, ch - 2, 3, col, fill=False)
+        canvas.roundrect(x + 1, y + 1, cw - 2, ch - 2, 3, col, fill=False)   # black card, coloured border
+        top_h = ch - (10 if show_name else 0)                                # icon + value share the top band
+        vx0 = x + 3
         if use_sprites:
-            canvas.sprite(_DOMAIN.get(domain, _N_ICONS - 1), x + 3, y + 3)
-
-        vf = _face(min(13, ch - tile - 6)) if ch >= tile + 14 else _face(min(13, ch - 4))
-        vy = y + 3 + (tile if ch >= tile + 14 else 0) + 1
-        _txt(canvas, x + cw // 2, vy, val, col, vf, align='center')
-        if ch >= tile + 20:
-            _txt(canvas, x + cw // 2, y + ch - 9, name[:max(3, cw // 5)], (176, 184, 206), 8, align='center')
+            canvas.sprite(_DOMAIN.get(domain, _N_ICONS - 1), x + 3, y + max(2, (top_h - tile) // 2))
+            vx0 = x + 3 + tile + 2
+        vf = _fit(val, (x + cw - 3) - vx0, top_h - 3)          # fit the value in the space right of the icon
+        _txt(canvas, (vx0 + x + cw - 3) // 2, y + max(2, (top_h - vf) // 2), val, col, vf, align='center')
+        if show_name:
+            _txt(canvas, x + cw // 2, y + ch - 9, name[:max(4, (cw - 4) // 5)], (222, 228, 242), 8, align='center')
 
     canvas.show()
     return 12.0

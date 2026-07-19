@@ -1,12 +1,11 @@
 {
-  "id": "canvas-dashboard",
-  "name": "HA Dashboard",
+  "id": "entity-board",
+  "name": "Entity Board",
   "icon": "🏠",
-  "description": "A grid of Home Assistant entity cards on the Matrix panel",
+  "description": "Home Assistant entity states as rows on the split-flap wall",
   "type": "functional",
-  "surface": "canvas",
-  "refresh_interval": 1,
-  "loop_delay": 15,
+  "refresh_interval": 15,
+  "loop_delay": 8,
   "category": "other",
   "settings": [
     {
@@ -24,15 +23,7 @@
       "type": "textarea",
       "ph": "sensor.co2 | CO2 | 1000,2000\nlight.kitchen | Kitchen",
       "note": "One entity per line: entity_id | Name | low,high. Name and thresholds are optional. A numeric value is green below low, amber between, red above high. Lines here can also add entities."
-    },
-    {
-      "key": "columns",
-      "label": "Columns",
-      "type": "number",
-      "default": "0",
-      "min": "0", "max": "6", "step": "1", "stepper": true,
-      "ph": "Auto",
-      "note": "0 = fit to the panel."
     }
-  ]
+  ],
+  "min_cols": 12
 }
