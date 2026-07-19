@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.7
+
+- **The "Matrix panel" marker on canvas apps is now ⣿** (a dot-matrix) instead of ▦, in both the
+  Apps grid and the App Library.
+
 ## 2.9.0-beta.6
 
 - **Fix — the gateway's Display / Files / Settings / Status tabs no longer error with "Header

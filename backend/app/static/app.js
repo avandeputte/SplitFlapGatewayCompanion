@@ -596,7 +596,7 @@ async function loadApps() {
         (a.i18n ? `<span class="app-i18n" title="${esc(t("Multilingual — adapts to the global Language"))}">🌐</span>` : "") +
         // A subtle "draws on the panel" marker so a canvas app reads as one at a glance,
         // whether or not this wall can run it.
-        (isCanvas ? `<span class="app-canvas" title="${esc(t("Matrix panel"))}">▦</span>` : "") +
+        (isCanvas ? `<span class="app-canvas" title="${esc(t("Matrix panel"))}">⣿</span>` : "") +
         `<span class="app-badge"></span>` +
         (fits ? "" : `<span class="app-req">${esc(reqLabel)}</span>`) +
       `</div>`;
@@ -1085,7 +1085,7 @@ function libRow(a, reopen) {
   // here too (it will run only on a canvas-capable wall).
   if (a.surface === "canvas") {
     const surf = el("span", "lib-tag canvas");
-    surf.textContent = "▦ " + t("Matrix panel");
+    surf.textContent = "⣿ " + t("Matrix panel");
     tags.appendChild(surf);
   }
   meta.append(name, desc, tags);

@@ -192,7 +192,7 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 .app-tile .app-foot .app-canvas { font-size: .82rem; color: var(--brand); opacity: .8; cursor: help; }
 .app-tile .app-foot .app-canvas:hover { opacity: 1; }
 /* Canvas (Matrix-panel) apps stand apart from flap apps: the whole box takes a
-   brand-tinted shade and a brand border, and its ▦ marker becomes a filled pill —
+   brand-tinted shade and a brand border, and its ⣿ marker becomes a filled pill —
    so at a glance you can tell which apps draw on an LED panel. */
 .app-tile.is-canvas { background: linear-gradient(180deg, rgba(124,92,255,.17), rgba(124,92,255,.05)), var(--input);
   border-color: rgba(124,92,255,.55); }
