@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.19
+
+- **Playlist & trigger app pickers show the Matrix marker.** The app dropdowns in the playlist
+  editor and the triggers page now show the same **⣿** (Matrix panel) marker the library uses, so
+  a canvas app is identifiable at a glance when you add it.
+
 ## 2.9.0-beta.18
 
 - **Dashboards: one editable table.** The HA Dashboard and Entity Board now pick entities in a

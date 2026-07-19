@@ -1297,7 +1297,8 @@ function plRender() {
     row.appendChild(tag);
     if (e.type === "app") {
       const sel = el("select"); sel.className = "grow";
-      APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}${a.i18n ? " 🌐" : ""}`; if (a.id === e.app) o.selected = true; sel.appendChild(o); });
+      // ⣿ marks a canvas (Matrix panel) app, 🌐 a multilingual one — the same markers the library shows.
+      APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}${a.surface === "canvas" ? " ⣿" : ""}${a.i18n ? " 🌐" : ""}`; if (a.id === e.app) o.selected = true; sel.appendChild(o); });
       if (!e.app && APPS[0]) e.app = APPS[0].id;
       sel.onchange = () => { e.app = sel.value; e.overrides = {}; plRender(); }; row.appendChild(sel);
       // Per-entry settings: override this entry's config (location/units/language…)
@@ -1441,7 +1442,7 @@ async function loadTriggers() {
   TRIGS = d.triggers || []; TRIG_APPS = d.trigger_apps || [];
   $("trigEnabled").checked = d.triggers_enabled !== false;
   const sel = $("trigAddApp"); sel.innerHTML = "";
-  TRIG_APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}`; sel.appendChild(o); });
+  TRIG_APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}${a.surface === "canvas" ? " ⣿" : ""}`; sel.appendChild(o); });
   trigRender();
 }
 function addTrigger() {

@@ -902,6 +902,7 @@ class PluginRuntime:
                 "id": app_id,
                 "name": m.get("name", app_id),
                 "icon": m.get("icon", "🧩"),
+                "surface": m.get("surface"),
                 "trigger_interval": m.get("trigger_interval", 60),
                 "trigger_display_seconds": m.get("trigger_display_seconds", 30),
                 "trigger_cooldown": m.get("trigger_cooldown", 300),
