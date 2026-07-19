@@ -3,6 +3,21 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.2
+
+Two fixes from real-hardware testing of the 2.9.0 line.
+
+- **Fix — the live preview during an on-device effect.** It showed the *previous* frame-push app's
+  last frame (a clock, weather) instead of the effect that was actually playing. An effect draws
+  on-device, so the companion now drops that cached frame and reads the panel back — the preview
+  shows what is really lit.
+- **Fix — a stale flap that lingered until its value next changed.** The companion skips re-sending
+  a flap it believes is already correct, so a flap that drifted from that belief (another client on
+  the same gateway, the gateway's own Compose page, a transient) was never re-asserted while the
+  page held. The whole-page repaint is now on a **wall-clock bound (~15 s)** and the app loop
+  re-emits a held page on the same beat, so drift heals even when nothing on screen is changing. It
+  stays invisible where the cache is right — a flap already showing its value does not re-flip.
+
 ## 2.9.0-beta.1
 
 Matrix Portal firmware **2.1** support — the LED panel learned a lot of new tricks, and the

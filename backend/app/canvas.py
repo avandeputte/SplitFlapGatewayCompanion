@@ -617,6 +617,10 @@ class CanvasSurface:
         """Play an on-device effect (from ``canvas.effects``); "none" returns to
         the wall. The panel renders it — one request, then nothing. ``hue`` (0–255) and
         ``density`` (1–100) tint/seed effects that support them (``canvas.effect_params``)."""
+        # An effect draws on-device — there is no frame the companion holds for it. Drop any
+        # frame a PREVIOUS frame-push app (a clock, weather) cached, or the live preview would keep
+        # showing that stale frame instead of reading the running effect back off the panel.
+        forget_frame(self.url)
         return play_effect(self.url, name, speed, hue, density)
 
     def _push_rgb(self, b: bytes) -> bool:

@@ -35,10 +35,13 @@ log = logging.getLogger("companion.transport.rest")
 # string values carry the high bytes.
 _JSON_1252_HEADERS = {"Content-Type": "application/json; charset=windows-1252"}
 
-# How often to resend the whole page instead of just the changed cells, to heal a shown-cell
-# cache that has drifted from the actual wall (see RestTransport._shown). A repaint is invisible
-# where the cache is right (an unchanged module does not re-flip) and corrects it where it is not.
-_REPAINT_EVERY = 12
+# How often (seconds) to resend the whole page instead of just the changed cells, to heal a
+# shown-cell cache that has drifted from the actual wall (see RestTransport._shown). A repaint is
+# invisible where the cache is right (an unchanged module does not re-flip) and corrects it where
+# it is not. TIME-based, not page-count-based: a stale flap must heal on a wall-clock bound even
+# when the running app rarely changes its page (the engine drives a heartbeat re-emit so this
+# fires during a hold too — see DisplayController._play_app_pages).
+_REPAINT_SECONDS = 15.0
 
 
 def _win1252_body(payload: dict) -> bytes:
@@ -71,10 +74,10 @@ class RestTransport(DisplayTransport):
         # without going through here — another client (MQTT / the MCP server / a second companion),
         # the gateway's own compose page, a reboot's re-home — leaves it stale, and a cell we
         # wrongly believe is right gets skipped, so an old flap lingers "until it finally changes".
-        # So every _REPAINT_EVERY pages we resend the WHOLE page: a module already showing the value
-        # it is sent does not re-flip (it is a no-op on the wall), so the repaint is invisible except
+        # So every _REPAINT_SECONDS we resend the WHOLE page: a module already showing the value it
+        # is sent does not re-flip (it is a no-op on the wall), so the repaint is invisible except
         # where the cache had drifted — which is exactly where it heals it.
-        self._repaint_in = _REPAINT_EVERY
+        self._last_repaint = 0.0
 
     async def connect(self) -> None:
         import httpx
@@ -251,11 +254,12 @@ class RestTransport(DisplayTransport):
         """
         if self._client is None:
             raise RuntimeError("REST transport not connected")
-        # Every _REPAINT_EVERY pages, forget the diff so this one goes out whole — self-heals a
+        # Every _REPAINT_SECONDS, forget the diff so this page goes out whole — self-heals a
         # shown-cell cache that drifted from the wall (an unchanged module no-ops, so it's unseen).
-        self._repaint_in -= 1
-        if self._repaint_in <= 0:
-            self._repaint_in = _REPAINT_EVERY
+        import time
+        now = time.monotonic()
+        if now - self._last_repaint >= _REPAINT_SECONDS:
+            self._last_repaint = now
             self._shown.clear()
         if self.caps.indexed:
             try:

@@ -19,6 +19,11 @@ from .transport import DisplayTransport, SimTransport, build_transport
 
 log = logging.getLogger("companion.engine")
 
+# Re-assert the current page at least this often (seconds) even when it has not changed, so a
+# drifted flap heals on a wall-clock bound during a static hold. Kept in step with the transport's
+# own _REPAINT_SECONDS (which drops the cell-diff), so the re-emit actually goes out whole.
+_PAGE_HEARTBEAT_S = 15.0
+
 
 def _entry_label(entry: dict) -> str:
     """A playlist entry as one word for the running-order view: the app id, or
@@ -64,6 +69,11 @@ class DisplayController:
         # framebuffer, bypassing the flaps). The next driver to take over must hand
         # the panel back to the reel wall first — see _cancel_task.
         self._canvas_active = False
+        # When the app loop last painted a flap page. A non-anim app suppresses re-sending an
+        # unchanged page — so a flap that drifts while the page holds (another client on the same
+        # gateway, a transient) would never be re-asserted until the text finally changes. A
+        # heartbeat re-emit gives the transport a send to repaint through on a wall-clock bound.
+        self._last_page_emit = 0.0
 
     def attach_plugins(self, plugins) -> None:
         self.plugins = plugins
@@ -602,10 +612,16 @@ class DisplayController:
             if not keep_going():
                 return
             text = page if isinstance(page, str) else str(page.get("text", ""))
-            if t["is_anim"] or text != self._app_last_sent:
+            # Re-emit even an UNCHANGED page every _PAGE_HEARTBEAT_S: it gives the transport a send
+            # to repaint through (its cell-diff drops to a whole page on the same clock), so a flap
+            # that drifted while the page held is re-asserted instead of lingering until the text
+            # next changes. On a drawn wall the repaint is invisible — an unchanged flap no-ops.
+            heartbeat = (rt_loop.time() - self._last_page_emit) >= _PAGE_HEARTBEAT_S
+            if t["is_anim"] or text != self._app_last_sent or heartbeat:
                 clean = self._normalize(text, frame=t["is_anim"])
                 await self._emit_page_from_loop(clean, style=t["style"], speed=t["speed"],
                                                 record_as=text)
+                self._last_page_emit = rt_loop.time()
             await asyncio.sleep(max(0.0, float(t["loop_delay"])))
 
     async def _emit_page_from_loop(self, clean: str, *, style: str, speed: int,

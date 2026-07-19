@@ -235,14 +235,15 @@ def test_font_upload_and_library(gw):
 
 # --- Bug 1: the shown-cell cache self-heals with a periodic full repaint --------
 
-def test_periodic_full_repaint_resends_the_whole_page():
+def test_periodic_full_repaint_resends_the_whole_page(monkeypatch):
     """The cells diff skips a module it BELIEVES is already correct — so if the wall drifts from
     the cache (another client, the gateway's compose page, a reboot's re-home) the stale flap
-    lingers. Every _REPAINT_EVERY pages the whole page is resent regardless, which corrects any
-    drift (an unchanged module no-ops on the wall, so it stays invisible otherwise)."""
+    lingers. Every _REPAINT_SECONDS the whole page is resent regardless, which corrects any drift
+    (an unchanged module no-ops on the wall, so it stays invisible otherwise)."""
     import asyncio
+    import time
 
-    from app.transport.rest import RestTransport, _REPAINT_EVERY
+    from app.transport.rest import RestTransport, _REPAINT_SECONDS
 
     async def run():
         t = RestTransport("http://gw")
@@ -262,13 +263,56 @@ def test_periodic_full_repaint_resends_the_whole_page():
                 return R()
 
         t._client = FakeClient()
+        clock = {"t": 1000.0}
+        monkeypatch.setattr(time, "monotonic", lambda: clock["t"])
         page = [(i, "A") for i in range(5)]
-        for _ in range(_REPAINT_EVERY + 1):
-            await t.send_batch(page, 15)                    # the SAME page every time
+        await t.send_batch(page, 15)                        # full — empty cache; arms the timer
+        await t.send_batch(page, 15)                        # same page, no time passed → diffed to nothing
+        clock["t"] += _REPAINT_SECONDS + 1                  # cross the repaint window
+        await t.send_batch(page, 15)                        # window elapsed → the whole page again
 
-        # The first send is full (empty cache); every identical send in between is diffed away to
-        # nothing (no POST at all); the _REPAINT_EVERY-th drops the cache and repaints whole again.
+        # A module already showing its value does not re-flip, so the repaint is invisible on the
+        # wall — but it re-sends every cell, which is what heals a drifted flap.
         with_cells = [p for p in posts if p.get("cells")]
         assert len(with_cells) == 2, f"expected 2 full repaints, saw {len(with_cells)} of {len(posts)} posts"
 
     asyncio.run(run())
+
+
+def test_a_held_page_is_re_emitted_on_the_heartbeat(tmp_path):
+    """A non-anim app suppresses re-sending an unchanged page. Without a heartbeat, a flap that
+    drifts while that page holds would never be re-asserted until the text finally changed — so
+    the loop re-emits the held page every _PAGE_HEARTBEAT_S, giving the transport a whole-page
+    repaint to heal through."""
+    import asyncio
+
+    from app.config import Config
+    from app.engine import DisplayController, _PAGE_HEARTBEAT_S
+    from app.state import DisplayState
+
+    async def run():
+        ctl = DisplayController(Config(data_dir=tmp_path), DisplayState(45))
+        emits = []
+
+        async def fake_emit(clean, *, style, speed, record_as=None):
+            emits.append(record_as)
+            ctl._app_last_sent = record_as             # as the real _emit_page does on success
+            return True
+
+        class Plugins:                                  # the two methods _play_app_pages calls
+            def get_pages(self, app_id, ov=None):
+                return ["HELLO"]                        # a single, unchanging page
+
+            def page_timing(self, app_id, ov=None):
+                return {"is_anim": False, "style": "ltr", "speed": 15, "loop_delay": 0.0}
+
+        ctl.plugins = Plugins()
+        ctl._emit_page_from_loop = fake_emit
+
+        await ctl._play_app_pages("x", None, lambda: True)     # new text -> emits
+        await ctl._play_app_pages("x", None, lambda: True)     # same text, heartbeat not due -> skip
+        ctl._last_page_emit -= _PAGE_HEARTBEAT_S + 1           # pretend the hold has lasted
+        await ctl._play_app_pages("x", None, lambda: True)     # heartbeat due -> re-emits the held page
+        return emits
+
+    assert asyncio.run(run()) == ["HELLO", "HELLO"]
