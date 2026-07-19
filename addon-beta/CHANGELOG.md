@@ -3,6 +3,10 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.16
+
+- **HA Dashboard.** Nudged the entity name up 2px inside each card so it clears the bottom edge.
+
 ## 2.9.0-beta.15
 
 - **HA Dashboard, redone for contrast and control.** Cards now draw on **black** (bright content

@@ -242,7 +242,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states
         vf = _fit(val, (x + cw - 3) - vx0, top_h - 3)          # fit the value in the space right of the icon
         _txt(canvas, (vx0 + x + cw - 3) // 2, y + max(2, (top_h - vf) // 2), val, col, vf, align='center')
         if show_name:
-            _txt(canvas, x + cw // 2, y + ch - 9, name[:max(4, (cw - 4) // 5)], (222, 228, 242), 8, align='center')
+            _txt(canvas, x + cw // 2, y + ch - 11, name[:max(4, (cw - 4) // 5)], (222, 228, 242), 8, align='center')
 
     canvas.show()
     return 12.0
