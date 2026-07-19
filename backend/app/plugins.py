@@ -264,6 +264,11 @@ class PluginRuntime:
         """All app ids present on disk (built-in + user-uploaded)."""
         return list(self._scan().keys())
 
+    def installable_ids(self) -> list[str]:
+        """Every app id a user can install: the ones on disk, plus the synthetic per-effect
+        apps this wall advertises (``effect_<token>``), which have no folder of their own."""
+        return list(self._scan().keys()) + [eid for eid, _ in self._effect_defs()]
+
     def _app_dir(self, app_id: str) -> Path | None:
         return self._scan().get(app_id)
 
@@ -1448,8 +1453,9 @@ class PluginRuntime:
             current.add(app_id)
         else:
             current.discard(app_id)
-        # Preserve a stable-ish order: keep discovered order.
-        ordered = [a for a in self.discover() if a in current]
+        # Preserve a stable-ish order: keep discovered order. Includes the synthetic
+        # per-effect apps, which aren't on disk but are installable all the same.
+        ordered = [a for a in self.installable_ids() if a in current]
         self.settings.set_installed(ordered)
         self.load()
 

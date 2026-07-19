@@ -552,6 +552,21 @@ def test_a_per_effect_app_pins_its_effect(tmp_path):
     assert "plugin_effect_fire_effect" not in keys           # the effect picker is gone
 
 
+def test_a_synthetic_effect_app_can_be_installed_and_persists(tmp_path):
+    """Installing a per-effect app must be allowed (it has no folder) and survive the
+    reload set_installed triggers — set_installed rebuilt the list from disk apps only,
+    which silently dropped effect ids."""
+    from conftest import make_runtime
+    caps = device.from_capabilities(dict(CANVAS_DOC, effects=["plasma", "fire"]))
+    rt = make_runtime(tmp_path=tmp_path, installed=[], caps=caps)
+    assert "effect_fire" in rt.installable_ids()
+    rt.set_installed("effect_fire", True)
+    assert "effect_fire" in rt.settings.installed_apps       # not dropped by the reload
+    assert rt.manifest("effect_fire")["pinned_effect"] == "fire"
+    rt.set_installed("effect_fire", False)
+    assert "effect_fire" not in rt.settings.installed_apps
+
+
 # --- the live-preview / HA-image canvas frame cache -------------------------
 
 def test_canvas_frame_is_cached_then_released_for_the_preview(gw_calls):

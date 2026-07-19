@@ -118,7 +118,7 @@ def build(deps) -> APIRouter:
     @router.post("/api/apps/{app_id}/install")
     async def apps_install(request: Request, app_id: str, req: InstallRequest):
         d = deps.display_for(request)
-        if app_id not in d.plugins.discover():
+        if app_id not in d.plugins.installable_ids():
             raise HTTPException(404, f"unknown app: {app_id}")
         if not req.installed and d.controller.active_app == app_id:
             await d.controller.stop_app()

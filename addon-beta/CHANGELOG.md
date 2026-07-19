@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.17
+
+- **Fix: installing an effect from the library.** Adding a per-effect app (Plasma, Fire, Fliporama, …)
+  failed with `404 — unknown app`, and even when allowed the effect id was dropped on the reload
+  that install triggers. The synthetic per-effect apps — which have no folder of their own — are now
+  recognised as installable and persist correctly.
+
 ## 2.9.0-beta.16
 
 - **HA Dashboard.** Nudged the entity name up 2px inside each card so it clears the bottom edge.
