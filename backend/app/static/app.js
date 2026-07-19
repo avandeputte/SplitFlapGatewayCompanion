@@ -564,6 +564,73 @@ function appReq(a) {
   return `${a.min_rows || 1}×${a.min_cols || 1}`;
 }
 
+// A tiny amber dot-matrix that echoes the Matrix Portal's LEDs (amber dots on black), so a
+// canvas app reads as "draws on the panel" at a glance. Inline SVG — shown in the app library,
+// the app cards, and the rich app pickers (which is why those are custom dropdowns, not native
+// <select>s: an <option> can hold only plain text, never markup).
+function canvasMark() {
+  const label = esc(t("Matrix panel"));
+  let dots = "";
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++)
+    dots += `<circle cx="${4.5 + c * 5}" cy="${4.5 + r * 5}" r="1.7"/>`;
+  return `<svg class="app-canvas" viewBox="0 0 24 24" role="img" aria-label="${label}">` +
+    `<title>${label}</title>` +
+    `<rect x="1" y="1" width="22" height="22" rx="4.5" fill="#0c0c0c" stroke="#2b2b2b"/>` +
+    `<g fill="#f5c518">${dots}</g></svg>`;
+}
+
+// A single-select that renders rich options — an app's icon, name, the amber dot-matrix
+// canvas marker and the 🌐 badge — which a native <select> can't (its <option>s are text
+// only). Exposes `.value` (get/set) and calls onChange(id) on pick; keyboard + click, with
+// the option list floating as a fixed overlay so it never inflates a modal's scroll height.
+function richAppSelect(apps, value, onChange) {
+  const box = el("div", "rsel");
+  const btn = el("button", "rsel-btn"); btn.type = "button";
+  const menu = el("div", "rsel-menu"); menu.style.display = "none";
+  let cur = value;
+  const optHTML = (a) =>
+    `<span class="rsel-ic">${esc(a.icon || "🧩")}</span>` +
+    `<span class="rsel-nm">${esc(a.name)}</span>` +
+    (a.surface === "canvas" ? canvasMark() : "") +
+    (a.i18n ? `<span class="rsel-i18n" title="${esc(t("Multilingual — adapts to the global Language"))}">🌐</span>` : "");
+  const drawBtn = () => {
+    const a = apps.find((x) => x.id === cur) || apps[0];
+    btn.innerHTML = (a ? optHTML(a) : `<span class="rsel-nm">${esc(t("Pick an app"))}</span>`) + `<span class="rsel-caret">▾</span>`;
+  };
+  const place = () => { const r = btn.getBoundingClientRect(); menu.style.left = r.left + "px"; menu.style.top = r.bottom + 2 + "px"; menu.style.minWidth = r.width + "px"; };
+  const onRe = () => place();
+  const isOpen = () => menu.style.display !== "none";
+  const close = () => { menu.style.display = "none"; window.removeEventListener("scroll", onRe, true); window.removeEventListener("resize", onRe); };
+  const open = () => { menu.style.display = ""; place(); window.addEventListener("scroll", onRe, true); window.addEventListener("resize", onRe); (menu.querySelector('[aria-selected="true"]') || menu.firstChild)?.focus(); };
+  apps.forEach((a) => {
+    const row = el("div", "rsel-opt"); row.innerHTML = optHTML(a);
+    row.setAttribute("role", "option"); row.tabIndex = -1;
+    if (a.id === cur) row.setAttribute("aria-selected", "true");
+    const pick = () => {
+      cur = a.id; drawBtn();
+      menu.querySelectorAll('[aria-selected]').forEach((n) => n.removeAttribute("aria-selected"));
+      row.setAttribute("aria-selected", "true");
+      close(); btn.focus(); if (onChange) onChange(cur);
+    };
+    row.addEventListener("click", pick);
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); (row.nextElementSibling || menu.firstChild).focus(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); (row.previousElementSibling || menu.lastChild).focus(); }
+      else if (e.key === "Escape") { e.preventDefault(); close(); btn.focus(); }
+    });
+    menu.appendChild(row);
+  });
+  btn.addEventListener("click", () => (isOpen() ? close() : open()));
+  btn.addEventListener("keydown", (e) => { if ((e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") && !isOpen()) { e.preventDefault(); open(); } });
+  const maybeClose = () => setTimeout(() => { if (!box.contains(document.activeElement)) close(); }, 120);
+  btn.addEventListener("blur", maybeClose);
+  menu.addEventListener("focusout", maybeClose);
+  box.appendChild(btn); box.appendChild(menu); drawBtn();
+  Object.defineProperty(box, "value", { get: () => cur, set: (v) => { cur = v; drawBtn(); } });
+  return box;
+}
+
 async function loadApps() {
   const data = await api(`/api/apps?lang=${LANG}`);
   APPS = data.apps;
@@ -594,9 +661,9 @@ async function loadApps() {
       (a.has_settings ? `<button class="app-gear" title="${esc(t("Settings"))}">⚙</button>` : "") +
       `<div class="app-foot">` +
         (a.i18n ? `<span class="app-i18n" title="${esc(t("Multilingual — adapts to the global Language"))}">🌐</span>` : "") +
-        // A subtle "draws on the panel" marker so a canvas app reads as one at a glance,
+        // A "draws on the panel" marker so a canvas app reads as one at a glance,
         // whether or not this wall can run it.
-        (isCanvas ? `<span class="app-canvas" title="${esc(t("Matrix panel"))}">⣿</span>` : "") +
+        (isCanvas ? canvasMark() : "") +
         `<span class="app-badge"></span>` +
         (fits ? "" : `<span class="app-req">${esc(reqLabel)}</span>`) +
       `</div>`;
@@ -1149,6 +1216,7 @@ const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // ("" = All), so a reopen after Add/Remove/Upload lands back where you were.
 let LIB_CAT = "";
 let LIB_Q = "";
+let LIB_CANVAS = false;   // library "Matrix panel apps only" toggle (independent of category)
 
 function libRow(a, reopen) {
   const row = el("div", "lib-row");
@@ -1182,7 +1250,7 @@ function libRow(a, reopen) {
   // here too (it will run only on a canvas-capable wall).
   if (a.surface === "canvas") {
     const surf = el("span", "lib-tag canvas");
-    surf.textContent = "⣿ " + t("Matrix panel");
+    surf.innerHTML = canvasMark() + " " + esc(t("Matrix panel"));
     tags.appendChild(surf);
   }
   meta.append(name, desc, tags);
@@ -1234,16 +1302,25 @@ async function openLibrary() {
 
   const matches = (a) => {
     if (LIB_CAT && a.category !== LIB_CAT) return false;
+    if (LIB_CANVAS && a.surface !== "canvas") return false;
     const q = LIB_Q.trim().toLowerCase();
     if (!q) return true;
     return [a.name, a.description, a.category, a.id].some((f) => (f || "").toLowerCase().includes(q));
   };
+  // A Matrix-only toggle sits alongside the category buttons — but on a different axis (surface,
+  // not category), so it toggles independently rather than being one of the exclusive categories.
+  const hasCanvas = data.apps.some((a) => a.surface === "canvas");
+  const mf = el("button", "lib-filter lib-filter-canvas"); mf.type = "button";
+  mf.innerHTML = canvasMark() + " " + esc(t("Matrix"));
+  mf.title = t("Matrix panel apps only");
+  mf.addEventListener("click", () => { LIB_CANVAS = !LIB_CANVAS; draw(); });
   const draw = () => {
     list.innerHTML = "";
     const shown = data.apps.filter(matches);
     shown.forEach((a) => list.appendChild(libRow(a, openLibrary)));
     if (!shown.length) list.innerHTML = `<span class="hint">${t("No apps match.")}</span>`;
     [...filters.children].forEach((f) => f.classList.toggle("active", f.dataset.cat === LIB_CAT));
+    mf.classList.toggle("active", LIB_CANVAS);
   };
   [["", t("All")], ...cats.map((c) => [c, t(titleCase(c))])].forEach(([value, label]) => {
     const f = el("button", "lib-filter");
@@ -1251,6 +1328,7 @@ async function openLibrary() {
     f.addEventListener("click", () => { LIB_CAT = value; draw(); });
     filters.appendChild(f);
   });
+  if (hasCanvas) filters.appendChild(mf);
   search.addEventListener("input", () => { LIB_Q = search.value; draw(); });
   draw();
   wrap.append(search, filters, list);
@@ -1296,11 +1374,10 @@ function plRender() {
     });
     row.appendChild(tag);
     if (e.type === "app") {
-      const sel = el("select"); sel.className = "grow";
-      // ⣿ marks a canvas (Matrix panel) app, 🌐 a multilingual one — the same markers the library shows.
-      APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}${a.surface === "canvas" ? " ⣿" : ""}${a.i18n ? " 🌐" : ""}`; if (a.id === e.app) o.selected = true; sel.appendChild(o); });
       if (!e.app && APPS[0]) e.app = APPS[0].id;
-      sel.onchange = () => { e.app = sel.value; e.overrides = {}; plRender(); }; row.appendChild(sel);
+      // A rich picker (not a native <select>) so the amber dot-matrix marks a canvas app here too.
+      const sel = richAppSelect(APPS, e.app, (v) => { e.app = v; e.overrides = {}; plRender(); });
+      sel.classList.add("grow"); row.appendChild(sel);
       // Per-entry settings: override this entry's config (location/units/language…)
       // independently, so the same app can appear more than once configured differently.
       const nOv = Object.keys(e.overrides || {}).length;
@@ -1441,8 +1518,10 @@ async function loadTriggers() {
   const d = await api("/api/triggers");
   TRIGS = d.triggers || []; TRIG_APPS = d.trigger_apps || [];
   $("trigEnabled").checked = d.triggers_enabled !== false;
-  const sel = $("trigAddApp"); sel.innerHTML = "";
-  TRIG_APPS.forEach((a) => { const o = el("option"); o.value = a.id; o.textContent = `${a.icon} ${a.name}${a.surface === "canvas" ? " ⣿" : ""}`; sel.appendChild(o); });
+  // A rich picker in place of the native <select>, so a canvas app carries the dot-matrix marker.
+  const widget = richAppSelect(TRIG_APPS, TRIG_APPS[0]?.id || "", null);
+  widget.id = "trigAddApp"; widget.classList.add("grow");
+  $("trigAddApp").replaceWith(widget);
   trigRender();
 }
 function addTrigger() {

@@ -189,16 +189,31 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 .app-tile .app-foot .app-i18n { font-size: .82rem; opacity: .7; cursor: help; }
 .app-tile .app-foot .app-i18n:hover { opacity: 1; }
 /* "Draws on the panel" marker — subtle, sits with the other foot glyphs. */
-.app-tile .app-foot .app-canvas { font-size: .82rem; color: var(--brand); opacity: .8; cursor: help; }
-.app-tile .app-foot .app-canvas:hover { opacity: 1; }
+/* The canvas marker is an inline SVG — a tiny amber dot-matrix echoing the LED panel. */
+.app-canvas { width: 16px; height: 16px; flex: none; vertical-align: middle; cursor: help; display: inline-block; }
+.app-tile .app-foot .app-canvas { width: 17px; height: 17px; }
 /* Canvas (Matrix-panel) apps stand apart from flap apps: the whole box takes a
-   brand-tinted shade and a brand border, and its ⣿ marker becomes a filled pill —
-   so at a glance you can tell which apps draw on an LED panel. */
+   brand-tinted shade and a brand border, so at a glance you can tell which apps
+   draw on an LED panel. */
 .app-tile.is-canvas { background: linear-gradient(180deg, rgba(124,92,255,.17), rgba(124,92,255,.05)), var(--input);
   border-color: rgba(124,92,255,.55); }
 .app-tile.is-canvas:hover { border-color: var(--brand); }
-.app-tile.is-canvas .app-foot .app-canvas { background: rgba(124,92,255,.22);
-  border: 1px solid rgba(124,92,255,.5); border-radius: 10px; padding: 0 6px; opacity: 1; }
+
+/* rich app select — renders SVG/icon markers a native <select> can't */
+.rsel { position: relative; }
+.rsel-btn { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
+  padding: 6px 8px; border: 1px solid var(--acc); border-radius: 6px; background: var(--input);
+  color: var(--txt); font: inherit; font-size: .85rem; cursor: pointer; }
+.rsel-btn .rsel-caret { margin-left: auto; opacity: .6; padding-left: 4px; }
+.rsel-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rsel-i18n { opacity: .7; }
+.rsel-menu { position: fixed; z-index: 60; max-height: 280px; overflow-y: auto;
+  background: var(--card); border: 1px solid var(--acc); border-radius: 6px; padding: 3px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+.rsel-opt { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 4px;
+  cursor: pointer; font-size: .85rem; }
+.rsel-opt:hover, .rsel-opt:focus { background: var(--acc); outline: none; }
+.rsel-opt[aria-selected="true"] { background: rgba(124,92,255,.18); }
 .app-tile .app-foot .app-badge { font-size: .62rem; color: var(--brand); font-weight: 700; letter-spacing: .5px; }
 .app-tile .app-foot .app-req { margin-left: auto; font-size: .62rem; color: var(--hi); font-weight: 700; }
 
@@ -264,6 +279,11 @@ a.btn { text-decoration: none; display: inline-block; }
   border-radius: 14px; padding: 4px 12px; font-size: .8rem; cursor: pointer; margin: 0; }
 .lib-filter:hover { color: var(--txt); }
 .lib-filter.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+/* The Matrix-only toggle filters on a different axis (surface), so it's set apart from the
+   exclusive category buttons and lights amber — the panel's own colour — when on. */
+.lib-filter-canvas { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; }
+.lib-filter-canvas.active { background: #f5c518; border-color: #f5c518; color: #1a1a1a; }
+.lib-filter-canvas .app-canvas { width: 14px; height: 14px; }
 .lib-list { margin-top: 4px; }
 .lib-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--acc); }
 .lib-row .lib-meta { flex: 1; min-width: 0; }

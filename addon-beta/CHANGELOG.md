@@ -3,6 +3,17 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.21
+
+- **New Matrix-panel marker: a real amber dot-matrix.** Instead of a Unicode glyph, canvas apps
+  now carry a small custom SVG that mirrors the panel itself — amber LEDs on black. It shows in
+  the app library, the app cards, and (new) the playlist and trigger app pickers.
+- **Playlist & trigger pickers are now rich dropdowns.** They render the app icon, name and the
+  Matrix marker (a native dropdown can only show plain text), so a canvas app is unmistakable when
+  you add it — and it's keyboard-navigable.
+- **Library: filter to Matrix apps.** A "Matrix" toggle sits alongside the category filters and
+  narrows the list to canvas (panel) apps.
+
 ## 2.9.0-beta.20
 
 - **Renamed the split-flap dashboard app to "Home Assistant"** (was "Entity Board").
