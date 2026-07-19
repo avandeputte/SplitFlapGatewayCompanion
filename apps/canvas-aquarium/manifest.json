@@ -1,0 +1,33 @@
+{
+  "id": "canvas-aquarium",
+  "name": "Aquarium",
+  "icon": "🐟",
+  "description": "A living reef drawn on the panel with canvas draw-ops and a sprite atlas",
+  "type": "functional",
+  "surface": "canvas",
+  "category": "fun",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "settings": [
+    {
+      "key": "fish",
+      "label": "Fish",
+      "type": "number",
+      "default": "6",
+      "min": "1", "max": "16", "step": "1", "stepper": true
+    },
+    {
+      "key": "water",
+      "label": "Water",
+      "type": "select",
+      "default": "reef",
+      "options": [
+        {"value": "reef", "label": "Reef"},
+        {"value": "deep", "label": "Deep"},
+        {"value": "dusk", "label": "Dusk"}
+      ]
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 15
+}

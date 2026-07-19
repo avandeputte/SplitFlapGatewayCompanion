@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.9
+
+- **New app — Aquarium.** A canvas app for the Matrix panel drawn entirely with on-device
+  draw-ops and a sprite atlas: a gradient water column, fish blitted from an uploaded sprite
+  sheet, rising bubbles, and swaying weeds. Set the number of fish and the water tone.
+
 ## 2.9.0-beta.8
 
 - **Fix — the Animation app's "Gateway animation" picker showed `[object Object]`** instead of the

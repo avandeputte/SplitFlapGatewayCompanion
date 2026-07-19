@@ -19,9 +19,9 @@ Eve, Yom Kippur, Diwali, Eid al-Fitr...), filtered to the traditions picked in
 settings. Dates the source computes rather than observes (some lunar-calendar
 dates are announced by sighting) are marked estimated and shown with a ~.
 
-Two more layers absorbed from the retired National Today app, each with its
-own switch and its own files (M/D-keyed — they recur yearly — and kept OUT of
-data/, which scripts/extract_holidays.py wipes on a dataset rebuild):
+Two further layers, each with its own switch and its own files (M/D-keyed — they
+recur yearly — and kept OUT of data/, which scripts/extract_holidays.py wipes on a
+dataset rebuild):
 
   * cultural/<locale>.json — genuine curated traditions (April Fools',
     Nikolaus, Burns Night, Día del Amigo), locale-picked like the dataset;
