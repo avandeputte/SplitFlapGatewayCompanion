@@ -1,0 +1,39 @@
+{
+  "id": "canvas-scoreboard",
+  "name": "Scoreboard",
+  "icon": "🏆",
+  "description": "Live scores with team badges (real logos) on the Matrix panel",
+  "type": "functional",
+  "surface": "canvas",
+  "refresh_interval": 1,
+  "loop_delay": 45,
+  "category": "sports",
+  "settings": [
+    {
+      "key": "follow",
+      "label": "Leagues / teams",
+      "type": "text",
+      "default": "nba",
+      "ph": "nba, epl:ARS, nfl:KC",
+      "note": "Comma-separated: a league code (nba, nfl, mlb, nhl, epl, laliga, mls, ucl…), optionally league:TEAM to follow one team."
+    },
+    {
+      "key": "filter",
+      "label": "Show",
+      "type": "toggle",
+      "default": "all",
+      "options": [
+        {"value": "all", "label": "All"},
+        {"value": "live", "label": "Live"},
+        {"value": "live+upcoming", "label": "Live+Next"}
+      ]
+    },
+    {
+      "key": "rotate",
+      "label": "Seconds per game",
+      "type": "number",
+      "default": "8",
+      "min": "3", "max": "60", "step": "1", "stepper": true
+    }
+  ]
+}

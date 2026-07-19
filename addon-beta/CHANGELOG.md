@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.13
+
+- **New app — Scoreboard.** Live scores on the Matrix panel with real team **badges** (each
+  team's logo, blitted from the sprite atlas), big scores, league and status — rotating through
+  the games you follow. Follow whole leagues or single teams (`nba`, `epl:ARS`, `nfl:KC`) from
+  ESPN; a team whose logo can't be fetched falls back to a colour badge with its abbreviation.
+
 ## 2.9.0-beta.12
 
 - **Effects are now one app per effect.** Instead of a single "Effects" app with an effect
