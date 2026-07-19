@@ -59,6 +59,19 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         canvas.frame(canvas.vgrad((40, 40, 60), (10, 10, 20)))   # a backdrop until a URL is set
         return 10.0
 
+    # Fast path (firmware 2.1): the panel decodes the GIF itself. Send the raw bytes once — no
+    # client-side unpacking, no frame cap, the GIF's own timing and transparency preserved. A GIF
+    # larger than the panel is refused, so we fall through to the unpack-and-fit path below.
+    if getattr(canvas, "can_gif", False):
+        try:
+            import requests
+            data = requests.get(url, timeout=15,
+                                headers={"User-Agent": "SplitFlapGatewayCompanion/1.0"}).content
+            if canvas.gif(data).get("ok"):
+                return 3600.0
+        except Exception:
+            pass
+
     try:
         frames, gif_fps = _load(url, canvas.width, canvas.height, mode)
     except Exception:

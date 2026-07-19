@@ -51,25 +51,36 @@ def has_frame(url: str) -> bool:
     return url in _LAST_FRAME
 
 
-def last_frame_png(url: str, scale: int = 1):
-    """The cached frame as PNG bytes (optionally nearest-neighbour upscaled), or None."""
-    f = _LAST_FRAME.get(url)
-    if not f:
-        return None
+def _frame_png(w: int, h: int, rgb: bytes, scale: int = 1):
+    """rgb888 bytes → PNG bytes (optionally nearest-neighbour upscaled), or None."""
     try:
         import io
 
         from PIL import Image
-        w, h, rgb = f
-        img = Image.frombytes("RGB", (w, h), rgb)
+        img = Image.frombytes("RGB", (int(w), int(h)), bytes(rgb))
         if scale > 1:
-            img = img.resize((w * scale, h * scale), Image.NEAREST)
+            img = img.resize((int(w) * scale, int(h) * scale), Image.NEAREST)
         buf = io.BytesIO()
         img.save(buf, "PNG")
         return buf.getvalue()
     except Exception as e:
-        log.debug("last_frame_png failed: %s", e)
+        log.debug("_frame_png failed: %s", e)
         return None
+
+
+def last_frame_png(url: str, scale: int = 1):
+    """The cached frame as PNG bytes (optionally nearest-neighbour upscaled), or None."""
+    f = _LAST_FRAME.get(url)
+    return _frame_png(*f, scale=scale) if f else None
+
+
+def readback_png(url: str, scale: int = 1, fmt: str = "rgb888"):
+    """Read the lit panel back (firmware 1.19) and return it as PNG bytes, or None. This is what
+    lets the live preview show on-device content — an effect, a ticker, an animation — that the
+    companion never rendered a frame for, so :func:`last_frame_png` has nothing cached. One
+    gateway round-trip; the endpoint is read-only and made for polling."""
+    f = get_frame(url, fmt)
+    return _frame_png(*f, scale=scale) if f else None
 
 
 def _ok(r) -> bool:
@@ -206,12 +217,24 @@ def put_rect(url: str, x: int, y: int, w: int, h: int, rgb: bytes, timeout: floa
 
 
 def put_ticker(url: str, text: str, color=(255, 255, 255), speed: int = 2,
+               overlay: bool = False, band: bool = True, font: str | None = None,
                timeout: float = 5.0) -> bool:
     """Scroll one line of text across the panel ON-DEVICE (POST /api/canvas/ticker) — smooth,
-    nothing streamed. Empty text hands the panel back. Speed 1–20."""
+    nothing streamed. Empty text hands the panel back. Speed 1–20.
+
+    ``overlay`` (firmware 2.1) composites the ticker as a lower-third band OVER whatever else is
+    presenting — the flap wall, an effect, an animation, a pushed frame — and it survives page
+    and mode changes until an empty text stops it. ``band=False`` drops the black bar and scrolls
+    the glyphs straight over the content. ``font`` names an uploaded/library face (``"custom"`` or
+    a saved name); an unknown name falls back to the built-in face rather than erroring."""
     try:
         body = {"text": str(text), "color": list(_rgb(color)),
                 "speed": max(1, min(20, int(speed)))}
+        if overlay:
+            body["overlay"] = True
+            body["band"] = bool(band)
+        if font:
+            body["font"] = str(font)
         return _ok(gateway._request("POST", url, "/api/canvas/ticker", json=body, timeout=timeout))
     except Exception as e:
         log.debug("canvas put_ticker failed: %s", e)
@@ -236,6 +259,175 @@ def put_anim(url: str, frames: list, w: int, h: int, fps: int = 12, loop: bool =
                                     timeout=timeout))
     except Exception as e:
         log.debug("canvas put_anim(%d frames) failed: %s", len(frames), e)
+        return False
+
+
+def get_frame(url: str, fmt: str = "rgb888", timeout: float = 8.0):
+    """Read the lit panel back (GET /api/canvas/frame, firmware 1.19) — a screenshot of whatever
+    is on screen: the flap wall, an effect, an animation, a ticker or a pushed frame. Returns
+    ``(width, height, rgb888 bytes)`` or ``None``. Read-only: it never disturbs the running mode,
+    so a live preview can poll it. The panel's real bit depth is baked in (it is what is
+    physically lit); brightness is not in the framebuffer, so a dim wall reads back at full value."""
+    try:
+        f = "rgb565" if str(fmt) == "rgb565" else "rgb888"
+        r = gateway._request("GET", url, f"/api/canvas/frame?fmt={f}", timeout=timeout)
+        if not _ok(r):
+            return None
+        w = int(r.headers.get("X-Canvas-Width") or 0)
+        h = int(r.headers.get("X-Canvas-Height") or 0)
+        got = (r.headers.get("X-Canvas-Format") or f).lower()
+        body = r.content
+        if not (w and h):
+            return None
+        if got == "rgb565":
+            body = _rgb565_to_888(body, w, h)
+        return (w, h, body) if len(body) == w * h * 3 else None
+    except Exception as e:
+        log.debug("canvas get_frame failed: %s", e)
+        return None
+
+
+def _rgb565_to_888(data: bytes, w: int, h: int) -> bytes:
+    """Big-endian rgb565 → rgb888, expanding each channel to 8 bits (the panel's own quantisation
+    is already baked in; this only widens the container)."""
+    out = bytearray(w * h * 3)
+    n = min(len(data) // 2, w * h)
+    for i in range(n):
+        v = (data[2 * i] << 8) | data[2 * i + 1]
+        r5, g6, b5 = (v >> 11) & 0x1F, (v >> 5) & 0x3F, v & 0x1F
+        j = i * 3
+        out[j] = (r5 << 3) | (r5 >> 2)
+        out[j + 1] = (g6 << 2) | (g6 >> 4)
+        out[j + 2] = (b5 << 3) | (b5 >> 2)
+    return bytes(out)
+
+
+def set_transition(url: str, kind: str = "crossfade", ms: int = 400, timeout: float = 5.0) -> bool:
+    """Set how subsequent full-frame PUTs present (POST /api/canvas/transition, firmware 2.1):
+    ``none`` (hard cut), ``crossfade``, ``wipe`` or ``slide``, tweened on-device over ``ms``
+    (100–2000). Sticky and runtime-only — a reboot returns to hard cuts. rect/qoi/anim are
+    unaffected."""
+    try:
+        k = kind if kind in ("none", "crossfade", "wipe", "slide") else "crossfade"
+        body = {"type": k, "ms": max(100, min(2000, int(ms)))}
+        return _ok(gateway._request("POST", url, "/api/canvas/transition", json=body, timeout=timeout))
+    except Exception as e:
+        log.debug("canvas set_transition failed: %s", e)
+        return False
+
+
+def put_gif(url: str, data: bytes, timeout: float = 30.0):
+    """Import an animated GIF (PUT /api/canvas/gif, firmware 2.1) — decoded ON-DEVICE into the
+    animation store and played at once, so the companion never unpacks frames itself. Returns the
+    reply ``{ok, frames, fps}`` (or ``{}`` on failure). A GIF larger than the panel is a 400; the
+    upload is capped at 4 MB. Persist what's playing with :func:`anim_save`."""
+    try:
+        r = gateway._request("PUT", url, "/api/canvas/gif", content=bytes(data),
+                             headers={"Content-Type": "application/octet-stream"}, timeout=timeout)
+        return r.json() if _ok(r) else {}
+    except Exception as e:
+        log.debug("canvas put_gif(%d bytes) failed: %s", len(data), e)
+        return {}
+
+
+def _anim_op(url: str, op: str, name: str, timeout: float = 15.0):
+    """POST /api/canvas/anim/<op> {name} — save/play/delete a library animation. Returns the JSON
+    reply (``play`` reports ``frames``) or ``{}``."""
+    try:
+        r = gateway._request("POST", url, f"/api/canvas/anim/{op}",
+                             json={"name": str(name)}, timeout=timeout)
+        return r.json() if _ok(r) else {}
+    except Exception as e:
+        log.debug("canvas anim/%s(%s) failed: %s", op, name, e)
+        return {}
+
+
+def anim_save(url: str, name: str) -> bool:
+    """Persist whatever animation is loaded to the on-device library as ``name`` (firmware 2.1)."""
+    return bool(_anim_op(url, "save", name).get("ok"))
+
+
+def anim_play(url: str, name: str):
+    """Load and play a saved library animation (firmware 2.1). Returns ``{ok, frames}`` or ``{}``."""
+    return _anim_op(url, "play", name)
+
+
+def anim_delete(url: str, name: str) -> bool:
+    """Delete a library animation (firmware 2.1)."""
+    return bool(_anim_op(url, "delete", name).get("ok"))
+
+
+def anim_list(url: str, timeout: float = 8.0) -> list:
+    """The on-device animation library (GET /api/canvas/anims, firmware 2.1): a list of
+    ``{name, bytes, frames, w, h, fps, loop}``. ``[]`` on any wall that lacks it."""
+    try:
+        r = gateway._request("GET", url, "/api/canvas/anims", timeout=timeout)
+        doc = r.json() if _ok(r) else []
+        return doc if isinstance(doc, list) else []
+    except Exception:
+        return []
+
+
+def put_font(url: str, data: bytes, timeout: float = 10.0):
+    """Install a packed ``MPFT`` font into the wall's ``custom`` slot (PUT /api/canvas/font,
+    firmware 2.1). Returns ``{ok, font, w, h, ascent}`` or ``{}``. Persist it with
+    :func:`font_save`; then name it in a ticker or the ``text`` op's ``font`` field."""
+    try:
+        r = gateway._request("PUT", url, "/api/canvas/font", content=bytes(data),
+                             headers={"Content-Type": "application/octet-stream"}, timeout=timeout)
+        return r.json() if _ok(r) else {}
+    except Exception as e:
+        log.debug("canvas put_font(%d bytes) failed: %s", len(data), e)
+        return {}
+
+
+def font_save(url: str, name: str) -> bool:
+    """Persist the loaded custom font to the library as ``name`` (firmware 2.1)."""
+    try:
+        r = gateway._request("POST", url, "/api/canvas/font/save", json={"name": str(name)}, timeout=8.0)
+        return _ok(r)
+    except Exception as e:
+        log.debug("canvas font_save(%s) failed: %s", name, e)
+        return False
+
+
+def font_delete(url: str, name: str) -> bool:
+    """Delete a library font (firmware 2.1)."""
+    try:
+        r = gateway._request("POST", url, "/api/canvas/font/delete", json={"name": str(name)}, timeout=8.0)
+        return _ok(r)
+    except Exception as e:
+        log.debug("canvas font_delete(%s) failed: %s", name, e)
+        return False
+
+
+def font_list(url: str, timeout: float = 8.0) -> list:
+    """The on-device font library (GET /api/canvas/fonts, firmware 2.1): ``{name, bytes, w, h,
+    ascent}`` each. ``[]`` on a wall that lacks it."""
+    try:
+        r = gateway._request("GET", url, "/api/canvas/fonts", timeout=timeout)
+        doc = r.json() if _ok(r) else []
+        return doc if isinstance(doc, list) else []
+    except Exception:
+        return []
+
+
+def put_atlas(url: str, tiles: bytes, tile_w: int, tile_h: int, count: int,
+              fmt: str = "rgb888", timeout: float = 15.0) -> bool:
+    """Upload a sprite tile-sheet (PUT /api/canvas/atlas, firmware 2.1) that the ``sprite`` op
+    blits from. Header is 12 bytes: ``MPTA`` · fmt(1: 2=rgb565/3=rgb888) · tileW(2 BE) · tileH(2
+    BE) · tiles(2 BE) · reserved, then the tile pixels back-to-back. Magenta (255,0,255) is
+    transparent, so sprites can carry holes. 2 MB cap."""
+    try:
+        f = 2 if str(fmt) == "rgb565" else 3
+        hdr = (b"MPTA" + bytes((1, f))          # magic, ver=1, fmt
+               + int(tile_w).to_bytes(2, "big") + int(tile_h).to_bytes(2, "big")
+               + int(count).to_bytes(2, "big"))
+        return _ok(gateway._request("PUT", url, "/api/canvas/atlas", content=hdr + bytes(tiles),
+                                    headers={"Content-Type": "application/octet-stream"},
+                                    timeout=timeout))
+    except Exception as e:
+        log.debug("canvas put_atlas failed: %s", e)
         return False
 
 
@@ -299,7 +491,9 @@ class CanvasSurface:
     def __init__(self, url: str, width: int, height: int,
                  formats: tuple = (), effects: tuple = (),
                  rect: bool = False, anim: bool = False, ticker: bool = False,
-                 effect_params: tuple = ()):
+                 effect_params: tuple = (), readback: bool = False, ops: tuple = (),
+                 overlay: bool = False, transition: bool = False, anim_library: bool = False,
+                 gif: bool = False, fonts: bool = False, sprite: bool = False):
         self.url = url
         self.width = int(width)
         self.height = int(height)
@@ -312,6 +506,18 @@ class CanvasSurface:
         self.can_anim = bool(anim)
         self.can_ticker = bool(ticker)
         self.effect_params = tuple(effect_params)
+        # 1.19 / 1.25 / 2.1. `ops` is the draw-op vocabulary the wall honours (an app can consult
+        # it before reaching for a shape); `can_ops` is "any ops at all". The rest gate the 2.1
+        # families — an app checks the flag, then calls the matching helper.
+        self.ops = tuple(ops)
+        self.can_ops = bool(self.ops)
+        self.can_readback = bool(readback)
+        self.can_overlay = bool(overlay)
+        self.can_transition = bool(transition)
+        self.can_anim_library = bool(anim_library)
+        self.can_gif = bool(gif)
+        self.can_fonts = bool(fonts)
+        self.can_sprite = bool(sprite)
         self._ops: list = []
 
     # -- drawing (batched until show) ----------------------------------------
@@ -336,9 +542,67 @@ class CanvasSurface:
                           "color": _rgb(color), "fill": bool(fill)})
         return self
 
-    def text(self, x, y, s, color=(255, 255, 255), size=10):
-        self._ops.append({"op": "text", "x": int(x), "y": int(y), "s": str(s),
-                          "color": _rgb(color), "size": int(size)})
+    def line(self, x, y, x1, y1, color=(255, 255, 255)):
+        self._ops.append({"op": "line", "x": int(x), "y": int(y), "x1": int(x1), "y1": int(y1),
+                          "color": _rgb(color)})
+        return self
+
+    def circle(self, x, y, r, color=(255, 255, 255), fill=False):
+        self._ops.append({"op": "circle", "x": int(x), "y": int(y), "r": int(r),
+                          "color": _rgb(color), "fill": bool(fill)})
+        return self
+
+    def ellipse(self, x, y, rx, ry, color=(255, 255, 255), fill=False):
+        self._ops.append({"op": "ellipse", "x": int(x), "y": int(y), "rx": int(rx), "ry": int(ry),
+                          "color": _rgb(color), "fill": bool(fill)})
+        return self
+
+    def triangle(self, x, y, x1, y1, x2, y2, color=(255, 255, 255), fill=False):
+        self._ops.append({"op": "triangle", "x": int(x), "y": int(y), "x1": int(x1), "y1": int(y1),
+                          "x2": int(x2), "y2": int(y2), "color": _rgb(color), "fill": bool(fill)})
+        return self
+
+    def roundrect(self, x, y, w, h, r, color=(255, 255, 255), fill=False):
+        self._ops.append({"op": "roundrect", "x": int(x), "y": int(y), "w": int(w), "h": int(h),
+                          "r": int(r), "color": _rgb(color), "fill": bool(fill)})
+        return self
+
+    def gradient(self, x, y, w, h, frm, to, direction="v"):
+        """Fill a rectangle with a linear gradient ``frm`` → ``to``; ``direction`` "v" (default)
+        or "h". Drawn on-device, so a sky or a backdrop costs a dozen bytes, not a frame."""
+        self._ops.append({"op": "gradient", "x": int(x), "y": int(y), "w": int(w), "h": int(h),
+                          "from": _rgb(frm), "to": _rgb(to), "dir": "h" if direction == "h" else "v"})
+        return self
+
+    def polyline(self, points, color=(255, 255, 255)):
+        """Connect ``points`` — a list of (x, y) — with lines."""
+        self._ops.append({"op": "polyline", "color": _rgb(color),
+                          "points": [[int(px), int(py)] for px, py in points]})
+        return self
+
+    def sprite(self, i, x, y):
+        """Blit tile ``i`` of the uploaded atlas (see :meth:`upload_atlas`) at (x, y). Magenta is
+        transparent. Needs ``canvas.can_sprite``."""
+        self._ops.append({"op": "sprite", "i": int(i), "x": int(x), "y": int(y)})
+        return self
+
+    def scroll(self, dx, dy, color=(0, 0, 0)):
+        """Shift the current frame by (dx, dy), filling the vacated pixels with ``color``. Make it
+        the FIRST op, then draw the newly-revealed edge — a marquee without resending the panel."""
+        self._ops.append({"op": "scroll", "dx": int(dx), "dy": int(dy), "color": _rgb(color)})
+        return self
+
+    def text(self, x, y, s, color=(255, 255, 255), size=10, align="left", font=None):
+        """Draw a text label. ``size`` selects a bundled CP1252 face (8–20); ``align`` is "left"
+        (default) / "center" / "right" about (x, y); ``font`` (firmware 2.1) names an uploaded or
+        library face — "custom" or a saved name — falling back to the built-in face if unknown."""
+        op = {"op": "text", "x": int(x), "y": int(y), "s": str(s),
+              "color": _rgb(color), "size": int(size)}
+        if align in ("center", "right"):
+            op["align"] = align
+        if font:
+            op["font"] = str(font)
+        self._ops.append(op)
         return self
 
     def show(self) -> bool:
@@ -379,11 +643,71 @@ class CanvasSurface:
             return False
         return self._push_rgb(b)
 
-    def ticker(self, text, color=(255, 255, 255), speed: int = 2) -> bool:
+    def ticker(self, text, color=(255, 255, 255), speed: int = 2,
+               overlay: bool = False, band: bool = True, font=None) -> bool:
         """Scroll one line of text across the panel ON-DEVICE — smooth, nothing streamed.
-        Empty text hands the panel back. Needs ``canvas.can_ticker``."""
-        forget_frame(self.url)                 # a scrolling ticker has no single still frame
-        return put_ticker(self.url, text, color, speed)
+        Empty text hands the panel back. Needs ``canvas.can_ticker``.
+
+        ``overlay`` (needs ``canvas.can_overlay``) composites the ticker as a lower-third band OVER
+        whatever else is presenting, surviving page/mode changes until an empty text stops it;
+        ``band=False`` drops the black bar. ``font`` names an uploaded/library face."""
+        if not overlay:
+            forget_frame(self.url)             # a full-screen ticker has no single still frame
+        return put_ticker(self.url, text, color, speed, overlay=overlay, band=band, font=font)
+
+    def transition(self, kind: str = "crossfade", ms: int = 400) -> bool:
+        """Set how subsequent ``frame()`` pushes present (firmware 2.1): "none" (hard cut),
+        "crossfade", "wipe" or "slide", tweened on-device over ``ms`` (100–2000). Sticky until
+        changed. Needs ``canvas.can_transition``."""
+        return set_transition(self.url, kind, ms)
+
+    def readback(self, fmt: str = "rgb888"):
+        """Read the lit panel back (firmware 1.19) as a PIL image, or ``None`` — a screenshot of
+        whatever is on screen, including on-device effects/tickers this side never rendered.
+        Read-only. Needs ``canvas.can_readback``."""
+        f = get_frame(self.url, fmt)
+        if not f:
+            return None
+        from PIL import Image
+        w, h, rgb = f
+        return Image.frombytes("RGB", (w, h), rgb)
+
+    def gif(self, data) -> dict:
+        """Import an animated GIF, decoded ON-DEVICE into the animation store and played at once
+        (firmware 2.1) — no client-side unpacking, no frame cap beyond the panel's PSRAM. ``data``
+        is the raw GIF bytes. Returns ``{ok, frames, fps}`` (or ``{}``). Needs ``canvas.can_gif``."""
+        forget_frame(self.url)
+        return put_gif(self.url, bytes(data))
+
+    def save_anim(self, name) -> bool:
+        """Persist whatever animation is loaded to the on-device library as ``name`` — it survives
+        the reboot and replays by name (firmware 2.1). Needs ``canvas.can_anim_library``."""
+        return anim_save(self.url, name)
+
+    def play_anim(self, name) -> dict:
+        """Load and play a saved library animation (firmware 2.1). Returns ``{ok, frames}``."""
+        forget_frame(self.url)
+        return anim_play(self.url, name)
+
+    def delete_anim(self, name) -> bool:
+        """Delete a saved library animation (firmware 2.1)."""
+        return anim_delete(self.url, name)
+
+    def upload_atlas(self, images, fmt: str = "rgb888") -> bool:
+        """Upload a list of equal-size PIL images as the sprite atlas; ``sprite(i)`` then blits
+        image ``i`` (firmware 2.1). Magenta (255,0,255) is transparent. Needs ``canvas.can_sprite``."""
+        try:
+            imgs = [im.convert("RGB") for im in images]
+            if not imgs:
+                return False
+            tw, th = imgs[0].width, imgs[0].height
+            buf = bytearray()
+            for im in imgs:
+                buf += (im if (im.width, im.height) == (tw, th) else im.resize((tw, th))).tobytes()
+            return put_atlas(self.url, bytes(buf), tw, th, len(imgs), fmt)
+        except Exception as e:
+            log.debug("canvas.upload_atlas failed: %s", e)
+            return False
 
     def anim(self, images, fps: int = 12, loop: bool = True) -> bool:
         """Upload a short loop that plays ON-DEVICE from PSRAM (sent once, then nothing on the

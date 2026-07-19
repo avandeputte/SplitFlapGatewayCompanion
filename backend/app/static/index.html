@@ -37,6 +37,9 @@
     <button class="tab" data-tab="compose" data-i18n="Compose">Compose</button>
     <button class="tab" data-tab="playlists" data-i18n="Playlists">Playlists</button>
     <button class="tab" data-tab="triggers" data-i18n="Triggers">Triggers</button>
+    <!-- Matrix-only: the LED panel's own controls (overlay ticker, transitions, the
+         animation & font libraries, boot splash). Hidden until a canvas wall is selected. -->
+    <button class="tab hidden" data-tab="panel" id="tab-panel" data-i18n="Panel">Panel</button>
   </nav>
 
   <main>
@@ -137,6 +140,76 @@
         <div class="spacer"></div>
         <span class="hint" id="trigMsg"></span>
         <button class="btn primary" id="trigSave" data-i18n="Save">Save</button>
+      </div>
+    </section>
+
+    <!-- PANEL (Matrix-only LED-panel controls) -->
+    <section class="panel tabpage hidden" id="page-panel">
+      <div class="panel-head">
+        <h2 data-i18n="Panel">Panel</h2>
+        <span class="hint" id="panelMeta"></span>
+      </div>
+      <p class="hint" data-i18n="Controls for the LED panel itself — over and above whatever app or playlist is running.">Controls for the LED panel itself — over and above whatever app or playlist is running.</p>
+
+      <!-- Overlay ticker -->
+      <div class="panel-card" id="panelOverlay">
+        <h3 data-i18n="Overlay ticker">Overlay ticker</h3>
+        <p class="hint" data-i18n="A line of text that scrolls in a band over whatever else is on the wall, and stays until you clear it.">A line of text that scrolls in a band over whatever else is on the wall, and stays until you clear it.</p>
+        <div class="controls">
+          <input class="input" id="ovText" placeholder="Message to scroll…" data-i18n-placeholder="Message to scroll…" aria-label="Overlay message" data-i18n-label="Overlay message" style="flex:1;min-width:180px">
+          <input type="color" id="ovColor" value="#ffffff" aria-label="Overlay colour" data-i18n-label="Overlay colour" style="width:44px;padding:2px">
+          <label class="field inline" style="margin:0"><span style="min-width:0">⚡</span></label>
+          <input type="number" id="ovSpeed" min="1" max="20" value="3" class="cmp-speed" aria-label="Speed" data-i18n-label="Speed">
+          <label class="field inline" style="margin:0"><input type="checkbox" id="ovBand" checked style="width:auto"><span style="min-width:0" data-i18n="Band">Band</span></label>
+          <div class="spacer"></div>
+          <button class="btn ghost btn-sm" id="ovClear" data-i18n="Clear">Clear</button>
+          <button class="btn primary btn-sm" id="ovShow" data-i18n="Show overlay">Show overlay</button>
+        </div>
+      </div>
+
+      <!-- Transitions -->
+      <div class="panel-card" id="panelTransition">
+        <h3 data-i18n="Transitions">Transitions</h3>
+        <p class="hint" data-i18n="How one full-panel frame gives way to the next.">How one full-panel frame gives way to the next.</p>
+        <div class="controls">
+          <select id="trType">
+            <option value="none" data-i18n="Hard cut">Hard cut</option>
+            <option value="crossfade" data-i18n="Crossfade">Crossfade</option>
+            <option value="wipe" data-i18n="Wipe">Wipe</option>
+            <option value="slide" data-i18n="Slide">Slide</option>
+          </select>
+          <input type="number" id="trMs" min="100" max="2000" step="50" value="400" class="cmp-speed" aria-label="Duration ms" data-i18n-label="Duration ms">
+          <span class="hint">ms</span>
+          <div class="spacer"></div>
+          <button class="btn primary btn-sm" id="trApply" data-i18n="Apply">Apply</button>
+        </div>
+      </div>
+
+      <!-- Animation library -->
+      <div class="panel-card" id="panelAnims">
+        <h3 data-i18n="Animation library">Animation library</h3>
+        <p class="hint" data-i18n="Animations saved on the panel — they replay by name and survive a reboot. Upload a GIF and the panel decodes it.">Animations saved on the panel — they replay by name and survive a reboot. Upload a GIF and the panel decodes it.</p>
+        <div id="animList" class="panel-list"></div>
+        <div class="controls">
+          <input type="file" id="gifFile" accept="image/gif" aria-label="GIF file" data-i18n-label="GIF file">
+          <button class="btn ghost btn-sm" id="gifUpload" data-i18n="Upload GIF">Upload GIF</button>
+          <div class="spacer"></div>
+          <span class="hint" id="animMsg"></span>
+        </div>
+      </div>
+
+      <!-- Fonts -->
+      <div class="panel-card" id="panelFonts">
+        <h3 data-i18n="Fonts">Fonts</h3>
+        <p class="hint" data-i18n="Custom faces the ticker and text can use, packed as .fnt (MPFT) with tools/fontpack.py.">Custom faces the ticker and text can use, packed as .fnt (MPFT) with tools/fontpack.py.</p>
+        <div id="fontList" class="panel-list"></div>
+        <div class="controls">
+          <input type="file" id="fontFile" accept=".fnt,application/octet-stream" aria-label="Font file" data-i18n-label="Font file">
+          <input class="input" id="fontName" placeholder="Save as…" data-i18n-placeholder="Save as…" aria-label="Font name" data-i18n-label="Font name" style="max-width:150px">
+          <button class="btn ghost btn-sm" id="fontUpload" data-i18n="Upload font">Upload font</button>
+          <div class="spacer"></div>
+          <span class="hint" id="fontMsg"></span>
+        </div>
       </div>
     </section>
 

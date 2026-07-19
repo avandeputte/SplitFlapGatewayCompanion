@@ -96,8 +96,32 @@ class Capabilities:
     canvas_ticker: bool = False             # POST /api/canvas/ticker — on-device scrolling text
     effect_params: tuple[str, ...] = ()     # effect knobs, e.g. ("hue", "density")
 
+    # Newer still (Matrix Portal 1.19 / 1.25 / 2.1). `fw_version` is the wall's firmware,
+    # parsed from the capabilities document's `fw` field ((0, 0) = not stated). `canvas_readback`
+    # (1.19) and `canvas_ops` (1.25 — the draw-op vocabulary) are advertised directly. The 2.1
+    # endpoint families — the overlay ticker, frame transitions, the on-device animation and font
+    # LIBRARIES, GIF import and the boot splash — are NOT separately flagged, so they gate on the
+    # firmware version (`canvas_2_1`); `sprite` is the exception, carried in `canvas_ops`.
+    fw_version: tuple[int, int] = (0, 0)
+    canvas_readback: bool = False           # GET /api/canvas/frame — read the lit panel back
+    canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honours
+
     def __bool__(self) -> bool:
         return self.indexed
+
+    @property
+    def canvas_sprite(self) -> bool:
+        """Whether the ops path can blit atlas sprites — the `sprite` op, fed by
+        PUT /api/canvas/atlas. Carried in the ops vocabulary rather than a version."""
+        return "sprite" in self.canvas_ops
+
+    @property
+    def canvas_2_1(self) -> bool:
+        """Whether the wall runs Matrix Portal firmware 2.1+, which added the endpoint families
+        that are not separately advertised: the overlay ticker, frame transitions, the persistent
+        animation/font libraries, GIF import and the boot splash. Gated on the firmware version
+        because /api/capabilities does not flag them one by one."""
+        return self.fw_version >= (2, 1)
 
     @property
     def has_canvas(self) -> bool:
@@ -213,6 +237,14 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     canvas_formats = tuple(str(f) for f in (canvas.get("formats") or []) if isinstance(f, str))
     effects = tuple(str(e) for e in (doc.get("effects") or []) if isinstance(e, str))
     effect_params = tuple(str(p) for p in (doc.get("effectParams") or []) if isinstance(p, str))
+    # The draw-op vocabulary (1.25) and the panel readback flag (1.19), advertised directly. The
+    # ops list is what gates a specific op the app is about to send — an unknown op is skipped by
+    # the firmware, but knowing up front lets an app choose the frame path instead.
+    canvas_ops = tuple(str(o) for o in (canvas.get("ops") or []) if isinstance(o, str))
+    canvas_readback = bool(canvas.get("readback"))
+    # `fw` is the firmware version string, e.g. "2.1.0"; take the leading major.minor. The 2.1
+    # endpoint families gate on this because the capabilities document does not flag them.
+    fw_version = _parse_fw(doc.get("fw"))
 
     return Capabilities(
         lowercase="lowercase" in features,
@@ -245,4 +277,19 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_anim=bool(canvas.get("anim")),
         canvas_ticker=bool(canvas.get("ticker")),
         effect_params=effect_params,
+        fw_version=fw_version,
+        canvas_readback=canvas_readback,
+        canvas_ops=canvas_ops,
     )
+
+
+def _parse_fw(fw: object) -> tuple[int, int]:
+    """(major, minor) from a firmware version string like ``"2.1.0"``; ``(0, 0)`` when it is
+    absent or unparseable — which reads as "too old to have the version-gated features"."""
+    if not isinstance(fw, str):
+        return (0, 0)
+    parts = fw.strip().lstrip("vV").split(".")
+    try:
+        return (int(parts[0]), int(parts[1]) if len(parts) > 1 else 0)
+    except (ValueError, IndexError):
+        return (0, 0)

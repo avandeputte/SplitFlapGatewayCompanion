@@ -30,6 +30,9 @@ COMPANION_TABS: list[dict[str, str]] = [
     {"id": "compose", "label": "Compose"},
     {"id": "playlists", "label": "Playlists"},
     {"id": "triggers", "label": "Triggers"},
+    # Matrix-only in the UI (hidden on a flap wall), but still a tab the companion owns — the
+    # nav and this list must agree (tests/test_tabs.py), so it is advertised either way.
+    {"id": "panel", "label": "Panel"},
 ]
 
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,24}$")

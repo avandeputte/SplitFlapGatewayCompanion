@@ -35,6 +35,7 @@ from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
 from .registry import DisplayRegistry
 from .routes import apps as routes_apps
+from .routes import canvas_api as routes_canvas_api
 from .routes import dev as routes_dev
 from .routes import displays as routes_displays
 from .routes import helpers_api as routes_helpers_api
@@ -764,6 +765,7 @@ _include_flat(routes_playlists.build(_SELF))
 _include_flat(routes_helpers_api.build(_SELF))
 _include_flat(routes_message.build(_SELF))
 _include_flat(routes_local_api.build(_SELF))
+_include_flat(routes_canvas_api.build(_SELF))
 
 # Re-exported: the model lives with the playlist routes now; test_audit_fixes pins
 # from here that a non-dict playlist entry is rejected at the door.

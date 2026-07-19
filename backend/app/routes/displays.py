@@ -205,11 +205,13 @@ def build(deps) -> APIRouter:
 
     @router.get("/api/current_state/canvas.png")
     async def current_canvas_png(request: Request):
-        """The frame a canvas app is currently drawing on this display's Matrix
-        panel, as a PNG — for the live preview and the HA board image. 404 when no
-        canvas app is drawing (or it's an on-device effect, which has no frame)."""
+        """What this display's Matrix panel is showing, as a PNG — for the live preview and the HA
+        board image. A frame-push app's cached frame is returned directly; on a wall that supports
+        readback (firmware 1.19), an on-device effect/ticker/animation is read back from the panel
+        instead. 404 when nothing canvas is drawing. The preview may make one gateway call, so it
+        runs off the event loop."""
         d = deps.display_for(request)
-        png = d.controller.canvas_preview_png()
+        png = await asyncio.to_thread(d.controller.canvas_preview_png)
         if png is None:
             raise HTTPException(404, "no canvas frame")
         return Response(content=png, media_type="image/png",

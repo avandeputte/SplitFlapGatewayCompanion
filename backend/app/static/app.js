@@ -447,9 +447,9 @@ function wireTabs() {
       document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
       btn.classList.add("active");
       const tab = btn.dataset.tab;
-      ["apps", "compose", "playlists", "triggers"]
+      ["apps", "compose", "playlists", "triggers", "panel"]
         .forEach((p) => $("page-" + p).classList.toggle("hidden", p !== tab));
-      const loaders = { apps: loadApps, playlists: loadPlaylists, triggers: loadTriggers };
+      const loaders = { apps: loadApps, playlists: loadPlaylists, triggers: loadTriggers, panel: loadPanel };
       if (loaders[tab]) loaders[tab]();
       if (tab === "compose") $("cmpCatcher").focus();   // opens the keyboard on iOS
       current.textContent = btn.textContent;
@@ -1258,6 +1258,134 @@ async function saveTriggers() {
   setTimeout(() => ($("trigMsg").textContent = ""), 4000);
 }
 
+// ---- panel (Matrix LED-panel controls) -------------------------------------
+// The overlay ticker, transitions, the on-device animation & font libraries and the
+// boot splash — all Matrix-only, all gated on what /api/panel/caps advertises, so the
+// whole tab is absent on a flap wall and each card is absent on a wall too old for it.
+let PANEL_CAPS = null;
+
+function syncPanelTab() {
+  const btn = $("tab-panel");
+  if (!btn) return;
+  btn.classList.toggle("hidden", !CANVAS);
+  // Left a canvas wall while the Panel tab was open: fall back to Apps.
+  if (!CANVAS && btn.classList.contains("active"))
+    document.querySelector('.tab[data-tab="apps"]').click();
+}
+
+async function loadPanel() {
+  let caps;
+  try { caps = await api("/api/panel/caps"); } catch { return; }   // not a canvas wall
+  PANEL_CAPS = caps;
+  $("panelMeta").textContent = `${caps.width}×${caps.height} · fw ${caps.fw}`;
+  $("panelOverlay").classList.toggle("hidden", !caps.overlay);
+  $("panelTransition").classList.toggle("hidden", !caps.transition);
+  $("panelAnims").classList.toggle("hidden", !caps.anim_library);
+  $("panelFonts").classList.toggle("hidden", !caps.fonts);
+  await refreshPanelLibrary();
+}
+
+async function refreshPanelLibrary() {
+  if (!PANEL_CAPS || !(PANEL_CAPS.anim_library || PANEL_CAPS.fonts)) return;
+  let lib;
+  try { lib = await api("/api/panel/library"); } catch { return; }
+  renderAnimList(lib.anims || [], lib.boot || "");
+  renderFontList(lib.fonts || []);
+}
+
+function _hex2rgb(h) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h || "");
+  return m ? [1, 2, 3].map((i) => parseInt(m[i], 16)) : [255, 255, 255];
+}
+
+function _panelRow(name, metaText, buttons) {
+  const row = el("div", "panel-row");
+  const n = el("span", "panel-name"); n.textContent = name;
+  const meta = el("span", "hint"); meta.textContent = metaText;
+  const sp = el("div", "spacer");
+  row.append(n, meta, sp, ...buttons);
+  return { row, name: n };
+}
+
+function renderAnimList(anims, boot) {
+  const box = $("animList"); box.innerHTML = "";
+  if (!anims.length) { box.innerHTML = `<span class="hint">${t("None yet.")}</span>`; return; }
+  anims.forEach((a) => {
+    const play = el("button", "btn ghost btn-sm"); play.textContent = t("Play");
+    play.onclick = () => panelDo("/api/panel/anim/play", { name: a.name });
+    const bootBtn = el("button", "btn ghost btn-sm");
+    bootBtn.textContent = a.name === boot ? t("Unset boot") : t("Set boot");
+    bootBtn.onclick = () => panelDo("/api/panel/boot", { name: a.name === boot ? "" : a.name }, refreshPanelLibrary);
+    const del = el("button", "btn ghost btn-sm"); del.textContent = t("Delete");
+    del.onclick = () => panelDo("/api/panel/anim/delete", { name: a.name }, refreshPanelLibrary);
+    const { row, name } = _panelRow(a.name, `${a.frames}f · ${a.fps || "?"}fps`, [play, bootBtn, del]);
+    if (a.name === boot) { const p = el("span", "pill"); p.textContent = t("boot"); name.appendChild(p); }
+    box.appendChild(row);
+  });
+}
+
+function renderFontList(fonts) {
+  const box = $("fontList"); box.innerHTML = "";
+  if (!fonts.length) { box.innerHTML = `<span class="hint">${t("None yet.")}</span>`; return; }
+  fonts.forEach((f) => {
+    const del = el("button", "btn ghost btn-sm"); del.textContent = t("Delete");
+    del.onclick = () => panelDo("/api/panel/font/delete", { name: f.name }, refreshPanelLibrary);
+    box.appendChild(_panelRow(f.name, `${f.w}×${f.h}`, [del]).row);
+  });
+}
+
+async function panelDo(path, body, after) {
+  try { await post(path, body); if (after) await after(); }
+  catch (e) { $("animMsg").textContent = t("Failed: %s", e.message); }
+}
+
+async function _rawPut(path, buf) {
+  return api(path, { method: "PUT", headers: { "Content-Type": "application/octet-stream" }, body: buf });
+}
+
+function wirePanel() {
+  $("ovShow").addEventListener("click", async () => {
+    try {
+      await post("/api/panel/overlay", {
+        text: $("ovText").value, color: _hex2rgb($("ovColor").value),
+        speed: +$("ovSpeed").value || 3, band: $("ovBand").checked,
+      });
+      $("panelMeta").textContent = t("Overlay showing.");
+    } catch (e) { $("panelMeta").textContent = t("Failed: %s", e.message); }
+  });
+  $("ovClear").addEventListener("click", () =>
+    post("/api/panel/overlay", { text: "" }).then(() => ($("ovText").value = "")).catch(() => {}));
+  $("trApply").addEventListener("click", () =>
+    post("/api/panel/transition", { type: $("trType").value, ms: +$("trMs").value || 400 })
+      .then(() => ($("panelMeta").textContent = t("Transition set."))).catch(() => {}));
+
+  $("gifUpload").addEventListener("click", async () => {
+    const f = $("gifFile").files[0];
+    if (!f) { $("animMsg").textContent = t("Choose a GIF first."); return; }
+    $("animMsg").textContent = t("Uploading…");
+    try {
+      const r = await _rawPut("/api/panel/gif", await f.arrayBuffer());
+      $("animMsg").textContent = t("Playing %s frames.", String(r.frames || "?"));
+      const suggested = f.name.replace(/\.gif$/i, "").toLowerCase().replace(/[^a-z0-9_-]/g, "-").slice(0, 24);
+      const name = prompt(t("Save this animation to the panel as (a-z 0-9 - _):"), suggested);
+      if (name) { await post("/api/panel/anim/save", { name: name.trim() }); await refreshPanelLibrary(); }
+    } catch (e) { $("animMsg").textContent = t("Failed: %s", e.message); }
+  });
+
+  $("fontUpload").addEventListener("click", async () => {
+    const f = $("fontFile").files[0];
+    if (!f) { $("fontMsg").textContent = t("Choose a .fnt file first."); return; }
+    try {
+      await _rawPut("/api/panel/font", await f.arrayBuffer());
+      const name = ($("fontName").value || "").trim();
+      if (name) await post("/api/panel/font/save", { name });
+      $("fontMsg").textContent = name ? t("Font saved as %s.", name) : t("Font installed (unsaved).");
+      $("fontName").value = "";
+      await refreshPanelLibrary();
+    } catch (e) { $("fontMsg").textContent = t("Failed: %s", e.message); }
+  });
+}
+
 // ---- gateway link-tabs (unified nav) ---------------------------------------
 // What a gateway that doesn't advertise its tabs (pre-3.4 firmware) has. Those
 // gateways still carry a Backup tab — 3.4 is what folded backup/restore into
@@ -1538,6 +1666,7 @@ async function loadDisplays() {
   const me = DISPLAYS.find((d) => d.id === DISPLAY);
   RICH = !!(me && me.rich);
   CANVAS = !!(me && me.canvas);
+  syncPanelTab();
 
   const sel = $("displaySel");
   sel.innerHTML = "";
@@ -1563,6 +1692,7 @@ async function switchDisplay(id) {
   const me = DISPLAYS.find((d) => d.id === id);
   RICH = !!(me && me.rich);
   CANVAS = !!(me && me.canvas);
+  syncPanelTab();
   // Everything on screen belongs to the OLD wall — its geometry, its apps, its
   // playlists, its triggers, its gateway's tabs. Re-read the lot rather than trying to
   // patch it, which is how you end up showing one wall's apps on another's grid.
@@ -1772,6 +1902,8 @@ async function init() {
   $("plSave").addEventListener("click", savePlaylist);
   $("plNew").addEventListener("click", plNew);
   $("plName").addEventListener("input", plSaveLabel);
+  // panel (Matrix-only; the tab shows only on a canvas wall)
+  wirePanel();
   // triggers
   $("trigAdd").addEventListener("click", addTrigger);
   $("trigSave").addEventListener("click", saveTriggers);

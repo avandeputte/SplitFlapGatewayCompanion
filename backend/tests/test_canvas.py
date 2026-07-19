@@ -120,10 +120,20 @@ def test_engine_takes_over_and_releases_the_panel(gw_calls, tmp_path):
         assert "/api/canvas" in paths and "/api/canvas/effect" in paths
 
         gw_calls.clear()
-        await ctl.run_app("time")               # a flap app — must release the panel
-        await asyncio.sleep(0.1)
+        forgot = []
+        real_forget = ctl.transport.forget
+        ctl.transport.forget = lambda: (forgot.append(True), real_forget())[1]
+        await ctl.run_app("time")               # a flap app takes over
+        await asyncio.sleep(0.3)
         assert not ctl._canvas_active
-        assert any("canvas" in p for _, p, _, _ in gw_calls), "panel not released on switch"
+        # The flap page hands the panel back by auto-stopping canvas mode on the firmware (its
+        # first flap command). The companion must NOT eagerly POST /api/canvas {active:false} or
+        # effect:none — that repaints the reel's STALE pre-canvas flaps and holds them until the
+        # new page lands (the "old flaps flash"). It just drops the bypassed shown-cell cache so
+        # the flap page repaints whole (and thus auto-stops the panel).
+        assert not any("/api/canvas" in p for _, p, _, _ in gw_calls), \
+            "must not eagerly release the panel on a canvas→flap switch"
+        assert forgot, "the shown-cell cache was not dropped leaving canvas mode"
         await ctl.stop()
 
     asyncio.run(run())
@@ -153,13 +163,14 @@ def test_effect_in_a_playlist_is_released_when_its_slot_ends(gw_calls, tmp_path)
         await asyncio.sleep(0.7)                 # effect slot -> release -> flap slot
 
         bodies = [(p, b) for _, p, b, _ in gw_calls]
-        assert ("/api/canvas/effect", {"type": "plasma", "speed": 5}) in [
-            (p, b) for p, b in bodies if p == "/api/canvas/effect" and b and b.get("type") == "plasma"
-        ] or any(p == "/api/canvas/effect" for p, _ in bodies), "effect never started"
-        # released: effect set to 'none' AND/OR the panel handed back (active False)
-        assert any(p == "/api/canvas/effect" and (b or {}).get("type") == "none" for p, b in bodies) \
-            or any(p == "/api/canvas" and (b or {}).get("active") is False for p, b in bodies), \
-            "effect was never turned off when its playlist slot ended"
+        assert any(p == "/api/canvas/effect" for p, _ in bodies), "effect never started"
+        # When its slot ended the companion LET GO of the panel — _canvas_active clears — and the
+        # next (flap) entry's page auto-stops the effect on the firmware. It does NOT send an eager
+        # effect:none / active:false, which would flash the stale wall before that page lands.
+        assert not ctl._canvas_active, "the effect was never let go when its slot ended"
+        assert not any(p == "/api/canvas" and (b or {}).get("active") is False for p, b in bodies) \
+            and not any(p == "/api/canvas/effect" and (b or {}).get("type") == "none" for p, b in bodies), \
+            "must not eagerly release the panel; the next flap page auto-stops the effect"
         await ctl.stop()
 
     asyncio.run(run())

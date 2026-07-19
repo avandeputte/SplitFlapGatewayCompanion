@@ -35,6 +35,11 @@ log = logging.getLogger("companion.transport.rest")
 # string values carry the high bytes.
 _JSON_1252_HEADERS = {"Content-Type": "application/json; charset=windows-1252"}
 
+# How often to resend the whole page instead of just the changed cells, to heal a shown-cell
+# cache that has drifted from the actual wall (see RestTransport._shown). A repaint is invisible
+# where the cache is right (an unchanged module does not re-flip) and corrects it where it is not.
+_REPAINT_EVERY = 12
+
 
 def _win1252_body(payload: dict) -> bytes:
     import json
@@ -62,6 +67,14 @@ class RestTransport(DisplayTransport):
         # change: a clock repainting 75 modules every second to move one digit is traffic
         # the wall does not need, and flaps that should not be moving.
         self._shown: dict[int, str] = {}
+        # ...but the cache is only our BELIEF about the wall, and anything that changed the panel
+        # without going through here — another client (MQTT / the MCP server / a second companion),
+        # the gateway's own compose page, a reboot's re-home — leaves it stale, and a cell we
+        # wrongly believe is right gets skipped, so an old flap lingers "until it finally changes".
+        # So every _REPAINT_EVERY pages we resend the WHOLE page: a module already showing the value
+        # it is sent does not re-flip (it is a no-op on the wall), so the repaint is invisible except
+        # where the cache had drifted — which is exactly where it heals it.
+        self._repaint_in = _REPAINT_EVERY
 
     async def connect(self) -> None:
         import httpx
@@ -238,6 +251,12 @@ class RestTransport(DisplayTransport):
         """
         if self._client is None:
             raise RuntimeError("REST transport not connected")
+        # Every _REPAINT_EVERY pages, forget the diff so this one goes out whole — self-heals a
+        # shown-cell cache that drifted from the wall (an unchanged module no-ops, so it's unseen).
+        self._repaint_in -= 1
+        if self._repaint_in <= 0:
+            self._repaint_in = _REPAINT_EVERY
+            self._shown.clear()
         if self.caps.indexed:
             try:
                 await self._send_cells(frames, step_ms)

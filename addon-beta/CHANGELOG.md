@@ -3,6 +3,32 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.1
+
+Matrix Portal firmware **2.1** support — the LED panel learned a lot of new tricks, and the
+companion learned to drive them.
+
+- **The live preview reads the panel back.** On a firmware 1.19+ Matrix wall the live view now
+  shows what is actually lit — including on-device effects, tickers and animations the companion
+  never rendered a frame for (they used to preview blank).
+- **A new Panel tab** (Matrix walls only) for the LED panel's own controls:
+  - **Overlay ticker** — a scrolling band of text over whatever else is running, kept up until
+    you clear it.
+  - **Transitions** — crossfade / wipe / slide between full-panel frames.
+  - **Animation library** — animations saved on the panel, replayed by name and surviving a
+    reboot; upload a GIF and the panel decodes it on-device; set one as a **boot splash**.
+  - **Fonts** — install custom faces the ticker and text can use.
+- **Richer canvas apps.** The full draw-op set — lines, shapes, gradients, sprites, a marquee
+  scroll, aligned text with custom fonts — is now available to apps, and the **Animation** app
+  hands a GIF straight to the panel to decode where the firmware supports it.
+- **Fix — no more stale flaps flashing on a canvas → split-flap switch.** The companion no longer
+  hands the panel back to the reel wall before the replacement page is ready; the incoming page
+  takes it over directly, so the pre-canvas flaps never flash.
+- **Fix — a self-healing display cache.** A periodic full repaint corrects any drift between the
+  companion's idea of the wall and what is really on it (another client, the gateway's own
+  compose page, a reboot) — a stale flap no longer lingers until it happens to change. It is
+  invisible where the cache is right: a flap already showing a value does not re-flip.
+
 ## 2.8.0
 
 The 2.8.0 line promoted to a stable release — see the stable

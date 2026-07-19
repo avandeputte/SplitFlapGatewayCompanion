@@ -93,7 +93,9 @@ class DisplayController:
         await self._open_transport()
 
     async def stop(self) -> None:
-        await self._cancel_task()
+        # A true shutdown: the transport is about to close, so nothing follows to auto-stop the
+        # panel's canvas mode — hand it back explicitly here.
+        await self._cancel_task(network_release=True)
         await self._cancel_temp()
         await self._safe_close(self.transport)
 
@@ -149,7 +151,7 @@ class DisplayController:
         self.state.resize(self.config.module_count())
 
     # -- task control -------------------------------------------------------
-    async def _cancel_task(self) -> None:
+    async def _cancel_task(self, *, network_release: bool = False) -> None:
         task = self._task
         self._task = None
         if task and not task.done():
@@ -158,24 +160,38 @@ class DisplayController:
                 await task
             except (asyncio.CancelledError, Exception):
                 pass
-        await self._release_canvas()
+        await self._release_canvas(network=network_release)
 
-    async def _release_canvas(self) -> None:
-        """Hand the Matrix panel back to the reel wall if a canvas app had it. The
-        single choke point every driver switch passes through, so a canvas app is
-        always released before flaps (or another canvas app) take the panel."""
+    async def _release_canvas(self, *, network: bool = False) -> None:
+        """Leave canvas mode if a canvas app had the Matrix panel. The single choke point every
+        driver switch passes through, so a canvas app is always let go before flaps (or another
+        canvas app) take the panel.
+
+        It does NOT eagerly hand the panel back to the reel wall (``POST /api/canvas {active:
+        false}``). That would make the firmware repaint the wall from the modules' retained state
+        — the flaps from BEFORE the canvas — and hold it there through the render + round-trip
+        gap until the replacement page lands: the "old flaps flash" on a canvas→flap switch. It is
+        also unnecessary, because whatever comes next auto-stops the panel's canvas mode itself:
+        the firmware drops raw-canvas on the first flap command (``-``/``+``/``h``), and every
+        switch here IS followed by a page — a flap app's page, ``clear()``'s blank on stop, a
+        playlist's next entry, or a new canvas app's own takeover. So the transition happens in
+        one step, with no window on the stale wall.
+
+        ``network=True`` is the exception — a true shutdown (``stop()``), where nothing follows to
+        auto-stop the canvas, so the panel is handed back explicitly."""
         if not self._canvas_active:
             return
         self._canvas_active = False
-        url = str(self.config.transport.get("gateway_url") or "").strip()
-        if url:
-            try:
-                await asyncio.to_thread(canvas.release, url)
-            except Exception as e:
-                log.debug("canvas release failed: %s", e)
-        # The canvas app drew straight to the framebuffer, bypassing the flap
-        # transport's shown-cell cache — so it's now stale. Forget it, or the next
-        # flap app's unchanged cells would be skipped and never come back on the wall.
+        if network:
+            url = str(self.config.transport.get("gateway_url") or "").strip()
+            if url:
+                try:
+                    await asyncio.to_thread(canvas.release, url)
+                except Exception as e:
+                    log.debug("canvas release failed: %s", e)
+        # The canvas app drew straight to the framebuffer, bypassing the flap transport's
+        # shown-cell cache — so it's now stale. Forget it, or the next flap page's unchanged
+        # cells would be skipped (and never repaint, so the canvas mode would never auto-stop).
         try:
             self.transport.forget()
         except Exception as e:
@@ -328,6 +344,17 @@ class DisplayController:
         async with self._send_lock:
             if unless is not None and unless():
                 return None
+            # About to paint flaps. If a canvas app still holds the panel (a path that did not go
+            # through _cancel_task, e.g. a background send_text_bg), this page auto-stops its
+            # canvas mode on the firmware — so just drop the bypassed shown-cell cache and let it
+            # repaint whole. No eager POST /api/canvas {active:false}, which would flash the wall's
+            # stale pre-canvas flaps in the gap before this page lands.
+            if self._canvas_active:
+                self._canvas_active = False
+                try:
+                    self.transport.forget()
+                except Exception:
+                    pass
             self.state.set_target(clean)
             self._app_last_sent = None
             ok = True
@@ -447,18 +474,26 @@ class DisplayController:
         return prov() if callable(prov) else device.SPLIT_FLAP
 
     def has_canvas_preview(self) -> bool:
-        """True when a canvas app is drawing here AND its last frame is cached — so
-        the live preview / HA image can show the panel instead of the (bypassed,
-        stale) flap grid. An on-device effect has no frame, so this stays False."""
+        """True when the live preview / HA image should show the LED panel instead of the
+        (bypassed, stale) flap grid: a canvas app is drawing here and either its last frame is
+        cached OR the wall can be read back. Readback (firmware 1.19) is what covers an on-device
+        effect, ticker or animation — content the companion never rendered a frame for."""
+        if not self._canvas_active:
+            return False
         url = str(self.config.transport.get("gateway_url") or "").strip()
-        return self._canvas_active and canvas.has_frame(url)
+        return canvas.has_frame(url) or self.caps.canvas_readback
 
     def canvas_preview_png(self, scale: int = 1):
-        """PNG of the last frame the running canvas app drew here, or None."""
+        """PNG of what this display's panel is showing, or None. The cached frame when a frame-push
+        app drew one (no gateway round-trip); otherwise the panel read back, so an on-device effect
+        or ticker previews too. May make a network call — call it off the event loop."""
         if not self._canvas_active:
             return None
         url = str(self.config.transport.get("gateway_url") or "").strip()
-        return canvas.last_frame_png(url, scale=scale)
+        png = canvas.last_frame_png(url, scale=scale)
+        if png is None and url and self.caps.canvas_readback:
+            png = canvas.readback_png(url, scale=scale)
+        return png
 
     async def _canvas_loop(self, app_id: str) -> None:
         """Drive a canvas app: take the panel over, then re-run its draw on a timer.

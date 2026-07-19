@@ -586,3 +586,15 @@ input[type=checkbox] { accent-color: var(--brand); }
   color: #fff;
   white-space: nowrap;
 }
+
+/* Panel — Matrix LED-panel controls (overlay ticker, transitions, libraries) */
+.panel-card { background: var(--input); border: 1px solid var(--acc); border-radius: 8px;
+  padding: 12px 14px; margin-top: 12px; }
+.panel-card > h3 { margin: 0 0 4px; font-size: .95rem; }
+.panel-card > .hint { display: block; margin-bottom: 10px; }
+.panel-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.panel-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  background: var(--card); border: 1px solid var(--acc); border-radius: 6px; }
+.panel-name { font-weight: 600; }
+.pill { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 9px;
+  font-size: .7rem; background: var(--brand); color: #fff; vertical-align: middle; }
