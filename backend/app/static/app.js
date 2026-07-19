@@ -702,8 +702,11 @@ function normOpts(options) {
 async function fillAnimLibrary(sel, current) {
   try {
     const lib = await api("/api/panel/library");
-    ((lib && lib.anims) || []).forEach((name) => {
-      if ([...sel.options].some((o) => o.value === name)) return;      // never duplicate
+    // Each anim is an object {name, frames, w, h, fps, ...} — use its name, not the object
+    // (which stringifies to "[object Object]"). Tolerate a bare string too, just in case.
+    ((lib && lib.anims) || []).forEach((a) => {
+      const name = typeof a === "string" ? a : (a && a.name);
+      if (!name || [...sel.options].some((o) => o.value === name)) return;   // skip blanks/dupes
       const op = el("option"); op.value = name; op.textContent = name; sel.appendChild(op);
     });
     if (current != null && current !== "") sel.value = current;

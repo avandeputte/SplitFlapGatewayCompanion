@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.8
+
+- **Fix — the Animation app's "Gateway animation" picker showed `[object Object]`** instead of the
+  animation names. It now lists them by name.
+- **The Lumina clock's glow is tighter and subtler**, so it reads as a clean edge-glow on the LED
+  panel instead of a wide, muddy halo. (The *Minimal* treatment still gives no glow at all.)
+
 ## 2.9.0-beta.7
 
 - **The "Matrix panel" marker on canvas apps is now ⣿** (a dot-matrix) instead of ▦, in both the

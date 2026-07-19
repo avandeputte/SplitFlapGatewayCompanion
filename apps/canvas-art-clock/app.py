@@ -32,7 +32,11 @@ _RAMP = [(0, (70, 120, 235)), (4, (80, 90, 150)), (6, (255, 165, 75)),
          (9, (255, 235, 205)), (12, (255, 255, 255)), (16, (255, 235, 200)),
          (19, (255, 140, 55)), (21, (225, 110, 60)), (23, (70, 75, 120)),
          (24, (70, 120, 235))]
-_GLOW = {'glow': 0.55, 'neon': 1.0, 'aurora': 0.4, 'minimal': 0.0}
+# Glow strength per treatment. Kept restrained: a soft, wide halo that looks smooth on a
+# screen reads as a scattering of dim, muddy pixels on an actual LED panel — so the blur is
+# tight (see below) and the amount low, giving a clean edge-glow rather than a fuzzy halo.
+# "Minimal" is zero glow for anyone who wants none.
+_GLOW = {'glow': 0.33, 'neon': 0.6, 'aurora': 0.28, 'minimal': 0.0}
 
 
 def _lerp(a, b, t):
@@ -153,7 +157,9 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     base = canvas.blank((0, 0, 0))
     amt = _GLOW.get(treatment, 0.0)
     if amt > 0:
-        blur = ImageFilter.GaussianBlur(max(1.0, H * 0.10))
+        # A tight blur: on a low-res LED panel a wide gaussian just smears dim pixels far
+        # from the stroke ("weird halo"); a small radius keeps the glow hugging the digits.
+        blur = ImageFilter.GaussianBlur(max(1.0, H * 0.05))
         for m, tone in ((m_hh, A), (m_mm, B)):
             gl = m.filter(blur).point(lambda v: int(v * amt))
             base = Image.composite(Image.new('RGB', (W, H), tone[2]), base, gl)
