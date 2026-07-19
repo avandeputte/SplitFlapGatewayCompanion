@@ -19,10 +19,6 @@ let GRID = { rows: 3, cols: 15, module_count: 45, styles: [] };
 // into the shell as window.__BASE__ — a bare "/api/..." would resolve against the HA
 // root and 404. Empty (so a no-op) everywhere else.
 const BASE = window.__BASE__ || "";
-// Are we behind Home Assistant's ingress proxy? It doesn't carry a long-lived SSE stream
-// well — the connection stalls or 503s and can starve the ordinary requests the preview
-// needs — so under ingress the live preview polls (reliable there) rather than streaming.
-const INGRESS = /\/hassio_ingress\//.test(BASE);
 // ---- which wall are we driving? ---------------------------------------------
 // The client-side twin of the server's display_for(): every /api/ call carries the
 // active display, so switching walls is ONE variable rather than a change at each of
@@ -264,10 +260,10 @@ async function pollState() {
 
 // ---- live preview driver: a reliable poll, promoted to a live SSE stream where it works ---
 // Polling always runs first and is NOT torn down until the stream proves itself by delivering
-// an event — so the preview never depends on the stream coming up, and a stream that silently
-// never delivers (a buffering proxy) just leaves the poll running. On direct/reverse-proxy
-// access a working stream then takes over for near-real-time updates; under HA ingress we
-// don't open a stream at all (see INGRESS) and simply poll, which is reliable there.
+// an event — so the preview never depends on the stream coming up. A stream that never delivers
+// (a proxy that buffers or refuses it) just leaves the poll running; one that works takes over
+// for near-real-time updates. That self-correction is why we can attempt the stream everywhere —
+// including behind Home Assistant's ingress — without special-casing the proxy in front of us.
 let ES = null;                   // the EventSource, or null when we aren't streaming
 let ES_LIVE = false;             // has the stream proved itself (delivered an event)?
 let POLL_TIMER = null;
@@ -289,7 +285,6 @@ function startPreview() {
   stopPreview();
   const disp = DISPLAY;
   startPolling(500);             // the reliable baseline — always paints, stream or not
-  if (INGRESS) return;           // ingress: poll only; a stream there breaks more than it helps
   let es;
   try { es = new EventSource(url("/api/events")); } catch (e) { return; }
   ES = es;

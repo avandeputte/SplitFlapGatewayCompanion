@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.5
+
+- **The live-preview stream is attempted behind Home Assistant ingress too.** beta.4 played it
+  safe and only polled under ingress; now that the earlier blank preview is understood to have
+  been a gateway-side issue, the stream runs everywhere. It's safe because the preview polls as
+  its baseline and only switches to the stream once the stream actually delivers a frame — so
+  inside HA you get the near-real-time preview when ingress forwards the stream, and the reliable
+  poll when it doesn't. No configuration either way.
+
 ## 2.9.0-beta.4
 
 Fixes the live preview under Home Assistant (a regression in beta.3).
