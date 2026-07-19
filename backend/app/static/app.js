@@ -160,70 +160,136 @@ function buildBoard(board, count, cols) {
 }
 
 // ---- live preview ----------------------------------------------------------
-// One request drives both the board AND the offline badge: /api/current_state
-// already carries the transport, so a second 3 s poll for it was a second fetch
-// of the same document. The badge shows nothing while the display is reachable
-// -- only a red banner if the connection drops; no technical wording surfaces.
-let POLL_BUSY = false;           // 300 ms cadence: never stack a request on a slow link
+// The browser rides a Server-Sent Events stream (GET /api/events): the backend PUSHES
+// the display state the instant the wall changes, so the preview follows in near-real
+// time without a poll hammering a few times a second. If the stream drops we fall back
+// to polling /api/current_state — the very document the stream carries — until it
+// recovers. The badge shows nothing while the display is reachable, only a red banner if
+// the connection drops; no technical wording surfaces.
 function setBadge(offline) {
   const badge = $("statusBadge");
   const cls = offline ? "badge err" : "badge hidden";
-  if (badge.className === cls) return;                       // diff: 300 ms is a hot path
+  if (badge.className === cls) return;                       // diff: this is a hot path
   badge.className = cls;
   badge.textContent = offline ? t("⚠ Display offline") : "";
 }
+
+// A canvas app draws on the LED panel, not the flaps, and its frame is a PNG we refresh
+// on a timer: a running effect's state snapshot doesn't change frame to frame, so no SSE
+// event announces each one. The timer runs ONLY while a canvas is up, so an ordinary flap
+// wall never polls for an image it doesn't have.
+let CANVAS_TIMER = null;
+function refreshCanvasImg() {
+  const cimg = $("canvasPreview");
+  if (!cimg) return;
+  const src = url("/api/current_state/canvas.png");
+  cimg.src = src + (src.includes("?") ? "&" : "?") + "t=" + Date.now();
+}
+function startCanvasRefresh() {
+  if (CANVAS_TIMER) return;
+  refreshCanvasImg();
+  CANVAS_TIMER = setInterval(refreshCanvasImg, 300);
+}
+function stopCanvasRefresh() {
+  if (CANVAS_TIMER) { clearInterval(CANVAS_TIMER); CANVAS_TIMER = null; }
+}
+
+// Paint the preview from one state document — whether it arrived over the stream or a
+// fallback poll. Idempotent (a diff-render), so applying the same state twice is harmless.
+let APPLY_BUSY = false;          // guards the rare async re-boot when the grid resizes under us
+async function applyState(st, disp) {
+  if (disp !== DISPLAY) return;                             // stale: for a wall we've left
+  const tr = st.transport || {};
+  setBadge(!(tr.connected || tr.type === "sim"));
+  const board = $("preview");
+  // The wall can change shape under us: the gateway may have been unreachable at boot, or
+  // its Display Layout edited since. Re-read the geometry rather than reusing a stale
+  // GRID.cols, which would lay 75 cells out 15-wide by luck alone.
+  if (st.module_count && st.module_count !== GRID.module_count) {
+    if (APPLY_BUSY) return;
+    APPLY_BUSY = true;
+    try { await bootGrid(); loadApps(); }                    // rebuilds both boards; re-gates apps
+    finally { APPLY_BUSY = false; }
+    return;                                                  // next frame paints on the rebuilt grid
+  }
+  let cimg = $("canvasPreview");
+  if (st.canvas) {
+    if (!cimg) {
+      cimg = el("img"); cimg.id = "canvasPreview"; cimg.className = "canvas-preview"; cimg.alt = "";
+      board.parentNode.insertBefore(cimg, board.nextSibling);
+    }
+    cimg.style.display = "";
+    board.style.display = "none";
+    startCanvasRefresh();
+  } else {
+    stopCanvasRefresh();
+    if (cimg) cimg.style.display = "none";
+    board.style.display = "";
+    if (board.children.length !== st.chars.length) buildBoard(board, st.chars.length, GRID.cols);
+    st.chars.forEach((ch, i) => {
+      const cell = board.children[i];
+      if (!cell) return;
+      // Diff before writing: most frames change nothing, and rewriting every cell's class
+      // + text is layout work for identical pixels.
+      const cls = classForChar(ch), g = glyph(ch);
+      if (cell.className !== cls) cell.className = cls;
+      if (cell.textContent !== g) cell.textContent = g;
+    });
+  }
+  const meta = `${GRID.rows}×${GRID.cols} · ${st.module_count} ${t("modules")}`;
+  if ($("previewMeta").textContent !== meta) $("previewMeta").textContent = meta;
+  if (APPS.length) updateActiveUI(st.active_app, st.active_playlist);
+}
+
+let POLL_BUSY = false;           // the fallback poll: never stack a request on a slow link
 async function pollState() {
   if (POLL_BUSY) return;
   POLL_BUSY = true;
   const disp = DISPLAY;          // the wall this request is ABOUT — drop it if we switch
   try {
-    const st = await api("/api/current_state");
-    if (disp !== DISPLAY) return;                            // stale: answered for the old wall
-    const tr = st.transport || {};
-    setBadge(!(tr.connected || tr.type === "sim"));
-    const board = $("preview");
-    // The wall can change shape under us: the gateway may have been unreachable at
-    // boot, or its Display Layout edited since. Re-read the geometry rather than
-    // reusing a stale GRID.cols, which would lay 75 cells out 15-wide by luck alone.
-    if (st.module_count && st.module_count !== GRID.module_count) {
-      await bootGrid();          // refetches rows/cols and rebuilds both boards
-      loadApps();                // min_rows/min_cols gating changes with the grid
-    }
-    // A canvas app draws on the Matrix panel, not the flaps — show its live frame
-    // (a PNG, cache-busted each poll) in place of the flap grid. An on-device
-    // effect has no frame, so st.canvas is false and the flap board shows.
-    let cimg = $("canvasPreview");
-    if (st.canvas) {
-      if (!cimg) {
-        cimg = el("img"); cimg.id = "canvasPreview"; cimg.className = "canvas-preview"; cimg.alt = "";
-        board.parentNode.insertBefore(cimg, board.nextSibling);
-      }
-      const src = url("/api/current_state/canvas.png");
-      cimg.src = src + (src.includes("?") ? "&" : "?") + "t=" + Date.now();
-      cimg.style.display = "";
-      board.style.display = "none";
-    } else {
-      if (cimg) cimg.style.display = "none";
-      board.style.display = "";
-      if (board.children.length !== st.chars.length) buildBoard(board, st.chars.length, GRID.cols);
-      st.chars.forEach((ch, i) => {
-        const cell = board.children[i];
-        if (!cell) return;
-        // Diff before writing: most polls change nothing, and rewriting every cell's
-        // class + text 3× a second is layout work for identical pixels.
-        const cls = classForChar(ch), g = glyph(ch);
-        if (cell.className !== cls) cell.className = cls;
-        if (cell.textContent !== g) cell.textContent = g;
-      });
-    }
-    const meta = `${GRID.rows}×${GRID.cols} · ${st.module_count} ${t("modules")}`;
-    if ($("previewMeta").textContent !== meta) $("previewMeta").textContent = meta;
-    if (APPS.length) updateActiveUI(st.active_app, st.active_playlist);
+    await applyState(await api("/api/current_state"), disp);
   } catch (e) {
     if (disp === DISPLAY) setBadge(true);                    // transient or down: say so
   } finally {
     POLL_BUSY = false;
   }
+}
+
+// ---- live preview stream (SSE) ---------------------------------------------
+let ES = null;                   // the EventSource, or null when it isn't open
+let ES_POLL = null;              // fallback poll handle, live only while the stream is down
+function stopPollFallback() {
+  if (ES_POLL) { clearInterval(ES_POLL); ES_POLL = null; }
+}
+function startPollFallback() {
+  if (ES_POLL) return;
+  pollState();
+  ES_POLL = setInterval(pollState, 500);
+}
+function stopEventStream() {
+  if (ES) { try { ES.close(); } catch (e) {} ES = null; }
+  stopPollFallback();
+}
+// Open (or re-open, for the wall we just switched to) the live-preview stream.
+function startEventStream() {
+  stopEventStream();
+  const disp = DISPLAY;
+  pollState();                   // paint at once; the stream's first frame confirms it
+  let es;
+  try { es = new EventSource(url("/api/events")); }
+  catch (e) { startPollFallback(); return; }
+  ES = es;
+  es.addEventListener("display", (ev) => {
+    stopPollFallback();          // the stream is live — drop any fallback poll
+    if (disp !== DISPLAY) return;
+    let st; try { st = JSON.parse(ev.data); } catch (e) { return; }
+    applyState(st, disp);
+  });
+  es.onerror = () => {
+    // EventSource reconnects on its own; keep it, but poll meanwhile so the preview and
+    // the offline badge stay live. When a `display` frame arrives again the poll stops.
+    startPollFallback();
+  };
 }
 
 // ---- compose ---------------------------------------------------------------
@@ -1605,7 +1671,7 @@ async function openDevMenu() {
     const reLbl = el("span"); reLbl.textContent = t("Gateway sync"); reLbl.style.fontWeight = "600"; reF.appendChild(reLbl);
     const reRow = el("div"); reRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:6px";
     const reBtn = el("button", "btn ghost btn-sm"); reBtn.textContent = t("↻ Force resync");
-    const reMsg = el("small", "field-note"); reMsg.textContent = t("Pull grid geometry + MQTT settings from the gateway now.");
+    const reMsg = el("small", "field-note"); reMsg.textContent = t("Pull grid geometry from the gateway now.");
     reBtn.addEventListener("click", async () => {
       reBtn.disabled = true; reMsg.textContent = t("Syncing…");
       try { const r = await post("/api/dev/resync", {}); reMsg.textContent = r.ok ? t("Resynced ✓") : t("Failed: %s", r.error || "unknown"); }
@@ -1702,6 +1768,7 @@ async function switchDisplay(id) {
   await loadTriggers();
   GW_TRIES = 0;             // the NEW wall's gateway gets its own round of re-asks
   setupGatewayTabs();
+  startEventStream();       // re-point the live-preview stream at the wall we switched to
 }
 
 // ---- Displays: add, rename, re-point, remove, choose the default -------------
@@ -1913,8 +1980,7 @@ async function init() {
   setupGatewayTabs();
   openTabFromHash();
   window.addEventListener("hashchange", openTabFromHash);
-  pollState();
-  setInterval(pollState, 300);   // also drives the offline badge — see pollState
+  startEventStream();            // live preview via SSE, with a poll fallback — see above
 }
 
 init();

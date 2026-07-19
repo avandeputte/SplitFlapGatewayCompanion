@@ -140,7 +140,8 @@ def test_every_option_is_actually_read_by_the_app(chan):
 
     # DEFAULTS covers the config tree; these are read outside it (Config.__init__, or
     # before Config exists at all — see addon_option).
-    known = set(cfg.DEFAULTS) | {"gateway_url", "mqtt_password", "companion_public_url",
+    known = set(cfg.DEFAULTS) | {"gateway_url", "mqtt_broker", "mqtt_port", "mqtt_username",
+                                 "mqtt_password", "companion_public_url",
                                  "home_assistant", "vestaboard_key", "mcp_token",
                                  "dev_mode", "ui_language", "log_level"}
     addon = CHANNELS[chan]
@@ -216,6 +217,16 @@ def test_addon_options_become_config(options):
     assert ov["transport"]["mqtt"]["password"] == "sekrit"
     assert ov["mcp"]["enabled"] is True
     assert ov["vestaboard"]["enabled"] is True
+
+
+def test_addon_mqtt_broker_becomes_config(options):
+    """The gateway no longer supplies the HA broker (firmware 3.0), so an add-on user
+    sets it as an option — broker/port/username land in transport.mqtt for the
+    integration to connect."""
+    cfg = options({"gateway_url": "http://gw.local", "mqtt_broker": "core-mosquitto",
+                   "mqtt_port": 8883, "mqtt_username": "hass"})
+    mq = cfg._addon_overrides()["transport"]["mqtt"]
+    assert mq == {"broker": "core-mosquitto", "port": 8883, "username": "hass"}
 
 
 def test_a_stale_theme_option_is_ignored_not_fatal(options):

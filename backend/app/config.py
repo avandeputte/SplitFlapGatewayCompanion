@@ -58,8 +58,8 @@ DEFAULTS: dict = {
         "slot_speed": 80,        # ms per lock-in for slot style
         "currency_symbol": "$",
     },
-    # Pull grid geometry + MQTT broker from the gateway's own /api/config on
-    # startup (the gateway is the source of truth for hardware config).
+    # Pull grid geometry from the gateway's own /api/config on startup (the gateway
+    # is the source of truth for hardware config).
     "sync_from_gateway": True,
     # Where the companion's settings live (needs Gateway 3.1+ for the gateway):
     #   "mirror"  — local file is primary, mirrored to the gateway (gzipped) on
@@ -96,9 +96,11 @@ DEFAULTS: dict = {
         "enabled": False,
         "token": "",
     },
-    # Home Assistant MQTT integration. "auto" follows the gateway's own HA
-    # setting (haEnabled from its /api/config); true/false force it. Uses the
-    # same MQTT broker as the transport (transport.mqtt).
+    # The companion's own Home Assistant MQTT integration (publishes app/playlist
+    # controls). "auto" enables it when a broker is configured (transport.mqtt.broker),
+    # off when none is; true/false force it. The broker must be set locally
+    # (COMPANION_MQTT_* / add-on options) — the Matrix gateway dropped MQTT in firmware
+    # 3.0, so it no longer supplies one.
     "ha": {
         "enabled": "auto",
         "discovery_prefix": "homeassistant",
@@ -238,6 +240,18 @@ def _addon_overrides() -> dict:
     ov: dict = {"transport": {"mqtt": {}}}
     if val("gateway_url"):
         ov["transport"]["gateway_url"] = val("gateway_url")
+    # The Home Assistant broker. The gateway used to supply broker/port/username via the
+    # config sync; firmware 3.0 dropped MQTT, so an add-on user sets the broker here (host
+    # of their Mosquitto, e.g. `core-mosquitto`). A blank broker leaves the HA device off.
+    if val("mqtt_broker"):
+        ov["transport"]["mqtt"]["broker"] = val("mqtt_broker")
+    if val("mqtt_port"):
+        try:
+            ov["transport"]["mqtt"]["port"] = int(val("mqtt_port"))
+        except (TypeError, ValueError):
+            pass
+    if val("mqtt_username"):
+        ov["transport"]["mqtt"]["username"] = val("mqtt_username")
     if val("mqtt_password"):
         ov["transport"]["mqtt"]["password"] = val("mqtt_password")
     if val("companion_public_url"):

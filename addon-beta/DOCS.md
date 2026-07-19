@@ -10,8 +10,8 @@ pre-wired for HA, with the UI restyled to match and served in the sidebar.
 ## Before you start
 
 You need a **SplitFlapGateway** (the ESP32 board that talks RS-485 to the modules)
-reachable on your network. The gateway is the source of truth: grid size and MQTT
-settings are read from it, so its URL is normally the only thing you have to enter.
+reachable on your network. The gateway is the source of truth for grid size, read
+from it, so its URL is normally the only thing you have to enter.
 
 ## Installation
 
@@ -27,9 +27,10 @@ settings are read from it, so its URL is normally the only thing you have to ent
 | Option | Default | What it does |
 |---|---|---|
 | `gateway_url` | — | **Required.** Your SplitFlapGateway's URL. Takes a comma-separated list to drive several displays: `http://192.168.1.218,http://192.168.1.50`. The first is the default display. The add-on refuses to start without at least one. |
-| `mqtt_password` | *(unset)* | Only if your MQTT broker needs auth. The gateway publishes its broker/user/prefix but never the password, so it is set here. |
+| `mqtt_broker` | *(unset)* | Only for the Home Assistant integration below. The host of your MQTT broker — e.g. `core-mosquitto` for the HA Mosquitto add-on. Leave blank to keep the integration off. |
+| `mqtt_port` / `mqtt_username` / `mqtt_password` | `1883` / *(unset)* / *(unset)* | Broker port and credentials, if it needs them. |
 | `companion_public_url` | *(auto)* | This add-on's own URL, registered with the gateway so the gateway shows a "Companion" tab linking back here. Leave blank: the add-on asks Supervisor for the **host's** address and the port it is published on. (It cannot work this out by itself — from inside the container the only address it can see is its own `172.30.x.x` on Home Assistant's internal bridge, which nothing on your LAN can reach.) Set it only if you front the add-on with a reverse proxy. |
-| `home_assistant` | `auto` | MQTT integration. `auto` follows the gateway's own HA setting. Publishes a *SplitFlap Companion* device with App/Playlist selects and a Stop button. |
+| `home_assistant` | `auto` | MQTT integration — needs `mqtt_broker` set. `auto` brings it up when a broker is configured. Publishes a *SplitFlap Companion* device with App/Playlist selects and a Stop button. |
 | `vestaboard` | `false` | Answer the [Vestaboard Local API](https://docs.vestaboard.com/docs/local-api/endpoints), so anything written for a Vestaboard drives this wall instead. See below. |
 | `vestaboard_key` | *(generated)* | The key clients send as `X-Vestaboard-Local-Api-Key`. Leave blank and one is generated and kept with your settings. |
 | `mcp` | `false` | Expose an **MCP server**, so an LLM client can drive the display as tools. See below. |

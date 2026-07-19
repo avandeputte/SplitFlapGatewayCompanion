@@ -76,15 +76,21 @@ schema:
   # display (the one Home Assistant, the Vestaboard API and anything else that names no
   # display drives); later entries each become a display of their own.
   gateway_url: str
-  # The gateway never exposes the MQTT password; set it here if your broker needs auth.
+  # The Home Assistant integration's MQTT broker. The gateway no longer supplies one
+  # (firmware 3.0 dropped MQTT), so set your broker's host here — e.g. `core-mosquitto`
+  # for the HA Mosquitto add-on. Leave blank to keep the HA device off.
+  mqtt_broker: str?
+  mqtt_port: int?
+  mqtt_username: str?
+  # Set the broker password here if your broker needs auth.
   mqtt_password: password?
   # This add-on's own URL, registered with the gateway so it shows a "Companion" tab.
   companion_public_url: str?
   # Optional, and deliberately NOT in `options:` above: with no default set,
   # Home Assistant files it under "unused optional configuration options"
   # instead of putting it on the page. Absent = the app's own default,
-  # "auto" — follow the gateway's Home Assistant switch. Set it only to
-  # force the MQTT device on or off against the gateway's wishes.
+  # "auto" — bring the MQTT device up when a broker is configured, off when none is.
+  # Set it to force the device on or off regardless.
   home_assistant: list(auto|true|false)?
   vestaboard: bool
   vestaboard_key: password?

@@ -184,10 +184,10 @@ def _redact(cfg: dict) -> dict:
 
 
 async def do_gateway_sync(d=None) -> dict:
-    """Pull grid + MQTT settings from ONE display's gateway and apply them.
+    """Pull grid geometry from ONE display's gateway and apply it.
 
     The gateway is the source of truth for hardware config; the companion keeps
-    only what the gateway can't give it (transport choice, MQTT password). Scoped to a
+    only what the gateway can't give it (transport choice, its own HA broker). Scoped to a
     display: each wall has its own geometry, and a second gateway must not resize the
     first.
     """
@@ -226,9 +226,8 @@ async def do_gateway_sync(d=None) -> dict:
                      d.id, before.get("rows"), before.get("cols"),
                      config.grid["rows"], config.grid["cols"], config.module_count())
             d.grid_changed()   # cached/channel pages were sized for the old grid
-        # A sync only touches grid (resized above) and the HA MQTT broker; the
-        # REST display transport depends only on gateway_url, which sync never
-        # changes, so there's nothing to reload here.
+        # A sync only touches grid (resized above); the REST display transport depends
+        # only on gateway_url, which sync never changes, so there's nothing to reload here.
 
     # Re-ask what the wall can show. Capabilities are not fixed for the life of a process: the
     # gateway can be re-flashed to a firmware that grows a feature, and a module can be swapped
@@ -246,8 +245,7 @@ async def do_gateway_sync(d=None) -> dict:
         "ok": True,
         "applied": patch,
         "grid_changed": changed,
-        "gateway": {k: gw.get(k) for k in
-                    ("gridRows", "gridCols", "mqHost", "mqPort", "mqUser", "mqPfx", "haEnabled")},
+        "gateway": {k: gw.get(k) for k in ("gridRows", "gridCols")},
     }
 
 
@@ -557,12 +555,10 @@ async def start_display(d, companion_url: str = "") -> list:
              d.id, url or "none", cfg.grid["rows"], cfg.grid["cols"])
 
     await ctl.start()
-    gw_ha = None
     if cfg.effective.get("sync_from_gateway") and url:
         res = await do_gateway_sync(d)
         if res.get("ok"):
             log.info("display %r synced config from gateway: %s", d.id, res.get("applied"))
-            gw_ha = res.get("gateway", {}).get("haEnabled")
         else:
             log.info("display %r gateway sync skipped at startup: %s", d.id, res.get("error"))
 
@@ -583,10 +579,13 @@ async def start_display(d, companion_url: str = "") -> list:
     ctl.attach_persist(lambda doc, _d=d: _remember_driver(doc, _d))
     await resume_last_run(d)
 
-    # Home Assistant: "auto" follows the gateway's haEnabled; true/false force it.
-    # Started in the background so a slow/unreachable broker never delays startup.
+    # Home Assistant: "auto" brings the integration up when a broker is configured, off
+    # when none is (the gateway no longer publishes an HA switch to follow — firmware 3.0
+    # dropped MQTT — so a configured broker is the signal the user wants it). true/false
+    # force it. Started in the background so a slow/unreachable broker never delays startup.
     ha_mode = cfg.effective.get("ha", {}).get("enabled", "auto")
-    ha_on = ha_mode is True if isinstance(ha_mode, bool) else bool(gw_ha)
+    has_broker = bool((cfg.transport.get("mqtt") or {}).get("broker"))
+    ha_on = ha_mode is True if isinstance(ha_mode, bool) else has_broker
     if ha_on:
         log.info("display %r: Home Assistant integration enabled", d.id)
         # Keep a strong reference (a bare create_task() can be GC'd mid-await, and its

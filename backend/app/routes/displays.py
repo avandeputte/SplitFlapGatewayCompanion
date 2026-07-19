@@ -11,10 +11,12 @@ import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .. import discovery, renderer
 from ..catalog import GLOBAL_STORAGE_KEYS
+from ..events import TooManyStreams
 from ..gateway import fetch_gateway_settings
 
 log = logging.getLogger("companion")
@@ -195,13 +197,35 @@ def build(deps) -> APIRouter:
 
     @router.get("/api/current_state")
     async def current_state(request: Request):
+        # The live preview's fallback poll (the browser rides GET /api/events by default;
+        # this is what it reads once on connect and whenever the stream drops). The `canvas`
+        # flag sends the preview to the panel image instead of the stale flap grid.
+        return deps.display_for(request).live_snapshot()
+
+    @router.get("/api/events")
+    async def events(request: Request):
+        """Server-Sent Events live-preview stream — the browser rides this instead of polling
+        /api/current_state. A `display` event carries the same JSON as /api/current_state,
+        pushed within ~150 ms of the wall changing, with an immediate snapshot on connect and a
+        keepalive every 15 s; the browser falls back to polling if the stream drops. 503 when too
+        many streams are already open (the client then simply polls)."""
         d = deps.display_for(request)
-        snap = d.state.snapshot()
-        # A canvas app draws on the Matrix panel, not the flaps — flag it so the
-        # live preview shows the panel (via /api/current_state/canvas.png) instead
-        # of the stale flap grid.
-        snap["canvas"] = d.controller.has_canvas_preview()
-        return snap
+        if d.events is None:                       # a bare hand-built Display (tests); nothing to stream
+            raise HTTPException(503, "no event stream")
+        try:
+            q = d.events.subscribe()
+        except TooManyStreams:
+            raise HTTPException(503, "too many event streams")
+        return StreamingResponse(
+            d.events.stream(q),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-store",
+                "Connection": "keep-alive",
+                # Tell nginx / HA ingress not to buffer, or the push would arrive in bursts.
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @router.get("/api/current_state/canvas.png")
     async def current_canvas_png(request: Request):

@@ -1,12 +1,10 @@
 """
 gateway.py — treat the SplitFlapGateway as the source of truth.
 
-The gateway already exposes its display geometry and MQTT settings via
-``GET /api/config`` (fields ``gridRows``, ``gridCols``, ``mqHost``, ``mqPort``,
-``mqUser``, ``mqPfx``). The companion pulls those so the user configures the
-panel and broker in exactly one place — the gateway. The MQTT *password* is not
-exposed by the gateway (by design), so it stays a local companion secret; leave
-it blank for an anonymous broker.
+The gateway exposes its display geometry via ``GET /api/config`` (fields
+``gridRows``, ``gridCols``). The companion pulls those so the panel is configured
+in exactly one place — the gateway. Anything the gateway can't give us (the
+transport choice, the companion's own Home Assistant broker) stays local.
 """
 
 from __future__ import annotations
@@ -401,8 +399,11 @@ def _as_int(v):
 def build_sync_patch(gw: dict) -> dict:
     """Map a gateway /api/config document to a companion config patch.
 
-    Only present, well-typed fields are included; the MQTT password, transport
-    type and gateway URL are intentionally left untouched (companion-owned).
+    Only the grid geometry is synced — that is all the gateway is the source of
+    truth for. The transport choice, the gateway URL and the companion's own Home
+    Assistant broker are companion-owned and left untouched. (The gateway used to
+    publish an MQTT broker here too; firmware 3.0 removed MQTT from the gateway, so
+    the companion's HA integration now takes its broker from local config only.)
     """
     grid: dict = {}
     rows, cols = _as_int(gw.get("gridRows")), _as_int(gw.get("gridCols"))
@@ -411,20 +412,7 @@ def build_sync_patch(gw: dict) -> dict:
     if cols is not None:
         grid["cols"] = max(1, cols)
 
-    mqtt: dict = {}
-    if isinstance(gw.get("mqHost"), str) and gw["mqHost"]:
-        mqtt["broker"] = gw["mqHost"]
-    port = _as_int(gw.get("mqPort"))
-    if port is not None:
-        mqtt["port"] = port
-    if isinstance(gw.get("mqUser"), str):
-        mqtt["username"] = gw["mqUser"]
-    # NB: mqPfx is deliberately NOT synced — transport.mqtt.prefix was written by three
-    # sources and read by nothing; the config side is gone too.
-
     patch: dict = {}
     if grid:
         patch["grid"] = grid
-    if mqtt:
-        patch["transport"] = {"mqtt": mqtt}
     return patch

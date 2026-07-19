@@ -3,6 +3,24 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.3
+
+Aligns the companion with **Matrix Portal Gateway firmware 3.0**, which pushes the live
+display over SSE and drops MQTT from the gateway.
+
+- **Live preview over Server-Sent Events.** The browser polled the display state a few times
+  a second; it now rides a push stream (`GET /api/events`) — the preview follows the wall the
+  instant it changes, and falls back to polling automatically if the stream drops. A canvas
+  panel's frame still refreshes on a timer while it's up (a running effect draws its own
+  frames on-device, so there is no state change to announce each one).
+- **MQTT is gone from the gateway path.** Firmware 3.0 removed MQTT from the gateway, so the
+  companion no longer pulls a broker or a Home Assistant switch from it — only the grid
+  geometry is still synced. The companion's own Home Assistant integration stays, but its
+  broker is now local: set `mqtt_broker` (add-on) or `COMPANION_MQTT_BROKER` (Docker), with
+  optional port/username/password. `home_assistant: auto` brings the integration up when a
+  broker is configured, off when none is. New add-on options: `mqtt_broker`, `mqtt_port`,
+  `mqtt_username`.
+
 ## 2.9.0-beta.2
 
 Two fixes from real-hardware testing of the 2.9.0 line.

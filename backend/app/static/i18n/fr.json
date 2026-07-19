@@ -284,7 +284,7 @@
   "Polling Rate (seconds)": "Fréquence d'interrogation (secondes)",
   "Port": "Port",
   "Provision": "Provision",
-  "Pull grid geometry + MQTT settings from the gateway now.": "Récupérer maintenant la géométrie de la grille et les réglages MQTT depuis la passerelle.",
+  "Pull grid geometry from the gateway now.": "Récupérer maintenant la géométrie de la grille depuis la passerelle.",
   "Purple": "Violet",
   "Push to display": "Envoyer à l'afficheur",
   "QWeather in this app currently supports weather + AQI only.": "Dans cette appli, QWeather ne gère pour l'instant que la météo et l'AQI.",

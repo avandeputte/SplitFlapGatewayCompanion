@@ -9,17 +9,29 @@ configuration:
     name: Gateway URL
     description: >-
       Your SplitFlapGateway, e.g. http://192.168.1.50. Required — the add-on will not
-      start without it. Grid size and MQTT settings are read from the gateway, so this
-      is normally the only thing you need to set. To drive SEVERAL displays, list them
-      separated by commas (http://192.168.1.218,http://192.168.1.50): the first is the
-      default display — the one Home Assistant and the Vestaboard API drive when nothing
-      names one — and each gets its own geometry, apps, playlists and settings. You can
-      also add displays from the app's Tools menu.
+      start without it. Grid size is read from the gateway, so this is normally the only
+      thing you need to set. To drive SEVERAL displays, list them separated by commas
+      (http://192.168.1.218,http://192.168.1.50): the first is the default display — the
+      one Home Assistant and the Vestaboard API drive when nothing names one — and each
+      gets its own geometry, apps, playlists and settings. You can also add displays from
+      the app's Tools menu.
+  mqtt_broker:
+    name: MQTT broker
+    description: >-
+      Only for the Home Assistant integration below. The host of your MQTT broker — e.g.
+      core-mosquitto for the HA Mosquitto add-on. Leave blank to keep the integration off.
+  mqtt_port:
+    name: MQTT port
+    description: >-
+      The broker's port. Defaults to 1883.
+  mqtt_username:
+    name: MQTT username
+    description: >-
+      The broker username, if it needs authentication.
   mqtt_password:
     name: MQTT password
     description: >-
-      Only if your MQTT broker needs authentication. The gateway publishes its broker,
-      user and prefix, but never the password — so it is set here.
+      The broker password, if it needs authentication.
   companion_public_url:
     name: Companion URL
     description: >-
@@ -29,7 +41,7 @@ configuration:
     name: Home Assistant integration
     description: >-
       Publishes a "SplitFlap Companion" MQTT device with App/Playlist selects and a Stop
-      button. "auto" follows the gateway's own Home Assistant setting.
+      button. Needs the MQTT broker above. "auto" brings it up when a broker is set.
   vestaboard:
     name: Vestaboard-compatible API
     description: >-

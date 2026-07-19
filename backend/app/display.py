@@ -32,6 +32,7 @@ from pathlib import Path
 
 from .config import Config
 from .engine import DisplayController
+from .events import StateHub
 from .homeassistant import HomeAssistant
 from .plugin_settings import PluginSettings
 from .plugins import PluginRuntime
@@ -66,6 +67,10 @@ class Display:
     # module-level global in gateway.py, which with two gateways would have been
     # last-writer-wins: the nav would show whichever one registered most recently.
     gateway_tabs: list[dict[str, str]] = field(default_factory=list)
+    # Pushes this display's live state to the browser over SSE (GET /api/events).
+    # Set in build() once state + controller exist; None only for a bare hand-built
+    # Display in a test that never touches the stream.
+    events: StateHub | None = None
 
     @classmethod
     def build(cls, *, apps_dir: Path, id: str = DEFAULT_ID, name: str = "",
@@ -92,7 +97,7 @@ class Display:
         # An app can ask what this wall can SHOW, so it can offer a pictograph where the
         # wall has one and a word where it does not (see PluginRuntime.attach_caps).
         plugins.attach_caps(lambda: controller.caps)
-        return cls(
+        disp = cls(
             id=id,
             name=name or "SplitFlap",
             config=cfg,
@@ -105,11 +110,22 @@ class Display:
             ha=HomeAssistant(cfg, plugins, controller,
                              display_id=id, display_name=name or "SplitFlap"),
         )
+        disp.events = StateHub(disp.live_snapshot)
+        return disp
 
     # -- convenience -----------------------------------------------------------
     @property
     def gateway_url(self) -> str:
         return (self.config.transport.get("gateway_url") or "").strip()
+
+    def live_snapshot(self) -> dict:
+        """The live-preview state — what's on the wall, plus whether a canvas is drawing
+        (which sends the preview to the panel image instead of the stale flap grid). The
+        single source of truth for both ``GET /api/current_state`` and the SSE stream, so
+        the two can never disagree about what the browser should show."""
+        snap = self.state.snapshot()
+        snap["canvas"] = self.controller.has_canvas_preview()
+        return snap
 
     def grid_changed(self) -> None:
         """The one correct reaction to new geometry, in the one correct order:
