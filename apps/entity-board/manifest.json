@@ -1,6 +1,6 @@
 {
   "id": "entity-board",
-  "name": "Entity Board",
+  "name": "Home Assistant",
   "icon": "🏠",
   "description": "Home Assistant entity states as rows on the split-flap wall",
   "type": "functional",

@@ -3,6 +3,10 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.20
+
+- **Renamed the split-flap dashboard app to "Home Assistant"** (was "Entity Board").
+
 ## 2.9.0-beta.19
 
 - **Playlist & trigger app pickers show the Matrix marker.** The app dropdowns in the playlist

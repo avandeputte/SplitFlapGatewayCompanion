@@ -1,4 +1,4 @@
-"""Entity Board — Home Assistant entity states as rows on the split-flap wall.
+"""Home Assistant — entity states as rows on the split-flap wall.
 
 A flap app: one row per entity, its name on the left and value on the right, followed by a
 colour flap that reads as a status/threshold dot — green for an "on" state, and green / amber /
