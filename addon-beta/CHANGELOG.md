@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.4
+
+Fixes the live preview under Home Assistant (a regression in beta.3).
+
+- **The live preview is reliable under HA ingress again.** Ingress does not carry a long-lived
+  event stream well — it stalls and can starve the ordinary requests the preview needs — which
+  left the preview blank. The preview now **always polls as its baseline** and only promotes to
+  the SSE stream once the stream has proven itself by delivering an event; **under ingress it
+  doesn't open a stream at all** and simply polls, which is reliable there. Direct and
+  reverse-proxy access still get the near-real-time stream.
+- **A canvas that can't be read back no longer blanks the preview.** When the panel image
+  (`/api/current_state/canvas.png`) can't be produced, the preview keeps showing the flap grid
+  instead of swapping in a broken/empty image.
+
 ## 2.9.0-beta.3
 
 Aligns the companion with **Matrix Portal Gateway firmware 3.0**, which pushes the live

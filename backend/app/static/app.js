@@ -19,6 +19,10 @@ let GRID = { rows: 3, cols: 15, module_count: 45, styles: [] };
 // into the shell as window.__BASE__ — a bare "/api/..." would resolve against the HA
 // root and 404. Empty (so a no-op) everywhere else.
 const BASE = window.__BASE__ || "";
+// Are we behind Home Assistant's ingress proxy? It doesn't carry a long-lived SSE stream
+// well — the connection stalls or 503s and can starve the ordinary requests the preview
+// needs — so under ingress the live preview polls (reliable there) rather than streaming.
+const INGRESS = /\/hassio_ingress\//.test(BASE);
 // ---- which wall are we driving? ---------------------------------------------
 // The client-side twin of the server's display_for(): every /api/ call carries the
 // active display, so switching walls is ONE variable rather than a change at each of
@@ -216,11 +220,14 @@ async function applyState(st, disp) {
   if (st.canvas) {
     if (!cimg) {
       cimg = el("img"); cimg.id = "canvasPreview"; cimg.className = "canvas-preview"; cimg.alt = "";
+      // Only take the preview over once a panel frame actually LOADS. If the gateway can't
+      // produce one (readback unavailable — canvas.png 404s), keep the flap grid up rather
+      // than swapping in a blank/broken image, which is what left the preview empty.
+      cimg.addEventListener("load", () => { cimg.style.display = ""; $("preview").style.display = "none"; });
+      cimg.addEventListener("error", () => { cimg.style.display = "none"; $("preview").style.display = ""; });
       board.parentNode.insertBefore(cimg, board.nextSibling);
     }
-    cimg.style.display = "";
-    board.style.display = "none";
-    startCanvasRefresh();
+    startCanvasRefresh();          // sets the src; load/error above toggles which view shows
   } else {
     stopCanvasRefresh();
     if (cimg) cimg.style.display = "none";
@@ -255,40 +262,49 @@ async function pollState() {
   }
 }
 
-// ---- live preview stream (SSE) ---------------------------------------------
-let ES = null;                   // the EventSource, or null when it isn't open
-let ES_POLL = null;              // fallback poll handle, live only while the stream is down
-function stopPollFallback() {
-  if (ES_POLL) { clearInterval(ES_POLL); ES_POLL = null; }
+// ---- live preview driver: a reliable poll, promoted to a live SSE stream where it works ---
+// Polling always runs first and is NOT torn down until the stream proves itself by delivering
+// an event — so the preview never depends on the stream coming up, and a stream that silently
+// never delivers (a buffering proxy) just leaves the poll running. On direct/reverse-proxy
+// access a working stream then takes over for near-real-time updates; under HA ingress we
+// don't open a stream at all (see INGRESS) and simply poll, which is reliable there.
+let ES = null;                   // the EventSource, or null when we aren't streaming
+let ES_LIVE = false;             // has the stream proved itself (delivered an event)?
+let POLL_TIMER = null;
+function stopPolling() {
+  if (POLL_TIMER) { clearInterval(POLL_TIMER); POLL_TIMER = null; }
 }
-function startPollFallback() {
-  if (ES_POLL) return;
-  pollState();
-  ES_POLL = setInterval(pollState, 500);
+function startPolling(ms) {
+  if (POLL_TIMER) return;
+  pollState();                   // paint at once, then keep it fresh
+  POLL_TIMER = setInterval(pollState, ms);
 }
-function stopEventStream() {
+function stopPreview() {
   if (ES) { try { ES.close(); } catch (e) {} ES = null; }
-  stopPollFallback();
+  ES_LIVE = false;
+  stopPolling();
 }
-// Open (or re-open, for the wall we just switched to) the live-preview stream.
-function startEventStream() {
-  stopEventStream();
+// Start (or re-point, for the wall we just switched to) the live preview.
+function startPreview() {
+  stopPreview();
   const disp = DISPLAY;
-  pollState();                   // paint at once; the stream's first frame confirms it
+  startPolling(500);             // the reliable baseline — always paints, stream or not
+  if (INGRESS) return;           // ingress: poll only; a stream there breaks more than it helps
   let es;
-  try { es = new EventSource(url("/api/events")); }
-  catch (e) { startPollFallback(); return; }
+  try { es = new EventSource(url("/api/events")); } catch (e) { return; }
   ES = es;
+  const live = () => { if (!ES_LIVE) { ES_LIVE = true; stopPolling(); } };   // proven: drop the poll
   es.addEventListener("display", (ev) => {
-    stopPollFallback();          // the stream is live — drop any fallback poll
+    live();
     if (disp !== DISPLAY) return;
     let st; try { st = JSON.parse(ev.data); } catch (e) { return; }
     applyState(st, disp);
   });
   es.onerror = () => {
-    // EventSource reconnects on its own; keep it, but poll meanwhile so the preview and
-    // the offline badge stay live. When a `display` frame arrives again the poll stops.
-    startPollFallback();
+    // The stream dropped or never came up. EventSource retries on its own; meanwhile resume
+    // polling so the preview stays live. A later event promotes us off the poll again.
+    ES_LIVE = false;
+    startPolling(500);
   };
 }
 
@@ -1768,7 +1784,7 @@ async function switchDisplay(id) {
   await loadTriggers();
   GW_TRIES = 0;             // the NEW wall's gateway gets its own round of re-asks
   setupGatewayTabs();
-  startEventStream();       // re-point the live-preview stream at the wall we switched to
+  startPreview();           // re-point the live preview at the wall we switched to
 }
 
 // ---- Displays: add, rename, re-point, remove, choose the default -------------
@@ -1980,7 +1996,7 @@ async function init() {
   setupGatewayTabs();
   openTabFromHash();
   window.addEventListener("hashchange", openTabFromHash);
-  startEventStream();            // live preview via SSE, with a poll fallback — see above
+  startPreview();                // live preview: poll baseline, promoted to SSE where it works
 }
 
 init();
