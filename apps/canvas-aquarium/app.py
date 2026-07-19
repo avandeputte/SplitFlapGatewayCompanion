@@ -85,8 +85,11 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
 
     # Upload the sprite atlas once (and re-assert every few seconds in case another
     # canvas app overwrote it) — the fish are then just blit-by-index.
+    # The atlas is a single shared slot on the gateway; another canvas app (the Weather
+    # Panel) may have overwritten it, so re-assert ours on a short beat as well as on a
+    # size change — the fish recover within a second or two of taking the panel back.
     use_sprites = bool(getattr(canvas, 'can_sprite', False))
-    if use_sprites and (st.get('atlas') != tile or frame % 60 == 1):
+    if use_sprites and (st.get('atlas') != tile or frame % 12 == 1):
         canvas.upload_atlas(_fish_tiles(tile))
         st['atlas'] = tile
 

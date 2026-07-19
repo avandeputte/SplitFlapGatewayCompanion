@@ -3,6 +3,18 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.11
+
+Fixes for the two new canvas apps on a real panel:
+
+- **Weather Panel** — text is now readable (a drop-shadow, over a deeper sky); the condition
+  icon is correct instead of showing a fish (it re-asserts its own sprite atlas every draw,
+  since a canvas app shares one atlas slot on the gateway); the degree mark is drawn as a ring
+  (the on-device text op is CP1252, one byte per glyph, so a "°" character came out garbled);
+  and the temperature is large again (text sizes are snapped to the panel's real font faces).
+- **Aquarium** — re-asserts its fish atlas on a short beat, so the fish come back within a
+  second or two of it taking the panel back from another canvas app.
+
 ## 2.9.0-beta.10
 
 - **New app — Weather Panel.** Current conditions drawn on the panel with draw-ops and a sprite
