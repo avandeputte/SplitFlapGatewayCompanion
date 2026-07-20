@@ -3,6 +3,18 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.7
+
+- **Scoreboard uses one atlas slot, not one per game.** It used to upload a fresh two-logo sheet
+  for every matchup — a whole sprite-atlas slot per game, and each team's logo stored again in
+  every game it played. It now keeps a single shared sheet of every logo in the slate and blits
+  each team by index, so a busy scoreboard no longer crowds every other canvas app out of the
+  shared atlas.
+- **Aquarium re-binds its sprite sheet every frame.** It used to re-assert the fish sheet only
+  occasionally and rely on the panel keeping it bound; now that several apps share the atlas
+  library, another app's sheet can evict it, so binding every frame keeps the fish on screen in a
+  playlist. (Cheap — the pixels upload once; only a tiny bind is sent per frame.)
+
 ## 2.9.1-beta.6
 
 - **Punchier colours on the panel.** Values on the HA Dashboard (and the Overview's high/low) used

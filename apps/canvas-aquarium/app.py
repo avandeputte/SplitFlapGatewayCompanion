@@ -83,15 +83,16 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     st['frame'] += 1
     frame = st['frame']
 
-    # Upload the sprite atlas once (and re-assert every few seconds in case another
-    # canvas app overwrote it) — the fish are then just blit-by-index.
-    # The atlas is a single shared slot on the gateway; another canvas app (the Weather
-    # Panel) may have overwritten it, so re-assert ours on a short beat as well as on a
-    # size change — the fish recover within a second or two of taking the panel back.
+    # Re-assert the fish sheet EVERY frame — the fish are then blit-by-index. It is cheap: the
+    # sheet is named by its content, so the pixels upload once and each frame only re-binds it (a
+    # tiny op). Binding every frame is what keeps the fish rendering even after another canvas app's
+    # sheet evicted ours from the shared atlas library — the batch never relies on a sticky bind.
     use_sprites = bool(getattr(canvas, 'can_sprite', False))
-    if use_sprites and (st.get('atlas') != tile or frame % 12 == 1):
-        canvas.upload_atlas(_fish_tiles(tile))
-        st['atlas'] = tile
+    if use_sprites:
+        if st.get('tiles_for') != tile:                      # draw the sprites once per size, not per frame
+            st['tiles'] = _fish_tiles(tile)
+            st['tiles_for'] = tile
+        canvas.upload_atlas(st['tiles'])
 
     top, bot = water
     canvas.gradient(0, 0, W, H, top, bot, 'v')                 # the water column

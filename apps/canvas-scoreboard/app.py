@@ -149,10 +149,11 @@ def _logo_tile(url, size, cache):
     return tile
 
 
-def _badge(canvas, x, y, tile, abbr, color, idx, has_sprite):
-    """Draw a team badge at (x,y): the logo sprite if we have one, else a colour chip."""
-    if has_sprite:
-        canvas.sprite(idx, x, y)
+def _badge(canvas, x, y, tile, abbr, color, sprite_idx):
+    """Draw a team badge at (x,y): the logo sprite (its index in the shared sheet) if we have one,
+    else a colour chip with the abbreviation. ``sprite_idx < 0`` means no logo."""
+    if sprite_idx >= 0:
+        canvas.sprite(sprite_idx, x, y)
     else:
         canvas.roundrect(x, y, tile, tile, 3, color, fill=True)
         f = canvas.face(tile // 2)
@@ -167,7 +168,10 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
 
     st = getattr(fetch, '_state', None)
     if st is None:
-        st = {'games': [], 'i': 0, 'at': 0.0, 'logos': {}}
+        # `logos`: url -> a magenta-keyed tile (fetched once). `sheet`/`sheet_idx`: ONE shared
+        # atlas of every logo across the slate, blitted by index — so the whole app uses a single
+        # atlas slot, not one per game. `sheet_for` guards a tile-size change.
+        st = {'games': [], 'i': 0, 'at': 0.0, 'logos': {}, 'sheet': [], 'sheet_idx': {}, 'sheet_for': 0}
         setattr(fetch, '_state', st)
 
     try:
@@ -182,6 +186,9 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         st['games'] = _games(settings.get('follow', 'nba'), str(settings.get('filter', 'all') or 'all'))
         st['at'] = now
         st['i'] = 0
+        # The shared sheet is NOT reset here: teams recur across a slate's refreshes, so keeping it
+        # lets a returning team re-bind by index instead of re-uploading. It grows only for a
+        # genuinely new logo and is bounded by the league's team count.
 
     games = st['games']
     canvas.clear((0, 0, 0))                                   # black — team colours pop on unlit pixels
@@ -205,19 +212,27 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     ax, hx = (1, W - 1 - tile) if compact else (half - 2 - tile, half + 2)
     by = 1 if compact else 11
 
-    # atlas: away logo -> tile 0, home logo -> tile 1 (re-uploaded every draw; shared slot)
-    a_sp = h_sp = False
+    # ONE shared sheet holds every team's logo, blitted by index — so the whole app occupies a
+    # single atlas slot instead of one per game, and never stores a logo twice. The sheet grows
+    # lazily as games come round (no fetch burst), and the upload is deduped by the library, so a
+    # stable slate settles to one upload. A logo that can't be fetched -> index -1 -> colour chip.
+    ai = hi = -1
     if use_sprites:
-        at = _logo_tile(g['alogo'], tile, st['logos']) if g['alogo'] else None
-        ht = _logo_tile(g['hlogo'], tile, st['logos']) if g['hlogo'] else None
-        if at is not None or ht is not None:
-            from PIL import Image
-            blank = Image.new('RGB', (tile, tile), _MAGENTA)
-            canvas.upload_atlas([at or blank, ht or blank])
-            a_sp, h_sp = at is not None, ht is not None
+        if st['sheet_for'] != tile:                     # a size change invalidates the built tiles
+            st['sheet'], st['sheet_idx'], st['sheet_for'] = [], {}, tile
+        for url in (g['alogo'], g['hlogo']):
+            if url and url not in st['sheet_idx']:
+                t = _logo_tile(url, tile, st['logos'])
+                if t is not None:
+                    st['sheet_idx'][url] = len(st['sheet'])
+                    st['sheet'].append(t)
+        if st['sheet']:
+            canvas.upload_atlas(st['sheet'])
+        ai = st['sheet_idx'].get(g['alogo'], -1)
+        hi = st['sheet_idx'].get(g['hlogo'], -1)
 
-    _badge(canvas, ax, by, tile, g['aa'], g['ac'], 0, a_sp)
-    _badge(canvas, hx, by, tile, g['ha'], g['hc'], 1, h_sp)
+    _badge(canvas, ax, by, tile, g['aa'], g['ac'], ai)
+    _badge(canvas, hx, by, tile, g['ha'], g['hc'], hi)
 
     if compact:                                              # badges on top, score below
         score = f"{g['as']}-{g['hs']}" if g['state'] != 'pre' else 'vs'
