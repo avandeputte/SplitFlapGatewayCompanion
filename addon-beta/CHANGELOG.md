@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.10
+
+- **Weather Sky: the drifting cloud is a cloud now.** It used to be a single pale disc gliding
+  across the sky — easy to mistake for a runaway white sun. It's now drawn as an actual cloud
+  shape in proper grey, so the scene reads clearly (an amber sun with a grey cloud beside it for
+  "partly cloudy", clouds for "cloudy").
+
 ## 2.9.1-beta.9
 
 - **Overview & Weather Sky: less washed-out colour.** The Overview's temperature ramp was

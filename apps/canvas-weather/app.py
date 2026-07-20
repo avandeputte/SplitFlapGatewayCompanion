@@ -30,10 +30,6 @@ _CLOUDY = ('pcloudy', 'cloudy', 'fog', 'rainl', 'rain', 'rainh', 'shwr', 'sleet'
            'snowl', 'snow', 'snowh', 'storm', 'hail')
 
 
-def _mix(a, b, t):
-    return tuple(int(round(a[k] + (b[k] - a[k]) * t)) for k in range(3))
-
-
 def _disc(draw, cx, cy, r, col):
     draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=col)
 
@@ -150,14 +146,19 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
             _disc(draw, icx, icy, ir, (255, 210, 70))
             _disc(draw, icx, icy, max(1, ir - 2), (255, 226, 120))
 
-    # --- clouds -----------------------------------------------------------------
+    # --- clouds: one resting by the sun/moon, one drifting across — both clearly cloud-SHAPED
+    # (three overlapping grey discs) so a cloud never reads as a lone white ball on the black sky.
     if sky in _CLOUDY:
         dark = sky in ('storm', 'hail')
         cc = (70, 74, 88) if dark else (150, 156, 172)
-        cx = int((frame * 0.4) % (W + 40) - 20)
-        for dx, dy, rr in ((0, 0, ir), (ir, 5, int(ir * 0.8)), (-ir, 4, int(ir * 0.7))):
-            _disc(draw, icx + dx - int(W * 0.1), icy + dy, rr, cc)
-        _disc(draw, cx, int(H * 0.30), max(3, int(ir * 0.7)), _mix(cc, (255, 255, 255), 0.06))
+
+        def _puff(px, py, s):
+            for dx, dy, rr in ((0, 0, s), (int(s * 0.9), 4, int(s * 0.78)), (-int(s * 0.9), 3, int(s * 0.72))):
+                _disc(draw, int(px + dx), int(py + dy), max(2, rr), cc)
+
+        _puff(icx - int(W * 0.1), icy, ir)                       # the cloud beside the sun/moon
+        cx = (frame * 0.4) % (W + ir * 6) - ir * 3               # a smaller cloud drifting across
+        _puff(cx, H * 0.28, max(3, int(ir * 0.62)))
 
     # --- precipitation ----------------------------------------------------------
     if sky in _RAIN:
