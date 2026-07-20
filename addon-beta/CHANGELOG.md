@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.8
+
+- **Fix: per-playlist settings now apply to canvas apps.** A playlist entry's own configuration
+  (e.g. the Scoreboard following a specific team) was silently ignored for Matrix-panel apps —
+  the overrides were passed to flap apps but dropped on the canvas path, so the app always used
+  its global settings. It now honours per-entry overrides like any other app.
+- **Scoreboard reacts to a changed selection immediately.** Its game list is cached, but now keyed
+  on the teams/leagues you follow, so switching selection no longer shows the previous slate until
+  the cache lapsed.
+
 ## 2.9.1-beta.7
 
 - **Scoreboard uses one atlas slot, not one per game.** It used to upload a fresh two-logo sheet

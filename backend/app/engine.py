@@ -529,7 +529,7 @@ class DisplayController:
             # long hold and just sits there.
             await asyncio.sleep(max(0.05, float(delay or 5)))
 
-    async def _play_canvas_entry(self, app_id: str, deadline: float, want) -> None:
+    async def _play_canvas_entry(self, app_id: str, deadline: float, want, overrides=None) -> None:
         """Drive a canvas app for one playlist entry — take the panel over (once)
         and redraw on its own timer until the entry's ``deadline``. The caller
         releases the panel afterwards, so an effect/frame never outlives its slot.
@@ -545,7 +545,7 @@ class DisplayController:
         render = getattr(self.plugins, "render_canvas", None)
         while rt_loop.time() < deadline and self.active_playlist == want:
             try:
-                hold = await asyncio.to_thread(render, app_id) if render else None
+                hold = await asyncio.to_thread(render, app_id, overrides) if render else None
             except asyncio.CancelledError:
                 raise
             except Exception as e:
@@ -698,7 +698,7 @@ class DisplayController:
                         # next entry. Without that release, an on-device effect in a
                         # playlist stayed lit forever (it never went through _cancel_task,
                         # and _canvas_active was never set, so release was a no-op).
-                        await self._play_canvas_entry(app_id, deadline, want)
+                        await self._play_canvas_entry(app_id, deadline, want, ov)
                         await self._release_canvas()
                     else:
                         while keep_going():

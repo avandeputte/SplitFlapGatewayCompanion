@@ -171,7 +171,8 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         # `logos`: url -> a magenta-keyed tile (fetched once). `sheet`/`sheet_idx`: ONE shared
         # atlas of every logo across the slate, blitted by index — so the whole app uses a single
         # atlas slot, not one per game. `sheet_for` guards a tile-size change.
-        st = {'games': [], 'i': 0, 'at': 0.0, 'logos': {}, 'sheet': [], 'sheet_idx': {}, 'sheet_for': 0}
+        st = {'games': [], 'i': 0, 'at': 0.0, 'logos': {}, 'sheet': [], 'sheet_idx': {},
+              'sheet_for': 0, 'key': None}
         setattr(fetch, '_state', st)
 
     try:
@@ -179,16 +180,21 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     except (TypeError, ValueError):
         rotate = 8
 
-    # Refresh the game list on the first draw and roughly every couple of minutes.
+    # Refresh the game list when the selection CHANGES (so a per-playlist team override takes
+    # effect at once, not after a 120 s cache), and otherwise every couple of minutes.
     import time
     now = time.monotonic()
-    if not st['games'] or now - st['at'] > 120:
-        st['games'] = _games(settings.get('follow', 'nba'), str(settings.get('filter', 'all') or 'all'))
+    follow = settings.get('follow', 'nba')
+    filt = str(settings.get('filter', 'all') or 'all')
+    key = (str(follow), filt)
+    if key != st['key'] or now - st['at'] > 120:
+        st['games'] = _games(follow, filt)
         st['at'] = now
         st['i'] = 0
-        # The shared sheet is NOT reset here: teams recur across a slate's refreshes, so keeping it
-        # lets a returning team re-bind by index instead of re-uploading. It grows only for a
-        # genuinely new logo and is bounded by the league's team count.
+        st['key'] = key
+        # The shared sheet is NOT reset here: teams recur across refreshes (and across follows),
+        # so keeping it lets a returning team re-bind by index instead of re-uploading. It grows
+        # only for a genuinely new logo and is bounded by the teams ever shown.
 
     games = st['games']
     canvas.clear((0, 0, 0))                                   # black — team colours pop on unlit pixels

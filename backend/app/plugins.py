@@ -932,16 +932,21 @@ class PluginRuntime:
         ``"surface": "canvas"``) instead of returning flap pages."""
         return self._registry.get(app_id, {}).get("surface") == "canvas"
 
-    def render_canvas(self, app_id: str):
+    def render_canvas(self, app_id: str, overrides: dict | None = None):
         """Run a canvas app's fetch once — it draws through the injected ``canvas``
         helper (the drawing is the point; there are no pages to return). Its return
-        value, if a number, is the seconds the engine should hold before redrawing."""
+        value, if a number, is the seconds the engine should hold before redrawing.
+
+        ``overrides`` are per-playlist-entry setting values (e.g. a Scoreboard following its own
+        teams), applied as a transient overlay exactly like a flap app's — so the same canvas app
+        can appear twice in a playlist configured differently."""
         mod = self._modules.get(app_id)
         manifest = self._registry.get(app_id)
         if not mod or not manifest:
             return None
-        ps = self._plugin_settings(app_id, manifest)
-        kwargs = self._helper_kwargs(app_id, self._wants.get(app_id, frozenset()), ps)
+        src = _SettingsOverlay(self.settings, overrides) if overrides else self.settings
+        ps = self._plugin_settings(app_id, manifest, src)
+        kwargs = self._helper_kwargs(app_id, self._wants.get(app_id, frozenset()), ps, src)
         fmt = functools.partial(self.format_lines, align=self.vertical_align(app_id))
         result = mod.fetch(ps, fmt, self.get_rows, self.get_cols, **kwargs)
         try:

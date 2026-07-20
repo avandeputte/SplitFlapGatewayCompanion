@@ -191,6 +191,24 @@ def test_the_sheet_name_is_wall_legal():
     assert a != canvas.atlas_name_for(b"\x01" * 192, 8, 8, 1, "rgb565")   # so does the format
 
 
+def test_a_canvas_app_honours_per_entry_overrides(monkeypatch, tmp_path):
+    """A canvas app in a playlist must get the entry's setting overrides (a Scoreboard following
+    its own teams) — the overlay a flap app already got, which the canvas render path used to drop."""
+    from conftest import make_runtime
+    import app.gateway as gateway
+    monkeypatch.setattr(gateway, "_request",
+                        lambda *a, **k: type("R", (), {"status_code": 200, "json": lambda s: {"active": True}})())
+    rt = make_runtime(tmp_path=tmp_path, installed=["canvas-scoreboard"],
+                      caps=device.from_capabilities(CANVAS_DOC))
+    mod = rt._modules["canvas-scoreboard"]
+    seen = {}
+    monkeypatch.setattr(mod, "_games", lambda follow, filt: seen.update(follow=follow) or [])
+    rt.render_canvas("canvas-scoreboard")                          # no override -> the app's own config
+    base = seen["follow"]
+    rt.render_canvas("canvas-scoreboard", {"plugin_canvas-scoreboard_follow": "nba:BOS|Boston"})
+    assert seen["follow"] == "nba:BOS|Boston" and seen["follow"] != base
+
+
 def test_face_snaps_to_a_bundled_size():
     s = _surface()
     assert s.faces == (8, 9, 10, 13, 18, 20)

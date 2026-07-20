@@ -66,6 +66,21 @@ def test_scoreboard_uses_one_shared_sheet_of_all_logos():
     assert all(0 <= i < 8 for i in cv.blits)            # every game blits by index into that sheet
 
 
+def test_scoreboard_refetches_when_the_follow_changes():
+    """The game list is cached, but keyed on the selection — so a per-playlist team override takes
+    effect at once instead of showing the previous slate until the 120 s cache lapses."""
+    m = _load()
+    calls = []
+    m._logo_tile = lambda url, size, cache: None
+    m._games = lambda follow, filt: calls.append(follow) or []
+    m.fetch.__dict__.pop("_state", None)
+    cv = _Cv()
+    m.fetch({"follow": "nba"}, None, None, None, canvas=cv)          # first slate
+    m.fetch({"follow": "nba"}, None, None, None, canvas=cv)          # same -> served from cache
+    m.fetch({"follow": "epl:ARS"}, None, None, None, canvas=cv)      # changed -> refetch at once
+    assert calls == ["nba", "epl:ARS"]
+
+
 def test_a_missing_logo_falls_back_to_a_colour_chip():
     m = _load()
     m._logo_tile = lambda url, size, cache: None        # no logo fetchable
