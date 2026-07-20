@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.3
+
+- **Sprite apps send far less over WiFi.** The panel's sprite atlas is a single shared slot, so
+  apps re-assert their tiles on every draw — about 8 KB a time, usually several times the drawing
+  that accompanies it. The companion now remembers what it last put on each panel and skips the
+  upload when those exact tiles are already there: **~64% less atlas traffic for the HA Dashboard,
+  ~98% for a fast-redrawing app** like the Aquarium. The skip is time-bounded (re-asserted every
+  30s) so a gateway reboot or another client on the same panel still self-corrects.
+
 ## 2.9.1-beta.2
 
 - **Entity table: accessibility.** The add-entity search is now a proper combobox — arrow keys move

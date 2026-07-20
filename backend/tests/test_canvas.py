@@ -65,6 +65,65 @@ def _surface():
                                 ("plasma", "fire", "matrix"))
 
 
+def test_the_atlas_is_not_resent_when_the_panel_already_has_it(gw_calls):
+    """The atlas is a single shared slot, so apps re-assert it every draw (~8 KB). Identical
+    tiles inside the re-assert window must cost nothing on the wire."""
+    canvas.forget_atlas("http://gw")
+    tiles = b"\x01\x02\x03" * 64
+    assert canvas.put_atlas("http://gw", tiles, 8, 8, 1) is True
+    assert len(gw_calls) == 1                    # first upload goes out
+    assert canvas.put_atlas("http://gw", tiles, 8, 8, 1) is True
+    assert len(gw_calls) == 1                    # same tiles, still fresh -> skipped
+    canvas.forget_atlas("http://gw")
+
+
+def test_different_tiles_always_go_out(gw_calls):
+    """Another app's atlas must never be masked by our cache."""
+    canvas.forget_atlas("http://gw")
+    canvas.put_atlas("http://gw", b"\x01" * 192, 8, 8, 1)
+    canvas.put_atlas("http://gw", b"\x02" * 192, 8, 8, 1)   # different content
+    assert len(gw_calls) == 2
+    canvas.forget_atlas("http://gw")
+
+
+def test_the_atlas_is_reasserted_after_the_window(gw_calls):
+    """A gateway reboot (or another client) leaves the panel drifted with no way back, so the
+    skip is time-bounded — we re-send once the window lapses."""
+    canvas.forget_atlas("http://gw")
+    tiles = b"\x07" * 192
+    canvas.put_atlas("http://gw", tiles, 8, 8, 1)
+    assert len(gw_calls) == 1
+    sent_at, fp = canvas._LAST_ATLAS["http://gw"]           # age the belief past the window
+    canvas._LAST_ATLAS["http://gw"] = (sent_at - canvas._ATLAS_REASSERT_S - 1, fp)
+    canvas.put_atlas("http://gw", tiles, 8, 8, 1)
+    assert len(gw_calls) == 2                    # same tiles, window lapsed -> re-asserted
+    canvas.forget_atlas("http://gw")
+
+
+def test_a_failed_atlas_upload_is_not_remembered(gw_calls, monkeypatch):
+    """If the PUT didn't land we no longer know what's on the panel — the next draw must re-send."""
+    canvas.forget_atlas("http://gw")
+    failing = {"on": True}
+    real_ok = canvas._ok
+    monkeypatch.setattr(canvas, "_ok", lambda r: (not failing["on"]) and real_ok(r))
+    canvas.put_atlas("http://gw", b"\x09" * 192, 8, 8, 1)    # upload reports failure
+    failing["on"] = False
+    canvas.put_atlas("http://gw", b"\x09" * 192, 8, 8, 1)
+    assert len(gw_calls) == 2                    # retried rather than trusted
+    canvas.forget_atlas("http://gw")
+
+
+def test_releasing_the_panel_forgets_the_atlas(gw_calls):
+    canvas.forget_atlas("http://gw")
+    tiles = b"\x05" * 192
+    canvas.put_atlas("http://gw", tiles, 8, 8, 1)
+    canvas.release("http://gw")
+    n = len(gw_calls)
+    canvas.put_atlas("http://gw", tiles, 8, 8, 1)
+    assert len(gw_calls) == n + 1                # handover invalidated the belief
+    canvas.forget_atlas("http://gw")
+
+
 def test_face_snaps_to_a_bundled_size():
     s = _surface()
     assert s.faces == (8, 9, 10, 13, 18, 20)

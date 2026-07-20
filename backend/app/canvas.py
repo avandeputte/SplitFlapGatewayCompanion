@@ -17,8 +17,10 @@ every other gateway call (gateway.py)."""
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
+import time
 
 from . import gateway
 
@@ -45,6 +47,29 @@ def _remember_frame(url: str, w: int, h: int, rgb: bytes) -> None:
 
 def forget_frame(url: str) -> None:
     _LAST_FRAME.pop(url, None)
+
+
+# The sprite atlas is a SINGLE shared slot per gateway, so an app re-asserts its tiles on every
+# draw — another canvas app (the Aquarium!) may have overwritten them since. That is ~8 KB a draw,
+# usually several times the ops it accompanies. Remember what we last PUT per gateway and skip the
+# wire when the panel already has exactly those tiles.
+#
+# The skip is deliberately TIME-BOUNDED. Trusting "it's already correct" forever is the trap the
+# flap `_shown` diff fell into: anything we didn't do — a gateway reboot, another client — leaves
+# the panel drifted with no way back. Re-asserting on a wall-clock bound self-corrects within one
+# window while still removing most of the traffic.
+_LAST_ATLAS: dict = {}          # url -> (sent_at_monotonic, fingerprint)
+_ATLAS_REASSERT_S = 30.0
+
+
+def _atlas_fingerprint(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str) -> str:
+    return (f"{fmt}:{int(tile_w)}x{int(tile_h)}:{int(count)}:"
+            f"{hashlib.blake2b(bytes(tiles), digest_size=16).hexdigest()}")
+
+
+def forget_atlas(url: str) -> None:
+    """Drop what we believe is on the panel's atlas — the next upload always goes out."""
+    _LAST_ATLAS.pop(url, None)
 
 
 def has_frame(url: str) -> bool:
@@ -418,16 +443,32 @@ def put_atlas(url: str, tiles: bytes, tile_w: int, tile_h: int, count: int,
     blits from. Header is 12 bytes: ``MPTA`` · fmt(1: 2=rgb565/3=rgb888) · tileW(2 BE) · tileH(2
     BE) · tiles(2 BE) · reserved, then the tile pixels back-to-back. Magenta (255,0,255) is
     transparent, so sprites can carry holes. 2 MB cap."""
+    fp = None
+    try:
+        fp = _atlas_fingerprint(tiles, tile_w, tile_h, count, fmt)
+        prev = _LAST_ATLAS.get(url)
+        if prev and prev[1] == fp and (time.monotonic() - prev[0]) < _ATLAS_REASSERT_S:
+            return True                         # already on the panel, asserted recently — send nothing
+    except Exception:                           # fingerprinting must never break the upload
+        fp = None
     try:
         f = 2 if str(fmt) == "rgb565" else 3
         hdr = (b"MPTA" + bytes((1, f))          # magic, ver=1, fmt
                + int(tile_w).to_bytes(2, "big") + int(tile_h).to_bytes(2, "big")
                + int(count).to_bytes(2, "big"))
-        return _ok(gateway._request("PUT", url, "/api/canvas/atlas", content=hdr + bytes(tiles),
-                                    headers={"Content-Type": "application/octet-stream"},
-                                    timeout=timeout))
+        ok = _ok(gateway._request("PUT", url, "/api/canvas/atlas", content=hdr + bytes(tiles),
+                                  headers={"Content-Type": "application/octet-stream"},
+                                  timeout=timeout))
+        # Only claim the panel holds these tiles once the PUT actually landed; a failure means we
+        # no longer know what is up there, so the next draw must re-send.
+        if ok and fp:
+            _LAST_ATLAS[url] = (time.monotonic(), fp)
+        else:
+            forget_atlas(url)
+        return ok
     except Exception as e:
         log.debug("canvas put_atlas failed: %s", e)
+        forget_atlas(url)
         return False
 
 
@@ -444,6 +485,7 @@ def release(url: str, timeout: float = 5.0) -> bool:
     """Return the panel to the reel wall — stop any effect AND drop raw-canvas mode.
     Called when a canvas app is replaced by an ordinary flap app, or stopped."""
     forget_frame(url)                      # the preview is no longer live
+    forget_atlas(url)                      # and don't assume our tiles survive the handover
     stopped = play_effect(url, "none", timeout=timeout)   # effect none marks the wall dirty
     active_off = set_active(url, False, timeout=timeout)   # and drop raw-canvas takeover
     return stopped or active_off
