@@ -3,6 +3,28 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0
+
+**Aligned with Matrix Portal Gateway firmware 3.0, plus new Home Assistant dashboard apps.**
+A physical split-flap wall is unaffected — the drive path is unchanged.
+
+- **Firmware 3.0.** Live preview streams over SSE (with a polling fallback), and the Matrix
+  gateway no longer supplies an MQTT broker. **If you use the Home Assistant integration, set the
+  broker in the add-on** (the `MQTT broker` option, e.g. `core-mosquitto`) — it is no longer read
+  from the gateway.
+- **Home Assistant dashboards.** Two new apps show your entity states: **HA Dashboard** (a card
+  grid on the Matrix panel) and **Home Assistant** (rows on a split-flap wall). Pick entities with
+  a search box, rename them, reorder them, and set numeric thresholds that colour the value
+  (green / amber / red). The add-on reads states through the Supervisor proxy automatically.
+- **Each on-device effect is its own app** (Plasma, Fire, Matrix rain, …) instead of one effect
+  app with a picker.
+- **Richer canvas apps on black.** Weather Sky, Weather Panel and the Scoreboard draw bright,
+  colourful content on an unlit black background (which reads best on an LED panel); the Scoreboard
+  gained real team logos and the same team/league picker as the Sports app.
+- **UI:** an editable entity table (search / reorder / rename / thresholds), a custom amber
+  dot-matrix marker for Matrix-panel apps, a "Matrix" filter in the app library, and richer app
+  pickers in the playlist and trigger editors.
+
 ## 2.8.0
 
 **The companion uses the Matrix panel's new canvas features (firmware 1.18+).** It reads them

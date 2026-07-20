@@ -1,10 +1,11 @@
 """
 config.py — companion configuration from defaults, the gateway, and env vars.
 
-**Nothing is persisted.** Grid geometry and the MQTT broker are pulled from the
-gateway's ``/api/config`` at runtime; the gateway URL and (optional) MQTT
-password come from the environment. On restart everything is re-derived, so there
-is no config file to manage.
+**Nothing is persisted.** Grid geometry is pulled from the gateway's ``/api/config`` at
+runtime; the gateway URL and (optional) MQTT broker/user/password come from the
+environment. (Firmware 3.0 dropped MQTT from the gateway, so the broker is companion-owned,
+not read from the gateway.) On restart everything is re-derived, so there is no config file
+to manage.
 
 Precedence — five layers, lowest first (see ``Config._recompute``):
 

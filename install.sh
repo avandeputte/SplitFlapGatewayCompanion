@@ -7,7 +7,7 @@
 # Runs on Raspberry Pi OS (arm64) and x86-64 Linux (Debian/Ubuntu/Fedora/…). It:
 #   1. installs Docker (docker-ce) if it isn't already present,
 #   2. optionally deploys a Mosquitto MQTT broker (only needed for Home Assistant),
-#   3. asks for your gateway URL + MQTT password,
+#   3. asks for your gateway URL + (optional) MQTT broker for Home Assistant,
 #   4. writes a docker-compose project and starts the companion,
 #   5. optionally adds a Watchtower container to auto-update the images.
 #
@@ -157,10 +157,9 @@ ok "Gateway: $GATEWAY_URL"
 say ""
 say "${B}MQTT broker (optional — only for Home Assistant)${N}"
 say "${DIM}  The companion drives the display over REST; it does NOT need MQTT to work."
-say "  MQTT is used solely to expose Home Assistant controls. If your gateway is"
-say "  already configured with a broker, you do NOT need another one — the companion"
-say "  will reuse the gateway's broker automatically. Only deploy one here if you have"
-say "  no MQTT broker yet and want the Home Assistant integration.${N}"
+say "  MQTT is used solely to expose Home Assistant controls (App / Playlist / Stop"
+say "  entities). Matrix Portal Gateway firmware 3.0 no longer supplies a broker, so"
+say "  either deploy one here or point the companion at your existing broker.${N}"
 askyn DEPLOY_MQTT "  Deploy a Mosquitto MQTT broker container here?" n
 
 MQTT_USER="${MQTT_USER:-}"; MQTT_PASS="${MQTT_PASS:-}"; COMPANION_HA="auto"
@@ -174,10 +173,19 @@ if [ "$DEPLOY_MQTT" = yes ]; then
   MQTT_BROKER="mosquitto"; MQTT_PORT="1883"; COMPANION_HA="true"
   ok "Will deploy Mosquitto (Home Assistant integration ON, companion points at it)."
 else
-  say "${DIM}  The gateway supplies the broker host/port/user/prefix to the companion; only"
-  say "  the password is private. Enter it if your broker requires auth (blank if not).${N}"
-  asksecret MQTT_PASS "  MQTT password for the companion (blank = none / anonymous):"
-  COMPANION_HA="auto"
+  say "${DIM}  Point the companion at an existing broker (e.g. your Home Assistant Mosquitto,"
+  say "  host 'core-mosquitto'). Leave the host blank to keep Home Assistant off.${N}"
+  ask MQTT_BROKER "  Existing MQTT broker host (blank = no Home Assistant):" ""
+  if [ -n "$MQTT_BROKER" ]; then
+    ask MQTT_PORT "  Broker port:" "1883"
+    ask MQTT_USER "  Broker username (blank = anonymous):" ""
+    asksecret MQTT_PASS "  Broker password (blank = none):"
+    COMPANION_HA="true"
+    ok "Home Assistant integration ON (companion points at ${MQTT_BROKER}:${MQTT_PORT})."
+  else
+    COMPANION_HA="auto"
+    say "${DIM}  No broker set — the Home Assistant integration stays off.${N}"
+  fi
 fi
 
 say ""

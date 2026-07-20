@@ -52,8 +52,9 @@ def fetch_states(force: bool = False) -> list[dict]:
         return []
     try:
         r = httpx.get(f"{api}/states", headers={"Authorization": f"Bearer {tok}"}, timeout=8.0)
-        if r.status_code == 200 and isinstance(r.json(), list):
-            _cache["states"], _cache["at"] = r.json(), now
+        data = r.json() if r.status_code == 200 else None
+        if isinstance(data, list):
+            _cache["states"], _cache["at"] = data, now
     except Exception as e:
         log.debug("HA states fetch failed: %s", e)
     return _cache["states"]

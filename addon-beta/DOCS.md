@@ -13,6 +13,10 @@ You need a **SplitFlapGateway** (the ESP32 board that talks RS-485 to the module
 reachable on your network. The gateway is the source of truth for grid size, read
 from it, so its URL is normally the only thing you have to enter.
 
+Driving a **Matrix Portal Gateway** panel needs **firmware 3.0+** (live preview streams
+over SSE, and the panel no longer supplies an MQTT broker — set the broker below for the
+Home Assistant integration).
+
 ## Installation
 
 1. **Settings → Apps → App Store → ⋮ → Repositories**, and add:

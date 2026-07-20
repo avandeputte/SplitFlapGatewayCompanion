@@ -586,7 +586,9 @@ function canvasMark() {
 function richAppSelect(apps, value, onChange) {
   const box = el("div", "rsel");
   const btn = el("button", "rsel-btn"); btn.type = "button";
-  const menu = el("div", "rsel-menu"); menu.style.display = "none";
+  btn.setAttribute("aria-haspopup", "listbox"); btn.setAttribute("aria-expanded", "false");
+  btn.setAttribute("aria-label", t("App"));
+  const menu = el("div", "rsel-menu"); menu.setAttribute("role", "listbox"); menu.style.display = "none";
   let cur = value;
   const optHTML = (a) =>
     `<span class="rsel-ic">${esc(a.icon || "🧩")}</span>` +
@@ -600,8 +602,17 @@ function richAppSelect(apps, value, onChange) {
   const place = () => { const r = btn.getBoundingClientRect(); menu.style.left = r.left + "px"; menu.style.top = r.bottom + 2 + "px"; menu.style.minWidth = r.width + "px"; };
   const onRe = () => place();
   const isOpen = () => menu.style.display !== "none";
-  const close = () => { menu.style.display = "none"; window.removeEventListener("scroll", onRe, true); window.removeEventListener("resize", onRe); };
-  const open = () => { menu.style.display = ""; place(); window.addEventListener("scroll", onRe, true); window.addEventListener("resize", onRe); (menu.querySelector('[aria-selected="true"]') || menu.firstChild)?.focus(); };
+  const close = () => {
+    menu.style.display = "none"; btn.setAttribute("aria-expanded", "false");
+    window.removeEventListener("scroll", onRe, true); window.removeEventListener("resize", onRe);
+    OPEN_OVERLAYS.delete(close);
+  };
+  const open = () => {
+    menu.style.display = ""; place(); btn.setAttribute("aria-expanded", "true");
+    window.addEventListener("scroll", onRe, true); window.addEventListener("resize", onRe);
+    OPEN_OVERLAYS.add(close);
+    (menu.querySelector('[aria-selected="true"]') || menu.firstChild)?.focus();
+  };
   apps.forEach((a) => {
     const row = el("div", "rsel-opt"); row.innerHTML = optHTML(a);
     row.setAttribute("role", "option"); row.tabIndex = -1;
@@ -753,7 +764,13 @@ function openModal(title, bodyEl, footButtons) {
   $("modal").classList.remove("hidden");
   document.querySelector(".modal-card").focus();
 }
+// Floating overlays (the rich select's menu, the search dropdowns) register a hide fn here while
+// open — they attach window scroll/resize listeners that their own hide removes. Closing the modal
+// blows away its body without firing blur/focusout, so drain them here or the listeners leak.
+const OPEN_OVERLAYS = new Set();
 function closeModal() {
+  OPEN_OVERLAYS.forEach((hide) => { try { hide(); } catch { /* already gone */ } });
+  OPEN_OVERLAYS.clear();
   $("modal").classList.add("hidden");
   if (MODAL_RETURN && typeof MODAL_RETURN.focus === "function") MODAL_RETURN.focus();
   MODAL_RETURN = null;
@@ -929,10 +946,13 @@ function buildForm(schema, initial, { skip } = {}) {
         ord.appendChild(up); ord.appendChild(dn);
         const eid = el("div", "et-eid"); eid.textContent = r.eid; eid.title = r.eid;
         const name = el("input", "et-name"); name.value = r.name; name.placeholder = t("Name");
+        name.setAttribute("aria-label", `${t("Name")} — ${r.eid}`);
         name.addEventListener("input", () => { r.name = name.value; onFormChange(); });
         const low = el("input", "et-num"); low.type = "number"; low.value = r.low; low.placeholder = t("Low");
+        low.setAttribute("aria-label", `${t("Low")} — ${r.eid}`);
         low.addEventListener("input", () => { r.low = low.value; onFormChange(); });
         const high = el("input", "et-num"); high.type = "number"; high.value = r.high; high.placeholder = t("High");
+        high.setAttribute("aria-label", `${t("High")} — ${r.eid}`);
         high.addEventListener("input", () => { r.high = high.value; onFormChange(); });
         const del = el("button", "et-del"); del.type = "button"; del.textContent = "✕"; del.title = t("Remove");
         del.onclick = () => { rows.splice(i, 1); draw(); onFormChange(); };
@@ -943,15 +963,15 @@ function buildForm(schema, initial, { skip } = {}) {
     box.appendChild(head); box.appendChild(body);
     // Add entities: the same search-and-pick the chip picker uses, results in a floating overlay.
     const searchBox = el("div", "chip-search");
-    const search = el("input"); search.placeholder = t("Search…");
+    const search = el("input"); search.placeholder = t("Search…"); search.setAttribute("aria-label", t("Search…"));
     const results = el("div", "chip-results"); results.style.display = "none";
     const placeResults = () => {
       const rc = search.getBoundingClientRect();
       results.style.left = rc.left + "px"; results.style.top = rc.bottom + 2 + "px"; results.style.width = rc.width + "px";
     };
     const onReposition = () => placeResults();
-    const showResults = () => { results.style.display = ""; placeResults(); window.addEventListener("scroll", onReposition, true); window.addEventListener("resize", onReposition); };
-    const hideResults = () => { results.style.display = "none"; window.removeEventListener("scroll", onReposition, true); window.removeEventListener("resize", onReposition); };
+    const showResults = () => { results.style.display = ""; placeResults(); window.addEventListener("scroll", onReposition, true); window.addEventListener("resize", onReposition); OPEN_OVERLAYS.add(hideResults); };
+    const hideResults = () => { results.style.display = "none"; window.removeEventListener("scroll", onReposition, true); window.removeEventListener("resize", onReposition); OPEN_OVERLAYS.delete(hideResults); };
     let timer;
     search.addEventListener("input", () => {
       clearTimeout(timer); const q = search.value.trim();
@@ -1011,11 +1031,13 @@ function buildForm(schema, initial, { skip } = {}) {
       results.style.display = ""; placeResults();
       window.addEventListener("scroll", onReposition, true);
       window.addEventListener("resize", onReposition);
+      OPEN_OVERLAYS.add(hideResults);
     };
     const hideResults = () => {
       results.style.display = "none";
       window.removeEventListener("scroll", onReposition, true);
       window.removeEventListener("resize", onReposition);
+      OPEN_OVERLAYS.delete(hideResults);
     };
     let timer;
     search.addEventListener("input", () => {

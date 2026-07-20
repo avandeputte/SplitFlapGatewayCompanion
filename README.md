@@ -77,10 +77,11 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
 - **Packaging** — a multi-arch Docker image (healthcheck + `/data` volume), a
   one-line installer, and a Home Assistant app.
 
-The gateway is the **source of truth** for hardware config: the grid size and MQTT
-broker are read from it. The companion drives the display over **REST** — a whole
-page in one request, no broker — so animations are smooth. MQTT is used only for the
-Home Assistant MQTT device, never for the display.
+The gateway is the **source of truth** for the grid size, read from it on startup. The
+companion drives the display over **REST** — a whole page in one request, no broker — so
+animations are smooth. MQTT is optional and used only for the Home Assistant MQTT device
+(the App / Playlist / Stop entities); since Matrix Portal Gateway **firmware 3.0** dropped
+MQTT from the gateway, the broker is configured in the companion, not read from the gateway.
 
 ---
 
@@ -172,10 +173,12 @@ pytest                                          # run the tests
 `defaults ← gateway ← environment` and never written to disk, so there's nothing to
 seed, migrate or back up.
 
-- **Environment** — the things you set: **`GATEWAY_URL`** (**required**) and, if your
-  broker needs auth for Home Assistant, `COMPANION_MQTT_PASSWORD`. Env always wins.
-- **Gateway (source of truth)** — the grid size and the MQTT broker/port/user/prefix
-  are read from the gateway's `/api/config` on startup and on **Sync**.
+- **Environment** — the things you set: **`GATEWAY_URL`** (**required**) and, for the Home
+  Assistant MQTT device, `COMPANION_MQTT_BROKER` (plus `_USER`/`_PASSWORD` if it needs auth).
+  Env always wins.
+- **Gateway (source of truth)** — the grid size is read from the gateway's `/api/config` on
+  startup and on **Sync**. (Firmware 3.0 dropped MQTT from the gateway, so the broker is no
+  longer read from it — set it in the companion.)
 - **Defaults** — sensible fallbacks used until the gateway answers.
 
 As a Home Assistant app there are no environment variables — the same settings come
@@ -188,15 +191,16 @@ uploaded apps** — not any companion config, which is never persisted.
 |---|---|---|
 | `GATEWAY_URL` | Gateway base URL (REST + config sync + status). **Required** | *(none; required)* |
 | `COMPANION_PUBLIC_URL` | This companion's own URL, registered with the gateway for its "Companion" tab | *(auto-detected)* |
-| `COMPANION_SYNC_FROM_GATEWAY` | Pull grid + MQTT from the gateway on startup | `true` |
-| `COMPANION_MQTT_PASSWORD` | MQTT password for **Home Assistant only** (the gateway never exposes it) | — |
-| `COMPANION_HA` | Home Assistant MQTT device: `auto` (follow gateway) \| `true` \| `false` | `auto` |
+| `COMPANION_SYNC_FROM_GATEWAY` | Pull the grid size from the gateway on startup | `true` |
+| `COMPANION_MQTT_PASSWORD` | MQTT password for the **Home Assistant** device | — |
+| `COMPANION_HA` | Home Assistant MQTT device: `auto` (on when a broker is set) \| `true` \| `false` | `auto` |
+| `COMPANION_HA_URL` / `_TOKEN` | Home Assistant base URL + long-lived token so apps (**HA Dashboard**, **Home Assistant**) can read entity states in standalone Docker — the add-on uses the Supervisor proxy instead | — |
 | `COMPANION_VESTABOARD` / `_KEY` | Enable the [Vestaboard API](#vestaboard-compatible-api) and pin its key | `off` |
 | `COMPANION_MCP` / `_TOKEN` | Enable the [MCP server](#mcp-server) and pin its token | `off` |
 | `GATEWAY_URL` | **Required.** Your gateway. Takes a **comma-separated list** to drive [several displays](#multiple-displays) | — |
 | `COMPANION_MODULE_ID_BASE` | Module id of grid index 0 | `0` |
 | `COMPANION_GRID_ROWS` / `_COLS` | Manual panel-size override | *(from gateway)* |
-| `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | Manual MQTT overrides | *(from gateway)* |
+| `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | MQTT broker/port/prefix/user for the Home Assistant device (e.g. broker `core-mosquitto`) | *(unset — HA off)* |
 | `COMPANION_SETTINGS_STORE` | Where settings live: `mirror` \| `local` \| `gateway` — see below | `mirror` |
 | `COMPANION_DATA_DIR` | Where app settings, playlists, triggers + uploaded apps live | `<repo>/data` |
 | `COMPANION_DEV_MODE` | Enable **simulation mode** in the ⚙ tools menu — run apps without driving the wall, with a grid override while simulating | `off` |
@@ -381,10 +385,10 @@ The integration lives in [custom_components/splitflap/](custom_components/splitf
 
 ### Home Assistant (MQTT)
 
-With `COMPANION_HA=auto` (the default) the companion enables HA when the gateway has HA
-turned on, reusing the **same MQTT broker**, and publishes one auto-discovery device,
-**SplitFlap Companion**, with the controls unique to the companion (the gateway's own
-HA device already covers flashing a message and reading the board):
+With `COMPANION_HA=auto` (the default) the companion enables HA when an **MQTT broker is
+configured** (`COMPANION_MQTT_BROKER`, or the broker option in the add-on — firmware 3.0
+dropped MQTT from the gateway, so the broker is set in the companion). It publishes one
+auto-discovery device, **SplitFlap Companion**, with the controls unique to the companion:
 
 | Entity | Type | Does |
 |---|---|---|

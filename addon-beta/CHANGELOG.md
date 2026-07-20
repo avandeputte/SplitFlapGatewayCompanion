@@ -3,6 +3,22 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0
+
+**2.9.0 stable.** The firmware-3.0 alignment and the new Home Assistant dashboard apps
+(built over the beta.1–beta.24 line below) ship as the stable release. Final polish since
+beta.24, from a full audit:
+
+- **`install.sh`** now prompts for an existing MQTT broker host on the "don't deploy Mosquitto"
+  path — previously it left the broker unset, so the Home Assistant device silently never
+  connected under firmware 3.0.
+- **Docs** updated for the firmware-3.0 broker model (README, add-on docs) and the new
+  `COMPANION_HA_URL` / `COMPANION_HA_TOKEN` for reading HA states in standalone Docker.
+- **UI:** settings-dialog overlay listeners are cleaned up on close (no leak), and the rich app
+  pickers gained combobox ARIA / labels.
+- Internal: fixed a double-parse in the HA state reader; added tests for the HA reader and the
+  dashboard threshold logic.
+
 ## 2.9.0-beta.24
 
 - **Scoreboard: same team/league picker as the Sports app.** Pick teams and whole leagues with the
