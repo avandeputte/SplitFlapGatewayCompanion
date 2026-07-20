@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.9
+
+- **Overview & Weather Sky: less washed-out colour.** The Overview's temperature ramp was
+  near-white through the mild middle of its range; it's now a saturated thermal scale
+  (blue → cyan → green → amber → red), so a 68° reads as a real colour, not tinted white. Weather
+  Sky's high/low likewise go from pale peach/blue to a saturated orange/blue.
+
 ## 2.9.1-beta.8
 
 - **Fix: per-playlist settings now apply to canvas apps.** A playlist entry's own configuration

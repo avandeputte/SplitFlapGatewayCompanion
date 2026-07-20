@@ -221,10 +221,10 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
 
         dx, dyy = int(pad + temp_f.getlength(ts) + 8), ty
         if hi is not None:
-            _outline(draw, dx, dyy, f'H {hi}{deg}', info_f, (255, 206, 150))
+            _outline(draw, dx, dyy, f'H {hi}{deg}', info_f, (255, 150, 55))
             if lo is not None:
                 _outline(draw, dx + info_f.getlength(f'H {hi}{deg}') + 7, dyy,
-                         f'L {lo}{deg}', info_f, (150, 200, 255))
+                         f'L {lo}{deg}', info_f, (55, 150, 255))
             dyy += step
         feels = _num(wx.get('feels_like_f'), unit)
         if feels is not None:
@@ -288,13 +288,13 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
             _outline(draw, x, info_y, word, small, (214, 226, 246))
             x += small.getlength(word + '  ')
         if hi_s:
-            _outline(draw, x, info_y, hi_s, small, (255, 202, 140))
+            _outline(draw, x, info_y, hi_s, small, (255, 150, 55))
             x += small.getlength(hi_s)
         if hi_s and lo_s:
             _outline(draw, x, info_y, '/', small, (186, 196, 216))
             x += small.getlength('/')
         if lo_s:
-            _outline(draw, x, info_y, lo_s, small, (150, 200, 255))
+            _outline(draw, x, info_y, lo_s, small, (55, 150, 255))
 
     canvas.frame(img)
     return 0.16

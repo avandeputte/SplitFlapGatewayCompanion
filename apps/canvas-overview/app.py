@@ -53,11 +53,12 @@ _C_SB_TRK = (24, 26, 34)       # the seconds bar: track / fill / leading pixel
 _C_SB_FIL = (222, 168, 92)
 _C_SB_HEAD = (255, 250, 240)
 
-# Temperature colour ramp by Fahrenheit — cold blues, near-white in the mild
-# middle, warm ambers when hot. Anchors chosen so no lerp ever hits pink.
-_TEMP_STOPS = [(5, (120, 176, 255)), (32, (150, 208, 255)), (48, (176, 226, 236)),
-               (62, (216, 236, 222)), (72, (248, 236, 190)), (82, (255, 206, 130)),
-               (92, (255, 170, 92)), (104, (255, 138, 74))]
+# Temperature colour ramp by Fahrenheit — a saturated thermal scale so a mild temperature still
+# carries a colour instead of washing out to white on the LED panel: cold blue -> cyan -> green
+# -> amber -> hot red. The hue runs through green (never straight blue->red), so no lerp hits pink.
+_TEMP_STOPS = [(5, (60, 120, 255)), (32, (40, 170, 255)), (48, (0, 205, 220)),
+               (60, (40, 215, 130)), (72, (150, 215, 55)), (82, (250, 195, 35)),
+               (92, (255, 130, 30)), (104, (255, 70, 40))]
 
 
 def _lerp(a, b, t):
