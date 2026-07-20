@@ -58,8 +58,21 @@ def forget_frame(url: str) -> None:
 # flap `_shown` diff fell into: anything we didn't do — a gateway reboot, another client — leaves
 # the panel drifted with no way back. Re-asserting on a wall-clock bound self-corrects within one
 # window while still removing most of the traffic.
-_LAST_ATLAS: dict = {}          # url -> (sent_at_monotonic, fingerprint)
+_LAST_ATLAS: dict = {}          # url -> (sent_at_monotonic, fingerprint)   [legacy single slot]
 _ATLAS_REASSERT_S = 30.0
+
+# Firmware 3.1 replaced that single slot with a NAMED library — several sheets under one budget,
+# addressed by name, optionally persisted. We name a sheet by a fingerprint of its own bytes, so
+# "the wall lists this name" *is* "those exact tiles are loaded": no hashing on the device, no
+# generation counter, nothing to go stale. A sheet is uploaded once and every later draw costs one
+# small {"op":"atlas","name":…} bind instead of re-sending ~8 KB of tiles.
+#
+# The wall can still drop a sheet under us (a reboot, or LRU eviction by other sheets), and a
+# `sprite` with nothing bound silently draws nothing — so the belief is re-checked against the
+# device's own library on a wall-clock bound. That check is a small JSON GET, not a re-upload.
+_ATLAS_KNOWN: dict = {}         # url -> {"at": monotonic, "names": set[str]}
+_ATLAS_VERIFY_S = 60.0
+_ATLAS_NAME_MAX = 32            # firmware: [a-z0-9._-]{1,32}
 
 
 def _atlas_fingerprint(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str) -> str:
@@ -67,9 +80,18 @@ def _atlas_fingerprint(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: 
             f"{hashlib.blake2b(bytes(tiles), digest_size=16).hexdigest()}")
 
 
+def atlas_name_for(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str = "rgb888") -> str:
+    """A wall-legal sheet name that IS the content fingerprint, so presence in the wall's library
+    means exactly these tiles are loaded. Charset/length match the firmware's rule."""
+    digest = hashlib.blake2b(bytes(tiles), digest_size=9).hexdigest()
+    f = "5" if str(fmt) == "rgb565" else "8"
+    return f"c{int(tile_w)}x{int(tile_h)}.{f}{digest}"[:_ATLAS_NAME_MAX]
+
+
 def forget_atlas(url: str) -> None:
-    """Drop what we believe is on the panel's atlas — the next upload always goes out."""
+    """Drop what we believe the wall holds — the next draw re-checks and re-uploads if needed."""
     _LAST_ATLAS.pop(url, None)
+    _ATLAS_KNOWN.pop(url, None)
 
 
 def has_frame(url: str) -> bool:
@@ -452,11 +474,8 @@ def put_atlas(url: str, tiles: bytes, tile_w: int, tile_h: int, count: int,
     except Exception:                           # fingerprinting must never break the upload
         fp = None
     try:
-        f = 2 if str(fmt) == "rgb565" else 3
-        hdr = (b"MPTA" + bytes((1, f))          # magic, ver=1, fmt
-               + int(tile_w).to_bytes(2, "big") + int(tile_h).to_bytes(2, "big")
-               + int(count).to_bytes(2, "big"))
-        ok = _ok(gateway._request("PUT", url, "/api/canvas/atlas", content=hdr + bytes(tiles),
+        ok = _ok(gateway._request("PUT", url, "/api/canvas/atlas",
+                                  content=_atlas_body(tiles, tile_w, tile_h, count, fmt),
                                   headers={"Content-Type": "application/octet-stream"},
                                   timeout=timeout))
         # Only claim the panel holds these tiles once the PUT actually landed; a failure means we
@@ -470,6 +489,75 @@ def put_atlas(url: str, tiles: bytes, tile_w: int, tile_h: int, count: int,
         log.debug("canvas put_atlas failed: %s", e)
         forget_atlas(url)
         return False
+
+
+def _atlas_body(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str) -> bytes:
+    """The MPTA upload body: 12-byte big-endian header, then the tiles back-to-back."""
+    f = 2 if str(fmt) == "rgb565" else 3
+    return (b"MPTA" + bytes((1, f))                     # magic, ver=1, fmt (= bytes per pixel)
+            + int(tile_w).to_bytes(2, "big") + int(tile_h).to_bytes(2, "big")
+            + int(count).to_bytes(2, "big") + bytes(tiles))
+
+
+def put_atlas_named(url: str, name: str, tiles: bytes, tile_w: int, tile_h: int, count: int,
+                    fmt: str = "rgb888", timeout: float = 15.0) -> bool:
+    """Upload one NAMED sheet into the wall's atlas library (PUT /api/canvas/atlas/<name>,
+    firmware 3.1). Same MPTA body as the unnamed route; the name is the address a later
+    ``{"op":"atlas"}`` binds."""
+    try:
+        ok = _ok(gateway._request("PUT", url, f"/api/canvas/atlas/{name}",
+                                  content=_atlas_body(tiles, tile_w, tile_h, count, fmt),
+                                  headers={"Content-Type": "application/octet-stream"},
+                                  timeout=timeout))
+        if ok:
+            _ATLAS_KNOWN.setdefault(url, {"at": time.monotonic(), "names": set()})["names"].add(name)
+        else:
+            forget_atlas(url)                           # we no longer know what's up there
+        return ok
+    except Exception as e:
+        log.debug("canvas put_atlas_named failed: %s", e)
+        forget_atlas(url)
+        return False
+
+
+def atlas_list(url: str, timeout: float = 8.0) -> list:
+    """The wall's atlas library — ``[{name, tiles, w, h, fmt, bytes, resident, persisted}]``.
+    Includes sheets that are only persisted: binding one lazy-loads it, so for "can I bind this?"
+    presence in this list is the answer."""
+    try:
+        r = gateway._request("GET", url, "/api/canvas/atlas", timeout=timeout)
+        if not _ok(r):
+            return []
+        data = r.json()
+        return data if isinstance(data, list) else []
+    except Exception as e:
+        log.debug("canvas atlas_list failed: %s", e)
+        return []
+
+
+def atlas_save(url: str, name: str, timeout: float = 15.0) -> bool:
+    """Persist a sheet to the wall's filesystem so it survives a reboot (lazy-loaded on bind)."""
+    return _ok(gateway._request("POST", url, f"/api/canvas/atlas/{name}/save", timeout=timeout))
+
+
+def atlas_delete(url: str, name: str, timeout: float = 10.0) -> bool:
+    """Drop a sheet from the wall, resident and persisted."""
+    ok = _ok(gateway._request("DELETE", url, f"/api/canvas/atlas/{name}", timeout=timeout))
+    e = _ATLAS_KNOWN.get(url)
+    if ok and e:
+        e["names"].discard(name)
+    return ok
+
+
+def atlas_has(url: str, name: str) -> bool:
+    """Is ``name`` bindable on this wall? Answered from what we last saw, re-reading the wall's
+    library when that belief is older than the verify window — a sheet can vanish under us."""
+    e = _ATLAS_KNOWN.get(url)
+    now = time.monotonic()
+    if e is None or now - e["at"] > _ATLAS_VERIFY_S:
+        names = {str(a.get("name")) for a in atlas_list(url) if isinstance(a, dict) and a.get("name")}
+        _ATLAS_KNOWN[url] = e = {"at": now, "names": names}
+    return name in e["names"]
 
 
 def get_state(url: str, timeout: float = 5.0) -> dict:
@@ -541,7 +629,8 @@ class CanvasSurface:
                  rect: bool = False, anim: bool = False, ticker: bool = False,
                  effect_params: tuple = (), readback: bool = False, ops: tuple = (),
                  overlay: bool = False, transition: bool = False, anim_library: bool = False,
-                 gif: bool = False, fonts: bool = False, sprite: bool = False):
+                 gif: bool = False, fonts: bool = False, sprite: bool = False,
+                 atlas_named: bool = False, atlas_persist: bool = False):
         self.url = url
         self.width = int(width)
         self.height = int(height)
@@ -566,6 +655,10 @@ class CanvasSurface:
         self.can_gif = bool(gif)
         self.can_fonts = bool(fonts)
         self.can_sprite = bool(sprite)
+        # 3.1: a named atlas LIBRARY rather than one slot every app overwrites, so a sheet is
+        # uploaded once and later draws only bind it by name.
+        self.can_atlas_named = bool(atlas_named)
+        self.can_atlas_persist = bool(atlas_persist)
         self._ops: list = []
 
     # -- drawing (batched until show) ----------------------------------------
@@ -785,8 +878,13 @@ class CanvasSurface:
         return anim_delete(self.url, name)
 
     def upload_atlas(self, images, fmt: str = "rgb888") -> bool:
-        """Upload a list of equal-size PIL images as the sprite atlas; ``sprite(i)`` then blits
-        image ``i`` (firmware 2.1). Magenta (255,0,255) is transparent. Needs ``canvas.can_sprite``."""
+        """Make ``images`` (equal-size PIL images) the sheet the following ``sprite(i)`` calls
+        blit from. Magenta (255,0,255) is transparent. Needs ``canvas.can_sprite``.
+
+        Call it on every draw — that is the safe habit, because the sheet is shared. On a wall with
+        the named atlas library (3.1) it costs almost nothing to do so: the sheet is named by a
+        fingerprint of its own bytes, so identical tiles are uploaded ONCE and each later draw adds
+        just a small bind op. An older wall falls back to the single unnamed slot."""
         try:
             imgs = [im.convert("RGB") for im in images]
             if not imgs:
@@ -795,7 +893,17 @@ class CanvasSurface:
             buf = bytearray()
             for im in imgs:
                 buf += (im if (im.width, im.height) == (tw, th) else im.resize((tw, th))).tobytes()
-            return put_atlas(self.url, bytes(buf), tw, th, len(imgs), fmt)
+            tiles = bytes(buf)
+            if not self.can_atlas_named:
+                return put_atlas(self.url, tiles, tw, th, len(imgs), fmt)
+            name = atlas_name_for(tiles, tw, th, len(imgs), fmt)
+            if not atlas_has(self.url, name) and not put_atlas_named(
+                    self.url, name, tiles, tw, th, len(imgs), fmt):
+                return False
+            # Bind for the sprites that follow. Queued with the drawing, so it costs one op rather
+            # than a request, and the batch is self-contained: no reliance on a sticky earlier bind.
+            self._ops.append({"op": "atlas", "name": name})
+            return True
         except Exception as e:
             log.debug("canvas.upload_atlas failed: %s", e)
             return False

@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.4
+
+- **Uses the gateway's new named sprite-atlas library (firmware 3.1).** Sprite sheets are now
+  addressed by name instead of fighting over one slot, so a sheet is uploaded **once** and every
+  later draw just binds it. For the HA Dashboard that is one 8 KB upload per five minutes instead
+  of nine — **96% less sprite traffic**, and the apps needed no changes. Falls back to the single
+  unnamed slot on an older wall.
+
 ## 2.9.1-beta.3
 
 - **Sprite apps send far less over WiFi.** The panel's sprite atlas is a single shared slot, so

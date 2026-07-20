@@ -65,6 +65,140 @@ def _surface():
                                 ("plasma", "fire", "matrix"))
 
 
+# --- named atlas library (firmware 3.1) -------------------------------------
+
+@pytest.fixture
+def wall(monkeypatch):
+    """A stand-in for a 3.1 wall's atlas library: a PUT adds a named sheet, the GET lists them.
+    Lets a test assert the property that matters — tiles cross the wire once, not once a draw."""
+    state = {"sheets": {}, "calls": []}
+
+    class _Resp:
+        status_code = 200
+
+        def __init__(self, payload=None):
+            self._payload = payload
+
+        def json(self):
+            return self._payload if self._payload is not None else {"active": True}
+
+    def _request(method, url, path, *, timeout=None, **kw):
+        state["calls"].append((method, path, kw.get("json"), kw.get("content")))
+        if method == "GET" and path == "/api/canvas/atlas":
+            return _Resp([{"name": n, "tiles": 1, "w": 8, "h": 8, "fmt": 3,
+                           "bytes": 192, "resident": True, "persisted": False}
+                          for n in state["sheets"]])
+        if path.startswith("/api/canvas/atlas/"):
+            name = path.rsplit("/", 1)[-1]
+            if method == "PUT":
+                state["sheets"][name] = kw.get("content")
+            elif method == "DELETE":
+                state["sheets"].pop(name, None)
+        return _Resp()
+
+    import app.gateway as gateway
+    monkeypatch.setattr(gateway, "_request", _request)
+    canvas.forget_atlas("http://gw")
+    yield state
+    canvas.forget_atlas("http://gw")
+
+
+def _named_surface():
+    return canvas.CanvasSurface("http://gw", 128, 32, ("rgb888",), (), sprite=True, atlas_named=True)
+
+
+def _imgs(n=2, shade=1):
+    from PIL import Image
+    return [Image.new("RGB", (8, 8), (shade, shade, shade)) for _ in range(n)]
+
+
+def _uploads(state):
+    return [c for c in state["calls"] if c[0] == "PUT" and c[1].startswith("/api/canvas/atlas/")]
+
+
+def test_a_named_sheet_uploads_once_then_only_binds(wall):
+    """The whole point: identical tiles cross the wire on the first draw and never again — later
+    draws carry a small bind op instead of ~8 KB of pixels."""
+    tiles = _imgs()
+    for _ in range(5):
+        s = _named_surface()
+        assert s.upload_atlas(tiles) is True
+        s.sprite(0, 0, 0)
+        s.show()
+    assert len(_uploads(wall)) == 1                     # one upload for five draws
+    ops = [o for c in wall["calls"] if c[0] == "POST" for o in (c[2] or [])]
+    binds = [o for o in ops if o.get("op") == "atlas"]
+    assert len(binds) == 5                              # every batch binds, so none relies on stickiness
+    assert binds[0]["name"] == canvas.atlas_name_for(
+        b"".join(im.tobytes() for im in tiles), 8, 8, 2, "rgb888")
+
+
+def test_the_bind_precedes_the_sprites_in_the_batch(wall):
+    s = _named_surface()
+    s.upload_atlas(_imgs())
+    s.sprite(0, 1, 2)
+    s.show()
+    ops = [o for c in wall["calls"] if c[0] == "POST" for o in (c[2] or [])]
+    kinds = [o["op"] for o in ops]
+    assert kinds.index("atlas") < kinds.index("sprite")  # binding after the blit would draw nothing
+
+
+def test_different_tiles_get_their_own_sheet(wall):
+    a, b = _imgs(shade=1), _imgs(shade=9)
+    for tiles in (a, b, a, b):
+        s = _named_surface()
+        s.upload_atlas(tiles)
+        s.show()
+    assert len(_uploads(wall)) == 2                      # two distinct sheets, each sent once
+    assert len(wall["sheets"]) == 2
+
+
+def test_a_sheet_the_wall_lost_is_re_uploaded(wall):
+    """A reboot or an LRU eviction drops the sheet; a `sprite` with nothing bound draws nothing,
+    so the belief has to be re-checked against the wall rather than trusted forever."""
+    tiles = _imgs()
+    s = _named_surface(); s.upload_atlas(tiles); s.show()
+    assert len(_uploads(wall)) == 1
+    wall["sheets"].clear()                               # the wall rebooted
+    entry = canvas._ATLAS_KNOWN["http://gw"]             # age our belief past the verify window
+    canvas._ATLAS_KNOWN["http://gw"] = {"at": entry["at"] - canvas._ATLAS_VERIFY_S - 1,
+                                        "names": entry["names"]}
+    s = _named_surface(); s.upload_atlas(tiles); s.show()
+    assert len(_uploads(wall)) == 2                      # noticed and restored
+
+
+def test_the_sheet_name_is_wall_legal():
+    """Firmware rule: [a-z0-9._-]{1,32}, and it doubles as the content fingerprint."""
+    import re
+    for tiles, w, h, n in ((b"\x01" * 192, 8, 8, 1), (b"\x02" * 49152, 128, 64, 2)):
+        for fmt in ("rgb888", "rgb565"):
+            name = canvas.atlas_name_for(tiles, w, h, n, fmt)
+            assert re.fullmatch(r"[a-z0-9._-]{1,32}", name), name
+    a = canvas.atlas_name_for(b"\x01" * 192, 8, 8, 1)
+    assert a != canvas.atlas_name_for(b"\x02" * 192, 8, 8, 1)      # content decides the name
+    assert a != canvas.atlas_name_for(b"\x01" * 192, 8, 8, 1, "rgb565")   # so does the format
+
+
+def test_an_older_wall_still_uses_the_single_slot(gw_calls):
+    """No canvas.atlas capability -> the unnamed slot, unchanged."""
+    s = canvas.CanvasSurface("http://gw", 128, 32, ("rgb888",), (), sprite=True)
+    assert s.upload_atlas(_imgs()) is True
+    paths = [c[1] for c in gw_calls]
+    assert "/api/canvas/atlas" in paths
+    assert not any(p.startswith("/api/canvas/atlas/") for p in paths)
+    canvas.forget_atlas("http://gw")
+
+
+def test_the_named_atlas_capability_is_parsed():
+    doc = dict(CANVAS_DOC)
+    doc["canvas"] = dict(doc["canvas"], atlas={"named": True, "persist": True,
+                                               "maxSheets": 16, "maxSheetBytes": 2097152})
+    caps = device.from_capabilities(doc)
+    assert caps.atlas_named and caps.atlas_persist
+    assert caps.atlas_max_sheets == 16 and caps.atlas_max_sheet_bytes == 2097152
+    assert not device.from_capabilities(CANVAS_DOC).atlas_named   # older wall: absent
+
+
 def test_the_atlas_is_not_resent_when_the_panel_already_has_it(gw_calls):
     """The atlas is a single shared slot, so apps re-assert it every draw (~8 KB). Identical
     tiles inside the re-assert window must cost nothing on the wire."""
