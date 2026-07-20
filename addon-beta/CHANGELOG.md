@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.1
+
+- **Internal: shared canvas text helpers.** The `_cp` (CP1252 filter), face-snapping, fit and
+  drop-shadow text helpers that were copy-pasted across the HA Dashboard, Scoreboard and Weather
+  Panel apps now live on the injected `canvas` object (`canvas.cp/face/fit/shadow_text`). No visible
+  change — the on-device rendering is identical; this just removes the duplication.
+
 ## 2.9.0
 
 **2.9.0 stable.** The firmware-3.0 alignment and the new Home Assistant dashboard apps

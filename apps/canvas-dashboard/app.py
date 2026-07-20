@@ -6,17 +6,14 @@ standalone), then draws a black card per entity with a DEVICE ICON from a genera
 atlas, a name, and the value — the card border and the value coloured by state, or by
 per-entity thresholds for numeric sensors.
 
-Bright content on BLACK reads best on an LED panel. On-device text draws CP1252 glyphs (``_cp``
-keeps what the panel can draw); sizes snap to the bundled faces {8,9,10,13,18,20}; the shared
-atlas is re-uploaded every draw.
+Bright content on BLACK reads best on an LED panel. Text goes through the injected ``canvas``
+helpers — ``canvas.shadow_text`` (drop-shadow + CP1252 filter), ``canvas.face``/``canvas.fit``
+(snap to the bundled faces {8,9,10,13,18,20}); the shared atlas is re-uploaded every draw.
 """
 
 import math
 
 _MAGENTA = (255, 0, 255)
-_FACES = (8, 9, 10, 13, 18, 20)
-_FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}      # the panel's fixed glyph widths
-_SHADOW = (0, 0, 0)
 _DOMAIN = {'light': 0, 'switch': 1, 'sensor': 2, 'binary_sensor': 3, 'lock': 4, 'cover': 5,
            'climate': 6, 'fan': 7, 'media_player': 8, 'person': 9}
 _N_ICONS = 11
@@ -26,33 +23,6 @@ _DEAD = {'unavailable', 'unknown', 'none', ''}
 _GREEN, _GREY, _BLUE, _RED, _AMBER = (70, 210, 120), (150, 158, 178), (110, 175, 250), (245, 95, 85), (250, 200, 70)
 _SHORT = {'unlocked': 'OPEN', 'locked': 'LOCK', 'closed': 'SHUT', 'not_home': 'AWAY',
           'detected': 'DET', 'clear': 'CLR', 'standby': 'IDLE', 'playing': 'PLAY', 'paused': 'PAUS'}
-
-
-def _face(sz):
-    ok = [s for s in _FACES if s <= sz]
-    return max(ok) if ok else 8
-
-
-def _fit(text, maxw, maxh):
-    """The largest bundled face for which ``text`` fits in maxw × maxh (min 8)."""
-    best = 8
-    for f in _FACES:
-        if f <= maxh and len(text) * _FACE_W[f] <= maxw:
-            best = f
-    return best
-
-
-def _cp(s):
-    """Keep only CP1252-representable characters — the on-device font's charset."""
-    return str(s).encode('cp1252', 'ignore').decode('cp1252')
-
-
-def _txt(canvas, x, y, s, color, size, align='left'):
-    s = _cp(s)
-    if not s:
-        return
-    canvas.text(x + 1, y + 1, s, _SHADOW, size=size, align=align)
-    canvas.text(x, y, s, color, size=size, align=align)
 
 
 def _parse_config(text):
@@ -90,8 +60,9 @@ def _entities(cfg_order):
     return out[:12]
 
 
-def _value(state, attrs, thr):
-    """(text, colour). Numeric values with a threshold colour green/amber/red by band."""
+def _value(state, attrs, thr, cp):
+    """(text, colour). Numeric values with a threshold colour green/amber/red by band.
+    ``cp`` filters units/text to the panel's charset (pass ``canvas.cp``)."""
     st = str(state or '').lower()
     if st in _DEAD:
         return '--', _GREY
@@ -99,7 +70,7 @@ def _value(state, attrs, thr):
         return _SHORT.get(st, st.upper())[:5], (_GREEN if st in _ON else _GREY)
     try:
         f = float(state)
-        unit = _cp((attrs or {}).get('unit_of_measurement', '')).strip()
+        unit = cp((attrs or {}).get('unit_of_measurement', '')).strip()
         unit = unit if len(unit) <= 2 else ''                  # keep °F/%/W; drop long units (the name says it)
         txt = f'{round(f)}{unit}' if abs(f) >= 10 else f'{f:.1f}{unit}'
         if thr:
@@ -109,7 +80,7 @@ def _value(state, attrs, thr):
             col = _BLUE
         return txt, col
     except (TypeError, ValueError):
-        return _cp(state).upper()[:6], _BLUE
+        return cp(state).upper()[:6], _BLUE
 
 
 def _icons(s):
@@ -194,7 +165,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states
     cfg, cfg_order = _parse_config(settings.get('config', ''))
     ids = _entities(cfg_order)
     if not ids:
-        _txt(canvas, W // 2, H // 2 - 5, 'Pick entities', (210, 216, 232), _face(min(13, H // 3)), align='center')
+        canvas.shadow_text(W // 2, H // 2 - 5, 'Pick entities', (210, 216, 232), canvas.face(min(13, H // 3)), align='center')
         canvas.show()
         return 30.0
 
@@ -228,8 +199,8 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states
         domain = eid.split('.')[0]
         attrs = s.get('attributes') or {}
         cname, thr = cfg.get(eid, (None, None))
-        name = _cp(cname or attrs.get('friendly_name') or eid.split('.', 1)[-1].replace('_', ' '))
-        val, col = _value(s.get('state'), attrs, thr)
+        name = canvas.cp(cname or attrs.get('friendly_name') or eid.split('.', 1)[-1].replace('_', ' '))
+        val, col = _value(s.get('state'), attrs, thr, canvas.cp)
 
         canvas.roundrect(x + 1, y + 1, cw - 2, ch - 2, 3, col, fill=False)   # black card, coloured border
         top_h = ch - (10 if show_name else 0)                                # icon + value share the top band
@@ -237,10 +208,10 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states
         if use_sprites:
             canvas.sprite(_DOMAIN.get(domain, _N_ICONS - 1), x + 3, y + max(2, (top_h - tile) // 2))
             vx0 = x + 3 + tile + 2
-        vf = _fit(val, (x + cw - 3) - vx0, top_h - 3)          # fit the value in the space right of the icon
-        _txt(canvas, (vx0 + x + cw - 3) // 2, y + max(2, (top_h - vf) // 2), val, col, vf, align='center')
+        vf = canvas.fit(val, (x + cw - 3) - vx0, top_h - 3)          # fit the value in the space right of the icon
+        canvas.shadow_text((vx0 + x + cw - 3) // 2, y + max(2, (top_h - vf) // 2), val, col, vf, align='center')
         if show_name:
-            _txt(canvas, x + cw // 2, y + ch - 11, name[:max(4, (cw - 4) // 5)], (222, 228, 242), 8, align='center')
+            canvas.shadow_text(x + cw // 2, y + ch - 11, name[:max(4, (cw - 4) // 5)], (222, 228, 242), 8, align='center')
 
     canvas.show()
     return 12.0

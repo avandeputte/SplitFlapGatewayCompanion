@@ -68,9 +68,13 @@ def test_entity_board_row_clamps_to_columns():
 
 # -- canvas-dashboard: value -> (text, RGB) ---------------------------------
 
+def _cp(s):   # stands in for the injected canvas.cp (CP1252 filter)
+    return str(s).encode("cp1252", "ignore").decode("cp1252")
+
+
 def test_canvas_dashboard_bands_and_unit():
     m = _load("canvas-dashboard")
-    txt, col = m._value("2500", {"unit_of_measurement": "ppm"}, (1000, 2000))
+    txt, col = m._value("2500", {"unit_of_measurement": "ppm"}, (1000, 2000), _cp)
     assert col == m._RED and txt == "2500"                      # long unit dropped, above high -> red
-    assert m._value("640", {}, (1000, 2000))[1] == m._GREEN     # below low -> green
-    assert m._value("on", {}, None)[1] == m._GREEN              # on state -> green
+    assert m._value("640", {}, (1000, 2000), _cp)[1] == m._GREEN   # below low -> green
+    assert m._value("on", {}, None, _cp)[1] == m._GREEN         # on state -> green

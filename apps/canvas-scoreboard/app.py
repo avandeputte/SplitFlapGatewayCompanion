@@ -5,14 +5,12 @@ team's LOGO), downloads and caches the logos, and blits them from the sprite atl
 scores and a status line — rotating one game at a time. A team whose logo can't be fetched
 falls back to a colour badge with its abbreviation.
 
-On-device text draws CP1252 glyphs (``_cp`` keeps what the panel can draw) and only has faces
-{8,9,10,13,18,20}; the atlas is a single shared slot, so the two badges are re-uploaded every draw.
+Text goes through the injected ``canvas`` (``canvas.shadow_text`` keeps only CP1252 glyphs and
+snaps to the faces {8,9,10,13,18,20}); the atlas is a single shared slot, so the two badges are
+re-uploaded every draw.
 """
 
 _MAGENTA = (255, 0, 255)
-_FACES = (8, 9, 10, 13, 18, 20)
-_FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}          # the panel's fixed glyph widths
-_SHADOW = (8, 8, 10)
 
 # league code -> ESPN sport path + short name. The keys match the /sports_search picker
 # (backend SPORTS_LEAGUES), so a chip picked there routes here; golf/mma aren't two-team
@@ -36,34 +34,18 @@ _LEAGUES = {
 _HTTP = {'User-Agent': 'SplitFlapGatewayCompanion/1.0'}
 
 
-def _face(sz):
-    ok = [s for s in _FACES if s <= sz]
-    return max(ok) if ok else 8
-
-
-def _pick_name(cands, maxw, faces=(10, 9, 8)):
+def _pick_name(canvas, cands, maxw, faces=(10, 9, 8)):
     """(text, face): the fullest candidate that fits `maxw`, at the biggest face it fits — a full
     name at a smaller size beats an abbreviation, so a wide wall shows "Giants", not "SF"."""
     for c in cands:
-        c = _cp(c)
+        c = canvas.cp(c)
         if not c:
             continue
         for f in faces:
-            if len(c) * _FACE_W[f] <= maxw:
+            if len(c) * canvas.face_width(f) <= maxw:
                 return c, f
     f = faces[-1]
-    return (_cp(cands[-1]) if cands else '')[:max(1, maxw // _FACE_W[f])], f
-
-
-def _cp(s):
-    """Keep CP1252-representable characters (the on-device font's charset)."""
-    return str(s).encode('cp1252', 'ignore').decode('cp1252')
-
-
-def _txt(canvas, x, y, s, color, size, align='left'):
-    s = _cp(s)
-    canvas.text(x + 1, y + 1, s, _SHADOW, size=size, align=align)
-    canvas.text(x, y, s, color, size=size, align=align)
+    return (canvas.cp(cands[-1]) if cands else '')[:max(1, maxw // canvas.face_width(f))], f
 
 
 def _hex(c, dflt=(90, 96, 120)):
@@ -130,7 +112,7 @@ def _games(follow, filt):
             detail = ev.get('status', {}).get('type', {}).get('shortDetail', '') or ''
             games.append({
                 'lg': name, 'state': state,
-                'status': 'Final' if state == 'post' else _cp(detail)[:16],
+                'status': 'Final' if state == 'post' else str(detail)[:16],
                 'aa': aa, 'ha': ha, 'anm': anm, 'hnm': hnm,
                 'as': str(away.get('score', '') or ('' if state == 'pre' else '0')),
                 'hs': str(home.get('score', '') or ('' if state == 'pre' else '0')),
@@ -173,8 +155,8 @@ def _badge(canvas, x, y, tile, abbr, color, idx, has_sprite):
         canvas.sprite(idx, x, y)
     else:
         canvas.roundrect(x, y, tile, tile, 3, color, fill=True)
-        f = _face(tile // 2)
-        _txt(canvas, x + tile // 2, y + (tile - f) // 2, abbr[:3], (255, 255, 255), f, align='center')
+        f = canvas.face(tile // 2)
+        canvas.shadow_text(x + tile // 2, y + (tile - f) // 2, abbr[:3], (255, 255, 255), f, align='center')
 
 
 def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
@@ -205,7 +187,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     canvas.clear((0, 0, 0))                                   # black — team colours pop on unlit pixels
 
     if not games:
-        _txt(canvas, W // 2, H // 2 - 5, 'No games', (210, 216, 232), _face(min(13, H // 3)), align='center')
+        canvas.shadow_text(W // 2, H // 2 - 5, 'No games', (210, 216, 232), canvas.face(min(13, H // 3)), align='center')
         canvas.show()
         return 30.0
 
@@ -239,24 +221,24 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
 
     if compact:                                              # badges on top, score below
         score = f"{g['as']}-{g['hs']}" if g['state'] != 'pre' else 'vs'
-        _txt(canvas, W // 2, 2 + tile, score, (255, 255, 255),
-             _face(min(13, max(8, H - tile - 3))), align='center')
+        canvas.shadow_text(W // 2, 2 + tile, score, (255, 255, 255),
+             canvas.face(min(13, max(8, H - tile - 3))), align='center')
         canvas.show()
         return float(rotate)
 
-    _txt(canvas, 2, 1, g['lg'], (150, 160, 190), 8)
-    _txt(canvas, W - 2, 1, g['status'], (235, 210, 120) if g['state'] == 'in' else (170, 178, 200), 8, align='right')
+    canvas.shadow_text(2, 1, g['lg'], (150, 160, 190), 8)
+    canvas.shadow_text(W - 2, 1, g['status'], (235, 210, 120) if g['state'] == 'in' else (170, 178, 200), 8, align='right')
 
     # team names, fanning outward from the centre logos — the fullest that fits each side.
-    an, af = _pick_name(g['anm'], ax - 5)
-    hn, hf = _pick_name(g['hnm'], W - 2 - (hx + tile + 3))
-    _txt(canvas, ax - 3, by + (tile - af) // 2, an, (214, 222, 240), af, align='right')
-    _txt(canvas, hx + tile + 3, by + (tile - hf) // 2, hn, (214, 222, 240), hf, align='left')
+    an, af = _pick_name(canvas, g['anm'], ax - 5)
+    hn, hf = _pick_name(canvas, g['hnm'], W - 2 - (hx + tile + 3))
+    canvas.shadow_text(ax - 3, by + (tile - af) // 2, an, (214, 222, 240), af, align='right')
+    canvas.shadow_text(hx + tile + 3, by + (tile - hf) // 2, hn, (214, 222, 240), hf, align='left')
 
     sy = by + tile + 1
     if g['state'] != 'pre':                                  # scores under their logos
-        sf = _face(min(18, max(10, H - sy - 1)))
-        _txt(canvas, ax + tile // 2, sy, g['as'], (255, 255, 255), sf, align='center')
-        _txt(canvas, hx + tile // 2, sy, g['hs'], (255, 255, 255), sf, align='center')
+        sf = canvas.face(min(18, max(10, H - sy - 1)))
+        canvas.shadow_text(ax + tile // 2, sy, g['as'], (255, 255, 255), sf, align='center')
+        canvas.shadow_text(hx + tile // 2, sy, g['hs'], (255, 255, 255), sf, align='center')
     canvas.show()
     return float(rotate)

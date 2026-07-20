@@ -459,6 +459,12 @@ _NAMED = {
 }
 
 
+# The panel's bundled text faces and their fixed glyph widths. A `text` op with a `size`
+# outside this set falls back to a small 6x10 face on-device, so apps snap to these.
+_FACES = (8, 9, 10, 13, 18, 20)
+_FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}
+
+
 def _rgb(color):
     """A colour → an [r,g,b] list. Accepts a name, an (r,g,b)/[r,g,b], or a
     #RRGGBB string. Defaults to white for anything unrecognised."""
@@ -603,6 +609,45 @@ class CanvasSurface:
         if font:
             op["font"] = str(font)
         self._ops.append(op)
+        return self
+
+    # -- text helpers (the bundled faces are fixed-width per size) ------------
+    @property
+    def faces(self) -> tuple:
+        """The panel's bundled text faces, smallest first."""
+        return _FACES
+
+    def face(self, size) -> int:
+        """Snap `size` to the largest bundled face that fits (min 8) — a ``text`` op with a
+        size off this list falls back to a small face on-device."""
+        ok = [s for s in _FACES if s <= size]
+        return max(ok) if ok else _FACES[0]
+
+    def face_width(self, face) -> int:
+        """The fixed glyph width of a bundled face — for laying text out before drawing it."""
+        return _FACE_W.get(int(face), _FACE_W[_FACES[0]])
+
+    def fit(self, text, maxw, maxh) -> int:
+        """The largest bundled face for which ``text`` fits in ``maxw`` × ``maxh`` (min 8)."""
+        best = _FACES[0]
+        for f in _FACES:
+            if f <= maxh and len(text) * _FACE_W[f] <= maxw:
+                best = f
+        return best
+
+    def cp(self, s) -> str:
+        """Keep only CP1252-representable characters — the on-device font's charset (degree
+        sign and Latin accents survive; other scripts drop)."""
+        return str(s).encode("cp1252", "ignore").decode("cp1252")
+
+    def shadow_text(self, x, y, s, color, size, align="left", shadow=(0, 0, 0)):
+        """A text label with a 1px drop-shadow so it stays legible over any content. ``s`` is
+        filtered to the panel's charset (:meth:`cp`); an empty result draws nothing."""
+        s = self.cp(s)
+        if not s:
+            return self
+        self.text(x + 1, y + 1, s, shadow, size=size, align=align)
+        self.text(x, y, s, color, size=size, align=align)
         return self
 
     def show(self) -> bool:

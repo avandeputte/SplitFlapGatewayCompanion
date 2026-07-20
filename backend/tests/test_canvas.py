@@ -65,6 +65,47 @@ def _surface():
                                 ("plasma", "fire", "matrix"))
 
 
+def test_face_snaps_to_a_bundled_size():
+    s = _surface()
+    assert s.faces == (8, 9, 10, 13, 18, 20)
+    assert s.face(7) == 8                        # below the smallest -> the floor
+    assert s.face(12) == 10                       # snaps DOWN to the nearest bundled face
+    assert s.face(30) == 20                       # above the largest -> the largest
+    assert s.face_width(10) == 6 and s.face_width(20) == 10
+
+
+def test_fit_picks_the_largest_face_that_fits():
+    s = _surface()
+    assert s.fit("AB", 100, 40) == 20             # 2 glyphs, roomy -> biggest face
+    assert s.fit("AB", 11, 40) == 8               # 2*5=10 <= 11 only at face 8
+    assert s.fit("HELLO", 100, 9) == 9            # height caps it at 9 even with width to spare
+
+
+def test_cp_keeps_cp1252_and_drops_the_rest():
+    s = _surface()
+    assert s.cp("72°F") == "72°F"       # degree sign survives (CP1252)
+    assert s.cp("café") == "café"       # Latin accent survives
+    assert s.cp("hi \U0001f600 中") == "hi  "  # emoji + CJK dropped
+
+
+def test_shadow_text_draws_shadow_then_text(gw_calls):
+    s = _surface()
+    s.shadow_text(5, 6, "Hi", "white", 10, shadow=(1, 2, 3))
+    s.show()
+    _, _, body, _ = gw_calls[0]
+    texts = [o for o in body if o["op"] == "text"]
+    assert len(texts) == 2                         # shadow + foreground
+    assert (texts[0]["x"], texts[0]["y"]) == (6, 7) and texts[0]["color"] == [1, 2, 3]
+    assert (texts[1]["x"], texts[1]["y"]) == (5, 6) and texts[1]["color"] == [255, 255, 255]
+
+
+def test_shadow_text_skips_an_empty_string(gw_calls):
+    s = _surface()
+    s.shadow_text(0, 0, "\U0001f600", "white", 8)  # all-dropped -> nothing drawn
+    s.show()
+    assert gw_calls == []                          # no ops queued, show() is a no-op
+
+
 def test_draw_ops_are_batched_until_show(gw_calls):
     s = _surface()
     s.clear("black").rect(0, 0, 10, 8, "red", fill=True).text(2, 2, "HI", "green", 8)

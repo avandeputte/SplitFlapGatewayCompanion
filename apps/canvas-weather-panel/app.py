@@ -5,10 +5,11 @@ blits a CONDITION ICON from a generated sprite atlas and writes the temperature 
 strip with text ops. The icons (sun, moon, cloud, rain, snow, storm, fog) are drawn once with
 Pillow and uploaded to the panel's atlas; a wall without the sprite op falls back to a coloured disc.
 
-Two things about the on-device text op: it draws CP1252 glyphs (the firmware decodes the
-UTF-8 we send back to CP1252), so ``_cp()`` keeps the degree sign / Latin accents and drops
-only what the panel can't draw; and ``size`` must be one of the bundled faces
-{8,9,10,13,18,20} — anything else falls back to a small 6×10 face — so sizes snap via ``_face()``.
+Two things about the on-device text op (both handled by the injected ``canvas``): it draws
+CP1252 glyphs (the firmware decodes the UTF-8 we send back to CP1252), so ``canvas.shadow_text``
+keeps the degree sign / Latin accents and drops only what the panel can't draw; and ``size``
+must be one of the bundled faces {8,9,10,13,18,20} — anything else falls back to a small 6×10
+face — so sizes snap via ``canvas.face()``.
 
 Conditions come from the shared ``get_weather`` helper (the wall's configured location and
 the ten-minute cache are honoured).
@@ -22,27 +23,6 @@ _WORD = {'clear': 'Clear', 'pcloudy': 'Partly', 'cloudy': 'Cloudy', 'fog': 'Fog'
          'rainl': 'Light rain', 'rain': 'Rain', 'rainh': 'Heavy rain', 'shwr': 'Showers',
          'snowl': 'Light snow', 'snow': 'Snow', 'snowh': 'Heavy snow', 'sleet': 'Sleet',
          'storm': 'Storm', 'hail': 'Hail'}
-_FACES = (8, 9, 10, 13, 18, 20)
-_SHADOW = (10, 12, 20)
-
-
-def _face(sz):
-    """Snap a wanted height to the largest bundled face that fits (min 8)."""
-    ok = [s for s in _FACES if s <= sz]
-    return max(ok) if ok else 8
-
-
-def _cp(s):
-    """Keep CP1252-representable characters (the on-device font's charset): degree signs and
-    Latin accents pass through, other scripts are dropped."""
-    return str(s).encode('cp1252', 'ignore').decode('cp1252')
-
-
-def _txt(canvas, x, y, s, color, size, align='left'):
-    """Text with a dark drop-shadow so it stays legible over an icon."""
-    s = _cp(s)
-    canvas.text(x + 1, y + 1, s, _SHADOW, size=size, align=align)
-    canvas.text(x, y, s, color, size=size, align=align)
 
 
 def _cloud(d, s, col, y):
@@ -180,25 +160,25 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
                       (255, 206, 50) if tok == 'clear' and not night else (220, 226, 238), fill=True)
 
     # big temperature, snapped to a real face, with a drawn degree ring (no "°" byte)
-    tsize = _face(int(tile * (1.0 if compact else 0.95)))
+    tsize = canvas.face(int(tile * (1.0 if compact else 0.95)))
     tx = 2 + tile + 3
     ty = iy + (tile - tsize) // 2
-    _txt(canvas, tx, ty, f'{temp}°' if temp is not None else '--°', (255, 255, 255), tsize)
+    canvas.shadow_text(tx, ty, f'{temp}°' if temp is not None else '--°', (255, 255, 255), tsize)
 
     if compact:
         sub = _WORD.get(tok, tok.title())
         if hi is not None and lo is not None:
             sub = f'{hi}/{lo}  {sub}'
-        _txt(canvas, 2, H - 9, sub, (232, 238, 248), 8)
+        canvas.shadow_text(2, H - 9, sub, (232, 238, 248), 8)
         canvas.show()
         return 300.0
 
     sub = _WORD.get(tok, tok.title())
     if hi is not None and lo is not None:
         sub = f'{sub}  {hi}/{lo}'
-    _txt(canvas, tx, iy + tile - 1, sub[:22], (226, 233, 246), 8)
+    canvas.shadow_text(tx, iy + tile - 1, sub[:22], (226, 233, 246), 8)
     if show_city and city:
-        _txt(canvas, W - 2, 1, city[:16], (232, 240, 250), 8, align='right')
+        canvas.shadow_text(W - 2, 1, city[:16], (232, 240, 250), 8, align='right')
 
     fc = (wx.get('forecast') or [])[:3]
     if fc:
@@ -215,7 +195,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
                 lbl = ''
             dhi, dlo = _conv(day.get('hi_f'), unit), _conv(day.get('lo_f'), unit)
             txt = f'{lbl} {dhi}/{dlo}' if (dhi is not None and dlo is not None) else lbl
-            _txt(canvas, i * cw + cw // 2, fy + (fh - 8) // 2, txt, (232, 238, 248), 8, align='center')
+            canvas.shadow_text(i * cw + cw // 2, fy + (fh - 8) // 2, txt, (232, 238, 248), 8, align='center')
 
     canvas.show()
     return 300.0
