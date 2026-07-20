@@ -929,7 +929,9 @@ function buildForm(schema, initial, { skip } = {}) {
     // Serialises to the app's `entity_id | Name | low,high` config (one line per row, in order).
     let rows = parseEntityRows(val);
     const box = el("div", "entity-table");
-    const head = el("div", "et-head");
+    // The header is visual scaffolding — each input below carries its own aria-label, so hide the
+    // header from assistive tech rather than have it read a stray "Entity Name Low High".
+    const head = el("div", "et-head"); head.setAttribute("aria-hidden", "true");
     ["", t("Entity"), t("Name"), t("Low"), t("High"), ""].forEach((h) => { const c = el("div"); c.textContent = h; head.appendChild(c); });
     const body = el("div", "et-rows");
     const swap = (i, j) => { [rows[i], rows[j]] = [rows[j], rows[i]]; draw(); onFormChange(); };
@@ -940,8 +942,10 @@ function buildForm(schema, initial, { skip } = {}) {
         const row = el("div", "et-row");
         const ord = el("div", "et-ord");
         const up = el("button"); up.type = "button"; up.textContent = "▲"; up.title = t("Move up"); up.disabled = i === 0;
+        up.setAttribute("aria-label", `${t("Move up")} — ${r.eid}`);
         up.onclick = () => swap(i, i - 1);
         const dn = el("button"); dn.type = "button"; dn.textContent = "▼"; dn.title = t("Move down"); dn.disabled = i === rows.length - 1;
+        dn.setAttribute("aria-label", `${t("Move down")} — ${r.eid}`);
         dn.onclick = () => swap(i, i + 1);
         ord.appendChild(up); ord.appendChild(dn);
         const eid = el("div", "et-eid"); eid.textContent = r.eid; eid.title = r.eid;
@@ -955,23 +959,44 @@ function buildForm(schema, initial, { skip } = {}) {
         high.setAttribute("aria-label", `${t("High")} — ${r.eid}`);
         high.addEventListener("input", () => { r.high = high.value; onFormChange(); });
         const del = el("button", "et-del"); del.type = "button"; del.textContent = "✕"; del.title = t("Remove");
+        del.setAttribute("aria-label", `${t("Remove")} — ${r.eid}`);
         del.onclick = () => { rows.splice(i, 1); draw(); onFormChange(); };
         row.append(ord, eid, name, low, high, del);
         body.appendChild(row);
       });
     };
     box.appendChild(head); box.appendChild(body);
-    // Add entities: the same search-and-pick the chip picker uses, results in a floating overlay.
+    // Add entities — an ARIA combobox: the input owns a listbox of results, moved through with the
+    // arrow keys (aria-activedescendant tracks the highlight) and chosen with Enter or a click.
     const searchBox = el("div", "chip-search");
+    const listId = "et-lb-" + Math.random().toString(36).slice(2, 8);
     const search = el("input"); search.placeholder = t("Search…"); search.setAttribute("aria-label", t("Search…"));
-    const results = el("div", "chip-results"); results.style.display = "none";
+    search.setAttribute("role", "combobox"); search.setAttribute("aria-autocomplete", "list");
+    search.setAttribute("aria-haspopup", "listbox"); search.setAttribute("aria-expanded", "false");
+    search.setAttribute("aria-controls", listId);
+    const results = el("div", "chip-results"); results.id = listId; results.setAttribute("role", "listbox");
+    results.style.display = "none";
+    let active = -1;                                         // highlighted option index (aria-activedescendant)
+    const opts = () => [...results.children];
+    const setActive = (i) => {
+      const os = opts(); if (!os.length) return;
+      active = (i + os.length) % os.length;
+      os.forEach((o, k) => { const on = k === active; o.classList.toggle("active", on); o.setAttribute("aria-selected", on ? "true" : "false"); });
+      search.setAttribute("aria-activedescendant", os[active].id);
+      os[active].scrollIntoView({ block: "nearest" });
+    };
     const placeResults = () => {
       const rc = search.getBoundingClientRect();
       results.style.left = rc.left + "px"; results.style.top = rc.bottom + 2 + "px"; results.style.width = rc.width + "px";
     };
     const onReposition = () => placeResults();
-    const showResults = () => { results.style.display = ""; placeResults(); window.addEventListener("scroll", onReposition, true); window.addEventListener("resize", onReposition); OPEN_OVERLAYS.add(hideResults); };
-    const hideResults = () => { results.style.display = "none"; window.removeEventListener("scroll", onReposition, true); window.removeEventListener("resize", onReposition); OPEN_OVERLAYS.delete(hideResults); };
+    const showResults = () => { results.style.display = ""; search.setAttribute("aria-expanded", "true"); placeResults(); window.addEventListener("scroll", onReposition, true); window.addEventListener("resize", onReposition); OPEN_OVERLAYS.add(hideResults); };
+    const hideResults = () => { results.style.display = "none"; search.setAttribute("aria-expanded", "false"); search.removeAttribute("aria-activedescendant"); active = -1; window.removeEventListener("scroll", onReposition, true); window.removeEventListener("resize", onReposition); OPEN_OVERLAYS.delete(hideResults); };
+    const addEntity = (it) => {
+      const eid = it.value ?? it.id;
+      if (eid && !rows.some((r) => r.eid === eid)) { rows.push({ eid, name: "", low: "", high: "" }); draw(); onFormChange(); }
+      search.value = ""; hideResults(); search.focus();
+    };
     let timer;
     search.addEventListener("input", () => {
       clearTimeout(timer); const q = search.value.trim();
@@ -980,24 +1005,26 @@ function buildForm(schema, initial, { skip } = {}) {
         try {
           const data = await api(`${f.searchUrl}?q=${encodeURIComponent(q)}`);
           const items = data[f.resultKey] || [];
-          results.innerHTML = "";
-          items.forEach((it) => {
+          results.innerHTML = ""; active = -1; search.removeAttribute("aria-activedescendant");
+          items.forEach((it, idx) => {
             const d = el("div"); d.textContent = it.label || it.name || it.value;
-            d.setAttribute("role", "button"); d.tabIndex = 0;
-            const pick = () => {
-              const eid = it.value ?? it.id;
-              if (eid && !rows.some((r) => r.eid === eid)) { rows.push({ eid, name: "", low: "", high: "" }); draw(); onFormChange(); }
-              search.value = ""; hideResults(); search.focus();
-            };
-            d.onclick = pick;
-            d.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+            d.id = `${listId}-o${idx}`; d.setAttribute("role", "option"); d.setAttribute("aria-selected", "false");
+            d.addEventListener("mousedown", (e) => e.preventDefault());   // keep focus (and the caret) on the input
+            d.addEventListener("click", () => addEntity(it));
             results.appendChild(d);
           });
           if (items.length) showResults(); else hideResults();
         } catch { hideResults(); }
       }, 250);
     });
-    search.addEventListener("blur", () => setTimeout(() => { if (!results.contains(document.activeElement)) hideResults(); }, 150));
+    search.addEventListener("keydown", (e) => {
+      const open = results.style.display !== "none";
+      if (e.key === "ArrowDown") { e.preventDefault(); if (open) setActive(active + 1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); if (open) setActive(active - 1); }
+      else if (e.key === "Enter" && open && active >= 0) { e.preventDefault(); opts()[active].click(); }
+      else if (e.key === "Escape" && open) { e.preventDefault(); hideResults(); }
+    });
+    search.addEventListener("blur", () => setTimeout(hideResults, 150));
     searchBox.appendChild(search); searchBox.appendChild(results); box.appendChild(searchBox);
     wrap.appendChild(box); draw();
     wrap._getValue = () => serializeEntityRows(rows);

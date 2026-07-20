@@ -306,7 +306,7 @@ a.btn { text-decoration: none; display: inline-block; }
   background: var(--card); border: 1px solid var(--acc); border-radius: 6px; max-height: 220px; overflow-y: auto;
   box-shadow: 0 6px 20px rgba(0,0,0,.5); }
 .chip-results div { padding: 7px 10px; cursor: pointer; font-size: .85rem; }
-.chip-results div:hover { background: var(--acc); }
+.chip-results div:hover, .chip-results div.active { background: var(--acc); }
 .gps-btn { margin-top: 6px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--acc);
   background: var(--input); color: var(--txt); cursor: pointer; font: inherit; font-size: .85rem; }
 

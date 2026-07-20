@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.2
+
+- **Entity table: accessibility.** The add-entity search is now a proper combobox — arrow keys move
+  through the results and Enter picks (screen readers announce it as a listbox). The reorder / remove
+  buttons name the entity they act on, and the decorative header is hidden from assistive tech.
+
 ## 2.9.1-beta.1
 
 - **Internal: shared canvas text helpers.** The `_cp` (CP1252 filter), face-snapping, fit and
