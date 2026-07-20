@@ -11,18 +11,27 @@ On-device text draws CP1252 glyphs (``_cp`` keeps what the panel can draw) and o
 
 _MAGENTA = (255, 0, 255)
 _FACES = (8, 9, 10, 13, 18, 20)
+_FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}          # the panel's fixed glyph widths
 _SHADOW = (8, 8, 10)
 
-# league code -> ESPN sport path + short name
+# league code -> ESPN sport path + short name. The keys match the /sports_search picker
+# (backend SPORTS_LEAGUES), so a chip picked there routes here; golf/mma aren't two-team
+# scoreboards and are intentionally absent (such picks are ignored).
 _LEAGUES = {
     'nfl': ('football/nfl', 'NFL'), 'nba': ('basketball/nba', 'NBA'),
     'mlb': ('baseball/mlb', 'MLB'), 'nhl': ('hockey/nhl', 'NHL'),
-    'wnba': ('basketball/wnba', 'WNBA'), 'mls': ('soccer/usa.1', 'MLS'),
+    'ncaaf': ('football/college-football', 'NCAAF'), 'ncaab': ('basketball/mens-college-basketball', 'NCAAB'),
+    'mls': ('soccer/usa.1', 'MLS'), 'usl': ('soccer/usa.usl.1', 'USL'),
+    'usl1': ('soccer/usa.usl.l1', 'USL1'), 'nwsl': ('soccer/usa.nwsl', 'NWSL'),
     'epl': ('soccer/eng.1', 'EPL'), 'laliga': ('soccer/esp.1', 'LaLiga'),
     'ucl': ('soccer/uefa.champions', 'UCL'), 'uel': ('soccer/uefa.europa', 'Europa'),
     'ger': ('soccer/ger.1', 'Bundesliga'), 'ita': ('soccer/ita.1', 'Serie A'),
-    'fra': ('soccer/fra.1', 'Ligue 1'), 'mex': ('soccer/mex.1', 'Liga MX'),
-    'ncaaf': ('football/college-football', 'NCAAF'), 'ncaab': ('basketball/mens-college-basketball', 'NCAAB'),
+    'fra': ('soccer/fra.1', 'Ligue 1'), 'por': ('soccer/por.1', 'Primeira'),
+    'ned': ('soccer/ned.1', 'Eredivisie'), 'mex': ('soccer/mex.1', 'Liga MX'),
+    'bra': ('soccer/bra.1', 'Brasileirao'), 'efl': ('soccer/eng.2', 'Championship'),
+    'msoc': ('soccer/usa.ncaa.m.1', 'MSOC'), 'wsoc': ('soccer/usa.ncaa.w.1', 'WSOC'),
+    'wnba': ('basketball/wnba', 'WNBA'), 'ncaaw': ('basketball/womens-college-basketball', 'NCAAW'),
+    'soft': ('baseball/college-softball', 'Softball'),
 }
 _HTTP = {'User-Agent': 'SplitFlapGatewayCompanion/1.0'}
 
@@ -30,6 +39,20 @@ _HTTP = {'User-Agent': 'SplitFlapGatewayCompanion/1.0'}
 def _face(sz):
     ok = [s for s in _FACES if s <= sz]
     return max(ok) if ok else 8
+
+
+def _pick_name(cands, maxw, faces=(10, 9, 8)):
+    """(text, face): the fullest candidate that fits `maxw`, at the biggest face it fits — a full
+    name at a smaller size beats an abbreviation, so a wide wall shows "Giants", not "SF"."""
+    for c in cands:
+        c = _cp(c)
+        if not c:
+            continue
+        for f in faces:
+            if len(c) * _FACE_W[f] <= maxw:
+                return c, f
+    f = faces[-1]
+    return (_cp(cands[-1]) if cands else '')[:max(1, maxw // _FACE_W[f])], f
 
 
 def _cp(s):
@@ -52,17 +75,21 @@ def _hex(c, dflt=(90, 96, 120)):
 
 
 def _parse_follow(follow):
-    """"nba, epl:ARS" -> [(path, name, {'ARS'}|None), …] keeping the user's order."""
+    """The picker's chip list -> [(path, name, {'ARS'}|None), …], keeping the user's order.
+
+    Each chip is ``league:ABBR|Label`` or ``league:*|Label`` (whole league); the plain
+    ``nba`` / ``epl:ARS`` strings the old text field used still parse."""
     out = []
-    for part in str(follow or 'nba').split(','):
-        part = part.strip()
+    for part in str(follow or 'nba:*').split(','):
+        part = part.split('|', 1)[0].strip()                # drop the picker's display label
         if not part:
             continue
         code, _, team = part.partition(':')
         lg = _LEAGUES.get(code.strip().lower())
         if not lg:
             continue
-        out.append((lg[0], lg[1], {team.strip().upper()} if team.strip() else None))
+        team = team.strip().upper()
+        out.append((lg[0], lg[1], {team} if team and team != '*' else None))
     return out
 
 
@@ -92,6 +119,9 @@ def _games(follow, filt):
             ha = (home['team'].get('abbreviation') or '???').upper()
             if teams and aa not in teams and ha not in teams:
                 continue
+            # Name candidates, fullest first — the layout shows the fullest that fits the wall.
+            anm = [n for n in (away['team'].get('displayName'), away['team'].get('shortDisplayName'), aa) if n]
+            hnm = [n for n in (home['team'].get('displayName'), home['team'].get('shortDisplayName'), ha) if n]
             state = ev.get('status', {}).get('type', {}).get('state', 'pre')
             if filt == 'live' and state != 'in':
                 continue
@@ -101,7 +131,7 @@ def _games(follow, filt):
             games.append({
                 'lg': name, 'state': state,
                 'status': 'Final' if state == 'post' else _cp(detail)[:16],
-                'aa': aa, 'ha': ha,
+                'aa': aa, 'ha': ha, 'anm': anm, 'hnm': hnm,
                 'as': str(away.get('score', '') or ('' if state == 'pre' else '0')),
                 'hs': str(home.get('score', '') or ('' if state == 'pre' else '0')),
                 'alogo': away['team'].get('logo'), 'hlogo': home['team'].get('logo'),
@@ -183,10 +213,15 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     st['i'] = (st['i'] + 1) % len(games)
 
     compact = W < 104 or H < 44
-    tile = max(12, min(28, int(H * (0.5 if compact else 0.44)))) & ~1
+    tile = max(12, min(28 if compact else 26, int(H * (0.5 if compact else 0.42)))) & ~1
     if compact:
         tile = min(tile, H - 12) & ~1
-    ax, hx = 1, W - 1 - tile
+
+    # Compact keeps the badges at the edges (little room to do otherwise); the wide layout brings
+    # the two logos together at the middle, team names fanning outward, scores below.
+    half = W // 2
+    ax, hx = (1, W - 1 - tile) if compact else (half - 2 - tile, half + 2)
+    by = 1 if compact else 11
 
     # atlas: away logo -> tile 0, home logo -> tile 1 (re-uploaded every draw; shared slot)
     a_sp = h_sp = False
@@ -199,28 +234,29 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
             canvas.upload_atlas([at or blank, ht or blank])
             a_sp, h_sp = at is not None, ht is not None
 
-    _badge(canvas, ax, 1 if compact else 11, tile, g['aa'], g['ac'], 0, a_sp)
-    _badge(canvas, hx, 1 if compact else 11, tile, g['ha'], g['hc'], 1, h_sp)
-    score = f"{g['as']}-{g['hs']}" if g['state'] != 'pre' else 'vs'
+    _badge(canvas, ax, by, tile, g['aa'], g['ac'], 0, a_sp)
+    _badge(canvas, hx, by, tile, g['ha'], g['hc'], 1, h_sp)
 
     if compact:                                              # badges on top, score below
+        score = f"{g['as']}-{g['hs']}" if g['state'] != 'pre' else 'vs'
         _txt(canvas, W // 2, 2 + tile, score, (255, 255, 255),
              _face(min(13, max(8, H - tile - 3))), align='center')
         canvas.show()
         return float(rotate)
 
-    by = 11
-    _txt(canvas, ax + tile // 2, by + tile + 1, g['aa'], (200, 208, 226), 8, align='center')
-    _txt(canvas, hx + tile // 2, by + tile + 1, g['ha'], (200, 208, 226), 8, align='center')
     _txt(canvas, 2, 1, g['lg'], (150, 160, 190), 8)
     _txt(canvas, W - 2, 1, g['status'], (235, 210, 120) if g['state'] == 'in' else (170, 178, 200), 8, align='right')
-    if g['state'] == 'pre':
-        _txt(canvas, W // 2, by + (tile - 10) // 2, 'vs', (210, 216, 232), _face(10), align='center')
-    else:
-        sf = _face(min(20, tile))
-        mid = W // 2
-        _txt(canvas, mid - 3, by + (tile - sf) // 2, g['as'], (255, 255, 255), sf, align='right')
-        _txt(canvas, mid, by + (tile - sf) // 2, '-', (150, 160, 190), sf, align='center')
-        _txt(canvas, mid + 3, by + (tile - sf) // 2, g['hs'], (255, 255, 255), sf, align='left')
+
+    # team names, fanning outward from the centre logos — the fullest that fits each side.
+    an, af = _pick_name(g['anm'], ax - 5)
+    hn, hf = _pick_name(g['hnm'], W - 2 - (hx + tile + 3))
+    _txt(canvas, ax - 3, by + (tile - af) // 2, an, (214, 222, 240), af, align='right')
+    _txt(canvas, hx + tile + 3, by + (tile - hf) // 2, hn, (214, 222, 240), hf, align='left')
+
+    sy = by + tile + 1
+    if g['state'] != 'pre':                                  # scores under their logos
+        sf = _face(min(18, max(10, H - sy - 1)))
+        _txt(canvas, ax + tile // 2, sy, g['as'], (255, 255, 255), sf, align='center')
+        _txt(canvas, hx + tile // 2, sy, g['hs'], (255, 255, 255), sf, align='center')
     canvas.show()
     return float(rotate)

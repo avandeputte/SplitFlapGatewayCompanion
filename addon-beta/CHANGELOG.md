@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.24
+
+- **Scoreboard: same team/league picker as the Sports app.** Pick teams and whole leagues with the
+  search box (type a team or league and add it as a chip) instead of typing league codes.
+- **Scoreboard layout reworked.** The two team logos now meet in the middle with the team names
+  fanning outward and the scores beneath — no more logos stranded at opposite edges. On a wide
+  wall it shows the real team name ("Giants") rather than the abbreviation, dropping to the
+  abbreviation only when there isn't room.
+
 ## 2.9.0-beta.23
 
 - **Weather Sky: removed the moon/sun halo.** The soft glow read as an ugly gradient on the black

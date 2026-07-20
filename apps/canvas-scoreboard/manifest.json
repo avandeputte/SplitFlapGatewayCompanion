@@ -11,11 +11,13 @@
   "settings": [
     {
       "key": "follow",
-      "label": "Leagues / teams",
-      "type": "text",
-      "default": "nba",
-      "ph": "nba, epl:ARS, nfl:KC",
-      "note": "Comma-separated: a league code (nba, nfl, mlb, nhl, epl, laliga, mls, ucl…), optionally league:TEAM to follow one team."
+      "label": "Teams & leagues to follow",
+      "type": "search_chips",
+      "searchUrl": "/sports_search",
+      "resultKey": "results",
+      "maxItems": 100,
+      "ph": "Search a team or league…",
+      "note": "Add any mix of teams and whole leagues — the app rotates through their games."
     },
     {
       "key": "filter",
