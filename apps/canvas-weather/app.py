@@ -1,15 +1,14 @@
 """Weather Sky — the weather as a rich, colourful scene on a Matrix panel.
 
-A canvas app (surface: canvas). It renders a whole frame with Pillow and pushes
-it (PUT /api/canvas/frame): a sky whose colour is the time of day *and* the
-conditions — deep blue nights with a glowing moon and coloured stars, warm dawn
-and dusk, bright day blue, greying over for cloud and rain — with a glowing sun
-or moon, drifting cloud, and rain or snow that falls. Over it sits the numbers:
-a big temperature, the condition, today's high/low, and the place.
+A canvas app (surface: canvas). It renders a whole frame with Pillow and pushes it
+(PUT /api/canvas/frame) on a black (unlit) background — bright content reads best on an LED
+panel — with a glowing sun by day or a moon and coloured stars by night, drifting cloud, and
+rain or snow that falls. Over it sits the numbers: a big temperature, the condition, today's
+high/low, and the place.
 
-Live conditions come from the shared `get_weather` helper (so it honours the
-wall's configured location/provider), cached ten minutes while the scene
-animates. The canonical `sky` token picks the scene.
+Live conditions come from the shared `get_weather` helper (so it honours the wall's configured
+location/provider), cached ten minutes while the scene animates. The canonical `sky` token
+picks the scene.
 """
 
 _SKY_OF_WMO = {
@@ -33,27 +32,6 @@ _CLOUDY = ('pcloudy', 'cloudy', 'fog', 'rainl', 'rain', 'rainh', 'shwr', 'sleet'
 
 def _mix(a, b, t):
     return tuple(int(round(a[k] + (b[k] - a[k]) * t)) for k in range(3))
-
-
-def _sky_colors(hour, sky, night):
-    """(top, bottom) gradient for the panel — time of day, then greyed by cloud."""
-    if night:
-        top, bot = (10, 16, 44), (3, 5, 16)
-    elif hour < 7:
-        top, bot = (66, 86, 158), (240, 150, 96)          # dawn
-    elif hour < 17:
-        top, bot = (52, 120, 226), (150, 196, 250)         # day
-    elif hour < 20:
-        top, bot = (44, 56, 120), (238, 126, 66)           # dusk
-    else:
-        top, bot = (10, 16, 44), (3, 5, 16)
-    if sky in ('cloudy', 'fog') or sky in _WET:
-        top, bot = _mix(top, (78, 84, 100), 0.5), _mix(bot, (54, 58, 72), 0.5)
-    if sky in ('snowl', 'snow', 'snowh'):
-        top, bot = _mix(top, (120, 130, 150), 0.5), _mix(bot, (86, 96, 116), 0.5)
-    if sky in ('storm', 'hail'):
-        top, bot = _mix(top, (34, 36, 48), 0.72), _mix(bot, (20, 22, 30), 0.72)
-    return top, bot
 
 
 def _glow(ImageChops, Image, ImageDraw, ImageFilter, img, shapes, blur):
@@ -160,8 +138,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
 
     W, H = canvas.width, canvas.height
     large = W >= 192 and H >= 48                # a large panel gets the richer layout
-    top, bot = _sky_colors(hour, sky, night)
-    img = canvas.vgrad(top, bot).copy()
+    img = canvas.blank((0, 0, 0))               # black — bright weather elements read best on unlit pixels
     draw = ImageDraw.Draw(img)
 
     # --- celestial: a glowing sun (day) or moon + coloured stars (night) --------
@@ -178,7 +155,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
                         [([icx - ir, icy - ir, icx + ir, icy + ir], (120, 130, 180))], ir * 0.8)
             draw = ImageDraw.Draw(img)
             _disc(draw, icx, icy, ir, (232, 236, 250))
-            _disc(draw, icx + int(ir * 0.55), icy - int(ir * 0.2), ir, _mix(top, bot, 0.3))
+            _disc(draw, icx + int(ir * 0.55), icy - int(ir * 0.2), ir, (0, 0, 0))   # crescent cut
     else:
         if sky in ('clear', 'pcloudy'):
             img = _glow(ImageChops, Image, ImageDraw, ImageFilter, img,
@@ -213,9 +190,9 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
                    (bx - 2, int(H * 0.8))], fill=(255, 255, 170), width=1)
 
     # --- the text -----------------------------------------------------------
-    # All text sits over a dark scrim so it reads even on a bright day sky, while
-    # the sky itself stays bright. A small panel gets a compact left column; a big
-    # panel (256x64) gets a full info dashboard, so the space isn't wasted.
+    # A soft scrim blacks out the info column so the scene never crowds the text; the celestial
+    # scene keeps the right. A small panel gets a compact left column; a big panel (256x64) gets
+    # a full info dashboard, so the space isn't wasted.
     temp = _num(wx.get('temp_f'), unit)
     hi, lo = _num(wx.get('hi_f'), unit), _num(wx.get('lo_f'), unit)
     deg = '\N{DEGREE SIGN}'

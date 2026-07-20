@@ -1,9 +1,9 @@
 """Weather Panel — current conditions drawn on the panel with canvas draw-ops.
 
-A canvas app: instead of pushing a picture it draws a gradient sky, blits a CONDITION
-ICON from a generated sprite atlas, and writes the temperature and a three-day strip with
-text ops. The icons (sun, moon, cloud, rain, snow, storm, fog) are drawn once with Pillow
-and uploaded to the panel's atlas; a wall without the sprite op falls back to a coloured disc.
+A canvas app: on a black (unlit) background — bright content reads best on an LED panel — it
+blits a CONDITION ICON from a generated sprite atlas and writes the temperature and a three-day
+strip with text ops. The icons (sun, moon, cloud, rain, snow, storm, fog) are drawn once with
+Pillow and uploaded to the panel's atlas; a wall without the sprite op falls back to a coloured disc.
 
 Two things about the on-device text op: it draws CP1252 glyphs (the firmware decodes the
 UTF-8 we send back to CP1252), so ``_cp()`` keeps the degree sign / Latin accents and drops
@@ -22,7 +22,6 @@ _WORD = {'clear': 'Clear', 'pcloudy': 'Partly', 'cloudy': 'Cloudy', 'fog': 'Fog'
          'rainl': 'Light rain', 'rain': 'Rain', 'rainh': 'Heavy rain', 'shwr': 'Showers',
          'snowl': 'Light snow', 'snow': 'Snow', 'snowh': 'Heavy snow', 'sleet': 'Sleet',
          'storm': 'Storm', 'hail': 'Hail'}
-_WET = ('rainl', 'rain', 'rainh', 'shwr', 'sleet')
 _FACES = (8, 9, 10, 13, 18, 20)
 _SHADOW = (10, 12, 20)
 
@@ -40,34 +39,10 @@ def _cp(s):
 
 
 def _txt(canvas, x, y, s, color, size, align='left'):
-    """Text with a dark drop-shadow so it reads on any sky."""
+    """Text with a dark drop-shadow so it stays legible over an icon."""
     s = _cp(s)
     canvas.text(x + 1, y + 1, s, _SHADOW, size=size, align=align)
     canvas.text(x, y, s, color, size=size, align=align)
-
-
-def _mix(a, b, t):
-    return tuple(int(round(a[k] + (b[k] - a[k]) * t)) for k in range(3))
-
-
-def _sky(hour, tok, night):
-    if night:
-        top, bot = (12, 18, 46), (3, 5, 16)
-    elif hour < 7:
-        top, bot = (66, 86, 158), (240, 150, 96)
-    elif hour < 17:
-        top, bot = (36, 96, 200), (86, 150, 224)          # day — kept deep enough for light text
-    elif hour < 20:
-        top, bot = (44, 56, 120), (238, 126, 66)
-    else:
-        top, bot = (12, 18, 46), (3, 5, 16)
-    if tok in ('cloudy', 'fog') or tok in _WET:
-        top, bot = _mix(top, (70, 78, 96), 0.6), _mix(bot, (48, 54, 68), 0.6)
-    if tok in ('snowl', 'snow', 'snowh'):
-        top, bot = _mix(top, (96, 108, 130), 0.55), _mix(bot, (70, 80, 100), 0.55)
-    if tok in ('storm', 'hail'):
-        top, bot = _mix(top, (30, 32, 44), 0.74), _mix(bot, (18, 20, 28), 0.74)
-    return top, bot
 
 
 def _cloud(d, s, col, y):
@@ -79,8 +54,8 @@ def _cloud(d, s, col, y):
 
 
 def _wx_tiles(s):
-    """The condition-icon atlas: sun, moon, partly, cloud, rain, snow, storm, fog (on magenta).
-    A thin dark outline keeps the pale icons legible on a light sky."""
+    """The condition-icon atlas: sun, moon, partly, cloud, rain, snow, storm, fog (on magenta),
+    bright enough to read on the black background."""
     import math
     from PIL import Image, ImageDraw
     W = max(1, int(s * 0.06))
@@ -191,8 +166,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
     if use_sprites:
         canvas.upload_atlas(_wx_tiles(tile))
 
-    top, bot = _sky(hour, tok, night)
-    canvas.gradient(0, 0, W, H, top, bot, 'v')
+    canvas.clear((0, 0, 0))                     # black — bright content reads best on unlit pixels
 
     compact = W < 100 or H < 40
     if compact:

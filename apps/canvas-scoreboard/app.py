@@ -172,7 +172,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         st['i'] = 0
 
     games = st['games']
-    canvas.gradient(0, 0, W, H, (20, 24, 40), (6, 8, 18), 'v')
+    canvas.clear((0, 0, 0))                                   # black — team colours pop on unlit pixels
 
     if not games:
         _txt(canvas, W // 2, H // 2 - 5, 'No games', (210, 216, 232), _face(min(13, H // 3)), align='center')

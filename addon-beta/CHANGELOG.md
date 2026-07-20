@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.22
+
+- **Weather and Scoreboard now draw on black.** Gradients and light backgrounds wash out on an LED
+  panel, so these apps lean into an unlit black background with bright, colourful content — like
+  Overview and the clocks. Weather Sky and Weather Panel keep the glowing sun/moon, cloud and
+  rain/snow (now on black); the Scoreboard's team colours pop against black.
+
 ## 2.9.0-beta.21
 
 - **New Matrix-panel marker: a real amber dot-matrix.** Instead of a Unicode glyph, canvas apps
