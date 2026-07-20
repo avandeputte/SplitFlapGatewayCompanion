@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.0-beta.23
+
+- **Weather Sky: removed the moon/sun halo.** The soft glow read as an ugly gradient on the black
+  panel — the sun and moon are now drawn as clean, crisp discs.
+
 ## 2.9.0-beta.22
 
 - **Weather and Scoreboard now draw on black.** Gradients and light backgrounds wash out on an LED

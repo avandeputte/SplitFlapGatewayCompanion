@@ -34,16 +34,6 @@ def _mix(a, b, t):
     return tuple(int(round(a[k] + (b[k] - a[k]) * t)) for k in range(3))
 
 
-def _glow(ImageChops, Image, ImageDraw, ImageFilter, img, shapes, blur):
-    """Additive glow: draw bright `shapes` on black, blur, add onto img."""
-    layer = Image.new('RGB', img.size, (0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    for box, col in shapes:
-        d.ellipse(box, fill=col)
-    layer = layer.filter(ImageFilter.GaussianBlur(blur))
-    return ImageChops.add(img, layer)
-
-
 def _disc(draw, cx, cy, r, col):
     draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=col)
 
@@ -99,7 +89,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
         return None
     import math
     from datetime import datetime
-    from PIL import Image, ImageChops, ImageDraw, ImageFilter
+    from PIL import Image, ImageDraw, ImageFilter
 
     st = getattr(fetch, '_state', None)
     if st is None:
@@ -141,7 +131,9 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
     img = canvas.blank((0, 0, 0))               # black — bright weather elements read best on unlit pixels
     draw = ImageDraw.Draw(img)
 
-    # --- celestial: a glowing sun (day) or moon + coloured stars (night) --------
+    # --- celestial: a crisp sun (day) or moon + coloured stars (night) ----------
+    # No soft glow — a blurred halo reads as an ugly gradient on the unlit black panel, so the
+    # sun and moon are drawn as clean discs.
     icx, icy, ir = W - int(H * 0.42) - 1, int(H * 0.40), max(4, int(H * 0.26))
     if night:
         stars = [(0.06, 0.18, (200, 210, 255)), (0.16, 0.42, (255, 240, 200)),
@@ -151,18 +143,12 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
             if (frame // 7 + i) % 4:
                 draw.point((int(W * fx), int(H * fy)), fill=col)
         if sky in ('clear', 'pcloudy'):
-            img = _glow(ImageChops, Image, ImageDraw, ImageFilter, img,
-                        [([icx - ir, icy - ir, icx + ir, icy + ir], (120, 130, 180))], ir * 0.8)
-            draw = ImageDraw.Draw(img)
             _disc(draw, icx, icy, ir, (232, 236, 250))
             _disc(draw, icx + int(ir * 0.55), icy - int(ir * 0.2), ir, (0, 0, 0))   # crescent cut
     else:
         if sky in ('clear', 'pcloudy'):
-            img = _glow(ImageChops, Image, ImageDraw, ImageFilter, img,
-                        [([icx - ir, icy - ir, icx + ir, icy + ir], (255, 200, 60))], ir * 1.1)
-            draw = ImageDraw.Draw(img)
-            _disc(draw, icx, icy, ir, (255, 226, 120))
-            _disc(draw, icx, icy, max(1, ir - 2), (255, 240, 175))
+            _disc(draw, icx, icy, ir, (255, 210, 70))
+            _disc(draw, icx, icy, max(1, ir - 2), (255, 226, 120))
 
     # --- clouds -----------------------------------------------------------------
     if sky in _CLOUDY:
