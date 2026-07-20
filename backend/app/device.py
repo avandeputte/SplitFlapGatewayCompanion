@@ -105,20 +105,14 @@ class Capabilities:
     fw_version: tuple[int, int] = (0, 0)
     canvas_readback: bool = False           # GET /api/canvas/frame — read the lit panel back
     canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honours
-    # The named sprite-atlas library (3.1): several sheets addressed by name under one budget,
-    # instead of a single slot every app overwrites. Advertised as canvas.atlas.
-    atlas_named: bool = False               # PUT /api/canvas/atlas/<name> + the "atlas" bind op
-    atlas_persist: bool = False             # POST /api/canvas/atlas/<name>/save — survives a reboot
-    atlas_max_sheets: int = 0
-    atlas_max_sheet_bytes: int = 0
 
     def __bool__(self) -> bool:
         return self.indexed
 
     @property
     def canvas_sprite(self) -> bool:
-        """Whether the ops path can blit atlas sprites — the `sprite` op, fed by
-        PUT /api/canvas/atlas. Carried in the ops vocabulary rather than a version."""
+        """Whether the ops path can blit atlas sprites — the `sprite` op, fed by the named
+        atlas library (PUT /api/canvas/atlas/<name>). Carried in the ops vocabulary."""
         return "sprite" in self.canvas_ops
 
     @property
@@ -248,14 +242,6 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     # the firmware, but knowing up front lets an app choose the frame path instead.
     canvas_ops = tuple(str(o) for o in (canvas.get("ops") or []) if isinstance(o, str))
     canvas_readback = bool(canvas.get("readback"))
-    # canvas.atlas (3.1). Absent on an older wall, which leaves the single unnamed slot.
-    atlas = canvas.get("atlas") if isinstance(canvas.get("atlas"), dict) else {}
-
-    def _int(v):
-        try:
-            return int(v or 0)
-        except (TypeError, ValueError):
-            return 0
     # `fw` is the firmware version string, e.g. "2.1.0"; take the leading major.minor. The 2.1
     # endpoint families gate on this because the capabilities document does not flag them.
     fw_version = _parse_fw(doc.get("fw"))
@@ -294,10 +280,6 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         fw_version=fw_version,
         canvas_readback=canvas_readback,
         canvas_ops=canvas_ops,
-        atlas_named=bool(atlas.get("named")),
-        atlas_persist=bool(atlas.get("persist")),
-        atlas_max_sheets=_int(atlas.get("maxSheets")),
-        atlas_max_sheet_bytes=_int(atlas.get("maxSheetBytes")),
     )
 
 

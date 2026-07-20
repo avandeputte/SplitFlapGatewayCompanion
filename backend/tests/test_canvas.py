@@ -104,7 +104,7 @@ def wall(monkeypatch):
 
 
 def _named_surface():
-    return canvas.CanvasSurface("http://gw", 128, 32, ("rgb888",), (), sprite=True, atlas_named=True)
+    return canvas.CanvasSurface("http://gw", 128, 32, ("rgb888",), (), sprite=True)
 
 
 def _imgs(n=2, shade=1):
@@ -167,6 +167,18 @@ def test_a_sheet_the_wall_lost_is_re_uploaded(wall):
     assert len(_uploads(wall)) == 2                      # noticed and restored
 
 
+def test_sheets_survive_handing_the_panel_back(wall):
+    """The wall keeps its library across uses, so a playlist that cycles away from a canvas app
+    and back again re-binds by name — it does not re-upload, and does not even re-check."""
+    tiles = _imgs()
+    s = _named_surface(); s.upload_atlas(tiles); s.show()
+    canvas.release("http://gw")                          # slot ends, panel handed back
+    before = len([c for c in wall["calls"] if c[0] == "GET"])
+    s = _named_surface(); s.upload_atlas(tiles); s.show()   # the app comes round again
+    assert len(_uploads(wall)) == 1                       # no re-upload
+    assert len([c for c in wall["calls"] if c[0] == "GET"]) == before   # and no re-check
+
+
 def test_the_sheet_name_is_wall_legal():
     """Firmware rule: [a-z0-9._-]{1,32}, and it doubles as the content fingerprint."""
     import re
@@ -177,85 +189,6 @@ def test_the_sheet_name_is_wall_legal():
     a = canvas.atlas_name_for(b"\x01" * 192, 8, 8, 1)
     assert a != canvas.atlas_name_for(b"\x02" * 192, 8, 8, 1)      # content decides the name
     assert a != canvas.atlas_name_for(b"\x01" * 192, 8, 8, 1, "rgb565")   # so does the format
-
-
-def test_an_older_wall_still_uses_the_single_slot(gw_calls):
-    """No canvas.atlas capability -> the unnamed slot, unchanged."""
-    s = canvas.CanvasSurface("http://gw", 128, 32, ("rgb888",), (), sprite=True)
-    assert s.upload_atlas(_imgs()) is True
-    paths = [c[1] for c in gw_calls]
-    assert "/api/canvas/atlas" in paths
-    assert not any(p.startswith("/api/canvas/atlas/") for p in paths)
-    canvas.forget_atlas("http://gw")
-
-
-def test_the_named_atlas_capability_is_parsed():
-    doc = dict(CANVAS_DOC)
-    doc["canvas"] = dict(doc["canvas"], atlas={"named": True, "persist": True,
-                                               "maxSheets": 16, "maxSheetBytes": 2097152})
-    caps = device.from_capabilities(doc)
-    assert caps.atlas_named and caps.atlas_persist
-    assert caps.atlas_max_sheets == 16 and caps.atlas_max_sheet_bytes == 2097152
-    assert not device.from_capabilities(CANVAS_DOC).atlas_named   # older wall: absent
-
-
-def test_the_atlas_is_not_resent_when_the_panel_already_has_it(gw_calls):
-    """The atlas is a single shared slot, so apps re-assert it every draw (~8 KB). Identical
-    tiles inside the re-assert window must cost nothing on the wire."""
-    canvas.forget_atlas("http://gw")
-    tiles = b"\x01\x02\x03" * 64
-    assert canvas.put_atlas("http://gw", tiles, 8, 8, 1) is True
-    assert len(gw_calls) == 1                    # first upload goes out
-    assert canvas.put_atlas("http://gw", tiles, 8, 8, 1) is True
-    assert len(gw_calls) == 1                    # same tiles, still fresh -> skipped
-    canvas.forget_atlas("http://gw")
-
-
-def test_different_tiles_always_go_out(gw_calls):
-    """Another app's atlas must never be masked by our cache."""
-    canvas.forget_atlas("http://gw")
-    canvas.put_atlas("http://gw", b"\x01" * 192, 8, 8, 1)
-    canvas.put_atlas("http://gw", b"\x02" * 192, 8, 8, 1)   # different content
-    assert len(gw_calls) == 2
-    canvas.forget_atlas("http://gw")
-
-
-def test_the_atlas_is_reasserted_after_the_window(gw_calls):
-    """A gateway reboot (or another client) leaves the panel drifted with no way back, so the
-    skip is time-bounded — we re-send once the window lapses."""
-    canvas.forget_atlas("http://gw")
-    tiles = b"\x07" * 192
-    canvas.put_atlas("http://gw", tiles, 8, 8, 1)
-    assert len(gw_calls) == 1
-    sent_at, fp = canvas._LAST_ATLAS["http://gw"]           # age the belief past the window
-    canvas._LAST_ATLAS["http://gw"] = (sent_at - canvas._ATLAS_REASSERT_S - 1, fp)
-    canvas.put_atlas("http://gw", tiles, 8, 8, 1)
-    assert len(gw_calls) == 2                    # same tiles, window lapsed -> re-asserted
-    canvas.forget_atlas("http://gw")
-
-
-def test_a_failed_atlas_upload_is_not_remembered(gw_calls, monkeypatch):
-    """If the PUT didn't land we no longer know what's on the panel — the next draw must re-send."""
-    canvas.forget_atlas("http://gw")
-    failing = {"on": True}
-    real_ok = canvas._ok
-    monkeypatch.setattr(canvas, "_ok", lambda r: (not failing["on"]) and real_ok(r))
-    canvas.put_atlas("http://gw", b"\x09" * 192, 8, 8, 1)    # upload reports failure
-    failing["on"] = False
-    canvas.put_atlas("http://gw", b"\x09" * 192, 8, 8, 1)
-    assert len(gw_calls) == 2                    # retried rather than trusted
-    canvas.forget_atlas("http://gw")
-
-
-def test_releasing_the_panel_forgets_the_atlas(gw_calls):
-    canvas.forget_atlas("http://gw")
-    tiles = b"\x05" * 192
-    canvas.put_atlas("http://gw", tiles, 8, 8, 1)
-    canvas.release("http://gw")
-    n = len(gw_calls)
-    canvas.put_atlas("http://gw", tiles, 8, 8, 1)
-    assert len(gw_calls) == n + 1                # handover invalidated the belief
-    canvas.forget_atlas("http://gw")
 
 
 def test_face_snaps_to_a_bundled_size():

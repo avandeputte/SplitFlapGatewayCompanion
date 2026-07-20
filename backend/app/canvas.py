@@ -49,23 +49,11 @@ def forget_frame(url: str) -> None:
     _LAST_FRAME.pop(url, None)
 
 
-# The sprite atlas is a SINGLE shared slot per gateway, so an app re-asserts its tiles on every
-# draw — another canvas app (the Aquarium!) may have overwritten them since. That is ~8 KB a draw,
-# usually several times the ops it accompanies. Remember what we last PUT per gateway and skip the
-# wire when the panel already has exactly those tiles.
-#
-# The skip is deliberately TIME-BOUNDED. Trusting "it's already correct" forever is the trap the
-# flap `_shown` diff fell into: anything we didn't do — a gateway reboot, another client — leaves
-# the panel drifted with no way back. Re-asserting on a wall-clock bound self-corrects within one
-# window while still removing most of the traffic.
-_LAST_ATLAS: dict = {}          # url -> (sent_at_monotonic, fingerprint)   [legacy single slot]
-_ATLAS_REASSERT_S = 30.0
-
-# Firmware 3.1 replaced that single slot with a NAMED library — several sheets under one budget,
-# addressed by name, optionally persisted. We name a sheet by a fingerprint of its own bytes, so
-# "the wall lists this name" *is* "those exact tiles are loaded": no hashing on the device, no
-# generation counter, nothing to go stale. A sheet is uploaded once and every later draw costs one
-# small {"op":"atlas","name":…} bind instead of re-sending ~8 KB of tiles.
+# The wall keeps a NAMED library of sprite sheets — several under one budget, addressed by name,
+# optionally persisted. We name a sheet by a fingerprint of its own bytes, so "the wall lists this
+# name" *is* "those exact tiles are loaded": no hashing on the device, no generation counter,
+# nothing to go stale. A sheet is uploaded once and every later draw costs one small
+# {"op":"atlas","name":…} bind instead of re-sending ~8 KB of tiles.
 #
 # The wall can still drop a sheet under us (a reboot, or LRU eviction by other sheets), and a
 # `sprite` with nothing bound silently draws nothing — so the belief is re-checked against the
@@ -73,11 +61,6 @@ _ATLAS_REASSERT_S = 30.0
 _ATLAS_KNOWN: dict = {}         # url -> {"at": monotonic, "names": set[str]}
 _ATLAS_VERIFY_S = 60.0
 _ATLAS_NAME_MAX = 32            # firmware: [a-z0-9._-]{1,32}
-
-
-def _atlas_fingerprint(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str) -> str:
-    return (f"{fmt}:{int(tile_w)}x{int(tile_h)}:{int(count)}:"
-            f"{hashlib.blake2b(bytes(tiles), digest_size=16).hexdigest()}")
 
 
 def atlas_name_for(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str = "rgb888") -> str:
@@ -90,7 +73,6 @@ def atlas_name_for(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str 
 
 def forget_atlas(url: str) -> None:
     """Drop what we believe the wall holds — the next draw re-checks and re-uploads if needed."""
-    _LAST_ATLAS.pop(url, None)
     _ATLAS_KNOWN.pop(url, None)
 
 
@@ -459,38 +441,6 @@ def font_list(url: str, timeout: float = 8.0) -> list:
         return []
 
 
-def put_atlas(url: str, tiles: bytes, tile_w: int, tile_h: int, count: int,
-              fmt: str = "rgb888", timeout: float = 15.0) -> bool:
-    """Upload a sprite tile-sheet (PUT /api/canvas/atlas, firmware 2.1) that the ``sprite`` op
-    blits from. Header is 12 bytes: ``MPTA`` · fmt(1: 2=rgb565/3=rgb888) · tileW(2 BE) · tileH(2
-    BE) · tiles(2 BE) · reserved, then the tile pixels back-to-back. Magenta (255,0,255) is
-    transparent, so sprites can carry holes. 2 MB cap."""
-    fp = None
-    try:
-        fp = _atlas_fingerprint(tiles, tile_w, tile_h, count, fmt)
-        prev = _LAST_ATLAS.get(url)
-        if prev and prev[1] == fp and (time.monotonic() - prev[0]) < _ATLAS_REASSERT_S:
-            return True                         # already on the panel, asserted recently — send nothing
-    except Exception:                           # fingerprinting must never break the upload
-        fp = None
-    try:
-        ok = _ok(gateway._request("PUT", url, "/api/canvas/atlas",
-                                  content=_atlas_body(tiles, tile_w, tile_h, count, fmt),
-                                  headers={"Content-Type": "application/octet-stream"},
-                                  timeout=timeout))
-        # Only claim the panel holds these tiles once the PUT actually landed; a failure means we
-        # no longer know what is up there, so the next draw must re-send.
-        if ok and fp:
-            _LAST_ATLAS[url] = (time.monotonic(), fp)
-        else:
-            forget_atlas(url)
-        return ok
-    except Exception as e:
-        log.debug("canvas put_atlas failed: %s", e)
-        forget_atlas(url)
-        return False
-
-
 def _atlas_body(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str) -> bytes:
     """The MPTA upload body: 12-byte big-endian header, then the tiles back-to-back."""
     f = 2 if str(fmt) == "rgb565" else 3
@@ -573,7 +523,8 @@ def release(url: str, timeout: float = 5.0) -> bool:
     """Return the panel to the reel wall — stop any effect AND drop raw-canvas mode.
     Called when a canvas app is replaced by an ordinary flap app, or stopped."""
     forget_frame(url)                      # the preview is no longer live
-    forget_atlas(url)                      # and don't assume our tiles survive the handover
+    # The atlas library is NOT touched: the wall keeps its sheets across uses, so a playlist
+    # cycling back to a canvas app re-binds by name rather than re-uploading.
     stopped = play_effect(url, "none", timeout=timeout)   # effect none marks the wall dirty
     active_off = set_active(url, False, timeout=timeout)   # and drop raw-canvas takeover
     return stopped or active_off
@@ -629,8 +580,7 @@ class CanvasSurface:
                  rect: bool = False, anim: bool = False, ticker: bool = False,
                  effect_params: tuple = (), readback: bool = False, ops: tuple = (),
                  overlay: bool = False, transition: bool = False, anim_library: bool = False,
-                 gif: bool = False, fonts: bool = False, sprite: bool = False,
-                 atlas_named: bool = False, atlas_persist: bool = False):
+                 gif: bool = False, fonts: bool = False, sprite: bool = False):
         self.url = url
         self.width = int(width)
         self.height = int(height)
@@ -655,10 +605,6 @@ class CanvasSurface:
         self.can_gif = bool(gif)
         self.can_fonts = bool(fonts)
         self.can_sprite = bool(sprite)
-        # 3.1: a named atlas LIBRARY rather than one slot every app overwrites, so a sheet is
-        # uploaded once and later draws only bind it by name.
-        self.can_atlas_named = bool(atlas_named)
-        self.can_atlas_persist = bool(atlas_persist)
         self._ops: list = []
 
     # -- drawing (batched until show) ----------------------------------------
@@ -881,10 +827,9 @@ class CanvasSurface:
         """Make ``images`` (equal-size PIL images) the sheet the following ``sprite(i)`` calls
         blit from. Magenta (255,0,255) is transparent. Needs ``canvas.can_sprite``.
 
-        Call it on every draw — that is the safe habit, because the sheet is shared. On a wall with
-        the named atlas library (3.1) it costs almost nothing to do so: the sheet is named by a
-        fingerprint of its own bytes, so identical tiles are uploaded ONCE and each later draw adds
-        just a small bind op. An older wall falls back to the single unnamed slot."""
+        Call it on every draw — that is the safe habit, because the library is shared. It costs
+        almost nothing to do so: the sheet is named by a fingerprint of its own bytes, so identical
+        tiles are uploaded ONCE and each later draw adds just a small bind op."""
         try:
             imgs = [im.convert("RGB") for im in images]
             if not imgs:
@@ -894,8 +839,6 @@ class CanvasSurface:
             for im in imgs:
                 buf += (im if (im.width, im.height) == (tw, th) else im.resize((tw, th))).tobytes()
             tiles = bytes(buf)
-            if not self.can_atlas_named:
-                return put_atlas(self.url, tiles, tw, th, len(imgs), fmt)
             name = atlas_name_for(tiles, tw, th, len(imgs), fmt)
             if not atlas_has(self.url, name) and not put_atlas_named(
                     self.url, name, tiles, tw, th, len(imgs), fmt):

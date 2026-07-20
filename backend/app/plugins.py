@@ -683,8 +683,7 @@ class PluginRuntime:
                     rect=caps.canvas_rect, anim=caps.canvas_anim, ticker=caps.canvas_ticker,
                     effect_params=caps.effect_params, readback=caps.canvas_readback,
                     ops=caps.canvas_ops, overlay=two_one, transition=two_one,
-                    anim_library=two_one, gif=two_one, fonts=two_one, sprite=caps.canvas_sprite,
-                    atlas_named=caps.atlas_named, atlas_persist=caps.atlas_persist)
+                    anim_library=two_one, gif=two_one, fonts=two_one, sprite=caps.canvas_sprite)
             else:
                 kwargs["canvas"] = None
         return kwargs

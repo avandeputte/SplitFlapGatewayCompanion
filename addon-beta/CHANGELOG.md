@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.5
+
+- **Requires Matrix Portal Gateway firmware 3.1+.** The old single-slot sprite-atlas path and its
+  fallback cache are gone — the companion now speaks only the named atlas library.
+- **A playlist no longer re-sends sprite sheets.** Handing the panel back between apps no longer
+  discards what the wall holds, so a playlist cycling through canvas apps re-binds each sheet by
+  name instead of re-uploading it.
+
 ## 2.9.1-beta.4
 
 - **Uses the gateway's new named sprite-atlas library (firmware 3.1).** Sprite sheets are now

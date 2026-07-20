@@ -211,10 +211,13 @@ def test_readback_rgb565_widens_to_888(gw):
 
 def test_atlas_upload_header_is_mpta(gw):
     from PIL import Image
+    from app import canvas as _canvas
+    _canvas.forget_atlas("http://gw")
     ok = _surface().upload_atlas([Image.new("RGB", (8, 8), (255, 0, 255)) for _ in range(3)])
     assert ok
-    method, path, _, content = gw[0]
-    assert method == "PUT" and path == "/api/canvas/atlas"
+    # The sheet goes to its NAMED slot in the wall's library; the MPTA body is unchanged.
+    method, path, _, content = next(c for c in gw if c[0] == "PUT")
+    assert method == "PUT" and path.startswith("/api/canvas/atlas/")
     assert content[:4] == b"MPTA" and content[4] == 1 and content[5] == 3    # ver=1, fmt=rgb888
     assert int.from_bytes(content[6:8], "big") == 8                          # tileW
     assert int.from_bytes(content[8:10], "big") == 8                         # tileH
