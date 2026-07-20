@@ -20,7 +20,10 @@ _N_ICONS = 11
 _ON = {'on', 'home', 'open', 'unlocked', 'playing', 'active', 'heat', 'cool', 'auto', 'detected'}
 _OFF = {'off', 'away', 'closed', 'locked', 'idle', 'standby', 'paused', 'not_home', 'clear'}
 _DEAD = {'unavailable', 'unknown', 'none', ''}
-_GREEN, _GREY, _BLUE, _RED, _AMBER = (70, 210, 120), (150, 158, 178), (110, 175, 250), (245, 95, 85), (250, 200, 70)
+# An LED panel is additive on black, so a colour only reads as its hue when the OFF channels
+# stay low (high saturation). Pale mixes like a light blue with r=110 read as tinted white — so
+# these push the off channels down and keep one or two channels bright.
+_GREEN, _GREY, _BLUE, _RED, _AMBER = (46, 220, 90), (150, 160, 175), (48, 140, 255), (255, 60, 45), (255, 176, 0)
 _SHORT = {'unlocked': 'OPEN', 'locked': 'LOCK', 'closed': 'SHUT', 'not_home': 'AWAY',
           'detected': 'DET', 'clear': 'CLR', 'standby': 'IDLE', 'playing': 'PLAY', 'paused': 'PAUS'}
 

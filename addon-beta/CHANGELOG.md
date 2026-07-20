@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.6
+
+- **Punchier colours on the panel.** Values on the HA Dashboard (and the Overview's high/low) used
+  pale tints that read as tinted white on an LED panel. They're now properly saturated — a real
+  blue, green, amber and red — so a numeric value or a threshold colour is unmistakable.
+
 ## 2.9.1-beta.5
 
 - **Requires Matrix Portal Gateway firmware 3.1+.** The old single-slot sprite-atlas path and its
