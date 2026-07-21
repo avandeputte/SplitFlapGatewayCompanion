@@ -105,6 +105,10 @@ class Capabilities:
     fw_version: tuple[int, int] = (0, 0)
     canvas_readback: bool = False           # GET /api/canvas/frame — read the lit panel back
     canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honours
+    # 3.1: PUT /api/canvas/rects — a frame-push app sends only the rectangles that changed since
+    # its last frame instead of the whole panel. Advertised as canvas.rects.
+    canvas_rects: bool = False
+    events: bool = False                    # GET /api/events — the gateway's own SSE display stream
 
     def __bool__(self) -> bool:
         return self.indexed
@@ -280,6 +284,8 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         fw_version=fw_version,
         canvas_readback=canvas_readback,
         canvas_ops=canvas_ops,
+        canvas_rects=bool(canvas.get("rects")),
+        events="events" in features,
     )
 
 

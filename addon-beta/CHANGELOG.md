@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.13
+
+- **Matrix firmware 3.1: delta frames.** A drawn-frame app (clocks, weather, image) now sends only
+  the rectangles that changed since its last frame instead of re-pushing the whole panel. An
+  unchanged frame sends nothing at all, a small change sends a few hundred bytes, and a full frame
+  is used only for the first frame, a big change, or a periodic keyframe (so a gateway reboot
+  self-heals). Falls back to the previous full-frame path on any wall that doesn't advertise it.
+
 ## 2.9.1-beta.12
 
 - **Weather Panel: a condition icon on each forecast day.** The 3-day strip now shows a little

@@ -37,7 +37,12 @@ _FONT_CACHE: dict = {}
 # is drawing — both otherwise render the flap grid, which a canvas app bypasses.
 # Only frame-push apps land here (rgb888); an on-device effect has no pixels the
 # companion ever sees. Cleared on release().
-_LAST_FRAME: dict = {}   # url -> (width, height, rgb888 bytes)
+_LAST_FRAME: dict = {}   # url -> (width, height, rgb888 bytes)   [also the base for delta frames]
+# Frames pushed since the last base reset, per URL. A full "keyframe" every _KEYFRAME_EVERY pushes
+# means a gateway reboot (or any panel drift) self-heals within a few seconds without needing to
+# poll the wall's uptime on the frame path.
+_DELTA_N: dict = {}
+_KEYFRAME_EVERY = 20
 
 
 def _remember_frame(url: str, w: int, h: int, rgb: bytes) -> None:
@@ -47,6 +52,7 @@ def _remember_frame(url: str, w: int, h: int, rgb: bytes) -> None:
 
 def forget_frame(url: str) -> None:
     _LAST_FRAME.pop(url, None)
+    _DELTA_N.pop(url, None)
 
 
 # The wall keeps a NAMED library of sprite sheets — several under one budget, addressed by name,
@@ -243,6 +249,67 @@ def put_rect(url: str, x: int, y: int, w: int, h: int, rgb: bytes, timeout: floa
     except Exception as e:
         log.debug("canvas put_rect failed: %s", e)
         return False
+
+
+def put_rects(url: str, rects: list, fmt: int = 2, timeout: float = 10.0):
+    """Draw several changed rectangles over the live frame in one request (PUT /api/canvas/rects,
+    firmware 3.1). ``rects`` is ``[(x, y, w, h, pixel_bytes)]`` with pixels in ``fmt`` (2 = rgb565
+    big-endian, 3 = rgb888), row-major. Header (big-endian): u16 count, u8 fmt, u8 0; then per
+    rect u16 x,y,w,h and the pixels. Returns True (drawn), "toobig" on 413 (send a full frame
+    instead), or False on any other error."""
+    try:
+        parts = [len(rects).to_bytes(2, "big"), bytes((int(fmt) & 0xFF, 0))]
+        for x, y, w, h, px in rects:
+            parts.append(int(x).to_bytes(2, "big") + int(y).to_bytes(2, "big")
+                         + int(w).to_bytes(2, "big") + int(h).to_bytes(2, "big"))
+            parts.append(bytes(px))
+        r = gateway._request("PUT", url, "/api/canvas/rects", content=b"".join(parts),
+                             headers={"Content-Type": "application/octet-stream"}, timeout=timeout)
+        if getattr(r, "status_code", 0) == 413:
+            return "toobig"
+        return _ok(r)
+    except Exception as e:
+        log.debug("canvas put_rects failed: %s", e)
+        return False
+
+
+def _rgb565_be(arr):
+    """A numpy (h, w, 3) uint8 array -> rgb565 big-endian bytes, row-major."""
+    import numpy as np
+    r = arr[:, :, 0].astype(np.uint16)
+    g = arr[:, :, 1].astype(np.uint16)
+    b = arr[:, :, 2].astype(np.uint16)
+    v = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+    return v.astype(">u2").tobytes()
+
+
+def diff_rects(old_rgb: bytes, new_rgb: bytes, w: int, h: int, max_frac: float = 0.5):
+    """Coarse dirty-row bands between two rgb888 frames: group the changed rows into a few bands,
+    each one rect spanning the columns that differ across it. Returns ``[]`` when the frames are
+    identical, ``None`` when more than ``max_frac`` of the panel changed (caller: push a full
+    frame), else ``[(x, y, w, h, rgb565_be_bytes)]``. numpy-vectorised; the caller falls back to a
+    full frame if numpy is unavailable."""
+    import numpy as np
+    old = np.frombuffer(old_rgb, np.uint8).reshape(h, w, 3)
+    new = np.frombuffer(new_rgb, np.uint8).reshape(h, w, 3)
+    changed = np.any(old != new, axis=2)                       # (h, w) bool
+    dirty_rows = np.nonzero(changed.any(axis=1))[0]
+    if dirty_rows.size == 0:
+        return []
+    # Split the dirty rows into contiguous bands.
+    breaks = np.nonzero(np.diff(dirty_rows) > 1)[0]
+    starts = np.concatenate(([dirty_rows[0]], dirty_rows[breaks + 1]))
+    ends = np.concatenate((dirty_rows[breaks], [dirty_rows[-1]]))
+    rects, area = [], 0
+    for y0, y1 in zip(starts.tolist(), ends.tolist()):
+        cols = np.nonzero(changed[y0:y1 + 1].any(axis=0))[0]
+        x0, x1 = int(cols[0]), int(cols[-1])
+        rw, rh = x1 - x0 + 1, y1 - y0 + 1
+        area += rw * rh
+        if area > max_frac * w * h:
+            return None
+        rects.append((x0, y0, rw, rh, _rgb565_be(new[y0:y1 + 1, x0:x1 + 1])))
+    return rects
 
 
 def put_ticker(url: str, text: str, color=(255, 255, 255), speed: int = 2,
@@ -577,7 +644,7 @@ class CanvasSurface:
 
     def __init__(self, url: str, width: int, height: int,
                  formats: tuple = (), effects: tuple = (),
-                 rect: bool = False, anim: bool = False, ticker: bool = False,
+                 rect: bool = False, rects: bool = False, anim: bool = False, ticker: bool = False,
                  effect_params: tuple = (), readback: bool = False, ops: tuple = (),
                  overlay: bool = False, transition: bool = False, anim_library: bool = False,
                  gif: bool = False, fonts: bool = False, sprite: bool = False):
@@ -590,6 +657,7 @@ class CanvasSurface:
         # reaching for ticker()/anim()/paste() so it can fall back on an older wall.
         self.can_qoi = "qoi" in self.formats
         self.can_rect = bool(rect)
+        self.can_rects = bool(rects)            # 3.1: frame() sends only the changed rects (delta)
         self.can_anim = bool(anim)
         self.can_ticker = bool(ticker)
         self.effect_params = tuple(effect_params)
@@ -749,8 +817,7 @@ class CanvasSurface:
         forget_frame(self.url)
         return play_effect(self.url, name, speed, hue, density)
 
-    def _push_rgb(self, b: bytes) -> bool:
-        _remember_frame(self.url, self.width, self.height, b)       # for the previews
+    def _push_full(self, b: bytes) -> bool:
         # QOI where the wall takes it: the same picture over far less WiFi. Any encode
         # hiccup falls back to the raw frame, so a frame is never lost to compression.
         if self.can_qoi:
@@ -759,6 +826,34 @@ class CanvasSurface:
             except Exception as e:
                 log.debug("canvas.frame QOI encode failed, sending raw: %s", e)
         return put_frame(self.url, b)
+
+    def _push_rgb(self, b: bytes) -> bool:
+        old = _LAST_FRAME.get(self.url)                             # the base (last frame we sent)
+        n = _DELTA_N.get(self.url, 0) + 1
+        _DELTA_N[self.url] = n
+        # A delta needs a same-size base, and we force a full frame every _KEYFRAME_EVERY pushes so
+        # a reboot or drift self-heals. Deltas never transition, which is right for an animating app.
+        if (self.can_rects and old is not None and (old[0], old[1]) == (self.width, self.height)
+                and n % _KEYFRAME_EVERY != 0):
+            try:
+                rects = diff_rects(old[2], b, self.width, self.height)
+            except Exception as e:                                 # numpy missing/failed -> full frame
+                log.debug("canvas delta failed, full frame: %s", e)
+                rects = None
+            if rects == []:                                        # identical -> panel already shows b
+                _remember_frame(self.url, self.width, self.height, b)
+                return True
+            if rects and put_rects(self.url, rects) is True:       # a small change -> only the rects
+                _remember_frame(self.url, self.width, self.height, b)
+                return True
+            # rects is None (too much changed), a 413, or a transient error -> full frame, which
+            # also re-establishes the base after a reboot.
+        ok = self._push_full(b)
+        if ok:
+            _remember_frame(self.url, self.width, self.height, b)
+        else:
+            forget_frame(self.url)                                 # panel state unknown -> next is full
+        return ok
 
     def frame(self, image) -> bool:
         """Push a full frame. ``image`` is a PIL image (resized/converted to the panel) or

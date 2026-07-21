@@ -680,7 +680,8 @@ class PluginRuntime:
                 two_one = caps.canvas_2_1
                 kwargs["canvas"] = canvas.CanvasSurface(
                     url, caps.canvas_w, caps.canvas_h, caps.canvas_formats, caps.effects,
-                    rect=caps.canvas_rect, anim=caps.canvas_anim, ticker=caps.canvas_ticker,
+                    rect=caps.canvas_rect, rects=caps.canvas_rects,
+                    anim=caps.canvas_anim, ticker=caps.canvas_ticker,
                     effect_params=caps.effect_params, readback=caps.canvas_readback,
                     ops=caps.canvas_ops, overlay=two_one, transition=two_one,
                     anim_library=two_one, gif=two_one, fonts=two_one, sprite=caps.canvas_sprite)
