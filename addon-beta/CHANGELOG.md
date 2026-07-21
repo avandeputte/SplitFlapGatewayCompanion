@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.19
+
+- **Canvas INFO logging now means "bytes crossed the wire."** The two no-op confirmations —
+  `atlas … already resident, bound only` (a cached sheet re-bind, no upload) and `frame unchanged,
+  nothing sent` (an identical frame skipped) — moved from INFO to DEBUG. A looping playlist re-binds
+  each app's cached atlas on every change; that's correct and nearly free (a ~40-byte bind op riding
+  the draw batch, residency served from a 60 s cache), but it was flooding the INFO stream with
+  non-events. INFO now shows only real traffic — full frames, incremental rects, sprite uploads, ops
+  batches — each with its size. Raise the level to DEBUG to see the cached re-binds and skips again.
+
 ## 2.9.1-beta.18
 
 - **Gateway pushes are logged at INFO.** With the log level at INFO (or DEBUG), every canvas

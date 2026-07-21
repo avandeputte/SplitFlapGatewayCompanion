@@ -149,7 +149,9 @@ def _delta_surface():
     return canvas.CanvasSurface("http://gw", 128, 32, ("rgb888", "rgb565", "qoi"), rects=True)
 
 
-def test_frame_pushes_log_size_and_whether_full_or_incremental(gw_calls, caplog):
+def test_frame_pushes_log_wire_traffic_at_info(gw_calls, caplog):
+    """INFO reports bytes that actually crossed the wire (full frame, incremental rects); a
+    skipped identical frame is a non-event, kept at DEBUG so an INFO log reads as pure traffic."""
     import logging
     surf = _delta_surface()
     base = bytes(128 * 32 * 3)
@@ -162,11 +164,13 @@ def test_frame_pushes_log_size_and_whether_full_or_incremental(gw_calls, caplog)
     text = caplog.text
     assert "full frame (qoi)" in text
     assert "incremental" in text and "rect(s)" in text
-    assert "frame unchanged, nothing sent" in text
     assert " B" in text                                    # each line carries a byte size
+    assert "frame unchanged" not in text                   # the no-op stays out of the INFO stream
 
 
-def test_atlas_logs_upload_then_already_resident(wall, caplog):
+def test_atlas_upload_is_info_but_a_cached_rebind_is_not(wall, caplog):
+    """A sheet upload crosses the wire (INFO); binding one the wall already has sends no pixels,
+    so its confirmation is DEBUG — otherwise a looping playlist floods INFO with non-events."""
     import logging
     with caplog.at_level(logging.INFO, logger="companion.canvas"):
         for _ in range(2):
@@ -175,9 +179,16 @@ def test_atlas_logs_upload_then_already_resident(wall, caplog):
             s.sprite(0, 0, 0)
             s.show()
     text = caplog.text
-    assert "sprites uploaded" in text                      # first draw put the sheet
-    assert "already resident, bound only" in text          # second draw only bound it
+    assert "sprites uploaded" in text                      # first draw put the sheet -> traffic
+    assert "already resident" not in text                  # the cached rebind is a non-event at INFO
     assert "ops" in text and "op(s)" in text               # the ops batch reports its size
+
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG, logger="companion.canvas"):
+        s = _named_surface()
+        s.upload_atlas(_imgs())                            # already resident now
+        s.show()
+    assert "already resident, bound only" in caplog.text   # still visible when you ask for DEBUG
 
 
 def test_different_tiles_get_their_own_sheet(wall):

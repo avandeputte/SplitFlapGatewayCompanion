@@ -910,7 +910,7 @@ class CanvasSurface:
                 rects = None
             if rects == []:                                        # identical -> panel already shows b
                 _remember_frame(self.url, self.width, self.height, b)
-                log.info("canvas %s: frame unchanged, nothing sent", self.url)
+                log.debug("canvas %s: frame unchanged, nothing sent", self.url)
                 return True
             if rects:                                              # a small change -> only the rects
                 size = 4 + sum(8 + len(px) for *_, px in rects)    # frame header + per-rect header + pixels
@@ -1018,8 +1018,8 @@ class CanvasSurface:
             if row is None:
                 if not put_atlas_named(self.url, name, tiles, tw, th, len(imgs), fmt):
                     return False
-            else:
-                log.info("canvas %s: atlas '%s' already resident, bound only", self.url, name)
+            else:                                              # no upload — a ~40B bind op rides the draw batch
+                log.debug("canvas %s: atlas '%s' already resident, bound only", self.url, name)
             if persist and not (row or {}).get("persisted"):   # save once — skip if already on flash
                 atlas_save(self.url, name)                      # marks it persisted in the cache
             # Bind for the sprites that follow. Queued with the drawing, so it costs one op rather
