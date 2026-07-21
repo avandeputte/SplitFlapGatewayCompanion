@@ -252,7 +252,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
 
     if not valid or target is None:
         canvas.frame(_render_message(canvas, ImageDraw, 'SET A TARGET', 'DATE'))
-        return 1.0
+        return 30.0                                 # static prompt — changing the target restarts us
 
     total = (target - now).total_seconds()
     if total <= 0:

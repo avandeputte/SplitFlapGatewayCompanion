@@ -3,6 +3,25 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.20
+
+- **Time-based canvas apps now redraw on their next change, not on a fast timer.** A canvas app's
+  return value is the seconds to hold before the next redraw; the still ones were returning a small
+  flat number and repainting an identical frame every 1–2 s, which sent nothing new but still tripped
+  the periodic keyframe (a full frame over the wire every ~40 s for a card that changes once a day).
+  Now:
+  - **Date Card** holds until the next local midnight (capped at an hour) — it only changes when the
+    day rolls (the year-progress bar drifts ~a pixel a day).
+  - **World Time** holds until the next minute — it shows HH:MM per zone, so it was repainting ~60×
+    a minute for one visible change.
+  - **Countdown**'s "set a target" prompt holds instead of repainting each second (the live countdown
+    keeps its smooth 5 fps sweep).
+
+  Genuinely animated apps (Aquarium, Weather Sky, Art Clock, the Overview seconds bar, the live
+  Countdown) and data-driven ones (Dashboard, Scoreboard, Weather Panel, Image, Ticker, effects) were
+  reviewed and left as-is — they either change every frame or already hold sensibly. Net effect: a
+  quiet INFO log and near-zero panel traffic when nothing on screen is actually moving.
+
 ## 2.9.1-beta.19
 
 - **Canvas INFO logging now means "bytes crossed the wire."** The two no-op confirmations —

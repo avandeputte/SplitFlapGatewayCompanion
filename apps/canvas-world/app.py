@@ -86,6 +86,14 @@ def _grad(Image, w, h, top, bot):
     return col.resize((max(1, w), h))
 
 
+def _next_minute_hold():
+    """Seconds until the next wall-clock minute. Every zone's minute rolls on the same UTC
+    second (offsets are whole minutes), so we redraw exactly on the tick instead of ~60×/min."""
+    from datetime import datetime
+    now = datetime.now()
+    return max(1.0, 60.0 - now.second - now.microsecond / 1_000_000.0)
+
+
 def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     if canvas is None:
         return None
@@ -134,7 +142,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         draw.text(((W - f.getlength(msg)) / 2.0, (H - cap) / 2.0 - top),
                   msg, fill=(230, 230, 235), font=f, anchor='la')
         canvas.frame(img)
-        return 1.0
+        return _next_minute_hold()
 
     n = len(resolved)
     row_h = H / n
@@ -175,4 +183,4 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
             draw.text((cx, y0 + (rh - ccap) / 2.0 - ctop), city, fill=city_c, font=cfont, anchor='la')
 
     canvas.frame(img)
-    return 1.0                                    # times tick each minute; 1s keeps it fresh
+    return _next_minute_hold()                     # HH:MM only changes on the minute

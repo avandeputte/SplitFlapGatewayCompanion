@@ -188,4 +188,10 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         draw.rectangle([fill_w, bar_y, fill_w, H - 1], fill=(255, 255, 255))
 
     canvas.frame(base)
-    return 2.0                                             # the date changes slowly
+    # Nothing on this card changes until the day rolls: the numeral/weekday at local midnight,
+    # and the year-progress bar drifts about a pixel a day. So sleep until the next midnight
+    # rather than repainting an identical frame every 2s. Capped at an hour so a clock/DST step
+    # self-corrects, and the redraw lands with the panel already showing the right frame.
+    from datetime import timedelta
+    midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return max(1.0, min(3600.0, (midnight - now).total_seconds()))
