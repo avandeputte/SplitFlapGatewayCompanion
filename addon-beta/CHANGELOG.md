@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.15
+
+- **Lighter on-device-effect preview.** The live preview of an on-device effect / ticker / animation
+  (content the companion reads back from the panel, rather than a drawn frame it already has) now
+  reads back as rgb565 — about a third less over WiFi — and is cached ~1s, so the browser can poll
+  it freely without a gateway round-trip each time.
+
 ## 2.9.1-beta.14
 
 - **Sprite sheets with stable content persist across reboots.** An app whose icon set never changes

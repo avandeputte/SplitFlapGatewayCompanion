@@ -43,6 +43,11 @@ _LAST_FRAME: dict = {}   # url -> (width, height, rgb888 bytes)   [also the base
 # poll the wall's uptime on the frame path.
 _DELTA_N: dict = {}
 _KEYFRAME_EVERY = 20
+# On-device content (an effect/ticker/anim) the companion never rendered is previewed by reading
+# the panel back; that readback is cached briefly so the browser can poll freely without a gateway
+# round-trip each time.
+_READBACK: dict = {}            # (url, scale, fmt) -> (monotonic, png|None)
+_READBACK_TTL = 1.0
 
 
 def _remember_frame(url: str, w: int, h: int, rgb: bytes) -> None:
@@ -53,6 +58,8 @@ def _remember_frame(url: str, w: int, h: int, rgb: bytes) -> None:
 def forget_frame(url: str) -> None:
     _LAST_FRAME.pop(url, None)
     _DELTA_N.pop(url, None)
+    for k in [k for k in _READBACK if k[0] == url]:            # so an effect switch never previews stale
+        _READBACK.pop(k, None)
 
 
 # The wall keeps a NAMED library of sprite sheets — several under one budget, addressed by name,
@@ -109,13 +116,23 @@ def last_frame_png(url: str, scale: int = 1):
     return _frame_png(*f, scale=scale) if f else None
 
 
-def readback_png(url: str, scale: int = 1, fmt: str = "rgb888"):
+def readback_png(url: str, scale: int = 1, fmt: str = "rgb565"):
     """Read the lit panel back (firmware 1.19) and return it as PNG bytes, or None. This is what
     lets the live preview show on-device content — an effect, a ticker, an animation — that the
-    companion never rendered a frame for, so :func:`last_frame_png` has nothing cached. One
-    gateway round-trip; the endpoint is read-only and made for polling."""
+    companion never rendered a frame for, so :func:`last_frame_png` has nothing cached.
+
+    ``fmt`` defaults to rgb565 — a third less over WiFi than rgb888, and the panel's real depth
+    anyway. The result is cached ~1s: this is one gateway round-trip and an effect previews fine at
+    ~1 Hz, so a browser polling faster costs nothing extra."""
+    key = (url, scale, fmt)
+    now = time.monotonic()
+    hit = _READBACK.get(key)
+    if hit and now - hit[0] < _READBACK_TTL:
+        return hit[1]
     f = get_frame(url, fmt)
-    return _frame_png(*f, scale=scale) if f else None
+    png = _frame_png(*f, scale=scale) if f else None
+    _READBACK[key] = (now, png)
+    return png
 
 
 def _ok(r) -> bool:

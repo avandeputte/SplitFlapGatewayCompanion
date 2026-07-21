@@ -207,6 +207,22 @@ def test_readback_rgb565_widens_to_888(gw):
     assert f == (1, 1, bytes([255, 0, 0]))
 
 
+def test_preview_readback_requests_rgb565_and_caches(monkeypatch):
+    """The effect/ticker preview reads the panel back as rgb565 (a third less over WiFi) and caches
+    it ~1s, so the browser can poll the preview freely without a gateway round-trip each time."""
+    fmts = []
+    monkeypatch.setattr(canvas, "get_frame",
+                        lambda url, fmt, **k: (fmts.append(fmt), (1, 1, b"\xff\x00\x00"))[1])
+    canvas.forget_frame("http://rb")
+    a = canvas.readback_png("http://rb")
+    b = canvas.readback_png("http://rb")             # within the TTL -> served from cache
+    assert a is not None and a == b and fmts == ["rgb565"]   # rgb565, and the wall was read once
+    canvas.forget_frame("http://rb")                 # a mode/effect switch clears the cache
+    canvas.readback_png("http://rb")
+    assert len(fmts) == 2                             # so the panel is read again
+    canvas.forget_frame("http://rb")
+
+
 # --- sprite atlas -----------------------------------------------------------
 
 def test_atlas_upload_header_is_mpta(gw):

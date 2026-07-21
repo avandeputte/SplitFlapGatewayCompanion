@@ -500,9 +500,12 @@ class DisplayController:
         if not self._canvas_active:
             return None
         url = str(self.config.transport.get("gateway_url") or "").strip()
-        png = canvas.last_frame_png(url, scale=scale)
+        png = canvas.last_frame_png(url, scale=scale)          # a frame-push app -> no gateway call
         if png is None and url and self.caps.canvas_readback:
-            png = canvas.readback_png(url, scale=scale)
+            # An on-device effect/ticker/anim is read back from the panel: rgb565 where the wall
+            # takes it (a third less over WiFi), cached ~1s so the preview poll stays cheap.
+            fmt = "rgb565" if "rgb565" in self.caps.canvas_formats else "rgb888"
+            png = canvas.readback_png(url, scale=scale, fmt=fmt)
         return png
 
     async def _canvas_loop(self, app_id: str) -> None:
