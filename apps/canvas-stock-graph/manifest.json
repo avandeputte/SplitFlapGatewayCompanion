@@ -10,13 +10,12 @@
   "category": "finance",
   "settings": [
     {
-      "key": "graph_symbol",
-      "label": "Symbol",
-      "note": "A ticker or index — ^DJI (Dow), ^GSPC (S&P 500), ^IXIC (Nasdaq), AAPL. Blank = Dow.",
+      "key": "graph_symbols",
+      "label": "Symbols",
+      "note": "One or more tickers or indices — ^DJI (Dow), ^GSPC (S&P 500), ^IXIC (Nasdaq), AAPL. Several rotate like a market board. Blank = Dow.",
       "type": "search_chips",
       "searchUrl": "/stocks_search",
-      "resultKey": "tickers",
-      "maxItems": 1
+      "resultKey": "tickers"
     },
     {
       "key": "graph_range",
@@ -32,9 +31,20 @@
       ]
     },
     {
+      "key": "rotate_seconds",
+      "label": "Seconds Per Symbol",
+      "note": "How long each symbol shows before the board rotates to the next (with two or more).",
+      "type": "number",
+      "default": 8,
+      "min": 3,
+      "max": 60,
+      "step": 1,
+      "stepper": true
+    },
+    {
       "key": "graph_label",
       "label": "Label (override)",
-      "note": "Leave blank to use the symbol or index name.",
+      "note": "Only used with a single symbol; blank uses the symbol or index name.",
       "type": "text"
     },
     {

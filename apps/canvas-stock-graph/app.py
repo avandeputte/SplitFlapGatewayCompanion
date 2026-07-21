@@ -8,10 +8,12 @@ with the current value and the day's percentage in big bold letters on top. Gree
 when down, on a black (unlit) panel so the type carries.
 
 Defaults to the Dow (``^DJI``). Any Yahoo symbol works — an index (``^GSPC`` S&P 500, ``^IXIC``
-Nasdaq) or a ticker (``AAPL``) — and the Range picks the window (1D intraday … 1Y daily). The
-big number tracks the live last price; the percentage and the faint baseline are measured from
-the previous close (intraday) or the window's start (multi-day). History is fetched at most once
-per refresh and paused overnight/weekends when the exchange is shut, so the panel goes quiet when
+Nasdaq) or a ticker (``AAPL``) — and the Range picks the window (1D intraday … 1Y daily). Give it
+SEVERAL symbols and it rotates through them like a market board, one per ``rotate_seconds`` with a
+row of dots along the bottom marking the position; each symbol keeps its own cached history. The
+big number tracks the live last price; the percentage and the faint baseline are measured from the
+previous close (intraday) or the window's start (multi-day). History is fetched at most once per
+refresh and paused overnight/weekends when the exchange is shut, so a single symbol goes quiet when
 the price can't move. The bundled font and panel-sized helpers come from the injected ``canvas``.
 """
 
@@ -40,6 +42,16 @@ _MUTE = (150, 160, 182)   # label / range tag
 
 def _scale(c, k):
     return tuple(max(0, min(255, int(c[i] * k))) for i in range(3))
+
+
+def _label(sym, settings, single):
+    """The name shown on the card: the manifest override (only meaningful for a single symbol),
+    else a clean index name, else the bare ticker."""
+    if single:
+        ov = str(settings.get('graph_label') or '').strip()
+        if ov:
+            return ov
+    return _INDEX.get(sym.upper()) or sym.upper().lstrip('^')
 
 
 def _tz_of(info):
@@ -143,8 +155,16 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
 
     W, H = int(canvas.width), int(canvas.height)
     settings = settings or {}
-    raw_sym = str(settings.get('graph_symbol') or '').strip()
-    sym = (raw_sym or '^DJI')
+    raw = str(settings.get('graph_symbols') or settings.get('graph_symbol') or '')
+    seen, symbols = set(), []
+    for s in raw.replace(';', ',').split(','):        # comma (or ;) separated chip list
+        s = s.strip()
+        if s and s.upper() not in seen:
+            seen.add(s.upper())
+            symbols.append(s)
+    if not symbols:
+        symbols = ['^DJI']
+    single = len(symbols) == 1
     rng = str(settings.get('graph_range') or '1D').strip().upper()
     if rng not in _RANGE:
         rng = '1D'
@@ -153,38 +173,46 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         poll = max(30, int(float(settings.get('polling_rate', 60) or 60)))
     except (TypeError, ValueError):
         poll = 60
+    try:
+        dwell = max(3, int(float(settings.get('rotate_seconds', 8) or 8)))
+    except (TypeError, ValueError):
+        dwell = 8
     market_only = str(settings.get('market_hours_only', 'yes')).strip().lower() in ('yes', 'on', '1', 'true')
-    label = (str(settings.get('graph_label') or '').strip()
-             or _INDEX.get(sym.upper()) or sym.upper().lstrip('^'))
 
-    # -- data: cached per (symbol, range, size); refetched every `poll`s, and paused while the
-    # exchange is shut. We always draw (from cache if fresh), so re-entering a playlist slot
-    # repaints the graph rather than leaving the previous app's frame up.
+    # -- state: a per-symbol price cache plus a rotation cursor. One symbol is drawn per call and
+    # held for `dwell`, so a watchlist cycles; each symbol's history is refetched at most every
+    # `poll` and never while its exchange is shut. A settings change resets cursor and cache.
+    sigv = (tuple(s.upper() for s in symbols), rng, W, H)
     st = getattr(fetch, '_state', None)
-    if st is None:
-        st = {}
+    if st is None or st.get('sig') != sigv:
+        st = {'sig': sigv, 'idx': 0, 'data': {}}
         setattr(fetch, '_state', st)
-    sig = (sym, rng, W, H)
-    now_utc = datetime.now(timezone.utc)
-    have = bool(st.get('series')) and st.get('sig') == sig
-    age = (now_utc - st['at']).total_seconds() if st.get('at') else 1e9
-    closed = market_only and have and st.get('tz') and not _exchange_open(st['tz'], now_utc)
+    idx = st['idx'] % len(symbols)
+    st['idx'] = (idx + 1) % len(symbols)              # advance so the next call shows the next one
+    sym = symbols[idx]
+    label = _label(sym, settings, single)
 
+    now_utc = datetime.now(timezone.utc)
+    cache = st['data'].get(sym)
+    have = bool(cache and cache.get('series'))
+    age = (now_utc - cache['at']).total_seconds() if have else 1e9
+    closed = market_only and have and cache.get('tz') and not _exchange_open(cache['tz'], now_utc)
     if not have or (age >= poll and not closed):
         try:
             got = _pull(sym, period, interval)
         except Exception:
             got = None
         if got:
-            closes, last, prev, tz = got
-            st.update(series=closes, last=last, prev=prev, tz=tz, sig=sig, at=now_utc)
+            closes, last_, prev_, tz_ = got
+            cache = {'series': closes, 'last': last_, 'prev': prev_, 'tz': tz_, 'at': now_utc}
+            st['data'][sym] = cache
             have = True
-        elif not have:
+        elif not have:                                # no data for this one — still rotate past it
             canvas.frame(_message(canvas, ImageDraw, label, 'NO DATA'))
-            return 60.0
+            return float(dwell) if not single else 60.0
 
-    series, last = st['series'], st['last']
-    base = float(st['prev']) if (base_mode == 'prev' and st.get('prev')) else series[0]
+    series, last = cache['series'], cache['last']
+    base = float(cache['prev']) if (base_mode == 'prev' and cache.get('prev')) else series[0]
     chg = last - base
     pct = (chg / base * 100.0) if base else 0.0
     up = chg >= 0
@@ -220,35 +248,44 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     pct_str = f"{'▲' if up else '▼'}{abs(pct):.2f}%"
 
     pad, x = 2, 3
+    bot = 3 if H >= 44 else 2                           # reserved bottom margin: the % never touches the edge
+    gap = 1
     wbudget = int(W * 0.66)
     if H < 44:
         # A short panel can't carry three lines and a tag legibly — give the two things that
         # matter (value + percentage) the whole height; the graph still says which way and how far.
         V = _fit(canvas, value_str, H * 0.50, int(W * 0.72))
-        P = _fit(canvas, pct_str, H * 0.40, int(W * 0.72))
-        total = V["h"] + 1 + P["h"]
-        y = max(float(pad), (H - total) / 2.0)
-        _shadow(d, x, y, value_str, V, _INK)
-        _shadow(d, x, y + V["h"] + 1, pct_str, P, col)
+        P = _fit(canvas, pct_str, H * 0.38, int(W * 0.72))
+        rows = [(value_str, V, _INK), (pct_str, P, col)]
     else:
-        L = _fit(canvas, label, H * 0.20, wbudget)
-        V = _fit(canvas, value_str, H * 0.42, wbudget)
-        P = _fit(canvas, pct_str, H * 0.30, wbudget)
-        gap = 2
-        total = L["h"] + V["h"] + P["h"] + 2 * gap
-        y = max(float(pad), (H - total) / 2.0)
-        _shadow(d, x, y, label, L, _MUTE)
-        y += L["h"] + gap
-        _shadow(d, x, y, value_str, V, _INK)
-        y += V["h"] + gap
-        _shadow(d, x, y, pct_str, P, col)
-
+        L = _fit(canvas, label, H * 0.18, wbudget)
+        V = _fit(canvas, value_str, H * 0.40, wbudget)
+        P = _fit(canvas, pct_str, H * 0.26, wbudget)
+        rows = [(label, L, _MUTE), (value_str, V, _INK), (pct_str, P, col)]
         R = _fit(canvas, rng, H * 0.16, W * 0.22)      # range tag, top-right
         _shadow(d, W - pad - R["w"], pad, rng, R, _scale(_MUTE, 0.8))
 
+    # Centre the stack in the space ABOVE the reserved bottom margin, so the last line (the arrow
+    # + percentage) always clears the edge by at least `bot` pixels.
+    total = sum(m["h"] for _, m, _ in rows) + gap * (len(rows) - 1)
+    y = pad + max(0.0, ((H - pad - bot) - total) / 2.0)
+    for txt, m, c in rows:
+        _shadow(d, x, y, txt, m, c)
+        y += m["h"] + gap
+
+    # Rotation cue: one dot per symbol along the bottom-right, the current one lit in the trend colour.
+    if not single:
+        step, r = 4, 1
+        dx = W - 2 - (len(symbols) * step - (step - 2 * r - 1))
+        dy = H - 2 - 2 * r
+        for k in range(len(symbols)):
+            d.ellipse([dx, dy, dx + 2 * r, dy + 2 * r], fill=col if k == idx else _scale(_MUTE, 0.5))
+            dx += step
+
     canvas.frame(img)
 
-    # Hold: one refresh per poll while trading; idle long when the market's shut.
-    if market_only and st.get('tz') and not _exchange_open(st['tz'], now_utc):
+    # Hold: rotate through a watchlist on the dwell; a single symbol refreshes on the poll and idles
+    # long overnight/weekends when its exchange is shut.
+    if single and market_only and cache.get('tz') and not _exchange_open(cache['tz'], now_utc):
         return 900.0
-    return float(poll)
+    return float(dwell) if not single else float(poll)

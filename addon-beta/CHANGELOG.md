@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.22
+
+- **Stock Graph rotates through a watchlist.** The Symbols field now takes more than one ticker or
+  index — the app cycles through them like a market board, one per **Seconds Per Symbol** (default 8),
+  with a row of dots along the bottom-right marking the position and lit in the trend colour. Each
+  symbol keeps its own cached history and refreshes on its own; a single symbol behaves as before
+  (refresh on the poll, idle overnight). Also nudged the value/percentage stack up a few pixels so
+  the ▲/▼ arrow no longer touches the bottom edge on a 64-pixel panel.
+
 ## 2.9.1-beta.21
 
 - **New app — Stock Graph (Matrix panel).** A market quote as big bold type over its own price
