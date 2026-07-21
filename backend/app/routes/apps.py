@@ -51,7 +51,9 @@ def build(deps) -> APIRouter:
         app_id = req.app[7:] if req.app.startswith("plugin_") else req.app
         try:
             await d.controller.run_app(app_id)
-        except KeyError:
+        except KeyError as e:
+            if "needs a canvas" in str(e):     # a Matrix-panel app on a wall with no framebuffer
+                raise HTTPException(409, "Matrix-panel app: this wall has no framebuffer to draw on.")
             raise HTTPException(404, f"app not installed: {app_id}")
         d.ha.publish_state()
         return {"ok": True, "active_app": app_id}

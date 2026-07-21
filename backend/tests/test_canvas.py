@@ -814,6 +814,60 @@ def test_controller_serves_a_canvas_preview_only_while_a_canvas_app_draws(gw_cal
     asyncio.run(run())
 
 
+# --- simulation mode + canvas ----------------------------------------------
+
+def test_sim_mode_keeps_the_real_walls_caps(tmp_path):
+    """Sim mode's no-op transport carries no caps; the controller keeps the ones the real wall last
+    reported, so a Matrix/canvas app isn't suddenly 'uninstalled' when you flip simulation on."""
+    from app.transport import SimTransport
+    cfg = Config(data_dir=tmp_path)
+    cfg.update({"transport": {"gateway_url": "http://gw"}})
+    ctl = DisplayController(cfg, DisplayState(45))
+    ctl.transport.caps = device.from_capabilities(CANVAS_DOC)     # a Matrix wall reports a framebuffer
+    assert ctl.caps.has_canvas                                    # non-sim: read it (and remember it)
+    cfg.set_sim_mode(True)
+    ctl.transport = SimTransport()                               # sim swaps to a capless transport
+    assert ctl.caps.has_canvas                                    # still canvas-capable, from the remembered caps
+
+
+def test_sim_mode_runs_a_canvas_app_without_driving_the_panel(monkeypatch):
+    """A simulated canvas app renders (its frame is cached for the preview) but never POSTs to the
+    real panel — sim mode's whole point."""
+    calls = []
+    monkeypatch.setattr(canvas.gateway, "_request",
+                        lambda *a, **k: calls.append(a[:3]) or type("R", (), {"status_code": 200, "json": lambda s: {}})())
+    canvas.set_sim("http://sim", True)
+    canvas.forget_frame("http://sim")
+    s = canvas.CanvasSurface("http://sim", 8, 4, ("rgb888", "qoi"), (), rects=True, sprite=True)
+    s.frame(bytes(8 * 4 * 3))                                     # frame-push
+    s.clear("black").text(0, 0, "hi", "white", 8).show()         # ops
+    assert canvas.set_active("http://sim", True) is True         # takeover
+    assert canvas.play_effect("http://sim", "plasma") is True    # effect
+    assert calls == []                                           # nothing reached the gateway
+    assert canvas.has_frame("http://sim")                        # but the frame-push frame is cached for preview
+    assert canvas.get_frame("http://sim") is None                # no real panel to read back
+    canvas.set_sim("http://sim", False)
+    canvas.forget_frame("http://sim")
+
+
+def test_a_canvas_app_on_a_flap_wall_is_rejected_clearly(tmp_path):
+    """On a wall with no framebuffer, run_app raises with a message the route turns into a clear
+    409 — not the misleading 'app not installed'."""
+    async def run():
+        cfg = Config(data_dir=tmp_path)
+        ctl = DisplayController(cfg, DisplayState(45))
+        ps = PluginSettings(tmp_path)
+        ps.set_installed(["canvas-art-clock"])
+        rt = PluginRuntime(cfg, ps, __import__("pathlib").Path(__file__).resolve().parents[2] / "apps")
+        rt.attach_caps(lambda: device.SPLIT_FLAP)               # a flap wall
+        rt.load()
+        ctl.attach_plugins(rt)
+        with pytest.raises(KeyError) as e:
+            await ctl.run_app("canvas-art-clock")
+        assert "needs a canvas" in str(e.value)                 # the string the route maps to 409
+    asyncio.run(run())
+
+
 def test_leaving_a_canvas_app_forgets_the_flap_cache(gw_calls, tmp_path):
     """Regression: a canvas app draws straight to the framebuffer, bypassing the
     flap transport's shown-cell cache. When you switch back to a flap app, that

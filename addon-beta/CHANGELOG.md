@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.16
+
+- **Fix: Matrix apps in simulation mode.** Running a canvas app while simulating threw a confusing
+  "app not installed" pop-up. Sim mode's no-op transport reported no framebuffer, so every Matrix
+  app looked uninstalled. Simulation now keeps the real wall's capabilities, so canvas apps run —
+  a frame-push app (clocks, weather, image) even previews — while still driving nothing on the
+  actual panel. On a genuine split-flap wall a Matrix app now gives a clear message instead.
+
 ## 2.9.1-beta.15
 
 - **Lighter on-device-effect preview.** The live preview of an on-device effect / ticker / animation

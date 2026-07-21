@@ -38,6 +38,7 @@ class DisplayController:
     def __init__(self, config: Config, state: DisplayState):
         self.config = config
         self.state = state
+        self._real_caps: device.Capabilities | None = None   # last caps a REAL wall reported (kept for sim mode)
         self.transport: DisplayTransport = SimTransport()
         self._send_lock = asyncio.Lock()
         # A single "driver" task at a time: manual compose, an app play-loop, or
@@ -111,6 +112,11 @@ class DisplayController:
 
     async def _open_transport(self) -> None:
         build_error: str | None = None
+        # In sim mode, mark the wall's URL so canvas draws (which bypass the flap transport and
+        # POST straight to the panel) are suppressed too — a simulated canvas app renders into the
+        # preview without lighting the real panel.
+        canvas.set_sim(str(self.config.transport.get("gateway_url") or "").strip(),
+                       bool(self.config.sim_mode))
         if self.config.sim_mode:
             # Developer simulation mode: nothing is sent to the display.
             self.transport = SimTransport()
@@ -261,8 +267,17 @@ class DisplayController:
     @property
     def caps(self) -> device.Capabilities:
         """What THIS wall can show. A property of the gateway on the other end, so with
-        several displays the answer differs per wall."""
-        return getattr(self.transport, "caps", device.SPLIT_FLAP)
+        several displays the answer differs per wall.
+
+        Simulation mode's no-op transport carries no caps, but we keep the ones the real wall last
+        reported — so a Matrix/canvas app can be *simulated* exactly as it would run for real,
+        instead of looking uninstalled on a wall that suddenly claims no framebuffer."""
+        if self.config.sim_mode and self._real_caps is not None:
+            return self._real_caps
+        c = getattr(self.transport, "caps", device.SPLIT_FLAP)
+        if not self.config.sim_mode:
+            self._real_caps = c
+        return c
 
     def _forced_uppercase(self) -> bool:
         """Has the user asked this wall to shout, even though it need not?"""

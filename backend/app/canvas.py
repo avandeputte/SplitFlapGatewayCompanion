@@ -50,6 +50,17 @@ _READBACK: dict = {}            # (url, scale, fmt) -> (monotonic, png|None)
 _READBACK_TTL = 1.0
 
 
+# URLs in simulation mode: a canvas app still runs and its frames are cached for the preview, but
+# nothing is actually POSTed to the panel (sim mode's contract: the wall is not driven).
+_SIM_URLS: set = set()
+
+
+def set_sim(url: str, on: bool) -> None:
+    if not url:
+        return
+    (_SIM_URLS.add if on else _SIM_URLS.discard)(url)
+
+
 def _remember_frame(url: str, w: int, h: int, rgb: bytes) -> None:
     if url and len(rgb) == w * h * 3:
         _LAST_FRAME[url] = (int(w), int(h), rgb)
@@ -143,6 +154,8 @@ def set_active(url: str, active: bool, timeout: float = 5.0) -> bool:
     """Take the panel over from the reel wall (active=True) or hand it back
     (active=False). Ops/effect/frame auto-take-over too, but a driver takes it
     first so the wall is blanked before the first frame lands."""
+    if url in _SIM_URLS:
+        return True
     try:
         return _ok(gateway._request("POST", url, "/api/canvas",
                                     json={"active": bool(active)}, timeout=timeout))
@@ -155,8 +168,11 @@ def play_effect(url: str, effect: str, speed: int = 5, hue=None, density=None,
                 timeout: float = 5.0) -> bool:
     """Start an on-device effect (plasma/fire/matrix/…), or "none" to return to the
     wall. The panel renders it itself — the companion sends one request and stops.
+
     Optional ``hue`` (0–255) and ``density`` (1–100) tint/seed effects that support them
     (see caps.effect_params); omitted, each effect keeps its own default look."""
+    if url in _SIM_URLS:               # an on-device effect can't be simulated; don't start it
+        return True
     try:
         body = {"type": str(effect), "speed": max(1, min(10, int(speed)))}
         if hue is not None:
@@ -378,9 +394,11 @@ def put_anim(url: str, frames: list, w: int, h: int, fps: int = 12, loop: bool =
 def get_frame(url: str, fmt: str = "rgb888", timeout: float = 8.0):
     """Read the lit panel back (GET /api/canvas/frame, firmware 1.19) — a screenshot of whatever
     is on screen: the flap wall, an effect, an animation, a ticker or a pushed frame. Returns
-    ``(width, height, rgb888 bytes)`` or ``None``. Read-only: it never disturbs the running mode,
+    ``(width, height, rgb888 bytes)`` or ``None``. In sim, there is no panel to read. Read-only,
     so a live preview can poll it. The panel's real bit depth is baked in (it is what is
     physically lit); brightness is not in the framebuffer, so a dim wall reads back at full value."""
+    if url in _SIM_URLS:               # sim: no real panel to screenshot
+        return None
     try:
         f = "rgb565" if str(fmt) == "rgb565" else "rgb888"
         r = gateway._request("GET", url, f"/api/canvas/frame?fmt={f}", timeout=timeout)
@@ -838,6 +856,8 @@ class CanvasSurface:
         if not self._ops:
             return True
         ops, self._ops = self._ops + [{"op": "show"}], []
+        if self.url in _SIM_URLS:                       # sim: an ops app renders on-device, so it
+            return True                                 # cannot preview here; just don't drive the panel
         return draw_ops(self.url, ops)
 
     # -- whole-panel content -------------------------------------------------
@@ -862,6 +882,9 @@ class CanvasSurface:
         return put_frame(self.url, b)
 
     def _push_rgb(self, b: bytes) -> bool:
+        if self.url in _SIM_URLS:                                  # sim: cache for the preview, drive nothing
+            _remember_frame(self.url, self.width, self.height, b)
+            return True
         old = _LAST_FRAME.get(self.url)                             # the base (last frame we sent)
         n = _DELTA_N.get(self.url, 0) + 1
         _DELTA_N[self.url] = n
@@ -964,6 +987,8 @@ class CanvasSurface:
         set, say — but NOT a scoreboard's per-matchup logos): it is saved to the wall's flash once,
         so it survives a reboot AND an LRU eviction by other apps' sheets, lazy-loading on the next
         bind instead of being re-uploaded."""
+        if self.url in _SIM_URLS:                          # sim: nothing is drawn, so nothing to upload
+            return True
         try:
             imgs = [im.convert("RGB") for im in images]
             if not imgs:
