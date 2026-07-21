@@ -244,6 +244,12 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
         fy = H - fh
         canvas.rect(0, fy - 1, W, 1, (44, 52, 68))
         cw = W // len(fc)
+        # A small per-day condition icon where the cell has room for it — its own atlas sheet,
+        # since a sheet holds one tile size and the main icon is big. Bound once for the row.
+        fih = min(fh, 14) & ~1
+        show_ic = use_sprites and cw >= 56 and fih >= 8
+        if show_ic:
+            canvas.upload_atlas(_wx_tiles(fih))
         for i, day in enumerate(fc):
             if i:
                 canvas.vline(i * cw, fy + 1, fh - 2, (44, 52, 68))
@@ -252,14 +258,19 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
             except Exception:
                 lbl = ''
             dhi, dlo = _conv(day.get('hi_f'), unit), _conv(day.get('lo_f'), unit)
+            room = cw - (fih + 3 if show_ic else 0) - 2
             if dhi is None or dlo is None:
                 cell = [(lbl, _DAY)]
             else:
                 cell = [(lbl + ' ', _DAY), (f'{dhi}{deg}', _WARM), ('/', _MUTE), (f'{dlo}{deg}', _COOL)]
-                if _segs_w(canvas, cell, 8) > cw - 2:                # too narrow for both — show the high
+                if _segs_w(canvas, cell, 8) > room:                 # too narrow for both — show the high
                     cell = [(lbl + ' ', _DAY), (f'{dhi}{deg}', _WARM)]
-            cx0 = i * cw + max(2, (cw - _segs_w(canvas, cell, 8)) // 2)
-            _segs(canvas, cx0, fy + (fh - 8) // 2, cell, 8, (i + 1) * cw - 1)
+            gw = _segs_w(canvas, cell, 8) + (fih + 3 if show_ic else 0)
+            gx = i * cw + max(1, (cw - gw) // 2)
+            if show_ic:
+                canvas.sprite(_icon_for(str(day.get('sky') or 'clear'), False), gx, fy + (fh - fih) // 2)
+                gx += fih + 3
+            _segs(canvas, gx, fy + (fh - 8) // 2, cell, 8, (i + 1) * cw - 1)
 
     canvas.show()
     return 300.0

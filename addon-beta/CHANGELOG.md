@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.12
+
+- **Weather Panel: a condition icon on each forecast day.** The 3-day strip now shows a little
+  sun / cloud / rain icon beside each day's high/low (on panels with room for it; narrower walls
+  keep the text-only strip).
+
 ## 2.9.1-beta.11
 
 - **Weather Panel: richer, colourful, and it fills a wide screen.** It used to be plain white text
