@@ -26,11 +26,13 @@ _WORD = {'clear': 'Clear', 'pcloudy': 'Partly', 'cloudy': 'Cloudy', 'fog': 'Fog'
 
 
 def _cloud(d, s, col, y):
+    """A flat-bottomed cumulus: a wide base with a tall centre puff and smaller side puffs, so it
+    reads as a cloud (not a blob) even at a small tile size."""
     cy = s * y
-    d.ellipse([s * 0.08, cy - s * 0.10, s * 0.52, cy + s * 0.20], fill=col)
-    d.ellipse([s * 0.32, cy - s * 0.20, s * 0.82, cy + s * 0.16], fill=col)
-    d.ellipse([s * 0.54, cy - s * 0.08, s * 0.92, cy + s * 0.20], fill=col)
-    d.rectangle([s * 0.14, cy + s * 0.02, s * 0.86, cy + s * 0.20], fill=col)
+    d.rectangle([s * 0.16, cy + s * 0.06, s * 0.84, cy + s * 0.22], fill=col)   # flat base
+    d.ellipse([s * 0.10, cy + s * 0.00, s * 0.44, cy + s * 0.26], fill=col)     # left puff
+    d.ellipse([s * 0.30, cy - s * 0.22, s * 0.72, cy + s * 0.24], fill=col)     # tall centre puff
+    d.ellipse([s * 0.56, cy - s * 0.04, s * 0.92, cy + s * 0.26], fill=col)     # right puff
 
 
 def _wx_tiles(s):
@@ -179,92 +181,99 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
     hi, lo = _conv(wx.get('hi_f'), unit), _conv(wx.get('lo_f'), unit)
     city = str(wx.get('city') or '').strip()
 
-    # The atlas is a SINGLE shared slot on the gateway — another canvas app (the Aquarium!)
-    # may have overwritten it since we last drew, so re-assert ours EVERY draw. Cheap: this
-    # app redraws only every few minutes, and the tiles are tiny.
     use_sprites = bool(getattr(canvas, 'can_sprite', False))
-    if use_sprites:
-        canvas.upload_atlas(_wx_tiles(tile), persist=True)
-
     canvas.clear((0, 0, 0))                     # black — bright content reads best on unlit pixels
     deg = '\N{DEGREE SIGN}'
-    compact = W < 100 or H < 40
-    if compact:
-        tile = min(tile, max(12, int(H * 0.62))) & ~1
-    iy = 2 if compact else 3
-
-    # condition icon (a colour sprite, or a coloured disc where the wall has no sprite op)
-    if use_sprites:
-        canvas.sprite(_icon_for(tok, night), 2, iy)
-    else:
-        canvas.circle(2 + tile // 2, iy + tile // 2, tile // 2 - 1,
-                      (255, 206, 50) if tok == 'clear' and not night else (150, 200, 255), fill=True)
-
-    # big temperature, tinted by how warm it is
-    tstr = f'{temp}{deg}' if temp is not None else '--'
-    tsize = canvas.face(int(tile * (1.0 if compact else 0.95)))
-    tx = 2 + tile + 3
-    ty = iy + (tile - tsize) // 2
-    canvas.shadow_text(tx, ty, tstr, _ramp(wx.get('temp_f')), tsize)
-    tw = len(tstr) * canvas.face_width(tsize)
     word = _WORD.get(tok, tok.title())
+    compact = W < 100 or H < 40
 
-    if compact:                                 # small panel: word + coloured H/L on one line
+    def _icon(x, y, s, sky, is_night):
+        if use_sprites:
+            canvas.sprite(_icon_for(sky, is_night), x, y)
+        else:
+            canvas.circle(x + s // 2, y + s // 2, s // 2 - 1,
+                          (255, 206, 50) if sky == 'clear' and not is_night else (150, 200, 255), fill=True)
+
+    if compact:                                 # small panel: icon + temp + word/HL on one line
+        it = min(tile, max(12, int(H * 0.62))) & ~1
+        if use_sprites:
+            canvas.upload_atlas(_wx_tiles(it), persist=True)
+        _icon(2, 2, it, tok, night)
+        tsize = canvas.face(it)
+        canvas.shadow_text(2 + it + 3, 2 + (it - tsize) // 2, f'{temp}{deg}' if temp is not None else '--',
+                           _ramp(wx.get('temp_f')), tsize)
         x = _segs(canvas, 2, H - 9, [(word + '  ', _WORDC)], 8, W - 2)
         if hi is not None and lo is not None:
             _segs(canvas, x, H - 9, [(f'{hi}{deg}', _WARM), ('/', _MUTE), (f'{lo}{deg}', _COOL)], 8, W)
         canvas.show()
         return 300.0
 
-    # --- wide layout: fill the width with real, colour-coded data -------------
-    canvas.shadow_text(tx + tw + 7, ty + max(0, (tsize - 10) // 2), word[:18], _WORDC,
-                       canvas.fit(word[:18], W - (tx + tw + 7) - 2, 13))
-    if show_city and city:
-        canvas.shadow_text(W - 2, 1, city[:18], _DAY, 8, align='right')
+    # --- wide layout: a compact top that fills the width, and a TALL forecast row -------------
+    fc = (wx.get('forecast') or [])[:3]
+    fh = max(16, int(H * 0.42)) if fc else 0     # a tall forecast row, so its icons read clearly
+    fy = H - fh
+    band = (fy - 1) if fc else H                 # the top area
 
-    # one spanning stats row — H/L warm/cool, then feels / humidity / wind while they fit
-    row = []
-    if hi is not None:
-        row += [(f'H {hi}{deg}  ', _WARM)]
-    if lo is not None:
-        row += [(f'L {lo}{deg}   ', _COOL)]
+    # The main condition icon and the forecast icons are different sizes, so two atlas sheets —
+    # cheap now: each is a named, persisted sheet uploaded once. Main icon sized to the top band.
+    it = min(tile, band - 10) & ~1
+    if use_sprites:
+        canvas.upload_atlas(_wx_tiles(it), persist=True)
+    _icon(2, 1, it, tok, night)
+    tstr = f'{temp}{deg}' if temp is not None else '--'
+    tsize = canvas.face(min(20, it))
+    tx = 2 + it + 3
+    ty = 1 + (it - tsize) // 2
+    canvas.shadow_text(tx, ty, tstr, _ramp(wx.get('temp_f')), tsize)
+    tw = len(tstr) * canvas.face_width(tsize)
+
+    # top row, right of the temperature: the condition word (big), then H/L (warm/cool) filling out
+    bx = tx + tw + 8
+    wsize = canvas.fit(word[:18], W - bx - 2, min(13, tsize))
+    canvas.shadow_text(bx, ty, word[:18], _WORDC, wsize)
+    hl = [(f'H {hi}{deg}  ', _WARM), (f'L {lo}{deg}', _COOL)] if (hi is not None and lo is not None) else []
+    hl_placed = False
+    if hl:
+        hx = bx + len(canvas.cp(word[:18])) * canvas.face_width(wsize) + 8
+        hlsize = canvas.fit(f'H {hi}{deg}  L {lo}{deg}', W - hx - 2, min(13, tsize))
+        if _segs_w(canvas, hl, hlsize) <= W - hx - 2:             # room on the top row
+            _segs(canvas, hx, ty + max(0, (wsize - hlsize) // 2), hl, hlsize, W - 1)
+            hl_placed = True
+
+    # a thin second line spanning the width: H/L (if it didn't fit above), feels / humidity / wind
+    row = [] if hl_placed else (hl + [('   ', _MUTE)] if hl else [])
     feels = _conv(wx.get('feels_like_f'), unit)
     if feels is not None:
-        row += [(f'Feels {feels}{deg}   ', _MUTE)]
+        row += [(f'Feels {feels}{deg}    ', _MUTE)]
     if wx.get('humidity') is not None:
-        row += [(f'Hum {int(wx["humidity"])}%   ', _MUTE)]
+        row += [(f'Humidity {int(wx["humidity"])}%    ', _MUTE)]
     if wx.get('wind_mph') is not None:
-        row += [(f'Wind {int(wx["wind_mph"])}', _MUTE)]
-    _segs(canvas, 2, iy + tile + 2, row, 8, W - 2)
+        row += [(f'Wind {int(wx["wind_mph"])} mph    ', _MUTE)]
+    if show_city and city:
+        row += [(city[:16], _DAY)]
+    _segs(canvas, 2, band - 9, row, 8, W - 2)
 
-    # 3-day forecast strip: day muted, high warm, low cool
-    fc = (wx.get('forecast') or [])[:3]
+    # tall 3-day forecast: a BIG clear icon, the day, and warm/cool hi/lo
     if fc:
-        fh = max(9, int(H * 0.24))
-        fy = H - fh
         canvas.rect(0, fy - 1, W, 1, (44, 52, 68))
         cw = W // len(fc)
-        # A small per-day condition icon where the cell has room for it — its own atlas sheet,
-        # since a sheet holds one tile size and the main icon is big. Bound once for the row.
-        fih = min(fh, 14) & ~1
-        show_ic = use_sprites and cw >= 56 and fih >= 8
+        fih = min(fh - 2, 28) & ~1               # big forecast icons
+        show_ic = use_sprites and cw >= 62 and fih >= 12
         if show_ic:
             canvas.upload_atlas(_wx_tiles(fih), persist=True)
         for i, day in enumerate(fc):
             if i:
-                canvas.vline(i * cw, fy + 1, fh - 2, (44, 52, 68))
+                canvas.vline(i * cw, fy + 2, fh - 4, (44, 52, 68))
             try:
                 lbl = datetime.strptime(str(day.get('date'))[:10], '%Y-%m-%d').strftime('%a')
             except Exception:
                 lbl = ''
             dhi, dlo = _conv(day.get('hi_f'), unit), _conv(day.get('lo_f'), unit)
+            cell = ([(lbl + ' ', _DAY), (f'{dhi}{deg}', _WARM), ('/', _MUTE), (f'{dlo}{deg}', _COOL)]
+                    if (dhi is not None and dlo is not None) else [(lbl, _DAY)])
             room = cw - (fih + 3 if show_ic else 0) - 2
-            if dhi is None or dlo is None:
-                cell = [(lbl, _DAY)]
-            else:
-                cell = [(lbl + ' ', _DAY), (f'{dhi}{deg}', _WARM), ('/', _MUTE), (f'{dlo}{deg}', _COOL)]
-                if _segs_w(canvas, cell, 8) > room:                 # too narrow for both — show the high
-                    cell = [(lbl + ' ', _DAY), (f'{dhi}{deg}', _WARM)]
+            if len(cell) > 1 and _segs_w(canvas, cell, 8) > room:   # too narrow for both — show the high
+                cell = [(lbl + ' ', _DAY), (f'{dhi}{deg}', _WARM)]
             gw = _segs_w(canvas, cell, 8) + (fih + 3 if show_ic else 0)
             gx = i * cw + max(1, (cw - gw) // 2)
             if show_ic:

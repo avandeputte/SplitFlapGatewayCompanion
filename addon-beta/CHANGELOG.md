@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.17
+
+- **Weather Panel redesigned.** The top row now fills the full width — big temperature, condition,
+  and colour-coded H/L — instead of leaving the right half empty, with feels / humidity / wind on a
+  thin line beneath. The 3-day forecast row is much taller so its condition icons are large and
+  clear, and the cloud icon was redrawn as a proper cumulus (it looked like a blob at the old size).
+
 ## 2.9.1-beta.16
 
 - **Fix: Matrix apps in simulation mode.** Running a canvas app while simulating threw a confusing
