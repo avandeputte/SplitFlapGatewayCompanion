@@ -181,6 +181,16 @@
       "version": "1.0"
     },
     {
+      "id": "canvas-stock-graph",
+      "name": "Stock Graph",
+      "icon": "📈",
+      "description": "A quote in big bold type over its own price chart (Matrix panel)",
+      "category": "finance",
+      "type": "functional",
+      "surface": "canvas",
+      "version": "1.0"
+    },
+    {
       "id": "magic-8-ball",
       "name": "Magic 8 Ball",
       "icon": "🎱",

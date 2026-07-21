@@ -3,6 +3,18 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.21
+
+- **New app — Stock Graph (Matrix panel).** A market quote as big bold type over its own price
+  chart: the current value and the day's percentage in large letters, with the price line drawn as a
+  dim filled area across the full width behind them — green when up, red when down, on a black panel.
+  Defaults to the Dow (`^DJI`); any Yahoo symbol works (an index like `^GSPC`/`^IXIC`, or a ticker
+  like `AAPL`), and a Range picks the window (1D intraday through 1Y). Prices come from yfinance (the
+  same source as the flap Stocks app); the big number tracks the live last price while the percentage
+  and the faint baseline are measured from the previous close (intraday) or the window's start
+  (multi-day). History is fetched once per refresh and paused overnight/weekends when the exchange is
+  shut, so the panel goes quiet when the price can't move.
+
 ## 2.9.1-beta.20
 
 - **Time-based canvas apps now redraw on their next change, not on a fast timer.** A canvas app's

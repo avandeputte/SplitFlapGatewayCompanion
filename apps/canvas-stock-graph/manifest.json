@@ -1,0 +1,62 @@
+{
+  "id": "canvas-stock-graph",
+  "name": "Stock Graph",
+  "icon": "📈",
+  "description": "A quote in big bold type over its own price chart (Matrix panel)",
+  "type": "functional",
+  "surface": "canvas",
+  "refresh_interval": 60,
+  "loop_delay": 60,
+  "category": "finance",
+  "settings": [
+    {
+      "key": "graph_symbol",
+      "label": "Symbol",
+      "note": "A ticker or index — ^DJI (Dow), ^GSPC (S&P 500), ^IXIC (Nasdaq), AAPL. Blank = Dow.",
+      "type": "search_chips",
+      "searchUrl": "/stocks_search",
+      "resultKey": "tickers",
+      "maxItems": 1
+    },
+    {
+      "key": "graph_range",
+      "label": "Range",
+      "type": "toggle",
+      "default": "1D",
+      "options": [
+        {"value": "1D", "label": "1D"},
+        {"value": "5D", "label": "5D"},
+        {"value": "1M", "label": "1M"},
+        {"value": "6M", "label": "6M"},
+        {"value": "1Y", "label": "1Y"}
+      ]
+    },
+    {
+      "key": "graph_label",
+      "label": "Label (override)",
+      "note": "Leave blank to use the symbol or index name.",
+      "type": "text"
+    },
+    {
+      "key": "polling_rate",
+      "label": "Refresh Frequency (seconds)",
+      "type": "number",
+      "default": 60,
+      "min": 30,
+      "max": 3600,
+      "step": 30,
+      "stepper": true
+    },
+    {
+      "key": "market_hours_only",
+      "label": "Pause When Markets Closed",
+      "note": "Skip price updates overnight and on weekends, when the exchange is shut.",
+      "type": "toggle",
+      "default": "yes",
+      "options": [
+        {"value": "yes", "label": "On"},
+        {"value": "no", "label": "Off"}
+      ]
+    }
+  ]
+}
