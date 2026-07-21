@@ -109,6 +109,46 @@ def _conv(f, unit):
     return round(f)
 
 
+# Colours read as their hue on an LED panel only when saturated. Warm high / cool low, a light
+# cyan condition word, muted stats — and the big temperature is tinted by how warm it is.
+_WARM, _COOL, _WORDC, _MUTE, _DAY = (255, 150, 55), (55, 150, 255), (120, 210, 235), (172, 182, 205), (208, 216, 234)
+_TEMP_RAMP = [(5, (60, 120, 255)), (32, (40, 170, 255)), (48, (0, 205, 220)), (60, (40, 215, 130)),
+              (72, (150, 215, 55)), (82, (250, 195, 35)), (92, (255, 130, 30)), (104, (255, 70, 40))]
+
+
+def _ramp(temp_f):
+    """A saturated thermal colour for a Fahrenheit temperature (whatever unit it's shown in)."""
+    if temp_f is None:
+        return (236, 240, 250)
+    if temp_f <= _TEMP_RAMP[0][0]:
+        return _TEMP_RAMP[0][1]
+    if temp_f >= _TEMP_RAMP[-1][0]:
+        return _TEMP_RAMP[-1][1]
+    for (a, ca), (b, cb) in zip(_TEMP_RAMP, _TEMP_RAMP[1:]):
+        if a <= temp_f <= b:
+            t = (temp_f - a) / (b - a)
+            return tuple(int(round(ca[k] + (cb[k] - ca[k]) * t)) for k in range(3))
+    return _TEMP_RAMP[-1][1]
+
+
+def _segs(canvas, x, y, segments, size, maxx):
+    """Draw ``(text, colour)`` runs left-to-right at ``size``, stopping before ``maxx`` so a
+    narrow panel truncates between fields instead of clipping mid-word. Returns the end x."""
+    for text, col in segments:
+        text = canvas.cp(str(text))
+        w = len(text) * canvas.face_width(size)
+        if text and x + w > maxx:
+            break
+        if text:
+            canvas.shadow_text(x, y, text, col, size)
+        x += w
+    return x
+
+
+def _segs_w(canvas, segments, size):
+    return sum(len(canvas.cp(str(t))) * canvas.face_width(size) for t, _ in segments)
+
+
 def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=None):
     if canvas is None:
         return None
@@ -147,55 +187,79 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
         canvas.upload_atlas(_wx_tiles(tile))
 
     canvas.clear((0, 0, 0))                     # black — bright content reads best on unlit pixels
-
+    deg = '\N{DEGREE SIGN}'
     compact = W < 100 or H < 40
     if compact:
         tile = min(tile, max(12, int(H * 0.62))) & ~1
     iy = 2 if compact else 3
 
+    # condition icon (a colour sprite, or a coloured disc where the wall has no sprite op)
     if use_sprites:
         canvas.sprite(_icon_for(tok, night), 2, iy)
     else:
         canvas.circle(2 + tile // 2, iy + tile // 2, tile // 2 - 1,
-                      (255, 206, 50) if tok == 'clear' and not night else (220, 226, 238), fill=True)
+                      (255, 206, 50) if tok == 'clear' and not night else (150, 200, 255), fill=True)
 
-    # big temperature, snapped to a real face, with a drawn degree ring (no "°" byte)
+    # big temperature, tinted by how warm it is
+    tstr = f'{temp}{deg}' if temp is not None else '--'
     tsize = canvas.face(int(tile * (1.0 if compact else 0.95)))
     tx = 2 + tile + 3
     ty = iy + (tile - tsize) // 2
-    canvas.shadow_text(tx, ty, f'{temp}°' if temp is not None else '--°', (255, 255, 255), tsize)
+    canvas.shadow_text(tx, ty, tstr, _ramp(wx.get('temp_f')), tsize)
+    tw = len(tstr) * canvas.face_width(tsize)
+    word = _WORD.get(tok, tok.title())
 
-    if compact:
-        sub = _WORD.get(tok, tok.title())
+    if compact:                                 # small panel: word + coloured H/L on one line
+        x = _segs(canvas, 2, H - 9, [(word + '  ', _WORDC)], 8, W - 2)
         if hi is not None and lo is not None:
-            sub = f'{hi}/{lo}  {sub}'
-        canvas.shadow_text(2, H - 9, sub, (232, 238, 248), 8)
+            _segs(canvas, x, H - 9, [(f'{hi}{deg}', _WARM), ('/', _MUTE), (f'{lo}{deg}', _COOL)], 8, W)
         canvas.show()
         return 300.0
 
-    sub = _WORD.get(tok, tok.title())
-    if hi is not None and lo is not None:
-        sub = f'{sub}  {hi}/{lo}'
-    canvas.shadow_text(tx, iy + tile - 1, sub[:22], (226, 233, 246), 8)
+    # --- wide layout: fill the width with real, colour-coded data -------------
+    canvas.shadow_text(tx + tw + 7, ty + max(0, (tsize - 10) // 2), word[:18], _WORDC,
+                       canvas.fit(word[:18], W - (tx + tw + 7) - 2, 13))
     if show_city and city:
-        canvas.shadow_text(W - 2, 1, city[:16], (232, 240, 250), 8, align='right')
+        canvas.shadow_text(W - 2, 1, city[:18], _DAY, 8, align='right')
 
+    # one spanning stats row — H/L warm/cool, then feels / humidity / wind while they fit
+    row = []
+    if hi is not None:
+        row += [(f'H {hi}{deg}  ', _WARM)]
+    if lo is not None:
+        row += [(f'L {lo}{deg}   ', _COOL)]
+    feels = _conv(wx.get('feels_like_f'), unit)
+    if feels is not None:
+        row += [(f'Feels {feels}{deg}   ', _MUTE)]
+    if wx.get('humidity') is not None:
+        row += [(f'Hum {int(wx["humidity"])}%   ', _MUTE)]
+    if wx.get('wind_mph') is not None:
+        row += [(f'Wind {int(wx["wind_mph"])}', _MUTE)]
+    _segs(canvas, 2, iy + tile + 2, row, 8, W - 2)
+
+    # 3-day forecast strip: day muted, high warm, low cool
     fc = (wx.get('forecast') or [])[:3]
     if fc:
-        fh = max(9, int(H * 0.26))
+        fh = max(9, int(H * 0.24))
         fy = H - fh
-        canvas.rect(0, fy - 1, W, 1, (235, 240, 250))
+        canvas.rect(0, fy - 1, W, 1, (44, 52, 68))
         cw = W // len(fc)
         for i, day in enumerate(fc):
             if i:
-                canvas.vline(i * cw, fy + 1, fh - 2, (235, 240, 250))
+                canvas.vline(i * cw, fy + 1, fh - 2, (44, 52, 68))
             try:
                 lbl = datetime.strptime(str(day.get('date'))[:10], '%Y-%m-%d').strftime('%a')
             except Exception:
                 lbl = ''
             dhi, dlo = _conv(day.get('hi_f'), unit), _conv(day.get('lo_f'), unit)
-            txt = f'{lbl} {dhi}/{dlo}' if (dhi is not None and dlo is not None) else lbl
-            canvas.shadow_text(i * cw + cw // 2, fy + (fh - 8) // 2, txt, (232, 238, 248), 8, align='center')
+            if dhi is None or dlo is None:
+                cell = [(lbl, _DAY)]
+            else:
+                cell = [(lbl + ' ', _DAY), (f'{dhi}{deg}', _WARM), ('/', _MUTE), (f'{dlo}{deg}', _COOL)]
+                if _segs_w(canvas, cell, 8) > cw - 2:                # too narrow for both — show the high
+                    cell = [(lbl + ' ', _DAY), (f'{dhi}{deg}', _WARM)]
+            cx0 = i * cw + max(2, (cw - _segs_w(canvas, cell, 8)) // 2)
+            _segs(canvas, cx0, fy + (fh - 8) // 2, cell, 8, (i + 1) * cw - 1)
 
     canvas.show()
     return 300.0

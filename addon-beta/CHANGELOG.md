@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.11
+
+- **Weather Panel: richer, colourful, and it fills a wide screen.** It used to be plain white text
+  in the top-left with a lot of dead space. Now the big temperature is tinted by how warm it is, the
+  condition is cyan, the high is warm-orange and the low is cool-blue, and a stats row spreads Feels
+  / Humidity / Wind across the width with a colour-coded 3-day forecast beneath. Every temperature —
+  current, high, low and each forecast day — now carries a degree sign.
+
 ## 2.9.1-beta.10
 
 - **Weather Sky: the drifting cloud is a cloud now.** It used to be a single pale disc gliding
