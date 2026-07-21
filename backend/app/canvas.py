@@ -557,11 +557,13 @@ def put_atlas_named(url: str, name: str, tiles: bytes, tile_w: int, tile_h: int,
     firmware 3.1). Same MPTA body as the unnamed route; the name is the address a later
     ``{"op":"atlas"}`` binds."""
     try:
+        body = _atlas_body(tiles, tile_w, tile_h, count, fmt)
         ok = _ok(gateway._request("PUT", url, f"/api/canvas/atlas/{name}",
-                                  content=_atlas_body(tiles, tile_w, tile_h, count, fmt),
+                                  content=body,
                                   headers={"Content-Type": "application/octet-stream"},
                                   timeout=timeout))
         if ok:
+            log.info("canvas %s: atlas '%s' sprites uploaded, %d tile(s) %d B", url, name, count, len(body))
             rows = _ATLAS_KNOWN.setdefault(url, {"at": time.monotonic(), "rows": {}})["rows"]
             rows[name] = {"name": name, "resident": True, "persisted": rows.get(name, {}).get("persisted", False)}
         else:
@@ -857,7 +859,11 @@ class CanvasSurface:
             return True
         ops, self._ops = self._ops + [{"op": "show"}], []
         if self.url in _SIM_URLS:                       # sim: an ops app renders on-device, so it
+            log.info("canvas %s: [sim] %d op(s) not sent", self.url, len(ops))
             return True                                 # cannot preview here; just don't drive the panel
+        if log.isEnabledFor(logging.INFO):
+            import json
+            log.info("canvas %s: ops %d op(s) %d B", self.url, len(ops), len(json.dumps(ops).encode()))
         return draw_ops(self.url, ops)
 
     # -- whole-panel content -------------------------------------------------
@@ -876,14 +882,19 @@ class CanvasSurface:
         # hiccup falls back to the raw frame, so a frame is never lost to compression.
         if self.can_qoi:
             try:
-                return put_qoi(self.url, qoi_encode(b, self.width, self.height))
+                enc = qoi_encode(b, self.width, self.height)
+                ok = put_qoi(self.url, enc)
+                log.info("canvas %s: full frame (qoi) %d B", self.url, len(enc))
+                return ok
             except Exception as e:
                 log.debug("canvas.frame QOI encode failed, sending raw: %s", e)
+        log.info("canvas %s: full frame (raw) %d B", self.url, len(b))
         return put_frame(self.url, b)
 
     def _push_rgb(self, b: bytes) -> bool:
         if self.url in _SIM_URLS:                                  # sim: cache for the preview, drive nothing
             _remember_frame(self.url, self.width, self.height, b)
+            log.info("canvas %s: [sim] frame not sent (%d B)", self.url, len(b))
             return True
         old = _LAST_FRAME.get(self.url)                             # the base (last frame we sent)
         n = _DELTA_N.get(self.url, 0) + 1
@@ -899,10 +910,14 @@ class CanvasSurface:
                 rects = None
             if rects == []:                                        # identical -> panel already shows b
                 _remember_frame(self.url, self.width, self.height, b)
+                log.info("canvas %s: frame unchanged, nothing sent", self.url)
                 return True
-            if rects and put_rects(self.url, rects) is True:       # a small change -> only the rects
-                _remember_frame(self.url, self.width, self.height, b)
-                return True
+            if rects:                                              # a small change -> only the rects
+                size = 4 + sum(8 + len(px) for *_, px in rects)    # frame header + per-rect header + pixels
+                if put_rects(self.url, rects) is True:
+                    _remember_frame(self.url, self.width, self.height, b)
+                    log.info("canvas %s: incremental %d rect(s) %d B", self.url, len(rects), size)
+                    return True
             # rects is None (too much changed), a 413, or a transient error -> full frame, which
             # also re-establishes the base after a reboot.
         ok = self._push_full(b)
@@ -1000,8 +1015,11 @@ class CanvasSurface:
             tiles = bytes(buf)
             name = atlas_name_for(tiles, tw, th, len(imgs), fmt)
             row = _atlas_row(self.url, name)                   # what the wall's library says about it
-            if row is None and not put_atlas_named(self.url, name, tiles, tw, th, len(imgs), fmt):
-                return False
+            if row is None:
+                if not put_atlas_named(self.url, name, tiles, tw, th, len(imgs), fmt):
+                    return False
+            else:
+                log.info("canvas %s: atlas '%s' already resident, bound only", self.url, name)
             if persist and not (row or {}).get("persisted"):   # save once — skip if already on flash
                 atlas_save(self.url, name)                      # marks it persisted in the cache
             # Bind for the sprites that follow. Queued with the drawing, so it costs one op rather

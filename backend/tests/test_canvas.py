@@ -143,6 +143,43 @@ def test_the_bind_precedes_the_sprites_in_the_batch(wall):
     assert kinds.index("atlas") < kinds.index("sprite")  # binding after the blit would draw nothing
 
 
+# --- INFO logging: every gateway push says its size + what it is -------------
+
+def _delta_surface():
+    return canvas.CanvasSurface("http://gw", 128, 32, ("rgb888", "rgb565", "qoi"), rects=True)
+
+
+def test_frame_pushes_log_size_and_whether_full_or_incremental(gw_calls, caplog):
+    import logging
+    surf = _delta_surface()
+    base = bytes(128 * 32 * 3)
+    changed = bytearray(base)
+    changed[0:3] = b"\xff\xff\xff"                          # one pixel differs -> a small delta
+    with caplog.at_level(logging.INFO, logger="companion.canvas"):
+        surf.frame(base)                                   # no base yet -> full frame
+        surf.frame(bytes(changed))                         # tiny change -> incremental rects
+        surf.frame(bytes(changed))                         # identical -> nothing on the wire
+    text = caplog.text
+    assert "full frame (qoi)" in text
+    assert "incremental" in text and "rect(s)" in text
+    assert "frame unchanged, nothing sent" in text
+    assert " B" in text                                    # each line carries a byte size
+
+
+def test_atlas_logs_upload_then_already_resident(wall, caplog):
+    import logging
+    with caplog.at_level(logging.INFO, logger="companion.canvas"):
+        for _ in range(2):
+            s = _named_surface()
+            s.upload_atlas(_imgs())
+            s.sprite(0, 0, 0)
+            s.show()
+    text = caplog.text
+    assert "sprites uploaded" in text                      # first draw put the sheet
+    assert "already resident, bound only" in text          # second draw only bound it
+    assert "ops" in text and "op(s)" in text               # the ops batch reports its size
+
+
 def test_different_tiles_get_their_own_sheet(wall):
     a, b = _imgs(shade=1), _imgs(shade=9)
     for tiles in (a, b, a, b):

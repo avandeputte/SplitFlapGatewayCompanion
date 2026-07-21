@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.18
+
+- **Gateway pushes are logged at INFO.** With the log level at INFO (or DEBUG), every canvas
+  push to the panel now records what it sent: a full frame (`full frame (qoi)` / `(raw)`) vs an
+  incremental refresh (`incremental N rect(s)`), each with its byte size; a skipped identical
+  frame (`frame unchanged, nothing sent`); the ops batch size for on-device draw apps; and, for
+  sprite sheets, whether the tiles were uploaded (`sprites uploaded, N tile(s)`) or the wall
+  already had them (`already resident, bound only`). Makes it easy to see network traffic and
+  atlas reuse at a glance.
+
 ## 2.9.1-beta.17
 
 - **Weather Panel redesigned.** The top row now fills the full width — big temperature, condition,
