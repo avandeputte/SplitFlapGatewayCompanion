@@ -92,7 +92,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         if st.get('tiles_for') != tile:                      # draw the sprites once per size, not per frame
             st['tiles'] = _fish_tiles(tile)
             st['tiles_for'] = tile
-        canvas.upload_atlas(st['tiles'])
+        canvas.upload_atlas(st['tiles'], persist=True)
 
     top, bot = water
     canvas.gradient(0, 0, W, H, top, bot, 'v')                 # the water column

@@ -162,7 +162,7 @@ def test_a_sheet_the_wall_lost_is_re_uploaded(wall):
     wall["sheets"].clear()                               # the wall rebooted
     entry = canvas._ATLAS_KNOWN["http://gw"]             # age our belief past the verify window
     canvas._ATLAS_KNOWN["http://gw"] = {"at": entry["at"] - canvas._ATLAS_VERIFY_S - 1,
-                                        "names": entry["names"]}
+                                        "rows": entry["rows"]}
     s = _named_surface(); s.upload_atlas(tiles); s.show()
     assert len(_uploads(wall)) == 2                      # noticed and restored
 
@@ -177,6 +177,20 @@ def test_sheets_survive_handing_the_panel_back(wall):
     s = _named_surface(); s.upload_atlas(tiles); s.show()   # the app comes round again
     assert len(_uploads(wall)) == 1                       # no re-upload
     assert len([c for c in wall["calls"] if c[0] == "GET"]) == before   # and no re-check
+
+
+def test_a_persisted_sheet_is_saved_once(wall):
+    """A stable icon sheet (persist=True) is POST-saved to flash once — not on every draw — so it
+    survives a reboot and LRU eviction; a per-matchup sheet (persist=False) is never saved."""
+    tiles = _imgs()
+    for _ in range(4):
+        _named_surface().upload_atlas(tiles, persist=True)
+    saves = [c for c in wall["calls"] if c[0] == "POST" and c[1].endswith("/save")]
+    assert len(saves) == 1                              # saved once, then the cache marks it persisted
+    before = len([c for c in wall["calls"] if c[0] == "POST"])
+    _named_surface().upload_atlas(_imgs(shade=7), persist=False)
+    assert len([c for c in wall["calls"] if c[0] == "POST" and c[1].endswith("/save")]) == 1
+    assert before == before                             # no extra save for the non-persisted sheet
 
 
 def test_the_sheet_name_is_wall_legal():

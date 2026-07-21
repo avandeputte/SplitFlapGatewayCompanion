@@ -64,7 +64,7 @@ def forget_frame(url: str) -> None:
 # The wall can still drop a sheet under us (a reboot, or LRU eviction by other sheets), and a
 # `sprite` with nothing bound silently draws nothing — so the belief is re-checked against the
 # device's own library on a wall-clock bound. That check is a small JSON GET, not a re-upload.
-_ATLAS_KNOWN: dict = {}         # url -> {"at": monotonic, "names": set[str]}
+_ATLAS_KNOWN: dict = {}         # url -> {"at": monotonic, "rows": {name: library_row}}
 _ATLAS_VERIFY_S = 60.0
 _ATLAS_NAME_MAX = 32            # firmware: [a-z0-9._-]{1,32}
 
@@ -527,7 +527,8 @@ def put_atlas_named(url: str, name: str, tiles: bytes, tile_w: int, tile_h: int,
                                   headers={"Content-Type": "application/octet-stream"},
                                   timeout=timeout))
         if ok:
-            _ATLAS_KNOWN.setdefault(url, {"at": time.monotonic(), "names": set()})["names"].add(name)
+            rows = _ATLAS_KNOWN.setdefault(url, {"at": time.monotonic(), "rows": {}})["rows"]
+            rows[name] = {"name": name, "resident": True, "persisted": rows.get(name, {}).get("persisted", False)}
         else:
             forget_atlas(url)                           # we no longer know what's up there
         return ok
@@ -553,28 +554,44 @@ def atlas_list(url: str, timeout: float = 8.0) -> list:
 
 
 def atlas_save(url: str, name: str, timeout: float = 15.0) -> bool:
-    """Persist a sheet to the wall's filesystem so it survives a reboot (lazy-loaded on bind)."""
-    return _ok(gateway._request("POST", url, f"/api/canvas/atlas/{name}/save", timeout=timeout))
+    """Persist a sheet to the wall's filesystem so it survives a reboot AND an LRU eviction
+    (lazy-loaded on the next bind)."""
+    ok = _ok(gateway._request("POST", url, f"/api/canvas/atlas/{name}/save", timeout=timeout))
+    if ok:
+        row = _ATLAS_KNOWN.get(url, {}).get("rows", {}).get(name)
+        if row:
+            row["persisted"] = True
+    return ok
 
 
 def atlas_delete(url: str, name: str, timeout: float = 10.0) -> bool:
     """Drop a sheet from the wall, resident and persisted."""
     ok = _ok(gateway._request("DELETE", url, f"/api/canvas/atlas/{name}", timeout=timeout))
-    e = _ATLAS_KNOWN.get(url)
-    if ok and e:
-        e["names"].discard(name)
+    if ok:
+        _ATLAS_KNOWN.get(url, {}).get("rows", {}).pop(name, None)
     return ok
 
 
-def atlas_has(url: str, name: str) -> bool:
-    """Is ``name`` bindable on this wall? Answered from what we last saw, re-reading the wall's
-    library when that belief is older than the verify window — a sheet can vanish under us."""
+def _atlas_lib(url: str) -> dict:
+    """``{name: row}`` of the wall's atlas library from what we last saw, re-reading it when the
+    belief is older than the verify window — a sheet can be evicted or lost to a reboot under us."""
     e = _ATLAS_KNOWN.get(url)
     now = time.monotonic()
     if e is None or now - e["at"] > _ATLAS_VERIFY_S:
-        names = {str(a.get("name")) for a in atlas_list(url) if isinstance(a, dict) and a.get("name")}
-        _ATLAS_KNOWN[url] = e = {"at": now, "names": names}
-    return name in e["names"]
+        rows = {str(a["name"]): a for a in atlas_list(url) if isinstance(a, dict) and a.get("name")}
+        _ATLAS_KNOWN[url] = e = {"at": now, "rows": rows}
+    return e["rows"]
+
+
+def _atlas_row(url: str, name: str):
+    """The library row for ``name`` (with its ``persisted``/``resident`` flags), or None if the
+    wall doesn't have it — in which case the caller uploads."""
+    return _atlas_lib(url).get(name)
+
+
+def atlas_has(url: str, name: str) -> bool:
+    """Is ``name`` bindable on this wall (resident or persisted)?"""
+    return name in _atlas_lib(url)
 
 
 def get_state(url: str, timeout: float = 5.0) -> dict:
@@ -918,13 +935,18 @@ class CanvasSurface:
         """Delete a saved library animation (firmware 2.1)."""
         return anim_delete(self.url, name)
 
-    def upload_atlas(self, images, fmt: str = "rgb888") -> bool:
+    def upload_atlas(self, images, fmt: str = "rgb888", persist: bool = False) -> bool:
         """Make ``images`` (equal-size PIL images) the sheet the following ``sprite(i)`` calls
         blit from. Magenta (255,0,255) is transparent. Needs ``canvas.can_sprite``.
 
         Call it on every draw — that is the safe habit, because the library is shared. It costs
         almost nothing to do so: the sheet is named by a fingerprint of its own bytes, so identical
-        tiles are uploaded ONCE and each later draw adds just a small bind op."""
+        tiles are uploaded ONCE and each later draw adds just a small bind op.
+
+        ``persist=True`` for a sheet whose CONTENT is stable across the session (an app's own icon
+        set, say — but NOT a scoreboard's per-matchup logos): it is saved to the wall's flash once,
+        so it survives a reboot AND an LRU eviction by other apps' sheets, lazy-loading on the next
+        bind instead of being re-uploaded."""
         try:
             imgs = [im.convert("RGB") for im in images]
             if not imgs:
@@ -935,9 +957,11 @@ class CanvasSurface:
                 buf += (im if (im.width, im.height) == (tw, th) else im.resize((tw, th))).tobytes()
             tiles = bytes(buf)
             name = atlas_name_for(tiles, tw, th, len(imgs), fmt)
-            if not atlas_has(self.url, name) and not put_atlas_named(
-                    self.url, name, tiles, tw, th, len(imgs), fmt):
+            row = _atlas_row(self.url, name)                   # what the wall's library says about it
+            if row is None and not put_atlas_named(self.url, name, tiles, tw, th, len(imgs), fmt):
                 return False
+            if persist and not (row or {}).get("persisted"):   # save once — skip if already on flash
+                atlas_save(self.url, name)                      # marks it persisted in the cache
             # Bind for the sprites that follow. Queued with the drawing, so it costs one op rather
             # than a request, and the batch is self-contained: no reliance on a sticky earlier bind.
             self._ops.append({"op": "atlas", "name": name})

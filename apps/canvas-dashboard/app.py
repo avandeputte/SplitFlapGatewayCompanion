@@ -8,7 +8,8 @@ per-entity thresholds for numeric sensors.
 
 Bright content on BLACK reads best on an LED panel. Text goes through the injected ``canvas``
 helpers — ``canvas.shadow_text`` (drop-shadow + CP1252 filter), ``canvas.face``/``canvas.fit``
-(snap to the bundled faces {8,9,10,13,18,20}); the shared atlas is re-uploaded every draw.
+(snap to the bundled faces {8,9,10,13,18,20}); the icon sheet is a persisted named atlas —
+uploaded once, then just re-bound each draw.
 """
 
 import math
@@ -193,7 +194,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states
     show_name = ch >= tile + 12
 
     if use_sprites:
-        canvas.upload_atlas(_icons(tile))
+        canvas.upload_atlas(_icons(tile), persist=True)
 
     for i, eid in enumerate(ids):
         r, c = divmod(i, cols)

@@ -184,7 +184,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
     # app redraws only every few minutes, and the tiles are tiny.
     use_sprites = bool(getattr(canvas, 'can_sprite', False))
     if use_sprites:
-        canvas.upload_atlas(_wx_tiles(tile))
+        canvas.upload_atlas(_wx_tiles(tile), persist=True)
 
     canvas.clear((0, 0, 0))                     # black — bright content reads best on unlit pixels
     deg = '\N{DEGREE SIGN}'
@@ -249,7 +249,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
         fih = min(fh, 14) & ~1
         show_ic = use_sprites and cw >= 56 and fih >= 8
         if show_ic:
-            canvas.upload_atlas(_wx_tiles(fih))
+            canvas.upload_atlas(_wx_tiles(fih), persist=True)
         for i, day in enumerate(fc):
             if i:
                 canvas.vline(i * cw, fy + 1, fh - 2, (44, 52, 68))

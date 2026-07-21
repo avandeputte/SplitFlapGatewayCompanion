@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.14
+
+- **Sprite sheets with stable content persist across reboots.** An app whose icon set never changes
+  (HA Dashboard, Weather Panel, Aquarium) now saves its sheet to the gateway's flash once, so it
+  survives a reboot AND eviction by other apps' sheets — reloaded on demand instead of re-uploaded.
+  The Scoreboard's per-matchup logos stay non-persisted (they'd otherwise fill the flash).
+
 ## 2.9.1-beta.13
 
 - **Matrix firmware 3.1: delta frames.** A drawn-frame app (clocks, weather, image) now sends only
