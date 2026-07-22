@@ -27,7 +27,8 @@ _Studied against MatrixPortalGateway firmware **3.2.0** (API 3.1.0) — `src/web
    - `GET /api/canvas/stream` reports channel state (`open, records, lastClose, …`).
 
 2. **SSE `status` events.** `GET /api/events` now also pushes the `GET /api/status` JSON every 5 s
-   (alongside `display` events). A client on the stream can stand its status poller down.
+   (alongside `display` events). This lets a client that *polls* status stand its poller down — which
+   is the **gateway's own dashboard**, not us (see "Status SSE — nothing to do" below).
 
 3. Firmware-internal (no companion action): glyph run-blitter, pre-gzipped dashboard.
 
@@ -95,10 +96,19 @@ Aquarium, Dashboard, Scoreboard use `POST /ops` + atlas uploads. The stream can 
 (`0x03`) and atlas binds (`0x04`) while atlas **uploads** still go over REST (not 409-blocked). Lower
 priority — the frame-push win is bigger and simpler; revisit once Phase 3 has soaked.
 
-### Phase 5 — status SSE (independent, small)
-The companion already consumes `display` SSE for preview correctness; subscribe to the new v3.2
-`status` events too and stand down the status poller while connected (fewer connections, fresher
-numbers). Fully independent of the stream work.
+### Status SSE — nothing to do (and why)
+The v3.2 status-over-SSE is **not** a companion win, because the companion isn't a status *observer*:
+- It calls the gateway's `/api/status` **once, at connect** (`transport/rest.py`), only to set the
+  reachability pill — there is no periodic status poller to stand down.
+- Its live preview is pushed to the browser over the **companion's own** `/api/events` SSE
+  (`app/events.py`), built from the companion's own display state — it never consumes the *gateway's*
+  `/api/events`.
+
+So this capability improves the **gateway's own web dashboard** (whose 3 s status poller can now ride
+the stream), and the companion needs no change. The **only** thing that would flip this is a future
+"show live gateway health (heap / temperature / WiFi RSSI / uptime) in the companion UI" feature — at
+that point, consuming the gateway's `/api/events` status frames instead of polling `/api/status` would
+be the efficient path. Not in scope here.
 
 ## Guardrails / risks
 - **One stream, panel-wide.** Multi-display already keys transport per gateway URL; ensure only the
