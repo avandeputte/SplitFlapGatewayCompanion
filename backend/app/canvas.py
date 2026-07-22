@@ -20,7 +20,10 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import socket
+import struct
 import time
+from urllib.parse import urlparse
 
 from . import gateway
 
@@ -284,6 +287,132 @@ def put_rect(url: str, x: int, y: int, w: int, h: int, rgb: bytes, timeout: floa
         return False
 
 
+def _rects_body(rects: list, fmt: int = 2) -> bytes:
+    """The ``PUT /api/canvas/rects`` wire body (also the payload of the stream's 0x02 record):
+    big-endian ``u16 count, u8 fmt, u8 0``; then per rect ``u16 x,y,w,h`` and its pixels."""
+    parts = [len(rects).to_bytes(2, "big"), bytes((int(fmt) & 0xFF, 0))]
+    for x, y, w, h, px in rects:
+        parts.append(int(x).to_bytes(2, "big") + int(y).to_bytes(2, "big")
+                     + int(w).to_bytes(2, "big") + int(h).to_bytes(2, "big"))
+        parts.append(bytes(px))
+    return b"".join(parts)
+
+
+# The gateway ignores the declared Content-Length and stops at the end record, but esp_http_server
+# needs a body-carrying length; a large placeholder never actually flows.
+_STREAM_CONTENT_LENGTH = 1 << 30
+
+
+def _tlv(rtype: int, payload: bytes = b"") -> bytes:
+    """One stream record: big-endian ``u8 type, u24 payloadLength, payload``."""
+    return struct.pack(">B", rtype & 0xFF) + len(payload).to_bytes(3, "big") + bytes(payload)
+
+
+class CanvasStream:
+    """A persistent TLV draw channel to a firmware-3.2 wall (``PUT /api/canvas/stream``): one
+    long-lived socket carrying draw records back-to-back, with no per-frame HTTP round trip. The
+    caller opens it, sends frames/rects/ops/present as the app draws, and closes it (end record) on
+    hand-back — one stream at a time per wall, so drawing REST endpoints answer 409 while it is open.
+
+    Any socket error tears the session down (``alive`` goes False) so the caller falls back to the
+    per-frame HTTP path. ``connect`` is a test seam: a zero-arg factory returning a socket-like
+    object (``sendall``/``recv``/``close``); left None, it dials the gateway."""
+
+    def __init__(self, url: str, timeout: float = 10.0, connect=None):
+        self.url = url
+        self.timeout = timeout
+        self._connect = connect
+        self.sock = None
+        self.alive = False
+        self.records = 0
+        self._head_pending = False
+
+    def _head(self) -> bytes:
+        u = urlparse(self.url)
+        host = u.hostname or ""
+        hostport = f"{host}:{u.port}" if u.port else host
+        return (f"PUT /api/canvas/stream HTTP/1.1\r\n"
+                f"Host: {hostport}\r\n"
+                f"Content-Type: application/octet-stream\r\n"
+                f"Content-Length: {_STREAM_CONTENT_LENGTH}\r\n"
+                f"Connection: close\r\n\r\n").encode()
+
+    def open(self) -> bool:
+        """Connect the socket. The request head is NOT sent yet — it rides the FIRST record (a bare
+        body-carrying head parse-blocks esp_http_server's worker), so just call a draw method next."""
+        u = urlparse(self.url)
+        try:
+            self.sock = (self._connect() if self._connect
+                         else socket.create_connection((u.hostname, u.port or 80), self.timeout))
+            self.sock.settimeout(self.timeout)
+            self.alive = True
+            self._head_pending = True
+            return True
+        except Exception as e:
+            log.debug("canvas stream open failed: %s", e)
+            self._kill()
+            return False
+
+    def _send(self, rec: bytes) -> bool:
+        if not self.alive:
+            return False
+        try:
+            self.sock.sendall((self._head() + rec) if self._head_pending else rec)
+            self._head_pending = False
+            self.records += 1
+            return True
+        except Exception as e:
+            log.debug("canvas stream send failed: %s", e)
+            self._kill()
+            return False
+
+    def frame(self, fmt: int, pixels: bytes) -> bool:            # 0x01 full frame (fmt 2=rgb565, 3=rgb888)
+        return self._send(_tlv(0x01, bytes((int(fmt) & 0xFF,)) + bytes(pixels)))
+
+    def rects(self, rects: list, fmt: int = 2) -> bool:          # 0x02 rect deltas
+        return self._send(_tlv(0x02, _rects_body(rects, fmt)))
+
+    def ops(self, ops_json: bytes) -> bool:                      # 0x03 ops JSON (presents via its show op)
+        return self._send(_tlv(0x03, ops_json))
+
+    def bind(self, name: str) -> bool:                           # 0x04 bind a named atlas sheet
+        return self._send(_tlv(0x04, str(name).encode()))
+
+    def present(self) -> bool:                                   # 0x05 present the back buffer
+        return self._send(_tlv(0x05))
+
+    def close(self) -> int | None:
+        """Send the end record (0x00), read the ``200 {"records":N}``, close. Returns the record
+        count, or None if the stream never really opened. Safe to call more than once."""
+        if not self.sock:
+            return None
+        sent = self.records
+        try:
+            if self.alive and not self._head_pending:           # nothing to end if no record ever went
+                self.sock.sendall(_tlv(0x00))
+                deadline_bytes = b""
+                while len(deadline_bytes) < 8192:               # drain the small JSON reply, then done
+                    chunk = self.sock.recv(2048)
+                    if not chunk:
+                        break
+                    deadline_bytes += chunk
+        except Exception as e:
+            log.debug("canvas stream close: %s", e)
+        finally:
+            self._kill()
+        return sent
+
+    def _kill(self) -> None:
+        self.alive = False
+        self._head_pending = False
+        try:
+            if self.sock:
+                self.sock.close()
+        except Exception:
+            pass
+        self.sock = None
+
+
 def put_rects(url: str, rects: list, fmt: int = 2, timeout: float = 10.0):
     """Draw several changed rectangles over the live frame in one request (PUT /api/canvas/rects,
     firmware 3.1). ``rects`` is ``[(x, y, w, h, pixel_bytes)]`` with pixels in ``fmt`` (2 = rgb565
@@ -291,12 +420,7 @@ def put_rects(url: str, rects: list, fmt: int = 2, timeout: float = 10.0):
     rect u16 x,y,w,h and the pixels. Returns True (drawn), "toobig" on 413 (send a full frame
     instead), or False on any other error."""
     try:
-        parts = [len(rects).to_bytes(2, "big"), bytes((int(fmt) & 0xFF, 0))]
-        for x, y, w, h, px in rects:
-            parts.append(int(x).to_bytes(2, "big") + int(y).to_bytes(2, "big")
-                         + int(w).to_bytes(2, "big") + int(h).to_bytes(2, "big"))
-            parts.append(bytes(px))
-        r = gateway._request("PUT", url, "/api/canvas/rects", content=b"".join(parts),
+        r = gateway._request("PUT", url, "/api/canvas/rects", content=_rects_body(rects, fmt),
                              headers={"Content-Type": "application/octet-stream"}, timeout=timeout)
         if getattr(r, "status_code", 0) == 413:
             return "toobig"
@@ -701,7 +825,7 @@ class CanvasSurface:
                  rect: bool = False, rects: bool = False, anim: bool = False, ticker: bool = False,
                  effect_params: tuple = (), readback: bool = False, ops: tuple = (),
                  overlay: bool = False, transition: bool = False, anim_library: bool = False,
-                 gif: bool = False, fonts: bool = False, sprite: bool = False):
+                 gif: bool = False, fonts: bool = False, sprite: bool = False, stream: bool = False):
         self.url = url
         self.width = int(width)
         self.height = int(height)
@@ -712,6 +836,7 @@ class CanvasSurface:
         self.can_qoi = "qoi" in self.formats
         self.can_rect = bool(rect)
         self.can_rects = bool(rects)            # 3.1: frame() sends only the changed rects (delta)
+        self.can_stream = bool(stream)          # 3.2: PUT /api/canvas/stream — persistent TLV channel
         self.can_anim = bool(anim)
         self.can_ticker = bool(ticker)
         self.effect_params = tuple(effect_params)

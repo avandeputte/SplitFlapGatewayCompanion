@@ -696,7 +696,8 @@ class PluginRuntime:
             anim=caps.canvas_anim, ticker=caps.canvas_ticker,
             effect_params=caps.effect_params, readback=caps.canvas_readback,
             ops=caps.canvas_ops, overlay=two_one, transition=two_one,
-            anim_library=two_one, gif=two_one, fonts=two_one, sprite=caps.canvas_sprite)
+            anim_library=two_one, gif=two_one, fonts=two_one, sprite=caps.canvas_sprite,
+            stream=caps.canvas_stream)
 
     def is_channel_app(self, app_id: str) -> bool:
         return self._registry.get(app_id, {}).get("type") in _CHANNELISH

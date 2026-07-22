@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.1
+
+- **Groundwork for the Matrix-panel *canvas stream* (firmware 3.2).** The companion now detects the
+  gateway's `canvas.stream` capability and ships the persistent draw-channel transport
+  (`PUT /api/canvas/stream`) — one long-lived connection that carries frame/rect/ops records with no
+  per-frame HTTP round trip. It is **not driving apps over it yet** (that's the next beta), so there
+  is no behaviour change; walls below firmware 3.2 are unaffected.
+
 ## 2.9.2
 
 - **Fortune-cookie panel icon** now uses an openly-licensed emoji (Noto Emoji, Apache-2.0) rather

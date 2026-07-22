@@ -108,6 +108,9 @@ class Capabilities:
     # 3.1: PUT /api/canvas/rects — a frame-push app sends only the rectangles that changed since
     # its last frame instead of the whole panel. Advertised as canvas.rects.
     canvas_rects: bool = False
+    # 3.2: PUT /api/canvas/stream — a persistent TLV draw channel. One long-lived connection carries
+    # frame/rect/ops records back-to-back, no per-frame HTTP round trip. Advertised as canvas.stream.
+    canvas_stream: bool = False
     events: bool = False                    # GET /api/events — the gateway's own SSE display stream
 
     def __bool__(self) -> bool:
@@ -285,6 +288,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_readback=canvas_readback,
         canvas_ops=canvas_ops,
         canvas_rects=bool(canvas.get("rects")),
+        canvas_stream=bool(canvas.get("stream")),
         events="events" in features,
     )
 
