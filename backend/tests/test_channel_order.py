@@ -66,7 +66,8 @@ def test_explicit_group_markers_keep_mixed_items_together(tmp_path):
 
 
 def test_the_shipped_defaults_are_sane():
-    """Single-page quote channels shuffle; jokes stay in order."""
+    """Quote/joke channels shuffle (a quiz keeps each question+answer together as it shuffles);
+    one-liners stay in their curated order."""
     import pathlib
     apps = pathlib.Path(__file__).resolve().parents[2] / "apps"
 
@@ -74,9 +75,9 @@ def test_the_shipped_defaults_are_sane():
         return json.loads((apps / app / "manifest.json").read_text()).get("order", "sequential")
 
     for a in ("magic-8-ball", "stoic-quotes", "star-wars-quotes",
-              "good-morning", "good-night", "fortune-cookie"):
+              "good-morning", "good-night", "fortune-cookie", "dad-jokes"):
         assert order(a) == "random", a
-    for a in ("dad-jokes", "funny-one-liners"):
+    for a in ("funny-one-liners",):
         assert order(a) == "sequential", a
 
 

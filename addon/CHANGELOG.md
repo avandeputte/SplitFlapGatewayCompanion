@@ -3,6 +3,28 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1
+
+**Channel apps come to the Matrix LED panel, a new quiz app type, two new apps, and faster, lighter
+panel updates.** A physical split-flap wall is unaffected — the drive path is unchanged.
+
+- **Channels on the Matrix panel.** Jokes, quotes, fortunes and the other channel apps can now show
+  on an LED panel as large text beside a themed icon, not only on the flaps. It is on by default on a
+  panel and can be turned off per app in that app's settings.
+- **New app type: Quiz.** A question, then — after a short pause — its answer: a two-screen reveal.
+  **Dad Jokes** is now a quiz, with a larger, tidied-up set.
+- **New apps.** **Movie Quotes** shows iconic lines with the film they are from. **Stock Graph** puts
+  a live quote in big type over its own price chart, for a single symbol or a rotating watchlist of
+  indices and tickers.
+- **Faster, lighter panel updates.** Working with Matrix Portal Gateway firmware 3.1, the gateway now
+  sends only the parts of the screen that changed and reuses sprite sheets across draws, so the panel
+  updates more smoothly and over far less WiFi, and on-panel text covers the full character set.
+- **A quiet panel when nothing is moving.** Panel apps that change only occasionally — the date card,
+  world clock and others — now redraw when something actually changes rather than on a fixed timer.
+- **Reworked panel apps.** Weather, Overview, the clocks and the scoreboard were redesigned for LED —
+  rich colour on a black background, clearer icons and degree signs, and a shared team and league
+  picker shared by Sports and Scoreboard.
+
 ## 2.9.0
 
 **Aligned with Matrix Portal Gateway firmware 3.0, plus new Home Assistant dashboard apps.**

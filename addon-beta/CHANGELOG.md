@@ -3,1021 +3,218 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
-## 2.9.1-beta.28
+## 2.9.1
 
-- **Movie Quotes: added six iconic (mildly profane) lines** — Die Hard, Pulp Fiction, The Big
-  Lebowski, Jurassic Park, Sideways, I Robot — bringing it to 174.
-- **Fortune-cookie panel icon redrawn.** On a Matrix panel it was reading as a plain yellow disc;
-  it's now the pinched two-lobe cookie with a fold and the fortune slip poking out. (Affects Fortune
-  Cookie and Sarcastic Fortune Cookies.)
+**Channel apps come to the Matrix LED panel, a new quiz app type, two new apps, and faster, lighter
+panel updates.** A physical split-flap wall is unaffected — the drive path is unchanged.
 
-## 2.9.1-beta.27
-
-- **Movie Quotes: expanded to 168 lines, title on its own line.** The set grew from 89 to 168 iconic
-  quotes, and each now shows the film on a second line under the quote ("Here's looking at you, kid." /
-  "- Casablanca") — on the flaps and on the panel.
-
-## 2.9.1-beta.26
-
-- **New app — Movie Quotes.** A channel of iconic lines from the movies, each with its title. On a
-  Matrix panel it renders with a clapperboard icon.
-
-## 2.9.1-beta.25
-
-- **Channel apps can render on a Matrix panel — text with themed art.** Every channel and quiz (jokes,
-  quotes, fortunes …) now has a **Show on Matrix panel (art + text)** toggle in its settings — on by
-  default, greyed out on a flap-only wall. On a panel it draws each line big on black beside a bespoke
-  icon: a lightsaber for Star Wars, a fortune cookie, a moon for good-night, an 8-ball, a coffee mug
-  for the office, quote marks, a Greek column, a lightning bolt, a grin, a speech bubble, a sun, a
-  shower head, a clapperboard. Works standalone and in playlists.
-- **New app type: quiz.** Like a channel, but every entry is a `[question, answer]` pair shown as a
-  two-screen reveal — the question, then (after the dwell) the answer. **Dad Jokes** is now a quiz
-  (its jokes without a clean question/answer were dropped) and its English set was expanded to 65
-  classic Q&A jokes with proper punctuation.
-- **Channel data is now raw text — the engine does all the formatting.** The bundled channel files had
-  lines pre-wrapped to the 15-column flap grid (`"What do you call a fake" / "noodle? An impasta!"`);
-  those were flattened back to full sentences, so both the flaps and the new panel renderer wrap and
-  paginate them for whatever display they land on.
-
-## 2.9.1-beta.24
-
-- **Sarcastic Fortune Cookies is now a channel app.** Nothing about it was actually dynamic — it just
-  picked a random bundled line — so it's converted from a functional (Python) app to a plain channel:
-  the engine wraps and cycles the fortunes itself, in random order, with a Delay Between Pages setting.
-  All ~28 language variants carry over (deduped to 15 distinct files where regionals matched their
-  base). Two latent display bugs fixed in passing: the French `œ` ligature (`vœu`, `cœur`) and a stray
-  `é` in the Danish/Swedish sets aren't on those flap reels and would have homed to blank — now written
-  reel-safe (`oe`, `e`).
-
-## 2.9.1-beta.23
-
-- **Weather Sky: the 3-day forecast highs/lows now carry the degree sign** (`Wed 77°/60°`), matching
-  the big temperature, the H/L and the feels-like line — the forecast strip was the one spot still
-  showing bare numbers. (Weather Panel and Overview already did throughout.)
-
-## 2.9.1-beta.22
-
-- **Stock Graph rotates through a watchlist.** The Symbols field now takes more than one ticker or
-  index — the app cycles through them like a market board, one per **Seconds Per Symbol** (default 8),
-  with a row of dots along the bottom-right marking the position and lit in the trend colour. Each
-  symbol keeps its own cached history and refreshes on its own; a single symbol behaves as before
-  (refresh on the poll, idle overnight). Also nudged the value/percentage stack up a few pixels so
-  the ▲/▼ arrow no longer touches the bottom edge on a 64-pixel panel.
-
-## 2.9.1-beta.21
-
-- **New app — Stock Graph (Matrix panel).** A market quote as big bold type over its own price
-  chart: the current value and the day's percentage in large letters, with the price line drawn as a
-  dim filled area across the full width behind them — green when up, red when down, on a black panel.
-  Defaults to the Dow (`^DJI`); any Yahoo symbol works (an index like `^GSPC`/`^IXIC`, or a ticker
-  like `AAPL`), and a Range picks the window (1D intraday through 1Y). Prices come from yfinance (the
-  same source as the flap Stocks app); the big number tracks the live last price while the percentage
-  and the faint baseline are measured from the previous close (intraday) or the window's start
-  (multi-day). History is fetched once per refresh and paused overnight/weekends when the exchange is
-  shut, so the panel goes quiet when the price can't move.
-
-## 2.9.1-beta.20
-
-- **Time-based canvas apps now redraw on their next change, not on a fast timer.** A canvas app's
-  return value is the seconds to hold before the next redraw; the still ones were returning a small
-  flat number and repainting an identical frame every 1–2 s, which sent nothing new but still tripped
-  the periodic keyframe (a full frame over the wire every ~40 s for a card that changes once a day).
-  Now:
-  - **Date Card** holds until the next local midnight (capped at an hour) — it only changes when the
-    day rolls (the year-progress bar drifts ~a pixel a day).
-  - **World Time** holds until the next minute — it shows HH:MM per zone, so it was repainting ~60×
-    a minute for one visible change.
-  - **Countdown**'s "set a target" prompt holds instead of repainting each second (the live countdown
-    keeps its smooth 5 fps sweep).
-
-  Genuinely animated apps (Aquarium, Weather Sky, Art Clock, the Overview seconds bar, the live
-  Countdown) and data-driven ones (Dashboard, Scoreboard, Weather Panel, Image, Ticker, effects) were
-  reviewed and left as-is — they either change every frame or already hold sensibly. Net effect: a
-  quiet INFO log and near-zero panel traffic when nothing on screen is actually moving.
-
-## 2.9.1-beta.19
-
-- **Canvas INFO logging now means "bytes crossed the wire."** The two no-op confirmations —
-  `atlas … already resident, bound only` (a cached sheet re-bind, no upload) and `frame unchanged,
-  nothing sent` (an identical frame skipped) — moved from INFO to DEBUG. A looping playlist re-binds
-  each app's cached atlas on every change; that's correct and nearly free (a ~40-byte bind op riding
-  the draw batch, residency served from a 60 s cache), but it was flooding the INFO stream with
-  non-events. INFO now shows only real traffic — full frames, incremental rects, sprite uploads, ops
-  batches — each with its size. Raise the level to DEBUG to see the cached re-binds and skips again.
-
-## 2.9.1-beta.18
-
-- **Gateway pushes are logged at INFO.** With the log level at INFO (or DEBUG), every canvas
-  push to the panel now records what it sent: a full frame (`full frame (qoi)` / `(raw)`) vs an
-  incremental refresh (`incremental N rect(s)`), each with its byte size; a skipped identical
-  frame (`frame unchanged, nothing sent`); the ops batch size for on-device draw apps; and, for
-  sprite sheets, whether the tiles were uploaded (`sprites uploaded, N tile(s)`) or the wall
-  already had them (`already resident, bound only`). Makes it easy to see network traffic and
-  atlas reuse at a glance.
-
-## 2.9.1-beta.17
-
-- **Weather Panel redesigned.** The top row now fills the full width — big temperature, condition,
-  and colour-coded H/L — instead of leaving the right half empty, with feels / humidity / wind on a
-  thin line beneath. The 3-day forecast row is much taller so its condition icons are large and
-  clear, and the cloud icon was redrawn as a proper cumulus (it looked like a blob at the old size).
-
-## 2.9.1-beta.16
-
-- **Fix: Matrix apps in simulation mode.** Running a canvas app while simulating threw a confusing
-  "app not installed" pop-up. Sim mode's no-op transport reported no framebuffer, so every Matrix
-  app looked uninstalled. Simulation now keeps the real wall's capabilities, so canvas apps run —
-  a frame-push app (clocks, weather, image) even previews — while still driving nothing on the
-  actual panel. On a genuine split-flap wall a Matrix app now gives a clear message instead.
-
-## 2.9.1-beta.15
-
-- **Lighter on-device-effect preview.** The live preview of an on-device effect / ticker / animation
-  (content the companion reads back from the panel, rather than a drawn frame it already has) now
-  reads back as rgb565 — about a third less over WiFi — and is cached ~1s, so the browser can poll
-  it freely without a gateway round-trip each time.
-
-## 2.9.1-beta.14
-
-- **Sprite sheets with stable content persist across reboots.** An app whose icon set never changes
-  (HA Dashboard, Weather Panel, Aquarium) now saves its sheet to the gateway's flash once, so it
-  survives a reboot AND eviction by other apps' sheets — reloaded on demand instead of re-uploaded.
-  The Scoreboard's per-matchup logos stay non-persisted (they'd otherwise fill the flash).
-
-## 2.9.1-beta.13
-
-- **Matrix firmware 3.1: delta frames.** A drawn-frame app (clocks, weather, image) now sends only
-  the rectangles that changed since its last frame instead of re-pushing the whole panel. An
-  unchanged frame sends nothing at all, a small change sends a few hundred bytes, and a full frame
-  is used only for the first frame, a big change, or a periodic keyframe (so a gateway reboot
-  self-heals). Falls back to the previous full-frame path on any wall that doesn't advertise it.
-
-## 2.9.1-beta.12
-
-- **Weather Panel: a condition icon on each forecast day.** The 3-day strip now shows a little
-  sun / cloud / rain icon beside each day's high/low (on panels with room for it; narrower walls
-  keep the text-only strip).
-
-## 2.9.1-beta.11
-
-- **Weather Panel: richer, colourful, and it fills a wide screen.** It used to be plain white text
-  in the top-left with a lot of dead space. Now the big temperature is tinted by how warm it is, the
-  condition is cyan, the high is warm-orange and the low is cool-blue, and a stats row spreads Feels
-  / Humidity / Wind across the width with a colour-coded 3-day forecast beneath. Every temperature —
-  current, high, low and each forecast day — now carries a degree sign.
-
-## 2.9.1-beta.10
-
-- **Weather Sky: the drifting cloud is a cloud now.** It used to be a single pale disc gliding
-  across the sky — easy to mistake for a runaway white sun. It's now drawn as an actual cloud
-  shape in proper grey, so the scene reads clearly (an amber sun with a grey cloud beside it for
-  "partly cloudy", clouds for "cloudy").
-
-## 2.9.1-beta.9
-
-- **Overview & Weather Sky: less washed-out colour.** The Overview's temperature ramp was
-  near-white through the mild middle of its range; it's now a saturated thermal scale
-  (blue → cyan → green → amber → red), so a 68° reads as a real colour, not tinted white. Weather
-  Sky's high/low likewise go from pale peach/blue to a saturated orange/blue.
-
-## 2.9.1-beta.8
-
-- **Fix: per-playlist settings now apply to canvas apps.** A playlist entry's own configuration
-  (e.g. the Scoreboard following a specific team) was silently ignored for Matrix-panel apps —
-  the overrides were passed to flap apps but dropped on the canvas path, so the app always used
-  its global settings. It now honours per-entry overrides like any other app.
-- **Scoreboard reacts to a changed selection immediately.** Its game list is cached, but now keyed
-  on the teams/leagues you follow, so switching selection no longer shows the previous slate until
-  the cache lapsed.
-
-## 2.9.1-beta.7
-
-- **Scoreboard uses one atlas slot, not one per game.** It used to upload a fresh two-logo sheet
-  for every matchup — a whole sprite-atlas slot per game, and each team's logo stored again in
-  every game it played. It now keeps a single shared sheet of every logo in the slate and blits
-  each team by index, so a busy scoreboard no longer crowds every other canvas app out of the
-  shared atlas.
-- **Aquarium re-binds its sprite sheet every frame.** It used to re-assert the fish sheet only
-  occasionally and rely on the panel keeping it bound; now that several apps share the atlas
-  library, another app's sheet can evict it, so binding every frame keeps the fish on screen in a
-  playlist. (Cheap — the pixels upload once; only a tiny bind is sent per frame.)
-
-## 2.9.1-beta.6
-
-- **Punchier colours on the panel.** Values on the HA Dashboard (and the Overview's high/low) used
-  pale tints that read as tinted white on an LED panel. They're now properly saturated — a real
-  blue, green, amber and red — so a numeric value or a threshold colour is unmistakable.
-
-## 2.9.1-beta.5
-
-- **Requires Matrix Portal Gateway firmware 3.1+.** The old single-slot sprite-atlas path and its
-  fallback cache are gone — the companion now speaks only the named atlas library.
-- **A playlist no longer re-sends sprite sheets.** Handing the panel back between apps no longer
-  discards what the wall holds, so a playlist cycling through canvas apps re-binds each sheet by
-  name instead of re-uploading it.
-
-## 2.9.1-beta.4
-
-- **Uses the gateway's new named sprite-atlas library (firmware 3.1).** Sprite sheets are now
-  addressed by name instead of fighting over one slot, so a sheet is uploaded **once** and every
-  later draw just binds it. For the HA Dashboard that is one 8 KB upload per five minutes instead
-  of nine — **96% less sprite traffic**, and the apps needed no changes. Falls back to the single
-  unnamed slot on an older wall.
-
-## 2.9.1-beta.3
-
-- **Sprite apps send far less over WiFi.** The panel's sprite atlas is a single shared slot, so
-  apps re-assert their tiles on every draw — about 8 KB a time, usually several times the drawing
-  that accompanies it. The companion now remembers what it last put on each panel and skips the
-  upload when those exact tiles are already there: **~64% less atlas traffic for the HA Dashboard,
-  ~98% for a fast-redrawing app** like the Aquarium. The skip is time-bounded (re-asserted every
-  30s) so a gateway reboot or another client on the same panel still self-corrects.
-
-## 2.9.1-beta.2
-
-- **Entity table: accessibility.** The add-entity search is now a proper combobox — arrow keys move
-  through the results and Enter picks (screen readers announce it as a listbox). The reorder / remove
-  buttons name the entity they act on, and the decorative header is hidden from assistive tech.
-
-## 2.9.1-beta.1
-
-- **Internal: shared canvas text helpers.** The `_cp` (CP1252 filter), face-snapping, fit and
-  drop-shadow text helpers that were copy-pasted across the HA Dashboard, Scoreboard and Weather
-  Panel apps now live on the injected `canvas` object (`canvas.cp/face/fit/shadow_text`). No visible
-  change — the on-device rendering is identical; this just removes the duplication.
+- **Channels on the Matrix panel.** Jokes, quotes, fortunes and the other channel apps can now show
+  on an LED panel as large text beside a themed icon, not only on the flaps. It is on by default on a
+  panel and can be turned off per app in that app's settings.
+- **New app type: Quiz.** A question, then — after a short pause — its answer: a two-screen reveal.
+  **Dad Jokes** is now a quiz, with a larger, tidied-up set.
+- **New apps.** **Movie Quotes** shows iconic lines with the film they are from. **Stock Graph** puts
+  a live quote in big type over its own price chart, for a single symbol or a rotating watchlist of
+  indices and tickers.
+- **Faster, lighter panel updates.** Working with Matrix Portal Gateway firmware 3.1, the gateway now
+  sends only the parts of the screen that changed and reuses sprite sheets across draws, so the panel
+  updates more smoothly and over far less WiFi, and on-panel text covers the full character set.
+- **A quiet panel when nothing is moving.** Panel apps that change only occasionally — the date card,
+  world clock and others — now redraw when something actually changes rather than on a fixed timer.
+- **Reworked panel apps.** Weather, Overview, the clocks and the scoreboard were redesigned for LED —
+  rich colour on a black background, clearer icons and degree signs, and a shared team and league
+  picker shared by Sports and Scoreboard.
 
 ## 2.9.0
 
-**2.9.0 stable.** The firmware-3.0 alignment and the new Home Assistant dashboard apps
-(built over the beta.1–beta.24 line below) ship as the stable release. Final polish since
-beta.24, from a full audit:
+**Aligned with Matrix Portal Gateway firmware 3.0, plus new Home Assistant dashboard apps.**
+A physical split-flap wall is unaffected — the drive path is unchanged.
 
-- **`install.sh`** now prompts for an existing MQTT broker host on the "don't deploy Mosquitto"
-  path — previously it left the broker unset, so the Home Assistant device silently never
-  connected under firmware 3.0.
-- **Docs** updated for the firmware-3.0 broker model (README, add-on docs) and the new
-  `COMPANION_HA_URL` / `COMPANION_HA_TOKEN` for reading HA states in standalone Docker.
-- **UI:** settings-dialog overlay listeners are cleaned up on close (no leak), and the rich app
-  pickers gained combobox ARIA / labels.
-- Internal: fixed a double-parse in the HA state reader; added tests for the HA reader and the
-  dashboard threshold logic.
-
-## 2.9.0-beta.24
-
-- **Scoreboard: same team/league picker as the Sports app.** Pick teams and whole leagues with the
-  search box (type a team or league and add it as a chip) instead of typing league codes.
-- **Scoreboard layout reworked.** The two team logos now meet in the middle with the team names
-  fanning outward and the scores beneath — no more logos stranded at opposite edges. On a wide
-  wall it shows the real team name ("Giants") rather than the abbreviation, dropping to the
-  abbreviation only when there isn't room.
-
-## 2.9.0-beta.23
-
-- **Weather Sky: removed the moon/sun halo.** The soft glow read as an ugly gradient on the black
-  panel — the sun and moon are now drawn as clean, crisp discs.
-
-## 2.9.0-beta.22
-
-- **Weather and Scoreboard now draw on black.** Gradients and light backgrounds wash out on an LED
-  panel, so these apps lean into an unlit black background with bright, colourful content — like
-  Overview and the clocks. Weather Sky and Weather Panel keep the glowing sun/moon, cloud and
-  rain/snow (now on black); the Scoreboard's team colours pop against black.
-
-## 2.9.0-beta.21
-
-- **New Matrix-panel marker: a real amber dot-matrix.** Instead of a Unicode glyph, canvas apps
-  now carry a small custom SVG that mirrors the panel itself — amber LEDs on black. It shows in
-  the app library, the app cards, and (new) the playlist and trigger app pickers.
-- **Playlist & trigger pickers are now rich dropdowns.** They render the app icon, name and the
-  Matrix marker (a native dropdown can only show plain text), so a canvas app is unmistakable when
-  you add it — and it's keyboard-navigable.
-- **Library: filter to Matrix apps.** A "Matrix" toggle sits alongside the category filters and
-  narrows the list to canvas (panel) apps.
-
-## 2.9.0-beta.20
-
-- **Renamed the split-flap dashboard app to "Home Assistant"** (was "Entity Board").
-
-## 2.9.0-beta.19
-
-- **Playlist & trigger app pickers show the Matrix marker.** The app dropdowns in the playlist
-  editor and the triggers page now show the same **⣿** (Matrix panel) marker the library uses, so
-  a canvas app is identifiable at a glance when you add it.
-
-## 2.9.0-beta.18
-
-- **Dashboards: one editable table.** The HA Dashboard and Entity Board now pick entities in a
-  single table — **search to add**, **reorder** with the up/down arrows, **rename**, and set the
-  numeric **low/high thresholds** all in one place, instead of a separate chip picker plus a
-  free-text config box. The row order is the display order.
-
-## 2.9.0-beta.17
-
-- **Fix: installing an effect from the library.** Adding a per-effect app (Plasma, Fire, Fliporama, …)
-  failed with `404 — unknown app`, and even when allowed the effect id was dropped on the reload
-  that install triggers. The synthetic per-effect apps — which have no folder of their own — are now
-  recognised as installable and persist correctly.
-
-## 2.9.0-beta.16
-
-- **HA Dashboard.** Nudged the entity name up 2px inside each card so it clears the bottom edge.
-
-## 2.9.0-beta.15
-
-- **HA Dashboard, redone for contrast and control.** Cards now draw on **black** (bright content
-  on black reads best on the panel), each card shows the entity's **name**, and you can **rename**
-  entities and set **numeric thresholds** — a value is green below the low mark, amber between,
-  red above the high. Both go in one **Rename / thresholds** box: `entity_id | Name | low,high`
-  per line (name and thresholds optional; a line here can also add an entity).
-- **New app — Entity Board (split-flap).** The same Home Assistant dashboard for a flap wall:
-  one row per entity — name on the left, value on the right, and a colour flap as a status dot
-  (green for "on"; green / amber / red by threshold band). Same entity picker and
-  `Rename / thresholds` box; extra entities spill onto the next page of the loop.
-
-## 2.9.0-beta.14
-
-- **New app — HA Dashboard.** A grid of Home Assistant entity cards on the panel: a device icon
-  (light / switch / sensor / lock / cover / climate / …), the value, and the name, coloured by
-  state. Pick entities with a **search picker** in the app's settings. Works automatically as the
-  HA add-on (via the Supervisor proxy); standalone Docker sets `COMPANION_HA_URL` +
-  `COMPANION_HA_TOKEN`.
-- **Degree signs and accents are back** in the canvas text apps (Weather Panel, Scoreboard,
-  Dashboard) now that the firmware decodes the text to CP1252 — e.g. a real `72°` again.
-
-## 2.9.0-beta.13
-
-- **New app — Scoreboard.** Live scores on the Matrix panel with real team **badges** (each
-  team's logo, blitted from the sprite atlas), big scores, league and status — rotating through
-  the games you follow. Follow whole leagues or single teams (`nba`, `epl:ARS`, `nfl:KC`) from
-  ESPN; a team whose logo can't be fetched falls back to a colour badge with its abbreviation.
-
-## 2.9.0-beta.12
-
-- **Effects are now one app per effect.** Instead of a single "Effects" app with an effect
-  picker, the library offers one app for each effect your wall advertises — Plasma, Fire,
-  Matrix Rain, Flip-o-rama, Panel Clock, Game of Life — each with the speed/hue/density knobs.
-  Add just the ones you want; they schedule and playlist like any app. (An effect a future
-  firmware adds appears automatically, named from the effect.)
-
-## 2.9.0-beta.11
-
-Fixes for the two new canvas apps on a real panel:
-
-- **Weather Panel** — text is now readable (a drop-shadow, over a deeper sky); the condition
-  icon is correct instead of showing a fish (it re-asserts its own sprite atlas every draw,
-  since a canvas app shares one atlas slot on the gateway); the degree mark is drawn as a ring
-  (the on-device text op is CP1252, one byte per glyph, so a "°" character came out garbled);
-  and the temperature is large again (text sizes are snapped to the panel's real font faces).
-- **Aquarium** — re-asserts its fish atlas on a short beat, so the fish come back within a
-  second or two of it taking the panel back from another canvas app.
-
-## 2.9.0-beta.10
-
-- **New app — Weather Panel.** Current conditions drawn on the panel with draw-ops and a sprite
-  atlas: a gradient sky, a condition icon (sun / moon / cloud / rain / snow / storm / fog), a big
-  temperature, and a 3-day strip. Adapts to small panels. Uses your configured weather location.
-
-## 2.9.0-beta.9
-
-- **New app — Aquarium.** A canvas app for the Matrix panel drawn entirely with on-device
-  draw-ops and a sprite atlas: a gradient water column, fish blitted from an uploaded sprite
-  sheet, rising bubbles, and swaying weeds. Set the number of fish and the water tone.
-
-## 2.9.0-beta.8
-
-- **Fix — the Animation app's "Gateway animation" picker showed `[object Object]`** instead of the
-  animation names. It now lists them by name.
-- **The Lumina clock's glow is tighter and subtler**, so it reads as a clean edge-glow on the LED
-  panel instead of a wide, muddy halo. (The *Minimal* treatment still gives no glow at all.)
-
-## 2.9.0-beta.7
-
-- **The "Matrix panel" marker on canvas apps is now ⣿** (a dot-matrix) instead of ▦, in both the
-  Apps grid and the App Library.
-
-## 2.9.0-beta.6
-
-- **Fix — the gateway's Display / Files / Settings / Status tabs no longer error with "Header
-  fields are too long."** The gateway's HTTP server (firmware 3.0) has small header buffers, and
-  the proxy was forwarding the browser's full headers — including a big cookie and the long
-  ingress `Referer` — which overflowed them. It now forwards only the short handful the gateway
-  actually needs.
-- **The live preview shows how it's being fed** — a tiny line under it reads `Updates: SSE`,
-  `poll`, or `local`, so you can tell at a glance whether the near-real-time stream is running.
-- **The flap preview no longer jumps in size when a canvas app starts or stops.** The split-flap
-  grid is now sized to the same footprint as the canvas preview, so switching between them is
-  smooth instead of a big resize.
-- **The Animation app can play an animation already stored on the gateway.** Its settings now
-  offer a *Gateway animation* picker listing the panel's saved animation library (firmware 2.1);
-  pick one and it plays on-device, no GIF needed. Leave it on "none" to use a GIF URL as before.
-
-## 2.9.0-beta.5
-
-- **The live-preview stream is attempted behind Home Assistant ingress too.** beta.4 played it
-  safe and only polled under ingress; now that the earlier blank preview is understood to have
-  been a gateway-side issue, the stream runs everywhere. It's safe because the preview polls as
-  its baseline and only switches to the stream once the stream actually delivers a frame — so
-  inside HA you get the near-real-time preview when ingress forwards the stream, and the reliable
-  poll when it doesn't. No configuration either way.
-
-## 2.9.0-beta.4
-
-Fixes the live preview under Home Assistant (a regression in beta.3).
-
-- **The live preview is reliable under HA ingress again.** Ingress does not carry a long-lived
-  event stream well — it stalls and can starve the ordinary requests the preview needs — which
-  left the preview blank. The preview now **always polls as its baseline** and only promotes to
-  the SSE stream once the stream has proven itself by delivering an event; **under ingress it
-  doesn't open a stream at all** and simply polls, which is reliable there. Direct and
-  reverse-proxy access still get the near-real-time stream.
-- **A canvas that can't be read back no longer blanks the preview.** When the panel image
-  (`/api/current_state/canvas.png`) can't be produced, the preview keeps showing the flap grid
-  instead of swapping in a broken/empty image.
-
-## 2.9.0-beta.3
-
-Aligns the companion with **Matrix Portal Gateway firmware 3.0**, which pushes the live
-display over SSE and drops MQTT from the gateway.
-
-- **Live preview over Server-Sent Events.** The browser polled the display state a few times
-  a second; it now rides a push stream (`GET /api/events`) — the preview follows the wall the
-  instant it changes, and falls back to polling automatically if the stream drops. A canvas
-  panel's frame still refreshes on a timer while it's up (a running effect draws its own
-  frames on-device, so there is no state change to announce each one).
-- **MQTT is gone from the gateway path.** Firmware 3.0 removed MQTT from the gateway, so the
-  companion no longer pulls a broker or a Home Assistant switch from it — only the grid
-  geometry is still synced. The companion's own Home Assistant integration stays, but its
-  broker is now local: set `mqtt_broker` (add-on) or `COMPANION_MQTT_BROKER` (Docker), with
-  optional port/username/password. `home_assistant: auto` brings the integration up when a
-  broker is configured, off when none is. New add-on options: `mqtt_broker`, `mqtt_port`,
-  `mqtt_username`.
-
-## 2.9.0-beta.2
-
-Two fixes from real-hardware testing of the 2.9.0 line.
-
-- **Fix — the live preview during an on-device effect.** It showed the *previous* frame-push app's
-  last frame (a clock, weather) instead of the effect that was actually playing. An effect draws
-  on-device, so the companion now drops that cached frame and reads the panel back — the preview
-  shows what is really lit.
-- **Fix — a stale flap that lingered until its value next changed.** The companion skips re-sending
-  a flap it believes is already correct, so a flap that drifted from that belief (another client on
-  the same gateway, the gateway's own Compose page, a transient) was never re-asserted while the
-  page held. The whole-page repaint is now on a **wall-clock bound (~15 s)** and the app loop
-  re-emits a held page on the same beat, so drift heals even when nothing on screen is changing. It
-  stays invisible where the cache is right — a flap already showing its value does not re-flip.
-
-## 2.9.0-beta.1
-
-Matrix Portal firmware **2.1** support — the LED panel learned a lot of new tricks, and the
-companion learned to drive them.
-
-- **The live preview reads the panel back.** On a firmware 1.19+ Matrix wall the live view now
-  shows what is actually lit — including on-device effects, tickers and animations the companion
-  never rendered a frame for (they used to preview blank).
-- **A new Panel tab** (Matrix walls only) for the LED panel's own controls:
-  - **Overlay ticker** — a scrolling band of text over whatever else is running, kept up until
-    you clear it.
-  - **Transitions** — crossfade / wipe / slide between full-panel frames.
-  - **Animation library** — animations saved on the panel, replayed by name and surviving a
-    reboot; upload a GIF and the panel decodes it on-device; set one as a **boot splash**.
-  - **Fonts** — install custom faces the ticker and text can use.
-- **Richer canvas apps.** The full draw-op set — lines, shapes, gradients, sprites, a marquee
-  scroll, aligned text with custom fonts — is now available to apps, and the **Animation** app
-  hands a GIF straight to the panel to decode where the firmware supports it.
-- **Fix — no more stale flaps flashing on a canvas → split-flap switch.** The companion no longer
-  hands the panel back to the reel wall before the replacement page is ready; the incoming page
-  takes it over directly, so the pre-canvas flaps never flash.
-- **Fix — a self-healing display cache.** A periodic full repaint corrects any drift between the
-  companion's idea of the wall and what is really on it (another client, the gateway's own
-  compose page, a reboot) — a stale flap no longer lingers until it happens to change. It is
-  invisible where the cache is right: a flap already showing a value does not re-flip.
+- **Firmware 3.0.** Live preview streams over SSE (with a polling fallback), and the Matrix
+  gateway no longer supplies an MQTT broker. **If you use the Home Assistant integration, set the
+  broker in the add-on** (the `MQTT broker` option, e.g. `core-mosquitto`) — it is no longer read
+  from the gateway.
+- **Home Assistant dashboards.** Two new apps show your entity states: **HA Dashboard** (a card
+  grid on the Matrix panel) and **Home Assistant** (rows on a split-flap wall). Pick entities with
+  a search box, rename them, reorder them, and set numeric thresholds that colour the value
+  (green / amber / red). The add-on reads states through the Supervisor proxy automatically.
+- **Each on-device effect is its own app** (Plasma, Fire, Matrix rain, …) instead of one effect
+  app with a picker.
+- **Richer canvas apps on black.** Weather Sky, Weather Panel and the Scoreboard draw bright,
+  colourful content on an unlit black background (which reads best on an LED panel); the Scoreboard
+  gained real team logos and the same team/league picker as the Sports app.
+- **UI:** an editable entity table (search / reorder / rename / thresholds), a custom amber
+  dot-matrix marker for Matrix-panel apps, a "Matrix" filter in the app library, and richer app
+  pickers in the playlist and trigger editors.
 
 ## 2.8.0
 
-The 2.8.0 line promoted to a stable release — see the stable
-add-on changelog for the full summary. No code change from beta.1.
-
-## 2.8.0-beta.1
-
-**Uses the Matrix panel's new canvas features (firmware 1.18+).** The companion reads them
+**The companion uses the Matrix panel's new canvas features (firmware 1.18+).** It reads them
 from the wall's capabilities and lights up where present, falling back cleanly on an older
-panel:
+panel — so nothing changes for a physical split-flap or a pre-1.18 Matrix.
 
-- **QOI compression** — every canvas app now sends its frames QOI-compressed where the wall
-  accepts it: the same picture over 2–4× less WiFi (a 256×64 frame ≈16 KB instead of 49 KB),
-  which matters because the panel and the radio share one bus. Fully transparent — no app
-  changed, and a frame that won't compress falls back to raw.
-- **Ticker** — a NEW app: one line scrolling across the panel, rendered on-device (sent
-  once, the panel scrolls it smoothly itself). A custom message or a live RSS feed's
-  headlines.
-- **Animation** — a NEW app: play a looping GIF on-device. Its frames upload once and the
-  panel plays the loop itself from PSRAM, so it's smooth and costs no ongoing WiFi (longer
-  GIFs are sub-sampled to fit).
+- **Frames cross far less WiFi.** Every canvas app (the drawn clocks, Weather Sky, Overview,
+  Date Card, the image app, …) now sends its frames **QOI-compressed** wherever the wall
+  accepts it — the same picture in 2–4× fewer bytes (a 256×64 frame ≈16 KB instead of 49 KB).
+  That matters because the panel and the radio share one bus. It is fully transparent: no app
+  changed, and a frame that will not compress falls back to raw.
+- **Ticker** — a NEW app: one line scrolling across the panel, rendered **on-device** — the
+  companion sends it once and the panel scrolls it smoothly itself, so it stays smooth where a
+  pushed-frame crawl janked. A custom message or a live RSS feed's headlines.
+- **Animation** — a NEW app: play a looping **GIF on-device**. Its frames upload once and the
+  panel plays the loop itself from spare memory, so it is smooth and costs no ongoing WiFi
+  (longer GIFs are sub-sampled to fit).
 - **Effect parameters** — the Effects app gains **Hue** and **Density** knobs (recolour the
   matrix rain, tint plasma / Life, set the Life seed or flip-o-rama churn) where the panel
-  supports them. The newer on-device effects (flip-o-rama, clock, Game of Life) appear
-  automatically.
-- Under the hood, `canvas` helpers for on-device animation, a scrolling ticker,
-  single-rectangle updates and effect parameters, so future apps can reach them too.
+  supports them. The newer on-device effects — flip-o-rama, clock, Game of Life — appear in
+  the picker automatically.
 
 ## 2.7.1
 
-- **Image** — fixed the **Fit** mode (letterbox the whole picture into the panel):
-  it was crashing internally and falling back to the demo gradient, so only **Fill**
-  worked. Both fit modes work now. (Present since the app shipped.)
+- **Image** — fixed the **Fit** mode (letterbox the whole picture into the panel).
+  It was crashing internally and falling back to the demo gradient, so only **Fill**
+  worked. Both fit modes work now. (This bug was present since the app shipped.)
 - **Moon Phase** — no longer abbreviates "5 Days" to "5D" on a wide wall; it spells
-  the day unit out wherever there is room.
+  the day unit out wherever there is room, abbreviating only where there isn't.
 
 ## 2.7.0
 
-The 2.7.0 line promoted to a stable release — see the stable
-add-on changelog for the full summary. Only the (over-long) Matrix
-app descriptions were trimmed since beta.12.
+The 2.7.0 line, gathered into a stable release. Everything below shipped and
+soaked across the 2.7.0 betas.
 
-## 2.7.0-beta.12
+**Apps that use the whole panel.** A big Matrix panel (say 256×64) has far more
+room than a physical reel, and this release spends it — canvas apps that fill the
+panel, and text apps that spread into a wide character grid instead of clustering
+in a corner or stranding a label at one edge and its value at the other.
 
-- **Time** — fixed the clock showing `:30` instead of `0:30` during the midnight
-  hour on a 24-hour wall. Trimming the leading zero for a cleaner `9:30` was eating
-  the whole hour when it was `00`.
+- **Overview** — a NEW canvas dashboard that fills a big panel: a large clock and
+  the date on the left, a weather column on the right (temperature, condition,
+  high/low, feels-like, humidity, wind) with a day/night sun or moon and a seconds
+  sweep. It shrinks gracefully to a clock and a line of weather on a small panel.
+- **Weather Sky** and **Date Card** — open into full big-panel layouts on a large
+  Matrix (a rich info panel and a forecast strip; a facts column) instead of
+  clustering in one corner.
+- **Weather forecast** — on a wide wall it spells the forecast out: the condition
+  in full ("Light rain", "Partly cloudy"), full weekdays, degree signs — laid out
+  as an aligned block instead of abbreviations flung to opposite edges. A 15-wide
+  wall keeps the compact form.
+- **Stocks** and **Crypto** — on an ultra-wide panel each ticker/coin is one line
+  (name, price and the day's change together), the whole watchlist on one page,
+  instead of paging or stacking.
+- **Sun Times, Tides, Metals, Exchange Rates** — centre their columns (or lay
+  several across the width) instead of stranding a label and its value at opposite
+  edges.
+- **BTC Fear & Greed** and **Aurora** — draw a full-width gauge bar, filled to the
+  value and coloured by the zone, so it reads from across the room.
+- **Metro** — shows where each direction actually goes ("Forest Hills") instead of
+  the cryptic "Dir0 / Dir1".
+- **BirdNET** — spells species names out in full ("Northern Cardinal") when there
+  is room.
+- **Planes Overhead** — a one-aircraft-per-line table on a wide wall (dropping
+  fields to fit, or wrapping while still packing several aircraft to a page); the
+  route (from → to) from the keyed providers; on/off switches for each field; and
+  it now uses your global location.
+- **Dashboard** and other flap apps — pack a dense, full-width page on a tall wall.
 
-## 2.7.0-beta.11
+**Clocks and settings.**
 
-- **Planes Overhead** — fixed the column alignment in the table. Rows with a shorter
-  last field (e.g. altitude `A38K` vs `A4050`) were being re-centred a column over, so
-  the columns drifted down the page. Every row is now the same width, and the distance
-  is aligned inside its column too — the number flush right so the decimals line up,
-  the compass direction flush left.
+- **Art Clock** — a Clock Format setting (Auto / 12-hour / 24-hour). On Auto it
+  shows AM/PM — drawn in colour flaps like the digits — on an English wall, and
+  24-hour elsewhere.
+- **Stocks** — a Refresh Frequency setting, plus an option to pause polling when a
+  market is closed (judged per the exchange's own timezone).
+- **Settings** — a "Use my location" button fills the precise-location field from
+  your phone's GPS in one tap, storing the exact coordinates the location apps need.
 
-## 2.7.0-beta.10
-
-**Planes Overhead** got route info and a much more adaptive display:
-
-- **Route (from → to)** — each aircraft can now show where it's coming from and
-  going to, e.g. `PIT→SFO`. This comes from the route in the keyed providers
-  (FlightAware / FlightRadar24 / AirLabs / AviationStack); OpenSky's free feed has
-  no route, so it's blank there.
-- **Pick your fields** — new on/off switches for Route, Distance, Altitude and
-  Speed (the callsign is always shown), so you choose what appears.
-- **Smarter fit** — the display now prefers to DROP a field rather than wrap: it
-  shows as many of your chosen fields as fit on one line per aircraft, packing
-  several aircraft to a page. If your selection genuinely can't fit one line, it
-  wraps to two lines per aircraft but STILL packs several per page, instead of
-  falling back to one aircraft on a near-empty page.
-
-## 2.7.0-beta.9
-
-- **Planes Overhead** — now uses your **global location** (the Location in the main
-  settings, shared with weather / tides), instead of its own separate lat/lon box.
-  That box is still there as an optional per-app override — leave it blank to follow
-  the global location.
-- **Planes Overhead** — the wide-screen table now shows **one plane per line** on
-  more panel widths: it always shows the callsign and distance, then adds altitude
-  and speed as the width allows, instead of only switching to a table when all four
-  columns fit.
-- **Settings** — the precise-location field has a **"📍 Use my location"** button.
-  On a phone (or any device with location services) it fills in your exact
-  coordinates in one tap, via the browser's geolocation.
-
-## 2.7.0-beta.8
-
-- **Art Clock** — the AM/PM on a wide wall is now drawn in colour flaps like the
-  digits (a slightly smaller 3×3 letter), instead of as plain text.
-
-## 2.7.0-beta.7
-
-- **Stocks** — a new "Pause When Markets Closed" option (on by default). yfinance's
-  quick feed carries no open/closed flag, but it does carry each stock's exchange
-  timezone, so the app now knows when a market is shut and stops polling it overnight
-  and on weekends — showing the last prices meanwhile — instead of hammering the
-  feed around the clock. A watchlist spanning several exchanges keeps refreshing as
-  long as any one of them is trading. Turn it off to always refresh on your schedule.
-
-## 2.7.0-beta.6
-
-A sweep of apps that were wasting a wide Matrix panel, plus two clock tweaks:
-
-- **Sun Times, Tides, Metals, Exchange Rates** — stopped stranding a label at one
-  edge and its value at the other with a lake of empty space between. Sun Times and
-  Tides now centre the label/value block; Metals puts both metals on one line;
-  Exchange Rates lays several currencies out in columns across the width.
-- **BTC Fear & Greed** and **Aurora** — on a wide wall each draws a full-width gauge
-  bar, filled to the value and coloured by the zone (green→red), so it reads from
-  across the room instead of a few characters in the middle.
-- **Metro** — shows where each direction actually GOES ("Forest Hills", "Oak Grove")
-  instead of the cryptic "Dir0 / Dir1".
-- **BirdNET** — spells the species out in full ("Northern Cardinal") when the wall
-  has room, abbreviating only when it must.
-- **Planes Overhead** and **Sports** — on a wide wall each becomes a table: one
-  aircraft (callsign / distance / altitude / speed) or one game (league / score /
-  status) per row, several to a page, instead of one item on a near-empty page.
-- **Art Clock** — a new Clock Format setting (Auto / 12-hour / 24-hour). On Auto it
-  shows AM/PM on an English wall (where there's width for it) and 24-hour otherwise.
-- **Stocks** — a Refresh Frequency setting, so you can change how often prices
-  update (default 60s).
-
-## 2.7.0-beta.5
-
-Two apps that were wasting a wide Matrix panel:
-
-- **Weather** — the forecast page stops abbreviating on a wide wall. Instead of
-  "Wed Rain- ..... 78/61" (day and temps flung to opposite edges), it spells the
-  condition out ("Light rain", "Partly cloudy", "Heavy snow"), gives the temps
-  degree signs, uses full weekday names where there's room, and lays the days,
-  conditions and highs/lows out as an aligned block centred on the wall. A 15-wide
-  wall keeps the compact form it has always used.
-- **Crypto** — on an ultra-wide panel each coin is now one line (ticker + price +
-  the day's change together), so the watchlist is a page of one-liners instead of
-  the name/price/change stacked over three rows — the same treatment stocks got.
-  A narrow wall keeps the stack.
-
-## 2.7.0-beta.4
-
-- **Stocks** — on an ultra-wide Matrix panel the ticker, its price AND the day's
-  change now sit together on one line, so the whole watchlist is a single page
-  instead of flipping between a price page and a change page. The prices line up
-  in a column and the changes line up in a column, to read straight down. A
-  narrower panel (or a split-flap), where all three won't fit, keeps the two-page
-  price-then-change split.
-
-## 2.7.0-beta.3
-
-- **Overview** — on a big panel the bottom humidity/wind line was clipped off the
-  edge: the taller font from beta.2 pushed the five-line weather column past the
-  bottom of the panel. The column now fits itself to the panel — if the day's
-  readings make it tall (a long condition word, three-digit values), the whole
-  column shrinks together so the last line always stays fully on screen.
-
-## 2.7.0-beta.2
-
-Readability fixes on the apps from beta.1:
-
-- **Overview** — the humidity/wind line at the bottom of the weather column was
-  too small to read. It now drops the word labels (the `%` and the mph/km-h unit
-  already say which is which) and uses that room for a taller font.
-- **Stocks** and **World Clock** — on a wide panel the two columns were flung to
-  opposite edges with a lake of space between them. They now stay together as a
-  block in the middle, so you can read a ticker across to its price, or a city
-  across to its time, at a glance. The value column still lines up down the page.
-
-## 2.7.0-beta.1
-
-**Apps that use a big Matrix panel.** On a large panel (say 256×64) most apps used
-to leave the space empty. Now:
-
-- **Overview** — a NEW canvas app: a drawn dashboard that fills a big panel — a
-  large clock and the date on the left, a weather column on the right
-  (temperature, condition, high/low, feels-like, humidity, wind) with a day/night
-  sun or moon and a seconds sweep. It shrinks gracefully to a clock + a line of
-  weather on a small panel.
-- **Weather Sky** — on a big panel it opens into a full info panel: feels-like,
-  humidity and wind beside the temperature, and a three-day forecast strip across
-  the bottom (instead of clustering in the left third).
-- **Date Card** — on a big panel it adds a facts column: the ISO week, the day of
-  the year, and how many days of the year remain.
-- **Dashboard** (the flap app) — on a tall wall (5+ rows) it now drops the time
-  and weather onto one dense page that spreads to the edges, instead of two sparse
-  three-line pages floating in a big grid.
+**Fixes.** The Planes table columns no longer drift when a row's last field is
+shorter; the Time app no longer drops the whole hour (showing ":30") during the
+midnight hour on a 24-hour wall.
 
 ## 2.6.0
 
-The 2.6.0 line promoted to a stable release — see the stable
-add-on changelog for the full summary. No code change from beta.10.
+The 2.6.0 line, gathered into a stable release. Everything below shipped and
+soaked across the 2.6.0 betas.
 
-## 2.6.0-beta.10
+**A Matrix wall is now a canvas.** A Matrix Gateway — the split-flap firmware
+ported to an LED panel — advertises a *canvas* (a real framebuffer) and on-device
+effects, and the companion now uses both. A new kind of app, a **canvas app**,
+draws straight onto the panel instead of returning flap pages, free of the module
+grid. Canvas apps appear only on a Matrix wall; a physical split-flap has no
+framebuffer, so they simply don't show there.
 
-**Compose now works on iPhone and iPad.** Tapping a cell in the Compose tab
-opened no keyboard on iOS — a focused grid cell (a `<div>`) never triggers the
-on-screen keyboard. Compose now routes typing through a real (hidden) text input,
-so the keyboard appears and you can type onto the wall from a phone or tablet.
-
-## 2.6.0-beta.9
-
-**Canvas app readability fixes.**
-
-- **Weather Sky** — all the text now sits in a left column over a dark scrim, so
-  it reads clearly even on a bright day sky (the light-on-light contrast is gone),
-  and it's a clean place / temperature / condition·high·low stack with no
-  overlap. The sky, sun or moon still shine on the right.
-- **Date Card** — dropped the tinted background; it's solid black now.
-- **Countdown Bars** — removed the lines between the bars.
-
-## 2.6.0-beta.8
-
-**The live preview and the Home Assistant board image now show canvas apps.**
-While a Matrix-panel app (the clock, weather, and the rest) is drawing, both used
-to show the stale flap grid it bypasses — now they show the panel's actual frame.
-(An on-device effect has no frame the companion can see, so it still shows the
-flaps.)
-
-- **Weather Sky** — the high/low are right-aligned to the edge, so a 3-digit
-  temperature no longer runs off the screen.
-- **Countdown Bars** — the event title no longer clips (top or bottom) and is a
-  touch smaller; the *elapsed* part of each bar is now solid black, like the
-  flap Countdown, instead of a dim colour.
-
-## 2.6.0-beta.7
-
-**Canvas apps: more polish, and a switch-back fix.**
-
-- **Fixed:** switching from a Matrix-panel app back to an ordinary app could leave
-  the wall stuck — the flap display's "unchanged cell" cache went stale while the
-  canvas app drew straight to the panel, so cells that matched it were skipped and
-  never repainted. Leaving canvas mode now forces a full repaint.
-- **Canvas apps stand out in the library** — the whole tile takes a tinted shade
-  and border, not just a small marker, so you can tell Matrix-panel apps at a glance.
-- **Countdown Bars** — the event-title font is smaller and no longer clips at the
-  bottom; the bar numbers have more breathing room too.
-- **Weather Sky** — the place name gets its own line, so a long city (e.g.
-  "Mt Lebanon") no longer collides with the condition; high/low sit on one line
-  below it.
-- **Removed the News Ticker** — smooth horizontal scrolling isn't achievable over
-  the panel's frame-push path, so it never looked good enough to keep.
-
-## 2.6.0-beta.6
-
-**Effects picker now follows the wall.** The Effects app's list of effects is no
-longer a hard-coded plasma / fire / matrix — it's read from what the Matrix panel
-actually advertises (GET /api/capabilities), so if the firmware gains or renames
-an effect, the picker shows exactly what that panel can do (with a sensible
-fallback where a wall advertises none).
-
-## 2.6.0-beta.5
-
-**Canvas apps: crisper type and a round of polish from real-panel feedback.**
-
-- **Crisp text everywhere.** The Matrix-panel apps now render their type without
-  anti-aliasing — hard-edged pixels that stay sharp on the LEDs instead of the
-  soft grey fuzz the smoothed font left at these sizes.
-- **World Time** — dark, high-contrast rows; city names shown in full (no more
-  "New Y…"); the sun/moon icons are gone (the day/night cue is the tint and the
-  coloured left stripe).
-- **News Ticker** — scrolls faster, the text is smaller (more of the line on
-  screen), and it's pure white on black for maximum contrast.
-- **Countdown Bars** — the bar tracks are much darker so the fill and numbers
-  stand out, the numbers are outlined for legibility over any colour, and the
-  event name now sits on plain black with no bar behind it.
-
-## 2.6.0-beta.4
-
-**A whole shelf of new Matrix-panel apps, and the clock redesigned.** Canvas apps
-now render with a real anti-aliased font, so the panel's full pixel definition is
-put to work — smooth type, gradients and glow instead of a blocky grid.
-
-- **Lumina Clock** (replaces the old canvas Aurora Clock) — big smooth digits in
-  four treatments (Glow / Aurora / Neon / Minimal) over curated palettes that
-  never go pink. 12h/24h, a smooth seconds bar.
-- **Weather Sky** is now a colourful scene: the sky's colour is the hour *and*
-  the conditions (deep-blue nights with a glowing moon and coloured stars, warm
-  dawn and dusk, greying over for cloud and rain), with the temperature, the
-  condition, and today's high/low — not just the temperature.
-- **News Ticker** — a smooth scrolling news crawl from any RSS feed.
+- **Lumina Clock** — the time as luminous colour: big anti-aliased digits with a
+  glow, gradient, aurora or minimal fill, in curated palettes.
+- **Weather Sky** — the weather as a scene: a sky coloured by the hour and the
+  conditions, a glowing sun or moon, drifting cloud, falling rain or snow, with
+  the temperature, the condition and today's high/low.
+- **Countdown Bars** — a countdown as full-width colour bars, the numbers inside
+  each, draining like the flap Countdown.
+- **World Time** — several cities' local times at once, each on its own
+  day/night-tinted row.
 - **Date Card** — a big typographic date with a year-progress bar.
-- **World Time** — several cities at once, each badged with a day/night sun or moon.
-- **Countdown Bars** — a countdown as full-width colour bars with the numbers
-  inside each bar.
+- **Image** — mirror any picture onto the panel in full colour.
+- **Effects** — on-device plasma, fire and Matrix rain, rendered by the panel
+  itself at full frame rate; the list of effects is read from what the wall
+  actually advertises.
 
-**Playlists**
-- **Drag to reorder** items in the playlist editor — grab a row's handle and drop
-  it where you want it.
-- **Fixed:** an on-device effect placed in a playlist stayed lit forever — it was
-  never handed back when its slot ended. Canvas apps in a playlist now take the
-  panel over and release it properly between items.
+**Rich, smooth rendering.** Canvas apps draw with a real anti-aliased font and
+push whole frames to the panel, so the type is crisp and the colour is the
+panel's own, not the blocky flap font. App authors get a `canvas` drawing surface
+— pixels, lines, rectangles, text, gradients, a bundled font, on-device effects
+and whole images — documented in the wiki.
 
-## 2.6.0-beta.3
+**The panel, mirrored.** The web live preview and the Home Assistant board image
+now show what a canvas app is drawing, instead of the flap grid it bypasses.
 
-**A new canvas app: Aurora Clock** — a much richer take on the flap *Art Clock*.
-On a Matrix wall it paints time as flowing colour: a living aurora of rippling,
-drifting bands behind big two-tone digits (hours one colour, minutes another),
-a blinking colon, and a smooth seconds bar sweeping along the bottom. On the
-default **Daylight** theme the whole palette rotates through the spectrum over
-the course of a day, so the colour alone hints at the hour; **Spectrum**,
-**Ocean** and **Ember** round out the themes. 12h/24h and a timezone override.
+**Playlists.** Drag to reorder the entries in the editor. And a canvas app — an
+on-device effect especially — placed in a playlist now hands the panel back when
+its turn ends, instead of staying lit forever.
 
-The old **Analog Clock** canvas app has been removed.
+**Compose from a phone or tablet.** Tapping a cell in Compose now opens the
+on-screen keyboard on iOS and iPadOS, so you can type onto the wall from a
+touch device.
 
-## 2.6.0-beta.2
-
-**A new canvas app: Weather Sky.** The weather, drawn instead of spelled. On a
-Matrix wall it paints an animated sky for the current conditions — a sun whose
-rays slowly turn, clouds that drift, rain that falls and snow that wobbles down,
-a lightning flash in a storm, a moon and stars at night — with the temperature
-in a big colour that runs from icy blue to hot orange. It reads the same live
-weather and location as the ordinary Weather app. Like every canvas app it
-appears only on a wall that has a panel.
-
-Animated canvas apps also got smoother: the redraw floor dropped so an app can
-pick its own frame rate (up to the panel's ~8 fps ops ceiling) instead of being
-capped at five.
-
-## 2.6.0-beta.1
-
-**Draw anything on a Matrix wall.** A Matrix Gateway can now do far more than
-imitate flaps — it advertises a *canvas* (a real framebuffer) and on-device
-visual effects, and the companion uses both. Three new apps, shown only on a
-Matrix wall that has a panel:
-
-- **Effects** — plasma, fire, and Matrix rain, rendered by the panel itself at
-  full frame rate.
-- **Analog Clock** — a real clock face with sweeping hands, drawn pixel by
-  pixel (something a flap grid can never show).
-- **Image** — mirror a picture onto the panel in full colour.
-
-For app authors, a new `canvas` drawing surface lets an app paint pixels,
-lines, rectangles, text, an on-device effect, or a whole image straight to the
-panel, free of the flap grid. On a physical split-flap wall none of this
-applies — those apps simply don't appear.
-
-## 2.5.1-beta.2
-
-**A shared text layout, and a tidier binary clock.** The advice, quote, cat/dog
-fact, and random-fact apps each carried their own copy of the same
-"balance the words evenly across the lines" logic — it now lives in one place
-and the apps just ask the engine to lay their text out. No visible change,
-just less to go wrong. The Binary Clock's plain-time row now lines its digits
-up directly under the binary columns.
-
-## 2.5.1-beta.1
-
-**Channel apps write text, not line breaks.** The quote / joke / fortune
-channels are restructured: each entry is now the full text of a page, and the
-display wraps it to your wall — so the same joke reads correctly on a narrow
-sign and a wide one without anyone pre-splitting it. Multi-page items (a joke's
-setup and punchline, a two-page quote) are grouped in the data, so shuffling a
-channel can never separate a punchline from its setup. With that guarantee, the
-quote channels shuffle by default while jokes keep their order.
+Plus a long round of readability and layout polish across the new canvas apps.
 
 ## 2.5.0
 
-The 2.5.0 line promoted to a stable release — see the stable
-add-on changelog for the full summary. No code change from beta.5.
+The 2.5.0 line, gathered into a stable release. Everything below shipped and
+soaked across the 2.5.0 betas.
 
-## 2.5.0-beta.5
+**The whole app catalog, audited and improved.** Every built-in app was reviewed
+against what the gateways can actually do, then fixed: apps stopped deleting
+accents the display could show, several stopped truncating their own content on
+narrow walls, colour tiles now mark severity (aurora, earthquakes, the Fear &
+Greed index, the moon's illumination), and a batch of small bugs went with them.
+Four channels (Magic 8 Ball, Fortune Cookie, Stoic Quotes, Shower Thoughts) gained
+ten languages each, and single-page channels can now shuffle while jokes keep
+their setup-then-punchline order.
 
-**A round of app polish across the catalog.**
+**Public Holidays, rebuilt.** It runs entirely offline now from a ten-year
+dataset bundled with the add-on (no API, no key) and shows four switchable
+layers: public holidays for your country and province/state, religious
+observances filtered by tradition, curated cultural traditions per
+language-region, and an optional fun-day-a-day novelty calendar. The old
+National Today app is folded into it; walls that had it installed migrate
+automatically.
 
-- **Countdown** now rotates between your countdowns on a timer you set
-  (Seconds each countdown is shown), and the seconds keep ticking while it
-  does — the two were tangled before. It also opens a calendar picker for the
-  target date and leads with years for far-off dates ("8Y 267D 14H").
-- **Binary Clock** shows the plain time on the bottom row — the answer key
-  under the puzzle.
-- **Exchange Rates** line their decimal points up into a readable column.
-- **Public Holidays** folds its cultural traditions into the same per-locale
-  data files as the official holidays — one file per locale, still switchable
-  by category (public / religious-by-tradition / cultural / fun-day).
-- **Weather**: the colour swatches are balanced on both sides of a label
-  instead of one lonely tile, the current condition carries its own sky
-  colour, humidity shows on tall walls, and a five-row display fits five days
-  of forecast on one page.
-- **Channel apps** can shuffle: single-page channels (quotes, fortunes, 8-ball
-  answers, morning/night greetings) now play in random order, while jokes keep
-  their setup-then-punchline order. Authors control it with one manifest field.
+**Weather, sharper.** Colour swatches are balanced around a label instead of
+one lonely tile, the current condition carries its own sky colour, humidity
+shows on tall walls, and a five-row display fits five days of forecast on one
+page. All provider quirks live in one shared weather brain.
 
-## 2.5.0-beta.4
+**Countdown, Binary Clock, Exchange Rates, and more.** The countdown target is a
+calendar picker, far-off dates lead with years, and multiple countdowns rotate on
+a timer you set while the seconds keep ticking. The binary clock shows the plain
+time on its bottom row. Exchange rates line their decimals up into a column.
 
-**One calendar app, honest categories.** National Today is gone — folded into
-Public Holidays, which now works entirely offline from a ten-year dataset
-bundled with the app (185 language-region locales, built from python-holidays)
-and shows four layers, each with its own switch:
-
-  * **Public holidays** — always, for your country and province/state;
-  * **Religious observances** — off by default, and when on, filtered by
-    tradition (Christian, Islamic, Jewish, Hindu, Buddhist, Sikh);
-  * **Cultural traditions** — on by default: April Fools', Burns Night,
-    Nikolaus, la Befana, Dia de los Muertos... curated per language-region, so
-    a French wall in Montreal reads Fete du Canada and a Flemish wall in
-    Antwerp gets its own Dutch names;
-  * **A fun day, every day** — off by default: the "National Donut Day"
-    novelty calendar, there when you want it, out of the way when you don't.
-
-The layers know the difference between a day off, a feast, a folk custom and a
-novelty — a tradition that merely shares a date with a holiday (Fete du Muguet
-on Labour Day, la Befana on Epiphany) is kept; one the holiday layer already
-carries is not shown twice. A wall that had National Today installed — or in a
-playlist — is migrated to Public Holidays automatically.
-
-**Countdown rotation speed** is now a setting (it was pinned at one second with
-no way to change it), and the **Countdown target field opens a real calendar
-picker** instead of demanding a hand-typed ISO date — every app can now declare
-`datetime-local` / `date` / `time` settings. A far-off countdown leads with
-years ("8Y 267D 14H") instead of a four-digit day count.
-
-## 2.5.0-beta.3
-
-**A countdown you can set from a calendar, to a date years away.** The
-Countdown target field now opens the browser's native date & time picker —
-it was always meant to (the manifest said so); the form just fell back to a
-bare text box that gave no hint it wanted an ISO date. Dates saved before
-the picker existed still load.
-
-And a target thousands of days out finally reads like one: past a year,
-years lead — "8Y 267D 14H" instead of "3187D 14H 22M" — with the day total
-kept on signs too narrow for both. The tall-wall instrument panel gains a
-years row (of a decade), its day bar moves daily again (days within the
-year), and the panel can no longer show "999D" for six straight years —
-the clamp that produced that lie is gone by construction. On a five-row
-wall the ticking seconds yield to the years row; under a year, everything
-is exactly as before.
-
-Any app can now declare `datetime-local` / `date` / `time` settings and get
-the native picker — documented in Writing-Apps.
-
-## 2.5.0-beta.2
-
-**The companion itself, audited the way the apps were.** Backend, web UI,
-engine, integration, packaging and tests — every finding executed
-(docs/BACKEND_AUDIT_2026-07.md).
-
-*Closed before anyone hit them.* An uploaded app's name could run script in
-the companion's own page (manifest text now escaped everywhere it is shown);
-a crafted zip could balloon into RAM on upload (now capped by UNCOMPRESSED
-size); /api/config no longer returns the Vestaboard key, enablement token or
-MCP bearer token in the clear.
-
-*The wall stops going stale.* The engine repaints after a failed send or a
-trigger interruption instead of believing the page is still up — a rebooted
-gateway or an ended trigger used to leave the wall frozen until the content
-happened to change. Manual messages survive a trigger ending; back-to-back
-temporary messages replace instead of queueing; the slot animation's spin
-now survives on both gateway protocols.
-
-*Two walls, actually separate.* Six places quietly acted on the DEFAULT
-display no matter which wall you had selected — worst of all, the dev-menu
-settings pull, which could overwrite one wall's settings with another's.
-All scoped correctly; each gateway's status page now shows what ITS wall is
-running; one wall's settings push no longer pauses the other's; failing
-triggers back off instead of polling harder.
-
-*Faster and politer.* One pooled connection per gateway (an ESP32 has about
-four sockets — the companion used to open a fresh one per request, per
-heartbeat); geocoding failures are remembered briefly instead of hammering
-Nominatim on every refresh; the legacy protocol only resends modules that
-changed; the UI stops rebuilding what didn't change and is keyboard-usable
-(tiles, pickers and the dialog).
-
-*Home Assistant integration (1.3.0).* Timeouts, so a black-holed companion
-can't hang setup for minutes; a resized wall recovers without restarting HA;
-entity IDs migrate to stable ones so re-adding the integration keeps your
-history and customisations.
-
-*And the guardrails.* The repo now runs its full test suite — 3,814, with a
-guard that fails any test touching the live network — plus Home Assistant's
-own validators, on every push. main.py shrank from 1,800 lines to 900 with
-routes split into focused modules.
-
-## 2.5.0-beta.1
-
-**The whole app catalog, audited and brought up to what the platform can do.**
-Every app — all 64 — was audited against the gateways' capabilities; this release
-executes the findings.
-
-*Platform.* `get_location()` now carries `lat`/`lon`/`city` (the one cached
-geocode, shared with weather), so no app needs its own Nominatim ladder.
-Triggers opt into the same injected helpers as `fetch()` — `caps`, `i18n`,
-`get_weather`, `get_location` — by parameter name; the two-argument form stays
-the splitflap-os contract. And `i18n.tz()` plus one blessed guarded snippet
-replace eighteen hand-rolled timezone parses (fallback standardized on UTC).
-
-*Bugs out of the wall.* Three apps stopped deleting accents the renderer could
-have shown (News, On This Day, Trivia). Comments renders the comment as typed,
-not its HTML (`&#39;` on flaps, no more). Time Since ticks seconds only on a
-wall that repaints, fits its line to the wall, and gains a start-date row on
-tall walls. Crypto shows tickers (BTC, ETH) instead of mangling id slugs into
-"BITCOI". ISS coordinates now use hemisphere letters ("41.00S 123.45W") instead
-of a 25-character line no small wall could show. Fear & Greed no longer drops
-its own index on short walls. Sarcastic Fortune Cookies re-wraps when the wall
-changes shape. BirdNET stops polling its Pi every second and no longer ships a
-private LAN IP as a product default. Metro's code default matches its dialog.
-Stock/crypto triggers: every direction option now works with every condition
-type. Moon Phase drops timezone code that cancelled itself out. YouTube says
-what it actually shows — real subscribers with an API key, latest uploads
-without.
-
-*Honest minimums.* All twelve channels declared `min_cols: 10` over 15-wide
-data — every page truncated on a 10-column wall. Now 15, and a conformance test
-keeps any channel's declared minimum at least as wide as its data. Stocks,
-Crypto, Metals, ISS, Art Clock, Fear & Greed corrected too; Sun Times,
-Earthquakes and Rocket Launch advertise the 1-row layouts they already had.
-
-*More from the wall you own.* Severity colours (coloured pixels on a matrix
-wall, colour flaps on a physical one): aurora Kp, earthquake magnitude, Fear &
-Greed sentiment, and the moon's illumination bar. Tall walls: On This Day shows
-up to three events, Formula 1 shows the standings column, Time Since shows the
-start date. Countdown asks `caps.can_show()` instead of reaching into host
-internals.
-
-*Speak your language.* Magic 8 Ball, Fortune Cookie, Stoic Quotes and Shower
-Thoughts join the localized channels — ten languages each, forty new data
-files, every line checked against that language's actual reel (a new test; it
-also caught and fixed five off-reel characters in existing data). Random Fact
-follows your Language to the facts API (English/German). Livestream, Metro,
-YouTube, Earthquakes and National Today localize their chrome; National Today
-also uses the catalog's holiday-name translations.
-
-The Writing-Apps wiki gained the distilled **house rules** — one truthy parser,
-one timezone snippet, errors that raise, minimums as a contract, the i18n badge
-as a promise, and never filtering characters the renderer handles better.
+**Under the hood.** A full companion-side audit hardened the app-upload path
+(escaping, zip-bomb and secret-leak fixes), added continuous integration that
+runs the full test suite plus Home Assistant's own validators on every change,
+fixed a class of multi-display bugs, and made the engine repaint reliably after
+an interruption. The Home Assistant integration (1.3.0) gained request timeouts,
+live grid refresh, and stable entity IDs. Motion capability, a board-image
+entity, and gateway auto-discovery from earlier in the line are all here too.
 
 ## 2.4.0
 
@@ -1222,432 +419,6 @@ playlist — or a playlist simply running out — now homes every module.
 Nothing to do. Settings, playlists and triggers are carried over, and a single-display setup
 behaves exactly as it did — the switcher only appears once there is a second wall.
 
-## 1.9.0-beta.24
-
-**Standalone Docker: set `COMPANION_PUBLIC_URL`.** Outside Home Assistant there is no
-Supervisor to ask where we live, so the companion works its own address out by opening a socket
-toward the gateway — and inside a bridge-networked container that address is `172.17.0.x`,
-which is the container's own address on the Docker bridge. Your gateway is a device on the LAN
-and cannot reach it, so the "Companion" link on the gateway pointed nowhere.
-
-The reachability check could never have caught this, and it is worth saying why: it probed the
-URL *from inside the container*, where `172.17.0.x` is reachable because it **is** us. The
-check passed and the URL was still useless. It now looks at the address instead, and warns in
-the log, naming the fix.
-
-The README and `docker-compose.yml` now set `COMPANION_PUBLIC_URL`; the install script already
-did. **Nothing else was affected** — driving the display, the apps, settings sync, the gateway
-proxy, multiple displays and the UI all worked either way.
-
-## 1.9.0-beta.23
-
-**The wall now says what it can show, and the companion listens.** Gateways answer a new
-`/api/capabilities`, so the companion no longer guesses a display's alphabet from its product
-name. It asks — on boot and on every resync — and gets the real answer, including a physical
-wall's actual reel.
-
-That matters because of how a split-flap fails: ask a module for a character that is not
-printed on its reel and it does not complain and does not substitute — it **homes**. A blank
-hole in the middle of a word, reported by nothing. So now anything your reel cannot show is
-turned into the nearest thing it can: `Åre` → `ARE`, an em dash → `-`, `15:30` → `15.30` on a
-reel with no colon, `Straße` → `STRASSE` on a reel with no ß. And what your reel *does* carry,
-it keeps — on a French reel, `Prévu` finally shows as **`PRÉVU`**. Those thirteen accent flaps
-were always there.
-
-**Two new apps.**
-
-* **Calendar** — the next thing you have to be at, and the one after it if the wall has the
-  rows. Point it at one or more iCal feeds (comma-separated); their events merge into one
-  timeline, and a feed being down costs you its events, not the whole app. Recurring events
-  are expanded properly, so the weekly standup shows up.
-* **Dog Facts** — the sibling of Cat Facts.
-
-**The apps stopped shouting.** They wrote in capitals because a split-flap has no lowercase
-flaps — but that is the wall's business, not theirs, and the companion already folds the case
-for the walls that need it. On a Matrix Portal they now read as they were written: *It's five
-past three*. Nothing changes on a physical wall.
-
-Fixing that turned up **three apps that were shipping shredded text**: Trivia, Chuck Norris and
-News Headlines filter their text through the flap character set, and a case-sensitive filter
-was quietly blanking every lowercase letter. Trivia has been rendering "What is the largest
-planet?" as "W                         ?". They are readable again.
-
-**Translations.** A native-speaker pass over all nine languages. The Dutch label for tree
-pollen was `Bom` — *bomb*. Norwegian's was `Tre`, which is also the numeral *three*. Portuguese
-had sleet and hail swapped. Ten strings were wider than the wall and being silently cut
-("Naechster Feier"). Accents are spelled properly now, because the reels carry them.
-
-The **French clock** was broken everywhere: the fr-FR reel has no colon, so `15:30` reached
-every French wall as `15 30`, with a hole in it, in all fourteen apps that show a time. French
-writes `15h30` anyway.
-
-**Also:** the display switcher was an unreadable dark box in the Home Assistant theme, and
-"Remove a display" — the one destructive control in the app — was styled as the primary blue
-button. Both fixed. The German UI was half formal and half informal, and a review of it found a
-setting whose description said the opposite of what it does.
-
-## 1.9.0-beta.22
-
-**A stopped display goes blank.** It used to keep showing the last page the app happened to
-draw — which is worse than blank: a clock frozen at 11:34 is not obviously *off*, it is
-obviously *wrong*, and the longer it sits there the more it looks like the thing is still
-working.
-
-Blanking **is** homing: flap 0 is the blank flap, so every module returns home. (The Home
-button is still there for a physical re-home.)
-
-Both ways of ending up with nothing running now blank the wall: you stopped it (the Stop
-button, Home Assistant, an MCP call), **or** a playlist that does not loop simply ran out.
-Switching from one app to another does not flash a blank in between.
-
-## 1.9.0-beta.21
-
-**Apps can now ask what the display can show**, and the first pictographs are in use.
-
-- **Stocks and Crypto** show **↑ / ↓** for the day's direction. It used to be a colour only —
-  which is nothing at all if you have colours turned off. The arrow carries the meaning and
-  the colour reinforces it. On a real split-flap the arrow becomes `^` / `v`, which still reads.
-- **Tides** shows **↑ / ↓** instead of HIGH / LOW on a Matrix Portal, which frees the room the
-  time and the height wanted. A real reel keeps the words, because there a ↑ would come out
-  as `^` — and that is not what a tide table should say.
-
-An app declares `caps` and gets told: `lowercase`, `pictographs`, `named_colours`. It is
-optional, so an app that never heard of it is called exactly as before.
-
-## 1.9.0-beta.20
-
-**New setting: "Always uppercase"** (Global settings). Show everything in capitals even on a
-display that *can* render lowercase — for when you prefer the classic split-flap look.
-
-It is **per display**, so one wall can shout while another does not, and it is stored with
-that display's settings, which means it is backed up to that display's gateway like
-everything else.
-
-It costs nothing else: a Matrix Portal told to shout is still driven by the index-addressed
-API, still shows its pictographs, and still gets its colours by name. It is simply in
-capitals — `Hi ♥ 🟥` becomes `HI ♥ [red]`, and `café` becomes `CAFÉ` with its accent intact.
-
-## 1.9.0-beta.19
-
-**The forecast now says what the weather will be**, not just what colour it is.
-
-    |    FORECAST   |          |       FORECAST       |
-    |Tue Sunny 89/71|          |Y Tue Sunny      89/71|
-    |Wed Rain- 86/70|          |B Wed Rain-      86/70|
-    |Thu Storm 79/66|          |R Thu Storm      79/66|
-      a 15-wide wall             a 22-wide wall: the colour comes back too
-
-A colour tells you "wet"; it does not tell you drizzle from a downpour. Light and heavy are
-a `-` or `+` suffix rather than separate words, so every language keeps its own noun and the
-sign means the same thing everywhere — `Pluie-`, `Regen-`, `Nieve+`.
-
-The whole page picks ONE format, from its longest condition, so the columns line up. The day
-gives up a letter before the condition does (`We` is still Wednesday; a truncated condition
-is not a condition), and the colour flap is spent only when it costs nobody a letter.
-
-Translated into all nine languages.
-
-## 1.9.0-beta.18
-
-**Fixes triggers painting colour flaps through the words.** A trigger's page was treated as
-an *animation* — where a lowercase r, o, y, g, b, p or w means a COLOUR FLAP. That was
-harmless while every app SHOUTED its own output, so no lowercase could reach it. The apps
-stopped doing that in beta.13, and since then "Partly cloudy" has been arriving with a red,
-an orange and a yellow flap in the middle of it. Triggers now show words; only a real
-animation paints.
-
-**Also fixes the Compose editor shouting at you** on a Matrix Portal: it uppercased the
-preview whatever wall you were on, so it lied about what the wall was going to show.
-
-Under the hood, the two device types are now one idea in one file, which is what surfaced
-both bugs.
-
-## 1.9.0-beta.17
-
-**Weather gets a forecast.** A page of the coming days — one line each, the day's sky as a
-colour flap and its high/low lined up in a column you can read down.
-
-    |    FORECAST   |
-    |# Wed     89/71|      # = a colour flap: yellow sun, white cloud,
-    |# Thu     86/70|          blue rain, purple snow, red storm
-    |# Fri     79/66|
-
-The sky is a **colour** rather than a picture because a colour is the only weather icon
-every wall can show: the flap reel has no cloud and no raindrop, but it has had seven
-colours since the beginning. Set **Forecast days** in the weather app's settings (off, 3, 4
-or 5 — three by default). Works with all four providers.
-
-## 1.9.0-beta.16
-
-**The list of displays is now backed up to your gateways**, like everything else.
-
-It was the one thing a rebuilt companion could not recover. Each wall's settings come back
-from its own gateway — but the LIST of walls, their names, and which one you chose as the
-default lived only on the companion's disk. `gateway_url` reseeds what is in the add-on
-options, so a display you added in the **UI** would simply vanish.
-
-Now every gateway carries a copy of the whole set, and any one of them can rebuild it:
-wipe the companion completely, give it back a single gateway URL, and your other walls
-come back with their names and your chosen default.
-
-## 1.9.0-beta.15
-
-**Fixes the gateway's logo not loading** when you open a gateway tab through the companion.
-
-The proxy rewrites the gateway's absolute paths so the browser asks the GATEWAY for them
-rather than the companion — but it only recognised double quotes, and the gateway writes its
-brand image with single ones (`<img src='/logo.svg'>`). So the logo was the one asset on the
-page still pointing at the companion's root, where there is no /logo.svg. Both quote styles
-now, with the original quote preserved.
-
-## 1.9.0-beta.14
-
-**Nothing shouts any more.** Every joke, quote, fortune and holiday name in the apps' data
-was stored in CAPITALS, because the old hardware had no lowercase flaps. All 21,561 strings
-across 12 languages are now written the way the words actually are — and a physical
-split-flap still renders exactly what it always did, because the companion folds the case
-for the walls that need it.
-
-    PHYSICAL WALL          MATRIX PORTAL
-    |  WHY DID THE  |      |  Why did the  |
-    | SCARECROW WIN?|      | scarecrow win?|
-
-German capitalises its nouns (*Was macht ein Pirat am Computer?*), French and Dutch do not,
-and a line that continues the sentence above it stays lowercase — the data is hand-wrapped
-to fit a 15-column wall, so a joke's second line is usually mid-sentence.
-
-**Fixes the live display showing mixed case wrongly.** A composed message's page was sent
-"raw", which also meant "a lowercase letter is a colour flap" — so the o, r and w of
-"Hello world" were being turned into orange, red and white flaps. Reading the board back
-through the Vestaboard API had the mirror-image bug.
-
-**New app: Forecast Ribbon.** The day's temperature as a colour bar chart — each column an
-hour, the bar's height how warm it gets, its colour the actual temperature. A cold morning
-is a low blue foothill; a warm afternoon a tall orange ridge. A sibling of Art Clock.
-
-## 1.9.0-beta.13
-
-**The apps stopped shouting.** They no longer uppercase their own text — the companion
-folds it, and only for a wall that needs it. A physical split-flap renders exactly what it
-always did; a Matrix Portal shows the words as they were written.
-
-    PHYSICAL WALL          MATRIX PORTAL
-    | WIKI FEATURED |      | WIKI FEATURED |
-    | MANUFACTURERS |      | Manufacturers |
-    | TRUST COMPANY |      | Trust Company |
-    |    BUILDING   |      |    Building   |
-
-Article titles, holiday names, quotes, headlines, city names, weekdays and months all keep
-their case now. The apps' own labels (NEXT HOLIDAY, WIKI FEATURED) stay uppercase — that is
-authored text, not automatic folding, and it reads as a split-flap ought to.
-
-Nothing changes on a physical wall.
-
-## 1.9.0-beta.12
-
-**Matrix Portal walls get their full alphabet.** The Matrix Portal Gateway (firmware 1.6+)
-has an index-addressed display API, and the companion now uses it automatically when it
-finds one — a physical split-flap keeps the protocol it has always had.
-
-- **Lowercase and accents in the text you type.** Compose, the Vestaboard API and the MCP
-  `show_message` tool now show your message the way you wrote it, instead of SHOUTING IT
-  BACK AT YOU. (Apps still uppercase their own output — 34 of the 60 do it themselves.)
-- **Pictographs**: ♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀ — none of which has a Windows-1252 byte, so
-  none of which could be sent at all before.
-- **Colours are named**, not smuggled through the letters `r o y g b p w`. That is *why*
-  lowercase was impossible: the byte for `r` already meant RED.
-- **Only what changed is redrawn.** A clock moving one digit moves one flap instead of
-  repainting seventy-five modules.
-
-Nothing changes on a physical wall, and nothing changes for apps.
-
-## 1.9.0-beta.11
-
-**Fixes the gateway tabs disappearing from the top bar** (a regression in beta.8). A local
-variable in the tab code was called `gwUrl`, and beta.8 added a global helper of the same
-name — the local shadowed it, so the call threw and the whole tab strip failed to render.
-A guard now checks every global helper for shadowing, which is what would have caught it;
-it found a third, latent one while it was at it.
-
-**Apps that lay out for the wall they are on.**
-
-- **Stocks**: ticker flush left, price flush right — the prices line up in a column and you
-  can read down them.
-- **World Clock** and **Sun Times**: same, city/label left and the time right.
-- **Tides**: the day's tides are a *list*, so on a 4+ row wall they are one page instead of
-  one page per tide. Heights line up in a column.
-- **Next Launch**: fits on one page on a tall wall, instead of splitting the rocket from its
-  mission across a page turn. A five-row wall also gets the launch time, in your timezone.
-- **Art Clock**: a taller pixel font on a 5-row wall, and it is now centred on any wall — it
-  used to be drawn raw at 3×15, so on any other geometry it sat in the top-left corner.
-
-## 1.9.0-beta.10
-
-**Editing a playlist no longer means retyping its name.** The editor was an anonymous
-scratch buffer: "Load" copied a playlist's entries in and forgot where they came from, so
-"Save" had to ask — and you had to reproduce the name exactly, or you silently made a
-second playlist beside the one you meant to change.
-
-- The list's **Load** button is now **Edit**, and it brings the name with it. **Save**
-  writes straight back — no prompt.
-- Change the name and Save becomes **Rename & save**, so you can't rename by accident
-  while reaching for a copy. The old name is not left behind as a stale duplicate.
-- **New** clears the editor, and the playlist you're editing is marked in the list.
-
-**Apps can now opt out of auto-centring.** An app that builds its own layout declares
-`"vertical_align": "top"` (or `"bottom"`) in its manifest and its rows are left exactly
-where it put them. The key is additive — absent means `"center"`, so every existing app is
-untouched — and `"top"` is byte-for-byte the original splitflap-os padding, so it doubles
-as the compatibility switch. See COMPATIBILITY.md.
-
-## 1.9.0-beta.9
-
-Vertical centring, properly this time.
-
-- **World Clock, Stocks and YouTube Comments** filled the page with blank rows themselves,
-  which left nothing for the layout to centre — so three world clocks sat pinned to the top
-  of a five-row wall. They now hand over only the lines they have. Two tickers, three zones
-  or a single clock are centred on whatever wall they land on, including one line on a
-  three-row display.
-- **Cat Facts, On This Day and Sarcastic Fortune Cookies** had the opposite bug, introduced
-  in beta.5: they centred themselves, and then got centred a *second* time, leaving them a
-  row below the middle. Fixed.
-- Crypto no longer leaves its alignment padding as trailing blank rows on the last page.
-
-The rule is now one line of code in one place — an app hands over the lines it has, and the
-layout decides where they sit — and a test enforces it across all 60 apps, in both
-directions.
-
-## 1.9.0-beta.8
-
-**One companion, several displays.** Drive more than one gateway at once — each with its
-own geometry, apps, playlists, triggers and settings — and switch between them in the UI.
-
-- **Add displays** from the Tools menu (⚙ → Displays), or list them in the `gateway_url`
-  option separated by commas: `http://192.168.1.218,http://192.168.1.50`. The first is the
-  **default display**: the one Home Assistant, the Vestaboard API and anything else that
-  doesn't name a display will drive.
-- A **display switcher** appears in the header once you have more than one. Everything
-  follows it — the live preview, Compose, Playlists, Triggers, and the gateway's own tabs.
-- **Each wall gets its own Home Assistant device**, so its App/Playlist controls drive that
-  wall and not another.
-- Every setting belongs to a display and is stored on **that display's gateway**, so each
-  wall's settings can be recovered from its own box. A new display copies the global
-  settings from an existing one, so you don't retype an API key.
-
-**If you have one gateway, nothing changes.** The switcher stays hidden, every URL means
-what it meant, your Home Assistant entities keep their ids, and your existing settings are
-migrated across (the old file is kept as a backup, untouched).
-
-## 1.9.0-beta.7
-
-Three apps that were laid out for a three-row wall, on a five-row one.
-
-- **Weather** paged through as many as five near-empty screens — conditions, air
-  quality, UV, pollen, pollen detail — several of them padded out with a
-  "PROV OPENMETEO" line nobody asked for. The provider name is gone, and each metric
-  is now a single row (`AQI 42 GOOD`), so a tall wall shows the lot at once.
-- **Wikipedia** showed the three most-read articles as three separate pages, each
-  spending one row on a title and leaving the rest blank. It is a list, so it is now
-  a list: one page, one article per row (four of them on a five-row wall).
-- **Next holiday** *truncated* long names — "MARTIN LUTHER KING J". It wraps them now,
-  and spends the spare row on the date. On a three-row wall a name that doesn't fit
-  takes the "NEXT HOLIDAY" header's row rather than losing half of itself.
-
-Three-row walls render exactly as before.
-
-## 1.9.0-beta.6
-
-Groundwork for driving **several gateways from one companion** (Phase 0). There is
-**no new feature here and nothing changes**: the companion still drives one gateway,
-every URL still means what it meant, and the UI is untouched. What changed is the
-plumbing underneath — the geometry, settings store, app loop and Home Assistant device
-that were global now belong to a *display* object, so a second one can exist.
-
-Shipping it as a beta on its own, rather than folded into the feature, so that if
-anything did shift you know exactly which change to blame.
-
-One real fix fell out of it: the tabs a gateway advertises were stored globally, which
-with two gateways would have shown whichever one answered most recently.
-
-## 1.9.0-beta.5
-
-Tall walls (a 5x15 MatrixPortal) now actually use the space.
-
-- **Content is centred vertically.** A three-line app used to sit at the top of a
-  five-row wall with two dead rows under it. This is a deliberate divergence from
-  splitflap-os, which pads only at the bottom — invisible on the 3-row walls it
-  targets. Nothing changes on a 3-row wall.
-- **Apps use the extra rows**: World Clock shows as many zones as you have rows (it
-  was capped at three by its own settings), Date adds the year, Time adds the day and
-  date, Moon Phase fits the whole reading on one page, ISS lists who is aboard, and
-  Dashboard adds humidity and wind. Stocks, Crypto, Sports and Countdown already
-  adapted — they simply need more tickers/teams/slots configured to fill the wall.
-
-## 1.9.0-beta.4
-
-Two bugs found on a 5x15 MatrixPortal (75 modules).
-
-- **The gateway's tabs were missing, and a JavaScript error was the cause.** The
-  translation work added a global `t()` function, and three callbacks already used
-  `t` as a variable name — so inside them `t("…")` called a DOM element and threw.
-  The worst one only threw **while an app was running**, which is why it passed
-  testing and broke in the field: it aborted the UI's startup, and everything after
-  it (including the gateway tab strip) never ran.
-- **The companion never noticed the wall had changed shape.** It read the gateway's
-  geometry once, at startup: a gateway that was still booting then — or one whose
-  layout changed later, or a swap to a bigger panel — left the companion stuck on its
-  default 3x15, rendering 75 modules as 45. It now re-reads the gateway on every
-  heartbeat and resizes when the geometry actually moves, and the web UI follows the
-  new shape without a reload.
-
-## 1.9.0-beta.3
-
-- **The settings dialogs are actually translated now.** Labels were, but the
-  descriptions under them were not — the server assembles each one ("…  ·  Used by
-  Weather, Dashboard"), and an assembled string is no catalog key, so it fell back
-  to English whole. Both halves are translated server-side now, app names included
-  ("Utilisé par Météo, Tableau de bord").
-- **App settings dialogs too**: the labels apps declare in their manifests
-  (Temperature Unit, Polling Rate, Countdown 1 Target…) are now in the catalogs —
-  about 170 more strings across fr/de/es.
-- **Fixed**: the weather app's settings printed a raw key
-  ("weatherapi_attribution_notice") where its attribution line should be. A notice
-  has no label, and the key was standing in for one.
-- The **Home Assistant** option moved off the Configuration page into Home
-  Assistant's "unused optional configuration options" — as an add-on it follows the
-  gateway's own Home Assistant switch, so it was noise. Still settable there if you
-  want to force it on or off.
-
-## 1.9.0-beta.2
-
-- **The UI follows your Home Assistant language.** If your HA profile is in French,
-  the add-on is in French — whatever your browser's language happens to be. Home
-  Assistant doesn't expose a user's profile language to add-ons through any API, so
-  the UI reads it from the HA frontend it is embedded in (same origin, per user,
-  exact). Outside Home Assistant nothing changes: the browser still decides.
-- **UI language is now a dropdown**, not a free-text box — a typo used to fall back
-  to English silently. `auto` (the default) means "follow Home Assistant, then the
-  browser"; pick a language to pin it for everyone.
-
-## 1.9.0-beta.1
-
-- **The UI speaks your language.** The web interface (menus, buttons, forms, the
-  settings dialogs) now follows the viewer's browser language, with overrides:
-  a `?lang=` URL parameter always wins, then an explicitly saved Language
-  setting, then the new `ui_language` option here, then the browser. French,
-  German and Spanish ship first; anything untranslated falls back to English.
-- **The App Library is localized too**: app names and descriptions show in the
-  UI language ("Weather" → "Météo"/"Wetter"), and uploaded apps can bundle their
-  own translations as `i18n/<lang>.json` inside the zip.
-- **Error pages on the flaps follow the content Language** ("NO DATA" → "PAS DE
-  DONNEES" on a French wall).
-- Channel apps ship translations as `data_<lang>.json` sidecars, and four
-  built-ins (motivational quotes, good morning, good night, dad jokes) now carry
-  50 pages in 11 languages — dad jokes are native puns per language, not
-  translations.
-- The HACS integration and this configuration page are translated (fr/de/es).
-
 ## 1.8.0
 
 - **The ⚙ menu is now always there** (it used to appear only in developer mode, labelled
@@ -1694,78 +465,27 @@ Two bugs found on a 5x15 MatrixPortal (75 modules).
 
 ## 1.5.0
 
-Promoted to stable — the beta channel and the stable channel are the same build at this
-release. See the stable add-on's changelog. New prereleases will appear here as
-1.5.x-beta.N.
+First stable release as a Home Assistant add-on.
 
-## 1.5.0-beta.8
+Runs in the sidebar, restyled to match Home Assistant, configured entirely from the
+Configuration tab — no environment variables, no command line.
 
-- **The MCP server can now say which app is on screen.** While a playlist runs, an
-  assistant could see *that* a playlist was playing but not *which* of its apps was up,
-  so it had to guess from the flaps. `get_display` now reports the app on screen, what
-  kind of thing is driving the display, and the playlist's running order and position.
-  This also shows in the web UI's live view and in Home Assistant.
+**Drive the wall from Home Assistant**
+- The full companion: apps (weather, clock, stocks, transit…), playlists, schedules and
+  triggers, and a click-to-type Compose grid.
+- Publishes a *SplitFlap Companion* MQTT device (App / Playlist selects, a Stop button)
+  when Home Assistant integration is on.
 
-## 1.5.0-beta.7
+**Drive it from an automation or an assistant**
+- **Vestaboard-compatible API** (off by default): anything written for a Vestaboard —
+  a `rest_command`, a script, the HACS Vestaboard integration — drives this wall
+  unchanged.
+- **MCP server** (off by default): an LLM client can show a message, run an app or a
+  playlist, and read what's on the flaps — including which app is currently on screen.
 
-**The gateway's own UI now opens inside Home Assistant, and matches its look.**
+**Seamless inside Home Assistant**
+- The gateway's own configuration UI opens in the sidebar too, restyled to match — no
+  leaving Home Assistant, no separate browser tab.
+- Detects the host's real address so the gateway can link back to the companion.
 
-- The gateway's tabs (Modules, Calibration, Settings…) used to leave Home Assistant
-  altogether — on mobile, they left the app — and its link back never returned. Home
-  Assistant can only put *this add-on's* port in the sidebar, and the gateway is a
-  separate device, so the companion now serves the gateway's UI itself at `/gw/`. The
-  whole round trip stays in the sidebar.
-- Because the gateway's page passes through the companion, it can be restyled to match
-  Home Assistant. No gateway firmware update is needed.
-- **Developer mode** is now a switch on the Configuration tab. It was an environment
-  variable, which an add-on user has no way to set — so the Dev menu was unreachable.
-- The Dev menu now shows the **address an MCP client (or a Vestaboard `rest_command`)
-  must actually use**. It was showing Home Assistant's own address, which reaches
-  neither.
-
-## 1.5.0-beta.6
-
-- **What was playing survives a restart.** Updating the add-on restarts it, and the
-  display went dead: the playlist that had been running simply stopped. It now comes back
-  on its own. A message you typed by hand does *not* come back — it replaced whatever was
-  running, so the board is left alone.
-
-## 1.5.0-beta.5
-
-- The characters on the live display were hard to read at small sizes. The seam across
-  each module was being drawn *over* the character, and the typeface thinned out badly.
-  The glyphs are now bigger, heavier, and no longer cut in half.
-
-## 1.5.0-beta.4
-
-- **Fixed: the gateway could not reach the companion.** The add-on was registering itself
-  with the gateway as `172.30.33.4` — its address on Home Assistant's internal network,
-  which nothing on your LAN can reach, so the gateway's "Companion" tab pointed nowhere.
-  It now asks Supervisor for the host's real address and the port it is published on.
-
-## 1.5.0-beta.3
-
-- **Fixed: the `stocks` app failed with "cannot load module more than once per process".**
-  numpy 2.4 requires a CPU baseline (x86-64-v2) that many Home Assistant machines don't
-  have — typically a VM with a generic CPU model, such as Proxmox's default `kvm64`. The
-  add-on now ships a numpy that runs on them.
-- **The menu collapses on a phone.** With the gateway's tabs added, it ran to four rows
-  and pushed the display off the screen.
-- **The display preview fits a phone**, and is more compact on a desktop.
-
-## 1.5.0-beta.2
-
-- **Fixed: the add-on would not start**, reporting `GATEWAY_URL is not set` even with the
-  gateway URL filled in. It was only looking for an environment variable, and an add-on
-  has none — the value lives in the Configuration tab.
-
-## 1.5.0-beta.1
-
-First release as a Home Assistant add-on.
-
-- Runs in the sidebar (ingress), restyled to match Home Assistant.
-- Configured from the Configuration tab; no environment variables.
-- **MCP server** (off by default): an LLM client — Claude, an agent — can show a message,
-  run an app, or read what's on the flaps.
-- **Vestaboard-compatible API** (off by default): anything written for a Vestaboard,
-  including a Home Assistant `rest_command`, drives this display unchanged.
+Everything above was shaped over the 1.5.0 beta series; this is that work, stabilised.

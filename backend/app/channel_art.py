@@ -5,14 +5,37 @@ framebuffer it can opt in (the per-app "Show on Matrix panel" toggle) to render 
 line of text laid out big on a black panel, with a small bespoke icon beside it that says what the
 channel is — a clapperboard for movie quotes, a moon for good-night, a fortune cookie, and so on.
 
-Each channel names its motif in its manifest (``canvas_art``); the icons are drawn with Pillow
-primitives (no assets to ship) and keyed in ``MOTIFS``. ``render`` composes one frame and pushes it
-through the injected ``CanvasSurface`` — the same transport the canvas apps use.
+Each channel names its motif in its manifest (``canvas_art``); most icons are drawn with Pillow
+primitives (keyed in ``MOTIFS``), a few are a bundled image (the fortune cookie is the 🥠 emoji,
+keyed in ``_ASSETS``). ``render`` composes one frame and pushes it through the injected
+``CanvasSurface`` — the same transport the canvas apps use.
 """
 
 import math
+import os
 
 _INK = (238, 242, 250)     # default warm-white text
+
+# A few motifs are an actual image (the fortune cookie is the 🥠 emoji, which no shape captures);
+# these paste a bundled PNG instead of drawing. Keyed the same as MOTIFS, so a manifest just names
+# the motif. The panel's rgb565 + downscale flattens it, but it's unmistakably the cookie.
+_ASSET_DIR = os.path.join(os.path.dirname(__file__), "assets")
+_ASSETS = {"cookie": "fortune-cookie.png"}
+_asset_cache: dict = {}
+
+
+def _asset(motif):
+    """The RGBA image for an image-backed motif (cached), or None to fall back to a drawn shape."""
+    name = _ASSETS.get(motif)
+    if not name:
+        return None
+    if motif not in _asset_cache:
+        try:
+            from PIL import Image
+            _asset_cache[motif] = Image.open(os.path.join(_ASSET_DIR, name)).convert("RGBA")
+        except Exception:
+            _asset_cache[motif] = None
+    return _asset_cache[motif]
 
 
 def _shadow(d, x, y, s, f, col, sh=(0, 0, 0)):
@@ -79,16 +102,17 @@ def _moon(d, x, y, s):
 
 
 def _cookie(d, x, y, s):
-    # A folded fortune cookie: two rounded lobes pinched at the centre, a fold crease, and the
-    # fortune paper poking out — the pinch + paper is what reads as a cookie (not a plain disc).
-    tan, tan_d, paper = (234, 186, 106), (198, 146, 74), (250, 250, 242)
-    cx, cy = x + s / 2, y + s * 0.54
-    d.ellipse([x + s * 0.04, cy - s * 0.30, cx + s * 0.14, cy + s * 0.34], fill=tan)       # left lobe
-    d.ellipse([cx - s * 0.14, cy - s * 0.30, x + s * 0.96, cy + s * 0.34], fill=tan)       # right lobe
-    d.chord([x + s * 0.04, cy - s * 0.02, x + s * 0.96, cy + s * 0.36], 5, 175, fill=tan_d)  # shaded underside
-    d.line([cx, cy - s * 0.24, cx, cy + s * 0.30], fill=(150, 108, 54), width=max(1, int(s * 0.06)))  # fold
-    d.polygon([(cx - s * 0.05, cy - s * 0.04), (cx + s * 0.05, cy - s * 0.04),
-               (cx + s * 0.13, cy - s * 0.26), (cx - s * 0.13, cy - s * 0.26)], fill=paper)  # fortune slip
+    # A folded fortune cookie: one pleated shell (a rounded belly pinched up to a folded top) with
+    # the fortune slip poking out. A single mound, not two lobes — reads as the cookie, nothing else.
+    tan, tan_d, paper = (234, 186, 106), (196, 144, 74), (250, 250, 242)
+    cx = x + s / 2
+    d.pieslice([x + s * 0.14, y + s * 0.30, x + s * 0.86, y + s * 1.02], 180, 360, fill=tan)   # belly
+    d.polygon([(x + s * 0.14, y + s * 0.52), (cx, y + s * 0.22), (x + s * 0.86, y + s * 0.52)], fill=tan)  # fold peak
+    d.arc([x + s * 0.14, y + s * 0.30, x + s * 0.86, y + s * 1.02], 180, 360, fill=tan_d, width=max(1, int(s * 0.045)))
+    for fx in (0.34, 0.5, 0.66):                                                               # pleats
+        d.line([x + s * fx, y + s * 0.30, x + s * fx, y + s * 0.62], fill=tan_d, width=max(1, int(s * 0.035)))
+    d.polygon([(cx - s * 0.05, y + s * 0.28), (cx + s * 0.05, y + s * 0.28),
+               (cx + s * 0.10, y + s * 0.04), (cx - s * 0.10, y + s * 0.04)], fill=paper)      # fortune slip
 
 
 def _eightball(d, x, y, s):
@@ -195,17 +219,21 @@ def render(surface, text, motif="quote", accent=_INK):
     """Compose one frame — themed art on the left, the text laid out big beside it — and push it
     through ``surface`` (a canvas.CanvasSurface). Falls back to text-only if the motif is unknown
     or the panel is too small for art."""
-    from PIL import ImageDraw
+    from PIL import Image, ImageDraw
     W, H = int(surface.width), int(surface.height)
     img = surface.blank((0, 0, 0))
     d = ImageDraw.Draw(img)
     d.fontmode = "1"
 
-    art = MOTIFS.get(motif)
-    if art and H >= 40 and W >= 112:
+    art, asset = MOTIFS.get(motif), _asset(motif)
+    if (art or asset) and H >= 40 and W >= 112:
         s = min(H - 8, int(W * 0.30))
         ax, ay = 4, (H - s) // 2
-        art(d, ax, ay, s)
+        if asset is not None:
+            e = asset.resize((s, s), Image.LANCZOS)
+            img.paste(e, (ax, ay), e)             # emoji image (alpha-composited on black)
+        else:
+            art(d, ax, ay, s)
         tx0 = ax + s + 7
     else:
         tx0 = 3                                   # small panel: text only, art won't read

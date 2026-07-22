@@ -23,5 +23,5 @@
   ],
   "min_rows": 3,
   "min_cols": 15,
-  "order": "sequential"
+  "order": "random"
 }
