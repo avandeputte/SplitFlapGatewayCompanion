@@ -756,9 +756,11 @@ class PluginRuntime:
         out = []
         for g in groups:
             segs = [g] if isinstance(g, str) else [s for s in g if isinstance(s, str)]
-            # each screen is its own frame — a quiz's question, then (after the dwell) its answer
+            # each screen is its own frame — a quiz's question, then (after the dwell) its answer.
+            # A newline inside a screen is a deliberate break (a movie quote over its title) and is
+            # kept; only the padding within each line is collapsed.
             for seg in segs:
-                txt = " ".join(str(seg).split())
+                txt = "\n".join(" ".join(ln.split()) for ln in str(seg).split("\n") if ln.strip())
                 if txt:
                     out.append(txt)
         return out

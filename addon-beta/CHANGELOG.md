@@ -3,11 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.27
+
+- **Movie Quotes: expanded to 168 lines, title on its own line.** The set grew from 89 to 168 iconic
+  quotes, and each now shows the film on a second line under the quote ("Here's looking at you, kid." /
+  "- Casablanca") — on the flaps and on the panel.
+
 ## 2.9.1-beta.26
 
-- **New app — Movie Quotes.** A channel of iconic lines from the movies, each with its title
-  ("Here's looking at you, kid. — Casablanca"). On a Matrix panel it renders with a clapperboard
-  icon. Ships with 89 broadly-appropriate classics; more can be added anytime.
+- **New app — Movie Quotes.** A channel of iconic lines from the movies, each with its title. On a
+  Matrix panel it renders with a clapperboard icon.
 
 ## 2.9.1-beta.25
 
