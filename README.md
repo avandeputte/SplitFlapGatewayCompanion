@@ -33,7 +33,7 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
 
 ## What it does
 
-- **Apps** — the companion's own library (functional + channel), on a runtime that
+- **Apps** — the companion's own library (functional, channel, and quiz), on a runtime that
   stays drop-in compatible with splitflap-os apps (a conformance test asserts every
   app satisfies the contract). A tile grid with one-tap run and live "▶ running" state, an **App
   Library** to add or remove apps, and **upload your own** (a `.zip` of the app
@@ -261,7 +261,7 @@ rows/cols/base to match how your modules are provisioned in the gateway.
 ### Uploading your own apps
 
 **App Library → Upload** takes a `.zip` of an app folder — `manifest.json` plus
-`app.py` (functional) or `data.json` (channel), the same format as the built-in apps.
+`app.py` (functional) or `data.json` (channel, or a quiz of question/answer pairs), the same format as the built-in apps.
 The upload is validated (manifest + a functional app's `fetch()` must import), written
 to `<data_dir>/apps/<id>/` so it survives restarts and image upgrades, enabled and
 loaded immediately. **[Writing Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Apps)**

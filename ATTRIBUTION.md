@@ -30,6 +30,10 @@ SplitFlap Gateway Companion is a **derivative work** and is licensed under
   integration to draw the board-image entity's glyphs and pictograph flaps
   (`custom_components/splitflap/fonts/`, license alongside).
 
+- **[Noto Emoji](https://github.com/googlefonts/noto-emoji)** (© Google, **Apache-2.0**)
+  — the fortune-cookie glyph drawn beside the fortune-cookie channel apps on a Matrix panel
+  (`backend/app/assets/fortune-cookie.png`; see `backend/app/assets/ATTRIBUTION.md`).
+
 ## Originally authored here
 
 The engine (play loop, config store, state), the transports (REST / sim), the
