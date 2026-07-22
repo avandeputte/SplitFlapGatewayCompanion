@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from . import canvas, device, gateway, renderer
+from . import canvas, channel_art, device, gateway, renderer
 from .config import Config
 from .state import DisplayState
 from .transport import DisplayTransport, SimTransport, build_transport
@@ -486,12 +486,18 @@ class DisplayController:
         if canvas_app and not self._caps().has_canvas:
             # A canvas app on a wall with no framebuffer has nothing to draw on.
             raise KeyError(f"{app_id} needs a canvas the wall does not have")
+        # A channel can opt to render on a Matrix panel (its text with a themed icon) instead of
+        # the flaps — only where there's a framebuffer to draw on.
+        channel_canvas = (not canvas_app and self._caps().has_canvas
+                          and self.plugins.channel_canvas_on(app_id))
         await self._cancel_task()
         self._clear_driver_flags()
         self.active_app = app_id
         self.state.active_app = app_id
         self._remember({"kind": "app", "app": app_id})
-        loop = self._canvas_loop if canvas_app else self._app_loop
+        loop = (self._canvas_loop if canvas_app
+                else self._channel_canvas_loop if channel_canvas
+                else self._app_loop)
         self._task = asyncio.create_task(loop(app_id))
 
     def _caps(self):
@@ -546,6 +552,73 @@ class DisplayController:
             # (the HTTP ops path tops out around 8 fps anyway). A still app returns a
             # long hold and just sits there.
             await asyncio.sleep(max(0.05, float(delay or 5)))
+
+    async def _channel_canvas_loop(self, app_id: str) -> None:
+        """Drive a channel ON THE PANEL: take the framebuffer over and cycle its lines as frames —
+        each drawn big with the channel's themed icon — instead of sending flap text. The dwell is
+        the channel's loop_delay; each fresh pass re-shuffles a random-order channel."""
+        self.state.current_app = app_id
+        url = str(self.config.transport.get("gateway_url") or "").strip()
+        if url:
+            await asyncio.to_thread(canvas.set_active, url, True)
+            self._canvas_active = True
+        surface = self.plugins.build_canvas_surface()
+        if surface is None:                                    # no framebuffer after all -> flaps
+            await self._app_loop(app_id)
+            return
+        motif = self.plugins.channel_canvas_motif(app_id)
+        while self.active_app == app_id:
+            try:
+                items = await asyncio.to_thread(self.plugins.channel_canvas_items, app_id)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log.warning("channel %s canvas items error: %s", app_id, e)
+                items = []
+            if not items:
+                await asyncio.sleep(1)
+                continue
+            delay = max(0.5, float(self.plugins.loop_delay(app_id) or 8))
+            for text in items:
+                if self.active_app != app_id:
+                    return
+                try:
+                    await asyncio.to_thread(channel_art.render, surface, text, motif)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    log.warning("channel %s canvas render error: %s", app_id, e)
+                await asyncio.sleep(delay)
+
+    async def _play_channel_canvas_entry(self, app_id: str, deadline: float, want, overrides=None) -> None:
+        """One playlist entry for a channel rendered on the panel — cycle its lines as art frames
+        until the slot's deadline. The caller releases the panel afterwards."""
+        rt_loop = asyncio.get_running_loop()
+        url = str(self.config.transport.get("gateway_url") or "").strip()
+        if url and not self._canvas_active:
+            await asyncio.to_thread(canvas.set_active, url, True)
+            self._canvas_active = True
+        surface = self.plugins.build_canvas_surface()
+        if surface is None:
+            while rt_loop.time() < deadline and self.active_playlist == want:
+                await self._play_app_pages(app_id, overrides,
+                                           lambda: rt_loop.time() < deadline and self.active_playlist == want)
+            return
+        motif = self.plugins.channel_canvas_motif(app_id)
+        while rt_loop.time() < deadline and self.active_playlist == want:
+            items = await asyncio.to_thread(self.plugins.channel_canvas_items, app_id, overrides)
+            if not items:
+                await asyncio.sleep(1)
+                continue
+            delay = max(0.5, float(self.plugins.loop_delay(app_id, overrides) or 8))
+            for text in items:
+                if rt_loop.time() >= deadline or self.active_playlist != want:
+                    return
+                try:
+                    await asyncio.to_thread(channel_art.render, surface, text, motif)
+                except Exception as e:
+                    log.warning("channel %s canvas render error: %s", app_id, e)
+                await asyncio.sleep(min(delay, max(0.0, deadline - rt_loop.time())))
 
     async def _play_canvas_entry(self, app_id: str, deadline: float, want, overrides=None) -> None:
         """Drive a canvas app for one playlist entry — take the panel over (once)
@@ -709,6 +782,9 @@ class DisplayController:
                         return rt_loop.time() < deadline and self.active_playlist == want
 
                     is_canvas = getattr(self.plugins, "is_canvas_app", None)
+                    channel_canvas = (not (is_canvas and is_canvas(app_id))
+                                      and self._caps().has_canvas
+                                      and self.plugins.channel_canvas_on(app_id))
                     if is_canvas and is_canvas(app_id):
                         # A canvas app draws on the Matrix panel, not the flaps. Drive
                         # it like the standalone canvas loop — take the panel over, redraw
@@ -717,6 +793,11 @@ class DisplayController:
                         # playlist stayed lit forever (it never went through _cancel_task,
                         # and _canvas_active was never set, so release was a no-op).
                         await self._play_canvas_entry(app_id, deadline, want, ov)
+                        await self._release_canvas()
+                    elif channel_canvas:
+                        # A channel opted to render on the panel (text + art) — same take-over-then-
+                        # release contract as a canvas app so the next flap entry gets a clean wall.
+                        await self._play_channel_canvas_entry(app_id, deadline, want, ov)
                         await self._release_canvas()
                     else:
                         while keep_going():

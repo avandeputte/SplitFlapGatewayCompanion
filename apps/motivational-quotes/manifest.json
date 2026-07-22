@@ -5,6 +5,7 @@
   "description": "Daily motivation on your display",
   "category": "lifestyle",
   "type": "channel",
+  "canvas_art": "quote",
   "version": "1.0",
   "refresh_interval": 300,
   "loop_delay": 10,

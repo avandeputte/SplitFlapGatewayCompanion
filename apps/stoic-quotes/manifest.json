@@ -5,6 +5,7 @@
   "description": "Ancient wisdom",
   "category": "lifestyle",
   "type": "channel",
+  "canvas_art": "column",
   "version": "1.0",
   "refresh_interval": 300,
   "loop_delay": 10,

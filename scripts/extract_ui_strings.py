@@ -50,6 +50,8 @@ keys |= {
     "Follow global", "Language", "Location",
     "Override the global Language for this app only.",
     "Override the global Location for this app only (place search).",
+    "Show on Matrix panel (art + text)",
+    "Only on Matrix-panel displays.",
     "Also uses global settings: %s — set these under Global settings.",
     # Assembled server-side in global_settings_schema (the composed note is no key)
     "Used by %s",
@@ -59,7 +61,7 @@ keys |= {
     "Modules", "Display", "Provision", "Calibration", "Monitor",
     "Settings", "Backup", "Status", "Bus Monitor", "Companion",
     # store metadata rendered through t(): manifest types + TitleCased categories
-    "channel", "functional",
+    "channel", "functional", "quiz",
 }
 cats = set()
 for mf in (ROOT / "apps").glob("*/manifest.json"):

@@ -1,51 +1,19 @@
 {
  "groups": [
   [
-   "Why did the scarecrow win?",
-   "He was outstanding in his field"
+   "Why did the scarecrow win an award?",
+   "Because he was outstanding in his field"
   ],
   [
-   "I used to hate facial hair",
-   "but then it grew on me"
+   "What do you call a fake noodle?",
+   "An impasta"
   ],
   [
-   "What do you call a fake",
-   "noodle? An impasta!"
+   "Why don't eggs tell jokes?",
+   "They'd crack each other up"
   ],
   [
-   "Why dont eggs tell jokes?",
-   "Theyd crack each other up!"
-  ],
-  [
-   "I only know 25 letters of the",
-   "alphabet I dont know Y"
-  ],
-  [
-   "What do clouds wear under?",
-   "Thunderwear!"
-  ],
-  [
-   "Im reading a book on anti",
-   "gravity Cant put it down"
-  ],
-  [
-   "What did the ocean say to",
-   "the beach? Nothing it just waved"
-  ],
-  [
-   "Why do cows wear bells?",
-   "Because their horns dont work"
-  ],
-  [
-   "I got a job at a bakery",
-   "because I kneaded dough"
-  ],
-  [
-   "Why did the bike fall over?",
-   "It was two tired"
-  ],
-  [
-   "What do you call cheese thats not yours",
+   "What do you call cheese that isn't yours?",
    "Nacho cheese"
   ],
   [
@@ -53,15 +21,15 @@
    "You planet"
   ],
   [
-   "Why did the golfer bring two pants?",
-   "In case he got a hole in one"
+   "Why did the bicycle fall over?",
+   "It was two tired"
   ],
   [
    "What do you call a bear with no teeth?",
    "A gummy bear"
   ],
   [
-   "Why cant you trust atoms?",
+   "Why can't you trust an atom?",
    "They make up everything"
   ],
   [
@@ -77,7 +45,7 @@
    "Igloos it together"
   ],
   [
-   "Why did the coffee file a report?",
+   "Why did the coffee file a police report?",
    "It got mugged"
   ],
   [
@@ -86,19 +54,211 @@
   ],
   [
    "Why do bees have sticky hair?",
-   "They use honeycombs"
+   "Because they use honeycombs"
+  ],
+  [
+   "What did the ocean say to the beach?",
+   "Nothing, it just waved"
+  ],
+  [
+   "Why don't skeletons fight each other?",
+   "They don't have the guts"
+  ],
+  [
+   "What do you call a dog that does magic?",
+   "A labracadabrador"
+  ],
+  [
+   "Why did the golfer bring two pairs of pants?",
+   "In case he got a hole in one"
+  ],
+  [
+   "What's brown and sticky?",
+   "A stick"
+  ],
+  [
+   "Why did the cookie go to the doctor?",
+   "Because it was feeling crumby"
+  ],
+  [
+   "How do you make a tissue dance?",
+   "You put a little boogie in it"
+  ],
+  [
+   "What do you call a factory that makes okay products?",
+   "A satisfactory"
+  ],
+  [
+   "What do you call a pile of cats?",
+   "A meowtain"
+  ],
+  [
+   "Why can't a leopard hide?",
+   "Because he's always spotted"
   ],
   [
    "What did one wall say to the other?",
-   "Meet you at the corner"
+   "I'll meet you at the corner"
   ],
   [
-   "Why was six afraid of seven?",
-   "Because seven ate nine"
+   "Why did the tomato turn red?",
+   "Because it saw the salad dressing"
+  ],
+  [
+   "What do you call a belt made of watches?",
+   "A waist of time"
+  ],
+  [
+   "Why don't scientists trust stairs?",
+   "Because they're always up to something"
+  ],
+  [
+   "How do you catch a squirrel?",
+   "Climb a tree and act like a nut"
   ],
   [
    "What do you call a fish with no eyes?",
    "A fsh"
+  ],
+  [
+   "What did the grape do when it got stepped on?",
+   "Nothing, it just let out a little wine"
+  ],
+  [
+   "Why did the banana go to the doctor?",
+   "Because it wasn't peeling well"
+  ],
+  [
+   "What do you call an alligator in a vest?",
+   "An investigator"
+  ],
+  [
+   "Why did the picture go to jail?",
+   "Because it was framed"
+  ],
+  [
+   "What's orange and sounds like a parrot?",
+   "A carrot"
+  ],
+  [
+   "Why did the stadium get hot after the game?",
+   "All the fans left"
+  ],
+  [
+   "What do you call a boomerang that won't come back?",
+   "A stick"
+  ],
+  [
+   "Why do seagulls fly over the sea?",
+   "Because if they flew over the bay they'd be bagels"
+  ],
+  [
+   "What did the buffalo say to his son when he left?",
+   "Bison"
+  ],
+  [
+   "Why did the man put his money in the freezer?",
+   "He wanted cold hard cash"
+  ],
+  [
+   "What do you call a cow with no legs?",
+   "Ground beef"
+  ],
+  [
+   "Why can't your nose be twelve inches long?",
+   "Because then it would be a foot"
+  ],
+  [
+   "What do you call a dinosaur with a big vocabulary?",
+   "A thesaurus"
+  ],
+  [
+   "How do you fix a broken pumpkin?",
+   "With a pumpkin patch"
+  ],
+  [
+   "What do you call two monkeys sharing an account?",
+   "Prime mates"
+  ],
+  [
+   "Why did the coffee taste like dirt?",
+   "Because it was ground this morning"
+  ],
+  [
+   "What do you call a duck that gets all A's?",
+   "A wise quacker"
+  ],
+  [
+   "Why did the melon jump into the lake?",
+   "It wanted to be a watermelon"
+  ],
+  [
+   "What do you call a train that sneezes?",
+   "Achoo choo train"
+  ],
+  [
+   "Why don't oysters share their pearls?",
+   "Because they're shellfish"
+  ],
+  [
+   "What did the janitor say when he jumped out of the closet?",
+   "Supplies"
+  ],
+  [
+   "What do you call a can opener that doesn't work?",
+   "A can't opener"
+  ],
+  [
+   "Why was the broom late?",
+   "It over-swept"
+  ],
+  [
+   "What kind of music do planets like?",
+   "Neptunes"
+  ],
+  [
+   "Why did the student eat his homework?",
+   "The teacher said it was a piece of cake"
+  ],
+  [
+   "What do you get crossing a snowman and a vampire?",
+   "Frostbite"
+  ],
+  [
+   "Why did the bee get married?",
+   "Because he found his honey"
+  ],
+  [
+   "What do you call a lazy kangaroo?",
+   "A pouch potato"
+  ],
+  [
+   "Why did the computer go to the doctor?",
+   "Because it had a virus"
+  ],
+  [
+   "What do you call a sleeping dinosaur?",
+   "A dino-snore"
+  ],
+  [
+   "What do you call a fake stone in Ireland?",
+   "A sham rock"
+  ],
+  [
+   "What did the zero say to the eight?",
+   "Nice belt"
+  ],
+  [
+   "Why did the barber win the race?",
+   "He knew a shortcut"
+  ],
+  [
+   "What do you call a fish wearing a bowtie?",
+   "So-fish-ticated"
+  ],
+  [
+   "Why don't they play cards in the jungle?",
+   "Too many cheetahs"
   ]
  ]
 }

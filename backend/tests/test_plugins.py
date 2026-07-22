@@ -62,9 +62,9 @@ def test_every_app_loads(tmp_path):
         if kind == "functional":
             if app_id not in rt._modules:
                 failures.append(f"{app_id}: functional but fetch() not loaded")
-        elif kind == "channel":
+        elif kind in ("channel", "quiz"):      # a quiz is a channel of question/answer pairs
             if app_id not in rt._channel:
-                failures.append(f"{app_id}: channel but no data pages")
+                failures.append(f"{app_id}: {kind} but no data pages")
         else:
             failures.append(f"{app_id}: unknown type {kind!r}")
     assert not failures, "app load failures:\n" + "\n".join(failures)

@@ -5,6 +5,7 @@
   "description": "Evening wind down",
   "category": "lifestyle",
   "type": "channel",
+  "canvas_art": "moon",
   "version": "1.0",
   "refresh_interval": 300,
   "loop_delay": 8,

@@ -37,7 +37,10 @@ def _manifests():
             yield d, json.loads(mf.read_text("utf-8"))
 
 
-CHANNELS = [(d, m) for d, m in _manifests() if m.get("type") == "channel"]
+# A quiz is a channel whose groups are [question, answer] pairs — same data files, same wrapping and
+# reel constraints, so it's held to every channel rule here too.
+CHANNELS = [(d, m) for d, m in _manifests() if m.get("type") in ("channel", "quiz")]
+QUIZZES = [(d, m) for d, m in _manifests() if m.get("type") == "quiz"]
 FUNCTIONAL = [(d, m) for d, m in _manifests() if m.get("type") == "functional"]
 
 
@@ -74,6 +77,20 @@ def test_channel_min_cols_fits_its_data(app_dir, manifest):
                 widest = max(widest, len(line))
     assert manifest["min_cols"] >= widest, (
         f"{app_dir.name}: data is {widest} wide but min_cols is {manifest['min_cols']}")
+
+
+@pytest.mark.parametrize("app_dir,manifest", QUIZZES, ids=[d.name for d, _ in QUIZZES])
+def test_quiz_groups_are_question_answer_pairs(app_dir, manifest):
+    """A quiz app promises a two-screen reveal: every group in every data file must be exactly a
+    [question, answer] pair of non-empty strings — no stray singletons or triples."""
+    for f in sorted(app_dir.glob("data*.json")):
+        doc = json.loads(f.read_text("utf-8"))
+        groups = doc.get("groups")
+        assert groups, f"{app_dir.name}/{f.name}: quiz needs a non-empty 'groups'"
+        for i, g in enumerate(groups):
+            assert (isinstance(g, list) and len(g) == 2
+                    and all(isinstance(s, str) and s.strip() for s in g)), \
+                f"{app_dir.name}/{f.name}: group #{i + 1} is not a [question, answer] pair"
 
 
 def _channel_translation_docs():

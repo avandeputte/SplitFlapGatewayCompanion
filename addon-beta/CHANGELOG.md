@@ -3,6 +3,23 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.25
+
+- **Channel apps can render on a Matrix panel — text with themed art.** Every channel and quiz (jokes,
+  quotes, fortunes …) now has a **Show on Matrix panel (art + text)** toggle in its settings — on by
+  default, greyed out on a flap-only wall. On a panel it draws each line big on black beside a bespoke
+  icon: a lightsaber for Star Wars, a fortune cookie, a moon for good-night, an 8-ball, a coffee mug
+  for the office, quote marks, a Greek column, a lightning bolt, a grin, a speech bubble, a sun, a
+  shower head, a clapperboard. Works standalone and in playlists.
+- **New app type: quiz.** Like a channel, but every entry is a `[question, answer]` pair shown as a
+  two-screen reveal — the question, then (after the dwell) the answer. **Dad Jokes** is now a quiz
+  (its jokes without a clean question/answer were dropped) and its English set was expanded to 65
+  classic Q&A jokes with proper punctuation.
+- **Channel data is now raw text — the engine does all the formatting.** The bundled channel files had
+  lines pre-wrapped to the 15-column flap grid (`"What do you call a fake" / "noodle? An impasta!"`);
+  those were flattened back to full sentences, so both the flaps and the new panel renderer wrap and
+  paginate them for whatever display they land on.
+
 ## 2.9.1-beta.24
 
 - **Sarcastic Fortune Cookies is now a channel app.** Nothing about it was actually dynamic — it just

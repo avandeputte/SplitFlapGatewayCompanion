@@ -223,6 +223,11 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 /* Fields, inputs, buttons */
 label, .field > span, .field.inline > span { display: block; color: var(--dim); font-size: .8rem; margin: 7px 0 2px; }
 .field { margin: 4px 0; }
+/* A statically disabled field (e.g. a Matrix-panel-only toggle on a flap wall): greyed and inert,
+   but its name + note stay readable so it's clear WHY it's off. */
+.field.disabled { opacity: .5; }
+.field.disabled .seg, .field.disabled input, .field.disabled select { pointer-events: none; }
+.field.disabled .field-note { opacity: 1; }
 /* Per-field caption (e.g. "Used by …") — sits under the field name, clearly secondary. */
 .field-note { display: block; color: var(--dim); font-size: .72rem; line-height: 1.3; margin: 0 0 5px; }
 /* Marks a setting in an app dialog as a shared global (also affects other apps). */

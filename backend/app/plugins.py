@@ -62,6 +62,11 @@ def _effect_name_icon(token: str):
 # (untranslated) pages stay in data.json, which is also the fallback.
 LANG_DATA_FILE = re.compile(r"^data_([A-Za-z]{2}(?:-[A-Za-z]{2})?)\.json$")
 
+# A "quiz" app is a channel whose every group is a [question, answer] pair — shown as a two-screen
+# reveal. It shares the channel machinery (same data files, loading, pages, canvas), differing only
+# in the pair constraint. So everything that treats a channel treats a quiz the same way.
+_CHANNELISH = ("channel", "quiz")
+
 # Translated app-store metadata (names, descriptions, settings labels) lives
 # OUTSIDE manifest.json — the manifest must stay a byte-compatible splitflap-os
 # manifest (its description is read as a plain string there). Two layers:
@@ -384,7 +389,7 @@ class PluginRuntime:
         manifest["id"] = app_id
         self._registry[app_id] = manifest
         kind = manifest.get("type")
-        if kind == "channel":
+        if kind in _CHANNELISH:
             self._load_channel(app_id, app_dir)
         elif kind == "functional":
             self._load_functional(app_id, app_dir)
@@ -674,20 +679,89 @@ class PluginRuntime:
             # flap app can offer richer graphics where the panel allows and fall
             # back to flaps where it does not. (A pure canvas app is gated so it
             # never runs on a non-canvas wall at all — see the engine.)
-            caps = self._caps()
-            if caps.has_canvas:
-                url = str(self.config.transport.get("gateway_url") or "").strip()
-                two_one = caps.canvas_2_1
-                kwargs["canvas"] = canvas.CanvasSurface(
-                    url, caps.canvas_w, caps.canvas_h, caps.canvas_formats, caps.effects,
-                    rect=caps.canvas_rect, rects=caps.canvas_rects,
-                    anim=caps.canvas_anim, ticker=caps.canvas_ticker,
-                    effect_params=caps.effect_params, readback=caps.canvas_readback,
-                    ops=caps.canvas_ops, overlay=two_one, transition=two_one,
-                    anim_library=two_one, gif=two_one, fonts=two_one, sprite=caps.canvas_sprite)
-            else:
-                kwargs["canvas"] = None
+            kwargs["canvas"] = self.build_canvas_surface()
         return kwargs
+
+    def build_canvas_surface(self):
+        """A CanvasSurface for this wall, or None if it has no framebuffer. The transport the
+        canvas apps draw through — shared so the channel-on-canvas renderer uses the same path."""
+        caps = self._caps()
+        if not caps.has_canvas:
+            return None
+        url = str(self.config.transport.get("gateway_url") or "").strip()
+        two_one = caps.canvas_2_1
+        return canvas.CanvasSurface(
+            url, caps.canvas_w, caps.canvas_h, caps.canvas_formats, caps.effects,
+            rect=caps.canvas_rect, rects=caps.canvas_rects,
+            anim=caps.canvas_anim, ticker=caps.canvas_ticker,
+            effect_params=caps.effect_params, readback=caps.canvas_readback,
+            ops=caps.canvas_ops, overlay=two_one, transition=two_one,
+            anim_library=two_one, gif=two_one, fonts=two_one, sprite=caps.canvas_sprite)
+
+    def is_channel_app(self, app_id: str) -> bool:
+        return self._registry.get(app_id, {}).get("type") in _CHANNELISH
+
+    def channel_canvas_motif(self, app_id: str) -> str:
+        """The art motif a channel draws on the panel (manifest ``canvas_art``), default quote marks."""
+        return str(self._registry.get(app_id, {}).get("canvas_art") or "quote")
+
+    def channel_canvas_on(self, app_id: str, settings=None) -> bool:
+        """Whether this channel renders on the Matrix panel as art + text — the per-app
+        ``matrix_art`` toggle, defaulting ON (the option only bites on a wall with a framebuffer;
+        the engine still checks has_canvas before routing there)."""
+        if not self.is_channel_app(app_id):
+            return False
+        v = self._perapp_value(app_id, "matrix_art", settings)
+        if v is None:
+            return True
+        return str(v).strip().lower() in ("yes", "on", "1", "true")
+
+    def _channel_raw_groups(self, app_id: str, lang: str) -> list:
+        """The channel's RAW groups (unformatted text — a string or a list of segment strings) for
+        the effective language: exact locale wins, then base, then data.json. Read straight from the
+        data file so the canvas renderer re-wraps the real words (the flap-formatted pages centre and
+        pad each line, which butts words together and can't be un-wrapped)."""
+        app_dir = self._scan().get(app_id)
+        if not app_dir:
+            return []
+        code = str(lang or "").replace("_", "-").lower()
+        for cand in (f"data_{code}.json", f"data_{code.split('-')[0]}.json", "data.json"):
+            f = app_dir / cand
+            if not f.is_file():
+                continue
+            try:
+                doc = _read_json_cached(f)
+            except Exception:
+                continue
+            if isinstance(doc.get("groups"), list) and doc["groups"]:
+                return doc["groups"]
+            if isinstance(doc.get("pages"), list) and doc["pages"]:       # legacy shape
+                return [p if isinstance(p, str) else (p.get("lines") if isinstance(p, dict) else p)
+                        for p in doc["pages"]]
+        return []
+
+    def channel_canvas_items(self, app_id: str, overrides: dict | None = None) -> list:
+        """The channel's lines as plain text for the panel — one per group, a multi-segment group
+        (setup/punchline, quote + attribution) joined with a newline the renderer honours. Shuffled
+        when the order is random. ``overrides`` are per-playlist-entry settings, layered like
+        get_pages does so an entry's own Language is honoured."""
+        settings = _SettingsOverlay(self.settings, overrides) if overrides else self.settings
+        lang = self.content_lang(app_id, settings)
+        groups = self._channel_raw_groups(app_id, lang)
+        order = (self._perapp_value(app_id, "order", settings)
+                 or self._registry.get(app_id, {}).get("order", "sequential"))
+        if str(order).lower() == "random":
+            groups = list(groups)
+            random.shuffle(groups)
+        out = []
+        for g in groups:
+            segs = [g] if isinstance(g, str) else [s for s in g if isinstance(s, str)]
+            # each screen is its own frame — a quiz's question, then (after the dwell) its answer
+            for seg in segs:
+                txt = " ".join(str(seg).split())
+                if txt:
+                    out.append(txt)
+        return out
 
     @staticmethod
     def _scan_reads(src: str) -> dict:
@@ -830,7 +904,7 @@ class PluginRuntime:
         ckey = _cache_key(app_id, overrides)
         refresh = self._refresh_secs(app_id, manifest, settings)
 
-        if app_type == "channel":
+        if app_type in _CHANNELISH:
             # A per-app Language override (plugin_<id>_language) wins over the global
             # Language; blank/unset = follow global. Same rule as a functional app.
             lang = self.content_lang(app_id, settings)
@@ -1282,6 +1356,22 @@ class PluginRuntime:
                            "label": uilang.ui_t(lang, "Also uses global settings: %s — set these under Global settings.")
                                     .replace("%s", names)})
 
+        # A channel can draw itself on a Matrix panel — its text with a themed icon — instead of
+        # the plain firmware text. The toggle only bites on a wall with a framebuffer, so it greys
+        # out (disabled + a note) on a flap-only display.
+        if manifest.get("type") in _CHANNELISH:
+            fld = {
+                "key": f"plugin_{app_id}_matrix_art",
+                "label": "Show on Matrix panel (art + text)",
+                "type": "toggle",
+                "default": "yes",
+                "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}],
+            }
+            if not self._caps().has_canvas:
+                fld["disabled"] = True
+                fld["note"] = "Only on Matrix-panel displays."
+            fields.append(fld)
+
         values = {}
         for s in raw_settings:
             rk = resolved[s["key"]]
@@ -1552,8 +1642,8 @@ class PluginRuntime:
                 # 4) Only now import it — the audit has cleared it — to surface
                 #    import/syntax errors (missing deps, etc.).
                 self._validate_fetch(app_py)
-            elif kind == "channel":
-                self._validate_channel(root)
+            elif kind in _CHANNELISH:
+                self._validate_channel(root, quiz=(kind == "quiz"))
             self._validate_i18n_sidecars(root)
 
             self.user_apps_dir.mkdir(parents=True, exist_ok=True)
@@ -1576,8 +1666,8 @@ class PluginRuntime:
         name = manifest.get("name")
         if not name or not isinstance(name, str):
             raise ValueError("manifest.json is missing a 'name'")
-        if manifest.get("type") not in ("functional", "channel"):
-            raise ValueError("manifest 'type' must be 'functional' or 'channel'")
+        if manifest.get("type") not in ("functional", "channel", "quiz"):
+            raise ValueError("manifest 'type' must be 'functional', 'channel' or 'quiz'")
         settings = manifest.get("settings")
         if settings is not None:
             if not isinstance(settings, list):
@@ -1609,7 +1699,7 @@ class PluginRuntime:
                 raise ValueError(f"i18n/{f.name}: 'settings' must be an object")
 
     @staticmethod
-    def _validate_channel(root: Path) -> None:
+    def _validate_channel(root: Path, quiz: bool = False) -> None:
         dp = root / "data.json"
         if not dp.is_file():
             raise ValueError("channel app is missing data.json")
@@ -1625,6 +1715,13 @@ class PluginRuntime:
             if not isinstance(data, dict) or not (data.get("pages") or data.get("groups")):
                 raise ValueError(
                     f"channel app's {f.name} must have a non-empty 'pages' or 'groups' list")
+            if quiz:
+                # A quiz's every group is a [question, answer] pair — shown as a two-screen reveal.
+                for g in data.get("groups") or []:
+                    if not (isinstance(g, list) and len(g) == 2
+                            and all(isinstance(s, str) and s.strip() for s in g)):
+                        raise ValueError(
+                            f"quiz app's {f.name}: every group must be a [question, answer] pair")
 
     def _scope_manifest_settings(self, manifest: dict, src: str) -> bool:
         """Ensure every non-global setting the app reads is declared as an app-level

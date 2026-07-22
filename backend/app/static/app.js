@@ -1158,6 +1158,12 @@ function buildForm(schema, initial, { skip } = {}) {
       wrap.appendChild(inp);
     }
   }
+    // A statically disabled field (e.g. a Matrix-only toggle on a flap wall): grey it and lock
+    // every control, including the button-segmented toggle that `disabled_when` can't reach.
+    if (f.disabled) {
+      wrap.classList.add("disabled");
+      wrap.querySelectorAll("button, input, select, textarea").forEach((c) => { c.disabled = true; });
+    }
     return wrap;
   }
 
