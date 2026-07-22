@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.23
+
+- **Weather Sky: the 3-day forecast highs/lows now carry the degree sign** (`Wed 77°/60°`), matching
+  the big temperature, the H/L and the feels-like line — the forecast strip was the one spot still
+  showing bare numbers. (Weather Panel and Overview already did throughout.)
+
 ## 2.9.1-beta.22
 
 - **Stock Graph rotates through a watchlist.** The Symbols field now takes more than one ticker or

@@ -250,7 +250,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=N
                     lbl = _dt.strptime(str(day.get('date'))[:10], '%Y-%m-%d').strftime('%a')
                 except Exception:
                     lbl = ''
-                fs = f'{lbl}  {dhi}/{dlo}' if (dhi is not None and dlo is not None) else (lbl or '')
+                fs = f'{lbl}  {dhi}{deg}/{dlo}{deg}' if (dhi is not None and dlo is not None) else (lbl or '')
                 _outline(draw, i * cw + pad + 2, fy, fs, info_f, (206, 216, 234))
     else:
         # Compact: place, big temperature, then condition + high/low, all in a left
