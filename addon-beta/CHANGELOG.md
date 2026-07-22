@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.26
+
+- **New app — Movie Quotes.** A channel of iconic lines from the movies, each with its title
+  ("Here's looking at you, kid. — Casablanca"). On a Matrix panel it renders with a clapperboard
+  icon. Ships with 89 broadly-appropriate classics; more can be added anytime.
+
 ## 2.9.1-beta.25
 
 - **Channel apps can render on a Matrix panel — text with themed art.** Every channel and quiz (jokes,

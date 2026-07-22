@@ -1,0 +1,27 @@
+{
+  "id": "movie-quotes",
+  "name": "Movie Quotes",
+  "icon": "🎬",
+  "description": "Iconic lines from the movies",
+  "category": "entertainment",
+  "type": "channel",
+  "canvas_art": "clapperboard",
+  "version": "1.0",
+  "refresh_interval": 300,
+  "loop_delay": 10,
+  "order": "random",
+  "min_rows": 3,
+  "min_cols": 15,
+  "settings": [
+    {
+      "key": "loop_delay",
+      "label": "Delay Between Pages (seconds)",
+      "type": "number",
+      "default": "10",
+      "min": "2",
+      "max": "60",
+      "step": "1",
+      "stepper": true
+    }
+  ]
+}

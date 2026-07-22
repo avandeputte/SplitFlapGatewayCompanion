@@ -52,7 +52,7 @@
       "icon": "😂",
       "description": "Bring some levity with Dad Jokes",
       "category": "entertainment",
-      "type": "channel",
+      "type": "quiz",
       "version": "1.0"
     },
     {
@@ -267,6 +267,15 @@
       "name": "Star Wars",
       "icon": "⭐",
       "description": "May the force be with you",
+      "category": "entertainment",
+      "type": "channel",
+      "version": "1.0"
+    },
+    {
+      "id": "movie-quotes",
+      "name": "Movie Quotes",
+      "icon": "🎬",
+      "description": "Iconic lines from the movies",
       "category": "entertainment",
       "type": "channel",
       "version": "1.0"
