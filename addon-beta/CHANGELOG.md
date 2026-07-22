@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.2
+
+- **Fortune-cookie panel icon** now uses an openly-licensed emoji (Noto Emoji, Apache-2.0) rather
+  than a platform emoji, so it can ship freely in the add-on image.
+
 ## 2.9.1
 
 **Channel apps come to the Matrix LED panel, a new quiz app type, two new apps, and faster, lighter
