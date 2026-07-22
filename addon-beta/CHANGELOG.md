@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.24
+
+- **Sarcastic Fortune Cookies is now a channel app.** Nothing about it was actually dynamic — it just
+  picked a random bundled line — so it's converted from a functional (Python) app to a plain channel:
+  the engine wraps and cycles the fortunes itself, in random order, with a Delay Between Pages setting.
+  All ~28 language variants carry over (deduped to 15 distinct files where regionals matched their
+  base). Two latent display bugs fixed in passing: the French `œ` ligature (`vœu`, `cœur`) and a stray
+  `é` in the Danish/Swedish sets aren't on those flap reels and would have homed to blank — now written
+  reel-safe (`oe`, `e`).
+
 ## 2.9.1-beta.23
 
 - **Weather Sky: the 3-day forecast highs/lows now carry the degree sign** (`Wed 77°/60°`), matching

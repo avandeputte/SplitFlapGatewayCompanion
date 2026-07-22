@@ -480,18 +480,18 @@ def test_english_variants_differ_by_region():
 
 
 def test_fortune_cookies_have_english_region_variants():
-    """British + Australian fortune files exist, are substantial, and are display-safe."""
+    """British + Australian fortune channels exist, are substantial, and are display-safe."""
     import json
     d = APPS_DIR / "sarcastic-fortune-cookies"
-    for fname in ("fortunes_en-gb.json", "fortunes_en-au.json"):
-        data = json.loads((d / fname).read_text("utf-8"))
-        assert len(data) > 100
-        for e in data:
-            e["fortune"].encode("cp1252")   # must render on the Windows-1252 modules
-    # The region files really differ from the American source. Case-insensitively, because
-    # the data is no longer shouted — the SPELLING is the point, not the case.
-    us = (d / "fortunes_en.json").read_text("utf-8").upper()
-    gb = (d / "fortunes_en-gb.json").read_text("utf-8").upper()
+    for fname in ("data_en-gb.json", "data_en-au.json"):
+        groups = json.loads((d / fname).read_text("utf-8"))["groups"]
+        assert len(groups) > 100
+        for g in groups:
+            g.encode("cp1252")              # must render on the Windows-1252 modules
+    # The region files really differ from the American source (data.json). Case-insensitively,
+    # because the data is no longer shouted — the SPELLING is the point, not the case.
+    us = (d / "data.json").read_text("utf-8").upper()
+    gb = (d / "data_en-gb.json").read_text("utf-8").upper()
     assert "FAVOUR" in gb and "FAVOUR" not in us
 
 
