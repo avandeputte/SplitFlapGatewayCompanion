@@ -382,20 +382,16 @@ class CanvasStream:
         return self._send(_tlv(0x05))
 
     def close(self) -> int | None:
-        """Send the end record (0x00), read the ``200 {"records":N}``, close. Returns the record
-        count, or None if the stream never really opened. Safe to call more than once."""
+        """Send the end record (0x00) and drop the socket — the gateway ends the stream on that
+        record, so we don't block on its reply (hand-back must be instant, or the next canvas app's
+        draws 409 against a still-open stream). Returns the record count, or None if never opened.
+        Safe to call more than once."""
         if not self.sock:
             return None
         sent = self.records
         try:
             if self.alive and not self._head_pending:           # nothing to end if no record ever went
                 self.sock.sendall(_tlv(0x00))
-                deadline_bytes = b""
-                while len(deadline_bytes) < 8192:               # drain the small JSON reply, then done
-                    chunk = self.sock.recv(2048)
-                    if not chunk:
-                        break
-                    deadline_bytes += chunk
         except Exception as e:
             log.debug("canvas stream close: %s", e)
         finally:
@@ -411,6 +407,46 @@ class CanvasStream:
         except Exception:
             pass
         self.sock = None
+
+
+_STREAMS: dict = {}     # url -> CanvasStream: the live persistent draw channel, one per wall
+_LAST_KIND: dict = {}   # url -> "frame" | "ops": what the app last pushed (the streaming heuristic)
+
+
+def stream_begin(url: str) -> bool:
+    """Open (or reuse) the persistent draw stream for this wall; True if a live stream now exists.
+    The caller (engine) opens it for a fast frame-push app on a 3.2 wall; every ``_push_rgb`` then
+    routes through it until ``stream_end``."""
+    st = _STREAMS.get(url)
+    if st is not None and st.alive:
+        return True
+    st = CanvasStream(url)
+    if st.open():
+        _STREAMS[url] = st
+        log.info("canvas %s: draw stream opened", url)
+        return True
+    _STREAMS.pop(url, None)
+    return False
+
+
+def stream_end(url: str) -> None:
+    """Close the wall's draw stream (end record + socket) so the drawing REST endpoints unlock.
+    Always called on canvas hand-back; a no-op if none is open."""
+    st = _STREAMS.pop(url, None)
+    if st is not None:
+        st.close()
+        log.info("canvas %s: draw stream closed (%d records)", url, st.records)
+
+
+def has_stream(url: str) -> bool:
+    st = _STREAMS.get(url)
+    return st is not None and st.alive
+
+
+def last_push_was_frame(url: str) -> bool:
+    """Whether the app's most recent push was a full/delta frame (vs an ops batch) — the engine only
+    adopts the stream for frame-push apps (ops/sprite apps are a later phase)."""
+    return _LAST_KIND.get(url) == "frame"
 
 
 def put_rects(url: str, rects: list, fmt: int = 2, timeout: float = 10.0):
@@ -983,6 +1019,7 @@ class CanvasSurface:
         if not self._ops:
             return True
         ops, self._ops = self._ops + [{"op": "show"}], []
+        _LAST_KIND[self.url] = "ops"                     # an ops app — not streamed (a later phase)
         if self.url in _SIM_URLS:                       # sim: an ops app renders on-device, so it
             log.info("canvas %s: [sim] %d op(s) not sent", self.url, len(ops))
             return True                                 # cannot preview here; just don't drive the panel
@@ -1016,11 +1053,30 @@ class CanvasSurface:
         log.info("canvas %s: full frame (raw) %d B", self.url, len(b))
         return put_frame(self.url, b)
 
+    def _stream_full(self, st, b: bytes) -> bool:
+        """A full frame over the open stream: rgb565 (record 0x01, fmt 2) where numpy can pack it,
+        raw rgb888 (fmt 3) otherwise — then present. False if the stream send failed (the caller
+        then falls back to the HTTP path, and the now-dead stream stays closed)."""
+        try:
+            import numpy as np
+            arr = (np.frombuffer(b, dtype=np.uint8)[:self.width * self.height * 3]
+                   .reshape(self.height, self.width, 3))
+            ok, fmt = st.frame(2, _rgb565_be(arr)), "rgb565"
+        except Exception:
+            ok, fmt = st.frame(3, b), "rgb888"
+        if ok and st.present():
+            log.info("canvas %s: full frame (%s, stream)", self.url, fmt)
+            return True
+        return False
+
     def _push_rgb(self, b: bytes) -> bool:
         if self.url in _SIM_URLS:                                  # sim: cache for the preview, drive nothing
             _remember_frame(self.url, self.width, self.height, b)
             log.info("canvas %s: [sim] frame not sent (%d B)", self.url, len(b))
             return True
+        _LAST_KIND[self.url] = "frame"                             # this app pushes frames (streaming heuristic)
+        st = _STREAMS.get(self.url)                                # the persistent stream, if the engine opened one
+        streaming = st is not None and st.alive
         old = _LAST_FRAME.get(self.url)                             # the base (last frame we sent)
         n = _DELTA_N.get(self.url, 0) + 1
         _DELTA_N[self.url] = n
@@ -1039,13 +1095,22 @@ class CanvasSurface:
                 return True
             if rects:                                              # a small change -> only the rects
                 size = 4 + sum(8 + len(px) for *_, px in rects)    # frame header + per-rect header + pixels
-                if put_rects(self.url, rects) is True:
+                if streaming:
+                    if st.rects(rects) and st.present():
+                        _remember_frame(self.url, self.width, self.height, b)
+                        log.info("canvas %s: incremental %d rect(s) %d B (stream)", self.url, len(rects), size)
+                        return True
+                    streaming = False                              # stream died -> HTTP full frame below
+                elif put_rects(self.url, rects) is True:
                     _remember_frame(self.url, self.width, self.height, b)
                     log.info("canvas %s: incremental %d rect(s) %d B", self.url, len(rects), size)
                     return True
             # rects is None (too much changed), a 413, or a transient error -> full frame, which
             # also re-establishes the base after a reboot.
-        ok = self._push_full(b)
+        if streaming and self._stream_full(st, b):
+            _remember_frame(self.url, self.width, self.height, b)
+            return True
+        ok = self._push_full(b)                                    # HTTP path (also the stream fallback)
         if ok:
             _remember_frame(self.url, self.width, self.height, b)
         else:

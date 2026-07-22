@@ -24,6 +24,10 @@ log = logging.getLogger("companion.engine")
 # own _REPAINT_SECONDS (which drops the cell-diff), so the re-emit actually goes out whole.
 _PAGE_HEARTBEAT_S = 15.0
 
+# Only adopt the v3.2 canvas draw stream for an app redrawing at least this often — comfortably
+# inside the stream's 30 s idle timeout, so a slow app never opens (and then loses) one.
+_CANVAS_STREAM_MAX_HOLD = 2.0
+
 
 def _entry_label(entry: dict) -> str:
     """A playlist entry as one word for the running-order view: the app id, or
@@ -198,6 +202,14 @@ class DisplayController:
         if not self._canvas_active:
             return
         self._canvas_active = False
+        # Close any 3.2 draw stream first: while it's open the drawing REST endpoints answer 409, so
+        # whatever takes the panel next (a flap page, another canvas app) must find it unlocked.
+        _url = str(self.config.transport.get("gateway_url") or "").strip()
+        if _url:
+            try:
+                await asyncio.to_thread(canvas.stream_end, _url)
+            except Exception as e:
+                log.debug("canvas stream close failed: %s", e)
         if network:
             url = str(self.config.transport.get("gateway_url") or "").strip()
             if url:
@@ -539,19 +551,34 @@ class DisplayController:
         if url:
             await asyncio.to_thread(canvas.set_active, url, True)
             self._canvas_active = True
-        while self.active_app == app_id:
-            try:
-                hold = await asyncio.to_thread(self.plugins.render_canvas, app_id)
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                log.warning("canvas app %s draw error: %s", app_id, e)
-                hold = None
-            delay = hold if hold else self.plugins.loop_delay(app_id)
-            # A canvas app can animate: a low floor lets it pick its own frame rate
-            # (the HTTP ops path tops out around 8 fps anyway). A still app returns a
-            # long hold and just sits there.
-            await asyncio.sleep(max(0.05, float(delay or 5)))
+        caps = self._caps()
+        try:
+            while self.active_app == app_id:
+                try:
+                    hold = await asyncio.to_thread(self.plugins.render_canvas, app_id)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    log.warning("canvas app %s draw error: %s", app_id, e)
+                    hold = None
+                await self._maybe_stream(url, caps, app_id, hold)
+                delay = hold if hold else self.plugins.loop_delay(app_id)
+                # A canvas app can animate: a low floor lets it pick its own frame rate. On a 3.2
+                # wall a fast frame-push app now runs over the draw stream (~28 fps vs the ~8 fps
+                # HTTP ceiling); a still app returns a long hold and just sits there.
+                await asyncio.sleep(max(0.05, float(delay or 5)))
+        finally:
+            if url:
+                canvas.stream_end(url)          # always close on exit (switch / stop / cancel)
+
+    async def _maybe_stream(self, url: str, caps, app_id: str, hold) -> None:
+        """Adopt the v3.2 draw stream for a FAST FRAME-PUSH app once we've seen it draw: a wall that
+        advertises canvas.stream, a frame (not ops) push, and a short hold (so it never trips the
+        stream's 30 s idle timeout). Slow / ops apps stay on the per-frame HTTP path."""
+        if (url and getattr(caps, "canvas_stream", False) and not canvas.has_stream(url)
+                and canvas.last_push_was_frame(url)
+                and isinstance(hold, (int, float)) and hold <= _CANVAS_STREAM_MAX_HOLD):
+            await asyncio.to_thread(canvas.stream_begin, url)
 
     async def _channel_canvas_loop(self, app_id: str) -> None:
         """Drive a channel ON THE PANEL: take the framebuffer over and cycle its lines as frames —
@@ -634,6 +661,7 @@ class DisplayController:
             await asyncio.to_thread(canvas.set_active, url, True)
             self._canvas_active = True
         render = getattr(self.plugins, "render_canvas", None)
+        caps = self._caps()
         while rt_loop.time() < deadline and self.active_playlist == want:
             try:
                 hold = await asyncio.to_thread(render, app_id, overrides) if render else None
@@ -642,6 +670,7 @@ class DisplayController:
             except Exception as e:
                 log.warning("canvas app %s draw error: %s", app_id, e)
                 hold = None
+            await self._maybe_stream(url, caps, app_id, hold)   # released by _release_canvas after the slot
             remaining = deadline - rt_loop.time()
             if remaining <= 0:
                 break

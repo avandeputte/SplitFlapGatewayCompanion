@@ -3,6 +3,11 @@
 _Studied against MatrixPortalGateway firmware **3.2.0** (API 3.1.0) — `src/web.cpp`, `openapi.yaml`,
 `RELEASE_NOTES.md`. The companion currently targets 3.1 (delta rects + named atlases)._
 
+> **Status (2.10.0-beta.2):** Phases **1–3 implemented** — `canvas.stream` detection, the
+> `CanvasStream` transport, and the engine wiring that runs fast frame-push apps over the stream (all
+> gated on the capability, so ≤3.1 walls are untouched). Unwired: Phase 4 (ops/sprite apps). Not
+> exercised on hardware yet — needs a wall on 3.2.
+
 ## What's new in the gateway (3.2.0)
 
 1. **`PUT /api/canvas/stream` — a persistent TLV draw channel.** One long-lived PUT carries draw

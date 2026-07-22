@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.2
+
+- **Fast Matrix-panel apps now draw over the v3.2 stream.** On a wall running firmware 3.2, a
+  frequently-redrawing frame-push app (a sweeping clock, Weather Sky, Countdown, Stock Graph in
+  rotation …) runs over one persistent draw connection instead of a HTTP request per frame — much
+  higher frame rates and smoother animation. Delta frames go as rect records, keyframes as full
+  frames; the stream is always closed on hand-back, and any hiccup falls back to the per-frame path.
+  Walls below firmware 3.2, and slow/ops apps, are unaffected.
+
 ## 2.10.0-beta.1
 
 - **Groundwork for the Matrix-panel *canvas stream* (firmware 3.2).** The companion now detects the
