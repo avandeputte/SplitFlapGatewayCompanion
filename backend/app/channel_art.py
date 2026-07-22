@@ -79,13 +79,16 @@ def _moon(d, x, y, s):
 
 
 def _cookie(d, x, y, s):
-    # A folded fortune cookie: two rounded lobes meeting at a pinched centre, with a slip of paper.
-    cx, cy = x + s / 2, y + s * 0.52
-    tan, tan_d = (226, 176, 96), (196, 142, 66)
-    d.pieslice([x + s * 0.06, cy - s * 0.40, cx + s * 0.30, cy + s * 0.40], 40, 320, fill=tan)
-    d.pieslice([cx - s * 0.30, cy - s * 0.40, x + s * 0.94, cy + s * 0.40], 220, 140, fill=tan_d)
-    d.line([cx, cy - s * 0.30, cx, cy + s * 0.30], fill=(150, 108, 50), width=max(1, int(s * 0.05)))
-    d.rectangle([cx - s * 0.10, cy - s * 0.06, cx + s * 0.10, cy + s * 0.06], fill=(245, 245, 235))  # paper slip
+    # A folded fortune cookie: two rounded lobes pinched at the centre, a fold crease, and the
+    # fortune paper poking out — the pinch + paper is what reads as a cookie (not a plain disc).
+    tan, tan_d, paper = (234, 186, 106), (198, 146, 74), (250, 250, 242)
+    cx, cy = x + s / 2, y + s * 0.54
+    d.ellipse([x + s * 0.04, cy - s * 0.30, cx + s * 0.14, cy + s * 0.34], fill=tan)       # left lobe
+    d.ellipse([cx - s * 0.14, cy - s * 0.30, x + s * 0.96, cy + s * 0.34], fill=tan)       # right lobe
+    d.chord([x + s * 0.04, cy - s * 0.02, x + s * 0.96, cy + s * 0.36], 5, 175, fill=tan_d)  # shaded underside
+    d.line([cx, cy - s * 0.24, cx, cy + s * 0.30], fill=(150, 108, 54), width=max(1, int(s * 0.06)))  # fold
+    d.polygon([(cx - s * 0.05, cy - s * 0.04), (cx + s * 0.05, cy - s * 0.04),
+               (cx + s * 0.13, cy - s * 0.26), (cx - s * 0.13, cy - s * 0.26)], fill=paper)  # fortune slip
 
 
 def _eightball(d, x, y, s):

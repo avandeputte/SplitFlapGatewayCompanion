@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.9.1-beta.28
+
+- **Movie Quotes: added six iconic (mildly profane) lines** — Die Hard, Pulp Fiction, The Big
+  Lebowski, Jurassic Park, Sideways, I Robot — bringing it to 174.
+- **Fortune-cookie panel icon redrawn.** On a Matrix panel it was reading as a plain yellow disc;
+  it's now the pinched two-lobe cookie with a fold and the fortune slip poking out. (Affects Fortune
+  Cookie and Sarcastic Fortune Cookies.)
+
 ## 2.9.1-beta.27
 
 - **Movie Quotes: expanded to 168 lines, title on its own line.** The set grew from 89 to 168 iconic
