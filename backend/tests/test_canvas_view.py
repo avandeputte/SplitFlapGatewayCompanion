@@ -22,17 +22,17 @@ def _flap(*apps):
 
 
 def test_surfaces_are_read_from_the_manifest():
-    rt = _matrix("countdown", "canvas-date", "art-clock")
+    rt = _matrix("countdown", "canvas-art-clock", "art-clock")
     assert rt.surfaces("countdown") == ["flap", "matrix"]     # dual
-    assert rt.surfaces("canvas-date") == ["matrix"]           # matrix-only
+    assert rt.surfaces("canvas-art-clock") == ["matrix"]           # matrix-only
     assert rt.surfaces("art-clock") == ["flap"]               # flap-only
     assert rt.surfaces("does-not-exist") == ["flap"]          # safe default
 
 
 def test_surface_predicates():
-    rt = _matrix("countdown", "world_clock", "canvas-date", "art-clock", "movie-quotes")
+    rt = _matrix("countdown", "world_clock", "canvas-art-clock", "art-clock", "movie-quotes")
     assert rt.is_dual_surface("countdown") and rt.is_dual_surface("world_clock")
-    assert rt.is_matrix_only("canvas-date") and not rt.is_dual_surface("canvas-date")
+    assert rt.is_matrix_only("canvas-art-clock") and not rt.is_dual_surface("canvas-art-clock")
     assert not rt.is_dual_surface("art-clock") and not rt.is_matrix_only("art-clock")
     # A channel is dual-surface too (flap text / generic art on a panel), with no fetch_matrix.
     assert rt.is_dual_surface("movie-quotes")
@@ -55,9 +55,9 @@ def test_matrix_on_defaults_on_and_can_be_turned_off():
 
 
 def test_a_matrix_only_app_is_always_on_and_has_no_toggle():
-    rt = _matrix("canvas-date")
-    assert rt.matrix_on("canvas-date") is True                # nothing to fall back to — always matrix
-    keys = [f["key"] for f in rt.settings_schema("canvas-date")["fields"]]
+    rt = _matrix("canvas-art-clock")
+    assert rt.matrix_on("canvas-art-clock") is True                # nothing to fall back to — always matrix
+    keys = [f["key"] for f in rt.settings_schema("canvas-art-clock")["fields"]]
     assert not any(k.endswith("_matrix") for k in keys)       # no toggle: it's not dual-surface
 
 
@@ -71,8 +71,8 @@ def test_render_matrix_passes_a_canvas_and_flap_helpers_never_do():
 
 
 def test_the_catalog_exposes_surfaces_for_the_badge():
-    rt = _matrix("countdown", "canvas-date", "art-clock")
+    rt = _matrix("countdown", "canvas-art-clock", "art-clock")
     by_id = {a["id"]: a for a in rt.app_list()}
     assert by_id["countdown"]["surfaces"] == ["flap", "matrix"]
-    assert by_id["canvas-date"]["surfaces"] == ["matrix"]
+    assert by_id["canvas-art-clock"]["surfaces"] == ["matrix"]
     assert by_id["art-clock"]["surfaces"] == ["flap"]

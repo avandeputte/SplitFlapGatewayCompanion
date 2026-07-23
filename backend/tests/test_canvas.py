@@ -443,8 +443,7 @@ def test_the_canvas_apps_declare_the_matrix_surface():
     from pathlib import Path
     apps = Path(__file__).resolve().parents[2] / "apps"
     import json
-    for app in ("effects", "canvas-art-clock", "canvas-image", "canvas-weather",
-                "canvas-date"):
+    for app in ("effects", "canvas-art-clock", "canvas-image", "canvas-weather"):
         m = json.loads((apps / app / "manifest.json").read_text())
         assert m.get("surfaces") == ["matrix"], app
 
@@ -573,7 +572,8 @@ def test_weather_caches_the_reading(gw_calls):
 
 # -- the frame-push apps built alongside (Date Card, World Time, the Countdown bars view) --
 @pytest.mark.parametrize("app_id,settings", [
-    ("canvas-date", {}),
+    # Date is dual-surface now: its matrix branch draws the Date Card (was canvas-date).
+    ("date", {}),
     # World Clock is dual-view now: its canvas branch draws the lit rows (was canvas-world).
     ("world_clock", {"world_clock_zones": "America/New_York,Europe/London,Asia/Tokyo"}),
     # Countdown is dual-view now: its canvas branch draws the color bars (was canvas-countdown).
@@ -600,7 +600,7 @@ def test_canvas_apps_fill_a_big_256x64_panel(gw_calls):
                              {"date": "2026-07-18", "hi_f": 79, "lo_f": 58}]}
     for app_id, kw in (("canvas-weather", {"get_weather": gww}),
                        ("dashboard", {"get_weather": gww}),
-                       ("canvas-date", {})):
+                       ("date", {})):
         _h, img, content = _push(gw_calls, _load(app_id), 256, 64, {}, **kw)
         assert len(content) == 256 * 64 * 3 and _bright(img) > 30, app_id
 
@@ -639,7 +639,7 @@ def test_overview_weather_column_never_clips_off_the_bottom(gw_calls, monkeypatc
 
 
 # A matrix-only app exposes fetch_matrix and no flap fetch (a dual app like countdown has both).
-@pytest.mark.parametrize("app_id", ["canvas-date", "effects"])
+@pytest.mark.parametrize("app_id", ["canvas-art-clock", "effects"])
 def test_matrix_apps_expose_fetch_matrix_only(app_id):
     m = _load(app_id)
     assert callable(getattr(m, "fetch_matrix", None)) and not hasattr(m, "fetch")

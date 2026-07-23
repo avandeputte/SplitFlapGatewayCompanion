@@ -141,16 +141,6 @@
       "version": "1.0"
     },
     {
-      "id": "canvas-date",
-      "name": "Date Card",
-      "icon": "📅",
-      "description": "A big typographic date card (Matrix panel)",
-      "category": "time",
-      "type": "functional",
-      "surface": "canvas",
-      "version": "1.0"
-    },
-    {
       "id": "canvas-stock-graph",
       "name": "Stock Graph",
       "icon": "📈",

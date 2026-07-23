@@ -40,69 +40,186 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 # =============================================================================
 # MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
 #
-# A typographic date card — deliberately simpler than the canvas-date app,
-# matching the flap view's content: the weekday small in amber, the date big in
-# white, the year quiet underneath where there is room. Black background.
+# The Date Card: a huge day-of-month numeral on the left (gradient-filled through
+# a glyph mask), the weekday / month / year stacked in a size hierarchy beside it
+# (weekday in the day's own Mon..Sun accent color), a facts column (ISO week, day
+# of year, days left) on a big panel, and a year-progress bar along the bottom in
+# the same accent. Solid black background; sleeps until local midnight.
 # =============================================================================
 
-_DAY_COL = (255, 178, 44)
-_DATE_COL = (245, 245, 248)
-_YEAR_COL = (132, 136, 148)
+# Mon..Sun accent ramp — cool at the start of the week, warm at the weekend.
+# High-contrast on a near-black panel; hand-picked so none of them is pink.
+_WEEKDAY = [
+    (90, 165, 255),   # Mon — blue
+    (0, 200, 205),    # Tue — teal
+    (60, 210, 130),   # Wed — green
+    (150, 205, 70),   # Thu — lime
+    (255, 185, 45),   # Fri — amber
+    (255, 140, 45),   # Sat — orange
+    (255, 95, 70),    # Sun — coral (not pink)
+]
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px — smaller renders wrong-reading glyphs)."""
-    size = max(8, int(max_h) + 2)
+def _lerp(a, b, t):
+    return tuple(int(round(a[k] + (b[k] - a[k]) * t)) for k in range(3))
+
+
+def _scale(c, k):
+    return tuple(max(0, min(255, int(c[i] * k))) for i in range(3))
+
+
+def _fit(canvas, text, max_cap, max_w):
+    """Largest bundled font whose ``text`` fits both a cap height and a width.
+    Returns the font plus the text's ink metrics so it can be placed precisely."""
+    max_cap, max_w = max(8.0, max_cap), max(8.0, max_w)
+    n = max(1, len(text))
+    est = min(max_cap / 0.66, max_w / (0.62 * n))   # start at/above the true fit
+    size = max(8, int(est) + 8)
     font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
+    for _ in range(300):
+        l, t, r, b = font.getbbox(text)
+        if ((b - t) <= max_cap and (r - l) <= max_w) or size <= 8:
+            break
         size -= 1
         font = canvas.font(size)
-    return font
+    l, t, r, b = font.getbbox(text)
+    return {"font": font, "text": text, "w": r - l, "h": b - t, "l": l, "t": t}
+
+
+def _vfill(Image, W, H, top, bot, y0, y1):
+    """A panel-sized image whose vertical gradient runs ``top``→``bot`` across the
+    band [y0, y1] — shown through a glyph mask so the big numeral is filled by it."""
+    col = Image.new("RGB", (1, H))
+    px = col.load()
+    span = max(1.0, y1 - y0)
+    for yy in range(H):
+        px[0, yy] = _lerp(top, bot, min(1.0, max(0.0, (yy - y0) / span)))
+    return col.resize((W, H))
 
 
 def fetch_matrix(settings, canvas, i18n=None):
-    from PIL import ImageDraw
+    from datetime import datetime
+    from PIL import Image, ImageDraw
 
-    now, _time_str, weekday, month_day = _parts(settings, i18n)
-    weekday, month_day = weekday.upper(), month_day.upper()
+    now = datetime.now(_tz(settings))    # the SAME clock the flap view reads
 
     W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
+    accent = _WEEKDAY[now.weekday()]
 
-    year = str(now.year) if H >= 48 else ''     # the year only where it has a row of its own
+    # -- panel-adaptive geometry --------------------------------------------
+    if W <= 72:                       # 64x32 — compact
+        left_frac, pad_x, gap_inner = 0.48, 2, 3
+    else:                             # 128x32 / 128x64 — room for wider type
+        left_frac, pad_x, gap_inner = 0.52, 4, 6
+    pad_top = 2 if H >= 48 else 1
+    bar_h = 3 if H >= 48 else 2
+    bar_gap = 2 if H >= 48 else 1
+    gap_v = 2 if H >= 48 else 1
 
-    # Weekday ~ a quarter of the height pinned to the top row, the date the
-    # hero grown to fill the middle, the year a whisper pinned to the bottom
-    # row (the date itself takes the bottom when there is no year). Ink rides
-    # 1px inside the top edge — the reported bbox can under-report a pixel.
-    wf = _cv_fit(canvas, weekday, W - 4, max(8, int(H * 0.24)))
-    wb = wf.getbbox(weekday)
-    wh = wb[3] - wb[1]
-    yf = _cv_fit(canvas, year, W - 4, max(7, int(H * 0.16))) if year else None
-    yh = (yf.getbbox(year)[3] - yf.getbbox(year)[1]) if year else 0
-    gap = max(2, H // 16)
-    df = _cv_fit(canvas, month_day, W - 4, H - 3 - wh - yh - gap * (2 if year else 1))
-    db = df.getbbox(month_day)
-    dh = db[3] - db[1]
+    content_top = pad_top
+    content_bottom = H - (bar_h + bar_gap)
+    content_h = max(8, content_bottom - content_top)
 
-    draw.text(((W - wf.getlength(weekday)) / 2.0, 1 - wb[1]), weekday, font=wf, fill=_DAY_COL)
-    if year:
-        # The date centers in the band between the pinned weekday and year.
-        y = 1 + wh + (H - 1 - yh - (1 + wh) - dh) / 2.0
-        draw.text(((W - df.getlength(month_day)) / 2.0, y - db[1]), month_day,
-                  font=df, fill=_DATE_COL)
-        ybx = yf.getbbox(year)
-        draw.text(((W - yf.getlength(year)) / 2.0, H - yh - ybx[1]), year, font=yf, fill=_YEAR_COL)
+    # -- the big day-of-month numeral on the left ---------------------------
+    day_str = str(now.day)
+    day_cap = content_h * (0.94 if len(day_str) == 1 else 0.86)
+    day = _fit(canvas, day_str, day_cap, W * left_frac)
+    day_center_y = content_top + content_h / 2.0
+    day_top = day_center_y - day["h"] / 2.0
+
+    # -- the weekday / month / year stack on the right ----------------------
+    large = W >= 192                         # a big panel gets a third, facts column
+    col_x = pad_x + day["w"] + gap_inner
+    if large:
+        info_x = int(W * 0.70)
+        col_w = max(10, info_x - col_x - gap_inner)
     else:
-        draw.text(((W - df.getlength(month_day)) / 2.0, H - dh - db[1]), month_day,
-                  font=df, fill=_DATE_COL)
+        col_w = max(10, W - col_x - pad_x)
+    avail = max(6, content_h - 2 * gap_v)
+    wk_cap, mo_cap, yr_cap = avail * 0.38, avail * 0.32, avail * 0.30
 
-    canvas.frame(img)
-    # The face only changes at midnight; a minutely redraw catches it promptly
-    # without ever ticking visibly.
-    return max(5.0, 60.0 - now.second)
+    def choose(full, abbr, cap):
+        """Full name when it fits the column at its target size, else the abbrev."""
+        f = _fit(canvas, full, cap, col_w)
+        return full if f["h"] >= cap - 1 else abbr
+
+    if i18n is not None:                 # localized names, like the flap view
+        wk_full, wk_abbr = str(i18n.weekday(now)).upper(), str(i18n.weekday(now, short=True)).upper()
+        mo_full, mo_abbr = str(i18n.month(now)).upper(), str(i18n.month(now, short=True)).upper()
+    else:
+        wk_full, wk_abbr = now.strftime("%A").upper(), now.strftime("%a").upper()
+        mo_full, mo_abbr = now.strftime("%B").upper(), now.strftime("%b").upper()
+    wk_text = choose(wk_full, wk_abbr, wk_cap)
+    mo_text = choose(mo_full, mo_abbr, mo_cap)
+    yr_text = str(now.year)
+
+    def stack(scale=1.0):
+        return [_fit(canvas, t, c * scale, col_w) for t, c in
+                ((wk_text, wk_cap), (mo_text, mo_cap), (yr_text, yr_cap))]
+
+    lines = stack()
+    total = sum(ln["h"] for ln in lines) + 2 * gap_v
+    if total > content_h:                                  # rare rounding overflow
+        lines = stack(content_h / total * 0.98)
+        total = sum(ln["h"] for ln in lines) + 2 * gap_v
+
+    # -- compose: dark gradient, gradient-filled day, then the stack --------
+    base = canvas.blank((0, 0, 0))          # solid black — no tinted card behind it
+
+    m = Image.new("L", (W, H), 0)
+    dm = ImageDraw.Draw(m)
+    dm.fontmode = "1"                           # crisp 1-bit glyph mask — no AA edges
+    dm.text((pad_x - day["l"], day_top - day["t"]), day_str,
+            fill=255, font=day["font"], anchor="la")
+    fill = _vfill(Image, W, H, (255, 255, 255), _lerp((255, 255, 255), accent, 0.16),
+                  day_top, day_top + day["h"])
+    base = Image.composite(fill, base, m)
+
+    draw = ImageDraw.Draw(base)
+    draw.fontmode = "1"                         # crisp 1-bit text — no anti-aliased fuzz
+    colors = (accent, (232, 236, 244), (150, 166, 196))
+    y = content_top + (content_h - total) / 2.0
+    for ln, col in zip(lines, colors):
+        draw.text((col_x - ln["l"], y - ln["t"]), ln["text"],
+                  fill=col, font=ln["font"], anchor="la")
+        y += ln["h"] + gap_v
+
+    # -- a far-right facts column on a big panel, so the width isn't wasted --
+    if large:
+        yr2 = now.year
+        leap2 = (yr2 % 4 == 0 and yr2 % 100 != 0) or (yr2 % 400 == 0)
+        yday = now.timetuple().tm_yday
+        facts = [f"WEEK {now.isocalendar()[1]}", f"DAY {yday}",
+                 f"{(366 if leap2 else 365) - yday} LEFT"]
+        info_w = max(10, W - info_x - pad_x)
+        icap = content_h * 0.26
+        ifs = [_fit(canvas, s, icap, info_w) for s in facts]
+        itot = sum(f["h"] for f in ifs) + 2 * gap_v
+        iy = content_top + (content_h - itot) / 2.0
+        for f, col in zip(ifs, ((214, 224, 240), (192, 202, 224), (168, 180, 206))):
+            draw.text((info_x - f["l"], iy - f["t"]), f["text"], fill=col,
+                      font=f["font"], anchor="la")
+            iy += f["h"] + gap_v
+
+    # -- accent: the year's progress along the bottom -----------------------
+    yr = now.year
+    leap = (yr % 4 == 0 and yr % 100 != 0) or (yr % 400 == 0)
+    frac = (now.timetuple().tm_yday - 1 +
+            (now.hour * 3600 + now.minute * 60 + now.second) / 86400.0) / (366 if leap else 365)
+    frac = min(1.0, max(0.0, frac))
+    bar_y = H - bar_h
+    fill_w = int(round(frac * W))
+    draw.rectangle([0, bar_y, W - 1, H - 1], fill=_scale(accent, 0.18))
+    if fill_w > 0:
+        draw.rectangle([0, bar_y, fill_w - 1, H - 1], fill=accent)
+    if 0 < fill_w < W:
+        draw.rectangle([fill_w, bar_y, fill_w, H - 1], fill=(255, 255, 255))
+
+    canvas.frame(base)
+    # Nothing on this card changes until the day rolls: the numeral/weekday at local midnight,
+    # and the year-progress bar drifts about a pixel a day. So sleep until the next midnight
+    # rather than repainting an identical frame every 2s. Capped at an hour so a clock/DST step
+    # self-corrects, and the redraw lands with the panel already showing the right frame.
+    from datetime import timedelta
+    midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return max(1.0, min(3600.0, (midnight - now).total_seconds()))

@@ -49,7 +49,7 @@ def test_world_clock_holds_until_the_next_minute(surface):
 def test_date_card_holds_until_around_midnight(surface):
     """The card only changes when the day rolls, so it sleeps toward midnight (capped at an hour),
     not the old 2s repaint."""
-    m = _load("canvas-date")
+    m = _load("date")           # dual-surface: the Date Card is date's matrix branch
     hold = m.fetch_matrix({}, surface)
     now = datetime.now()
     secs_to_midnight = ((24 - now.hour) * 3600 - now.minute * 60 - now.second)

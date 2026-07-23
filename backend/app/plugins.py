@@ -345,7 +345,9 @@ class PluginRuntime:
     # (or in a playlist) follows the merge instead of waking up to PLUGIN ERROR.
     _RENAMED_APPS = {"national-today": "holidays",
                      "canvas-overview": "dashboard",     # Overview's card is Dashboard's panel view
-                     "canvas-dashboard": "entity-board"}  # HA Dashboard's grid is Home Assistant's panel view
+                     "canvas-dashboard": "entity-board",   # HA Dashboard's grid is Home Assistant's panel view
+                     "canvas-date": "date",                # Date Card is Date's panel view
+                     "canvas-weather-panel": "canvas-weather"}  # Weather Panel folded into Weather Sky
 
     def _migrate_renamed_apps(self) -> None:
         installed = list(self.settings.installed_apps)

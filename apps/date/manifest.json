@@ -3,9 +3,12 @@
   "i18n": true,
   "name": "Date",
   "icon": "📅",
-  "description": "Full date view",
+  "description": "The full date — a big typographic Date Card on a Matrix panel",
   "type": "functional",
-  "surfaces": ["flap", "matrix"],
+  "surfaces": [
+    "flap",
+    "matrix"
+  ],
   "refresh_interval": 1,
   "loop_delay": 1,
   "category": "time",

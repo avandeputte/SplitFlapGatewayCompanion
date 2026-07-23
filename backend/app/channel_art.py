@@ -117,12 +117,14 @@ def _cookie(d, x, y, s):
 
 def _eightball(d, x, y, s):
     cx, cy, r = x + s / 2, y + s / 2, s * 0.44
-    # A glossy BLACK ball. On an additive LED panel the body must stay charcoal and the rim a
-    # strictly NEUTRAL gray — any blue cast in the rim reads as a blue ball on black.
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(24, 24, 26), outline=(150, 150, 154))
+    # A glossy BLACK ball, tuned for LED hardware: a low-bit-depth panel quantizes anything
+    # under ~32/255 to pure black, so the body sits just above that (still reads black next to
+    # the bright window) with a bright strictly-NEUTRAL gray rim — any blue cast reads as a
+    # blue ball, any darker body vanishes entirely.
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(52, 52, 58), outline=(205, 205, 209))
     w = max(1, int(s * 0.03))
     d.arc([cx - r * 0.75, cy - r * 0.75, cx + r * 0.15, cy + r * 0.15],       # specular glint,
-          195, 285, fill=(205, 205, 210), width=w)                            # upper-left
+          195, 285, fill=(235, 235, 240), width=max(2, int(s * 0.05)))        # upper-left
     wr = r * 0.44
     d.ellipse([cx - wr, cy - wr, cx + wr, cy + wr], fill=(240, 242, 246))     # white window
     for oy, rr in ((-wr * 0.28, wr * 0.34), (wr * 0.30, wr * 0.40)):          # the 8, two rings
@@ -179,7 +181,7 @@ def _shower(d, x, y, s):
     d.ellipse([x + s * 0.16, y + s * 0.26, x + s * 0.70, y + s * 0.44], fill=head)           # head
     for i, dx in enumerate((0.24, 0.36, 0.48, 0.60)):
         yy = y + s * (0.54 + (i % 2) * 0.12)
-        d.line([x + s * dx, y + s * 0.48, x + s * dx, yy], fill=(90, 170, 255), width=max(1, int(s * 0.05)))
+        d.line([x + s * dx, y + s * 0.48, x + s * dx, yy], fill=(120, 195, 255), width=max(2, int(s * 0.06)))
 
 
 def _clap(d, x, y, s):
