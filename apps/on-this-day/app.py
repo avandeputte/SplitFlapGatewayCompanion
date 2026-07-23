@@ -112,7 +112,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
 # =============================================================================
 
 _CV_CHIP = (255, 198, 64)             # the gold year chip
-_CV_CHIP_TXT = (20, 14, 0)            # near-black on gold
+_CV_CHIP_TXT = (0, 0, 0)              # solid black on gold — full contrast on the chip
 _CV_TXT = (238, 240, 244)
 _CV_DIM = (140, 146, 156)
 
