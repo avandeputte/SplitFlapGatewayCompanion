@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.11
+
+- **Clearer pagination dots** on the News Headlines and Planes Overhead panel views: the current
+  item's dot is now accent-colored (red / amber) and slightly larger.
+
 ## 2.10.0-beta.10
 
 - **Two app merges.** The matrix-only **Overview** app is now the **Dashboard** app's Matrix-panel
