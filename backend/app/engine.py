@@ -555,35 +555,56 @@ class DisplayController:
             png = canvas.readback_png(url, scale=scale, fmt=fmt)
         return png
 
-    async def _matrix_loop(self, app_id: str) -> None:
-        """Drive a matrix app: take the panel over, then re-run its ``fetch_matrix`` draw on a timer.
-        The app draws through the ``canvas`` surface (an effect, ops, or a raw frame); its return
-        value, if a number, is the seconds to hold before the next redraw — an effect sets once and
-        holds, a clock redraws each tick."""
-        self.state.current_app = app_id
+    async def _take_panel(self) -> str:
+        """Take the Matrix panel over from the reel wall (once), and return the gateway url — the
+        opening move every panel-rendering loop shares."""
         url = str(self.config.transport.get("gateway_url") or "").strip()
-        if url:
+        if url and not self._canvas_active:
             await asyncio.to_thread(canvas.set_active, url, True)
             self._canvas_active = True
+        return url
+
+    async def _run_matrix(self, app_id: str, keep_going, *, overrides=None, deadline=None) -> None:
+        """The ONE matrix-app body — take the panel over, then re-run ``fetch_matrix`` on a timer
+        while ``keep_going()``. Shared by the standalone loop and a playlist entry (which passes its
+        ``deadline`` so a long hold never sleeps past its slot) — the same single-body pattern as
+        ``_play_app_pages``, so a fix never has to land twice.
+
+        The app draws through the ``canvas`` surface; its return value, if a number, is the seconds
+        to hold before the next redraw — an effect sets once and holds, a clock redraws each tick. A
+        low floor lets an animating app pick its own frame rate (on a 3.2 wall a fast frame-push app
+        runs over the draw stream, ~28 fps vs the ~8 fps HTTP ceiling)."""
+        url = await self._take_panel()
         caps = self._caps()
+        rt_loop = asyncio.get_running_loop()
+        while keep_going():
+            try:
+                hold = await asyncio.to_thread(self.plugins.render_matrix, app_id, overrides)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log.warning("canvas app %s draw error: %s", app_id, e)
+                hold = None
+            await self._maybe_stream(url, caps, app_id, hold)
+            delay = float((hold if hold else self.plugins.loop_delay(app_id)) or 5)
+            if deadline is not None:
+                remaining = deadline - rt_loop.time()
+                if remaining <= 0:
+                    break
+                delay = min(delay, remaining)
+            await asyncio.sleep(max(0.05, delay))
+
+    async def _matrix_loop(self, app_id: str) -> None:
+        """Standalone matrix app: the shared body until the app is switched away, then ALWAYS close
+        any draw stream (switch / stop / cancel). A playlist entry gets the same close from
+        ``_release_canvas`` after its slot."""
+        self.state.current_app = app_id
         try:
-            while self.active_app == app_id:
-                try:
-                    hold = await asyncio.to_thread(self.plugins.render_matrix, app_id)
-                except asyncio.CancelledError:
-                    raise
-                except Exception as e:
-                    log.warning("canvas app %s draw error: %s", app_id, e)
-                    hold = None
-                await self._maybe_stream(url, caps, app_id, hold)
-                delay = hold if hold else self.plugins.loop_delay(app_id)
-                # A canvas app can animate: a low floor lets it pick its own frame rate. On a 3.2
-                # wall a fast frame-push app now runs over the draw stream (~28 fps vs the ~8 fps
-                # HTTP ceiling); a still app returns a long hold and just sits there.
-                await asyncio.sleep(max(0.05, float(delay or 5)))
+            await self._run_matrix(app_id, lambda: self.active_app == app_id)
         finally:
+            url = str(self.config.transport.get("gateway_url") or "").strip()
             if url:
-                canvas.stream_end(url)          # always close on exit (switch / stop / cancel)
+                canvas.stream_end(url)
 
     async def _maybe_stream(self, url: str, caps, app_id: str, hold) -> None:
         """Adopt the v3.2 draw stream for a FAST FRAME-PUSH app once we've seen it draw: a wall that
@@ -594,23 +615,25 @@ class DisplayController:
                 and isinstance(hold, (int, float)) and hold <= _CANVAS_STREAM_MAX_HOLD):
             await asyncio.to_thread(canvas.stream_begin, url)
 
-    async def _channel_canvas_loop(self, app_id: str) -> None:
-        """Drive a channel ON THE PANEL: take the framebuffer over and cycle its lines as frames —
-        each drawn big with the channel's themed icon — instead of sending flap text. The dwell is
-        the channel's loop_delay; each fresh pass re-shuffles a random-order channel."""
-        self.state.current_app = app_id
-        url = str(self.config.transport.get("gateway_url") or "").strip()
-        if url:
-            await asyncio.to_thread(canvas.set_active, url, True)
-            self._canvas_active = True
+    async def _run_channel_canvas(self, app_id: str, keep_going, *, overrides=None,
+                                  deadline=None) -> None:
+        """The ONE channel-on-panel body — take the framebuffer over and cycle the channel's lines
+        as frames, each drawn big with its themed icon, while ``keep_going()``. Shared by the
+        standalone loop and a playlist entry (same single-body pattern as ``_play_app_pages``).
+        The dwell is the channel's loop_delay; each fresh pass re-shuffles a random-order channel.
+        If the wall turns out to have no framebuffer, falls back to the flap pages."""
+        await self._take_panel()
         surface = self.plugins.build_canvas_surface()
         if surface is None:                                    # no framebuffer after all -> flaps
-            await self._app_loop(app_id)
+            self._app_last_sent = None                         # fresh run: don't suppress page 1
+            while keep_going():
+                await self._play_app_pages(app_id, overrides, keep_going)
             return
         motif = self.plugins.channel_canvas_motif(app_id)
-        while self.active_app == app_id:
+        rt_loop = asyncio.get_running_loop()
+        while keep_going():
             try:
-                items = await asyncio.to_thread(self.plugins.channel_canvas_items, app_id)
+                items = await asyncio.to_thread(self.plugins.channel_canvas_items, app_id, overrides)
             except asyncio.CancelledError:
                 raise
             except Exception as e:
@@ -619,9 +642,9 @@ class DisplayController:
             if not items:
                 await asyncio.sleep(1)
                 continue
-            delay = max(0.5, float(self.plugins.loop_delay(app_id) or 8))
+            delay = max(0.5, float(self.plugins.loop_delay(app_id, overrides) or 8))
             for text in items:
-                if self.active_app != app_id:
+                if not keep_going():
                     return
                 try:
                     await asyncio.to_thread(channel_art.render, surface, text, motif)
@@ -629,67 +652,30 @@ class DisplayController:
                     raise
                 except Exception as e:
                     log.warning("channel %s canvas render error: %s", app_id, e)
-                await asyncio.sleep(delay)
+                await asyncio.sleep(delay if deadline is None
+                                    else min(delay, max(0.0, deadline - rt_loop.time())))
+
+    async def _channel_canvas_loop(self, app_id: str) -> None:
+        """Standalone channel-on-panel: the shared body until the app is switched away."""
+        self.state.current_app = app_id
+        await self._run_channel_canvas(app_id, lambda: self.active_app == app_id)
 
     async def _play_channel_canvas_entry(self, app_id: str, deadline: float, want, overrides=None) -> None:
-        """One playlist entry for a channel rendered on the panel — cycle its lines as art frames
-        until the slot's deadline. The caller releases the panel afterwards."""
+        """One playlist entry for a channel rendered on the panel — the shared body until the slot's
+        deadline. The caller releases the panel afterwards."""
         rt_loop = asyncio.get_running_loop()
-        url = str(self.config.transport.get("gateway_url") or "").strip()
-        if url and not self._canvas_active:
-            await asyncio.to_thread(canvas.set_active, url, True)
-            self._canvas_active = True
-        surface = self.plugins.build_canvas_surface()
-        if surface is None:
-            while rt_loop.time() < deadline and self.active_playlist == want:
-                await self._play_app_pages(app_id, overrides,
-                                           lambda: rt_loop.time() < deadline and self.active_playlist == want)
-            return
-        motif = self.plugins.channel_canvas_motif(app_id)
-        while rt_loop.time() < deadline and self.active_playlist == want:
-            items = await asyncio.to_thread(self.plugins.channel_canvas_items, app_id, overrides)
-            if not items:
-                await asyncio.sleep(1)
-                continue
-            delay = max(0.5, float(self.plugins.loop_delay(app_id, overrides) or 8))
-            for text in items:
-                if rt_loop.time() >= deadline or self.active_playlist != want:
-                    return
-                try:
-                    await asyncio.to_thread(channel_art.render, surface, text, motif)
-                except Exception as e:
-                    log.warning("channel %s canvas render error: %s", app_id, e)
-                await asyncio.sleep(min(delay, max(0.0, deadline - rt_loop.time())))
+        await self._run_channel_canvas(
+            app_id, lambda: rt_loop.time() < deadline and self.active_playlist == want,
+            overrides=overrides, deadline=deadline)
 
     async def _play_matrix_entry(self, app_id: str, deadline: float, want, overrides=None) -> None:
-        """Drive a matrix app for one playlist entry — take the panel over (once)
-        and redraw on its own timer until the entry's ``deadline``. The caller
-        releases the panel afterwards, so an effect/frame never outlives its slot.
-
-        The per-frame sleep is capped at the time left in the slot: a matrix app
-        that asks to hold a long time (an on-device effect returns its whole
-        loop_delay) must not sleep past its turn in the playlist."""
+        """One playlist entry for a matrix app — the shared body until the slot's ``deadline`` (a
+        long hold is capped at the time left, so an effect never sleeps past its turn). The caller
+        releases the panel — and with it any draw stream — after the slot."""
         rt_loop = asyncio.get_running_loop()
-        url = str(self.config.transport.get("gateway_url") or "").strip()
-        if url and not self._canvas_active:
-            await asyncio.to_thread(canvas.set_active, url, True)
-            self._canvas_active = True
-        render = getattr(self.plugins, "render_matrix", None)
-        caps = self._caps()
-        while rt_loop.time() < deadline and self.active_playlist == want:
-            try:
-                hold = await asyncio.to_thread(render, app_id, overrides) if render else None
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                log.warning("canvas app %s draw error: %s", app_id, e)
-                hold = None
-            await self._maybe_stream(url, caps, app_id, hold)   # released by _release_canvas after the slot
-            remaining = deadline - rt_loop.time()
-            if remaining <= 0:
-                break
-            delay = hold if hold else self.plugins.loop_delay(app_id)
-            await asyncio.sleep(max(0.05, min(float(delay or 5), remaining)))
+        await self._run_matrix(
+            app_id, lambda: rt_loop.time() < deadline and self.active_playlist == want,
+            overrides=overrides, deadline=deadline)
 
     async def stop_app(self) -> None:
         """Stop whatever is running — and BLANK the wall.

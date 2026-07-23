@@ -1086,53 +1086,68 @@ class CanvasSurface:
         return False
 
     def _push_rgb(self, b: bytes) -> bool:
-        if _wall(self.url).sim:                                  # sim: cache for the preview, drive nothing
+        """Deliver one rgb888 frame, cheapest way first: nothing (unchanged), delta rects, then a
+        full frame — each over the persistent stream when one is open, HTTP otherwise. The pieces:
+        ``_try_delta`` (the incremental path, or the reasons it can't apply) and ``_push_full_any``
+        (stream-full, falling back to HTTP-full)."""
+        wall = _wall(self.url)
+        if wall.sim:                                       # sim: cache for the preview, drive nothing
             _remember_frame(self.url, self.width, self.height, b)
             log.info("canvas %s: [sim] frame not sent (%d B)", self.url, len(b))
             return True
-        _wall(self.url).last_kind = "frame"                             # this app pushes frames (streaming heuristic)
-        st = _wall(self.url).stream                                # the persistent stream, if the engine opened one
-        streaming = st is not None and st.alive
-        old = _wall(self.url).last_frame                             # the base (last frame we sent)
-        w = _wall(self.url)
-        w.delta_n += 1
-        n = w.delta_n
-        # A delta needs a same-size base, and we force a full frame every _KEYFRAME_EVERY pushes so
-        # a reboot or drift self-heals. Deltas never transition, which is right for an animating app.
-        if (self.can_rects and old is not None and (old[0], old[1]) == (self.width, self.height)
-                and n % _KEYFRAME_EVERY != 0):
-            try:
-                rects = diff_rects(old[2], b, self.width, self.height)
-            except Exception as e:                                 # numpy missing/failed -> full frame
-                log.debug("canvas delta failed, full frame: %s", e)
-                rects = None
-            if rects == []:                                        # identical -> panel already shows b
-                _remember_frame(self.url, self.width, self.height, b)
-                log.debug("canvas %s: frame unchanged, nothing sent", self.url)
-                return True
-            if rects:                                              # a small change -> only the rects
-                size = 4 + sum(8 + len(px) for *_, px in rects)    # frame header + per-rect header + pixels
-                if streaming:
-                    if st.rects(rects) and st.present():
-                        _remember_frame(self.url, self.width, self.height, b)
-                        log.info("canvas %s: incremental %d rect(s) %d B (stream)", self.url, len(rects), size)
-                        return True
-                    streaming = False                              # stream died -> HTTP full frame below
-                elif put_rects(self.url, rects) is True:
-                    _remember_frame(self.url, self.width, self.height, b)
-                    log.info("canvas %s: incremental %d rect(s) %d B", self.url, len(rects), size)
-                    return True
-            # rects is None (too much changed), a 413, or a transient error -> full frame, which
-            # also re-establishes the base after a reboot.
-        if streaming and self._stream_full(st, b):
-            _remember_frame(self.url, self.width, self.height, b)
-            return True
-        ok = self._push_full(b)                                    # HTTP path (also the stream fallback)
-        if ok:
+        wall.last_kind = "frame"                           # this app pushes frames (stream heuristic)
+
+        handled = self._try_delta(wall, b)
+        if handled is None:                                # delta didn't apply -> a full frame
+            handled = self._push_full_any(wall, b)
+        if handled:
             _remember_frame(self.url, self.width, self.height, b)
         else:
-            forget_frame(self.url)                                 # panel state unknown -> next is full
-        return ok
+            forget_frame(self.url)                         # panel state unknown -> next is full
+        return handled
+
+    def _try_delta(self, wall, b: bytes) -> bool | None:
+        """The incremental path: True = delivered (or identical, nothing to send), False = a delta
+        was tried and FAILED (deliver a full frame and reset the base), None = a delta doesn't
+        apply here (no rects support, no same-size base, or a due keyframe) — send a full frame.
+
+        A delta needs a same-size base, and every _KEYFRAME_EVERY pushes a full frame goes anyway
+        so a gateway reboot or drift self-heals. Deltas never transition, which is right for an
+        animating app."""
+        old = wall.last_frame                              # the base (the last frame we sent)
+        wall.delta_n += 1
+        if not (self.can_rects and old is not None and (old[0], old[1]) == (self.width, self.height)
+                and wall.delta_n % _KEYFRAME_EVERY != 0):
+            return None
+        try:
+            rects = diff_rects(old[2], b, self.width, self.height)
+        except Exception as e:                             # numpy missing/failed -> full frame
+            log.debug("canvas delta failed, full frame: %s", e)
+            return None
+        if rects == []:                                    # identical -> panel already shows b
+            log.debug("canvas %s: frame unchanged, nothing sent", self.url)
+            return True
+        if not rects:                                      # too much changed -> full frame is cheaper
+            return None
+        size = 4 + sum(8 + len(px) for *_, px in rects)    # frame header + per-rect header + pixels
+        st = wall.stream
+        if st is not None and st.alive:
+            if st.rects(rects) and st.present():
+                log.info("canvas %s: incremental %d rect(s) %d B (stream)", self.url, len(rects), size)
+                return True
+            return False                                   # stream died mid-send -> full frame next
+        if put_rects(self.url, rects) is True:
+            log.info("canvas %s: incremental %d rect(s) %d B", self.url, len(rects), size)
+            return True
+        return False                                       # a 413 / transient error -> full frame
+
+    def _push_full_any(self, wall, b: bytes) -> bool:
+        """A full frame by the best available channel: over the open stream first, else (or on a
+        dead stream) the HTTP path (QOI where advertised, raw otherwise)."""
+        st = wall.stream
+        if st is not None and st.alive and self._stream_full(st, b):
+            return True
+        return self._push_full(b)
 
     def frame(self, image) -> bool:
         """Push a full frame. ``image`` is a PIL image (resized/converted to the panel) or
