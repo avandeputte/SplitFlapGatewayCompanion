@@ -13,6 +13,7 @@ import asyncio
 import logging
 
 from . import canvas, channel_art, device, gateway, renderer
+from .plugins import app_id_from_ref
 from .config import Config
 from .state import DisplayState
 from .transport import DisplayTransport, SimTransport, build_transport
@@ -31,11 +32,10 @@ _CANVAS_STREAM_MAX_HOLD = 2.0
 
 def _entry_label(entry: dict) -> str:
     """A playlist entry as one word for the running-order view: the app id, or
-    "(message)" for a composed entry. Mirrors the id normalisation in the loop."""
+    "(message)" for a composed entry."""
     if entry.get("type") == "compose":
         return "(message)"
-    app_id = entry.get("app", "") or "(unknown)"
-    return app_id[7:] if app_id.startswith("plugin_") else app_id
+    return app_id_from_ref(entry.get("app", "") or "(unknown)")
 
 
 class DisplayController:
@@ -810,9 +810,7 @@ class DisplayController:
                                                     speed=int(entry.get("speed", 15)))
                     await asyncio.sleep(duration)
                 else:  # app entry — run the app's pages until the deadline
-                    app_id = entry.get("app", "")
-                    if app_id.startswith("plugin_"):
-                        app_id = app_id[7:]
+                    app_id = app_id_from_ref(entry.get("app", ""))
                     if not app_id or self.plugins.manifest(app_id) is None:
                         continue
                     self.state.current_app = app_id    # this app is on the flaps now

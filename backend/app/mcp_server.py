@@ -33,6 +33,7 @@ from mcp.server import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from . import renderer, vestaboard
+from .plugins import app_id_from_ref
 
 log = logging.getLogger("companion.mcp")
 
@@ -254,16 +255,13 @@ def build(displays) -> FastMCP:
 
         `display` picks the wall (see list_displays); omit it for the default one."""
         d = _res(display)
-        app_id = app_id[7:] if app_id.startswith("plugin_") else app_id
+        app_id = app_id_from_ref(app_id)
         try:
             await d.controller.run_app(app_id)
         except KeyError:
             raise ValueError(f"app not installed: {app_id}")
         d.ha.publish_state()
         return {"ok": True, "active_app": app_id, "display": d.id}
-
-    def _norm_id(app_id: str) -> str:
-        return app_id[7:] if app_id.startswith("plugin_") else app_id
 
     def _app_fields(d, app_id: str) -> list[dict]:
         """This app's own settings as {name, label, type, value, options?}, with the
@@ -296,7 +294,7 @@ def build(displays) -> FastMCP:
         `options`, "search_chips" for a place/ticker list, "text"/"password").
         """
         d = _res(display)
-        app_id = _norm_id(app_id)
+        app_id = app_id_from_ref(app_id)
         try:
             return {"app_id": app_id, "settings": _app_fields(d, app_id)}
         except KeyError:
@@ -315,7 +313,7 @@ def build(displays) -> FastMCP:
         options (Language, Location, Timezone) live in the global settings, not here.
         """
         d = _res(display)
-        app_id = _norm_id(app_id)
+        app_id = app_id_from_ref(app_id)
         try:
             valid = {f["name"] for f in _app_fields(d, app_id)}
         except KeyError:

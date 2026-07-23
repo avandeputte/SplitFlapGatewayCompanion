@@ -13,6 +13,8 @@ import logging
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
+from ..plugins import app_id_from_ref
+
 log = logging.getLogger("companion")
 
 
@@ -48,7 +50,7 @@ def build(deps) -> APIRouter:
     @router.post("/api/apps/run")
     async def apps_run(request: Request, req: RunAppRequest):
         d = deps.display_for(request)
-        app_id = req.app[7:] if req.app.startswith("plugin_") else req.app
+        app_id = app_id_from_ref(req.app)
         try:
             await d.controller.run_app(app_id)
         except KeyError as e:

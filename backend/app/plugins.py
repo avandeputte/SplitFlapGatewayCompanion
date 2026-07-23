@@ -67,6 +67,15 @@ LANG_DATA_FILE = re.compile(r"^data_([A-Za-z]{2}(?:-[A-Za-z]{2})?)\.json$")
 # in the pair constraint. So everything that treats a channel treats a quiz the same way.
 _CHANNELISH = ("channel", "quiz")
 
+_PLUGIN_PREFIX = "plugin_"
+
+
+def app_id_from_ref(ref: str) -> str:
+    """The bare app id from a possibly-prefixed reference. The UI and API address a plugin app as
+    ``plugin_<id>`` (the same namespace its settings keys use); this strips that one prefix.
+    Idempotent for an already-bare id — the single place that knows the convention."""
+    return ref[len(_PLUGIN_PREFIX):] if ref.startswith(_PLUGIN_PREFIX) else ref
+
 # Translated app-store metadata (names, descriptions, settings labels) lives
 # OUTSIDE manifest.json — the manifest must stay a byte-compatible splitflap-os
 # manifest (its description is read as a plain string there). Two layers:
