@@ -1,3 +1,71 @@
+# =============================================================================
+# SHARED — logic used across surfaces: which countdown is showing now (both views
+# rotate by the same rule), plus the milestone trigger (surface-independent).
+# =============================================================================
+
+def _rotation_index(now_ts, span, count):
+    """Which countdown shows now: epoch // span gives stable, aligned blocks, so
+    each fetch (once a second) lands in one block and the shown countdown holds
+    for `span` seconds before advancing. Pure and module-level so it is testable
+    without freezing the clock."""
+    if count <= 0:
+        return 0
+    return int(now_ts // max(2, int(span))) % count
+
+
+def trigger(settings, conditions):
+    """Fire when the countdown reaches a configured milestone."""
+    from datetime import datetime
+    import pytz
+
+    milestone = conditions.get('milestone', '1d')
+    target_str = settings.get('countdown_target', '')
+    try:
+        tz = pytz.timezone(settings.get('timezone') or 'UTC')
+    except Exception:
+        tz = pytz.utc
+    now = datetime.now(tz)
+
+    if not target_str:
+        return False
+
+    try:
+        target = datetime.fromisoformat(target_str)
+        if target.tzinfo is None:
+            target = tz.localize(target)
+        diff = target - now
+        total_secs = diff.total_seconds()
+        if total_secs <= 0:
+            return False
+
+        windows = {
+            '30d': (30 * 86400, 29 * 86400),
+            '7d':  (7 * 86400,  6 * 86400),
+            '1d':  (86400,      82800),
+            '1h':  (3600,       3540),
+            '0':   (60,         0),
+        }
+        lo, hi = windows.get(milestone, (86400, 82800))
+        in_window = hi <= total_secs <= lo
+
+        state = getattr(trigger, '_state', None)
+        if state is None:
+            state = {'fired_milestone': None}
+            setattr(trigger, '_state', state)
+
+        key = f"{milestone}:{target_str}"
+        if in_window and state['fired_milestone'] != key:
+            state['fired_milestone'] = key
+            return True
+    except Exception:
+        raise
+    return False
+
+
+# =============================================================================
+# SPLIT-FLAP — fetch() and its helpers, unique to the character-grid flap wall.
+# =============================================================================
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     from datetime import datetime
     import pytz
@@ -261,23 +329,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     return groups[_rotation_index(now.timestamp(), span, len(groups))]
 
 
-def _rotation_index(now_ts, span, count):
-    """Which countdown shows now: epoch // span gives stable, aligned blocks, so
-    each fetch (once a second) lands in one block and the shown countdown holds
-    for `span` seconds before advancing. Pure and module-level so it is testable
-    without freezing the clock."""
-    if count <= 0:
-        return 0
-    return int(now_ts // max(2, int(span))) % count
-
-
-# ---------------------------------------------------------------------------
-# Canvas view — the countdown as full-width draining colour bars on a Matrix
-# panel (the pixel-native cousin of the flap bars above). It rotates through the
-# SAME active slots as the flap view, by the same wall-clock rule, so a wall and
-# a panel showing this app agree on which countdown is up. Ported from the former
-# standalone "Countdown Bars" (canvas-countdown) app, now folded in here.
-# ---------------------------------------------------------------------------
+# =============================================================================
+# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+#
+# The countdown as full-width draining colour bars — the pixel-native cousin of
+# the flap bars above. It rotates through the SAME active slots as the flap view,
+# by the same wall-clock rule (_rotation_index), so a wall and a panel agree on
+# which countdown is up. Black background, no gradient.
+# =============================================================================
 
 # One colour per unit, cool (far off) to urgent (imminent). No pink anywhere.
 _UNITS = {
@@ -560,52 +619,3 @@ def fetch_matrix(settings, canvas, caps=None):
 
     canvas.frame(_render_bars(canvas, ImageDraw, keys, val, frac, event, header_h))
     return 0.2 if 'S' in keys else 1.0          # fast sweep only while a seconds bar is drawn
-
-
-def trigger(settings, conditions):
-    """Fire when the countdown reaches a configured milestone."""
-    from datetime import datetime
-    import pytz
-
-    milestone = conditions.get('milestone', '1d')
-    target_str = settings.get('countdown_target', '')
-    try:
-        tz = pytz.timezone(settings.get('timezone') or 'UTC')
-    except Exception:
-        tz = pytz.utc
-    now = datetime.now(tz)
-
-    if not target_str:
-        return False
-
-    try:
-        target = datetime.fromisoformat(target_str)
-        if target.tzinfo is None:
-            target = tz.localize(target)
-        diff = target - now
-        total_secs = diff.total_seconds()
-        if total_secs <= 0:
-            return False
-
-        windows = {
-            '30d': (30 * 86400, 29 * 86400),
-            '7d':  (7 * 86400,  6 * 86400),
-            '1d':  (86400,      82800),
-            '1h':  (3600,       3540),
-            '0':   (60,         0),
-        }
-        lo, hi = windows.get(milestone, (86400, 82800))
-        in_window = hi <= total_secs <= lo
-
-        state = getattr(trigger, '_state', None)
-        if state is None:
-            state = {'fired_milestone': None}
-            setattr(trigger, '_state', state)
-
-        key = f"{milestone}:{target_str}"
-        if in_window and state['fired_milestone'] != key:
-            state['fired_milestone'] = key
-            return True
-    except Exception:
-        raise
-    return False

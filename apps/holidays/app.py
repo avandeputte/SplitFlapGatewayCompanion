@@ -30,23 +30,10 @@ dataset rebuild):
 """
 
 
-def _wrap(text, cols, maxlines):
-    """Word-wrap, because a holiday name is the whole point of the app and cutting
-    it in half ("MARTIN LUTHER KING J") is worse than using another row."""
-    words, lines, cur = str(text or '').split(), [], ''
-    for w in words:
-        if len(cur) + len(w) + (1 if cur else 0) <= cols:
-            cur = f'{cur} {w}'.strip()
-        else:
-            if cur:
-                lines.append(cur)
-            cur = w[:cols]
-            if len(lines) >= maxlines:
-                break
-    if cur and len(lines) < maxlines:
-        lines.append(cur)
-    return lines[:maxlines] or ['']
-
+# =============================================================================
+# SHARED — the holiday DATA: retrieval, locale selection, and the upcoming list.
+# Used by every surface (fetch and fetch_matrix both build on _upcoming).
+# =============================================================================
 
 TRADITIONS = ('christian', 'islamic', 'jewish', 'hindu', 'buddhist', 'sikh')
 
@@ -219,6 +206,28 @@ def _upcoming(settings, i18n, get_location):
     return deduped, country
 
 
+# =============================================================================
+# SPLIT-FLAP — fetch() and its helpers, unique to the character-grid flap wall.
+# =============================================================================
+
+def _wrap(text, cols, maxlines):
+    """Word-wrap, because a holiday name is the whole point of the app and cutting
+    it in half ("MARTIN LUTHER KING J") is worse than using another row."""
+    words, lines, cur = str(text or '').split(), [], ''
+    for w in words:
+        if len(cur) + len(w) + (1 if cur else 0) <= cols:
+            cur = f'{cur} {w}'.strip()
+        else:
+            if cur:
+                lines.append(cur)
+            cur = w[:cols]
+            if len(lines) >= maxlines:
+                break
+    if cur and len(lines) < maxlines:
+        lines.append(cur)
+    return lines[:maxlines] or ['']
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
     from datetime import date
     rows, cols = get_rows(), get_cols()
@@ -274,14 +283,15 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
         return [format_lines('Holidays', t('No data', 'holidays'), '')]
 
 
-# ---------------------------------------------------------------------------
-# Canvas view — a rich desk-calendar rendering for a Matrix panel. The same
-# upcoming holidays as the flap pages (via _upcoming), shown one at a time as a
-# slideshow: a red-banded calendar card (month + big day number) with the
-# holiday name and countdown beside it. On a panel too small for the card to sit
-# next to the text it drops to a compact stacked layout (a date strip over the
-# wrapped name) so it stays legible down to a 64x32 wall.
-# ---------------------------------------------------------------------------
+# =============================================================================
+# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+#
+# A rich desk-calendar rendering of the same upcoming holidays (via _upcoming),
+# shown one at a time as a slideshow: a red-banded calendar card (month + big day
+# number) with the holiday name and countdown beside it. On a panel too small for
+# the card beside the text it drops to a compact stacked layout (a date strip over
+# the wrapped name), legible down to a 64x32 wall. Black background, no gradient.
+# =============================================================================
 
 _CARD, _CARD_EDGE = (244, 244, 246), (208, 208, 214)   # the desk-calendar card
 _BAND = (206, 52, 52)                                  # its classic red month band

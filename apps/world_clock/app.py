@@ -1,3 +1,52 @@
+# =============================================================================
+# SHARED — logic used across surfaces: the business-hours trigger
+# (surface-independent; both views read the same world_clock_zones list).
+# =============================================================================
+
+def trigger(settings, conditions):
+    """Fire when business hours start or end in a followed timezone."""
+    from datetime import datetime
+    import pytz
+
+    event = conditions.get('event', 'open')
+    zones = [s.strip() for s in settings.get('world_clock_zones', 'US/Eastern,US/Pacific,Europe/London').split(',')]
+
+    state = getattr(trigger, '_state', None)
+    if state is None:
+        state = {'fired_today': set()}
+        setattr(trigger, '_state', state)
+
+    # Reset daily
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    if state.get('date') != today:
+        state['fired_today'] = set()
+        state['date'] = today
+
+    for z in zones:
+        try:
+            tz = pytz.timezone(z)
+            now = datetime.now(tz)
+            hour, minute = now.hour, now.minute
+            city = z.split('/')[-1].replace('_', ' ')
+            key = f"{event}:{z}:{today}"
+
+            if event == 'open' and hour == 9 and minute < 5:
+                if key not in state['fired_today']:
+                    state['fired_today'].add(key)
+                    return True
+            elif event == 'close' and hour == 17 and minute < 5:
+                if key not in state['fired_today']:
+                    state['fired_today'].add(key)
+                    return True
+        except Exception:
+            continue
+    return False
+
+
+# =============================================================================
+# SPLIT-FLAP — fetch() and its helpers, unique to the character-grid flap wall.
+# =============================================================================
+
 def _columns(pairs, cols, gap=3):
     """Two aligned columns — `left` flush, `right` flush — kept CLOSE together
     rather than spread to the wall's edges.
@@ -48,52 +97,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     return [format_lines(*_columns(pairs, cols))]
 
 
-def trigger(settings, conditions):
-    """Fire when business hours start or end in a followed timezone."""
-    from datetime import datetime
-    import pytz
-
-    event = conditions.get('event', 'open')
-    zones = [s.strip() for s in settings.get('world_clock_zones', 'US/Eastern,US/Pacific,Europe/London').split(',')]
-
-    state = getattr(trigger, '_state', None)
-    if state is None:
-        state = {'fired_today': set()}
-        setattr(trigger, '_state', state)
-
-    # Reset daily
-    today = datetime.utcnow().strftime('%Y-%m-%d')
-    if state.get('date') != today:
-        state['fired_today'] = set()
-        state['date'] = today
-
-    for z in zones:
-        try:
-            tz = pytz.timezone(z)
-            now = datetime.now(tz)
-            hour, minute = now.hour, now.minute
-            city = z.split('/')[-1].replace('_', ' ')
-            key = f"{event}:{z}:{today}"
-
-            if event == 'open' and hour == 9 and minute < 5:
-                if key not in state['fired_today']:
-                    state['fired_today'].add(key)
-                    return True
-            elif event == 'close' and hour == 17 and minute < 5:
-                if key not in state['fired_today']:
-                    state['fired_today'].add(key)
-                    return True
-        except Exception:
-            continue
-    return False
-
-
-# ---------------------------------------------------------------------------
-# Canvas view — several cities, their local hour written in light, one lit row
-# per city with a warm day / cool night cue on the left stripe. Ported from the
-# former standalone "World Time" (canvas-world) app, now folded in here so the
-# flap World Clock and the panel view are one dual-view app off one zone list.
-# ---------------------------------------------------------------------------
+# =============================================================================
+# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+#
+# Several cities, their local hour written in light: one lit row per city with a
+# warm day / cool night cue on the left stripe. Reads the same world_clock_zones
+# list as the flap view. Near-black rows, no gradient wash.
+# =============================================================================
 
 _DAY_BG = (20, 13, 3)
 _NIGHT_BG = (5, 8, 20)
