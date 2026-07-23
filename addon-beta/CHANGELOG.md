@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.9
+
+- **Matrix-view polish.** News Headlines shows real mastheads for known feeds (BBC, NY Times,
+  Guardian, Reuters, AP...); Planes Overhead's header renders crisply; Sun Times at night shows a
+  star field and a "RISE IN 7H12M" countdown to sunrise (day length returns by day).
+
 ## 2.10.0-beta.8
 
 - **Every app now has a Matrix-panel view.** All 40 flap-only apps gained a rich `fetch_matrix`
