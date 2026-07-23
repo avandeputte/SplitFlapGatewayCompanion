@@ -3,6 +3,10 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.18
+
+- **Trivia**: a short answer centers in the card instead of sitting on the bottom edge.
+
 ## 2.10.0-beta.17
 
 - **Stocks and Crypto**: row spacing on the panel is perfectly even (rows no longer stretch to the
