@@ -76,11 +76,8 @@ logging.getLogger("uvicorn.access").addFilter(_SuppressStatePolling())
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
 
-# One companion, N displays (docs/MULTI_DISPLAY_PLAN.md).
-#
-# Phase 0 gave a Display ownership of what used to be module globals here: the geometry,
-# the settings store, the app loop, the HA device. Phase 1 gives the SET of them an
-# identity on disk:
+# One companion, N displays (docs/MULTI_DISPLAY_PLAN.md). Each Display owns its geometry, settings
+# store, app loop and HA device; the SET of them has an identity on disk:
 #
 #   data/displays.json                    which walls exist; which one is the default
 #   data/displays/<id>/app_settings.json  one settings store per wall, ENTIRELY its own
@@ -125,11 +122,10 @@ displays.load_registry()
 registry.on_change = _mirror_registry
 _default = displays.default
 
-# Names kept for the module-level consumers that are not per-request: the lifespan, the
-# background loops, and the import-time wiring below (an ASGI app cannot be mounted
-# after startup). They are the DEFAULT display's objects -- the same instances the
-# manager hands out -- so patching one patches both, and there is a single source of
-# truth for the display the display-less surfaces mean.
+# The DEFAULT display's objects, exposed at module level. `config`/`plugin_settings` are read by the
+# import-time wiring below; the rest are the seam the test suite patches (patching `main.controller`
+# patches the default display's controller, since these ARE its instances). Everything at request
+# time goes through `display_for(...)` instead.
 config = _default.config
 state = _default.state
 controller = _default.controller
@@ -150,11 +146,8 @@ def display_by_id(display_id: str):
 
 def display_for(request: Request | None = None):
     """The display this request is about — the seam every endpoint resolves through.
-
-    Phase 0 always returns the default (there is only one). Phase 2 teaches
-    DisplayManager.current() to honour ?display=<id> here, and every endpoint below
-    follows without being touched again.
-    """
+    Honours ``?display=<id>`` (via DisplayManager.current()) and falls back to the default when
+    absent, so every endpoint below stays display-agnostic."""
     try:
         return displays.current(request)
     except KeyError as e:
@@ -192,7 +185,7 @@ async def do_gateway_sync(d=None) -> dict:
     first.
     """
     d = d or displays.default
-    config, controller, plugins = d.config, d.controller, d.plugins
+    config, controller = d.config, d.controller
     url = d.gateway_url
     if not url:
         return {"ok": False, "error": "no gateway_url configured"}

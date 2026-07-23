@@ -103,10 +103,6 @@ def _read_json_cached(path: Path) -> dict:
     return d
 
 
-def _read_meta_file(path: Path) -> dict:
-    return _read_json_cached(path)
-
-
 def _merge_meta(into: dict, entry: dict) -> None:
     for k in _META_STR_KEYS:
         v = entry.get(k)
@@ -379,7 +375,7 @@ class PluginRuntime:
             for st in manifest.get("settings", []):
                 if (st.get("type") == "search_chips" and st.get("maxItems") != 1
                         and st.get("key")):
-                    keys.add(self._resolve_key(app_id, st["key"], st.get("global_key", False)))
+                    keys.add(self._resolve_key(app_id, st["key"]))
         return keys
 
     def _load_one(self, app_id: str, app_dir: Path) -> None:
@@ -540,12 +536,12 @@ class PluginRuntime:
             return {}
         out: dict = {}
         for c in dict.fromkeys([base, code]):        # base first, exact wins
-            entry = _read_meta_file(APP_I18N_DIR / f"{c}.json").get(app_id)
+            entry = _read_json_cached(APP_I18N_DIR / f"{c}.json").get(app_id)
             if isinstance(entry, dict):
                 _merge_meta(out, entry)
         if app_dir:
             for c in dict.fromkeys([base, code]):
-                _merge_meta(out, _read_meta_file(app_dir / "i18n" / f"{c}.json"))
+                _merge_meta(out, _read_json_cached(app_dir / "i18n" / f"{c}.json"))
         return out
 
     def _flap_fallback(self, app_id: str, manifest: dict | None, settings,
@@ -1143,9 +1139,6 @@ class PluginRuntime:
                     "loop_delay": self.loop_delay(app_id, settings)}
         style = settings.get(f"plugin_{app_id}_transition_style") or \
             disp.get("transition_style", "ltr")
-        # (A "skip_rotation" flag used to ride along here, sourced from a
-        # "skip_rotation_wait" manifest key. Nothing in the engine ever consumed
-        # it — both ends are gone until a rotation loop actually honors it.)
         return {"is_anim": False, "style": style, "speed": speed,
                 "loop_delay": self.loop_delay(app_id, settings)}
 
@@ -1238,9 +1231,9 @@ class PluginRuntime:
         return out
 
     # -- per-app settings schema + values ---------------------------------
-    def _resolve_key(self, app_id: str, raw_key: str, global_key: bool = False) -> str:
-        # The catalog is the single source of truth for what is global; every
-        # other setting is per-app. A manifest's ``global_key`` flag is ignored.
+    def _resolve_key(self, app_id: str, raw_key: str) -> str:
+        # The catalog is the single source of truth for what is global; every other setting is
+        # per-app, namespaced under the app id.
         return raw_key if raw_key in GLOBAL_STORAGE_KEYS else f"plugin_{app_id}_{raw_key}"
 
     # Effect names get a friendlier label; anything the firmware adds later is
@@ -1291,7 +1284,7 @@ class PluginRuntime:
         if "inline_toggle" in setting:
             it = dict(setting["inline_toggle"])
             if it.get("key"):
-                it["key"] = self._resolve_key(app_id, it["key"], it.get("global_key", False))
+                it["key"] = self._resolve_key(app_id, it["key"])
             field["inline_toggle"] = it
         return field
 
@@ -1306,7 +1299,7 @@ class PluginRuntime:
                         .get("settings") or {}) if lang else {}
         raw_settings = [s for s in manifest.get("settings", []) if s.get("key")]
         resolved = {
-            s["key"]: self._resolve_key(app_id, s["key"], s.get("global_key", False))
+            s["key"]: self._resolve_key(app_id, s["key"])
             for s in raw_settings
         }
         declared_keys = {s["key"] for s in raw_settings}
@@ -1395,21 +1388,18 @@ class PluginRuntime:
 
         # A DUAL-SURFACE app (surfaces has both flap and matrix) can render on a Matrix panel instead
         # of the plain firmware text of its flap view. One toggle governs it — a functional app draws
-        # its own rich view, a channel/quiz its text with a themed icon. It only bites on a wall with
-        # a framebuffer, so it greys out (disabled + a note) on a flap-only display.
-        if self.is_dual_surface(app_id):
+        # its own rich view, a channel/quiz its text with a themed icon. It's meaningless without a
+        # framebuffer, so it appears ONLY on a Matrix-panel display, and leads the form (it changes
+        # what the rest of the settings even apply to).
+        if self.is_dual_surface(app_id) and self._caps().has_canvas:
             rich = "art + text" if manifest.get("type") in _CHANNELISH else "rich view"
-            fld = {
+            fields.insert(0, {
                 "key": f"plugin_{app_id}_matrix",
                 "label": f"Show on Matrix panel ({rich})",
                 "type": "toggle",
                 "default": "yes",
                 "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}],
-            }
-            if not self._caps().has_canvas:
-                fld["disabled"] = True
-                fld["note"] = "Only on Matrix-panel displays."
-            fields.append(fld)
+            })
 
         values = {}
         for s in raw_settings:

@@ -1,27 +1,18 @@
 """A Display — one gateway, one wall — and the manager that owns the set.
 
-Phase 0 of multi-display support (docs/MULTI_DISPLAY_PLAN.md). Today the companion
-builds six objects once, at import time in main.py, and 51 endpoints close over
-those names:
+Each Display bundles the per-wall objects a gateway needs — its own geometry, settings store, and
+app/playlist loop:
 
     config, state, controller, plugin_settings, plugins, scheduler, ha
 
-Every one of them is per-wall: a second gateway needs its own geometry, its own
-settings store, its own app/playlist loop. So they move here, into an object that
-can exist more than once, and `main` asks the manager for one instead of reaching
-for a global.
+`main` asks the `DisplayManager` for one rather than reaching for a global, and
+`displays.current(request)` is the single seam that decides *which* wall an endpoint is talking to
+(`?display=<id>`, else the default). One place builds and tears each one down.
 
-This phase changes NO behaviour. The manager holds exactly one display, built from
-the same env/add-on config as before, and every existing URL resolves to it. What
-it buys is the seam: `displays.current(request)` is the single place that decides
-*which* wall an endpoint is talking to, and there is now exactly one place that
-knows how to build (and tear down) one.
-
-The default display is **explicit**, not inferred. `DisplayManager.default_id` says
-which display the legacy, display-less surfaces resolve to — the bare `/api/...`
-routes, `/local-api/message` (a Vestaboard client sends no display id), an MCP call
-with no `display` argument, an existing HACS entry. Phase 1 persists it in the
-registry and makes it settable; here it is simply the one display we have, named.
+The default display is **explicit**, not inferred: `DisplayManager.default` is which wall the
+display-less surfaces resolve to — the bare `/api/...` routes, `/local-api/message` (a Vestaboard
+client sends no display id), an MCP call with no `display` argument, an existing HACS entry. It is
+persisted in the registry and settable. See docs/MULTI_DISPLAY_PLAN.md for the history.
 """
 
 from __future__ import annotations
@@ -79,9 +70,9 @@ class Display:
         """Construct a display and everything it owns, in the order they depend on
         each other — the same order main.py used at import time.
 
-        `own_settings` puts this display's store in ``data/displays/<id>/`` (Phase 1).
-        Off by default so a bare Display.build() still reads the single-display file,
-        which is what the pre-registry tests and callers mean.
+        `own_settings` puts this display's store in ``data/displays/<id>/``. Off by default so a
+        bare Display.build() still reads the single-display file, which is what the registry-less
+        tests and callers mean.
         """
         cfg = config or Config(data_dir, gateway_url=gateway_url)
         state = DisplayState(cfg.module_count())
@@ -152,12 +143,9 @@ class Display:
 
 
 class DisplayManager:
-    """The set of displays, and which one the display-less surfaces mean.
-
-    Phase 0 holds exactly one. `current(request)` is the seam every endpoint goes
-    through, so Phase 2 can honour `?display=<id>` (or a path prefix) by changing
-    this one method rather than 51 call sites.
-    """
+    """The set of displays, and which one the display-less surfaces mean. `current(request)` is the
+    seam every endpoint goes through — honouring `?display=<id>` (or a path prefix) lives in that one
+    method rather than in the call sites."""
 
     def __init__(self, apps_dir: Path, *, registry=None, data_dir: Path | None = None):
         self.apps_dir = Path(apps_dir)
@@ -272,13 +260,10 @@ class DisplayManager:
 
     # -- the resolution seam ---------------------------------------------------
     def current(self, request=None) -> Display:
-        """The display this request is about.
-
-        Phase 0: always the default — there is only one, and every existing URL must
-        keep meaning what it meant. Phase 2 reads `?display=<id>` here (falling back
-        to the default when absent), which is what keeps every script, ha-vestaboard
-        client and HACS entry working untouched after the upgrade.
-        """
+        """The display this request is about: ``?display=<id>`` when present, else the default.
+        An unknown id raises rather than silently driving the wrong wall — so a URL with no
+        ``display`` param keeps meaning the default, and every script / ha-vestaboard client / HACS
+        entry keeps working untouched."""
         if request is not None:
             requested = None
             try:

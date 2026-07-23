@@ -39,13 +39,11 @@ def test_surface_predicates():
     assert rt.has_matrix_render("countdown") and rt.has_matrix_render("movie-quotes")
 
 
-def test_the_matrix_toggle_is_greyed_on_a_flap_wall_and_live_on_a_matrix():
-    fld = next(f for f in _flap("holidays").settings_schema("holidays")["fields"]
-               if f["key"].endswith("_matrix"))
-    assert fld["disabled"] is True and fld.get("note")        # greyed, with the why
-    fld2 = next(f for f in _matrix("holidays").settings_schema("holidays")["fields"]
-                if f["key"].endswith("_matrix"))
-    assert not fld2.get("disabled")                           # live on a wall with a framebuffer
+def test_the_matrix_toggle_shows_only_on_a_matrix_wall_and_leads_the_form():
+    assert not any(f["key"].endswith("_matrix")               # absent entirely on a flap-only wall
+                   for f in _flap("holidays").settings_schema("holidays")["fields"])
+    fields = _matrix("holidays").settings_schema("holidays")["fields"]
+    assert fields[0]["key"].endswith("_matrix")               # present, and leads the form
 
 
 def test_matrix_on_defaults_on_and_can_be_turned_off():

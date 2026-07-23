@@ -120,8 +120,7 @@ def _eightball(d, x, y, s):
     d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(18, 18, 22), outline=(90, 92, 102))
     wr = r * 0.44
     d.ellipse([cx - wr, cy - wr, cx + wr, cy + wr], fill=(240, 242, 248))     # white spot
-    f = None  # tiny 8 drawn as two stacked ellipses
-    for oy, rr in ((-wr * 0.28, wr * 0.34), (wr * 0.30, wr * 0.40)):
+    for oy, rr in ((-wr * 0.28, wr * 0.34), (wr * 0.30, wr * 0.40)):          # a tiny 8, two ellipses
         d.ellipse([cx - rr, cy + oy - rr, cx + rr, cy + oy + rr], outline=(20, 20, 24), width=max(1, int(s * 0.03)))
 
 

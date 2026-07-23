@@ -53,16 +53,16 @@ def test_every_channel_declares_a_known_motif(app_id):
     assert motif in channel_art.MOTIFS, f"{app_id}: unknown motif {motif!r}"
 
 
-def test_the_toggle_is_greyed_on_a_flap_wall_and_live_on_a_matrix():
+def test_the_matrix_toggle_shows_only_on_a_matrix_wall_and_leads_the_form():
     ch = CHANNELS[0]
     flap = make_runtime(tmp_path=tempfile.mkdtemp(), installed=[ch], caps=device.SPLIT_FLAP)
-    fld = next(f for f in flap.settings_schema(ch)["fields"] if f["key"].endswith("_matrix"))
-    assert fld["disabled"] is True and fld.get("note")          # greyed, with the why
+    assert not any(f["key"].endswith("_matrix")                 # absent entirely on a flap-only wall
+                   for f in flap.settings_schema(ch)["fields"])
 
     matrix = make_runtime(tmp_path=tempfile.mkdtemp(), installed=[ch],
                           caps=device.from_capabilities(CANVAS_DOC))
-    fld2 = next(f for f in matrix.settings_schema(ch)["fields"] if f["key"].endswith("_matrix"))
-    assert not fld2.get("disabled")                             # live on a wall with a framebuffer
+    fields = matrix.settings_schema(ch)["fields"]
+    assert fields[0]["key"].endswith("_matrix")                 # present, and leads the form
 
 
 def test_channel_matrix_defaults_on_and_can_be_turned_off():

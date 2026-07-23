@@ -175,7 +175,8 @@ class PluginSettings:
                     flat[k if app_id == "_other" else f"plugin_{app_id}_{k}"] = unlist(v)
             return flat  # a legacy "shared" section, if present, is intentionally ignored
 
-        # A legacy flat file: keep only recognized keys; drop bare cross-app cruft.
+        # A pre-nested flat file (migrated on first save): keep only recognized keys — the meta
+        # above, reusable catalog globals, and per-app ``plugin_<app>_*`` — and drop bare cruft.
         for k, v in doc.items():
             if k in _META_KEYS or k in GLOBAL_STORAGE_KEYS or k.startswith("plugin_"):
                 flat[k] = v

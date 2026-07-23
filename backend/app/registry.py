@@ -1,7 +1,6 @@
 """The display registry — which walls exist, and which one is *the* one.
 
-Phase 1 of multi-display support (docs/MULTI_DISPLAY_PLAN.md). Phase 0 made a
-Display an object; this gives the set of them an identity and somewhere to live:
+Gives the set of displays an identity and somewhere to live (docs/MULTI_DISPLAY_PLAN.md):
 
     data/displays.json              the registry (below)
     data/displays/<id>/app_settings.json    one settings store per display, ENTIRELY its own
