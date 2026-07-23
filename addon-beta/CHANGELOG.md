@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.7
+
+- **Internal clean-up release.** A full design-debt pass with no feature changes: one construction
+  path for the panel drawing surface, one owner for all per-wall panel state, the standalone and
+  playlist render loops share a single body per surface, duplicated dropdown/search/button code in
+  the web UI collapsed into shared helpers, and every code comment rewritten to describe current
+  behavior. The "Show on Matrix panel" toggle now appears only on Matrix-panel displays, at the top
+  of an app's settings.
+
 ## 2.10.0-beta.6
 
 - **Public Holidays panel view: the day number is now solid black** on the calendar card (was a
