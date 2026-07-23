@@ -1028,12 +1028,17 @@ def fetch_matrix(settings, canvas, get_location=None):
 
     if H >= 48:
         # Header: a label + pagination dots (this aircraft lit), then the card.
-        head_h = max(9, int(H * 0.17))
+        # Tall enough for a ~10px face: below that, this bold face flattens an O's
+        # top curve and "OVERHEAD" reads as "UVERHEAD".
+        head_h = max(12, int(H * 0.20))
         lbl = 'OVERHEAD'
         lf = _cv_fit(canvas, lbl, int(W * 0.55), head_h - 2)
         lb = lf.getbbox(lbl)
         if (lb[3] - lb[1]) >= 6:
-            draw.text((3, 1 + (head_h - 2 - (lb[3] - lb[1])) / 2.0 - lb[1]), lbl, font=lf, fill=_MX_GRAY)
+            # Clamp so the ink's top row never lands above y=1 — a fitted font whose ink
+            # slightly overshoots the band otherwise clips "OVERHEAD" into "UVERHEAD".
+            ly = max(1 - lb[1], 1 + (head_h - 2 - (lb[3] - lb[1])) / 2.0 - lb[1])
+            draw.text((3, ly), lbl, font=lf, fill=_MX_GRAY)
         step = 4
         dy = 1 + (head_h - 2) // 2
         dx = W - 3 - len(shown) * step

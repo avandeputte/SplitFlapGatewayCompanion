@@ -242,20 +242,30 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
         y = horizon_y - math.sin(a * math.pi) * (horizon_y - peak_y)
         draw.point((int(round(x)), int(round(y))), fill=_ARC_COL)
 
-    # Day length floating in the empty sky, above the horizon's midpoint —
-    # skipped on the narrowest panels where it would tangle with the arc.
-    secs = data['daylight']
+    # The sky's centerpiece label: BY DAY the day length; BY NIGHT a countdown to
+    # sunrise — the number a night-time glance actually wants. Skipped on the
+    # narrowest panels where it would tangle with the arc.
+    night = not (0.0 <= f <= 1.0)
     if W >= 96:
-        mid = f'{secs // 3600}{u("H")}{(secs % 3600) // 60:02d}{u("M")}'
-        mf = _cv_fit(canvas, mid, int(W * 0.30), max(7, int(H * 0.16)))
+        if night:
+            nxt = rise if now_loc < rise else rise + timedelta(days=1)
+            left = max(0, int((nxt - now_loc).total_seconds()))
+            mid = f'{t("Rise in").upper()} {left // 3600}{u("H")}{(left % 3600) // 60:02d}{u("M")}'
+            col = _RISE_COL
+        else:
+            secs = data['daylight']
+            mid = f'{secs // 3600}{u("H")}{(secs % 3600) // 60:02d}{u("M")}'
+            col = _SUB_COL
+        mf = _cv_fit(canvas, mid, int(W * 0.62), max(8, int(H * 0.20)))
         mb = mf.getbbox(mid)
         draw.text(((W - mf.getlength(mid)) / 2.0, horizon_y - 4 - (mb[3] - mb[1]) - mb[1]),
-                  mid, font=mf, fill=_SUB_COL)
+                  mid, font=mf, fill=col)
 
     # The sun where it actually is: on the arc during the day; at night a dim
-    # half-disc sunk into the horizon at the side it set (or will rise) on.
+    # half-disc sunk into the horizon at the side it set (or will rise) on,
+    # under a scatter of faint stars so the sky reads as night, not as empty.
     r = max(2, H // 14)
-    if 0.0 <= f <= 1.0:
+    if not night:
         sx = x0 + f * span
         sy = horizon_y - math.sin(f * math.pi) * (horizon_y - peak_y)
         draw.ellipse([sx - r, sy - r, sx + r, sy + r], fill=_SUN_COL)
@@ -264,6 +274,13 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
             draw.line([(sx + dx * (r + 2), sy + dy * (r + 2)),
                        (sx + dx * (r + 3), sy + dy * (r + 3))], fill=_SUN_COL)
     else:
+        # Fixed pseudo-random star field (deterministic — no flicker between redraws).
+        for i in range(max(8, W // 12)):
+            h = (i * 2654435761) & 0xFFFFFFFF
+            sx_ = 2 + (h % (W - 4))
+            sy_ = 2 + ((h >> 11) % max(1, horizon_y - 6))
+            bright = (230, 230, 240) if (h >> 22) % 5 == 0 else (120, 122, 132)
+            draw.point((sx_, sy_), fill=bright)
         sx = x0 if f < 0 else x1
         draw.ellipse([sx - r, horizon_y - r, sx + r, horizon_y + r], fill=_SUN_DOWN)
         draw.rectangle([sx - r - 1, horizon_y + 1, sx + r + 1, horizon_y + r + 1],

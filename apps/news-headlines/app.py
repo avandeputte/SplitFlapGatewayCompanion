@@ -31,9 +31,23 @@ def _headlines(feed_url):
     return titles
 
 
+# Hostname labels that aren't the outlet's name as a reader knows it — the CDN/legal
+# label a feed happens to live on maps to the masthead people recognize.
+_SOURCE_ALIASES = {
+    'bbci': 'BBC', 'bbc': 'BBC',
+    'nytimes': 'NY TIMES',
+    'theguardian': 'GUARDIAN',
+    'reutersagency': 'REUTERS',
+    'apnews': 'AP',
+    'washingtonpost': 'WASH POST',
+    'aljazeera': 'AL JAZEERA',
+}
+
+
 def _source_tag(feed_url):
     """A short badge for the feed's source, from its hostname: the first label that
-    isn't plumbing ('feeds', 'www', 'rss'), uppercased — 'NYTIMES', 'BBCI'."""
+    isn't plumbing ('feeds', 'www', 'rss'), aliased to the recognizable masthead
+    ('bbci' → 'BBC') and uppercased."""
     from urllib.parse import urlparse
     try:
         host = urlparse(str(feed_url)).hostname or ''
@@ -42,7 +56,7 @@ def _source_tag(feed_url):
     skip = {'www', 'feeds', 'feed', 'rss', 'news', 'api'}
     for label in host.split('.'):
         if label and label not in skip:
-            return label.upper()[:12]
+            return _SOURCE_ALIASES.get(label, label.upper()[:12])
     return 'NEWS'
 
 
