@@ -3,6 +3,10 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.12
+
+- **On This Day**: the year chip's numerals are solid black on the gold chip.
+
 ## 2.10.0-beta.11
 
 - **Clearer pagination dots** on the News Headlines and Planes Overhead panel views: the current
