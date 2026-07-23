@@ -4,7 +4,7 @@
   "icon": "🏆",
   "description": "Live scores with team badges (real logos) on the Matrix panel",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "refresh_interval": 1,
   "loop_delay": 45,
   "category": "sports",

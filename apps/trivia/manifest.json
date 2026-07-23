@@ -5,6 +5,7 @@
   "description": "Random trivia questions",
   "category": "education",
   "type": "functional",
+  "surfaces": ["flap"],
   "version": "1.0",
   "refresh_interval": 300,
   "loop_delay": 10,

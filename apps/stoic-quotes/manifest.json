@@ -5,6 +5,7 @@
   "description": "Ancient wisdom",
   "category": "lifestyle",
   "type": "channel",
+  "surfaces": ["flap", "matrix"],
   "canvas_art": "column",
   "version": "1.0",
   "refresh_interval": 300,

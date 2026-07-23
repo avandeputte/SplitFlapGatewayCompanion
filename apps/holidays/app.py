@@ -219,11 +219,7 @@ def _upcoming(settings, i18n, get_location):
     return deduped, country
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None, i18n=None, get_location=None):
-    # A Matrix panel gets the rich desk-calendar view; a flap wall (or the toggle off) gets pages.
-    if canvas is not None:
-        return _render_canvas(canvas, settings, i18n, get_location)
-
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
     from datetime import date
     rows, cols = get_rows(), get_cols()
 
@@ -460,7 +456,7 @@ def _cv_message(canvas, ImageDraw, line1, line2):
     return img
 
 
-def _render_canvas(canvas, settings, i18n, get_location):
+def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     """Draw one upcoming holiday as a desk-calendar frame, advancing through the list each redraw
     (a slideshow paced by the app's ``loop_delay``). Panel-adaptive; offline-safe."""
     from datetime import date
@@ -475,10 +471,10 @@ def _render_canvas(canvas, settings, i18n, get_location):
         return 30.0
 
     items = upcoming[:8]
-    st = getattr(_render_canvas, '_state', None)
+    st = getattr(fetch_matrix, '_state', None)
     if st is None:
         st = {'i': 0}
-        setattr(_render_canvas, '_state', st)
+        setattr(fetch_matrix, '_state', st)
     idx = st['i'] % len(items)
     st['i'] = (st['i'] + 1) % len(items)
 

@@ -4,7 +4,7 @@
   "icon": "🕰️",
   "description": "The time as luminous colour digits (Matrix panel)",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "refresh_interval": 1,
   "loop_delay": 1,
   "category": "time",

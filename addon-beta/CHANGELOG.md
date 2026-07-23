@@ -3,6 +3,19 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.5
+
+- **Cleaner multi-surface app model.** An app now declares where it renders with one manifest field
+  — `"surfaces": ["flap"]`, `["matrix"]`, or both — and renders each with a matching entry point:
+  `fetch()` for flaps, `fetch_matrix()` for a Matrix panel. This replaces the older `surface:"canvas"`
+  flag, the `canvas_view` flag, and the single `fetch(canvas=…)` that branched on the surface. All
+  bundled apps were migrated; dual-surface apps (Countdown, World Clock, Public Holidays) split their
+  two views into two clean functions.
+- **One "Show on Matrix panel" toggle** across dual-surface apps (was two separate keys). If you had
+  turned a channel's panel view off, re-set it in that app's settings.
+- **Countdown bars view: drop the seconds bar once a years bar is shown** — matching the flap version
+  (a decade-out countdown ticking seconds is noise).
+
 ## 2.10.0-beta.4
 
 - **Public Holidays panel view: black background.** The desk-calendar view now sits on solid black

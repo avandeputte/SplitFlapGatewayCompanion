@@ -4,7 +4,7 @@
   "icon": "🌤️",
   "description": "Current conditions as a clean panel — a sprite condition icon, big temperature, and a 3-day strip",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "refresh_interval": 1,
   "loop_delay": 600,
   "category": "weather",

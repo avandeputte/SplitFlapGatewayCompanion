@@ -21,12 +21,7 @@ def _columns(pairs, cols, gap=3):
     return out
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None, i18n=None):
-    # A Matrix panel gets the rich rendering (one lit row per city, a day/night cue); a flap wall
-    # gets the two-column text. Both read the same ``world_clock_zones`` list.
-    if canvas is not None:
-        return _render_canvas(canvas, settings)
-
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     from datetime import datetime
     import pytz
     cols = get_cols()
@@ -174,7 +169,7 @@ def _next_minute_hold():
     return max(1.0, 60.0 - now.second - now.microsecond / 1_000_000.0)
 
 
-def _render_canvas(canvas, settings):
+def fetch_matrix(settings, canvas):
     from datetime import datetime
     from PIL import Image, ImageDraw
     try:

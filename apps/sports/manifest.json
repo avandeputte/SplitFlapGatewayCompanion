@@ -5,6 +5,7 @@
   "icon": "🏒",
   "description": "Scores & Schedules",
   "type": "functional",
+  "surfaces": ["flap"],
   "refresh_interval": 15,
   "loop_delay": 5,
   "trigger_interval": 60,

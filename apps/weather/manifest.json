@@ -5,6 +5,7 @@
   "icon": "🌤️",
   "description": "Current conditions",
   "type": "functional",
+  "surfaces": ["flap"],
   "refresh_interval": 300,
   "loop_delay": 8,
   "category": "data",

@@ -101,16 +101,14 @@ def _fill(Image, treatment, tone, W, H, y0, y1, frame):
     return col.resize((W, H))
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
-    if canvas is None:
-        return None
+def fetch_matrix(settings, canvas):
     from datetime import datetime
     from PIL import Image, ImageDraw, ImageFilter
 
-    st = getattr(fetch, '_state', None)
+    st = getattr(fetch_matrix, '_state', None)
     if st is None:
         st = {'frame': 0}
-        setattr(fetch, '_state', st)
+        setattr(fetch_matrix, '_state', st)
     st['frame'] += 1
     frame = st['frame']
 

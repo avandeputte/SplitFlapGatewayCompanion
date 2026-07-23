@@ -5,6 +5,7 @@
   "description": "Iconic lines from the movies",
   "category": "entertainment",
   "type": "channel",
+  "surfaces": ["flap", "matrix"],
   "canvas_art": "clapperboard",
   "version": "1.0",
   "refresh_interval": 300,

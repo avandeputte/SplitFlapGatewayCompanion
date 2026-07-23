@@ -56,22 +56,22 @@ def test_every_channel_declares_a_known_motif(app_id):
 def test_the_toggle_is_greyed_on_a_flap_wall_and_live_on_a_matrix():
     ch = CHANNELS[0]
     flap = make_runtime(tmp_path=tempfile.mkdtemp(), installed=[ch], caps=device.SPLIT_FLAP)
-    fld = next(f for f in flap.settings_schema(ch)["fields"] if f["key"].endswith("_matrix_art"))
+    fld = next(f for f in flap.settings_schema(ch)["fields"] if f["key"].endswith("_matrix"))
     assert fld["disabled"] is True and fld.get("note")          # greyed, with the why
 
     matrix = make_runtime(tmp_path=tempfile.mkdtemp(), installed=[ch],
                           caps=device.from_capabilities(CANVAS_DOC))
-    fld2 = next(f for f in matrix.settings_schema(ch)["fields"] if f["key"].endswith("_matrix_art"))
+    fld2 = next(f for f in matrix.settings_schema(ch)["fields"] if f["key"].endswith("_matrix"))
     assert not fld2.get("disabled")                             # live on a wall with a framebuffer
 
 
-def test_channel_canvas_defaults_on_and_can_be_turned_off():
+def test_channel_matrix_defaults_on_and_can_be_turned_off():
     ch = CHANNELS[0]
     rt = make_runtime(tmp_path=tempfile.mkdtemp(), installed=[ch], caps=device.from_capabilities(CANVAS_DOC))
-    assert rt.channel_canvas_on(ch) is True                    # default: render on the panel
-    rt.settings.set(f"plugin_{ch}_matrix_art", "no")
-    assert rt.channel_canvas_on(ch) is False                   # explicit opt-out honoured
-    assert rt.channel_canvas_on("does-not-exist") is False     # only real channels
+    assert rt.matrix_on(ch) is True                            # default: render on the panel
+    rt.settings.set(f"plugin_{ch}_matrix", "no")
+    assert rt.matrix_on(ch) is False                           # explicit opt-out honoured
+    assert rt.matrix_on("does-not-exist") is False             # only real matrix-capable apps
 
 
 def test_items_are_plain_text_and_render_a_non_black_frame():

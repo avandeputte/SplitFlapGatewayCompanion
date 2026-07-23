@@ -5,6 +5,7 @@
   "icon": "₿",
   "description": "Coin prices",
   "type": "functional",
+  "surfaces": ["flap"],
   "refresh_interval": 60,
   "loop_delay": 5,
   "trigger_interval": 120,

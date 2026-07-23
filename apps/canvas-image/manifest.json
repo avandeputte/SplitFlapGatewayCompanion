@@ -4,7 +4,7 @@
   "icon": "🖼️",
   "description": "Mirror a picture onto a Matrix panel — fit and send it as a full-colour frame",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "refresh_interval": 1,
   "loop_delay": 60,
   "category": "animation",

@@ -165,7 +165,8 @@ class PluginRuntime:
         # parameter name. Precomputed once at load: signature inspection is not
         # something to repeat on every fetch, and one structure serves both the
         # injection path and the UI ("uses location", global-usage notes).
-        self._wants: dict[str, frozenset] = {}
+        self._wants: dict[str, frozenset] = {}          # fetch()'s injected helpers
+        self._wants_matrix: dict[str, frozenset] = {}   # fetch_matrix()'s injected helpers
         self._trigger_wants: dict[str, frozenset] = {}
         # What THIS display's wall can show. A callable, because the answer is only known
         # once the transport has talked to the gateway — and it can change if the gateway
@@ -298,6 +299,7 @@ class PluginRuntime:
         self._caches.clear()
         self._reads.clear()
         self._wants.clear()
+        self._wants_matrix.clear()
         self._trigger_wants.clear()
         self._fetch_locks.clear()
         self._first_error.clear()
@@ -320,12 +322,14 @@ class PluginRuntime:
             self._load_one("effects", eff_dir)    # loads the shared module (and a temp entry)
             eff_mod = self._modules.get("effects")
             eff_wants = self._wants.get("effects", frozenset())
+            eff_wants_matrix = self._wants_matrix.get("effects", frozenset())
             self._registry.pop("effects", None)   # the generic app itself is never listed
             for effect_id, token in self._effect_defs():
                 if effect_id in enabled and eff_mod is not None:
                     self._registry[effect_id] = self._effect_manifest(effect_id, token)
                     self._modules[effect_id] = eff_mod
                     self._wants[effect_id] = eff_wants
+                    self._wants_matrix[effect_id] = eff_wants_matrix
         # Multi-value settings (search_chips) are stored as JSON arrays on disk.
         self.settings.set_list_keys(self._list_keys())
 
@@ -600,12 +604,19 @@ class PluginRuntime:
         except Exception as e:
             log.error("plugin %s: import error: %s", app_id, e)
             return
-        if hasattr(mod, "fetch") and callable(mod.fetch):
+        # A functional app renders each surface it declares with a matching entry point:
+        # fetch() for flaps, fetch_matrix() for a Matrix panel. It needs at least one.
+        has_fetch = hasattr(mod, "fetch") and callable(mod.fetch)
+        has_matrix = hasattr(mod, "fetch_matrix") and callable(mod.fetch_matrix)
+        if has_fetch or has_matrix:
             self._modules[app_id] = mod
-            self._wants[app_id] = self._wanted_helpers(mod.fetch)
-            self._fetch_locks[app_id] = threading.Lock()
+            if has_fetch:
+                self._wants[app_id] = self._wanted_helpers(mod.fetch)
+                self._fetch_locks[app_id] = threading.Lock()
+            if has_matrix:
+                self._wants_matrix[app_id] = self._wanted_helpers(mod.fetch_matrix)
         else:
-            log.error("plugin %s: app.py has no fetch()", app_id)
+            log.error("plugin %s: app.py has neither fetch() nor fetch_matrix()", app_id)
         if hasattr(mod, "trigger") and callable(mod.trigger):
             self._triggers[app_id] = mod.trigger
             self._trigger_wants[app_id] = self._wanted_helpers(mod.trigger)
@@ -633,11 +644,10 @@ class PluginRuntime:
         """Which injected helpers ``fn`` opts into by parameter name — computed
         once at load, not re-inspected per call."""
         return frozenset(n for n in ("get_weather", "get_location", "get_ha_states", "i18n",
-                                     "caps", "paginate", "canvas")
+                                     "caps", "paginate")
                          if cls._fetch_accepts(fn, n))
 
-    def _helper_kwargs(self, app_id: str, wanted: frozenset, ps: dict, settings=None,
-                       for_canvas: bool = False) -> dict:
+    def _helper_kwargs(self, app_id: str, wanted: frozenset, ps: dict, settings=None) -> dict:
         """The injected-helper kwargs for a fetch() or trigger() — a trigger needs
         the weather or the timezone for exactly the same reasons a fetch does, and
         used to have to hand-roll both. ``wanted`` is the precomputed set from
@@ -674,21 +684,6 @@ class PluginRuntime:
                 return [_fmt(*page) for page in
                         textlayout.balanced_pages(text, self.get_rows(), self.get_cols(), title)]
             kwargs["paginate"] = _paginate
-        if "canvas" in wanted:
-            # A drawing surface — but ONLY on a wall that has a framebuffer. On a
-            # physical split-flap it is None, and an app that wants it checks: a
-            # flap app can offer richer graphics where the panel allows and fall
-            # back to flaps where it does not. (A pure canvas app is gated so it
-            # never runs on a non-canvas wall at all — see the engine.)
-            #
-            # A DUAL-VIEW app (manifest ``canvas_view``) is the either/or case, not enrich:
-            # it draws a rich panel view OR returns flap pages, branching on whether canvas is
-            # None. So it gets the surface ONLY on the canvas render path (``for_canvas``); in the
-            # flap-pages path it must see None and return pages — else it would draw AND the engine
-            # would also send its (empty) pages, fighting over the panel. Non-dual "enrich" apps
-            # keep the surface in both paths, as before.
-            if for_canvas or not self._registry.get(app_id, {}).get("canvas_view"):
-                kwargs["canvas"] = self.build_canvas_surface()
         return kwargs
 
     def build_canvas_surface(self):
@@ -715,13 +710,44 @@ class PluginRuntime:
         """The art motif a channel draws on the panel (manifest ``canvas_art``), default quote marks."""
         return str(self._registry.get(app_id, {}).get("canvas_art") or "quote")
 
-    def channel_canvas_on(self, app_id: str, settings=None) -> bool:
-        """Whether this channel renders on the Matrix panel as art + text — the per-app
-        ``matrix_art`` toggle, defaulting ON (the option only bites on a wall with a framebuffer;
-        the engine still checks has_canvas before routing there)."""
-        if not self.is_channel_app(app_id):
+    # -- surfaces (which displays an app draws on) -------------------------
+    def surfaces(self, app_id: str) -> list:
+        """The surfaces this app renders on: ``["flap"]`` (default), ``["matrix"]``, or both. A
+        functional app renders each with a matching entry point — ``fetch`` for flaps,
+        ``fetch_matrix`` for a Matrix panel; a channel/quiz's matrix surface is drawn generically
+        (its text + a themed icon)."""
+        s = self._registry.get(app_id, {}).get("surfaces")
+        return list(s) if isinstance(s, list) and s else ["flap"]
+
+    def renders_on(self, app_id: str, surface: str) -> bool:
+        return surface in self.surfaces(app_id)
+
+    def is_matrix_only(self, app_id: str) -> bool:
+        """Draws ONLY on a Matrix panel (``surfaces == ["matrix"]``) — gated off a flap wall."""
+        return self.surfaces(app_id) == ["matrix"]
+
+    def has_matrix_render(self, app_id: str) -> bool:
+        """The app can actually render on a panel — a functional app with ``fetch_matrix``, or a
+        channel/quiz (drawn generically). The capability behind the toggle and the badge."""
+        if "matrix" not in self.surfaces(app_id):
             return False
-        v = self._perapp_value(app_id, "matrix_art", settings)
+        return callable(getattr(self._modules.get(app_id), "fetch_matrix", None)) \
+            or self.is_channel_app(app_id)
+
+    def is_dual_surface(self, app_id: str) -> bool:
+        """Renders on flaps AND a panel — the apps that carry the dual-view badge and the toggle."""
+        s = self.surfaces(app_id)
+        return "flap" in s and "matrix" in s and self.has_matrix_render(app_id)
+
+    def matrix_on(self, app_id: str, settings=None) -> bool:
+        """Whether this app should render on the Matrix panel right now. A matrix-only app: always.
+        A dual-surface app: the per-app ``matrix`` toggle (default ON) — off ⇒ its flap view (plain
+        text) on the panel. The engine still checks the wall actually HAS a panel before routing."""
+        if not self.has_matrix_render(app_id):
+            return False
+        if self.is_matrix_only(app_id):
+            return True
+        v = self._perapp_value(app_id, "matrix", settings)
         if v is None:
             return True
         return str(v).strip().lower() in ("yes", "on", "1", "true")
@@ -989,7 +1015,7 @@ class PluginRuntime:
                 "id": app_id,
                 "name": m.get("name", app_id),
                 "icon": m.get("icon", "🧩"),
-                "surface": m.get("surface"),
+                "surfaces": self.surfaces(app_id),
                 "trigger_interval": m.get("trigger_interval", 60),
                 "trigger_display_seconds": m.get("trigger_display_seconds", 30),
                 "trigger_cooldown": m.get("trigger_cooldown", 300),
@@ -1014,49 +1040,26 @@ class PluginRuntime:
     def manifest(self, app_id: str) -> dict | None:
         return self._registry.get(app_id)
 
-    def is_canvas_app(self, app_id: str) -> bool:
-        """A canvas app draws straight to the Matrix panel (manifest
-        ``"surface": "canvas"``) instead of returning flap pages."""
-        return self._registry.get(app_id, {}).get("surface") == "canvas"
-
-    def has_canvas_view(self, app_id: str) -> bool:
-        """A DUAL-VIEW app: a normal flap app (returns pages) that ALSO ships a rich canvas
-        rendering (manifest ``"canvas_view": true``), drawn on a Matrix panel when the per-app
-        ``matrix_view`` toggle is on. Unlike ``surface: canvas`` it runs on flap walls too — it
-        just falls back to its flap pages there. The capability that earns the dual-view badge."""
-        m = self._registry.get(app_id, {})
-        return bool(m.get("canvas_view")) and m.get("surface") != "canvas"
-
-    def canvas_view_on(self, app_id: str, settings=None) -> bool:
-        """Whether a dual-view app should render on the Matrix panel right now — the per-app
-        ``matrix_view`` toggle, defaulting ON (it only bites on a wall with a framebuffer; the
-        engine still checks has_canvas before routing there). Off ⇒ plain flap pages on the panel.
-        Mirrors ``channel_canvas_on`` for functional apps."""
-        if not self.has_canvas_view(app_id):
-            return False
-        v = self._perapp_value(app_id, "matrix_view", settings)
-        if v is None:
-            return True
-        return str(v).strip().lower() in ("yes", "on", "1", "true")
-
-    def render_canvas(self, app_id: str, overrides: dict | None = None):
-        """Run a canvas app's fetch once — it draws through the injected ``canvas``
-        helper (the drawing is the point; there are no pages to return). Its return
+    def render_matrix(self, app_id: str, overrides: dict | None = None):
+        """Run a matrix app's ``fetch_matrix(settings, canvas, **helpers)`` once — it draws through
+        the ``canvas`` surface (the drawing is the point; there are no pages to return). Its return
         value, if a number, is the seconds the engine should hold before redrawing.
 
         ``overrides`` are per-playlist-entry setting values (e.g. a Scoreboard following its own
-        teams), applied as a transient overlay exactly like a flap app's — so the same canvas app
+        teams), applied as a transient overlay exactly like a flap app's — so the same matrix app
         can appear twice in a playlist configured differently."""
         mod = self._modules.get(app_id)
         manifest = self._registry.get(app_id)
-        if not mod or not manifest:
+        fn = getattr(mod, "fetch_matrix", None)
+        if not mod or not manifest or not callable(fn):
+            return None
+        surface = self.build_canvas_surface()
+        if surface is None:                                 # no framebuffer — nothing to draw on
             return None
         src = _SettingsOverlay(self.settings, overrides) if overrides else self.settings
         ps = self._plugin_settings(app_id, manifest, src)
-        kwargs = self._helper_kwargs(app_id, self._wants.get(app_id, frozenset()), ps, src,
-                                     for_canvas=True)
-        fmt = functools.partial(self.format_lines, align=self.vertical_align(app_id))
-        result = mod.fetch(ps, fmt, self.get_rows, self.get_cols, **kwargs)
+        kwargs = self._helper_kwargs(app_id, self._wants_matrix.get(app_id, frozenset()), ps, src)
+        result = fn(ps, surface, **kwargs)
         try:
             return float(result) if result is not None else None
         except (TypeError, ValueError):
@@ -1166,12 +1169,10 @@ class PluginRuntime:
             "min_rows": manifest.get("min_rows"),
             "min_cols": manifest.get("min_cols"),
             "min_modules": manifest.get("min_modules"),   # total-module minimum (any shape)
-            # "canvas" apps draw straight to a Matrix panel's framebuffer and need
-            # a wall that has one — the UI hides them where it can't be run.
-            "surface": manifest.get("surface", "flap"),
-            # A dual-view app runs on flaps AND has a rich Matrix-panel view — the UI badges it so
-            # its two-mode nature reads at a glance (it is NOT hidden on flap walls).
-            "canvas_view": bool(manifest.get("canvas_view")) and manifest.get("surface") != "canvas",
+            # The surfaces this app draws on: ["flap"], ["matrix"], or both. The UI badges it and
+            # hides a matrix-only app where the wall has no framebuffer to run it on. Read from the
+            # manifest we were handed — the per-effect catalog entries aren't in the registry.
+            "surfaces": list(manifest.get("surfaces") or ["flap"]),
             "builtin": builtin,
         }
 
@@ -1392,29 +1393,15 @@ class PluginRuntime:
                            "label": uilang.ui_t(lang, "Also uses global settings: %s — set these under Global settings.")
                                     .replace("%s", names)})
 
-        # A channel can draw itself on a Matrix panel — its text with a themed icon — instead of
-        # the plain firmware text. The toggle only bites on a wall with a framebuffer, so it greys
-        # out (disabled + a note) on a flap-only display.
-        if manifest.get("type") in _CHANNELISH:
+        # A DUAL-SURFACE app (surfaces has both flap and matrix) can render on a Matrix panel instead
+        # of the plain firmware text of its flap view. One toggle governs it — a functional app draws
+        # its own rich view, a channel/quiz its text with a themed icon. It only bites on a wall with
+        # a framebuffer, so it greys out (disabled + a note) on a flap-only display.
+        if self.is_dual_surface(app_id):
+            rich = "art + text" if manifest.get("type") in _CHANNELISH else "rich view"
             fld = {
-                "key": f"plugin_{app_id}_matrix_art",
-                "label": "Show on Matrix panel (art + text)",
-                "type": "toggle",
-                "default": "yes",
-                "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}],
-            }
-            if not self._caps().has_canvas:
-                fld["disabled"] = True
-                fld["note"] = "Only on Matrix-panel displays."
-            fields.append(fld)
-
-        # A dual-view app (manifest ``canvas_view``) draws its own rich Matrix-panel view instead of
-        # the plain firmware text of its flap pages. Same toggle contract as a channel's art view —
-        # it only bites on a wall with a framebuffer, so it greys out on a flap-only display.
-        if self.has_canvas_view(app_id):
-            fld = {
-                "key": f"plugin_{app_id}_matrix_view",
-                "label": "Show on Matrix panel (rich view)",
+                "key": f"plugin_{app_id}_matrix",
+                "label": f"Show on Matrix panel ({rich})",
                 "type": "toggle",
                 "default": "yes",
                 "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}],

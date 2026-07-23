@@ -4,6 +4,7 @@
   "icon": "💬",
   "description": "YT comments",
   "type": "functional",
+  "surfaces": ["flap"],
   "min_rows": 2,
   "min_cols": 10,
   "refresh_interval": 60,

@@ -4,7 +4,7 @@
   "icon": "🎆",
   "description": "On-device panel effects — whichever ones the Matrix wall advertises — rendered by the panel itself",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "category": "animation",
   "refresh_interval": 1,
   "loop_delay": 600,

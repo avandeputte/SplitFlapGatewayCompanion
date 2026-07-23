@@ -5,7 +5,7 @@
   "icon": "⏳",
   "description": "Timer to event — text on flaps, full-width colour bars on a Matrix panel",
   "type": "functional",
-  "canvas_view": true,
+  "surfaces": ["flap", "matrix"],
   "refresh_interval": 1,
   "loop_delay": 1,
   "category": "time",

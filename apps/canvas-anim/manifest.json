@@ -4,7 +4,7 @@
   "icon": "🎞️",
   "description": "Play a looping GIF on-device (Matrix panel)",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "refresh_interval": 600,
   "loop_delay": 30,
   "category": "fun",

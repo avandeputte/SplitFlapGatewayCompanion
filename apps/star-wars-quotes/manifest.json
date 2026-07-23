@@ -5,6 +5,7 @@
   "description": "May the force be with you",
   "category": "entertainment",
   "type": "channel",
+  "surfaces": ["flap", "matrix"],
   "canvas_art": "saber",
   "version": "1.0",
   "refresh_interval": 300,

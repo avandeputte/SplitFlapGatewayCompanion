@@ -5,6 +5,7 @@
   "icon": "🏠",
   "description": "Time + weather",
   "type": "functional",
+  "surfaces": ["flap"],
   "refresh_interval": 60,
   "loop_delay": 5,
   "settings": [

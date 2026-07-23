@@ -4,7 +4,7 @@
   "icon": "📰",
   "description": "A smooth scrolling ticker, rendered on-device (Matrix panel)",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "refresh_interval": 300,
   "loop_delay": 30,
   "category": "text",

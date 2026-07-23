@@ -4,7 +4,7 @@
   "icon": "🌦️",
   "description": "A colourful animated weather sky (Matrix panel)",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "refresh_interval": 1,
   "loop_delay": 1,
   "category": "weather",

@@ -4,6 +4,7 @@
   "icon": "🏎️",
   "description": "Next Grand Prix & championship leader",
   "type": "functional",
+  "surfaces": ["flap"],
   "i18n": true,
   "refresh_interval": 3600,
   "loop_delay": 6,

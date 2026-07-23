@@ -1,9 +1,8 @@
-"""Dual-view apps: a normal flap app that ALSO ships a rich Matrix-panel rendering (manifest
-``"canvas_view": true``, its ``fetch`` branching on the injected ``canvas``). On a wall with a
-framebuffer it draws that view when the per-app ``matrix_view`` toggle is on; on a flap wall, or
-with the toggle off, it returns its flap pages. These pin the framework wiring — detection, the
-toggle, the greyed-on-flap rule, the canvas-vs-pages routing, and the catalog badge flag — the same
-contract channels use for their art view.
+"""Surfaces: an app declares which displays it renders on — ``surfaces`` = ["flap"], ["matrix"], or
+both. A functional app renders each with a matching entry point (``fetch`` for flaps, ``fetch_matrix``
+for a Matrix panel); a channel's matrix surface is drawn generically. These pin the framework wiring:
+the surfaces predicates, the single ``matrix`` toggle (default on, greyed off-panel), the render-vs-
+pages routing, matrix-only gating, and the catalog field the UI badges off.
 """
 
 import tempfile
@@ -13,62 +12,69 @@ from conftest import make_runtime
 from test_canvas import CANVAS_DOC
 
 
-def _flap(app):
-    return make_runtime(tmp_path=tempfile.mkdtemp(), installed=[app], caps=device.SPLIT_FLAP)
+def _matrix(*apps):
+    return make_runtime(tmp_path=tempfile.mkdtemp(), installed=list(apps),
+                        caps=device.from_capabilities(CANVAS_DOC))
 
 
-def _matrix(app, **kw):
-    return make_runtime(tmp_path=tempfile.mkdtemp(), installed=[app],
-                        caps=device.from_capabilities(CANVAS_DOC), **kw)
+def _flap(*apps):
+    return make_runtime(tmp_path=tempfile.mkdtemp(), installed=list(apps), caps=device.SPLIT_FLAP)
 
 
-def test_dual_view_apps_are_detected_but_plain_apps_are_not():
-    rt = make_runtime(tmp_path=tempfile.mkdtemp(), installed=["countdown", "world_clock", "date"],
-                      caps=device.from_capabilities(CANVAS_DOC))
-    assert rt.has_canvas_view("countdown") is True
-    assert rt.has_canvas_view("world_clock") is True
-    assert rt.has_canvas_view("date") is False                 # a plain flap app
-    assert rt.has_canvas_view("does-not-exist") is False
+def test_surfaces_are_read_from_the_manifest():
+    rt = _matrix("countdown", "canvas-date", "date")
+    assert rt.surfaces("countdown") == ["flap", "matrix"]     # dual
+    assert rt.surfaces("canvas-date") == ["matrix"]           # matrix-only
+    assert rt.surfaces("date") == ["flap"]                    # flap-only
+    assert rt.surfaces("does-not-exist") == ["flap"]          # safe default
 
 
-def test_a_pure_canvas_app_is_not_flagged_dual_view():
-    # canvas-date is surface:canvas — panel only, no flap fallback — so it is NOT dual-view.
+def test_surface_predicates():
+    rt = _matrix("countdown", "world_clock", "canvas-date", "date", "movie-quotes")
+    assert rt.is_dual_surface("countdown") and rt.is_dual_surface("world_clock")
+    assert rt.is_matrix_only("canvas-date") and not rt.is_dual_surface("canvas-date")
+    assert not rt.is_dual_surface("date") and not rt.is_matrix_only("date")
+    # A channel is dual-surface too (flap text / generic art on a panel), with no fetch_matrix.
+    assert rt.is_dual_surface("movie-quotes")
+    assert rt.has_matrix_render("countdown") and rt.has_matrix_render("movie-quotes")
+
+
+def test_the_matrix_toggle_is_greyed_on_a_flap_wall_and_live_on_a_matrix():
+    fld = next(f for f in _flap("holidays").settings_schema("holidays")["fields"]
+               if f["key"].endswith("_matrix"))
+    assert fld["disabled"] is True and fld.get("note")        # greyed, with the why
+    fld2 = next(f for f in _matrix("holidays").settings_schema("holidays")["fields"]
+                if f["key"].endswith("_matrix"))
+    assert not fld2.get("disabled")                           # live on a wall with a framebuffer
+
+
+def test_matrix_on_defaults_on_and_can_be_turned_off():
+    rt = _matrix("countdown", "date")
+    assert rt.matrix_on("countdown") is True                  # dual, default: draw on the panel
+    rt.settings.set("plugin_countdown_matrix", "no")
+    assert rt.matrix_on("countdown") is False                 # explicit opt-out honoured
+    assert rt.matrix_on("date") is False                      # a flap-only app never routes to matrix
+
+
+def test_a_matrix_only_app_is_always_on_and_has_no_toggle():
     rt = _matrix("canvas-date")
-    assert rt.has_canvas_view("canvas-date") is False
+    assert rt.matrix_on("canvas-date") is True                # nothing to fall back to — always matrix
+    keys = [f["key"] for f in rt.settings_schema("canvas-date")["fields"]]
+    assert not any(k.endswith("_matrix") for k in keys)       # no toggle: it's not dual-surface
 
 
-def test_the_matrix_view_toggle_is_greyed_on_a_flap_wall_and_live_on_a_matrix():
-    flap = _flap("holidays")
-    fld = next(f for f in flap.settings_schema("holidays")["fields"] if f["key"].endswith("_matrix_view"))
-    assert fld["disabled"] is True and fld.get("note")          # greyed, with the why
-
-    matrix = _matrix("holidays")
-    fld2 = next(f for f in matrix.settings_schema("holidays")["fields"] if f["key"].endswith("_matrix_view"))
-    assert not fld2.get("disabled")                             # live on a wall with a framebuffer
-
-
-def test_canvas_view_defaults_on_and_can_be_turned_off():
+def test_render_matrix_passes_a_canvas_and_flap_helpers_never_do():
     rt = _matrix("countdown")
-    assert rt.canvas_view_on("countdown") is True               # default: draw on the panel
-    rt.settings.set("plugin_countdown_matrix_view", "no")
-    assert rt.canvas_view_on("countdown") is False              # explicit opt-out honoured
-    assert rt.canvas_view_on("date") is False                   # a plain app never routes to canvas
+    # fetch (flap) never receives a canvas among its injected helpers...
+    assert "canvas" not in rt._wants.get("countdown", frozenset())
+    # ...and render_matrix drives fetch_matrix with a real surface (returns its hold).
+    hold = rt.render_matrix("countdown")
+    assert isinstance(hold, (int, float)) and hold > 0
 
 
-def test_flap_path_gets_no_canvas_so_a_dual_app_returns_pages():
-    # In the pages path a dual-view app must see canvas=None (so it returns flap pages, not draw).
-    rt = _matrix("holidays")
-    wants = rt._wants.get("holidays", frozenset())
-    assert "canvas" in wants                                    # holidays.fetch accepts canvas
-    flap_kwargs = rt._helper_kwargs("holidays", wants, {}, rt.settings)
-    assert flap_kwargs.get("canvas") is None                   # pages path: suppressed
-    canvas_kwargs = rt._helper_kwargs("holidays", wants, {}, rt.settings, for_canvas=True)
-    assert canvas_kwargs.get("canvas") is not None             # render path: a real surface
-
-
-def test_the_catalog_flags_dual_view_for_the_badge():
-    rt = _matrix("countdown")
-    entry = next(a for a in rt.app_list() if a["id"] == "countdown")
-    assert entry["canvas_view"] is True
-    date_entry = next(a for a in rt.app_list() if a["id"] == "countdown")
-    assert date_entry.get("surface") != "canvas"               # dual-view, not panel-only
+def test_the_catalog_exposes_surfaces_for_the_badge():
+    rt = _matrix("countdown", "canvas-date", "date")
+    by_id = {a["id"]: a for a in rt.app_list()}
+    assert by_id["countdown"]["surfaces"] == ["flap", "matrix"]
+    assert by_id["canvas-date"]["surfaces"] == ["matrix"]
+    assert by_id["date"]["surfaces"] == ["flap"]

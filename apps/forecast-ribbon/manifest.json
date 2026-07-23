@@ -5,6 +5,7 @@
   "description": "The day's temperature as a colour bar chart",
   "category": "weather",
   "type": "functional",
+  "surfaces": ["flap"],
   "version": "1.0",
   "animation": true,
   "refresh_interval": 900,

@@ -7,9 +7,7 @@ pages, and the engine only runs it on a wall that has a framebuffer.
 """
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
-    if canvas is None:
-        return None                       # no framebuffer on this wall — nothing to do
+def fetch_matrix(settings, canvas):
     effect = str(settings.get('effect', 'plasma') or 'plasma').lower()
     if canvas.effects and effect not in canvas.effects:
         effect = canvas.effects[0]        # this panel doesn't have that one — use its first

@@ -171,16 +171,14 @@ def _fit_stack(canvas, specs, max_w, budget_h, gap):
     return lines
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=None):
-    if canvas is None:
-        return None
+def fetch_matrix(settings, canvas, get_weather=None):
     from datetime import datetime
     from PIL import Image, ImageDraw
 
-    st = getattr(fetch, '_state', None)
+    st = getattr(fetch_matrix, '_state', None)
     if st is None:
         st = {'wx': None, 'at': None, 'tried': None}
-        setattr(fetch, '_state', st)
+        setattr(fetch_matrix, '_state', st)
 
     # --- time (per the app's timezone, else the host clock) --------------------
     tzname = str(settings.get('timezone') or '').strip()

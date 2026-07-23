@@ -599,6 +599,14 @@ function dualMark() {
     `<g fill="#f5c518">${dots}</g></svg>`;
 }
 
+// Which surfaces an app draws on (server sends `surfaces`: ["flap"] | ["matrix"] | both).
+const appSurfaces = (a) => (Array.isArray(a.surfaces) && a.surfaces.length ? a.surfaces : ["flap"]);
+const drawsOnMatrix = (a) => appSurfaces(a).includes("matrix");
+const isMatrixOnly = (a) => { const s = appSurfaces(a); return s.includes("matrix") && !s.includes("flap"); };
+const isDualSurface = (a) => { const s = appSurfaces(a); return s.includes("matrix") && s.includes("flap"); };
+// The mark for an app's surfaces: the panel dots for matrix-only, the dual badge for both, none for flaps.
+const surfaceMark = (a) => isMatrixOnly(a) ? canvasMark() : isDualSurface(a) ? dualMark() : "";
+
 // A single-select that renders rich options — an app's icon, name, the amber dot-matrix
 // canvas marker and the 🌐 badge — which a native <select> can't (its <option>s are text
 // only). Exposes `.value` (get/set) and calls onChange(id) on pick; keyboard + click, with
@@ -613,7 +621,7 @@ function richAppSelect(apps, value, onChange) {
   const optHTML = (a) =>
     `<span class="rsel-ic">${esc(a.icon || "🧩")}</span>` +
     `<span class="rsel-nm">${esc(a.name)}</span>` +
-    (a.surface === "canvas" ? canvasMark() : a.canvas_view ? dualMark() : "") +
+    surfaceMark(a) +
     (a.i18n ? `<span class="rsel-i18n" title="${esc(t("Multilingual — adapts to the global Language"))}">🌐</span>` : "");
   const drawBtn = () => {
     const a = apps.find((x) => x.id === cur) || apps[0];
@@ -668,10 +676,11 @@ async function loadApps() {
   const grid = $("appsGrid");
   grid.innerHTML = "";
   APPS.forEach((a) => {
-    // A canvas app draws to a framebuffer, so it only runs on a wall that has one.
+    // A matrix-ONLY app draws to a framebuffer, so it only runs on a wall that has one.
     // On a flap wall it is shown DISABLED with a "Matrix panel only" hint — the same
     // treatment a too-big app gets — rather than hidden, so it is still discoverable.
-    const isCanvas = a.surface === "canvas";
+    // (A dual-surface app is NOT disabled here — it falls back to its flap view.)
+    const isCanvas = isMatrixOnly(a);
     const needsPanel = isCanvas && !CANVAS;
     const fits = appFits(a) && !needsPanel;
     const reqLabel = needsPanel ? t("Matrix panel only") : appReq(a);
@@ -692,9 +701,9 @@ async function loadApps() {
       (a.has_settings ? `<button class="app-gear" title="${esc(t("Settings"))}">⚙</button>` : "") +
       `<div class="app-foot">` +
         (a.i18n ? `<span class="app-i18n" title="${esc(t("Multilingual — adapts to the global Language"))}">🌐</span>` : "") +
-        // A "draws on the panel" marker so a canvas app reads as one at a glance,
-        // whether or not this wall can run it; a dual-view app gets the both-surfaces badge.
-        (isCanvas ? canvasMark() : a.canvas_view ? dualMark() : "") +
+        // A surfaces marker so an app's surfaces read at a glance — the panel dots for a
+        // matrix-only app, the split-flap-plus-panel badge for a dual-surface one.
+        surfaceMark(a) +
         `<span class="app-badge"></span>` +
         (fits ? "" : `<span class="app-req">${esc(reqLabel)}</span>`) +
       `</div>`;
@@ -1321,14 +1330,13 @@ function libRow(a, reopen) {
     const cat = el("span", "lib-tag cat"); cat.textContent = t(titleCase(a.category));
     tags.appendChild(cat);
   }
-  // A canvas app draws to a Matrix panel's framebuffer — flag it so it reads as one
-  // here too (it will run only on a canvas-capable wall).
-  if (a.surface === "canvas") {
+  // Flag where the app draws: a matrix-only app (panel framebuffer, panel-capable wall only), or a
+  // dual-surface app (flaps AND a rich Matrix-panel view).
+  if (isMatrixOnly(a)) {
     const surf = el("span", "lib-tag canvas");
     surf.innerHTML = canvasMark() + " " + esc(t("Matrix panel"));
     tags.appendChild(surf);
-  } else if (a.canvas_view) {
-    // A dual-view app runs on flaps AND has a rich Matrix-panel view — badge both.
+  } else if (isDualSurface(a)) {
     const surf = el("span", "lib-tag canvas");
     surf.innerHTML = dualMark() + " " + esc(t("Flaps + Matrix panel"));
     tags.appendChild(surf);
@@ -1382,14 +1390,14 @@ async function openLibrary() {
 
   const matches = (a) => {
     if (LIB_CAT && a.category !== LIB_CAT) return false;
-    if (LIB_CANVAS && a.surface !== "canvas") return false;
+    if (LIB_CANVAS && !drawsOnMatrix(a)) return false;   // "Matrix panel" filter: matrix-only + dual
     const q = LIB_Q.trim().toLowerCase();
     if (!q) return true;
     return [a.name, a.description, a.category, a.id].some((f) => (f || "").toLowerCase().includes(q));
   };
   // A Matrix-only toggle sits alongside the category buttons — but on a different axis (surface,
   // not category), so it toggles independently rather than being one of the exclusive categories.
-  const hasCanvas = data.apps.some((a) => a.surface === "canvas");
+  const hasCanvas = data.apps.some(drawsOnMatrix);
   const mf = el("button", "lib-filter lib-filter-canvas"); mf.type = "button";
   mf.innerHTML = canvasMark() + " " + esc(t("Matrix"));
   mf.title = t("Matrix panel apps only");

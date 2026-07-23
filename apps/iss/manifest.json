@@ -5,6 +5,7 @@
   "icon": "🛸",
   "description": "Space station",
   "type": "functional",
+  "surfaces": ["flap"],
   "refresh_interval": 5,
   "loop_delay": 5,
   "category": "data",

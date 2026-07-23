@@ -4,6 +4,7 @@
   "icon": "📅",
   "description": "Your next event, from an iCal feed",
   "type": "functional",
+  "surfaces": ["flap"],
   "i18n": true,
   "refresh_interval": 900,
   "loop_delay": 6,

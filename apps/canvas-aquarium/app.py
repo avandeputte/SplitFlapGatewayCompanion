@@ -60,9 +60,7 @@ def _reset(st, W, H, n, tile):
     st['sig'] = (W, H, tile, n)
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
-    if canvas is None:
-        return None
+def fetch_matrix(settings, canvas):
     import random
     W, H = canvas.width, canvas.height
     tile = max(8, min(22, H // 3)) & ~1                        # even, ~a third of the panel
@@ -73,10 +71,10 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         n = 6
     water = _WATER.get(str(settings.get('water', 'reef') or 'reef').lower(), _WATER['reef'])
 
-    st = getattr(fetch, '_state', None)
+    st = getattr(fetch_matrix, '_state', None)
     if st is None or st.get('sig') != (W, H, tile, n):
         st = st or {}
-        setattr(fetch, '_state', st)
+        setattr(fetch_matrix, '_state', st)
         _reset(st, W, H, n, tile)
         st['frame'] = 0
         st['atlas'] = None

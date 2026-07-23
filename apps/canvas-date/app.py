@@ -65,9 +65,7 @@ def _vfill(Image, W, H, top, bot, y0, y1):
     return col.resize((W, H))
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
-    if canvas is None:
-        return None
+def fetch_matrix(settings, canvas):
     from datetime import datetime
     from PIL import Image, ImageDraw
 

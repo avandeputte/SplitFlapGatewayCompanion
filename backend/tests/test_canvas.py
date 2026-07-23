@@ -265,9 +265,9 @@ def test_a_canvas_app_honours_per_entry_overrides(monkeypatch, tmp_path):
     mod = rt._modules["canvas-scoreboard"]
     seen = {}
     monkeypatch.setattr(mod, "_games", lambda follow, filt: seen.update(follow=follow) or [])
-    rt.render_canvas("canvas-scoreboard")                          # no override -> the app's own config
+    rt.render_matrix("canvas-scoreboard")                          # no override -> the app's own config
     base = seen["follow"]
-    rt.render_canvas("canvas-scoreboard", {"plugin_canvas-scoreboard_follow": "nba:BOS|Boston"})
+    rt.render_matrix("canvas-scoreboard", {"plugin_canvas-scoreboard_follow": "nba:BOS|Boston"})
     assert seen["follow"] == "nba:BOS|Boston" and seen["follow"] != base
 
 
@@ -439,14 +439,14 @@ def test_a_canvas_app_will_not_run_on_a_non_canvas_wall(tmp_path):
     asyncio.run(run())
 
 
-def test_the_canvas_apps_are_marked_canvas_surface():
+def test_the_canvas_apps_declare_the_matrix_surface():
     from pathlib import Path
     apps = Path(__file__).resolve().parents[2] / "apps"
     import json
     for app in ("effects", "canvas-art-clock", "canvas-image", "canvas-weather",
                 "canvas-date", "canvas-overview"):
         m = json.loads((apps / app / "manifest.json").read_text())
-        assert m.get("surface") == "canvas", app
+        assert m.get("surfaces") == ["matrix"], app
 
 
 # --- the frame-push canvas apps (Lumina Clock, Weather Sky) ------------------
@@ -465,7 +465,7 @@ def _load(name):
 def _push(gw_calls, app, W, H, settings, **kw):
     """Render one frame; return (hold, PIL image or None, raw bytes)."""
     cv = canvas.CanvasSurface("http://gw", W, H, ("rgb888",), ())
-    hold = app.fetch(settings, None, None, None, canvas=cv, **kw)
+    hold = app.fetch_matrix(settings, cv, **kw)
     content = gw_calls[-1][3] if gw_calls else None
     img = (Image.frombytes("RGB", (W, H), content)
            if content and len(content) == W * H * 3 else None)
@@ -477,8 +477,9 @@ def _bright(img):
 
 
 # -- Lumina Clock --
-def test_art_clock_draws_nothing_without_a_panel():
-    assert _load("canvas-art-clock").fetch({}, None, None, None, canvas=None) is None
+def test_art_clock_is_a_matrix_app():
+    m = _load("canvas-art-clock")
+    assert callable(getattr(m, "fetch_matrix", None)) and not hasattr(m, "fetch")
 
 
 def test_art_clock_pushes_a_frame_with_the_time(gw_calls):
@@ -516,8 +517,9 @@ def _gw(sky="clear", t=52, hi=61, lo=44, city="Boston"):
                                       "hi_f": hi, "lo_f": lo, "city": city}
 
 
-def test_weather_draws_nothing_without_a_panel():
-    assert _load("canvas-weather").fetch({}, None, None, None, canvas=None) is None
+def test_weather_is_a_matrix_app():
+    m = _load("canvas-weather")
+    assert callable(getattr(m, "fetch_matrix", None)) and not hasattr(m, "fetch")
 
 
 def test_weather_pushes_a_scene_with_the_numbers(gw_calls):
@@ -626,7 +628,7 @@ def test_overview_weather_column_never_clips_off_the_bottom(gw_calls, monkeypatc
          "humidity": 100, "feels_like_f": 112, "wind_mph": 25},
     ):
         for W, H in ((256, 64), (192, 48), (128, 64)):
-            app.fetch._state = None                     # bypass the 10-min weather cache
+            app.fetch_matrix._state = None              # bypass the 10-min weather cache
             seen.clear()
             _push(gw_calls, app, W, H, {}, get_weather=lambda days=1, air=False: reading)
             assert seen, f"{W}x{H}: nothing drawn"
@@ -635,10 +637,11 @@ def test_overview_weather_column_never_clips_off_the_bottom(gw_calls, monkeypatc
                     f"{W}x{H}: a {total}px stack overflows the {region_h}px region"
 
 
-# (countdown & world_clock are dual-view: with no panel they return flap pages, not None.)
-@pytest.mark.parametrize("app_id", ["canvas-date"])
-def test_new_canvas_apps_are_none_without_a_panel(app_id):
-    assert _load(app_id).fetch({}, None, None, None, canvas=None) is None
+# A matrix-only app exposes fetch_matrix and no flap fetch (a dual app like countdown has both).
+@pytest.mark.parametrize("app_id", ["canvas-date", "canvas-overview", "effects"])
+def test_matrix_apps_expose_fetch_matrix_only(app_id):
+    m = _load(app_id)
+    assert callable(getattr(m, "fetch_matrix", None)) and not hasattr(m, "fetch")
 
 
 # --- the 1.18 canvas extras: qoi, ticker, anim, rect, effect params ----------
@@ -740,9 +743,9 @@ def test_anim_uploads_an_mpga_loop(gw_calls):
 
 def test_ticker_app_scrolls_a_message(gw_calls):
     cv = canvas.CanvasSurface("http://gw", 256, 64, ("rgb888", "qoi"), (), ticker=True)
-    hold = _load("canvas-ticker").fetch(
+    hold = _load("canvas-ticker").fetch_matrix(
         {"ticker_source": "message", "ticker_text": "HI THERE", "ticker_color": "green",
-         "ticker_speed": "6"}, None, lambda: 8, lambda: 42, canvas=cv)
+         "ticker_speed": "6"}, cv)
     m, path, body, _ = gw_calls[-1]
     assert m == "POST" and path == "/api/canvas/ticker"
     assert body["text"] == "HI THERE" and body["speed"] == 6 and hold > 0
@@ -784,7 +787,7 @@ def test_effects_become_one_app_per_advertised_effect(tmp_path):
     assert "effects" not in apps
     assert {"effect_plasma", "effect_fire", "effect_matrix", "effect_sparkle"} <= set(apps)
     assert apps["effect_sparkle"]["name"] == "Sparkle"       # a new firmware effect, auto-named
-    assert apps["effect_fire"]["surface"] == "canvas"
+    assert apps["effect_fire"]["surfaces"] == ["matrix"]
 
 
 def test_no_effect_apps_on_a_wall_without_effects(tmp_path):
@@ -917,7 +920,7 @@ def test_a_canvas_app_on_a_flap_wall_is_rejected_clearly(tmp_path):
         ctl.attach_plugins(rt)
         with pytest.raises(KeyError) as e:
             await ctl.run_app("canvas-art-clock")
-        assert "needs a canvas" in str(e.value)                 # the string the route maps to 409
+        assert "needs a Matrix panel" in str(e.value)           # the string the route maps to 409
     asyncio.run(run())
 
 

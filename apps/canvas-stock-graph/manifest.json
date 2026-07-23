@@ -4,7 +4,7 @@
   "icon": "📈",
   "description": "A quote in big bold type over its own price chart (Matrix panel)",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "refresh_interval": 60,
   "loop_delay": 60,
   "category": "finance",

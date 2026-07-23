@@ -76,12 +76,11 @@ def _install(monkeypatch, data, tz="America/New_York"):
 
 def test_draws_a_frame_and_holds_one_poll_while_trading(monkeypatch):
     m = _load()
-    m.fetch.__dict__.pop("_state", None)
+    m.fetch_matrix.__dict__.pop("_state", None)
     _install(monkeypatch, {"^DJI": ([100, 101, 103, 102, 105], 105.0, 100.0)})
     monkeypatch.setattr(m, "_exchange_open", lambda tz, now: True)      # trading now
     cv = _Cap()
-    hold = m.fetch({"graph_symbols": "^DJI", "graph_range": "1D", "polling_rate": 45},
-                   None, None, None, canvas=cv)
+    hold = m.fetch_matrix({"graph_symbols": "^DJI", "graph_range": "1D", "polling_rate": 45}, cv)
     assert isinstance(cv.img, Image.Image)                 # a frame was painted
     assert cv.img.getbbox() is not None                    # and it isn't all black
     assert hold == 45.0                                    # one refresh per poll
@@ -89,12 +88,11 @@ def test_draws_a_frame_and_holds_one_poll_while_trading(monkeypatch):
 
 def test_idles_long_when_a_single_market_is_shut(monkeypatch):
     m = _load()
-    m.fetch.__dict__.pop("_state", None)
+    m.fetch_matrix.__dict__.pop("_state", None)
     _install(monkeypatch, {"^DJI": ([100, 101, 102], 102.0, 100.0)})
     monkeypatch.setattr(m, "_exchange_open", lambda tz, now: False)
     cv = _Cap()
-    hold = m.fetch({"graph_symbols": "^DJI", "market_hours_only": "yes"},
-                   None, None, None, canvas=cv)
+    hold = m.fetch_matrix({"graph_symbols": "^DJI", "market_hours_only": "yes"}, cv)
     assert isinstance(cv.img, Image.Image)                 # still repaints the last-known graph
     assert hold == 900.0                                   # but won't refetch for a while
 
@@ -103,26 +101,26 @@ def test_rotates_through_a_watchlist_on_the_dwell(monkeypatch):
     """Several symbols cycle one per call, each cached on its own, and the hold is the rotation
     dwell — not the poll — so the board keeps moving."""
     m = _load()
-    m.fetch.__dict__.pop("_state", None)
+    m.fetch_matrix.__dict__.pop("_state", None)
     _install(monkeypatch, {
         "^DJI": ([100, 105], 105.0, 100.0),
         "^GSPC": ([200, 198], 198.0, 200.0),
     })
     monkeypatch.setattr(m, "_exchange_open", lambda tz, now: True)
-    hold1 = m.fetch({"graph_symbols": "^DJI, ^GSPC", "rotate_seconds": 7}, None, None, None, canvas=_Cap())
-    st = m.fetch.__dict__["_state"]
+    hold1 = m.fetch_matrix({"graph_symbols": "^DJI, ^GSPC", "rotate_seconds": 7}, _Cap())
+    st = m.fetch_matrix.__dict__["_state"]
     assert hold1 == 7.0                                    # dwell, not the poll
     assert set(st["data"]) == {"^DJI"}                     # only the first symbol fetched so far
-    m.fetch({"graph_symbols": "^DJI, ^GSPC", "rotate_seconds": 7}, None, None, None, canvas=_Cap())
+    m.fetch_matrix({"graph_symbols": "^DJI, ^GSPC", "rotate_seconds": 7}, _Cap())
     assert set(st["data"]) == {"^DJI", "^GSPC"}            # the second call advanced and fetched the next
 
 
 def test_no_data_shows_a_message_and_keeps_rotating(monkeypatch):
     m = _load()
-    m.fetch.__dict__.pop("_state", None)
+    m.fetch_matrix.__dict__.pop("_state", None)
     _install(monkeypatch, {"BADSYM": ([], float("nan"), float("nan"))})   # empty history
     cv = _Cap()
-    hold = m.fetch({"graph_symbols": "BADSYM"}, None, None, None, canvas=cv)
+    hold = m.fetch_matrix({"graph_symbols": "BADSYM"}, cv)
     assert isinstance(cv.img, Image.Image)
     assert hold == 60.0                                    # a short retry for a lone bad symbol
 
@@ -131,10 +129,10 @@ def test_percentage_is_measured_from_previous_close_intraday(monkeypatch):
     """A 1D chart reads against yesterday's close, not the first intraday bar — so an up day that
     opened down still shows green off the prior close."""
     m = _load()
-    m.fetch.__dict__.pop("_state", None)
+    m.fetch_matrix.__dict__.pop("_state", None)
     # opens at 99 (below prev close 100), climbs to 106 -> +6% vs prev close, green.
     _install(monkeypatch, {"^DJI": ([99, 101, 104, 106], 106.0, 100.0)})
     monkeypatch.setattr(m, "_exchange_open", lambda tz, now: True)
-    m.fetch({"graph_symbols": "^DJI", "graph_range": "1D"}, None, None, None, canvas=_Cap())
-    cache = m.fetch.__dict__["_state"]["data"]["^DJI"]
+    m.fetch_matrix({"graph_symbols": "^DJI", "graph_range": "1D"}, _Cap())
+    cache = m.fetch_matrix.__dict__["_state"]["data"]["^DJI"]
     assert cache["prev"] == 100.0 and cache["last"] == 106.0

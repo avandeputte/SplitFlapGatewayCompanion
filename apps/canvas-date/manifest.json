@@ -4,7 +4,7 @@
   "icon": "📅",
   "description": "A big typographic date card (Matrix panel)",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "refresh_interval": 2,
   "loop_delay": 2,
   "category": "time",

@@ -5,6 +5,7 @@
   "description": "Bring some levity with Dad Jokes",
   "category": "entertainment",
   "type": "quiz",
+  "surfaces": ["flap", "matrix"],
   "canvas_art": "grin",
   "version": "1.0",
   "refresh_interval": 300,

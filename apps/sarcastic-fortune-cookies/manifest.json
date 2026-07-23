@@ -5,6 +5,7 @@
   "description": "Cynical fortune-cookie wisdom",
   "category": "entertainment",
   "type": "channel",
+  "surfaces": ["flap", "matrix"],
   "canvas_art": "cookie",
   "version": "1.1",
   "refresh_interval": 300,

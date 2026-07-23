@@ -6,6 +6,7 @@
   "description": "Expand your vocabulary daily",
   "category": "education",
   "type": "functional",
+  "surfaces": ["flap"],
   "version": "1.0",
   "refresh_interval": 3600,
   "loop_delay": 10,

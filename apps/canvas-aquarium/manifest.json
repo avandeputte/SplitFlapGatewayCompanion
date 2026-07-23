@@ -4,7 +4,7 @@
   "icon": "🐟",
   "description": "A living reef drawn on the panel with canvas draw-ops and a sprite atlas",
   "type": "functional",
-  "surface": "canvas",
+  "surfaces": ["matrix"],
   "category": "fun",
   "refresh_interval": 1,
   "loop_delay": 1,

@@ -489,33 +489,42 @@ class DisplayController:
 
     # -- app play-loop ------------------------------------------------------
     async def run_app(self, app_id: str) -> None:
-        """Start continuously running an app. A flap app fetches pages and the
-        engine rotates them; a CANVAS app draws straight to the Matrix panel."""
+        """Start continuously running an app on whichever surface fits this wall. On a Matrix panel a
+        matrix app (or a dual-surface app with its panel toggle on) draws straight to the panel; a
+        channel draws its text + icon there; otherwise the app runs as flap pages."""
         if self.plugins is None or self.plugins.manifest(app_id) is None:
             raise KeyError(app_id)
-        is_canvas = getattr(self.plugins, "is_canvas_app", None)
-        canvas_app = bool(is_canvas and is_canvas(app_id))
-        if canvas_app and not self._caps().has_canvas:
-            # A canvas app on a wall with no framebuffer has nothing to draw on.
-            raise KeyError(f"{app_id} needs a canvas the wall does not have")
-        # A channel can opt to render on a Matrix panel (its text with a themed icon) instead of
-        # the flaps — only where there's a framebuffer to draw on.
-        channel_canvas = (not canvas_app and self._caps().has_canvas
-                          and self.plugins.channel_canvas_on(app_id))
-        # A dual-view app (flap app + a rich canvas view, ``matrix_view`` on) draws on the panel
-        # too — through the very same canvas loop as a pure canvas app. On a flap wall, or with the
-        # toggle off, this is False and it runs as an ordinary flap app.
-        dual_canvas = (not canvas_app and self._caps().has_canvas
-                       and self.plugins.canvas_view_on(app_id))
+        surface = self._surface_for(app_id)
+        if surface is None:
+            # A matrix-only app on a wall with no framebuffer has nothing to draw on.
+            raise KeyError(f"{app_id} needs a Matrix panel this wall does not have")
         await self._cancel_task()
         self._clear_driver_flags()
         self.active_app = app_id
         self.state.active_app = app_id
         self._remember({"kind": "app", "app": app_id})
-        loop = (self._canvas_loop if (canvas_app or dual_canvas)
-                else self._channel_canvas_loop if channel_canvas
+        matrix_channel = surface == "matrix" and self.plugins.is_channel_app(app_id)
+        loop = (self._channel_canvas_loop if matrix_channel
+                else self._matrix_loop if surface == "matrix"
                 else self._app_loop)
         self._task = asyncio.create_task(loop(app_id))
+
+    def _surface_for(self, app_id: str) -> str | None:
+        """Which surface this app renders on RIGHT NOW: ``"matrix"`` when the wall has a panel and
+        the app draws there (matrix-only, or dual-surface with its toggle on); else ``"flap"`` when
+        it has a flap view; else ``None`` — a matrix-only app on a wall with no panel, which can't
+        run. This one call replaces the old is_canvas / channel_canvas / dual_canvas tangle.
+
+        Tolerant of a minimal plugins object (test stubs, stock splitflap-os) that predates the
+        surfaces API: with no ``matrix_on``/``renders_on`` it is treated as a plain flap app."""
+        p = self.plugins
+        matrix_on = getattr(p, "matrix_on", None)
+        if self._caps().has_canvas and matrix_on and matrix_on(app_id):
+            return "matrix"
+        renders_on = getattr(p, "renders_on", None)
+        if renders_on is None or renders_on(app_id, "flap"):
+            return "flap"
+        return None
 
     def _caps(self):
         prov = getattr(self.plugins, "_caps", None)
@@ -546,11 +555,11 @@ class DisplayController:
             png = canvas.readback_png(url, scale=scale, fmt=fmt)
         return png
 
-    async def _canvas_loop(self, app_id: str) -> None:
-        """Drive a canvas app: take the panel over, then re-run its draw on a timer.
-        The app draws through the injected ``canvas`` helper (an effect, ops, or a
-        raw frame); its return value, if a number, is the seconds to hold before
-        the next redraw — an effect sets once and holds, a clock redraws each tick."""
+    async def _matrix_loop(self, app_id: str) -> None:
+        """Drive a matrix app: take the panel over, then re-run its ``fetch_matrix`` draw on a timer.
+        The app draws through the ``canvas`` surface (an effect, ops, or a raw frame); its return
+        value, if a number, is the seconds to hold before the next redraw — an effect sets once and
+        holds, a clock redraws each tick."""
         self.state.current_app = app_id
         url = str(self.config.transport.get("gateway_url") or "").strip()
         if url:
@@ -560,7 +569,7 @@ class DisplayController:
         try:
             while self.active_app == app_id:
                 try:
-                    hold = await asyncio.to_thread(self.plugins.render_canvas, app_id)
+                    hold = await asyncio.to_thread(self.plugins.render_matrix, app_id)
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:
@@ -652,12 +661,12 @@ class DisplayController:
                     log.warning("channel %s canvas render error: %s", app_id, e)
                 await asyncio.sleep(min(delay, max(0.0, deadline - rt_loop.time())))
 
-    async def _play_canvas_entry(self, app_id: str, deadline: float, want, overrides=None) -> None:
-        """Drive a canvas app for one playlist entry — take the panel over (once)
+    async def _play_matrix_entry(self, app_id: str, deadline: float, want, overrides=None) -> None:
+        """Drive a matrix app for one playlist entry — take the panel over (once)
         and redraw on its own timer until the entry's ``deadline``. The caller
         releases the panel afterwards, so an effect/frame never outlives its slot.
 
-        The per-frame sleep is capped at the time left in the slot: a canvas app
+        The per-frame sleep is capped at the time left in the slot: a matrix app
         that asks to hold a long time (an on-device effect returns its whole
         loop_delay) must not sleep past its turn in the playlist."""
         rt_loop = asyncio.get_running_loop()
@@ -665,7 +674,7 @@ class DisplayController:
         if url and not self._canvas_active:
             await asyncio.to_thread(canvas.set_active, url, True)
             self._canvas_active = True
-        render = getattr(self.plugins, "render_canvas", None)
+        render = getattr(self.plugins, "render_matrix", None)
         caps = self._caps()
         while rt_loop.time() < deadline and self.active_playlist == want:
             try:
@@ -815,28 +824,21 @@ class DisplayController:
                     def keep_going() -> bool:
                         return rt_loop.time() < deadline and self.active_playlist == want
 
-                    is_canvas = getattr(self.plugins, "is_canvas_app", None)
-                    canvas_here = bool(is_canvas and is_canvas(app_id))
-                    # A dual-view app in a playlist draws its canvas view too, when the panel is
-                    # there and its ``matrix_view`` toggle is on — same take-over/hand-back path as
-                    # a pure canvas app. Otherwise it plays its flap pages.
-                    dual_canvas = (not canvas_here and self._caps().has_canvas
-                                   and self.plugins.canvas_view_on(app_id))
-                    channel_canvas = (not canvas_here and not dual_canvas
-                                      and self._caps().has_canvas
-                                      and self.plugins.channel_canvas_on(app_id))
-                    if canvas_here or dual_canvas:
-                        # A canvas app draws on the Matrix panel, not the flaps. Drive
-                        # it like the standalone canvas loop — take the panel over, redraw
-                        # until the entry's deadline — then HAND THE PANEL BACK before the
-                        # next entry. Without that release, an on-device effect in a
-                        # playlist stayed lit forever (it never went through _cancel_task,
-                        # and _canvas_active was never set, so release was a no-op).
-                        await self._play_canvas_entry(app_id, deadline, want, ov)
+                    # Which surface this entry renders on, this wall (matrix-only, dual-with-toggle,
+                    # or flap) — the same one decision run_app makes.
+                    surface = self._surface_for(app_id)
+                    matrix_channel = surface == "matrix" and self.plugins.is_channel_app(app_id)
+                    if surface == "matrix" and not matrix_channel:
+                        # A matrix app draws on the panel, not the flaps. Drive it like the
+                        # standalone matrix loop — take the panel over, redraw until the entry's
+                        # deadline — then HAND THE PANEL BACK before the next entry. Without that
+                        # release, an on-device effect in a playlist stayed lit forever (it never
+                        # went through _cancel_task, and _canvas_active was never set).
+                        await self._play_matrix_entry(app_id, deadline, want, ov)
                         await self._release_canvas()
-                    elif channel_canvas:
-                        # A channel opted to render on the panel (text + art) — same take-over-then-
-                        # release contract as a canvas app so the next flap entry gets a clean wall.
+                    elif matrix_channel:
+                        # A channel rendering on the panel (text + art) — same take-over-then-release
+                        # contract as a matrix app so the next flap entry gets a clean wall.
                         await self._play_channel_canvas_entry(app_id, deadline, want, ov)
                         await self._release_canvas()
                     else:

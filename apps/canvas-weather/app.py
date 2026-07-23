@@ -80,17 +80,15 @@ def _num(v, unit):
     return int(round(f))
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=None):
-    if canvas is None:
-        return None
+def fetch_matrix(settings, canvas, get_weather=None):
     import math
     from datetime import datetime
     from PIL import Image, ImageDraw, ImageFilter
 
-    st = getattr(fetch, '_state', None)
+    st = getattr(fetch_matrix, '_state', None)
     if st is None:
         st = {'frame': 0, 'wx': None, 'at': None}
-        setattr(fetch, '_state', st)
+        setattr(fetch_matrix, '_state', st)
     st['frame'] += 1
     frame = st['frame']
 

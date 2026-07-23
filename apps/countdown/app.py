@@ -1,9 +1,4 @@
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None, i18n=None, caps=None):
-    # A Matrix panel gets the rich full-width colour bars; a flap wall gets the text countdown.
-    # Both rotate through the SAME active countdown slots (by wall-clock), so the two views agree.
-    if canvas is not None:
-        return _render_canvas(canvas, settings, caps)
-
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     from datetime import datetime
     import pytz
 
@@ -494,17 +489,17 @@ def _render_message(canvas, ImageDraw, line1, line2):
     return img
 
 
-def _render_canvas(canvas, settings, caps):
+def fetch_matrix(settings, canvas, caps=None):
     """Draw the current countdown as full-width draining bars, rotating through the active slots by
     wall-clock. ~5 fps for a smooth seconds sweep when seconds are on, gentler otherwise."""
     from datetime import datetime
     from PIL import Image, ImageDraw
     import pytz
 
-    st = getattr(_render_canvas, '_state', None)
+    st = getattr(fetch_matrix, '_state', None)
     if st is None:
         st = {'frame': 0}
-        setattr(_render_canvas, '_state', st)
+        setattr(fetch_matrix, '_state', st)
     st['frame'] += 1
     frame = st['frame']
 
@@ -557,12 +552,14 @@ def _render_canvas(canvas, settings, caps):
     max_bars = min(max_bars, 5)
 
     keys = (['Y', 'D'] if years_i > 0 else ['D']) + ['H', 'M']
-    if show_seconds:
+    # Match the flap version's bar set: once a Years bar leads, the Seconds bar drops (a decade-out
+    # countdown ticking seconds is noise) — so the panel shows the same units the flaps would.
+    if show_seconds and years_i == 0:
         keys.append('S')
     keys = keys[:max_bars]
 
     canvas.frame(_render_bars(canvas, ImageDraw, keys, val, frac, event, header_h))
-    return 0.2 if show_seconds else 1.0
+    return 0.2 if 'S' in keys else 1.0          # fast sweep only while a seconds bar is drawn
 
 
 def trigger(settings, conditions):

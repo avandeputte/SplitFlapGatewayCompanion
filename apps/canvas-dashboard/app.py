@@ -159,9 +159,7 @@ def _icons(s):
     return out
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_ha_states=None):
-    if canvas is None:
-        return None
+def fetch_matrix(settings, canvas, get_ha_states=None):
     W, H = canvas.width, canvas.height
     use_sprites = bool(getattr(canvas, 'can_sprite', False))
     canvas.clear((0, 0, 0))                                    # black — best contrast on the panel

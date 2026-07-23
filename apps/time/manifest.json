@@ -5,6 +5,7 @@
   "icon": "⏱️",
   "description": "Live clock",
   "type": "functional",
+  "surfaces": ["flap"],
   "refresh_interval": 1,
   "loop_delay": 1,
   "category": "time",

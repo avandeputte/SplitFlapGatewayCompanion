@@ -4,6 +4,7 @@
   "icon": "🚇",
   "description": "MBTA arrivals",
   "type": "functional",
+  "surfaces": ["flap"],
   "refresh_interval": 30,
   "loop_delay": 5,
   "category": "data",

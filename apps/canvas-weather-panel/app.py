@@ -151,9 +151,7 @@ def _segs_w(canvas, segments, size):
     return sum(len(canvas.cp(str(t))) * canvas.face_width(size) for t, _ in segments)
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None, get_weather=None):
-    if canvas is None:
-        return None
+def fetch_matrix(settings, canvas, get_weather=None):
     from datetime import datetime
 
     W, H = canvas.width, canvas.height

@@ -4,6 +4,7 @@
   "icon": "🤓",
   "description": "A concise random fact",
   "type": "functional",
+  "surfaces": ["flap"],
   "refresh_interval": 1800,
   "loop_delay": 7,
   "category": "fun",

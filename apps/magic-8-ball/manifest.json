@@ -5,6 +5,7 @@
   "description": "Ask the magic 8 ball",
   "category": "entertainment",
   "type": "channel",
+  "surfaces": ["flap", "matrix"],
   "canvas_art": "eightball",
   "version": "1.0",
   "refresh_interval": 300,

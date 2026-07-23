@@ -38,9 +38,7 @@ def _fit(img, w, h, mode):
     return img.crop((left, top, left + w, top + h))
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
-    if canvas is None:
-        return None
+def fetch_matrix(settings, canvas):
     from PIL import Image
     import io
     import requests
@@ -49,7 +47,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
     url = str(settings.get('image_url', '') or '').strip()
 
     # Cache the fitted frame so a static image isn't re-fetched every pass.
-    state = getattr(fetch, '_state', None)
+    state = getattr(fetch_matrix, '_state', None)
     key = (url, w, h, settings.get('fit'))
     if state and state.get('key') == key:
         canvas.frame(state['bytes'])
@@ -64,7 +62,7 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
         else:
             img = _demo(Image, w, h)
         raw = img.tobytes()
-        fetch._state = {'key': key, 'bytes': raw}
+        fetch_matrix._state = {'key': key, 'bytes': raw}
         canvas.frame(raw)
     except Exception:
         canvas.frame(_demo(Image, w, h).tobytes())    # a broken URL still shows something

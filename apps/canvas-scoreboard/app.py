@@ -160,20 +160,18 @@ def _badge(canvas, x, y, tile, abbr, color, sprite_idx):
         canvas.shadow_text(x + tile // 2, y + (tile - f) // 2, abbr[:3], (255, 255, 255), f, align='center')
 
 
-def fetch(settings, format_lines, get_rows, get_cols, canvas=None):
-    if canvas is None:
-        return None
+def fetch_matrix(settings, canvas):
     W, H = canvas.width, canvas.height
     use_sprites = bool(getattr(canvas, 'can_sprite', False))
 
-    st = getattr(fetch, '_state', None)
+    st = getattr(fetch_matrix, '_state', None)
     if st is None:
         # `logos`: url -> a magenta-keyed tile (fetched once). `sheet`/`sheet_idx`: ONE shared
         # atlas of every logo across the slate, blitted by index — so the whole app uses a single
         # atlas slot, not one per game. `sheet_for` guards a tile-size change.
         st = {'games': [], 'i': 0, 'at': 0.0, 'logos': {}, 'sheet': [], 'sheet_idx': {},
               'sheet_for': 0, 'key': None}
-        setattr(fetch, '_state', st)
+        setattr(fetch_matrix, '_state', st)
 
     try:
         rotate = max(3, min(60, int(float(settings.get('rotate', 8) or 8))))

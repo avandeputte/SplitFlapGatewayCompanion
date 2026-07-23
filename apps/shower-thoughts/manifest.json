@@ -5,6 +5,7 @@
   "description": "Mind-bending thoughts",
   "category": "entertainment",
   "type": "channel",
+  "surfaces": ["flap", "matrix"],
   "canvas_art": "shower",
   "version": "1.0",
   "refresh_interval": 300,
