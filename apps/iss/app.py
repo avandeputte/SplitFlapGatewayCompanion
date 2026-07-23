@@ -272,17 +272,18 @@ def fetch_matrix(settings, canvas, i18n=None):
     draw.fontmode = "1"
 
     if W >= 112 and H >= 48:
-        # Map on the left (2:1, the earth's own shape), text column on the right.
-        mh = H - 4
+        # Map on the left (2:1, the earth's own shape) running edge to edge — its
+        # frame owns the panel's first and last rows — text column on the right.
+        mh = H
         mw = min(int(W * 0.62), mh * 2 + 8)
-        _cv_map(draw, 2, 2, mw, mh, lat, lon)
-        tx = 2 + mw + 5
+        _cv_map(draw, 0, 0, mw, mh, lat, lon)
+        tx = mw + 5
         tw = W - 3 - tx
         title = 'ISS'
         tf = _cv_fit(canvas, title, tw, max(10, int(H * 0.3)))
         tb = tf.getbbox(title)
-        draw.text((tx, 4 - tb[1]), title, font=tf, fill=_WHITE)
-        y = 4 + (tb[3] - tb[1]) + 4
+        draw.text((tx, 1 - tb[1]), title, font=tf, fill=_WHITE)
+        y = 1 + (tb[3] - tb[1]) + 4
         cf = _cv_fit(canvas, _coord(lat, "NS", 1), tw, max(7, int(H * 0.17)))
         for ln in (_coord(lat, "NS", 1), _coord(lon, "EW", 1)):
             b = cf.getbbox(ln)
@@ -292,19 +293,19 @@ def fetch_matrix(settings, canvas, i18n=None):
             bf = _cv_fit(canvas, crew, tw, max(7, int(H * 0.15)))
             bb = bf.getbbox(crew)
             if (bb[3] - bb[1]) >= 6:
-                draw.text((tx, H - 3 - (bb[3] - bb[1]) - bb[1]), crew, font=bf, fill=_AMBER)
+                draw.text((tx, H - 1 - (bb[3] - bb[1]) - bb[1]), crew, font=bf, fill=_AMBER)
     else:
-        # Compact: the map fills the panel, the coordinates ride its lower edge.
-        # Degrade the caption rather than the type: full precision, then whole
-        # degrees, then the bare coordinates — the first that stays readable wins.
-        _cv_map(draw, 1, 1, W - 2, H - 2, lat, lon)
+        # Compact: the map fills the panel edge to edge, the coordinates ride its
+        # lower edge. Degrade the caption rather than the type: full precision, then
+        # whole degrees, then the bare coordinates — the first that stays readable wins.
+        _cv_map(draw, 0, 0, W, H, lat, lon)
         c0 = f'{_coord(lat, "NS", 0)} {_coord(lon, "EW", 0)}'
         for line in (f'ISS {coords}', f'ISS {c0}', c0):
             lf = _cv_fit(canvas, line, W - 6, max(7, int(H * 0.24)))
             lb = lf.getbbox(line)
             if (lb[3] - lb[1]) >= 6:
                 break
-        _cv_shadow(draw, (W - lf.getlength(line)) / 2.0, H - 3 - (lb[3] - lb[1]) - lb[1],
+        _cv_shadow(draw, (W - lf.getlength(line)) / 2.0, H - 2 - (lb[3] - lb[1]) - lb[1],
                    line, lf, _WHITE)
 
     canvas.frame(img)

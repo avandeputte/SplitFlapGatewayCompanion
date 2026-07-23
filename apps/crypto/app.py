@@ -320,10 +320,42 @@ def _cv_quote_rows(canvas, ImageDraw, rows_data):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
     n = max(1, len(rows_data))
+    chips = W >= 104                       # room for a chip column beside the price
+    if n == 1:
+        # A lone quote (the rotation's last page) can't fill the panel as a
+        # table row — set it as a card instead: coin hung from the top edge,
+        # price sitting on the bottom row, the chip riding top-right.
+        sym, price, chg = rows_data[0]
+        up = chg is not None and chg >= 0
+        sf = _cv_fit(canvas, sym, int(W * 0.62), int(H * 0.55))
+        _cv_text(draw, 3, 1, sym, sf, _CV_TEXT)
+        if chips and chg is not None:
+            pct = f'{"+" if chg >= 0 else ""}{chg:.1f}%'
+            cf = _cv_fit(canvas, pct, int(W * 0.28), max(7, int(H * 0.30)))
+            ch = _cv_ink(cf, pct) + 4
+            chip_w = int(cf.getlength(pct)) + 6
+            draw.rounded_rectangle([W - 3 - chip_w, 1, W - 3, 1 + ch], radius=2,
+                                   fill=_CV_UP_CHIP if up else _CV_DOWN_CHIP)
+            _cv_text(draw, W - 3 - chip_w + (chip_w - cf.getlength(pct)) / 2.0,
+                     3, pct, cf, (255, 255, 255))
+        pf = _cv_fit(canvas, price, W - 6, max(7, int(H * 0.42)))
+        pcol = _CV_DIM if chg is None else \
+            (_CV_TEXT if chips else (_CV_UP if up else _CV_DOWN))
+        _cv_text(draw, W - 3 - pf.getlength(price), H - _cv_ink(pf, price),
+                 price, pf, pcol)
+        return img
     edges = [round(i * H / n) for i in range(n + 1)]
     rh = min(edges[i + 1] - edges[i] for i in range(n))
-    fh = max(7, min(rh - 4, int(rh * 0.72)))
-    chips = W >= 104                       # room for a chip column beside the price
+    fh = max(7, min(rh - 3, int(rh * 0.80)))
+
+    def vy(y0, y1, hgt):
+        """Full-height bands: the row on the top edge hugs it (1px bbox slack),
+        the row on the bottom edge sits its ink on H-1, rows between center."""
+        if y0 <= 1:
+            return y0 + 1
+        if y1 >= H - 1:
+            return y1 - hgt
+        return y0 + (y1 - y0 - hgt) / 2.0
     pcts = [f'{"+" if c >= 0 else ""}{c:.1f}%' for _s, _p, c in rows_data if c is not None]
     cf = _cv_common_font(canvas, pcts, int(W * 0.24), max(7, int(fh * 0.78))) \
         if (chips and pcts) else None
@@ -335,23 +367,22 @@ def _cv_quote_rows(canvas, ImageDraw, rows_data):
                          max(12, right - 3 - sym_w - 5), fh)
     for i, (sym, price, chg) in enumerate(rows_data):
         y0, y1 = edges[i], edges[i + 1]
-        rh = y1 - y0
         up = chg is not None and chg >= 0
         if cf and chg is not None:
             pct = f'{"+" if chg >= 0 else ""}{chg:.1f}%'
             ch = _cv_ink(cf, pct) + 4
-            cy = y0 + (rh - ch) // 2
+            cy = int(vy(y0, y1, ch + 1))
             draw.rounded_rectangle([W - 3 - chip_w, cy, W - 3, cy + ch], radius=2,
                                    fill=_CV_UP_CHIP if up else _CV_DOWN_CHIP)
             _cv_text(draw, W - 3 - chip_w + (chip_w - cf.getlength(pct)) / 2.0,
                      cy + 2, pct, cf, (255, 255, 255))
-        _cv_text(draw, 3, y0 + (rh - _cv_ink(sf, sym)) / 2.0, sym, sf, _CV_TEXT)
+        _cv_text(draw, 3, vy(y0, y1, _cv_ink(sf, sym)), sym, sf, _CV_TEXT)
         if chg is None:
             pcol = _CV_DIM
         else:
             pcol = _CV_TEXT if chips else (_CV_UP if up else _CV_DOWN)
         _cv_text(draw, right - pf.getlength(price),
-                 y0 + (rh - _cv_ink(pf, price)) / 2.0, price, pf, pcol)
+                 vy(y0, y1, _cv_ink(pf, price)), price, pf, pcol)
     return img
 
 

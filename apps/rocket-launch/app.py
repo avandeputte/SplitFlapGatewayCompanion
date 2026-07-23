@@ -265,9 +265,9 @@ def fetch_matrix(settings, canvas, i18n=None):
     draw.fontmode = "1"
 
     if W >= 96 and H >= 48:
-        # Header: label left, launch time right, amber divider. Tall enough for a ~10px face,
-        # and the ink top CLAMPED to y>=2 — a fitted font whose ink overshoots the band must
-        # push the baseline down, never clip its own top row.
+        # Header: label left, launch time right, amber divider. Tall enough for a ~10px face;
+        # the ink top rides y=1 — row 0 stays as the 1px a fitted font's ink can overshoot
+        # its bbox by, so the glyph tops never clip.
         head_h = max(12, int(H * 0.22))
         lbl = 'NEXT LAUNCH'
         ww = 0
@@ -275,29 +275,27 @@ def fetch_matrix(settings, canvas, i18n=None):
             wf = _cv_fit(canvas, when, int(W * 0.42), head_h - 3)
             wb = wf.getbbox(when)
             ww = wf.getlength(when)
-            wy = max(2 - wb[1], 2 + (head_h - 3 - (wb[3] - wb[1])) / 2.0 - wb[1])
-            draw.text((W - 3 - ww, wy), when, font=wf, fill=_WHITE)
+            draw.text((W - 3 - ww, 1 - wb[1]), when, font=wf, fill=_WHITE)
         lf = _cv_fit(canvas, lbl, W - 6 - ww - 8, head_h - 3)
         lb = lf.getbbox(lbl)
         if (lb[3] - lb[1]) >= 6:
-            ly = max(2 - lb[1], 2 + (head_h - 3 - (lb[3] - lb[1])) / 2.0 - lb[1])
-            draw.text((3, ly), lbl, font=lf, fill=_GRAY)
+            draw.text((3, 1 - lb[1]), lbl, font=lf, fill=_GRAY)
         draw.line([(2, head_h + 1), (W - 3, head_h + 1)], fill=_AMBER)
 
-        # A rocket riding the left edge, text beside it.
+        # A rocket riding the left edge, text beside it — its flame licks the last row.
         icon_w = max(12, int(H * 0.28)) if W >= 128 else 0
         tx = 3 + (icon_w + 4 if icon_w else 0)
         tw = W - 3 - tx
         if icon_w:
-            _cv_rocket(draw, 3, head_h + 5, icon_w, H - head_h - 9)
+            _cv_rocket(draw, 3, head_h + 5, icon_w, H - head_h - 6)
 
-        # Footer: T-minus, big.
+        # Footer: T-minus, big, its ink sunk to the panel's bottom edge.
         foot_h = max(9, int(H * 0.22))
         fy = H - foot_h - 1
         if tmin:
             ff = _cv_fit(canvas, tmin, tw, foot_h)
             fb = ff.getbbox(tmin)
-            draw.text((tx, fy + (foot_h - (fb[3] - fb[1])) / 2.0 - fb[1]), tmin, font=ff, fill=tcol)
+            draw.text((tx, H - 1 - (fb[3] - fb[1]) - fb[1]), tmin, font=ff, fill=tcol)
 
         # Body: the vehicle (up to 2 lines), the mission under it in cyan.
         top = head_h + 3
@@ -322,21 +320,21 @@ def fetch_matrix(settings, canvas, i18n=None):
                 draw.text((tx, fy - 2 - mis_h + (mis_h - (mb[3] - mb[1])) / 2.0 - mb[1]),
                           mtext, font=mf, fill=_CYAN)
     else:
-        # Compact: vehicle over a big T-minus; the mission only if a row is left.
+        # Compact: vehicle over a big T-minus. The vehicle's ink rides row 1 (row 0 is
+        # the bbox-overshoot slack) and the T-minus sinks to the panel's bottom edge.
         pad = 2
         t_h = max(8, int(H * 0.34))
-        name_h = H - t_h - 3 * pad
+        name_h = H - t_h - 4
         nf, lines, lh, gap = _cv_wrap_fit(canvas, rocket, W - 2 * pad, name_h, 2)
-        block = len(lines) * lh + (len(lines) - 1) * gap
-        ny = pad + max(0.0, (name_h - block) / 2.0)
+        ny = 1
         for ln in lines:
             draw.text(((W - nf.getlength(ln)) / 2.0, ny - nf.getbbox(ln)[1]), ln, font=nf, fill=_WHITE)
             ny += lh + gap
         if tmin:
             ff = _cv_fit(canvas, tmin, W - 2 * pad, t_h)
             fb = ff.getbbox(tmin)
-            draw.text(((W - ff.getlength(tmin)) / 2.0,
-                       H - pad - t_h + (t_h - (fb[3] - fb[1])) / 2.0 - fb[1]), tmin, font=ff, fill=tcol)
+            draw.text(((W - ff.getlength(tmin)) / 2.0, H - 1 - (fb[3] - fb[1]) - fb[1]),
+                      tmin, font=ff, fill=tcol)
 
     canvas.frame(img)
     if secs is not None and secs <= 3600:

@@ -220,49 +220,62 @@ def fetch_matrix(settings, canvas):
     # A short panel has no room for the chip row — the year runs inline in gold instead.
     if H < 48:
         text = f'{year} {desc}'
-        f, lines, lh, gap = _cv_wrap_fit(canvas, text, W - 2 * pad, H - 2 * pad, 3)
+        f, lines, lh, gap = _cv_wrap_fit(canvas, text, W - 2 * pad, H - 2, 3)
         if sum(len(ln.split()) for ln in lines) < len(text.split()):
             last = lines[-1]
             while last and f.getlength(last + '…') > W - 2 * pad:
                 last = last[:-1]
             lines[-1] = last + '…'
-        block = len(lines) * lh + (len(lines) - 1) * gap
-        y = pad + max(0, (H - 2 * pad - block) // 2)
-        for i, ln in enumerate(lines):
+        # First line's ink starts at row 1, the last line's ends at H-1: the
+        # leading stretches (the font is at its cap) to span the whole panel.
+        ob = f.getbbox(lines[-1] or '0')
+        own = ob[3] - ob[1]
+        k = len(lines)
+        ys = [H - own]                       # the last line's ink top, on the floor
+        if k > 1:
+            pitch = (H - own - 1) / (k - 1)
+            if pitch > 2 * lh + gap:         # too sparse to stretch honestly — keep
+                pitch = lh + gap             # the natural leading, floor-anchored
+            ys = [round((H - own) - pitch * (k - 1 - i)) for i in range(k)]
+        for i, (y, ln) in enumerate(zip(ys, lines)):
             if i == 0 and ln.startswith(year):
                 _cv_text(draw, pad, y, year, f, _CV_CHIP)
                 _cv_text(draw, pad + f.getlength(year + ' '), y, ln[len(year):].strip(), f, _CV_TXT)
             else:
                 _cv_text(draw, pad, y, ln, f, _CV_TXT)
-            y += lh + gap
         canvas.frame(img)
         return dwell
 
-    # The gold year chip, today's date opposite.
+    # The gold year chip flush with the panel's top edge, today's date opposite.
     ch_h = max(11, int(H * 0.24))
     yf = _cv_fit(canvas, year, int(W * 0.4), ch_h - 4)
     yw = yf.getlength(year)
     yh = yf.getbbox(year)[3] - yf.getbbox(year)[1]
-    draw.rounded_rectangle([pad, pad, pad + yw + 8, pad + ch_h - 1], radius=3, fill=_CV_CHIP)
-    _cv_text(draw, pad + 5, pad + (ch_h - yh) // 2, year, yf, _CV_CHIP_TXT)
+    draw.rounded_rectangle([pad, 0, pad + yw + 8, ch_h - 1], radius=3, fill=_CV_CHIP)
+    _cv_text(draw, pad + 5, (ch_h - yh) // 2, year, yf, _CV_CHIP_TXT)
     df = _cv_fit(canvas, today, int(W * 0.35), max(6, int(ch_h * 0.55)))
     if pad + yw + 14 + df.getlength(today) <= W - pad:
         dh = df.getbbox(today)[3] - df.getbbox(today)[1]
-        _cv_text(draw, W - pad - df.getlength(today), pad + (ch_h - dh) // 2, today, df, _CV_DIM)
+        _cv_text(draw, W - pad - df.getlength(today), (ch_h - dh) // 2, today, df, _CV_DIM)
 
-    # The event, wrapped as large as the room allows (ellipsis when it can't all fit).
-    body_top = pad + ch_h + 3
-    max_lines = 3 if H >= 48 else 2
-    f, lines, lh, gap = _cv_wrap_fit(canvas, desc, W - 2 * pad, H - body_top - pad, max_lines)
+    # The event, wrapped as large as the room allows (ellipsis when it can't all
+    # fit), anchored to the panel floor with the leading stretched up to the chip.
+    body_top = ch_h + 2
+    max_lines = 4 if H >= 60 else 3
+    f, lines, lh, gap = _cv_wrap_fit(canvas, desc, W - 2 * pad, H - body_top, max_lines)
     if sum(len(ln.split()) for ln in lines) < len(str(desc).split()):
         last = lines[-1]
         while last and f.getlength(last + '…') > W - 2 * pad:
             last = last[:-1]
         lines[-1] = last + '…'
-    block = len(lines) * lh + (len(lines) - 1) * gap
-    y = body_top + max(0, (H - body_top - pad - block) // 2)
+    ob = f.getbbox(lines[-1] or '0')
+    own = ob[3] - ob[1]
+    step = lh + gap
+    if len(lines) > 1:
+        step += max(0, min(lh, (H - own - body_top) // (len(lines) - 1) - step))
+    y = H - own - step * (len(lines) - 1)
     for ln in lines:
         _cv_text(draw, pad, y, ln, f, _CV_TXT)
-        y += lh + gap
+        y += step
     canvas.frame(img)
     return dwell

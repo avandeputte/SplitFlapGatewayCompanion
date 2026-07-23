@@ -197,7 +197,7 @@ def fetch_matrix(settings, canvas, caps=None):
         text = ':'.join(units)
         f = _cv_fit(canvas, text, W - 6, label_h - 2)
         b = f.getbbox(text)
-        ly = H - label_h + (label_h - (b[3] - b[1])) / 2.0 - b[1]
+        ly = H - (b[3] - b[1]) - b[1]           # digits sit on the bottom row
         draw.text(((W - f.getlength(text)) / 2.0, ly), text, font=f, fill=(238, 238, 244))
 
     canvas.frame(img)

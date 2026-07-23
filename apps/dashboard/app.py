@@ -242,15 +242,19 @@ def _line(font, segs):
 
 
 def _draw_stack(draw, x, top, region_h, lines, gap):
-    """Left-align `lines` in a column at `x`, the block centered in [top, top+region_h)."""
-    total = sum(ln[2] for ln in lines) + gap * max(0, len(lines) - 1)
-    y = top + max(0, (region_h - total) // 2)
+    """Left-align `lines` in a column at `x`, vertically justified across the
+    region: the first line's ink pinned to row top+1, the last line's ending on
+    row top+region_h-2 (the bbox can under-report a pixel — hence the 1px trim),
+    the slack shared between the lines."""
+    total = sum(ln[2] for ln in lines)
+    lead = gap if len(lines) < 2 else max(gap, (region_h - 2 - total) / (len(lines) - 1))
+    y = top + 1
     for font, segs, ih, itop in lines:
         cx = x
         for s, col in segs:                     # each segment shares the line's top
             draw.text((cx, y - itop), s, font=font, fill=col, anchor='la')
             cx += font.getlength(s)
-        y += ih + gap
+        y += ih + lead
 
 
 def _fit_stack(canvas, specs, max_w, budget_h, gap):
@@ -448,7 +452,7 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
 
         # Fit the whole column to the region so the last line never clips off the
         # bottom edge — shrinks the stack together when the day's numbers make it tall.
-        lines = _fit_stack(canvas, specs, wxw, region_h - 1, gap_r)
+        lines = _fit_stack(canvas, specs, wxw, region_h - 2, gap_r)
         _draw_stack(draw, wx0, 0, region_h, lines, gap_r)
 
     # --- a thin seconds bar sweeping the bottom edge --------------------------

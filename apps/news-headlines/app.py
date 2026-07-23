@@ -298,21 +298,27 @@ def fetch_matrix(settings, canvas):
                                fill=(95, 95, 102))
 
     # The headline, as big as it wraps — mixed case is the point on this panel.
-    top = bar_h + 3
-    body_h = H - top - 2
+    top = bar_h + 2
     max_lines = 3 if H >= 48 else 2
-    nf, lines, lh, gap = _cv_wrap_fit(canvas, title, W - 6, body_h, max_lines)
+    nf, lines, lh, gap = _cv_wrap_fit(canvas, title, W - 6, H - top, max_lines)
     # A title the wrap had to cut short gets an ellipsis on its last line.
     if ' '.join(lines) != ' '.join(str(title).split()):
         ln = lines[-1]
         while ln and nf.getlength(ln + '…') > W - 6:
             ln = ln[:-1].rstrip()
         lines[-1] = (ln + '…') if ln else '…'
-    block = len(lines) * lh + (len(lines) - 1) * gap
-    ny = top + max(0.0, (body_h - block) / 2.0)
+    # The block rides the panel floor, its leading stretched (the font is already
+    # at its cap) so the first line starts right under the masthead — full-height
+    # ink, not a centered strip.
+    ob = nf.getbbox(lines[-1] or '0')
+    own = ob[3] - ob[1]
+    step = lh + gap
+    if len(lines) > 1:
+        step += max(0, min(lh, (H - own - top) // (len(lines) - 1) - step))
+    ny = H - own - step * (len(lines) - 1)
     for ln in lines:
         draw.text((3, ny - nf.getbbox(ln)[1]), ln, font=nf, fill=_WHITE)
-        ny += lh + gap
+        ny += step
 
     canvas.frame(img)
     return 8.0

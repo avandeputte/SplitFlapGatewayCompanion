@@ -465,10 +465,16 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
     draw.fontmode = "1"
 
     if header_h > 0 and event:
-        hf, htop, hh = _bar_font(canvas, max(5, int(header_h * 0.5)), sample=event)
+        # The event name rides the top row and fills the header band; it only
+        # shrinks (never below legible) before it resorts to truncating.
+        budget = max(5, header_h - 4)
+        hf, htop, hh = _bar_font(canvas, budget, sample=event)
+        while hh > 5 and hf.getlength(event) > W - 4:
+            budget -= 1
+            hf, htop, hh = _bar_font(canvas, budget, sample=event)
         etext = _truncate(hf, event, W - 4)
         ex = (W - hf.getlength(etext)) / 2.0
-        ey = max(1.0, (header_h - 1 - hh) / 2.0 - htop)
+        ey = 1.0 - htop                 # ink on row 1 (the bbox can under-report a px)
         _shadow_text(draw, ex, ey, etext, hf, fill=(238, 238, 244))
         draw.rectangle([0, header_h - 1, W - 1, header_h - 1], fill=_UNITS[keys[0]][0])
 

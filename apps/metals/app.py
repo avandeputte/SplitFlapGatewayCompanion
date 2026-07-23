@@ -197,25 +197,34 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     if H >= 48:
         head = f'{t("Spot price")} /OZ'.upper()
         hf = _cv_fit(canvas, head, W - 8, 8)
-        _cv_text(draw, (W - hf.getlength(head)) / 2.0, 2, head, hf, _CV_DIM)
-        top = 2 + _cv_ink(hf, head) + 2
+        _cv_text(draw, (W - hf.getlength(head)) / 2.0, 1, head, hf, _CV_DIM)
+        top = 1 + _cv_ink(hf, head) + 2
 
     rows = [(t('Gold').upper(), fmt(gold), _CV_GOLD),
             (t('Silver').upper(), fmt(silver), _CV_SILVER)]
     area = H - top
     edges = [top + round(i * area / 2) for i in range(3)]
     rh = min(edges[1] - edges[0], edges[2] - edges[1])
-    fh = max(7, min(rh - 4, int(rh * 0.72)))
+    fh = max(7, min(rh - 3, int(rh * 0.80)))
     # one font per column, sized by the longest entry, so the two rows align
     name_f = min((_cv_fit(canvas, nm, int(W * 0.45), fh) for nm, _p, _c in rows),
                  key=lambda f: f.size)
     price_f = min((_cv_fit(canvas, p, W - 6 - int(W * 0.45) - 5, fh) for _n, p, _c in rows),
                   key=lambda f: f.size)
+
+    def vy(y0, y1, hgt):
+        """Full-height bands: a row on the top edge hugs it (1px bbox slack), the
+        bottom row sits its ink on H-1, anything between centers."""
+        if y0 <= 1:
+            return y0 + 1
+        if y1 >= H - 1:
+            return y1 - hgt
+        return y0 + (y1 - y0 - hgt) / 2.0
+
     for i, (name, prc, col) in enumerate(rows):
         y0, y1 = edges[i], edges[i + 1]
-        rh = y1 - y0
-        _cv_text(draw, 3, y0 + (rh - _cv_ink(name_f, name)) / 2.0, name, name_f, col)
+        _cv_text(draw, 3, vy(y0, y1, _cv_ink(name_f, name)), name, name_f, col)
         _cv_text(draw, W - 3 - price_f.getlength(prc),
-                 y0 + (rh - _cv_ink(price_f, prc)) / 2.0, prc, price_f, _CV_TEXT)
+                 vy(y0, y1, _cv_ink(price_f, prc)), prc, price_f, _CV_TEXT)
     canvas.frame(img)
     return 300.0

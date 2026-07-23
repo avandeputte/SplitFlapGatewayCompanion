@@ -218,52 +218,79 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
 
+    # Layout: event name pinned to the very top row, "TIME SINCE <date>" pinned
+    # to the very bottom (tall panels), and the counter — the hero — grown to
+    # fill everything between, splitting onto two lines when a single line
+    # would be width-bound and leave the digits small. (Ink starts/ends 1px in:
+    # the reported bbox can under-report a pixel.)
     name = event.upper()
-    name_h = max(8, int(H * 0.22))
+    nf, name = _cv_trim(canvas, name, W - 4, max(8, int(H * 0.22)))
+    nb = nf.getbbox(name)
+    nh = nb[3] - nb[1]
+
     foot = ''
     if H >= 48:
         since_date = i18n.date(start, year=True) if i18n is not None else start.strftime('%b %d %Y')
         foot = f'{t("Time since")} {since_date}'.upper()
-    foot_h = max(7, int(H * 0.15)) if foot else 0
+    ff = _cv_fit(canvas, foot, W - 4, max(7, int(H * 0.15))) if foot else None
+    fb = ff.getbbox(foot) if foot else None
+    fh = (fb[3] - fb[1]) if foot else 0
 
-    nf, name = _cv_trim(canvas, name, W - 6, name_h)
-    nb = nf.getbbox(name)
-    nh = nb[3] - nb[1]
+    gap = max(2, H // 16)
+    box_top = 1 + nh + gap                          # counter region, edge to edge
+    box_bot = (H - 2 - fh - gap) if foot else H - 2  # last ink row the counter may take
+    box_h = max(6, box_bot - box_top + 1)
+
+    def row_text(r):
+        return ' '.join(v + s for v, s in r)
 
     # The counter: fit "12D 4H 33M 21S" as one string for sizing, then draw it
     # segment by segment so the unit letters can take the accent color.
-    text = ' '.join(v + s for v, s in segs)
-    gap = max(2, H // 16)
-    cf = _cv_fit(canvas, text, W - 6, H - nh - foot_h - gap * (2 if foot else 1) - 4)
-    cb = cf.getbbox(text)
-    ch = cb[3] - cb[1]
+    rows = [segs]
+    cf = _cv_fit(canvas, row_text(segs), W - 2, box_h)
+    cb = cf.getbbox(row_text(segs))
+    rgap = 0
+    if len(segs) >= 2 and (cb[3] - cb[1]) < 0.58 * box_h:
+        # Width-bound: two balanced lines double the digit size.
+        ref = canvas.font(20)
+        cut = min(range(1, len(segs)),
+                  key=lambda c: max(ref.getlength(row_text(segs[:c])),
+                                    ref.getlength(row_text(segs[c:]))))
+        rows = [segs[:cut], segs[cut:]]
+        rgap = max(1, gap // 2)
+        wide = max(rows, key=lambda r: ref.getlength(row_text(r)))
+        cf = _cv_fit(canvas, row_text(wide), W - 2, (box_h - rgap) / 2.0)
+
+    heights = [(lambda b: b[3] - b[1])(cf.getbbox(row_text(r))) for r in rows]
+    block = sum(heights) + rgap * (len(rows) - 1)
     # Unit letters a step smaller than the values, sharing the baseline — but on
     # a counter already small, one size for both beats two illegible ones.
-    uf = _cv_fit(canvas, 'D', int(W * 0.2), int(ch * 0.62)) if ch >= 12 else cf
+    ref_h = max(heights)
+    uf = _cv_fit(canvas, 'D', int(W * 0.2), int(ref_h * 0.62)) if ref_h >= 12 else cf
 
-    total = nh + gap + ch + ((gap + foot_h) if foot else 0)
-    y = (H - total) / 2.0
-    draw.text(((W - nf.getlength(name)) / 2.0, y - nb[1]), name, font=nf, fill=_NAME_COL)
-    y += nh + gap
+    draw.text(((W - nf.getlength(name)) / 2.0, 1 - nb[1]), name, font=nf, fill=_NAME_COL)
 
-    widths = [(cf.getlength(v), uf.getlength(s)) for v, s in segs]
-    space = max(2.0, cf.getlength(' ') * 0.8)
-    line_w = sum(vw + uw for vw, uw in widths) + space * (len(segs) - 1)
-    x = (W - line_w) / 2.0
-    base = y + ch                                   # shared baseline for values and units
-    for (v, s), (vw, uw) in zip(segs, widths):
-        vb = cf.getbbox(v)
-        draw.text((x, base - (vb[3] - vb[1]) - vb[1]), v, font=cf, fill=_VAL_COL)
-        x += vw
-        sb = uf.getbbox(s)
-        draw.text((x, base - (sb[3] - sb[1]) - sb[1]), s, font=uf, fill=_UNIT_COL)
-        x += uw + space
+    # With a footer the counter centers between the pinned edges; without one it
+    # anchors to the bottom so no dark band is left under it.
+    y = (box_top + (box_h - block) / 2.0) if foot else (box_bot - block + 1)
+    for r, rh in zip(rows, heights):
+        widths = [(cf.getlength(v), uf.getlength(s)) for v, s in r]
+        space = max(2.0, cf.getlength(' ') * 0.8)
+        line_w = sum(vw + uw for vw, uw in widths) + space * (len(r) - 1)
+        x = (W - line_w) / 2.0
+        base = y + rh                               # shared baseline for values and units
+        for (v, s), (vw, uw) in zip(r, widths):
+            vb = cf.getbbox(v)
+            draw.text((x, base - (vb[3] - vb[1]) - vb[1]), v, font=cf, fill=_VAL_COL)
+            x += vw
+            sb = uf.getbbox(s)
+            draw.text((x, base - (sb[3] - sb[1]) - sb[1]), s, font=uf, fill=_UNIT_COL)
+            x += uw + space
+        y += rh + rgap
 
     if foot:
-        y = base + gap
-        ff = _cv_fit(canvas, foot, W - 6, foot_h)
-        fb = ff.getbbox(foot)
-        draw.text(((W - ff.getlength(foot)) / 2.0, y - fb[1]), foot, font=ff, fill=_FOOT_COL)
+        draw.text(((W - ff.getlength(foot)) / 2.0, H - 1 - fh - fb[1]), foot,
+                  font=ff, fill=_FOOT_COL)
 
     canvas.frame(img)
     if with_secs:

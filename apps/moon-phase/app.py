@@ -126,7 +126,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 # =============================================================================
 
 _LIT = (233, 231, 219)          # moonlight
-_DARKSIDE = (25, 27, 36)        # the shadowed disc, just visible
+_DARKSIDE = (30, 33, 44)        # the shadowed disc, just visible
 _CRATER = (196, 193, 178)       # shading on the lit side
 _NAME_COL = (245, 245, 248)
 _PCT_COL = (255, 208, 74)       # a moonlit amber for the % lit
@@ -228,14 +228,15 @@ def fetch_matrix(settings, canvas, i18n=None):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
 
-    # A smaller disc on a narrow panel buys the name the width it needs.
-    r = min(H // 2 - 3, W // 5) if W >= 96 else min(H // 2 - 4, W // 6)
-    cx, cy = 3 + r, H // 2
+    # The disc is the hero: it takes the panel's full height, riding the top
+    # and bottom edges (rows 1..H-1 — one spare row for the ellipse's rounding).
+    r = H // 2 - 1
+    cx, cy = 1 + r, H // 2
     _draw_moon(draw, cx, cy, r, moon['illumination'], moon['waxing'])
 
     # Beside the disc: the phase name, % lit, and (with room) the next event.
-    lx = cx + r + 5
-    lw = W - lx - 3
+    lx = cx + r + 3
+    lw = W - lx - 1
     name = t(moon['phase_name']).upper()
     pct = f'{int(moon["illumination"] * 100)}% {t("Lit")}'.upper()
     nxt = ''

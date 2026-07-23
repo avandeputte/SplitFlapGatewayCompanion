@@ -235,17 +235,17 @@ def fetch_matrix(settings, canvas, i18n=None):
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
-    pad = 3
+    pad = 3                            # side margin; the header ink rides row 1
 
     # Header: play button + channel name.
     bh = max(8, int(H * 0.20))
     bw = int(bh * 1.45)
-    _cv_play_button(draw, pad, pad, bw, bh)
+    _cv_play_button(draw, pad, 1, bw, bh)
     nf = _cv_fit(canvas, 'Ag', W, max(7, bh - 1))
     ns = _cv_trim(nf, str(name or channel_id), W - pad - (pad + bw + 4))
     nh = nf.getbbox('Ag')[3] - nf.getbbox('Ag')[1]
-    _cv_text(draw, pad + bw + 4, pad + max(0, (bh - nh) // 2), ns, nf, _CV_TXT)
-    top = pad + bh + 2
+    _cv_text(draw, pad + bw + 4, 1 + max(0, (bh - nh) // 2), ns, nf, _CV_TXT)
+    top = 1 + bh + 2
 
     # The latest upload earns the bottom row only where the panel is tall enough.
     title = (titles[0] if titles else '') if H >= 48 else ''
@@ -253,14 +253,17 @@ def fetch_matrix(settings, canvas, i18n=None):
     th = (tf.getbbox('Ag')[3] - tf.getbbox('Ag')[1] + 2) if title else 0
 
     # The number, large, with its label under (beside, on a squat panel).
-    body_h = H - top - pad - th
+    body_h = H - top - 1 - th
     lf = _cv_fit(canvas, label, W - 2 * pad, max(6, int(H * 0.13)))
     lh = lf.getbbox(label)[3] - lf.getbbox(label)[1]
     stacked = body_h >= lh + 12
     cf = _cv_fit(canvas, big, W - 2 * pad, body_h - (lh + 2 if stacked else 0))
     ch = cf.getbbox(big)[3] - cf.getbbox(big)[1]
     if stacked:
-        y = top + max(0, (body_h - ch - lh - 2) // 2)
+        # Centered above the title row; with no title beneath, the block itself
+        # sinks to the panel's bottom edge.
+        y = top + (max(0, (body_h - ch - lh - 2) // 2) if title
+                   else max(0, body_h - ch - lh - 2 + 1))
         _cv_text(draw, (W - cf.getlength(big)) / 2.0, y, big, cf, _CV_TXT)
         _cv_text(draw, (W - lf.getlength(label)) / 2.0, y + ch + 2, label, lf, _CV_RED)
     else:
@@ -271,13 +274,13 @@ def fetch_matrix(settings, canvas, i18n=None):
             short = ''
         total = cf.getlength(big) + (4 + lf.getlength(short) if short else 0)
         x = max(pad, (W - total) / 2.0)
-        y = top + max(0, (body_h - ch) // 2)
+        y = top + (max(0, (body_h - ch) // 2) if title else max(0, body_h - ch + 1))
         _cv_text(draw, x, y, big, cf, _CV_TXT)
         if short:
             _cv_text(draw, x + cf.getlength(big) + 4, y + max(0, ch - lh), short, lf, _CV_RED)
 
     if title:
-        _cv_text(draw, pad, H - pad - (th - 2), _cv_trim(tf, title, W - 2 * pad), tf, _CV_DIM)
+        _cv_text(draw, pad, H - 1 - (th - 2), _cv_trim(tf, title, W - 2 * pad), tf, _CV_DIM)
 
     canvas.frame(img)
     return 120.0

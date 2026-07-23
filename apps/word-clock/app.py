@@ -362,31 +362,37 @@ def _lit_keys(h, rounded):
 
 def _grid_font(canvas, W, H):
     """One size for the whole face: the largest at which every row fits the
-    width and six rows fit the height."""
-    size = max(5, H // 6)
+    width and six rows of ink (with a pixel of breathing each) fill the height.
+    Returns (font, ink_height, word_gap, top_offset)."""
+    size = max(5, H // 5)
     while size > 5:
         font = canvas.font(size)
-        lh = font.getbbox('AG')[3]
+        b = font.getbbox('AG')
+        ih = b[3] - b[1]
         gap = font.getlength(' ') * 1.4
         widest = max(sum(font.getlength(w) for w, _, _ in row) + gap * (len(row) - 1)
                      for row in _GRID_EN)
-        if widest <= W - 6 and len(_GRID_EN) * (lh + 2) - 2 <= H - 4:
-            return font, lh, gap
+        if widest <= W - 4 and len(_GRID_EN) * ih + (len(_GRID_EN) - 1) <= H - 2:
+            return font, ih, gap, b[1]
         size -= 1
     font = canvas.font(5)
-    return font, font.getbbox('AG')[3], font.getlength(' ')
+    b = font.getbbox('AG')
+    return font, b[3] - b[1], font.getlength(' '), b[1]
 
 
 def _draw_grid(canvas, draw, h, rounded):
     W, H = canvas.width, canvas.height
     lit = _lit_keys(h, rounded)
-    font, lh, gap = _grid_font(canvas, W, H)
+    font, ih, gap, top_off = _grid_font(canvas, W, H)
     rows = len(_GRID_EN)
-    row_pitch = (H - 4) / rows
+    # The face rides the edges: the first row's ink on row 1, the last row's on
+    # H-2 (the bbox can under-report a pixel — hence not 0 and H-1), the slack
+    # spread evenly between the word bands.
+    lead = (H - 2 - rows * ih) / (rows - 1)
     for r, row in enumerate(_GRID_EN):
         row_w = sum(font.getlength(w) for w, _, _ in row) + gap * (len(row) - 1)
         x = (W - row_w) / 2.0
-        y = 2 + r * row_pitch + (row_pitch - lh) / 2.0
+        y = 1 + r * (ih + lead) - top_off
         for word, role, key in row:
             on = (role, key) in lit
             col = _OFF_COL if not on else (_HOUR_COL if role == 'hr' else _LIT_COL)
@@ -395,9 +401,16 @@ def _draw_grid(canvas, draw, h, rounded):
     return True
 
 
+def _measure_lines(font, lines):
+    """Per-line real ink heights (uppercase lines carry no descender — 'Ag'
+    metrics would bank phantom slack) and the inter-line breathing gap."""
+    inks = [(lambda b: b[3] - b[1])(font.getbbox(' '.join(ln) or 'A')) for ln in lines]
+    return inks, max(1, max(inks) // 5)
+
+
 def _cv_wrap_fit(canvas, words, max_w, max_h, max_lines):
-    """Largest font at which ``words`` pack into <= ``max_lines`` lines fitting the
-    box. Returns (font, lines_of_words, line_height, gap)."""
+    """Largest font at which ``words`` pack into <= ``max_lines`` lines fitting
+    the box, measured by the lines' real ink. Returns (font, lines, inks, gap)."""
     def pack(font):
         lines, cur, cur_w = [], [], 0.0
         space = font.getlength(' ')
@@ -419,17 +432,18 @@ def _cv_wrap_fit(canvas, words, max_w, max_h, max_lines):
     for _ in range(80):
         font = canvas.font(size)
         lines = pack(font)
-        lh = font.getbbox('Ag')[3] - font.getbbox('Ag')[1]
-        gap = max(1, lh // 5)
-        total = len(lines) * lh + (len(lines) - 1) * gap
+        inks, gap = _measure_lines(font, lines)
+        total = sum(inks) + (len(lines) - 1) * gap
         packed = sum(len(ln) for ln in lines)
         widest = max((sum(font.getlength(w) for w in ln)
                       + font.getlength(' ') * (len(ln) - 1) for ln in lines), default=0)
         if size <= 5 or (total <= max_h and widest <= max_w and packed >= len(words)):
-            return font, lines, lh, gap
+            return font, lines, inks, gap
         size -= 1
     font = canvas.font(5)
-    return font, pack(font), 6, 1
+    lines = pack(font)
+    inks, gap = _measure_lines(font, lines)
+    return font, lines, inks, gap
 
 
 def _draw_sentence(canvas, draw, words):
@@ -437,11 +451,35 @@ def _draw_sentence(canvas, draw, words):
     bright — the fallback face for other languages and small panels."""
     W, H = canvas.width, canvas.height
     words = [w.upper() for w in words if w]
-    font, lines, lh, gap = _cv_wrap_fit(canvas, words, W - 6, H - 6, 3)
-    total = len(lines) * lh + (len(lines) - 1) * gap
-    y = (H - total) / 2.0
+    font, lines, inks, gap = _cv_wrap_fit(canvas, words, W - 4, H - 2, 3)
+
+    if len(lines) == 1 and len(words) >= 2 and inks[0] < 0.7 * (H - 2):
+        # A short phrase ("IT'S NOON") fit one modest line — split it into two
+        # width-balanced lines instead and let them grow to fill the height.
+        ref = canvas.font(20)
+        cut = min(range(1, len(words)),
+                  key=lambda c: max(ref.getlength(' '.join(words[:c])),
+                                    ref.getlength(' '.join(words[c:]))))
+        cand = [words[:cut], words[cut:]]
+        size = H - 2
+        while size > 5:
+            f2 = canvas.font(size)
+            inks2, gap2 = _measure_lines(f2, cand)
+            widest = max(sum(f2.getlength(w) for w in ln)
+                         + f2.getlength(' ') * (len(ln) - 1) for ln in cand)
+            if widest <= W - 4 and sum(inks2) + gap2 <= H - 2:
+                break
+            size -= 1
+        if min(inks2) > inks[0]:
+            font, lines, inks, gap = f2, cand, inks2, gap2
+
+    # Vertically justified: the first line's ink on row 1, the last line's
+    # ending on H-2, the slack shared between the lines (a lone line centers).
+    n = len(lines)
+    lead = ((H - 2 - sum(inks)) / (n - 1)) if n > 1 else 0.0
+    y = 1 if n > 1 else (H - inks[0]) / 2.0
     idx = 0
-    for ln in lines:
+    for ln, ih in zip(lines, inks):
         line_w = sum(font.getlength(w) for w in ln) + font.getlength(' ') * (len(ln) - 1)
         x = (W - line_w) / 2.0
         for w in ln:
@@ -451,7 +489,7 @@ def _draw_sentence(canvas, draw, words):
                       fill=(96, 100, 112) if dim else _LIT_COL)
             x += font.getlength(w) + font.getlength(' ')
             idx += 1
-        y += lh + gap
+        y += ih + lead
     return True
 
 

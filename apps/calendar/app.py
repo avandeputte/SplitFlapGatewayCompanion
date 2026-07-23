@@ -409,28 +409,34 @@ def _cv_chip_label(when, all_day, now, i18n, cf_probe):
 
 
 def _cv_chip(canvas, draw, x, y, h, label, color, max_w):
-    """A rounded time chip; returns its width."""
+    """A rounded time chip; returns its width. The label's ink top is clamped to
+    y+2 — a fitted font's real ink can overshoot its bbox by a couple of rows, and
+    a chip riding the panel's top edge must never clip its glyph tops."""
     cf = _cv_fit(canvas, label, max_w, h - 3)
     cb = cf.getbbox(label)
     cw = int(cf.getlength(label)) + 7
     draw.rounded_rectangle([x, y, x + cw, y + h - 1], radius=2, fill=color)
-    draw.text((x + (cw - cf.getlength(label)) / 2.0,
-               y + (h - 1 - (cb[3] - cb[1])) / 2.0 - cb[1]), label, font=cf, fill=_INK)
+    ly = max(y + 2 - cb[1], y + (h - 1 - (cb[3] - cb[1])) / 2.0 - cb[1])
+    draw.text((x + (cw - cf.getlength(label)) / 2.0, ly), label, font=cf, fill=_INK)
     return cw
 
 
-def _cv_title(canvas, draw, summary, x, y, w, h):
+def _cv_title(canvas, draw, summary, x, y, w, h, cap_h=None, bottom=False):
     """The event title: whole at the largest size that fits, else held at a readable
     size and ellipsised. (Point size, not ink height, is the readability test — a
-    mixed-case bbox includes descenders and lies about how small the type is.)"""
-    tf = _cv_fit(canvas, summary, w, h)
+    mixed-case bbox includes descenders and lies about how small the type is.)
+    ``cap_h`` caps the type below the box height; ``bottom`` sinks the ink to the
+    box's last row instead of centering (the panel-edge row)."""
+    fit_h = min(h, cap_h) if cap_h else h
+    tf = _cv_fit(canvas, summary, w, fit_h)
     text = summary
     if tf.size < 9:
-        cap = 8 if w < 80 else int(h * 0.75)                 # narrow panels: chars over size
+        cap = 8 if w < 80 else int(fit_h * 0.75)             # narrow panels: chars over size
         tf = _cv_fit(canvas, '0', w, max(8, cap))
         text = _cv_ellipsis(tf, summary, w)
     tb = tf.getbbox(text or '0')
-    draw.text((x, y + (h - (tb[3] - tb[1])) / 2.0 - tb[1]), text, font=tf, fill=_WHITE)
+    ty = y + h - (tb[3] - tb[1]) if bottom else y + (h - (tb[3] - tb[1])) / 2.0
+    draw.text((x, ty - tb[1]), text, font=tf, fill=_WHITE)
 
 
 def fetch_matrix(settings, canvas, i18n=None):
@@ -469,25 +475,30 @@ def fetch_matrix(settings, canvas, i18n=None):
         return lambda label: _cv_fit(canvas, label, max_w, chip_h - 3).size >= 8
 
     if H >= 48:
-        # Stacked agenda: each event is a time chip over its title. Three events
-        # only on a panel tall enough to keep the titles readable.
+        # Stacked agenda: each event is a time chip over its title, the events cut
+        # into full-height bands — the first chip rides row 0, the last title's ink
+        # sinks to the panel's last row. Three events only on a panel tall enough
+        # to keep the titles readable.
         want = 3 if H >= 96 else 2
         shown = upcoming[:want]
-        row_h = (H - 2) // len(shown)
-        chip_h = max(11, int(row_h * 0.42))
+        n = len(shown)
         for i, (when, all_day, summary) in enumerate(shown):
-            ry = 1 + i * row_h
+            ry = round(i * H / n)
+            band_h = round((i + 1) * H / n) - ry
+            chip_h = max(11, int(band_h * 0.42))
             label = _cv_chip_label(when, all_day, now, i18n, probe(chip_h, W - 10))
             _cv_chip(canvas, draw, 2, ry, chip_h, label, _cv_chip_color(when, now), W - 10)
-            title_h = min(row_h - chip_h - 2, chip_h + 5)     # consistent rows, no ballooning
-            _cv_title(canvas, draw, summary, 4, ry + chip_h + 1, W - 8, title_h)
+            title_h = band_h - chip_h - (1 if i == n - 1 else 2)
+            _cv_title(canvas, draw, summary, 4, ry + chip_h + 1, W - 8, title_h,
+                      cap_h=chip_h + 5, bottom=(i == n - 1))   # consistent rows, no ballooning
     else:
-        # Short panel: one event — the chip line over the title, both full width.
+        # Short panel: one event — the chip on the top edge, the title's ink on the
+        # bottom one, both full width.
         when, all_day, summary = upcoming[0]
         chip_h = max(11, int(H * 0.42))
         label = _cv_chip_label(when, all_day, now, i18n, probe(chip_h, W - 10))
-        _cv_chip(canvas, draw, 1, 1, chip_h, label, _cv_chip_color(when, now), W - 10)
-        _cv_title(canvas, draw, summary, 2, chip_h + 2, W - 4, H - chip_h - 3)
+        _cv_chip(canvas, draw, 1, 0, chip_h, label, _cv_chip_color(when, now), W - 10)
+        _cv_title(canvas, draw, summary, 2, chip_h + 1, W - 4, H - chip_h - 1, bottom=True)
 
     canvas.frame(img)
     return 120.0

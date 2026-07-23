@@ -391,11 +391,9 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
 
     # Side-by-side calendar card only where it earns its space; otherwise stack.
     if W >= 104 and H >= 34:
-        m = 3
-        cs = H - 2 * m                                   # a square card filling the height
-        cs = min(cs, int(W * 0.42))
-        x0, y0 = m, m
-        band_h = max(9, int(cs * 0.34))
+        cs = min(H - 1, int(W * 0.42))    # a square card riding the full height
+        x0, y0 = 2, (H - 1 - cs) // 2     # (centered when the width caps it —
+        band_h = max(9, int(cs * 0.34))   # the text column pins the edges then)
         # card body + red month band + big day number
         draw.rounded_rectangle([x0, y0, x0 + cs, y0 + cs], radius=3, fill=_CARD, outline=_CARD_EDGE)
         draw.rounded_rectangle([x0, y0, x0 + cs, y0 + band_h], radius=3, fill=_BAND)
@@ -410,36 +408,38 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
         draw.text((x0 + (cs - df.getlength(day)) / 2.0,
                    y0 + band_h + (low_h - (db[3] - db[1])) / 2.0 - db[1] - 1), day, font=df, fill=_DAY)
 
-        # Right column: the holiday name (as many lines as fit) over the countdown.
+        # Right column: the holiday name (as many lines as fit) pinned to the
+        # top row, the countdown pinned to the bottom row.
         rx = x0 + cs + 5
         rw = W - 3 - rx
         cf = _cv_fit(canvas, when, rw, max(7, int(H * 0.20)))
         cb = cf.getbbox(when)
         ch = cb[3] - cb[1]
-        name_h = H - 4 - ch - 2
+        name_h = H - 4 - ch
         nf, lines, lh, gap = _cv_wrap_fit(canvas, pre + name, rw, name_h, 3)
-        block = len(lines) * lh + (len(lines) - 1) * gap
-        ny = max(2.0, (name_h - block) / 2.0 + 2)
+        ny = 1.0
         for ln in lines:
             _cv_shadow(draw, rx, ny - nf.getbbox(ln)[1], ln, nf, _NAME)
             ny += lh + gap
-        _cv_shadow(draw, rx, H - 3 - ch - cb[1], when, cf, when_col)
+        _cv_shadow(draw, rx, H - 1 - ch - cb[1], when, cf, when_col)
         return img
 
-    # Compact: a colored date strip across the top, the wrapped name filling the rest.
+    # Compact: a colored date strip pinned to the top row, the wrapped name
+    # filling the rest, its last line pinned to the bottom row.
     strip = f'{dow} {mon} {day}'
     sf = _cv_fit(canvas, strip, W - 6, max(7, int(H * 0.30)))
     sb = sf.getbbox(strip)
     sh = sb[3] - sb[1]
-    _cv_shadow(draw, (W - sf.getlength(strip)) / 2.0, 2 - sb[1], strip, sf, when_col)
+    _cv_shadow(draw, (W - sf.getlength(strip)) / 2.0, 1 - sb[1], strip, sf, when_col)
     # a thin divider under the strip
-    dv = int(2 + sh + 3)
+    dv = int(1 + sh + 3)
     draw.line([(3, dv), (W - 4, dv)], fill=_BAND)
     body_top = dv + 2
-    body_h = H - body_top - 2
+    body_h = H - 1 - body_top
     nf, lines, lh, gap = _cv_wrap_fit(canvas, pre + name, W - 6, body_h, 3)
-    block = len(lines) * lh + (len(lines) - 1) * gap
-    ny = body_top + max(0.0, (body_h - block) / 2.0)
+    last_ink = (lambda b: b[3] - b[1])(nf.getbbox(lines[-1] or 'A'))
+    # Anchor the block so the last line's ink lands on the bottom row.
+    ny = max(float(body_top), H - last_ink - (len(lines) - 1) * (lh + gap))
     for ln in lines:
         _cv_shadow(draw, (W - nf.getlength(ln)) / 2.0, ny - nf.getbbox(ln)[1], ln, nf, _NAME)
         ny += lh + gap

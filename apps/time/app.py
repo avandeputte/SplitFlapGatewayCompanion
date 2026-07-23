@@ -117,37 +117,66 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
 
-    # Weekday + date under the clock only where they don't crowd it out.
-    date_h = max(8, int(H * 0.18)) if H >= 48 else 0
-    time_h = H - 4 - (date_h + 2 if date_h else 0)
+    # Layout: the clock pinned to the top row and grown as large as the panel
+    # allows; weekday + date pinned to the bottom row — one quiet line, or two
+    # bigger ones when the clock's width-bound leaves the room. (Ink starts and
+    # ends 1px inside the edge: the reported bbox can under-report a pixel.)
+    gap = 2
+    date_min = max(7, int(H * 0.16))
+    time_h = H - 3 - date_min - gap
 
-    tf = _cv_fit(canvas, main, W - 6 - (int(W * 0.12) if ampm else 0), time_h)
+    tf = _cv_fit(canvas, main, W - 2 - (int(W * 0.12) if ampm else 0), time_h)
     if seconds and (lambda b: b[3] - b[1])(tf.getbbox('0')) < 10:
         # Seconds would drive the digits below legible — a small panel shows
         # H:MM big instead (and quietly redraws each minute).
         seconds = False
         main, ampm = _split_ampm(_clock(settings, i18n, now, False))
-        tf = _cv_fit(canvas, main, W - 6 - (int(W * 0.12) if ampm else 0), time_h)
+        tf = _cv_fit(canvas, main, W - 2 - (int(W * 0.12) if ampm else 0), time_h)
     tb = tf.getbbox(main)
     tw, th = tf.getlength(main), tb[3] - tb[1]
     af = _cv_fit(canvas, ampm, int(W * 0.16), max(7, int(th * 0.38))) if ampm else None
     aw = (af.getlength(ampm) + 2) if ampm else 0
 
     tx = (W - tw - aw) / 2.0
-    ty = (H - (date_h + 2 if date_h else 0) - th) / 2.0
+    ty = 1
     draw.text((tx, ty - tb[1]), main, font=tf, fill=_TIME_COL)
     if ampm:
         ab = af.getbbox(ampm)
         # The tag rides the clock's baseline.
         draw.text((tx + tw + 2, ty + th - (ab[3] - ab[1]) - ab[1]), ampm, font=af, fill=_AMPM_COL)
 
-    if date_h:
-        weekday, date_line = _day_lines(now, i18n)
-        under = f'{weekday}  {date_line}'.upper()
-        df = _cv_fit(canvas, under, W - 6, date_h)
+    # The date fills what the clock left, pinned to the bottom edge.
+    weekday, date_line = _day_lines(now, i18n)
+    leftover = (H - 2) - th - gap               # ink rows left under the clock
+    if leftover >= 12 and W >= 96:
+        # Room to mirror the tall flap wall: weekday and date, stacked.
+        lgap = 2
+        per = min((leftover - lgap) / 2.0, max(6, int(H * 0.2)))
+        # Reported bottom rides H-1: tiny sizes render a row HIGH, never low,
+        # so the last ink row lands on H-1 or H-2 and can't clip.
+        y_bot = H - 1
+        for line in (date_line.upper(), weekday.upper()):       # bottom-up
+            f = _cv_fit(canvas, line, W - 2, per)
+            b = f.getbbox(line)
+            lh = b[3] - b[1]
+            draw.text(((W - f.getlength(line)) / 2.0, y_bot - lh + 1 - b[1]),
+                      line, font=f, fill=_DATE_COL)
+            y_bot -= lh + lgap
+    else:
+        if W < 96:
+            # Short forms buy a narrow panel a font that stays readable.
+            if i18n is not None:
+                under = (f'{i18n.weekday(now, short=True)} {now.day} '
+                         f'{i18n.month(now, short=True)}').upper()
+            else:
+                under = f"{now.strftime('%a %b')} {now.day}".upper()
+        else:
+            under = f'{weekday}  {date_line}'.upper()
+        df = _cv_fit(canvas, under, W - 2, max(6, leftover))
         db = df.getbbox(under)
-        dy = H - 2 - (db[3] - db[1])
-        draw.text(((W - df.getlength(under)) / 2.0, dy - db[1]), under, font=df, fill=_DATE_COL)
+        dh = db[3] - db[1]
+        draw.text(((W - df.getlength(under)) / 2.0, H - dh - db[1]),
+                  under, font=df, fill=_DATE_COL)
 
     canvas.frame(img)
     if seconds:

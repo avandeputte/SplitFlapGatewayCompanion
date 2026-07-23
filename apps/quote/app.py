@@ -166,13 +166,13 @@ def _cv_header(canvas, draw, label):
     hh = max(7, int(H * 0.19))
     x = 3
     if W >= 96 and H >= 48:
-        x += _cv_motif(canvas, draw, 3, 2, hh) + 4
+        x += _cv_motif(canvas, draw, 3, 1, hh) + 4
     f = _cv_fit(canvas, label, W - x - 3, hh)
     b = f.getbbox(label)
-    draw.text((x, 2 - b[1]), label, font=f, fill=_ACCENT)
-    ry = 2 + max(hh, b[3] - b[1]) + 2
+    draw.text((x, 1 - b[1]), label, font=f, fill=_ACCENT)
+    ry = 1 + max(hh, b[3] - b[1]) + 2
     draw.line([(3, ry), (W - 4, ry)], fill=tuple(c // 3 for c in _ACCENT))
-    return ry + 3
+    return ry + 2
 
 
 def _cv_card(canvas, ImageDraw, label, body, sub, page):
@@ -184,31 +184,44 @@ def _cv_card(canvas, ImageDraw, label, body, sub, page):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
     top = _cv_header(canvas, draw, label)
-    bottom = H - 2
     if sub and H < 44:
         body = f'{body}  {sub}'       # tiny panel: the author flows with the text
         sub = ''
     sf = sb = None
+    limit = H                         # the first row past the body's region
     if sub:
         sf = _cv_fit(canvas, sub, int(W * 0.72), max(7, int(H * 0.15)))
         sb = sf.getbbox(sub)
-        bottom = H - 2 - (sb[3] - sb[1]) - 2
-    font, pages, lh, gap = _cv_pages(canvas, body, W - 6, bottom - top)
+        limit = H - (sb[3] - sb[1]) - 2          # the author line owns the floor
+    font, pages, lh, gap = _cv_pages(canvas, body, W - 6, limit - top)
+    dots = 1 < len(pages) <= 8 and H >= 44
+    if dots and not sub:              # dots take the bottom rows when no author does
+        font, pages, lh, gap = _cv_pages(canvas, body, W - 6, limit - top - 3)
+        dots = 1 < len(pages) <= 8
     n = len(pages)
     lines = pages[page % n]
     base = font.getbbox('Ag')[1]
-    block = len(lines) * lh + (len(lines) - 1) * gap
-    y = top + max(0.0, (bottom - top - block) / 2.0)
+    bottom = limit - 4 if (dots and not sub) else limit - 1   # last body ink row
+    fb = font.getbbox(lines[0] or '0')
+    lb = font.getbbox(lines[-1] or '0')
+    step = lh + gap
+    if len(lines) > 1:
+        # The font is already at its cap, so fill by leading: stretch the line
+        # gaps (up to one line-height) until the block spans the whole region.
+        span = (len(lines) - 1) * step + (lb[3] - base) - (fb[1] - base)
+        step += max(0, min(lh, (bottom + 1 - top - span) // (len(lines) - 1)))
+    # Anchor the block to the floor; any leftover rides under the header rule.
+    y = bottom + 1 - (lb[3] - base) - step * (len(lines) - 1)
     for ln in lines:
         draw.text(((W - font.getlength(ln)) / 2.0, y - base), ln, font=font, fill=_TEXT)
-        y += lh + gap
+        y += step
     if sub:
-        draw.text((W - 3 - sf.getlength(sub), H - 2 - (sb[3] - sb[1]) - sb[1]),
+        draw.text((W - 3 - sf.getlength(sub), H - (sb[3] - sb[1]) - sb[1]),
                   sub, font=sf, fill=_ACCENT)
-    if 1 < n <= 8 and H >= 44:
+    if dots:
         for i in range(n):
             c = _ACCENT if i == (page % n) else _DOT_OFF
-            draw.rectangle([3 + i * 5, H - 4, 4 + i * 5, H - 3], fill=c)
+            draw.rectangle([3 + i * 5, H - 2, 4 + i * 5, H - 1], fill=c)
     return img, n
 
 

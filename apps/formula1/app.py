@@ -253,26 +253,27 @@ def fetch_matrix(settings, canvas, i18n=None):
         cf = _cv_fit(canvas, chip, int(W * 0.2), head_h - 4)
         cb = cf.getbbox(chip)
         cw = int(cf.getlength(chip)) + 6
-        draw.rounded_rectangle([2, 2, 2 + cw, head_h - 1], radius=2, fill=_F1_RED)
+        draw.rounded_rectangle([2, 1, 2 + cw, head_h - 1], radius=2, fill=_F1_RED)
         draw.text((2 + (cw - cf.getlength(chip)) / 2.0,
-                   2 + (head_h - 3 - (cb[3] - cb[1])) / 2.0 - cb[1]), chip, font=cf, fill=_WHITE)
+                   1 + (head_h - 2 - (cb[3] - cb[1])) / 2.0 - cb[1]), chip, font=cf, fill=_WHITE)
         ww = 0
         if when:
             wf = _cv_fit(canvas, when, int(W * 0.45), max(7, head_h - 6))
             wb = wf.getbbox(when)
             ww = wf.getlength(when)
             draw.text((W - 3 - ww,
-                       2 + (head_h - 3 - (wb[3] - wb[1])) / 2.0 - wb[1]), when, font=wf, fill=_WHITE)
+                       1 + (head_h - 2 - (wb[3] - wb[1])) / 2.0 - wb[1]), when, font=wf, fill=_WHITE)
         # "NEXT RACE" only where it can hold a readable size — the chip and date carry
         # the meaning on their own when it can't.
         lbl = 'NEXT RACE'
         lf = _cv_fit(canvas, lbl, W - cw - 14 - ww, max(7, head_h - 6))
         lb = lf.getbbox(lbl)
         if (lb[3] - lb[1]) >= 6:
-            draw.text((2 + cw + 5, 2 + (head_h - 3 - (lb[3] - lb[1])) / 2.0 - lb[1]), lbl, font=lf, fill=_GRAY)
+            draw.text((2 + cw + 5, 1 + (head_h - 2 - (lb[3] - lb[1])) / 2.0 - lb[1]), lbl, font=lf, fill=_GRAY)
         draw.line([(2, head_h + 1), (W - 3, head_h + 1)], fill=_F1_RED)
 
-        # Footer: the countdown (left) and the championship leader in what's left.
+        # Footer: the countdown (left) and the championship leader in what's left,
+        # both sitting their ink on the bottom row — no dark rows under the card.
         foot_h = max(9, int(H * 0.19))
         fy = H - foot_h - 1
         cdw = 0
@@ -280,7 +281,7 @@ def fetch_matrix(settings, canvas, i18n=None):
             ff = _cv_fit(canvas, cd, int(W * 0.55), foot_h)
             fb = ff.getbbox(cd)
             cdw = ff.getlength(cd)
-            draw.text((3, fy + (foot_h - (fb[3] - fb[1])) / 2.0 - fb[1]), cd, font=ff, fill=cd_col)
+            draw.text((3, H - fb[3]), cd, font=ff, fill=cd_col)
         if leader:
             avail = W - 6 - cdw - 8
             gf = _cv_fit(canvas, leader, avail, foot_h)
@@ -289,8 +290,8 @@ def fetch_matrix(settings, canvas, i18n=None):
                 gf = _cv_fit(canvas, leader, avail, foot_h)
             gb = gf.getbbox(leader)
             if (gb[3] - gb[1]) >= 6:
-                draw.text((W - 3 - gf.getlength(leader),
-                           fy + (foot_h - (gb[3] - gb[1])) / 2.0 - gb[1]), leader, font=gf, fill=_GRAY)
+                draw.text((W - 3 - gf.getlength(leader), H - gb[3]),
+                          leader, font=gf, fill=_GRAY)
 
         # Middle: the Grand Prix name, as big as it wraps.
         top = head_h + 3

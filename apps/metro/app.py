@@ -282,16 +282,24 @@ def fetch_matrix(settings, canvas):
         dest = str(dests.get(d_id) or f'Dir {d_id}').upper()
         rows.append((dest, *_cv_minutes(mins.get(d_id))))
 
+    # Two full-height bands under the bar: the first starts right beneath it, the
+    # second runs to the panel's last row — no leftover strip of dark LEDs.
     area_top = bar_h + 1
-    row_h = (H - area_top - 1) // 2
+    mid = area_top + (H - area_top) // 2
     unit = ' MIN' if W >= 128 else ''
     for i, (dest, mtxt, mcol) in enumerate(rows):
-        ry = area_top + i * row_h
+        ry, rb_ = (area_top, mid - 1) if i == 0 else (mid + 1, H - 1)
+        row_h = rb_ - ry + 1
         mm = mtxt if (mtxt in ('DUE', '--') or not unit) else f'{mtxt}{unit}'
         mf = _cv_fit(canvas, mm, int(W * 0.4), row_h - 2)
         mb = mf.getbbox(mm)
         mw = mf.getlength(mm)
-        draw.text((W - 3 - mw, ry + (row_h - (mb[3] - mb[1])) / 2.0 - mb[1]), mm, font=mf, fill=mcol)
+        # Centered in the band, but the last band's ink is pulled down to the
+        # panel's edge (the bbox habitually over-reports a pixel at the bottom).
+        my = ry + (row_h - (mb[3] - mb[1])) / 2.0
+        if i == 1:
+            my = max(my, rb_ - (mb[3] - mb[1]))
+        draw.text((W - 3 - mw, my - mb[1]), mm, font=mf, fill=mcol)
         # The whole destination at the largest size that fits the row; only when even
         # that would drop below readable, hold a readable size and ellipsise instead.
         avail = W - 8 - mw
@@ -301,9 +309,12 @@ def fetch_matrix(settings, canvas):
             df = _cv_fit(canvas, '0', avail, 7)              # readable floor; whole name if it fits
             dtext = _cv_ellipsis(df, dest, avail)
         db = df.getbbox(dtext or '0')
-        draw.text((3, ry + (row_h - (db[3] - db[1])) / 2.0 - db[1]), dtext, font=df, fill=_WHITE)
+        dy = ry + (row_h - (db[3] - db[1])) / 2.0
+        if i == 1:
+            dy = max(dy, rb_ - (db[3] - db[1]))
+        draw.text((3, dy - db[1]), dtext, font=df, fill=_WHITE)
         if i == 0:
-            draw.line([(2, area_top + row_h), (W - 3, area_top + row_h)], fill=(45, 50, 60))
+            draw.line([(2, mid), (W - 3, mid)], fill=(45, 50, 60))
 
     canvas.frame(img)
     return 30.0

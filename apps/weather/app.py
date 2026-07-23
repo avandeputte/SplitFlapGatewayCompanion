@@ -782,10 +782,10 @@ def _cv_card(canvas, ImageDraw, w, temp_unit, t):
         top = 0
         if H >= 52 and city:
             cf = _cv_fit(canvas, city, W - 8, 8)
-            _cv_text(draw, 4, 2, city, cf, _CV_DIM)
-            top = 2 + _cv_ink(cf, city) + 2
+            _cv_text(draw, 4, 1, city, cf, _CV_DIM)
+            top = 1 + _cv_ink(cf, city) + 2
         ah = H - top                                  # the card area under the strip
-        tf = _cv_fit(canvas, temp, int(W * 0.42), int(ah * 0.80))
+        tf = _cv_fit(canvas, temp, int(W * 0.46), ah)
         th = _cv_ink(tf, temp)
         _cv_text(draw, 4, top + (ah - th) / 2.0, temp, tf, _CV_TEXT)
         rx = 4 + tf.getlength(temp) + 7
@@ -794,48 +794,48 @@ def _cv_card(canvas, ImageDraw, w, temp_unit, t):
         # shrinking to the 7px floor on one; the wrap point is the space nearest
         # the middle, and both lines share the larger font that results.
         dlines = [desc]
-        df = _cv_fit(canvas, desc, rw, max(8, int(ah * 0.34)))
+        df = _cv_fit(canvas, desc, rw, max(8, int(ah * 0.40)))
         words = desc.split()
         if len(words) > 1 and df.size < 9:
             mid = min(range(1, len(words)),
                       key=lambda i: abs(len(' '.join(words[:i])) - len(desc) / 2))
             dlines = [' '.join(words[:mid]), ' '.join(words[mid:])]
             longest = max(dlines, key=lambda s: len(s))
-            df = _cv_fit(canvas, longest, rw, max(8, int(ah * 0.26)))
+            df = _cv_fit(canvas, longest, rw, max(8, int(ah * 0.30)))
         dh = _cv_ink(df, 'AG')
         hl = f'H {hi}  L {lo}'
-        hf = _cv_fit(canvas, hl, rw, max(7, int(ah * 0.28)))
+        hf = _cv_fit(canvas, hl, rw, max(7, int(ah * 0.30)))
         hh = _cv_ink(hf, hl)
-        gap = max(2, ah // 10)
         dgap = max(1, dh // 5)
-        block = len(dlines) * dh + (len(dlines) - 1) * dgap + gap + hh
-        y = top + max(0.0, (ah - block) / 2.0)
+        # The condition hangs from the top edge (or the city strip) and the
+        # high/low sits its ink on the bottom row — the card spends the whole
+        # height instead of banking slack above and below a centered block.
+        y = top if top else 1
         for ln in dlines:
             _cv_text(draw, rx, y, ln, df, accent)
             y += dh + dgap
-        hilo_row(rx, y - dgap + gap, hf)
+        hilo_row(rx, H - hh, hf)
     else:
-        # Stacked: temperature + high/low up top, the condition strip below.
-        top_h = int(H * 0.64)
-        tf = _cv_fit(canvas, temp, int(W * 0.52), top_h - 2)
-        th = _cv_ink(tf, temp)
-        _cv_text(draw, 3, (top_h - th) / 2.0, temp, tf, _CV_TEXT)
-        hi_s, lo_s = f'H {hi}', f'L {lo}'
-        rw = W - 6 - (3 + tf.getlength(temp))
-        sf = _cv_fit(canvas, max(hi_s, lo_s, key=len), rw, max(7, (top_h - 4) // 2))
-        sh = _cv_ink(sf, hi_s)
-        rx = W - 3 - max(sf.getlength(hi_s), sf.getlength(lo_s))
-        gap = max(1, (top_h - 2 * sh) // 3)
-        _cv_text(draw, rx, gap, hi_s, sf, _CV_HI)
-        _cv_text(draw, rx, gap + sh + gap, lo_s, sf, _CV_LO)
-        df = _cv_fit(canvas, desc, W - 4, max(7, H - top_h - 3))
+        # Stacked: temperature + high/low hung from the top edge, the condition
+        # strip sitting on the bottom row — every row of the panel works.
+        df = _cv_fit(canvas, desc, W - 4, max(7, int(H * 0.30)))
         if df.size < 7 and ' ' in desc:
             # Too long for a legible line: keep the noun ("CLOUDY", "RAIN"),
             # not a smaller alphabet.
             desc = desc.split()[-1]
-            df = _cv_fit(canvas, desc, W - 4, max(7, H - top_h - 3))
-        _cv_text(draw, (W - df.getlength(desc)) / 2.0,
-                 top_h + (H - top_h - _cv_ink(df, desc)) / 2.0, desc, df, accent)
+            df = _cv_fit(canvas, desc, W - 4, max(7, int(H * 0.30)))
+        dh = _cv_ink(df, desc)
+        top_h = H - dh - 2                            # everything above the strip
+        tf = _cv_fit(canvas, temp, int(W * 0.58), top_h - 1)
+        _cv_text(draw, 3, 1, temp, tf, _CV_TEXT)
+        hi_s, lo_s = f'H {hi}', f'L {lo}'
+        rw = W - 6 - (3 + tf.getlength(temp))
+        sf = _cv_fit(canvas, max(hi_s, lo_s, key=len), rw, max(7, (top_h - 3) // 2))
+        sh = _cv_ink(sf, hi_s)
+        rx = W - 3 - max(sf.getlength(hi_s), sf.getlength(lo_s))
+        _cv_text(draw, rx, 1, hi_s, sf, _CV_HI)
+        _cv_text(draw, rx, top_h - 1 - sh, lo_s, sf, _CV_LO)
+        _cv_text(draw, (W - df.getlength(desc)) / 2.0, H - dh, desc, df, accent)
     return img
 
 

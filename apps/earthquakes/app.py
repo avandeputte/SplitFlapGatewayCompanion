@@ -215,7 +215,7 @@ def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
     ms = f'M{mag:.1f}' if isinstance(mag, (int, float)) else 'M?'
 
     bar_h = max(3, H // 10)
-    by1 = H - 2
+    by1 = H - 1                            # the bar sits on the bottom row
     by0 = by1 - bar_h
     draw.rectangle([2, by0, W - 3, by1], fill=_CV_TRACK)
     if isinstance(mag, (int, float)):
@@ -228,51 +228,52 @@ def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
         tx = 2 + round((W - 5) * tick / 9.0)
         draw.line([(tx, by0), (tx, by1)], fill=(0, 0, 0))
 
-    area_h = by0 - 4
+    area_h = by0 - 3                       # everything above the bar (one dark row)
 
     if W < 96:
         # Stacked: the place gets the full width for one line it can actually
         # hold — falling back to its last comma segment (the country/state)
-        # rather than a smaller alphabet.
+        # rather than a smaller alphabet. The magnitude hangs from the top edge.
         mf = _cv_fit(canvas, ms, int(W * 0.60), int(area_h * 0.60))
         mh = _cv_ink(mf, ms)
-        _cv_text(draw, 3, 2, ms, mf, col)
+        _cv_text(draw, 3, 1, ms, mf, col)
         if ago:
             aw = W - 6 - mf.getlength(ms) - 4
             af = _cv_fit(canvas, ago, aw, max(7, int(mh * 0.55)))
             if af.size < 7 and ' ' in ago:
                 ago = ago.split()[0]       # '2H' still answers "when?"
                 af = _cv_fit(canvas, ago, aw, max(7, int(mh * 0.55)))
-            _cv_text(draw, W - 3 - af.getlength(ago), 2 + (mh - _cv_ink(af, ago)) / 2.0,
+            _cv_text(draw, W - 3 - af.getlength(ago), 1 + (mh - _cv_ink(af, ago)) / 2.0,
                      ago, af, _CV_DIM)
-        line_h = max(7, area_h - 2 - mh - 2)
+        line_h = max(7, area_h - 1 - mh - 2)
         lf = _cv_fit(canvas, loc, W - 6, line_h)
         if lf.size < 7 and ',' in loc:
             loc = loc.rsplit(',', 1)[-1].strip()
             lf = _cv_fit(canvas, loc, W - 6, line_h)
-        _cv_text(draw, 3, 2 + mh + 2 + max(0, (line_h - _cv_ink(lf, loc)) / 2.0),
+        _cv_text(draw, 3, 1 + mh + 2 + max(0, (line_h - _cv_ink(lf, loc)) / 2.0),
                  loc, lf, _CV_TEXT)
         return img
 
     sub = '  '.join(x for x in (dist, ago) if x)
     mf = _cv_fit(canvas, ms, int(W * 0.40), area_h)
     mw, mh = mf.getlength(ms), _cv_ink(mf, ms)
-    _cv_text(draw, 3, (area_h - mh) / 2.0 + 2, ms, mf, col)
+    _cv_text(draw, 3, max(1.0, (area_h - mh) / 2.0), ms, mf, col)
 
     rx = 3 + mw + 6
     rw = W - 3 - rx
     show_sub = H >= 44 and sub
     sub_f = _cv_fit(canvas, sub, rw, max(7, int(H * 0.15))) if show_sub else None
     sub_h = _cv_ink(sub_f, sub) if show_sub else 0
-    loc_h = area_h - ((sub_h + 2) if show_sub else 0)
+    loc_h = area_h - 1 - ((sub_h + 2) if show_sub else 0)
     lf, lines, lh, gap = _cv_wrap_fit(canvas, loc, rw, loc_h, 2)
-    block = len(lines) * lh + (len(lines) - 1) * gap + ((sub_h + 2) if show_sub else 0)
-    y = max(2.0, (area_h - block) / 2.0 + 2)
+    # The place hangs from the top edge; the dim distance/age line sits just
+    # above the bar — the card spends its whole height, no centered slack.
+    y = 1.0
     for ln in lines:
         _cv_text(draw, rx, y, ln, lf, _CV_TEXT)
         y += lh + gap
     if show_sub:
-        _cv_text(draw, rx, y, sub, sub_f, _CV_DIM)
+        _cv_text(draw, rx, by0 - 2 - sub_h, sub, sub_f, _CV_DIM)
     return img
 
 

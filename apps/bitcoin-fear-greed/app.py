@@ -174,11 +174,11 @@ def _cv_gauge(canvas, ImageDraw, value, label):
     if H >= 48:
         title = 'BTC FEAR & GREED'
         tf = _cv_fit(canvas, title, W - 6, 8)
-        _cv_text(draw, (W - tf.getlength(title)) / 2.0, 2, title, tf, _CV_DIM)
-        top = 2 + _cv_ink(tf, title) + 2
+        _cv_text(draw, (W - tf.getlength(title)) / 2.0, 1, title, tf, _CV_DIM)
+        top = 1 + _cv_ink(tf, title) + 2
 
     bar_h = max(4, H // 8)
-    by1 = H - max(2, H // 16)
+    by1 = H - 1                                    # the gauge sits on the bottom row
     by0 = by1 - bar_h
     x0, x1 = 3, W - 4
     for x in range(x0, x1 + 1):
@@ -187,13 +187,13 @@ def _cv_gauge(canvas, ImageDraw, value, label):
         f = 1.0 if v <= value else 0.25            # lit to the value, dim beyond it
         draw.line([(x, by0), (x, by1)], fill=tuple(int(ch * f) for ch in c))
     mx = x0 + round(value / 100.0 * (x1 - x0))
-    draw.rectangle([mx - 1, by0 - 2, mx + 1, by1 + 2], fill=(255, 255, 255))
+    draw.rectangle([mx - 1, by0 - 2, mx + 1, by1], fill=(255, 255, 255))
 
     mid_h = by0 - 3 - top
     vs = str(value)
     lab = label.upper()
     lab_lines = lab.split(None, 1) if (W < 110 and ' ' in lab) else [lab]
-    vf = _cv_fit(canvas, vs, int(W * 0.34), mid_h)
+    vf = _cv_fit(canvas, vs, int(W * 0.40), mid_h)
     vw, vh = vf.getlength(vs), _cv_ink(vf, vs)
     gap = 5
     lw_max = W - 8 - vw - gap
@@ -209,8 +209,11 @@ def _cv_gauge(canvas, ImageDraw, value, label):
     lblock = len(lab_lines) * lh + (len(lab_lines) - 1) * lgap
     lw = max(lf.getlength(ln) for ln in lab_lines)
     x = (W - (vw + gap + lw)) / 2.0
-    _cv_text(draw, x, top + (mid_h - vh) / 2.0, vs, vf, col)
-    ly = top + (mid_h - lblock) / 2.0
+    # With a title strip the block centers between it and the gauge; without one
+    # (short panels) the number hangs from the top edge so no rows go dark.
+    vy0 = top + (mid_h - vh) / 2.0 if top > 1 else float(top)
+    _cv_text(draw, x, vy0, vs, vf, col)
+    ly = vy0 + (vh - lblock) / 2.0
     for ln in lab_lines:
         _cv_text(draw, x + vw + gap, ly, ln, lf, _CV_TEXT)
         ly += lh + lgap

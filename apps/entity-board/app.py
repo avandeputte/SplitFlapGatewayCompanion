@@ -275,7 +275,12 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
         cols = 1 if n == 1 else 2 if n <= 4 else 3 if n <= 9 else 4
     cols = max(1, min(6, cols))
     rows = max(1, math.ceil(n / cols))
-    cw, ch = W // cols, H // rows
+    cw = W // cols
+    # Row bands span the FULL panel height (the remainder spread by rounding):
+    # the first card's border sits on row 0, the last on row H-1, one dark row
+    # between bands — no dead rows above or below the grid.
+    redges = [round(r * H / rows) for r in range(rows + 1)]
+    ch = min(redges[r + 1] - redges[r] for r in range(rows))
     tile = max(8, min(16, min(cw, ch) // 2)) & ~1
     show_name = ch >= tile + 12
     # A card narrower than ~28px can't fit an icon AND a readable value — the value wins,
@@ -288,7 +293,9 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
 
     for i, eid in enumerate(ids):
         r, c = divmod(i, cols)
-        x, y = c * cw, r * ch
+        x = c * cw
+        y = redges[r] if r == 0 else redges[r] + 1       # border on row 0 up top…
+        card_h = redges[r + 1] - y                       # …and on H-1 down below
         s = states.get(eid, {})
         domain = eid.split('.')[0]
         attrs = s.get('attributes') or {}
@@ -296,8 +303,8 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
         name = canvas.cp(cname or attrs.get('friendly_name') or eid.split('.', 1)[-1].replace('_', ' '))
         val, col = _mx_value(s.get('state'), attrs, thr, canvas.cp)
 
-        canvas.roundrect(x + 1, y + 1, cw - 2, ch - 2, 3, col, fill=False)   # black card, colored border
-        top_h = ch - (10 if show_name else 0)                                # icon + value share the top band
+        canvas.roundrect(x + 1, y, cw - 2, card_h, 3, col, fill=False)       # black card, colored border
+        top_h = card_h - (10 if show_name else 0)                            # icon + value share the top band
         vx0 = x + 3
         if use_sprites:
             canvas.sprite(_DOMAIN.get(domain, _N_ICONS - 1), x + 3, y + max(2, (top_h - tile) // 2))
@@ -305,7 +312,7 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
         vf = canvas.fit(val, (x + cw - 3) - vx0, top_h - 3)          # fit the value in the space right of the icon
         canvas.shadow_text((vx0 + x + cw - 3) // 2, y + max(2, (top_h - vf) // 2), val, col, vf, align='center')
         if show_name:
-            canvas.shadow_text(x + cw // 2, y + ch - 11, name[:max(4, (cw - 4) // 5)], (222, 228, 242), 8, align='center')
+            canvas.shadow_text(x + cw // 2, y + card_h - 10, name[:max(4, (cw - 4) // 5)], (222, 228, 242), 8, align='center')
 
     canvas.show()
     return 12.0

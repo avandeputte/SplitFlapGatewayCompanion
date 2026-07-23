@@ -301,11 +301,11 @@ def fetch_matrix(settings, canvas, i18n=None):
     head_h = max(8, min(12, int(H * 0.26)))
     head_f = _cv_fit(canvas, sample, int(W * 0.52) if W >= 128 else W - 4, head_h)
     hh = _cv_ink(head_f, sample)
-    end = tide_line(3, 2, upcoming[0], True)
+    end = tide_line(3, 1, upcoming[0], True)
     if W >= 128 and len(upcoming) > 1:
-        tide_line(end + max(8, W // 16), 2, upcoming[1], False)
+        tide_line(end + max(8, W // 16), 1, upcoming[1], False)
 
-    top = 2 + hh + 2
-    _cv_curve(draw, events, 2, top, W - 3, H - 2, float(now_min))
+    top = 1 + hh + 2
+    _cv_curve(draw, events, 2, top, W - 3, H - 1, float(now_min))
     canvas.frame(img)
     return 300.0

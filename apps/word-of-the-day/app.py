@@ -214,11 +214,11 @@ def fetch_matrix(settings, canvas, i18n=None):
     pad = 3
 
     # Header label — only where it doesn't crowd the word off a short panel.
-    top = pad
+    top = 1
     if H >= 48:
         hf = _cv_fit(canvas, header, W - 2 * pad, max(6, int(H * 0.12)))
-        _cv_text(draw, (W - hf.getlength(header)) / 2.0, pad, header, hf, _CV_LABEL)
-        top = pad + (hf.getbbox(header)[3] - hf.getbbox(header)[1]) + 3
+        _cv_text(draw, (W - hf.getlength(header)) / 2.0, 1, header, hf, _CV_LABEL)
+        top = 1 + (hf.getbbox(header)[3] - hf.getbbox(header)[1]) + 3
 
     # The gloss block first (its height decides how much the word may take).
     df = canvas.font(9)
@@ -237,18 +237,28 @@ def fetch_matrix(settings, canvas, i18n=None):
                 while last and df.getlength(last + '…') > W - 2 * pad:
                     last = last[:-1]
                 def_lines[-1] = last + '…'
-    def_h = (len(def_lines) * (dlh + 1) + 2) if def_lines else 0
+
+    # The gloss sits ON the panel floor: its last line's own ink ends at H-1.
+    floor = H                                   # the first row past the word's room
+    if def_lines:
+        glb = df.getbbox(def_lines[-1])
+        def_top = H - (glb[3] - glb[1]) - (len(def_lines) - 1) * (dlh + 1)
+        floor = def_top - 2
 
     # The word, as large as what's left allows.
-    wf = _cv_fit(canvas, word, W - 2 * pad, H - top - pad - def_h)
+    wf = _cv_fit(canvas, word, W - 2 * pad, floor - top)
     wh = wf.getbbox(word)[3] - wf.getbbox(word)[1]
-    free = H - top - pad - def_h - wh
-    wy = top + max(0, free // 2)
+    if not def_lines:
+        wy = max(top, H - wh)                   # nothing beneath: the word takes the floor
+    elif H >= 48:
+        wy = top + max(0, (floor - top - wh) // 2)
+    else:
+        wy = top                                # short panel: the word pins the top edge
     _cv_text(draw, (W - wf.getlength(word)) / 2.0, wy, word, wf, _CV_WORD)
 
     # part of speech + gloss, the pos picked out in the accent.
     if def_lines:
-        y = H - pad - len(def_lines) * (dlh + 1) + 1
+        y = def_top
         for i, ln in enumerate(def_lines):
             x = (W - df.getlength(ln)) / 2.0
             if i == 0 and pos and ln.startswith(pos):

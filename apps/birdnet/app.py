@@ -319,35 +319,40 @@ def _cv_detection_card(canvas, ImageDraw, bird):
     pct = f'{int(conf * 100)}%'
     col = _CV_ACCENT if conf >= 0.85 else _CV_AMBER
 
-    top = pad
+    top = 1                            # the header's ink rides row 1
     if H >= 48:                        # header row only where it doesn't crowd the name
         hf = _cv_fit(canvas, 'BIRDNET', W - 2 * pad, max(7, int(H * 0.14)))
-        _cv_text(draw, pad, pad, 'BIRDNET', hf, _CV_ACCENT)
+        _cv_text(draw, pad, 1, 'BIRDNET', hf, _CV_ACCENT)
         when = _cv_det_time(bird)
         if when:
-            _cv_text(draw, W - pad - hf.getlength(when), pad, when, hf, _CV_DIM)
-        top = pad + (hf.getbbox('BIRDNET')[3] - hf.getbbox('BIRDNET')[1]) + 3
+            _cv_text(draw, W - pad - hf.getlength(when), 1, when, hf, _CV_DIM)
+        top = 1 + (hf.getbbox('BIRDNET')[3] - hf.getbbox('BIRDNET')[1]) + 3
 
     bar_h = max(3, min(7, H // 9))
     pf = _cv_fit(canvas, pct, max(24, int(W * 0.22)), max(8, bar_h + 4))
     ph = pf.getbbox(pct)[3] - pf.getbbox(pct)[1]
-    bot_h = max(bar_h, ph) + 3
+
+    # Bottom row geometry first: bar and percentage share a lane whose ink ends
+    # on the panel's last row, and the name gets everything in between.
+    lane = max(bar_h, ph)
+    lane_top = H - lane
+    by = lane_top + (lane - bar_h) // 2
 
     name = str(bird.get('species') or '?')
-    nf, lines, lh, gap = _cv_wrap_fit(canvas, name, W - 2 * pad, H - top - bot_h - pad, 2)
+    nf, lines, lh, gap = _cv_wrap_fit(canvas, name, W - 2 * pad, lane_top - 2 - top, 2)
     block = len(lines) * lh + (len(lines) - 1) * gap
-    ny = top + max(0, (H - top - bot_h - pad - block) // 2)
+    # Centered under the header; with no header the name itself IS the top row.
+    ny = top + (max(0, (lane_top - 2 - top - block) // 2) if H >= 48 else 0)
     for ln in lines:
         _cv_text(draw, pad, ny, ln, nf, _CV_NAME)
         ny += lh + gap
 
     # Confidence bar: unlit track, lit fill, the percentage at its right end.
-    by = H - pad - max(bar_h, ph)
     bw = W - 2 * pad - int(pf.getlength(pct)) - 4
     draw.rectangle([pad, by, pad + bw, by + bar_h - 1], fill=_CV_TRACK)
     fill_w = max(1, int(bw * min(1.0, conf)))
     draw.rectangle([pad, by, pad + fill_w, by + bar_h - 1], fill=col)
-    _cv_text(draw, pad + bw + 4, by + (bar_h - ph) // 2 - 1, pct, pf, col)
+    _cv_text(draw, pad + bw + 4, lane_top + (lane - ph) // 2, pct, pf, col)
     return img
 
 
@@ -359,14 +364,20 @@ def _cv_leaderboard(canvas, ImageDraw, counts):
     draw.fontmode = "1"
     pad = 3
     n = len(counts)
-    row_h = (H - 2 * pad) // n
+    row_h = (H - 1) // n
     top_count = max(c for _s, c in counts) or 1
     f = _cv_fit(canvas, 'Ag', W, max(6, min(10, row_h - 4)))
     lh = f.getbbox('Ag')[3] - f.getbbox('Ag')[1]
     cw = max(f.getlength(str(c)) for _s, c in counts)
-    y = pad
-    for species, count in counts:
-        bar_h = max(2, min(4, row_h - lh - 3))
+    bar_h = max(2, min(4, row_h - lh - 3))
+    content_h = lh + 1 + bar_h
+    # Full-height rows: the first name's ink on row 1, the last row's bar ending on
+    # the panel's bottom edge, the slack spread between the rows.
+    span = (H - 1 - content_h) - 1
+    for i, (species, count) in enumerate(counts):
+        y = 1 + (round(i * span / (n - 1)) if n > 1 else 0)
+        if n == 1:                              # a lone row splits: name up top, bar on the edge
+            by_solo = H - bar_h
         bw = W - 2 * pad - cw - 4
         name = species
         if f.getlength(name) > bw - 5:
@@ -375,11 +386,10 @@ def _cv_leaderboard(canvas, ImageDraw, counts):
             name += '…'
         _cv_text(draw, pad, y, name, f, _CV_NAME)
         _cv_text(draw, W - pad - f.getlength(str(count)), y, str(count), f, _CV_ACCENT)
-        by = y + lh + 1
+        by = by_solo if n == 1 else y + lh + 1
         draw.rectangle([pad, by, pad + bw, by + bar_h - 1], fill=_CV_TRACK)
         draw.rectangle([pad, by, pad + max(1, int(bw * count / top_count)), by + bar_h - 1],
                        fill=_CV_ACCENT)
-        y += row_h
     return img
 
 

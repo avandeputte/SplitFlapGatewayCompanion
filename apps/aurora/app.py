@@ -179,16 +179,13 @@ def fetch_matrix(settings, canvas, i18n=None):
     draw.fontmode = "1"
     col = _kp_color(kp)
 
-    # Layout bands: headline on top, the 9-segment gauge along the bottom.
+    # Layout bands: the 9-segment gauge flush on the bottom edge, the headline
+    # grown to fill everything above it, pinned to the top row. (Ink starts 1px
+    # in — the reported bbox can under-report a pixel.)
     gauge_h = max(5, H // 6)
-    gy1 = H - 3
+    gy1 = H - 1
     gy0 = gy1 - gauge_h
-    head_h = H - gauge_h - 8
 
-    # Headline: "KP 5.7" big in the severity color with the label in white on
-    # its baseline — but only while the label stays legible there. Otherwise the
-    # two stack, and on a panel where even that would be mush the label yields:
-    # the color and the gauge already say how bad it is.
     kps = f'KP {num(kp)}'
     label = t(_label(kp)).upper()
 
@@ -196,35 +193,35 @@ def fetch_matrix(settings, canvas, i18n=None):
         b = font.getbbox(s)
         return b[3] - b[1]
 
-    kf = _cv_fit(canvas, kps, int(W * 0.55), head_h)
-    kw, kh = kf.getlength(kps), ink(kf, kps)
-    lf = _cv_fit(canvas, label, max(10, W - kw - 12), max(7, int(kh * 0.45)))
-    if kw + 6 + lf.getlength(label) <= W - 6 and ink(lf, label) >= 6:
-        kb, lb = kf.getbbox(kps), lf.getbbox(label)
-        x = (W - kw - 6 - lf.getlength(label)) / 2.0
-        y = (H - gauge_h - 4 - kh) / 2.0
-        draw.text((x, y - kb[1]), kps, font=kf, fill=col)
-        draw.text((x + kw + 6, y + kh - ink(lf, label) - lb[1]), label, font=lf, fill=_TXT_COL)
-    else:
-        lf = _cv_fit(canvas, label, W - 6, max(6, int(head_h * 0.30)))
-        show_label = ink(lf, label) >= 5
-        kf = _cv_fit(canvas, kps, W - 6, head_h - ((ink(lf, label) + 2) if show_label else 0))
-        kb = kf.getbbox(kps)
-        kw, kh = kf.getlength(kps), ink(kf, kps)
-        block = kh + ((2 + ink(lf, label)) if show_label else 0)
-        y = (H - gauge_h - 4 - block) / 2.0
-        draw.text(((W - kw) / 2.0, y - kb[1]), kps, font=kf, fill=col)
-        if show_label:
-            lb = lf.getbbox(label)
-            draw.text(((W - lf.getlength(label)) / 2.0, y + kh + 2 - lb[1]), label,
-                      font=lf, fill=_TXT_COL)
+    # With width to spare, the last 24h of 3-hour readings own the right column
+    # as bars rising from the gauge — same feed, so the story matches the number.
+    hist = series[-8:] if (W >= 192 and len(series) >= 2) else []
+    bw, bgap = 5, 2
+    hw = len(hist) * (bw + bgap) - bgap if hist else 0
+    avail = W - (hw + 10) if hist else W
+
+    # Headline: "KP 5.7" big in the severity color, the condition label right
+    # under it — on a panel where the label would be mush it yields: the color
+    # and the gauge already say how bad it is.
+    head_h = gy0 - 3                    # ink rows 1..gy0-3, a breath above the gauge
+    lf = _cv_fit(canvas, label, avail - 4, max(6, int(head_h * 0.30)))
+    show_label = ink(lf, label) >= 5
+    lh = ink(lf, label) if show_label else 0
+    kf = _cv_fit(canvas, kps, avail - 4, head_h - ((lh + 2) if show_label else 0))
+    kb = kf.getbbox(kps)
+    kh = ink(kf, kps)
+    draw.text(((avail - kf.getlength(kps)) / 2.0, 1 - kb[1]), kps, font=kf, fill=col)
+    if show_label:
+        lb = lf.getbbox(label)
+        draw.text(((avail - lf.getlength(label)) / 2.0, 1 + kh + 2 - lb[1]), label,
+                  font=lf, fill=_TXT_COL)
 
     # The gauge: nine segments 1..9, each in its own severity color when lit,
     # asleep in dark gray beyond the current Kp. A fractional reading part-lights
     # its segment's leading edge.
     gap = 2 if W >= 96 else 1
-    seg_w = (W - 6 - 8 * gap) / 9.0
-    x = 3.0
+    seg_w = (W - 2 - 8 * gap) / 9.0
+    x = 1.0
     for i in range(9):
         lit = kp >= i + 1
         part = (not lit) and (kp > i)
@@ -235,20 +232,15 @@ def fetch_matrix(settings, canvas, i18n=None):
             draw.rectangle([round(x + w), gy0, round(x + seg_w) - 1, gy1], fill=_SEG_OFF)
         x += seg_w + gap
 
-    # With width to spare: the last 24h of 3-hour readings as tiny bars, tucked
-    # top-right — same feed, so the story matches the number.
-    if W >= 192 and len(series) >= 2:
-        hist = series[-8:]
-        bw, bgap = 5, 2
-        hw = len(hist) * (bw + bgap) - bgap
+    if hist:
         hx = W - hw - 4
-        hh = max(8, int((H - gauge_h) * 0.42))
-        hy = 3
+        hy1 = gy0 - 3                   # bars sit just above the gauge...
+        hh = hy1 - 1                    # ...and a Kp-9 bar would reach the top row
         for i, v in enumerate(hist):
             bh = max(1, int(round(min(9.0, v) / 9.0 * hh)))
             c = _kp_color(v) if i == len(hist) - 1 else tuple(int(cc * 0.55) for cc in _kp_color(v))
-            draw.rectangle([hx + i * (bw + bgap), hy + hh - bh,
-                            hx + i * (bw + bgap) + bw - 1, hy + hh], fill=c)
+            draw.rectangle([hx + i * (bw + bgap), hy1 - bh + 1,
+                            hx + i * (bw + bgap) + bw - 1, hy1], fill=c)
 
     canvas.frame(img)
     return 300.0                    # the index updates a few times an hour at most

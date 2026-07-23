@@ -76,26 +76,31 @@ def fetch_matrix(settings, canvas, i18n=None):
 
     year = str(now.year) if H >= 48 else ''     # the year only where it has a row of its own
 
-    # Weekday ~ a quarter of the height, the date the hero, the year a whisper.
-    wf = _cv_fit(canvas, weekday, W - 6, max(8, int(H * 0.24)))
+    # Weekday ~ a quarter of the height pinned to the top row, the date the
+    # hero grown to fill the middle, the year a whisper pinned to the bottom
+    # row (the date itself takes the bottom when there is no year). Ink rides
+    # 1px inside the top edge — the reported bbox can under-report a pixel.
+    wf = _cv_fit(canvas, weekday, W - 4, max(8, int(H * 0.24)))
     wb = wf.getbbox(weekday)
     wh = wb[3] - wb[1]
-    yf = _cv_fit(canvas, year, W - 6, max(7, int(H * 0.16))) if year else None
+    yf = _cv_fit(canvas, year, W - 4, max(7, int(H * 0.16))) if year else None
     yh = (yf.getbbox(year)[3] - yf.getbbox(year)[1]) if year else 0
     gap = max(2, H // 16)
-    df = _cv_fit(canvas, month_day, W - 6, H - wh - yh - gap * (2 if year else 1) - 4)
+    df = _cv_fit(canvas, month_day, W - 4, H - 3 - wh - yh - gap * (2 if year else 1))
     db = df.getbbox(month_day)
     dh = db[3] - db[1]
 
-    total = wh + gap + dh + ((gap + yh) if year else 0)
-    y = (H - total) / 2.0
-    draw.text(((W - wf.getlength(weekday)) / 2.0, y - wb[1]), weekday, font=wf, fill=_DAY_COL)
-    y += wh + gap
-    draw.text(((W - df.getlength(month_day)) / 2.0, y - db[1]), month_day, font=df, fill=_DATE_COL)
+    draw.text(((W - wf.getlength(weekday)) / 2.0, 1 - wb[1]), weekday, font=wf, fill=_DAY_COL)
     if year:
-        y += dh + gap
+        # The date centers in the band between the pinned weekday and year.
+        y = 1 + wh + (H - 1 - yh - (1 + wh) - dh) / 2.0
+        draw.text(((W - df.getlength(month_day)) / 2.0, y - db[1]), month_day,
+                  font=df, fill=_DATE_COL)
         ybx = yf.getbbox(year)
-        draw.text(((W - yf.getlength(year)) / 2.0, y - ybx[1]), year, font=yf, fill=_YEAR_COL)
+        draw.text(((W - yf.getlength(year)) / 2.0, H - yh - ybx[1]), year, font=yf, fill=_YEAR_COL)
+    else:
+        draw.text(((W - df.getlength(month_day)) / 2.0, H - dh - db[1]), month_day,
+                  font=df, fill=_DATE_COL)
 
     canvas.frame(img)
     # The face only changes at midnight; a minutely redraw catches it promptly

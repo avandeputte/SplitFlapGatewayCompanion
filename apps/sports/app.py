@@ -548,17 +548,21 @@ def _mx_team_rows(game):
 
 
 def _mx_text_card(canvas, draw, lines, top, height):
-    """Golf and UFC pages carry their own lines — a centered typographic stack."""
+    """Golf and UFC pages carry their own lines — a typographic stack whose first
+    line hugs the region's top and last line sits on its bottom."""
     W = canvas.width
     lines = [ln for ln in lines if str(ln).strip()][:3] or ['']
     lh = height // len(lines)
-    y = top
-    for ln in lines:
+    for i, ln in enumerate(lines):
         f = _cv_fit(canvas, ln, W - 6, lh - 2)
         b = f.getbbox(ln)
-        draw.text(((W - f.getlength(ln)) / 2.0, y + (lh - (b[3] - b[1])) / 2.0 - b[1]),
-                  ln, font=f, fill=_MX_WHITE)
-        y += lh
+        if i == 0:
+            ty = top - b[1]
+        elif i == len(lines) - 1:
+            ty = top + height - b[3]
+        else:
+            ty = top + i * lh + (lh - (b[3] - b[1])) / 2.0 - b[1]
+        draw.text(((W - f.getlength(ln)) / 2.0, ty), ln, font=f, fill=_MX_WHITE)
     return canvas
 
 
@@ -586,8 +590,12 @@ def _mx_scoreboard(canvas, draw, game, top, height, rule=True):
             pass
 
     for i, ((abbr, score), col) in enumerate(zip(rows, colors)):
-        ry = top + i * row_h
-        ty = ry + (row_h - (b[3] - b[1])) / 2.0 - b[1]
+        # the away row hugs the region's top, the home row sits on its bottom —
+        # the scoreboard spends the whole band it was given
+        if i == 0:
+            ty = top - b[1]
+        else:
+            ty = top + height - b[3]
         draw.text((3, ty), abbr, font=f, fill=col)
         if score:
             draw.text((W - 3 - f.getlength(score), ty), score, font=f, fill=col)
@@ -646,37 +654,34 @@ def fetch_matrix(settings, canvas, i18n=None):
     state = game.get('state', 'pre')
     scol = _mx_status_color(state)
 
-    top, bottom = 2, H - 1
+    top, bottom = 1, H
     if H >= 48:
-        # Header: league left, status right, a live dot when the game is on. The band is tall
-        # enough for a ~10px face and every ink top is CLAMPED to y>=2 — a fitted font whose
-        # ink overshoots the band pushes down, never clips its own top row.
+        # Header: league left, status right, a live dot when the game is on. Ink
+        # tops are PINNED to y=1 — the top row works and glyph tops never clip.
         head_h = max(12, int(H * 0.22))
         if league:
             lf = _cv_fit(canvas, league.upper(), int(W * 0.4), head_h - 2)
             lb = lf.getbbox(league.upper())
-            ly = max(2 - lb[1], 1 + (head_h - 2 - (lb[3] - lb[1])) / 2.0 - lb[1])
-            draw.text((3, ly), league.upper(), font=lf, fill=_MX_GRAY)
+            draw.text((3, 1 - lb[1]), league.upper(), font=lf, fill=_MX_GRAY)
         if status:
             sf = _cv_fit(canvas, status, int(W * 0.5), head_h - 2)
             sb = sf.getbbox(status)
             sx = W - 3 - sf.getlength(status)
-            sy = max(2 - sb[1], 1 + (head_h - 2 - (sb[3] - sb[1])) / 2.0 - sb[1])
-            draw.text((sx, sy), status, font=sf, fill=scol)
+            draw.text((sx, 1 - sb[1]), status, font=sf, fill=scol)
             if state == 'in':
-                cy = 2 + (head_h - 2) // 2
+                cy = 1 + (sb[3] - sb[1]) // 2
                 draw.ellipse([sx - 7, cy - 2, sx - 3, cy + 2], fill=_MX_LIVE)
         draw.line([(2, head_h + 1), (W - 3, head_h + 1)], fill=_MX_RULE)
         top = head_h + 3
     elif status:
-        # Short panel: the status becomes a thin bottom line instead of a header.
+        # Short panel: the status becomes a thin bottom line sitting on H-1.
         foot_h = max(7, int(H * 0.22))
         sf = _cv_fit(canvas, status, W - 6, foot_h)
         sb = sf.getbbox(status)
         if (sb[3] - sb[1]) >= 5:
-            draw.text(((W - sf.getlength(status)) / 2.0, H - 1 - foot_h + (foot_h - (sb[3] - sb[1])) / 2.0 - sb[1]),
+            draw.text(((W - sf.getlength(status)) / 2.0, H - sb[3]),
                       status, font=sf, fill=scol)
-            bottom = H - 2 - foot_h
+            bottom = H - 2 - (sb[3] - sb[1])
 
     if _mx_team_rows(game) is not None:
         _mx_scoreboard(canvas, draw, game, top, bottom - top, rule=H >= 48)

@@ -1035,10 +1035,9 @@ def fetch_matrix(settings, canvas, get_location=None):
         lf = _cv_fit(canvas, lbl, int(W * 0.55), head_h - 2)
         lb = lf.getbbox(lbl)
         if (lb[3] - lb[1]) >= 6:
-            # Clamp so the ink's top row never lands above y=1 — a fitted font whose ink
-            # slightly overshoots the band otherwise clips "OVERHEAD" into "UVERHEAD".
-            ly = max(1 - lb[1], 1 + (head_h - 2 - (lb[3] - lb[1])) / 2.0 - lb[1])
-            draw.text((3, ly), lbl, font=lf, fill=_MX_GRAY)
+            # The ink's top row rides y=1 — row 0 is the 1px slack a fitted font's ink
+            # can overshoot its bbox by, else "OVERHEAD" clips into "UVERHEAD".
+            draw.text((3, 1 - lb[1]), lbl, font=lf, fill=_MX_GRAY)
         step = 4
         dy = 1 + (head_h - 2) // 2
         dx = W - 3 - len(shown) * step
@@ -1066,52 +1065,69 @@ def fetch_matrix(settings, canvas, get_location=None):
         # Info row: bearing arrow + distance (amber), altitude flush right (green).
         info_top = hero_top + hero_h + 2
         info_h = max(8, int(H * 0.2))
-        ax = 3 + info_h // 2
-        ay = info_top + info_h // 2
-        _mx_arrow(draw, ax, ay, max(3, info_h // 2 - 1), bearing, _MX_AMBER)
+
+        # Who else is up there earns the panel's bottom edge; with nobody else the
+        # info row itself sinks onto it — either way the last LED rows carry ink.
+        others = [str(g.get('callsign') or '') for _, _, g in shown if g is not f][:2]
+        oline = ('+ ' + '  '.join(o for o in others if o)) if any(others) else ''
+        of = ob = None
+        if oline and H - (info_top + info_h + 2) >= 8:
+            of = _cv_fit(canvas, oline, W - 6, min(H - info_top - info_h - 3, max(7, int(H * 0.14))))
+            ob = of.getbbox(oline)
+            if (ob[3] - ob[1]) < 5:
+                of = None
+
         df = _cv_fit(canvas, dist, int(W * 0.5), info_h - 1)
         db = df.getbbox(dist)
-        draw.text((ax + info_h // 2 + 3, info_top + (info_h - (db[3] - db[1])) / 2.0 - db[1]),
-                  dist, font=df, fill=_MX_AMBER)
+        dh = db[3] - db[1]
+        iy = info_top + (info_h - dh) / 2.0 if of else H - 1 - dh
+        ax = 3 + info_h // 2
+        ay = int(iy + dh / 2.0)
+        _mx_arrow(draw, ax, ay, max(3, info_h // 2 - 1), bearing, _MX_AMBER)
+        draw.text((ax + info_h // 2 + 3, iy - db[1]), dist, font=df, fill=_MX_AMBER)
         if alt:
             af = _cv_fit(canvas, alt, int(W * 0.32), info_h - 1)
             ab = af.getbbox(alt)
             if (ab[3] - ab[1]) >= 6:
-                draw.text((W - 3 - af.getlength(alt),
-                           info_top + (info_h - (ab[3] - ab[1])) / 2.0 - ab[1]), alt, font=af, fill=_MX_GREEN)
-
-        # Any room left names who else is up there.
-        others = [str(g.get('callsign') or '') for _, _, g in shown if g is not f][:2]
-        rest_top = info_top + info_h + 2
-        if others and H - rest_top >= 8:
-            line = '+ ' + '  '.join(o for o in others if o)
-            of = _cv_fit(canvas, line, W - 6, min(H - rest_top - 1, max(7, int(H * 0.14))))
-            ob = of.getbbox(line)
-            if (ob[3] - ob[1]) >= 5:
-                draw.text((3, rest_top + 1 - ob[1]), line, font=of, fill=_MX_DIM)
+                draw.text((W - 3 - af.getlength(alt), iy + dh - (ab[3] - ab[1]) - ab[1]),
+                          alt, font=af, fill=_MX_GREEN)
+        if of:
+            draw.text((3, H - 1 - (ob[3] - ob[1]) - ob[1]), oline, font=of, fill=_MX_DIM)
     else:
-        # Compact: callsign over one amber distance line (plus altitude where it fits).
+        # Compact: callsign over the amber distance line, the altitude beside it on a
+        # wide panel and on its OWN bottom row on a narrow one — three rows of real
+        # data instead of a dark hole. The callsign's ink rides row 1 (row 0 is the
+        # bbox-overshoot slack) and the last row's ink sinks to the panel's edge.
         cs_h = max(11, int(H * 0.48))
         cf = _cv_fit(canvas, callsign, W - 6, cs_h)
         cb = cf.getbbox(callsign)
-        draw.text((3, 2 + (cs_h - (cb[3] - cb[1])) / 2.0 - cb[1]), callsign, font=cf, fill=_MX_WHITE)
-        info_top = cs_h + 3
-        info_h = H - info_top - 2
-        ax = 3 + info_h // 2
-        ay = info_top + info_h // 2
-        _mx_arrow(draw, ax, ay, max(3, info_h // 2 - 1), bearing, _MX_AMBER)
-        tx = ax + info_h // 2 + 3
-        avail = (W - int(W * 0.3) - 4 if (alt and W >= 112) else W - 2) - tx
+        draw.text((3, 1 - cb[1]), callsign, font=cf, fill=_MX_WHITE)
+        info_top = 1 + (cb[3] - cb[1]) + 2
+
+        alt_below = bool(alt) and W < 112
+        af = ab = None
+        if alt:
+            af = _cv_fit(canvas, alt, W - 6 if alt_below else int(W * 0.3),
+                         max(7, int(H * 0.28)) if alt_below else H - 1 - info_top - 1)
+            ab = af.getbbox(alt)
+
+        info_h = H - 1 - info_top - ((ab[3] - ab[1] + 2) if alt_below else 0)
+        box = min(12, info_h)                    # the arrow's box — not the row's height
+        ax = 3 + box // 2
+        tx = 3 + box + 3
+        avail = (W - int(W * 0.3) - 4 if (alt and not alt_below) else W - 2) - tx
         df = _cv_fit(canvas, dist, avail, info_h - 1)
         db = df.getbbox(dist)
-        draw.text((tx, info_top + (info_h - (db[3] - db[1])) / 2.0 - db[1]),
-                  dist, font=df, fill=_MX_AMBER)
-        if alt and W >= 112:
-            af = _cv_fit(canvas, alt, int(W * 0.3), info_h - 1)
-            ab = af.getbbox(alt)
+        dh = db[3] - db[1]
+        iy = info_top + (info_h - dh) / 2.0 if alt_below else H - 1 - dh
+        _mx_arrow(draw, ax, int(iy + dh / 2.0), max(3, min(box, dh + 2) // 2), bearing, _MX_AMBER)
+        draw.text((tx, iy - db[1]), dist, font=df, fill=_MX_AMBER)
+        if alt and not alt_below:
             if (ab[3] - ab[1]) >= 6:
-                draw.text((W - 3 - af.getlength(alt),
-                           info_top + (info_h - (ab[3] - ab[1])) / 2.0 - ab[1]), alt, font=af, fill=_MX_GREEN)
+                draw.text((W - 3 - af.getlength(alt), iy + dh - (ab[3] - ab[1]) - ab[1]),
+                          alt, font=af, fill=_MX_GREEN)
+        elif alt_below:
+            draw.text((tx, H - 1 - (ab[3] - ab[1]) - ab[1]), alt, font=af, fill=_MX_GREEN)
 
     canvas.frame(img)
     return 10.0

@@ -227,7 +227,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
 
     time_h = max(8, int(H * (0.22 if H >= 48 else 0.30)))
     horizon_y = H - time_h - 3
-    peak_y = max(3, int(H * 0.10))
+    peak_y = 1                       # the arc's crown dot rides the top row
     x0, x1 = 5, W - 6
     span = x1 - x0
 
@@ -268,6 +268,9 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     if not night:
         sx = x0 + f * span
         sy = horizon_y - math.sin(f * math.pi) * (horizon_y - peak_y)
+        # Near noon the track would carry the disc over the top edge — the sun
+        # rides just inside the dome instead, rays kissing the top row.
+        sy = max(sy, r + 4.0)
         draw.ellipse([sx - r, sy - r, sx + r, sy + r], fill=_SUN_COL)
         for ang in range(0, 360, 45):                       # rays only when it's up
             dx, dy = math.cos(math.radians(ang)), math.sin(math.radians(ang))
@@ -278,7 +281,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
         for i in range(max(8, W // 12)):
             h = (i * 2654435761) & 0xFFFFFFFF
             sx_ = 2 + (h % (W - 4))
-            sy_ = 2 + ((h >> 11) % max(1, horizon_y - 6))
+            sy_ = 1 + ((h >> 11) % max(1, horizon_y - 5))
             bright = (230, 230, 240) if (h >> 22) % 5 == 0 else (120, 122, 132)
             draw.point((sx_, sy_), fill=bright)
         sx = x0 if f < 0 else x1
@@ -297,7 +300,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
             stxt = stxt[:-2] if stxt.endswith(tag) else stxt
     tf = _cv_fit(canvas, rtxt if len(rtxt) >= len(stxt) else stxt, int(W * 0.44), time_h)
     rb, sb = tf.getbbox(rtxt), tf.getbbox(stxt)
-    ty = H - 2 - max(rb[3] - rb[1], sb[3] - sb[1])
+    ty = H - 1 - max(rb[3] - rb[1], sb[3] - sb[1])   # digits sit on the bottom row
     draw.text((2, ty - rb[1]), rtxt, font=tf, fill=_RISE_COL)
     draw.text((W - 2 - tf.getlength(stxt), ty - sb[1]), stxt, font=tf, fill=_SET_COL)
 

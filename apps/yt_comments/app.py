@@ -224,7 +224,7 @@ def fetch_matrix(settings, canvas):
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
-    pad = 3
+    pad = 3                                         # side margin; the top ink rides row 1
 
     # Author line in the accent color, a hairline rule under it.
     mark = f'{idx + 1}/{len(comments)}'
@@ -232,24 +232,32 @@ def fetch_matrix(settings, canvas):
     mf = _cv_fit(canvas, mark, int(W * 0.2), max(6, int(H * 0.11))) if H >= 48 else None
     mw = (mf.getlength(mark) + 4) if mf else 0
     an = _cv_trim(af, str(author), W - 2 * pad - mw)
-    _cv_text(draw, pad, pad, an, af, _CV_AUTHOR)
+    _cv_text(draw, pad, 1, an, af, _CV_AUTHOR)
     if mf:
-        _cv_text(draw, W - pad - mf.getlength(mark), pad + 1, mark, mf, _CV_DIM)
+        _cv_text(draw, W - pad - mf.getlength(mark), 2, mark, mf, _CV_DIM)
     ah = af.getbbox('Ag')[3] - af.getbbox('Ag')[1]
-    ry = pad + ah + 2
+    ry = 1 + ah + 2
     draw.line([(pad, ry), (W - pad - 1, ry)], fill=_CV_RULE)
 
-    # The comment itself, wrapped as large as the room allows.
+    # The comment itself, wrapped as large as the room allows — the line budget
+    # comes from the height, and the wrapped block is let down to the panel's
+    # bottom edge, the leftover spread into the leading, not banked as dark rows.
     body_top = ry + 3
-    max_lines = 4 if H >= 48 else 2
-    f, lines, lh, gap = _cv_wrap_fit(canvas, text, W - 2 * pad, H - body_top - pad, max_lines)
+    avail = H - 1 - body_top
+    max_lines = max(2, avail // 8)
+    f, lines, lh, gap = _cv_wrap_fit(canvas, text, W - 2 * pad, avail, max_lines)
     if sum(len(ln.split()) for ln in lines) < len(str(text).split()):
         last = lines[-1]                            # cut off — say so, don't just stop
         while last and f.getlength(last + '…') > W - 2 * pad:
             last = last[:-1]
         lines[-1] = last + '…'
     block = len(lines) * lh + (len(lines) - 1) * gap
-    y = body_top + max(0, (H - body_top - pad - block) // 2)
+    if len(lines) > 1:
+        gap += min(max(0, avail - block) // (len(lines) - 1), max(2, lh // 3))
+        block = len(lines) * lh + (len(lines) - 1) * gap
+    lb = f.getbbox(lines[-1] or '0')                # anchor on the last line's REAL ink —
+    block += (lb[3] - lb[1]) - lh                   # no descenders means less ink than 'Ag' says
+    y = body_top + max(0, avail - block)
     for ln in lines:
         _cv_text(draw, pad, y, ln, f, _CV_TXT)
         y += lh + gap

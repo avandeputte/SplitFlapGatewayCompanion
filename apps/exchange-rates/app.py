@@ -196,7 +196,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     head = f'1 {base} ='
     hf = _cv_fit(canvas, head, W - 6, max(7, min(9, int(H * 0.22))))
     hh = _cv_ink(hf, head)
-    ym = 1 if H < 48 else 2                              # a short panel spends less margin
+    ym = 1                                               # the strip hugs the top edge
     x, y0 = 3, ym - hf.getbbox(head)[1]
     for part, col in (('1 ', _CV_DIM), (base, _CV_CODE), (' =', _CV_DIM)):
         draw.text((x, y0), part, font=hf, fill=col, anchor='la')
@@ -212,19 +212,26 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
 
     edges = [top + round(i * area / len(page)) for i in range(len(page) + 1)]
     rh = min(edges[i + 1] - edges[i] for i in range(len(page)))
-    fh = max(7, min(rh - 3, int(rh * 0.74)))
+    fh = max(7, min(rh - 2, int(rh * 0.80)))
     cf = min((_cv_fit(canvas, c, int(W * 0.34), fh) for c, _v in page),
              key=lambda f: f.size)
     code_w = max(cf.getlength(c) for c, _v in page)
     texts = [_fmt_rate(v, i18n) for _c, v in page]
     pf = min((_cv_fit(canvas, s, W - 6 - code_w - 5, fh) for s in texts),
              key=lambda f: f.size)
+
+    def vy(y0, y1, hgt):
+        """Full-height bands: the last row sits its ink on H-1 (the strip already
+        owns the top edge), rows above it center in their band."""
+        if y1 >= H - 1:
+            return y1 - hgt
+        return y0 + (y1 - y0 - hgt) / 2.0
+
     for i, ((code, _v), rate_s) in enumerate(zip(page, texts)):
         y0, y1 = edges[i], edges[i + 1]
-        rh = y1 - y0
-        _cv_text(draw, 3, y0 + (rh - _cv_ink(cf, code)) / 2.0, code, cf, _CV_CODE)
+        _cv_text(draw, 3, vy(y0, y1, _cv_ink(cf, code)), code, cf, _CV_CODE)
         _cv_text(draw, W - 3 - pf.getlength(rate_s),
-                 y0 + (rh - _cv_ink(pf, rate_s)) / 2.0, rate_s, pf, _CV_TEXT)
+                 vy(y0, y1, _cv_ink(pf, rate_s)), rate_s, pf, _CV_TEXT)
 
     canvas.frame(img)
     if len(pages) > 1:
