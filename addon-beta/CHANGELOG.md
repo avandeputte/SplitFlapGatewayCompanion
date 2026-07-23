@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.17
+
+- **Stocks and Crypto**: row spacing on the panel is perfectly even (rows no longer stretch to the
+  bottom edge at the cost of one wider gap).
+
 ## 2.10.0-beta.16
 
 - **Formula 1**: the round-number label renders fully inside its red chip.
