@@ -235,8 +235,11 @@ def _cv_card(canvas, ImageDraw, label, body, accent, badge, page):
         # gaps (up to one line-height) until the block spans the whole region.
         span = (len(lines) - 1) * step + (lb[3] - base) - (fb[1] - base)
         step += max(0, min(lh, (bottom + 1 - top - span) // (len(lines) - 1)))
-    # Anchor the block to the floor; any leftover rides under the header rule.
-    y = bottom + 1 - (lb[3] - base) - step * (len(lines) - 1)
+    # Center the block in the body region. A stretched multi-line page has no slack
+    # left, so this equals filling; a short page (a one-word ANSWER) floats centered
+    # instead of hugging the floor.
+    ink_h = step * (len(lines) - 1) + (lb[3] - fb[1])
+    y = top + max(0, bottom + 1 - top - ink_h) // 2 + base - fb[1]
     for ln in lines:
         draw.text(((W - font.getlength(ln)) / 2.0, y - base), ln, font=font, fill=_TEXT)
         y += step
