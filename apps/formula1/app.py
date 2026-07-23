@@ -250,19 +250,21 @@ def fetch_matrix(settings, canvas, i18n=None):
         # Header strip: a red round chip, "NEXT RACE", the race day on the right.
         chip = f'R{rnd}' if rnd else 'F1'
         head_h = max(11, int(H * 0.22))
-        cf = _cv_fit(canvas, chip, int(W * 0.2), head_h - 4)
+        cf = _cv_fit(canvas, chip, int(W * 0.2), head_h - 5)
         cb = cf.getbbox(chip)
         cw = int(cf.getlength(chip)) + 6
         draw.rounded_rectangle([2, 1, 2 + cw, head_h - 1], radius=2, fill=_F1_RED)
-        draw.text((2 + (cw - cf.getlength(chip)) / 2.0,
-                   1 + (head_h - 2 - (cb[3] - cb[1])) / 2.0 - cb[1]), chip, font=cf, fill=_WHITE)
+        # Clamp the label ink INSIDE the chip (>= its top + 2): a fitted font whose ink
+        # overshoots must push down, never clip against the chip's own edge.
+        cy = max(3 - cb[1], 1 + (head_h - 2 - (cb[3] - cb[1])) / 2.0 - cb[1])
+        draw.text((2 + (cw - cf.getlength(chip)) / 2.0, cy), chip, font=cf, fill=_WHITE)
         ww = 0
         if when:
             wf = _cv_fit(canvas, when, int(W * 0.45), max(7, head_h - 6))
             wb = wf.getbbox(when)
             ww = wf.getlength(when)
-            draw.text((W - 3 - ww,
-                       1 + (head_h - 2 - (wb[3] - wb[1])) / 2.0 - wb[1]), when, font=wf, fill=_WHITE)
+            wy = max(1 - wb[1], 1 + (head_h - 2 - (wb[3] - wb[1])) / 2.0 - wb[1])
+            draw.text((W - 3 - ww, wy), when, font=wf, fill=_WHITE)
         # "NEXT RACE" only where it can hold a readable size — the chip and date carry
         # the meaning on their own when it can't.
         lbl = 'NEXT RACE'
