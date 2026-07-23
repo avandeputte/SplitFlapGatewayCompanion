@@ -6,6 +6,7 @@ keyframe so a reboot self-heals. Identical frames send nothing.
 import numpy as np
 
 from app import canvas
+from conftest import canvas_surface
 
 
 def _rgb(h, w):
@@ -84,7 +85,7 @@ def _surface(monkeypatch, url):
     monkeypatch.setattr(canvas, "put_qoi", lambda u, d, **k: (calls.__setitem__("qoi", calls["qoi"] + 1), True)[1])
     monkeypatch.setattr(canvas, "put_frame", lambda u, d, **k: (calls.__setitem__("frame", calls["frame"] + 1), True)[1])
     canvas.forget_frame(url)
-    return canvas.CanvasSurface(url, 16, 8, ("rgb888", "qoi"), (), rects=True), calls
+    return canvas_surface(url, 16, 8, ("rgb888", "qoi"), (), rects=True), calls
 
 
 def test_first_frame_full_then_delta_then_skip(monkeypatch):
@@ -118,7 +119,7 @@ def test_a_wall_without_rects_still_pushes_full_frames(monkeypatch):
     monkeypatch.setattr(canvas, "put_rects", lambda *a, **k: (calls.__setitem__("rects", 1), True)[1])
     monkeypatch.setattr(canvas, "put_qoi", lambda *a, **k: (calls.__setitem__("qoi", calls["qoi"] + 1), True)[1])
     canvas.forget_frame("http://d3")
-    s = canvas.CanvasSurface("http://d3", 16, 8, ("rgb888", "qoi"), ())     # rects not advertised
+    s = canvas_surface("http://d3", 16, 8, ("rgb888", "qoi"), ())     # rects not advertised
     s.frame(_rgb(8, 16).tobytes())
     changed = _rgb(8, 16); changed[1, 1] = 9
     s.frame(changed.tobytes())

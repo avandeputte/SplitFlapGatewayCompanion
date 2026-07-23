@@ -89,13 +89,8 @@ def gw(monkeypatch):
 
 
 def _surface():
-    c = device.from_capabilities(DOC_2_1)
-    return canvas.CanvasSurface(
-        "http://gw", c.canvas_w, c.canvas_h, c.canvas_formats, c.effects,
-        rect=c.canvas_rect, anim=c.canvas_anim, ticker=c.canvas_ticker,
-        effect_params=c.effect_params, readback=c.canvas_readback, ops=c.canvas_ops,
-        overlay=c.canvas_2_1, transition=c.canvas_2_1, anim_library=c.canvas_2_1,
-        gif=c.canvas_2_1, fonts=c.canvas_2_1, sprite=c.canvas_sprite)
+    # The one production construction path: a surface derives everything from Capabilities.
+    return canvas.CanvasSurface("http://gw", device.from_capabilities(DOC_2_1))
 
 
 def test_surface_flags_follow_the_caps():

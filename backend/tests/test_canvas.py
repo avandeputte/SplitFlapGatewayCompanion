@@ -16,6 +16,7 @@ from app.engine import DisplayController
 from app.plugin_settings import PluginSettings
 from app.plugins import PluginRuntime
 from app.state import DisplayState
+from conftest import canvas_surface
 
 CANVAS_DOC = {
     "features": ["cells", "colors", "lowercase", "pictographs", "canvas", "effects"],
@@ -61,7 +62,7 @@ def gw_calls(monkeypatch):
 
 
 def _surface():
-    return canvas.CanvasSurface("http://gw", 128, 32, ("rgb888", "rgb565"),
+    return canvas_surface("http://gw", 128, 32, ("rgb888", "rgb565"),
                                 ("plasma", "fire", "matrix"))
 
 
@@ -104,7 +105,7 @@ def wall(monkeypatch):
 
 
 def _named_surface():
-    return canvas.CanvasSurface("http://gw", 128, 32, ("rgb888",), (), sprite=True)
+    return canvas_surface("http://gw", 128, 32, ("rgb888",), (), sprite=True)
 
 
 def _imgs(n=2, shade=1):
@@ -146,7 +147,7 @@ def test_the_bind_precedes_the_sprites_in_the_batch(wall):
 # --- INFO logging: every gateway push says its size + what it is -------------
 
 def _delta_surface():
-    return canvas.CanvasSurface("http://gw", 128, 32, ("rgb888", "rgb565", "qoi"), rects=True)
+    return canvas_surface("http://gw", 128, 32, ("rgb888", "rgb565", "qoi"), rects=True)
 
 
 def test_frame_pushes_log_wire_traffic_at_info(gw_calls, caplog):
@@ -208,9 +209,8 @@ def test_a_sheet_the_wall_lost_is_re_uploaded(wall):
     s = _named_surface(); s.upload_atlas(tiles); s.show()
     assert len(_uploads(wall)) == 1
     wall["sheets"].clear()                               # the wall rebooted
-    entry = canvas._ATLAS_KNOWN["http://gw"]             # age our belief past the verify window
-    canvas._ATLAS_KNOWN["http://gw"] = {"at": entry["at"] - canvas._ATLAS_VERIFY_S - 1,
-                                        "rows": entry["rows"]}
+    w = canvas._wall("http://gw")                        # age our belief past the verify window
+    w.atlas = {"at": w.atlas["at"] - canvas._ATLAS_VERIFY_S - 1, "rows": w.atlas["rows"]}
     s = _named_surface(); s.upload_atlas(tiles); s.show()
     assert len(_uploads(wall)) == 2                      # noticed and restored
 
@@ -464,7 +464,7 @@ def _load(name):
 
 def _push(gw_calls, app, W, H, settings, **kw):
     """Render one frame; return (hold, PIL image or None, raw bytes)."""
-    cv = canvas.CanvasSurface("http://gw", W, H, ("rgb888",), ())
+    cv = canvas_surface("http://gw", W, H, ("rgb888",), ())
     hold = app.fetch_matrix(settings, cv, **kw)
     content = gw_calls[-1][3] if gw_calls else None
     img = (Image.frombytes("RGB", (W, H), content)
@@ -703,16 +703,16 @@ def test_qoi_encode_round_trips_to_the_exact_pixels():
 def test_frame_uses_qoi_when_advertised_else_raw(gw_calls):
     from PIL import Image
     img = Image.new("RGB", (64, 32), (10, 20, 30))
-    canvas.CanvasSurface("http://gw", 64, 32, ("rgb888", "rgb565", "qoi"), ()).frame(img)
+    canvas_surface("http://gw", 64, 32, ("rgb888", "rgb565", "qoi"), ()).frame(img)
     m, path, _b, content = gw_calls[-1]
     assert m == "PUT" and path == "/api/canvas/qoi" and content[:4] == b"qoif"
-    canvas.CanvasSurface("http://gw", 64, 32, ("rgb888",), ()).frame(img)
+    canvas_surface("http://gw", 64, 32, ("rgb888",), ()).frame(img)
     m, path, _b, content = gw_calls[-1]
     assert m == "PUT" and path == "/api/canvas/frame" and len(content) == 64 * 32 * 3
 
 
 def test_ticker_posts_text_colour_speed(gw_calls):
-    cv = canvas.CanvasSurface("http://gw", 128, 32, ("rgb888",), (), ticker=True)
+    cv = canvas_surface("http://gw", 128, 32, ("rgb888",), (), ticker=True)
     assert cv.can_ticker
     cv.ticker("HELLO", (0, 255, 0), speed=6)
     m, path, body, _ = gw_calls[-1]
@@ -721,7 +721,7 @@ def test_ticker_posts_text_colour_speed(gw_calls):
 
 
 def test_effect_passes_hue_and_density(gw_calls):
-    cv = canvas.CanvasSurface("http://gw", 128, 32, ("rgb888",), ("matrix",),
+    cv = canvas_surface("http://gw", 128, 32, ("rgb888",), ("matrix",),
                               effect_params=("hue", "density"))
     cv.effect("matrix", speed=6, hue=120, density=40)
     _m, path, body, _ = gw_calls[-1]
@@ -730,7 +730,7 @@ def test_effect_passes_hue_and_density(gw_calls):
 
 def test_anim_uploads_an_mpga_loop(gw_calls):
     from PIL import Image
-    cv = canvas.CanvasSurface("http://gw", 8, 4, ("rgb888",), (), anim=True)
+    cv = canvas_surface("http://gw", 8, 4, ("rgb888",), (), anim=True)
     cv.anim([Image.new("RGB", (8, 4), c) for c in ((255, 0, 0), (0, 255, 0), (0, 0, 255))],
             fps=10, loop=True)
     m, path, _b, content = gw_calls[-1]
@@ -742,7 +742,7 @@ def test_anim_uploads_an_mpga_loop(gw_calls):
 
 
 def test_ticker_app_scrolls_a_message(gw_calls):
-    cv = canvas.CanvasSurface("http://gw", 256, 64, ("rgb888", "qoi"), (), ticker=True)
+    cv = canvas_surface("http://gw", 256, 64, ("rgb888", "qoi"), (), ticker=True)
     hold = _load("canvas-ticker").fetch_matrix(
         {"ticker_source": "message", "ticker_text": "HI THERE", "ticker_color": "green",
          "ticker_speed": "6"}, cv)
@@ -830,7 +830,7 @@ def test_canvas_frame_is_cached_then_released_for_the_preview(gw_calls):
     flap grid a canvas app bypasses). Releasing the panel drops it."""
     from PIL import Image
     url = "http://preview-gw"
-    surf = canvas.CanvasSurface(url, 64, 32, ("rgb888",), ())
+    surf = canvas_surface(url, 64, 32, ("rgb888",), ())
     assert not canvas.has_frame(url)
     surf.frame(Image.new("RGB", (64, 32), (30, 60, 90)))
     assert canvas.has_frame(url)
@@ -894,7 +894,7 @@ def test_sim_mode_runs_a_canvas_app_without_driving_the_panel(monkeypatch):
                         lambda *a, **k: calls.append(a[:3]) or type("R", (), {"status_code": 200, "json": lambda s: {}})())
     canvas.set_sim("http://sim", True)
     canvas.forget_frame("http://sim")
-    s = canvas.CanvasSurface("http://sim", 8, 4, ("rgb888", "qoi"), (), rects=True, sprite=True)
+    s = canvas_surface("http://sim", 8, 4, ("rgb888", "qoi"), (), rects=True, sprite=True)
     s.frame(bytes(8 * 4 * 3))                                     # frame-push
     s.clear("black").text(0, 0, "hi", "white", 8).show()         # ops
     assert canvas.set_active("http://sim", True) is True         # takeover

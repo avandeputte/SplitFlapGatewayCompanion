@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from app import canvas as canvas_mod
+from conftest import canvas_surface
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -31,7 +32,7 @@ def surface(monkeypatch):
     import app.gateway as gateway
     monkeypatch.setattr(gateway, "_request",
                         lambda *a, **k: type("R", (), {"status_code": 200, "json": lambda s: {}})())
-    return canvas_mod.CanvasSurface("http://gw", 256, 64, ("rgb888", "qoi"), ())
+    return canvas_surface("http://gw", 256, 64, ("rgb888", "qoi"), ())
 
 
 def test_world_clock_holds_until_the_next_minute(surface):

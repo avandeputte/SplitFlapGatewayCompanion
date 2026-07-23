@@ -9,6 +9,7 @@ prove the bytes are right so that wiring is safe.
 import pytest
 
 from app import canvas, device
+from conftest import canvas_surface
 
 
 class FakeSock:
@@ -52,8 +53,8 @@ def test_canvas_stream_capability_is_detected():
                                                        "height": 64}})
     assert on.canvas_stream is True
     assert off.canvas_stream is False
-    assert canvas.CanvasSurface("http://gw", 256, 64, ("rgb888",), stream=True).can_stream is True
-    assert canvas.CanvasSurface("http://gw", 256, 64, ("rgb888",)).can_stream is False
+    assert canvas_surface("http://gw", 256, 64, ("rgb888",), stream=True).can_stream is True
+    assert canvas_surface("http://gw", 256, 64, ("rgb888",)).can_stream is False
 
 
 # --- the wire contract ------------------------------------------------------
@@ -134,10 +135,7 @@ def test_a_socket_error_kills_the_session_for_fallback():
 @pytest.fixture
 def clean_stream_state():
     yield
-    canvas._STREAMS.clear()
-    canvas._LAST_FRAME.clear()
-    canvas._LAST_KIND.clear()
-    canvas._DELTA_N.clear()
+    canvas._WALLS.clear()                # one object owns all per-wall state now
 
 
 def test_stream_begin_end_and_frame_routing(monkeypatch, clean_stream_state):
@@ -149,7 +147,7 @@ def test_stream_begin_end_and_frame_routing(monkeypatch, clean_stream_state):
     # With a stream open, a frame push must go over it — never the HTTP transport.
     import app.gateway as gateway
     monkeypatch.setattr(gateway, "_request", lambda *a, **k: pytest.fail("HTTP used while streaming"))
-    surf = canvas.CanvasSurface(url, 4, 2, ("rgb888", "rgb565"), rects=True)
+    surf = canvas_surface(url, 4, 2, ("rgb888", "rgb565"), rects=True)
     assert surf.frame(bytes(4 * 2 * 3)) is True              # first frame -> full frame record
     assert canvas.last_push_was_frame(url) is True
     assert fs.writes[0].startswith(b"PUT /api/canvas/stream")   # head rode the first record
@@ -172,7 +170,7 @@ def test_push_rgb_falls_back_to_http_when_the_stream_dies(monkeypatch, clean_str
     monkeypatch.setattr(gateway, "_request",
                         lambda m, u, p, **k: calls.append(p) or type("R", (), {"status_code": 200,
                                                                               "json": lambda s: {}})())
-    surf = canvas.CanvasSurface(url, 4, 2, ("rgb888",))       # no rects/qoi -> a raw full frame
+    surf = canvas_surface(url, 4, 2, ("rgb888",))       # no rects/qoi -> a raw full frame
     assert surf.frame(bytes(4 * 2 * 3)) is True
     assert calls == ["/api/canvas/frame"]                    # stream send failed -> HTTP fallback
     assert canvas.has_stream(url) is False                   # the dead stream stays closed

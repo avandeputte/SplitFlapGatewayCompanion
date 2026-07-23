@@ -35,45 +35,59 @@ log = logging.getLogger("companion.canvas")
 _FONT_DIR = os.path.join(os.path.dirname(__file__), "fonts")
 _FONT_CACHE: dict = {}
 
-# The last full frame a canvas app rendered, kept per gateway URL so the live
-# preview (web UI) and the Home Assistant board image can show what a Matrix panel
-# is drawing — both otherwise render the flap grid, which a canvas app bypasses.
-# Only frame-push apps land here (rgb888); an on-device effect has no pixels the
-# companion ever sees. Cleared on release().
-_LAST_FRAME: dict = {}   # url -> (width, height, rgb888 bytes)   [also the base for delta frames]
-# Frames pushed since the last base reset, per URL. A full "keyframe" every _KEYFRAME_EVERY pushes
-# means a gateway reboot (or any panel drift) self-heals within a few seconds without needing to
-# poll the wall's uptime on the frame path.
-_DELTA_N: dict = {}
 _KEYFRAME_EVERY = 20
-# On-device content (an effect/ticker/anim) the companion never rendered is previewed by reading
-# the panel back; that readback is cached briefly so the browser can poll freely without a gateway
-# round-trip each time.
-_READBACK: dict = {}            # (url, scale, fmt) -> (monotonic, png|None)
 _READBACK_TTL = 1.0
 
 
-# URLs in simulation mode: a canvas app still runs and its frames are cached for the preview, but
-# nothing is actually POSTed to the panel (sim mode's contract: the wall is not driven).
-_SIM_URLS: set = set()
+class _Wall:
+    """Everything the companion believes about ONE gateway's panel, in one object — the last frame
+    it pushed, the delta counter, cached readbacks, sim mode, the atlas-library belief, the live
+    draw stream and the last push kind. One owner per URL, so every teardown path clears the same
+    complete field set instead of remembering which of several module dicts to touch."""
+
+    def __init__(self):
+        self.last_frame = None      # (width, height, rgb888 bytes) — also the base for delta frames.
+                                    # Only frame-push apps land here; the live preview / HA board
+                                    # image read it (they otherwise show the bypassed flap grid).
+        self.delta_n = 0            # frames since the last base reset; a full keyframe every
+                                    # _KEYFRAME_EVERY pushes self-heals a gateway reboot or drift
+        self.readback = {}          # (scale, fmt) -> (monotonic, png|None), briefly cached so the
+                                    # browser can poll an on-device effect preview freely
+        self.sim = False            # sim mode: frames are cached for the preview, nothing is sent
+        self.atlas = None           # {"at": monotonic, "rows": {name: library_row}} — see the
+                                    # sprite-sheet notes below
+        self.stream = None          # the live CanvasStream (3.2 persistent draw channel), if open
+        self.last_kind = None       # "frame" | "ops" — what the app last pushed (stream heuristic)
+
+    def forget_frame(self):
+        self.last_frame = None
+        self.delta_n = 0
+        self.readback.clear()       # so an effect switch never previews stale pixels
+
+
+_WALLS: dict = {}                   # url -> _Wall
+
+
+def _wall(url: str) -> _Wall:
+    w = _WALLS.get(url)
+    if w is None:
+        w = _WALLS[url] = _Wall()
+    return w
 
 
 def set_sim(url: str, on: bool) -> None:
     if not url:
         return
-    (_SIM_URLS.add if on else _SIM_URLS.discard)(url)
+    _wall(url).sim = bool(on)
 
 
 def _remember_frame(url: str, w: int, h: int, rgb: bytes) -> None:
     if url and len(rgb) == w * h * 3:
-        _LAST_FRAME[url] = (int(w), int(h), rgb)
+        _wall(url).last_frame = (int(w), int(h), rgb)
 
 
 def forget_frame(url: str) -> None:
-    _LAST_FRAME.pop(url, None)
-    _DELTA_N.pop(url, None)
-    for k in [k for k in _READBACK if k[0] == url]:            # so an effect switch never previews stale
-        _READBACK.pop(k, None)
+    _wall(url).forget_frame()
 
 
 # The wall keeps a NAMED library of sprite sheets — several under one budget, addressed by name,
@@ -85,7 +99,6 @@ def forget_frame(url: str) -> None:
 # The wall can still drop a sheet under us (a reboot, or LRU eviction by other sheets), and a
 # `sprite` with nothing bound silently draws nothing — so the belief is re-checked against the
 # device's own library on a wall-clock bound. That check is a small JSON GET, not a re-upload.
-_ATLAS_KNOWN: dict = {}         # url -> {"at": monotonic, "rows": {name: library_row}}
 _ATLAS_VERIFY_S = 60.0
 _ATLAS_NAME_MAX = 32            # firmware: [a-z0-9._-]{1,32}
 
@@ -100,11 +113,11 @@ def atlas_name_for(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str 
 
 def forget_atlas(url: str) -> None:
     """Drop what we believe the wall holds — the next draw re-checks and re-uploads if needed."""
-    _ATLAS_KNOWN.pop(url, None)
+    _wall(url).atlas = None
 
 
 def has_frame(url: str) -> bool:
-    return url in _LAST_FRAME
+    return _wall(url).last_frame is not None
 
 
 def _frame_png(w: int, h: int, rgb: bytes, scale: int = 1):
@@ -126,7 +139,7 @@ def _frame_png(w: int, h: int, rgb: bytes, scale: int = 1):
 
 def last_frame_png(url: str, scale: int = 1):
     """The cached frame as PNG bytes (optionally nearest-neighbour upscaled), or None."""
-    f = _LAST_FRAME.get(url)
+    f = _wall(url).last_frame
     return _frame_png(*f, scale=scale) if f else None
 
 
@@ -140,12 +153,12 @@ def readback_png(url: str, scale: int = 1, fmt: str = "rgb565"):
     ~1 Hz, so a browser polling faster costs nothing extra."""
     key = (url, scale, fmt)
     now = time.monotonic()
-    hit = _READBACK.get(key)
+    hit = _wall(url).readback.get(key)
     if hit and now - hit[0] < _READBACK_TTL:
         return hit[1]
     f = get_frame(url, fmt)
     png = _frame_png(*f, scale=scale) if f else None
-    _READBACK[key] = (now, png)
+    _wall(url).readback[key] = (now, png)
     return png
 
 
@@ -157,7 +170,7 @@ def set_active(url: str, active: bool, timeout: float = 5.0) -> bool:
     """Take the panel over from the reel wall (active=True) or hand it back
     (active=False). Ops/effect/frame auto-take-over too, but a driver takes it
     first so the wall is blanked before the first frame lands."""
-    if url in _SIM_URLS:
+    if _wall(url).sim:
         return True
     try:
         return _ok(gateway._request("POST", url, "/api/canvas",
@@ -174,7 +187,7 @@ def play_effect(url: str, effect: str, speed: int = 5, hue=None, density=None,
 
     Optional ``hue`` (0–255) and ``density`` (1–100) tint/seed effects that support them
     (see caps.effect_params); omitted, each effect keeps its own default look."""
-    if url in _SIM_URLS:               # an on-device effect can't be simulated; don't start it
+    if _wall(url).sim:               # an on-device effect can't be simulated; don't start it
         return True
     try:
         body = {"type": str(effect), "speed": max(1, min(10, int(speed)))}
@@ -409,44 +422,44 @@ class CanvasStream:
         self.sock = None
 
 
-_STREAMS: dict = {}     # url -> CanvasStream: the live persistent draw channel, one per wall
-_LAST_KIND: dict = {}   # url -> "frame" | "ops": what the app last pushed (the streaming heuristic)
+
 
 
 def stream_begin(url: str) -> bool:
     """Open (or reuse) the persistent draw stream for this wall; True if a live stream now exists.
     The caller (engine) opens it for a fast frame-push app on a 3.2 wall; every ``_push_rgb`` then
     routes through it until ``stream_end``."""
-    st = _STREAMS.get(url)
+    st = _wall(url).stream
     if st is not None and st.alive:
         return True
     st = CanvasStream(url)
     if st.open():
-        _STREAMS[url] = st
+        _wall(url).stream = st
         log.info("canvas %s: draw stream opened", url)
         return True
-    _STREAMS.pop(url, None)
+    _wall(url).stream = None
     return False
 
 
 def stream_end(url: str) -> None:
     """Close the wall's draw stream (end record + socket) so the drawing REST endpoints unlock.
     Always called on canvas hand-back; a no-op if none is open."""
-    st = _STREAMS.pop(url, None)
+    w = _wall(url)
+    st, w.stream = w.stream, None
     if st is not None:
         st.close()
         log.info("canvas %s: draw stream closed (%d records)", url, st.records)
 
 
 def has_stream(url: str) -> bool:
-    st = _STREAMS.get(url)
+    st = _wall(url).stream
     return st is not None and st.alive
 
 
 def last_push_was_frame(url: str) -> bool:
     """Whether the app's most recent push was a full/delta frame (vs an ops batch) — the engine only
     adopts the stream for frame-push apps (ops/sprite apps are a later phase)."""
-    return _LAST_KIND.get(url) == "frame"
+    return _wall(url).last_kind == "frame"
 
 
 def put_rects(url: str, rects: list, fmt: int = 2, timeout: float = 10.0):
@@ -557,7 +570,7 @@ def get_frame(url: str, fmt: str = "rgb888", timeout: float = 8.0):
     ``(width, height, rgb888 bytes)`` or ``None``. In sim, there is no panel to read. Read-only,
     so a live preview can poll it. The panel's real bit depth is baked in (it is what is
     physically lit); brightness is not in the framebuffer, so a dim wall reads back at full value."""
-    if url in _SIM_URLS:               # sim: no real panel to screenshot
+    if _wall(url).sim:               # sim: no real panel to screenshot
         return None
     try:
         f = "rgb565" if str(fmt) == "rgb565" else "rgb888"
@@ -724,7 +737,10 @@ def put_atlas_named(url: str, name: str, tiles: bytes, tile_w: int, tile_h: int,
                                   timeout=timeout))
         if ok:
             log.info("canvas %s: atlas '%s' sprites uploaded, %d tile(s) %d B", url, name, count, len(body))
-            rows = _ATLAS_KNOWN.setdefault(url, {"at": time.monotonic(), "rows": {}})["rows"]
+            w = _wall(url)
+            if w.atlas is None:
+                w.atlas = {"at": time.monotonic(), "rows": {}}
+            rows = w.atlas["rows"]
             rows[name] = {"name": name, "resident": True, "persisted": rows.get(name, {}).get("persisted", False)}
         else:
             forget_atlas(url)                           # we no longer know what's up there
@@ -755,7 +771,7 @@ def atlas_save(url: str, name: str, timeout: float = 15.0) -> bool:
     (lazy-loaded on the next bind)."""
     ok = _ok(gateway._request("POST", url, f"/api/canvas/atlas/{name}/save", timeout=timeout))
     if ok:
-        row = _ATLAS_KNOWN.get(url, {}).get("rows", {}).get(name)
+        row = ((_wall(url).atlas or {}).get("rows") or {}).get(name)
         if row:
             row["persisted"] = True
     return ok
@@ -765,18 +781,18 @@ def atlas_delete(url: str, name: str, timeout: float = 10.0) -> bool:
     """Drop a sheet from the wall, resident and persisted."""
     ok = _ok(gateway._request("DELETE", url, f"/api/canvas/atlas/{name}", timeout=timeout))
     if ok:
-        _ATLAS_KNOWN.get(url, {}).get("rows", {}).pop(name, None)
+        ((_wall(url).atlas or {}).get("rows") or {}).pop(name, None)
     return ok
 
 
 def _atlas_lib(url: str) -> dict:
     """``{name: row}`` of the wall's atlas library from what we last saw, re-reading it when the
     belief is older than the verify window — a sheet can be evicted or lost to a reboot under us."""
-    e = _ATLAS_KNOWN.get(url)
+    e = _wall(url).atlas
     now = time.monotonic()
     if e is None or now - e["at"] > _ATLAS_VERIFY_S:
         rows = {str(a["name"]): a for a in atlas_list(url) if isinstance(a, dict) and a.get("name")}
-        _ATLAS_KNOWN[url] = e = {"at": now, "rows": rows}
+        _wall(url).atlas = e = {"at": now, "rows": rows}
     return e["rows"]
 
 
@@ -856,38 +872,38 @@ class CanvasSurface:
     On a wall with no canvas (a physical split-flap), the helper is not injected
     at all, so an app that wants it declares ``canvas`` and checks it for None."""
 
-    def __init__(self, url: str, width: int, height: int,
-                 formats: tuple = (), effects: tuple = (),
-                 rect: bool = False, rects: bool = False, anim: bool = False, ticker: bool = False,
-                 effect_params: tuple = (), readback: bool = False, ops: tuple = (),
-                 overlay: bool = False, transition: bool = False, anim_library: bool = False,
-                 gif: bool = False, fonts: bool = False, sprite: bool = False, stream: bool = False):
+    def __init__(self, url: str, caps):
+        """``caps`` is the wall's ``device.Capabilities`` — the surface derives its size, formats
+        and every ``can_*`` gate from it in this one place (rather than threading ~16 booleans
+        through a constructor). Apps keep reading the plain ``can_*`` attributes."""
         self.url = url
-        self.width = int(width)
-        self.height = int(height)
-        self.formats = tuple(formats)
-        self.effects = tuple(effects)
+        self.caps = caps
+        self.width = int(caps.canvas_w)
+        self.height = int(caps.canvas_h)
+        self.formats = tuple(caps.canvas_formats)
+        self.effects = tuple(caps.effects)
         # Newer-firmware canvas extras (see device.Capabilities). An app checks these before
         # reaching for ticker()/anim()/paste() so it can fall back on an older wall.
         self.can_qoi = "qoi" in self.formats
-        self.can_rect = bool(rect)
-        self.can_rects = bool(rects)            # 3.1: frame() sends only the changed rects (delta)
-        self.can_stream = bool(stream)          # 3.2: PUT /api/canvas/stream — persistent TLV channel
-        self.can_anim = bool(anim)
-        self.can_ticker = bool(ticker)
-        self.effect_params = tuple(effect_params)
+        self.can_rect = bool(caps.canvas_rect)
+        self.can_rects = bool(caps.canvas_rects)   # 3.1: frame() sends only the changed rects (delta)
+        self.can_stream = bool(caps.canvas_stream)  # 3.2: PUT /api/canvas/stream — persistent TLV channel
+        self.can_anim = bool(caps.canvas_anim)
+        self.can_ticker = bool(caps.canvas_ticker)
+        self.effect_params = tuple(caps.effect_params)
         # 1.19 / 1.25 / 2.1. `ops` is the draw-op vocabulary the wall honours (an app can consult
-        # it before reaching for a shape); `can_ops` is "any ops at all". The rest gate the 2.1
-        # families — an app checks the flag, then calls the matching helper.
-        self.ops = tuple(ops)
+        # it before reaching for a shape); `can_ops` is "any ops at all". The 2.1 endpoint families
+        # aren't flagged one by one, so they all gate on the firmware version (caps.canvas_2_1).
+        self.ops = tuple(caps.canvas_ops)
         self.can_ops = bool(self.ops)
-        self.can_readback = bool(readback)
-        self.can_overlay = bool(overlay)
-        self.can_transition = bool(transition)
-        self.can_anim_library = bool(anim_library)
-        self.can_gif = bool(gif)
-        self.can_fonts = bool(fonts)
-        self.can_sprite = bool(sprite)
+        self.can_readback = bool(caps.canvas_readback)
+        two_one = bool(caps.canvas_2_1)
+        self.can_overlay = two_one
+        self.can_transition = two_one
+        self.can_anim_library = two_one
+        self.can_gif = two_one
+        self.can_fonts = two_one
+        self.can_sprite = bool(caps.canvas_sprite)
         self._ops: list = []
 
     # -- drawing (batched until show) ----------------------------------------
@@ -1019,8 +1035,8 @@ class CanvasSurface:
         if not self._ops:
             return True
         ops, self._ops = self._ops + [{"op": "show"}], []
-        _LAST_KIND[self.url] = "ops"                     # an ops app — not streamed (a later phase)
-        if self.url in _SIM_URLS:                       # sim: an ops app renders on-device, so it
+        _wall(self.url).last_kind = "ops"                     # an ops app — not streamed (a later phase)
+        if _wall(self.url).sim:                       # sim: an ops app renders on-device, so it
             log.info("canvas %s: [sim] %d op(s) not sent", self.url, len(ops))
             return True                                 # cannot preview here; just don't drive the panel
         if log.isEnabledFor(logging.INFO):
@@ -1070,16 +1086,17 @@ class CanvasSurface:
         return False
 
     def _push_rgb(self, b: bytes) -> bool:
-        if self.url in _SIM_URLS:                                  # sim: cache for the preview, drive nothing
+        if _wall(self.url).sim:                                  # sim: cache for the preview, drive nothing
             _remember_frame(self.url, self.width, self.height, b)
             log.info("canvas %s: [sim] frame not sent (%d B)", self.url, len(b))
             return True
-        _LAST_KIND[self.url] = "frame"                             # this app pushes frames (streaming heuristic)
-        st = _STREAMS.get(self.url)                                # the persistent stream, if the engine opened one
+        _wall(self.url).last_kind = "frame"                             # this app pushes frames (streaming heuristic)
+        st = _wall(self.url).stream                                # the persistent stream, if the engine opened one
         streaming = st is not None and st.alive
-        old = _LAST_FRAME.get(self.url)                             # the base (last frame we sent)
-        n = _DELTA_N.get(self.url, 0) + 1
-        _DELTA_N[self.url] = n
+        old = _wall(self.url).last_frame                             # the base (last frame we sent)
+        w = _wall(self.url)
+        w.delta_n += 1
+        n = w.delta_n
         # A delta needs a same-size base, and we force a full frame every _KEYFRAME_EVERY pushes so
         # a reboot or drift self-heals. Deltas never transition, which is right for an animating app.
         if (self.can_rects and old is not None and (old[0], old[1]) == (self.width, self.height)
@@ -1192,7 +1209,7 @@ class CanvasSurface:
         set, say — but NOT a scoreboard's per-matchup logos): it is saved to the wall's flash once,
         so it survives a reboot AND an LRU eviction by other apps' sheets, lazy-loading on the next
         bind instead of being re-uploaded."""
-        if self.url in _SIM_URLS:                          # sim: nothing is drawn, so nothing to upload
+        if _wall(self.url).sim:                          # sim: nothing is drawn, so nothing to upload
             return True
         try:
             imgs = [im.convert("RGB") for im in images]

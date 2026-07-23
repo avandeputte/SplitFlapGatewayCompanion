@@ -194,3 +194,31 @@ def _no_outbound_network(request, monkeypatch):
 
     monkeypatch.setattr(socket.socket, "connect", connect)
     monkeypatch.setattr(socket.socket, "connect_ex", connect_ex)
+
+
+# --- canvas test helper ------------------------------------------------------
+# Production builds a CanvasSurface from the wall's device.Capabilities (the one
+# construction path). Tests want ad-hoc capability combos without spelling a full
+# Capabilities out — this maps the short flag names to the caps fields.
+_CANVAS_FLAG_TO_FIELD = {
+    "rect": "canvas_rect", "rects": "canvas_rects", "anim": "canvas_anim",
+    "ticker": "canvas_ticker", "readback": "canvas_readback", "stream": "canvas_stream",
+    "ops": "canvas_ops", "effect_params": "effect_params",
+}
+
+
+def canvas_surface(url, w, h, formats=(), effects=(), *, sprite=False, two_one=False, **flags):
+    """A CanvasSurface for tests: ``canvas_surface(url, w, h, formats, effects, rects=True, ...)``.
+    ``sprite=True`` adds the sprite op; ``two_one=True`` sets firmware 2.1 (overlay/transition/
+    anim-library/GIF/fonts family)."""
+    from app import canvas as canvas_mod
+    from app import device
+    fields = {_CANVAS_FLAG_TO_FIELD[k]: v for k, v in flags.items()}
+    if sprite:
+        fields["canvas_ops"] = tuple(set(fields.get("canvas_ops", ())) | {"sprite"})
+    if two_one:
+        fields["fw_version"] = (2, 1)
+    caps = device.Capabilities(lowercase=True, pictographs=True, named_colours=True, indexed=True,
+                               canvas_w=w, canvas_h=h, canvas_formats=tuple(formats),
+                               effects=tuple(effects), **fields)
+    return canvas_mod.CanvasSurface(url, caps)
