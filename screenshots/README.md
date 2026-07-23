@@ -1,8 +1,8 @@
-# Matrix panel screenshots
+# Screenshots
 
-Rendered views of every app's Matrix-panel (LED) surface, generated straight from the
-app code with sample data — what each app looks like on a Matrix Gateway wall. Every
-app is rendered at the four common panel resolutions:
+Rendered views of every app, generated straight from the app code with sample data —
+the Matrix-panel (LED) surface at the four common panel resolutions, and the split-flap
+surface as a 3×15 wall mockup (see [the last section](#split-flap-wall-3--15)).
 
 | Folder | Resolution |
 | --- | --- |
@@ -12,7 +12,8 @@ app is rendered at the four common panel resolutions:
 | [r64x32/](r64x32/) | 64 × 32 |
 
 Images are saved at 4× so the LED pixels stay crisp. Channels (quotes, jokes, facts …)
-render generically on the panel — big text plus a themed icon — and are not included here.
+render generically on the panel — big text plus a themed icon — and are shown with one
+representative line each.
 
 The physical panel quantizes color (typically 3 bitplanes), so very dim tones look
 slightly smoother in these PNGs than on real LEDs.
@@ -34,3 +35,12 @@ slightly smoother in these PNGs than on real LEDs.
 ### 64 × 32
 
 ![All apps at 64x32](contact-sheet-64x32.png)
+
+## Split-flap wall (3 × 15)
+
+Every app with a split-flap surface, mocked up on a 3-row × 15-column wall of flap
+modules — the first page each app shows, with sample data. Colored tiles are the wall's
+seven color flaps (animations and emoji tiles render as solid color modules).
+Individual images are in [flap-3x15/](flap-3x15/).
+
+![All apps on a 3x15 split-flap wall](contact-sheet-flap-3x15.png)
