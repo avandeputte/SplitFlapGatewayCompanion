@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.14
+
+- **Panel-view polish:** Rocket Launch and Sports headers no longer clip their top pixel row;
+  Word of the Day's definition is a size larger; the Star Wars lightsaber is red (blue read as a
+  plain white slash); Home Assistant cards drop the icon on very small panels so values stay
+  readable.
+
 ## 2.10.0-beta.13
 
 - **One Liners** shows the smiley on the Matrix panel (they're jokes).
