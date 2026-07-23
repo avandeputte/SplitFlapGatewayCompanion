@@ -3,6 +3,10 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.13
+
+- **One Liners** shows the smiley on the Matrix panel (they're jokes).
+
 ## 2.10.0-beta.12
 
 - **On This Day**: the year chip's numerals are solid black on the gold chip.
