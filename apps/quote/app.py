@@ -195,7 +195,9 @@ def _cv_card(canvas, ImageDraw, label, body, sub, page):
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
-    top = _cv_header(canvas, draw, label)
+    # A label row on a short panel pins the body at its 8px floor — so the label
+    # is dropped there and the body takes the full height at a bigger face.
+    top = _cv_header(canvas, draw, label) if H > 32 else 1
     if sub and H < 44:
         body = f'{body}  {sub}'       # tiny panel: the author flows with the text
         sub = ''

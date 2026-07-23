@@ -645,6 +645,9 @@ class DisplayController:
             if not items:
                 await asyncio.sleep(1)
                 continue
+            # A screen too long to stay readable on this panel becomes several screens,
+            # never smaller type — the renderer's floor is the readable minimum.
+            items = [pg for t in items for pg in channel_art.fit_pages(surface, t, motif)]
             delay = max(0.5, float(
                 self.plugins.loop_delay(app_id, self.plugins.overlay(overrides)) or 8))
             for text in items:

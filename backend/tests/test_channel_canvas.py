@@ -83,3 +83,27 @@ def test_items_are_plain_text_and_render_a_non_black_frame():
     cv = _Cap()
     channel_art.render(cv, items[0], rt.channel_canvas_motif(ch))
     assert isinstance(cv.img, Image.Image) and cv.img.getbbox() is not None      # something was drawn
+
+
+def test_long_channel_text_paginates_instead_of_shrinking():
+    """A screen too long to stay readable on a short panel becomes several screens at the
+    8px floor — never smaller type (below 8px the panel renders wrong-reading glyphs)."""
+    text = "We suffer more often in imagination than in reality.\n— Seneca"
+    cap = _Cap(128, 32)
+    pages = channel_art.fit_pages(cap, text, "column")
+    assert len(pages) > 1                                  # too long for one readable screen
+    f = cap.font(channel_art._MIN_READABLE)
+    _, box_w, box_h = channel_art._text_box(128, 32, "column")
+    lh = sum(f.getmetrics())
+    for pg in pages:
+        lines = channel_art._wrap(f, pg, box_w)
+        assert len(lines) * lh + (len(lines) - 1) <= box_h  # each page fits at the floor
+    # every word survives pagination, in order
+    assert " ".join(" ".join(pg.split()) for pg in pages) == " ".join(text.split())
+    # a full-size panel still shows it as the single screen it always was
+    assert channel_art.fit_pages(_Cap(256, 64), text, "column") == [text]
+
+
+def test_the_fitter_never_goes_below_the_readable_floor():
+    f, lines, lh, gap = channel_art._fit_block(_Cap().font, "x " * 300, 122, 26, 23)
+    assert f.size >= channel_art._MIN_READABLE

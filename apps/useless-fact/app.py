@@ -205,7 +205,9 @@ def _cv_card(canvas, ImageDraw, label, body, page):
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
-    top = _cv_header(canvas, draw, label)
+    # A label row on a short panel pins the body at its 8px floor — so the label
+    # is dropped there and the body takes the full height at a bigger face.
+    top = _cv_header(canvas, draw, label) if H > 32 else 1
     font, pages, lh, gap = _cv_pages(canvas, body, W - 6, H - top)
     dots = 1 < len(pages) <= 8 and H >= 44
     if dots:                                   # the dots take the bottom two rows

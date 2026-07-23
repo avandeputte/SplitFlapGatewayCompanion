@@ -63,7 +63,13 @@ def _wrap(font, text, box_w):
     return lines or [""]
 
 
-def _fit_block(font_fn, text, box_w, box_h, max_size, min_size=6):
+# Text smaller than this renders wrong-reading glyphs on the panel (a 6px "2" reads as a
+# "7"), so the fitter never goes under it — text that still doesn't fit is split across
+# screens (fit_pages), not shrunk further.
+_MIN_READABLE = 8
+
+
+def _fit_block(font_fn, text, box_w, box_h, max_size, min_size=_MIN_READABLE):
     """Largest bundled font at which ``text`` word-wraps inside box_w × box_h. Returns
     (font, lines, line_height, gap)."""
     for size in range(int(max_size), min_size - 1, -1):
@@ -222,6 +228,57 @@ MOTIFS = {
 }
 
 
+def _text_box(W, H, motif):
+    """The text box render() lays out on a W×H panel: its left edge (past the art column
+    when the panel is big enough to carry one) and its width and height."""
+    art, asset = MOTIFS.get(motif), _asset(motif)
+    if (art or asset) and H >= 40 and W >= 112:
+        tx0 = 4 + min(H - 8, int(W * 0.30)) + 7
+    else:
+        tx0 = 3
+    return tx0, max(8, W - tx0 - 3), H - 6
+
+
+def fit_pages(surface, text, motif="quote"):
+    """A channel screen's text, split into as many screens as it needs to stay readable on
+    this panel: every page word-wraps inside the text box at ``_MIN_READABLE`` or larger.
+    Most text is one page; a long quote on a short panel becomes two or three, each cycled
+    with the same dwell as any other screen. Hard newlines (a quote's attribution line)
+    stay hard within their page."""
+    _, box_w, box_h = _text_box(int(surface.width), int(surface.height), motif)
+    f = surface.font(_MIN_READABLE)
+    asc, desc = f.getmetrics()
+    lh, gap = asc + desc, max(1, _MIN_READABLE // 12)
+
+    def fits(t):
+        lines = _wrap(f, t, box_w)
+        return len(lines) * lh + (len(lines) - 1) * gap <= box_h
+
+    text = str(text)
+    if fits(text):
+        return [text]
+    tokens = []
+    for i, para in enumerate(text.split("\n")):
+        if i:
+            tokens.append("\n")
+        tokens.extend(para.split())
+    pages, cur = [], ""
+    for tok in tokens:
+        if tok == "\n":
+            if cur:
+                cur += "\n"
+            continue
+        cand = cur + tok if (not cur or cur.endswith("\n")) else cur + " " + tok
+        if not cur or fits(cand):
+            cur = cand
+        else:
+            pages.append(cur.strip())
+            cur = tok
+    if cur.strip():
+        pages.append(cur.strip())
+    return pages or [text]
+
+
 def render(surface, text, motif="quote", accent=_INK):
     """Compose one frame — themed art on the left, the text laid out big beside it — and push it
     through ``surface`` (a canvas.CanvasSurface). Falls back to text-only if the motif is unknown
@@ -241,11 +298,7 @@ def render(surface, text, motif="quote", accent=_INK):
             img.paste(e, (ax, ay), e)             # emoji image (alpha-composited on black)
         else:
             art(d, ax, ay, s)
-        tx0 = ax + s + 7
-    else:
-        tx0 = 3                                   # small panel: text only, art won't read
-    box_w = max(8, W - tx0 - 3)
-    box_h = H - 6
+    tx0, box_w, box_h = _text_box(W, H, motif)
     max_size = min(28, int(box_h * 0.9))
     f, lines, lh, gap = _fit_block(surface.font, str(text), box_w, box_h, max_size)
     total = len(lines) * lh + (len(lines) - 1) * gap
