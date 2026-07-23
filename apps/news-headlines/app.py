@@ -168,12 +168,12 @@ _GRAY = (150, 150, 158)
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -200,7 +200,7 @@ def _cv_wrap(font, text, max_w, max_lines):
 def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
     """Largest font at which ``text`` wraps into <= ``max_lines`` lines fitting the box.
     Returns (font, lines, line_height, gap)."""
-    size = max(5, int(max_h))
+    size = max(8, int(max_h))
     for _ in range(80):
         font = canvas.font(size)
         lines = _cv_wrap(font, text, max_w, max_lines)
@@ -209,10 +209,10 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
         gap = max(1, lh // 6)
         total = len(lines) * lh + (len(lines) - 1) * gap
         widest = max((font.getlength(ln) for ln in lines), default=0)
-        if size <= 5 or (total <= max_h and widest <= max_w):
+        if size <= 8 or (total <= max_h and widest <= max_w):
             return font, lines, lh, gap
         size -= 1
-    font = canvas.font(5)
+    font = canvas.font(8)
     lines = _cv_wrap(font, text, max_w, max_lines)
     b = font.getbbox('Ag')
     return font, lines, b[3] - b[1], 1
@@ -308,13 +308,13 @@ def fetch_matrix(settings, canvas):
             ln = ln[:-1].rstrip()
         lines[-1] = (ln + '…') if ln else '…'
     # The block rides the panel floor, its leading stretched (the font is already
-    # at its cap) so the first line starts right under the masthead — full-height
-    # ink, not a centered strip.
+    # at its cap) toward the masthead — but never past lh//2 of extra air, which
+    # would tear the headline into strips with a hole between the lines.
     ob = nf.getbbox(lines[-1] or '0')
     own = ob[3] - ob[1]
     step = lh + gap
     if len(lines) > 1:
-        step += max(0, min(lh, (H - own - top) // (len(lines) - 1) - step))
+        step += max(0, min(lh // 2, (H - own - top) // (len(lines) - 1) - step))
     ny = H - own - step * (len(lines) - 1)
     for ln in lines:
         draw.text((3, ny - nf.getbbox(ln)[1]), ln, font=nf, fill=_WHITE)

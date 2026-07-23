@@ -309,7 +309,18 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
         if use_sprites:
             canvas.sprite(_DOMAIN.get(domain, _N_ICONS - 1), x + 3, y + max(2, (top_h - tile) // 2))
             vx0 = x + 3 + tile + 2
-        vf = canvas.fit(val, (x + cw - 3) - vx0, top_h - 3)          # fit the value in the space right of the icon
+        slot_w = (x + cw - 3) - vx0
+        vf = canvas.fit(val, slot_w, top_h - 3)          # fit the value in the space right of the icon
+        if len(val) * canvas.face_width(vf) > slot_w:
+            # Even the smallest face would clip against the card border: strip
+            # the unit down to the bare number ("72" beats "72°F" bleeding into
+            # the edge), then truncate as the last resort.
+            cut = next((k for k, ch in enumerate(val) if not (ch.isdigit() or ch in '-.')), len(val))
+            if cut and val[:cut] != val:
+                val = val[:cut]
+                vf = canvas.fit(val, slot_w, top_h - 3)
+            while len(val) > 1 and len(val) * canvas.face_width(vf) > slot_w:
+                val = val[:-1]
         canvas.shadow_text((vx0 + x + cw - 3) // 2, y + max(2, (top_h - vf) // 2), val, col, vf, align='center')
         if show_name:
             canvas.shadow_text(x + cw // 2, y + card_h - 10, name[:max(4, (cw - 4) // 5)], (222, 228, 242), 8, align='center')

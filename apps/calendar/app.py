@@ -342,12 +342,12 @@ _INK = (12, 12, 14)                         # chip text — near-black on the ch
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -471,8 +471,12 @@ def fetch_matrix(settings, canvas, i18n=None):
     draw.fontmode = "1"
 
     def probe(chip_h, max_w):
-        # can this label hold a readable size in this chip?
-        return lambda label: _cv_fit(canvas, label, max_w, chip_h - 3).size >= 8
+        # can this label hold a readable size in this chip? (the fit floors at
+        # 8px, so "still too wide at the floor" is the doesn't-fit signal)
+        def ok(label):
+            f = _cv_fit(canvas, label, max_w, chip_h - 3)
+            return f.size >= 8 and f.getlength(label) <= max_w
+        return ok
 
     if H >= 48:
         # Stacked agenda: each event is a time chip over its title, the events cut
@@ -488,9 +492,10 @@ def fetch_matrix(settings, canvas, i18n=None):
             chip_h = max(11, int(band_h * 0.42))
             label = _cv_chip_label(when, all_day, now, i18n, probe(chip_h, W - 10))
             _cv_chip(canvas, draw, 2, ry, chip_h, label, _cv_chip_color(when, now), W - 10)
-            title_h = band_h - chip_h - (1 if i == n - 1 else 2)
+            title_h = band_h - chip_h - 2
             _cv_title(canvas, draw, summary, 4, ry + chip_h + 1, W - 8, title_h,
-                      cap_h=chip_h + 5, bottom=(i == n - 1))   # consistent rows, no ballooning
+                      cap_h=chip_h + 5)   # centered in every band — a floor-sunk last
+            # title opened a hole under its chip that no other band had
     else:
         # Short panel: one event — the chip on the top edge, the title's ink on the
         # bottom one, both full width.

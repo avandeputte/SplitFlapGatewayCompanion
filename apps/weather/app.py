@@ -704,12 +704,12 @@ _CV_SKY_ACCENT = {                         # condition accent, keyed by the sky 
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -819,20 +819,22 @@ def _cv_card(canvas, ImageDraw, w, temp_unit, t):
         # Stacked: temperature + high/low hung from the top edge, the condition
         # strip sitting on the bottom row — every row of the panel works.
         df = _cv_fit(canvas, desc, W - 4, max(7, int(H * 0.30)))
-        if df.size < 7 and ' ' in desc:
-            # Too long for a legible line: keep the noun ("CLOUDY", "RAIN"),
-            # not a smaller alphabet.
+        if df.getlength(desc) > W - 4 and ' ' in desc:
+            # Too long for a legible line even at the 8px floor: keep the noun
+            # ("CLOUDY", "RAIN"), not a smaller alphabet.
             desc = desc.split()[-1]
             df = _cv_fit(canvas, desc, W - 4, max(7, int(H * 0.30)))
         dh = _cv_ink(df, desc)
         top_h = H - dh - 2                            # everything above the strip
-        tf = _cv_fit(canvas, temp, int(W * 0.58), top_h - 1)
-        _cv_text(draw, 3, 1, temp, tf, _CV_TEXT)
+        # The hi/lo column is measured FIRST (it can no longer shrink below the
+        # 8px floor); the temperature gets exactly the width that's left, so the
+        # degree sign can never collide with the column.
         hi_s, lo_s = f'H {hi}', f'L {lo}'
-        rw = W - 6 - (3 + tf.getlength(temp))
-        sf = _cv_fit(canvas, max(hi_s, lo_s, key=len), rw, max(7, (top_h - 3) // 2))
+        sf = _cv_fit(canvas, max(hi_s, lo_s, key=len), W // 2, max(7, (top_h - 3) // 2))
         sh = _cv_ink(sf, hi_s)
         rx = W - 3 - max(sf.getlength(hi_s), sf.getlength(lo_s))
+        tf = _cv_fit(canvas, temp, max(10, rx - 6), top_h - 1)
+        _cv_text(draw, 3, 1, temp, tf, _CV_TEXT)
         _cv_text(draw, rx, 1, hi_s, sf, _CV_HI)
         _cv_text(draw, rx, top_h - 1 - sh, lo_s, sf, _CV_LO)
         _cv_text(draw, (W - df.getlength(desc)) / 2.0, H - dh, desc, df, accent)

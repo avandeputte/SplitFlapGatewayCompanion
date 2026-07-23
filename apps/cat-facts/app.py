@@ -51,12 +51,13 @@ _DOT_OFF = (70, 70, 76)       # inactive page dots
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
+    smaller sizes render wrong-reading glyphs on the panel)."""
+    size = max(8, int(max_h) + 3)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -89,7 +90,7 @@ def _cv_wrap(font, text, max_w):
     return lines or ['']
 
 
-def _cv_pages(canvas, text, max_w, max_h, min_size=7):
+def _cv_pages(canvas, text, max_w, max_h, min_size=8):
     """The largest font (>= ``min_size``) at which the WHOLE text wraps into
     ``max_w`` x ``max_h`` — one page. When even ``min_size`` can't hold it, wrap
     at ``min_size`` and split the lines into pages to rotate through across
@@ -152,6 +153,17 @@ def _cv_header(canvas, draw, label):
     if W >= 96 and H >= 48:
         x += _cv_motif(canvas, draw, 3, 0, hh + 2) + 4
     f = _cv_fit(canvas, label, W - x - 3, hh)
+    if f.getlength(label) > W - x - 3:
+        # The width forced the font to its 8px floor and the label still
+        # overflows — keep the band-height size and shorten by whole words
+        # instead of clipping at the edge (a missing word beats a garbled one).
+        f = _cv_fit(canvas, label, 10 ** 6, hh)
+        words = str(label).split()
+        while len(words) > 1 and f.getlength(' '.join(words)) > W - x - 3:
+            words.pop()
+        label = ' '.join(words)
+        if f.getlength(label) > W - x - 3:
+            f = _cv_fit(canvas, label, W - x - 3, hh)
     b = f.getbbox(label)
     draw.text((x, 1 - b[1]), label, font=f, fill=_ACCENT)
     ry = 1 + max(hh, b[3] - b[1]) + 2

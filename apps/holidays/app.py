@@ -310,12 +310,13 @@ def _cv_shadow(draw, x, y, text, font, fill):
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
+    smaller sizes render wrong-reading glyphs on the panel)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -342,7 +343,7 @@ def _cv_wrap(font, text, max_w, max_lines):
 def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
     """Pick the largest font at which ``text`` word-wraps into <= ``max_lines`` lines that together
     fit ``max_w`` x ``max_h``. Returns (font, lines, line_height, gap)."""
-    size = max(5, int(max_h))
+    size = max(8, int(max_h))
     for _ in range(80):
         font = canvas.font(size)
         lines = _cv_wrap(font, text, max_w, max_lines)
@@ -351,10 +352,10 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
         gap = max(1, lh // 6)
         total = len(lines) * lh + (len(lines) - 1) * gap
         widest = max((font.getlength(ln) for ln in lines), default=0)
-        if size <= 5 or (total <= max_h and widest <= max_w):
+        if size <= 8 or (total <= max_h and widest <= max_w):
             return font, lines, lh, gap
         size -= 1
-    font = canvas.font(5)
+    font = canvas.font(8)
     lines = _cv_wrap(font, text, max_w, max_lines)
     b = font.getbbox('Ag')
     return font, lines, b[3] - b[1], 1

@@ -189,12 +189,12 @@ _LATER = (100, 220, 120)                    # time to spare
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -287,6 +287,7 @@ def fetch_matrix(settings, canvas):
     area_top = bar_h + 1
     mid = area_top + (H - area_top) // 2
     unit = ' MIN' if W >= 128 else ''
+    row_ink = []                                # (ink top, ink bottom) per row
     for i, (dest, mtxt, mcol) in enumerate(rows):
         ry, rb_ = (area_top, mid - 1) if i == 0 else (mid + 1, H - 1)
         row_h = rb_ - ry + 1
@@ -305,16 +306,20 @@ def fetch_matrix(settings, canvas):
         avail = W - 8 - mw
         df = _cv_fit(canvas, dest, avail, row_h - 2)
         dtext = dest
-        if (df.getbbox(dest)[3] - df.getbbox(dest)[1]) < 6:
-            df = _cv_fit(canvas, '0', avail, 7)              # readable floor; whole name if it fits
+        if (df.getbbox(dest)[3] - df.getbbox(dest)[1]) < 6 or df.getlength(dest) > avail:
+            df = _cv_fit(canvas, '0', avail, 7)              # readable floor; ellipsise, never overflow
             dtext = _cv_ellipsis(df, dest, avail)
         db = df.getbbox(dtext or '0')
         dy = ry + (row_h - (db[3] - db[1])) / 2.0
         if i == 1:
             dy = max(dy, rb_ - (db[3] - db[1]))
         draw.text((3, dy - db[1]), dtext, font=df, fill=_WHITE)
-        if i == 0:
-            draw.line([(2, mid), (W - 3, mid)], fill=(45, 50, 60))
+        row_ink.append((min(my, dy),
+                        max(my + (mb[3] - mb[1]), dy + (db[3] - db[1])) - 1))
+    # The divider sits midway between the first row's ink and the second's —
+    # centered on the air between them, not on the band arithmetic.
+    rule_y = int(round((row_ink[0][1] + row_ink[1][0]) / 2.0))
+    draw.line([(2, rule_y), (W - 3, rule_y)], fill=(45, 50, 60))
 
     canvas.frame(img)
     return 30.0

@@ -99,12 +99,12 @@ _DOT_OFF = (70, 70, 76)       # inactive page dots
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -137,7 +137,7 @@ def _cv_wrap(font, text, max_w):
     return lines or ['']
 
 
-def _cv_pages(canvas, text, max_w, max_h, min_size=7):
+def _cv_pages(canvas, text, max_w, max_h, min_size=8):
     """The largest font (>= ``min_size``) at which the WHOLE text wraps into
     ``max_w`` x ``max_h`` — one page. When even ``min_size`` can't hold it, wrap
     at ``min_size`` and split the lines into pages to rotate through across
@@ -286,7 +286,10 @@ def fetch_matrix(settings, canvas, i18n=None):
     cards = []
     if title:
         cards.append((t('Featured').upper(), title))
-    cards += [(f'{t("Most read").upper()} #{i + 1}', art)
+    # A narrow panel drops the "#n" rank — "MOST READ" alone stays legible at
+    # the 8px floor where "MOST READ #4" would not.
+    ranked = canvas.width >= 96
+    cards += [(f'{t("Most read").upper()} #{i + 1}' if ranked else t('Most read').upper(), art)
               for i, art in enumerate(mostread[:5])]
     if not cards:
         canvas.frame(_cv_message(canvas, ImageDraw, 'Wikipedia', 'No data'))

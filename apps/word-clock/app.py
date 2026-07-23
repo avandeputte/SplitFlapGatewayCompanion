@@ -428,7 +428,7 @@ def _cv_wrap_fit(canvas, words, max_w, max_h, max_lines):
             lines.append(cur)
         return lines[:max_lines] or [['']]
 
-    size = max(5, int(max_h))
+    size = max(8, int(max_h))
     for _ in range(80):
         font = canvas.font(size)
         lines = pack(font)

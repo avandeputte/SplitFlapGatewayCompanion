@@ -503,12 +503,12 @@ _MX_RULE = (48, 52, 62)                     # thin dividers
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -566,8 +566,11 @@ def _mx_text_card(canvas, draw, lines, top, height):
     return canvas
 
 
-def _mx_scoreboard(canvas, draw, game, top, height, rule=True):
-    """The two team rows: abbreviation left, score right (or a VS mark pre-game)."""
+def _mx_scoreboard(canvas, draw, game, top, height, rule=True, even=False):
+    """The two team rows: abbreviation left, score right (or a VS mark pre-game).
+    ``even`` spreads the rows with equal air instead of anchoring the home row to
+    the band's floor — used on short panels where a status line follows beneath,
+    so away / home / status read as three evenly spaced rows."""
     W = canvas.width
     rows = _mx_team_rows(game)
     state = game.get('state', 'pre')
@@ -591,9 +594,13 @@ def _mx_scoreboard(canvas, draw, game, top, height, rule=True):
 
     for i, ((abbr, score), col) in enumerate(zip(rows, colors)):
         # the away row hugs the region's top, the home row sits on its bottom —
-        # the scoreboard spends the whole band it was given
+        # the scoreboard spends the whole band it was given (``even``: the home
+        # row floats so the gap above it matches the gap to the status below)
         if i == 0:
             ty = top - b[1]
+        elif even:
+            ink = b[3] - b[1]
+            ty = top + ink + max(0, height - 2 * ink + 1) // 2 - b[1]
         else:
             ty = top + height - b[3]
         draw.text((3, ty), abbr, font=f, fill=col)
@@ -655,6 +662,7 @@ def fetch_matrix(settings, canvas, i18n=None):
     scol = _mx_status_color(state)
 
     top, bottom = 1, H
+    even_rows = False
     if H >= 48:
         # Header: league left, status right, a live dot when the game is on. Ink
         # tops are PINNED to y=1 — the top row works and glyph tops never clip.
@@ -674,17 +682,19 @@ def fetch_matrix(settings, canvas, i18n=None):
         draw.line([(2, head_h + 1), (W - 3, head_h + 1)], fill=_MX_RULE)
         top = head_h + 3
     elif status:
-        # Short panel: the status becomes a thin bottom line sitting on H-1.
+        # Short panel: the status is the third row, its ink on H-1 — the two team
+        # rows above spread with matching air instead of floor-anchoring onto it.
         foot_h = max(7, int(H * 0.22))
         sf = _cv_fit(canvas, status, W - 6, foot_h)
         sb = sf.getbbox(status)
         if (sb[3] - sb[1]) >= 5:
             draw.text(((W - sf.getlength(status)) / 2.0, H - sb[3]),
                       status, font=sf, fill=scol)
-            bottom = H - 2 - (sb[3] - sb[1])
+            bottom = H - 1 - (sb[3] - sb[1])   # the band ends where the status ink begins
+            even_rows = True
 
     if _mx_team_rows(game) is not None:
-        _mx_scoreboard(canvas, draw, game, top, bottom - top, rule=H >= 48)
+        _mx_scoreboard(canvas, draw, game, top, bottom - top, rule=H >= 48, even=even_rows)
     else:
         _mx_text_card(canvas, draw, str(game.get('page', '')).split('\n'), top, bottom - top)
 

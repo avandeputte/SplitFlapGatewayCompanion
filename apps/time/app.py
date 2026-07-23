@@ -83,12 +83,12 @@ _DATE_COL = (132, 136, 148)
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -125,17 +125,24 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
     date_min = max(7, int(H * 0.16))
     time_h = H - 3 - date_min - gap
 
-    tf = _cv_fit(canvas, main, W - 2 - (int(W * 0.12) if ampm else 0), time_h)
+    # The AM/PM tag is measured FIRST: the clock then gets exactly the width
+    # that's left (W - 2 - aw), so the tag can never clip the right edge.
+    def _ampm_font(tag):
+        return _cv_fit(canvas, tag, int(W * 0.16), max(7, int(time_h * 0.28))) if tag else None
+
+    af = _ampm_font(ampm)
+    aw = (af.getlength(ampm) + 2) if ampm else 0
+    tf = _cv_fit(canvas, main, W - 2 - aw, time_h)
     if seconds and (lambda b: b[3] - b[1])(tf.getbbox('0')) < 10:
         # Seconds would drive the digits below legible — a small panel shows
         # H:MM big instead (and quietly redraws each minute).
         seconds = False
         main, ampm = _split_ampm(_clock(settings, i18n, now, False))
-        tf = _cv_fit(canvas, main, W - 2 - (int(W * 0.12) if ampm else 0), time_h)
+        af = _ampm_font(ampm)
+        aw = (af.getlength(ampm) + 2) if ampm else 0
+        tf = _cv_fit(canvas, main, W - 2 - aw, time_h)
     tb = tf.getbbox(main)
     tw, th = tf.getlength(main), tb[3] - tb[1]
-    af = _cv_fit(canvas, ampm, int(W * 0.16), max(7, int(th * 0.38))) if ampm else None
-    aw = (af.getlength(ampm) + 2) if ampm else 0
 
     tx = (W - tw - aw) / 2.0
     ty = 1
@@ -148,7 +155,7 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
     # The date fills what the clock left, pinned to the bottom edge.
     weekday, date_line = _day_lines(now, i18n)
     leftover = (H - 2) - th - gap               # ink rows left under the clock
-    if leftover >= 12 and W >= 96:
+    if leftover >= 16 and W >= 96:              # room for two 8px-floor lines + gap
         # Room to mirror the tall flap wall: weekday and date, stacked.
         lgap = 2
         per = min((leftover - lgap) / 2.0, max(6, int(H * 0.2)))

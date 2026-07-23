@@ -138,12 +138,13 @@ _CV_NOW = (255, 255, 255)                  # the 'now' dot
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
+    smaller sizes render wrong-reading glyphs on the panel)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -283,7 +284,7 @@ def fetch_matrix(settings, canvas, i18n=None):
     now_min = local.hour * 60 + local.minute
     upcoming = [e for e in events if e[0] >= now_min] or [events[-1]]
 
-    def tide_line(x, y, event, bright):
+    def tide_line(x, y, event, bright, with_height=True):
         m, v, is_high, hhmm = event
         arrow = '↑' if is_high else '↓'
         when = _fmt_time(hhmm, i18n)
@@ -293,16 +294,34 @@ def fetch_matrix(settings, canvas, i18n=None):
         draw.text((x, yb), arrow, font=f, fill=_CV_SEA)
         x += f.getlength(arrow + ' ')
         draw.text((x, yb), when, font=f, fill=_CV_TEXT if bright else _CV_DIM)
+        if not with_height:
+            return x + f.getlength(when)
         x += f.getlength(when + ' ')
         draw.text((x, yb), ht, font=f, fill=_CV_SEA if bright else _CV_DIM)
         return x + f.getlength(ht)
 
+    def tide_w(event, with_height=True):
+        _m, v, is_high, hhmm = event
+        arrow = '↑' if is_high else '↓'
+        when = _fmt_time(hhmm, i18n)
+        w = head_f.getlength(arrow + ' ') + head_f.getlength(when)
+        if with_height:
+            w += head_f.getlength(' ') + head_f.getlength(f'{v:.1f}FT')
+        return w
+
     sample = '↑ 12:28PM 11.2FT'
     head_h = max(8, min(12, int(H * 0.26)))
     head_f = _cv_fit(canvas, sample, int(W * 0.52) if W >= 128 else W - 4, head_h)
+    # Nothing below the 8px floor: what can't fit whole is dropped instead — the
+    # SECOND (next-tide) group goes first, then the first group's height figure.
+    two = W >= 128 and len(upcoming) > 1 and \
+        tide_w(upcoming[0]) + max(8, W // 16) + tide_w(upcoming[1]) <= W - 6
+    if not two:                            # one group: give it the full width
+        head_f = _cv_fit(canvas, sample, W - 4, head_h)
     hh = _cv_ink(head_f, sample)
-    end = tide_line(3, 1, upcoming[0], True)
-    if W >= 128 and len(upcoming) > 1:
+    end = tide_line(3, 1, upcoming[0], True,
+                    with_height=tide_w(upcoming[0]) <= W - 6)
+    if two:
         tide_line(end + max(8, W // 16), 1, upcoming[1], False)
 
     top = 1 + hh + 2

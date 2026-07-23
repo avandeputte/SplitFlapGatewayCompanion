@@ -216,7 +216,7 @@ def _wind(v, unit):
     return int(round(f)), 'mph'
 
 
-def _fit(canvas, text, max_w, want, lo=6):
+def _fit(canvas, text, max_w, want, lo=8):
     """Largest bundled font <= `want` px whose `text` still fits `max_w`."""
     size = max(lo, int(want))
     f = canvas.font(size)
@@ -369,8 +369,8 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
                       f'{wd} {now.day}', wd]
     else:
         date_cands = [f'{wd} {now.day} {mo}', f'{wd} {now.day}', f'{now.day} {mo}', wd]
-    dsize = max(7, min(int(H * 0.23), 15))
-    dfloor = max(7, int(dsize * 0.6))
+    dsize = max(8, min(int(H * 0.23), 15))
+    dfloor = max(8, int(dsize * 0.6))
     date_str, dfont = None, None
     for c in date_cands:                         # richest that fits, shrinking to a floor
         f = _fit(canvas, c, Lw, dsize, lo=dfloor)
@@ -416,8 +416,8 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
             if i18n is not None:
                 word = i18n.t(word, 'weather')
             wwant = int(H * (0.18 if rich_v else 0.26))
-            wf0 = _fit(canvas, word, wxw, wwant, lo=7)     # trim only if it won't fit at all
-            specs.append(([(_truncate(wf0, word, wxw), _C_WORD)], wwant, 7))
+            wf0 = _fit(canvas, word, wxw, wwant, lo=8)     # trim only if it won't fit at all
+            specs.append(([(_truncate(wf0, word, wxw), _C_WORD)], wwant, 8))
 
         # today's high / low — warm high, cool low
         if (rich_v or wxw >= 52) and (hi is not None or lo is not None):
@@ -430,13 +430,13 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
                 hl = [('H ', _C_HI_L), (f'{hi}{deg}', _C_HI_V)]
             else:
                 hl = [('L ', _C_LO_L), (f'{lo}{deg}', _C_LO_V)]
-            specs.append((hl, int(H * 0.16), 6))
+            specs.append((hl, int(H * 0.16), 8))
 
         # feels-like, then humidity + wind — only where the panel is generous
         if rich_v and rich_h:
             if feels is not None:
                 specs.append(([('Feels ', _C_MUTE), (f'{feels}{deg}', _C_MUTE_V)],
-                              int(H * 0.15), 6))
+                              int(H * 0.15), 8))
             # Humidity + wind on one line — the '%' and the mph/km-h unit already
             # say which is which, so drop the word labels: a shorter string fits a
             # much taller, readable font in the narrow column.

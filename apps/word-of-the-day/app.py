@@ -166,12 +166,12 @@ _CV_DEF = (150, 156, 166)
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -230,8 +230,9 @@ def fetch_matrix(settings, canvas, i18n=None):
         def_lines = _cv_wrap(df, full, W - 2 * pad, 2 if H >= 48 else 1)
         if sum(len(ln.split()) for ln in def_lines) < len(full.split()):
             if W < 100:
-                # No honest room for the gloss — the part of speech alone, not a stump.
-                def_lines = [pos] if pos else []
+                # No honest room for the gloss — drop the block entirely; an
+                # orphaned "n." under the word explains nothing.
+                def_lines = []
             else:
                 last = def_lines[-1]
                 while last and df.getlength(last + '…') > W - 2 * pad:
@@ -249,7 +250,7 @@ def fetch_matrix(settings, canvas, i18n=None):
     wf = _cv_fit(canvas, word, W - 2 * pad, floor - top)
     wh = wf.getbbox(word)[3] - wf.getbbox(word)[1]
     if not def_lines:
-        wy = max(top, H - wh)                   # nothing beneath: the word takes the floor
+        wy = top + max(0, (H - 1 - top - wh) // 2)  # nothing beneath: center the word
     elif H >= 48:
         wy = top + max(0, (floor - top - wh) // 2)
     else:

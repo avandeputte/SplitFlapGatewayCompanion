@@ -411,11 +411,11 @@ def _valstr(key, value):
 def _bar_font(canvas, avail_h, sample='80'):
     """Largest bundled font whose ``sample`` ink fits ``avail_h`` px tall; returns
     (font, ink_top, ink_height) so callers can center by ink."""
-    size = max(5, int(avail_h * 1.5))
+    size = max(8, int(avail_h * 1.5))
     font = canvas.font(size)
     for _ in range(64):
         _, tp, _, bt = font.getbbox(sample or '80')
-        if (bt - tp) <= avail_h or size <= 5:
+        if (bt - tp) <= avail_h or size <= 8:
             return font, tp, bt - tp
         size -= 1
         font = canvas.font(size)
@@ -424,9 +424,9 @@ def _bar_font(canvas, avail_h, sample='80'):
 
 
 def _fit_width(canvas, text, max_w, start):
-    size = max(5, int(start))
+    size = max(8, int(start))
     font = canvas.font(size)
-    while size > 5 and font.getlength(text) > max_w:
+    while size > 8 and font.getlength(text) > max_w:
         size -= 1
         font = canvas.font(size)
     return font
@@ -467,9 +467,9 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
     if header_h > 0 and event:
         # The event name rides the top row and fills the header band; it only
         # shrinks (never below legible) before it resorts to truncating.
-        budget = max(5, header_h - 4)
+        budget = max(1, header_h - 4)      # _bar_font floors the FONT at 8pt itself
         hf, htop, hh = _bar_font(canvas, budget, sample=event)
-        while hh > 5 and hf.getlength(event) > W - 4:
+        while budget > 8 and hf.getlength(event) > W - 4:
             budget -= 1
             hf, htop, hh = _bar_font(canvas, budget, sample=event)
         etext = _truncate(hf, event, W - 4)
@@ -482,7 +482,7 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
     top, area = header_h, H - header_h
     edges = [top + round(i * area / n) for i in range(n + 1)]
     min_bh = min(edges[i + 1] - edges[i] for i in range(n))
-    font, ink_top, ink_h = _bar_font(canvas, max(5, min_bh - 3))
+    font, ink_top, ink_h = _bar_font(canvas, max(1, min_bh - 3))
 
     for i, key in enumerate(keys):
         color = _UNITS[key][0]

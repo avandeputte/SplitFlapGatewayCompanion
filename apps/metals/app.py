@@ -107,12 +107,13 @@ _CV_SILVER = (200, 206, 218)
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
+    smaller sizes render wrong-reading glyphs on the panel)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -159,8 +160,10 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     def t(s):
         return i18n.t(s, "metals") if i18n is not None else s
 
-    def n(v, d):
-        return i18n.number(v, d) if i18n is not None else f'{v:,.{d}f}'
+    def n(v, d, grouping=True):
+        if i18n is not None:
+            return i18n.number(v, d, grouping)
+        return f'{v:,.{d}f}' if grouping else f'{v:.{d}f}'
 
     st = getattr(fetch_matrix, '_state', None)
     if st is None:
@@ -180,11 +183,15 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
 
     cur_sym = i18n.currency_symbol(ccy) if i18n is not None else ('$' if ccy == 'USD' else ccy)
     sep = '' if cur_sym != ccy else ' '
+    compact = canvas.width < 96            # 64-wide: whole units, no grouping — "$3358"
+                                           # beats cents or a comma below the 8px floor
 
     def fmt(p):
         if not isinstance(p, (int, float)):
             return '--'
         p = p * rate
+        if compact:
+            return f'{cur_sym}{sep}{n(p, 0, grouping=False)}'
         body = n(p, 0) if p >= 100 else n(p, 2)
         return f'{cur_sym}{sep}{body}'
 
@@ -202,29 +209,25 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
 
     rows = [(t('Gold').upper(), fmt(gold), _CV_GOLD),
             (t('Silver').upper(), fmt(silver), _CV_SILVER)]
+    n_rows = len(rows)
     area = H - top
-    edges = [top + round(i * area / 2) for i in range(3)]
-    rh = min(edges[1] - edges[0], edges[2] - edges[1])
+    rh = area // n_rows
     fh = max(7, min(rh - 3, int(rh * 0.80)))
     # one font per column, sized by the longest entry, so the two rows align
     name_f = min((_cv_fit(canvas, nm, int(W * 0.45), fh) for nm, _p, _c in rows),
                  key=lambda f: f.size)
-    price_f = min((_cv_fit(canvas, p, W - 6 - int(W * 0.45) - 5, fh) for _n, p, _c in rows),
+    name_w = max(name_f.getlength(nm) for nm, _p, _c in rows)
+    price_f = min((_cv_fit(canvas, p, max(12, W - 6 - name_w - 5), fh) for _n, p, _c in rows),
                   key=lambda f: f.size)
-
-    def vy(y0, y1, hgt):
-        """Full-height bands: a row on the top edge hugs it (1px bbox slack), the
-        bottom row sits its ink on H-1, anything between centers."""
-        if y0 <= 1:
-            return y0 + 1
-        if y1 >= H - 1:
-            return y1 - hgt
-        return y0 + (y1 - y0 - hgt) / 2.0
-
+    # Uniform rows (the stocks pattern): every row gets the SAME ink-box height
+    # and the SAME gap between boxes — even spacing beats touching the bottom
+    # edge (a spare row under the table reads better than one lopsided gap).
+    row_ink = max(max(_cv_ink(name_f, nm), _cv_ink(price_f, p)) for nm, p, _c in rows)
+    gap = max(1, (area - 2 - n_rows * row_ink) // (n_rows - 1)) if n_rows > 1 else 0
     for i, (name, prc, col) in enumerate(rows):
-        y0, y1 = edges[i], edges[i + 1]
-        _cv_text(draw, 3, vy(y0, y1, _cv_ink(name_f, name)), name, name_f, col)
+        ry = top + 1 + i * (row_ink + gap)
+        _cv_text(draw, 3, ry + (row_ink - _cv_ink(name_f, name)) // 2, name, name_f, col)
         _cv_text(draw, W - 3 - price_f.getlength(prc),
-                 vy(y0, y1, _cv_ink(price_f, prc)), prc, price_f, _CV_TEXT)
+                 ry + (row_ink - _cv_ink(price_f, prc)) // 2, prc, price_f, _CV_TEXT)
     canvas.frame(img)
     return 300.0

@@ -119,12 +119,13 @@ _GRAY = (150, 150, 158)
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
+    smaller sizes render wrong-reading glyphs on the panel)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -151,7 +152,7 @@ def _cv_wrap(font, text, max_w, max_lines):
 def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
     """Largest font at which ``text`` wraps into <= ``max_lines`` lines fitting the box.
     Returns (font, lines, line_height, gap)."""
-    size = max(5, int(max_h))
+    size = max(8, int(max_h))
     for _ in range(80):
         font = canvas.font(size)
         lines = _cv_wrap(font, text, max_w, max_lines)
@@ -160,10 +161,10 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
         gap = max(1, lh // 6)
         total = len(lines) * lh + (len(lines) - 1) * gap
         widest = max((font.getlength(ln) for ln in lines), default=0)
-        if size <= 5 or (total <= max_h and widest <= max_w):
+        if size <= 8 or (total <= max_h and widest <= max_w):
             return font, lines, lh, gap
         size -= 1
-    font = canvas.font(5)
+    font = canvas.font(8)
     lines = _cv_wrap(font, text, max_w, max_lines)
     b = font.getbbox('Ag')
     return font, lines, b[3] - b[1], 1
@@ -265,12 +266,12 @@ def fetch_matrix(settings, canvas, i18n=None):
             ww = wf.getlength(when)
             wy = max(1 - wb[1], 1 + (head_h - 2 - (wb[3] - wb[1])) / 2.0 - wb[1])
             draw.text((W - 3 - ww, wy), when, font=wf, fill=_WHITE)
-        # "NEXT RACE" only where it can hold a readable size — the chip and date carry
-        # the meaning on their own when it can't.
+        # "NEXT RACE" only where it fits at a readable size — the chip and date
+        # carry the meaning on their own when it can't.
         lbl = 'NEXT RACE'
         lf = _cv_fit(canvas, lbl, W - cw - 14 - ww, max(7, head_h - 6))
         lb = lf.getbbox(lbl)
-        if (lb[3] - lb[1]) >= 6:
+        if lf.getlength(lbl) <= W - cw - 14 - ww:
             draw.text((2 + cw + 5, 1 + (head_h - 2 - (lb[3] - lb[1])) / 2.0 - lb[1]), lbl, font=lf, fill=_GRAY)
         draw.line([(2, head_h + 1), (W - 3, head_h + 1)], fill=_F1_RED)
 
@@ -287,11 +288,11 @@ def fetch_matrix(settings, canvas, i18n=None):
         if leader:
             avail = W - 6 - cdw - 8
             gf = _cv_fit(canvas, leader, avail, foot_h)
-            if (gf.getbbox(leader)[3] - gf.getbbox(leader)[1]) < 6:
+            if gf.getlength(leader) > avail:
                 leader = leader.rsplit(' ', 1)[0]        # drop the points, keep the name
                 gf = _cv_fit(canvas, leader, avail, foot_h)
             gb = gf.getbbox(leader)
-            if (gb[3] - gb[1]) >= 6:
+            if gf.getlength(leader) <= avail:            # can't fit at the 8px floor: drop it
                 draw.text((W - 3 - gf.getlength(leader), H - gb[3]),
                           leader, font=gf, fill=_GRAY)
 
@@ -317,11 +318,11 @@ def fetch_matrix(settings, canvas, i18n=None):
         if when:
             wf = _cv_fit(canvas, when, W - tw - 6, strip_h - 2)
             wb = wf.getbbox(when)
-            if (wb[3] - wb[1]) < 6:                      # too small to read: date only, no weekday
+            if wf.getlength(when) > W - tw - 6:          # won't fit: date only, no weekday
                 when = when.split(' ', 1)[-1]
                 wf = _cv_fit(canvas, when, W - tw - 6, strip_h - 2)
                 wb = wf.getbbox(when)
-            if (wb[3] - wb[1]) >= 6:
+            if wf.getlength(when) <= W - tw - 6:         # can't fit at the 8px floor: drop it
                 draw.text((W - 2 - wf.getlength(when),
                            1 + (strip_h - 2 - (wb[3] - wb[1])) / 2.0 - wb[1]), when, font=wf, fill=_GRAY)
         body_top = strip_h + 1

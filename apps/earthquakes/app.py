@@ -122,12 +122,13 @@ def _cv_mag_color(mag):
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
+    smaller sizes render wrong-reading glyphs on the panel)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -165,7 +166,7 @@ def _cv_wrap(font, text, max_w, max_lines):
 def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
     """The largest font at which ``text`` wraps into <= ``max_lines`` lines that fit
     ``max_w`` x ``max_h``. Returns (font, lines, line_height, gap)."""
-    size = max(5, int(max_h))
+    size = max(8, int(max_h))
     for _ in range(80):
         font = canvas.font(size)
         lines = _cv_wrap(font, text, max_w, max_lines)
@@ -174,10 +175,10 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
         gap = max(1, lh // 6)
         total = len(lines) * lh + (len(lines) - 1) * gap
         widest = max((font.getlength(ln) for ln in lines), default=0)
-        if size <= 5 or (total <= max_h and widest <= max_w):
+        if size <= 8 or (total <= max_h and widest <= max_w):
             return font, lines, lh, gap
         size -= 1
-    font = canvas.font(5)
+    font = canvas.font(8)
     lines = _cv_wrap(font, text, max_w, max_lines)
     b = font.getbbox('Ag')
     return font, lines, b[3] - b[1], 1
@@ -240,16 +241,23 @@ def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
         if ago:
             aw = W - 6 - mf.getlength(ms) - 4
             af = _cv_fit(canvas, ago, aw, max(7, int(mh * 0.55)))
-            if af.size < 7 and ' ' in ago:
+            if af.getlength(ago) > aw and ' ' in ago:
                 ago = ago.split()[0]       # '2H' still answers "when?"
                 af = _cv_fit(canvas, ago, aw, max(7, int(mh * 0.55)))
-            _cv_text(draw, W - 3 - af.getlength(ago), 1 + (mh - _cv_ink(af, ago)) / 2.0,
-                     ago, af, _CV_DIM)
+            if af.getlength(ago) <= aw:    # can't fit even at the 8px floor: drop it
+                _cv_text(draw, W - 3 - af.getlength(ago), 1 + (mh - _cv_ink(af, ago)) / 2.0,
+                         ago, af, _CV_DIM)
         line_h = max(7, area_h - 1 - mh - 2)
         lf = _cv_fit(canvas, loc, W - 6, line_h)
-        if lf.size < 7 and ',' in loc:
-            loc = loc.rsplit(',', 1)[-1].strip()
-            lf = _cv_fit(canvas, loc, W - 6, line_h)
+        if lf.getlength(loc) > W - 6 and ',' in loc:
+            # The full place can't fit at the 8px floor — fall back to the last
+            # comma segment (the country/state), then the town, rather than a
+            # smaller alphabet or a clipped line.
+            for cand in (loc.rsplit(',', 1)[-1].strip(), loc.split(',', 1)[0].strip()):
+                cand_f = _cv_fit(canvas, cand, W - 6, line_h)
+                if cand and cand_f.getlength(cand) <= W - 6:
+                    loc, lf = cand, cand_f
+                    break
         _cv_text(draw, 3, 1 + mh + 2 + max(0, (line_h - _cv_ink(lf, loc)) / 2.0),
                  loc, lf, _CV_TEXT)
         return img
@@ -263,9 +271,28 @@ def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
     rw = W - 3 - rx
     show_sub = H >= 44 and sub
     sub_f = _cv_fit(canvas, sub, rw, max(7, int(H * 0.15))) if show_sub else None
+    if sub_f is not None and sub_f.getlength(sub) > rw:
+        # The full meta line can't fit at the 8px floor — the age alone still
+        # answers "when?", the distance alone "where?"; failing both, drop it.
+        for cand in (ago, dist):
+            if cand and sub_f.getlength(cand) <= rw:
+                sub = cand
+                break
+        else:
+            show_sub, sub_f = False, None
     sub_h = _cv_ink(sub_f, sub) if show_sub else 0
     loc_h = area_h - 1 - ((sub_h + 2) if show_sub else 0)
     lf, lines, lh, gap = _cv_wrap_fit(canvas, loc, rw, loc_h, 2)
+    if ' '.join(lines) != ' '.join(str(loc or '').split()) \
+            or max((lf.getlength(ln) for ln in lines), default=0) > rw:
+        # Even the 8px floor truncates or clips the full place — fall back to
+        # its comma segments (country/state, then the town) shown WHOLE.
+        for cand in (loc.rsplit(',', 1)[-1].strip(), loc.split(',', 1)[0].strip()):
+            cf, cl, clh, cg = _cv_wrap_fit(canvas, cand, rw, loc_h, 2)
+            if cand and ' '.join(cl) == ' '.join(cand.split()) \
+                    and max(cf.getlength(ln) for ln in cl) <= rw:
+                lf, lines, lh, gap = cf, cl, clh, cg
+                break
     # The place hangs from the top edge; the dim distance/age line sits just
     # above the bar — the card spends its whole height, no centered slack.
     y = 1.0

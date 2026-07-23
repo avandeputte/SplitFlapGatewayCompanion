@@ -328,12 +328,13 @@ _CV_UP_CHIP, _CV_DOWN_CHIP = (18, 112, 58), (152, 40, 32)  # change, as a chip
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
+    smaller sizes render wrong-reading glyphs on the panel)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -377,7 +378,7 @@ def _cv_common_font(canvas, texts, max_w, max_h):
     for text in texts:
         f = _cv_fit(canvas, text, max_w, max_h)
         size = f.size if size is None else min(size, f.size)
-    return canvas.font(size or 5)
+    return canvas.font(size or 8)
 
 
 def _cv_quote_rows(canvas, ImageDraw, rows_data):
@@ -428,6 +429,14 @@ def _cv_quote_rows(canvas, ImageDraw, rows_data):
     sym_w = max(sf.getlength(s) for s, _p, _c in rows_data)
     pf = _cv_common_font(canvas, [p for _s, p, _c in rows_data],
                          max(12, right - 3 - sym_w - 5), fh)
+    if cf is not None and \
+            max(pf.getlength(p) for _s, p, _c in rows_data) > right - 3 - sym_w - 5:
+        # The price would have to shrink below legible to make room for the chip —
+        # drop the chip column first and color the price instead.
+        cf, chip_w = None, 0
+        right = W - 3
+        pf = _cv_common_font(canvas, [p for _s, p, _c in rows_data],
+                             max(12, right - 3 - sym_w - 5), fh)
     # Uniform rows: every row gets the SAME ink-box height and the SAME gap between
     # boxes — even spacing beats touching the bottom edge (a spare row under the
     # table reads better than one lopsided gap).
@@ -450,8 +459,8 @@ def _cv_quote_rows(canvas, ImageDraw, rows_data):
         _cv_text(draw, 3, ry + (row_ink - _cv_ink(sf, sym)) // 2, sym, sf, _CV_TEXT)
         if chg is None:
             pcol = _CV_DIM
-        else:
-            pcol = _CV_TEXT if chips else (_CV_UP if up else _CV_DOWN)
+        else:                              # no chip (narrow panel, or dropped): color the price
+            pcol = _CV_TEXT if cf is not None else (_CV_UP if up else _CV_DOWN)
         _cv_text(draw, right - pf.getlength(price),
                  ry + (row_ink - _cv_ink(pf, price)) // 2, price, pf, pcol)
     return img

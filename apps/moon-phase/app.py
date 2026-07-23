@@ -134,12 +134,12 @@ _SUB_COL = (132, 136, 148)
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -164,7 +164,7 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
             lines.append(cur)
         return lines[:max_lines] or ['']
 
-    size = max(5, int(max_h))
+    size = max(8, int(max_h))
     for _ in range(80):
         font = canvas.font(size)
         lines = wrap(font)
@@ -173,10 +173,10 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
         gap = max(1, lh // 6)
         total = len(lines) * lh + (len(lines) - 1) * gap
         widest = max((font.getlength(ln) for ln in lines), default=0)
-        if size <= 5 or (total <= max_h and widest <= max_w):
+        if size <= 8 or (total <= max_h and widest <= max_w):
             return font, lines, lh, gap
         size -= 1
-    font = canvas.font(5)
+    font = canvas.font(8)
     lines = wrap(font)
     b = font.getbbox('Ag')
     return font, lines, b[3] - b[1], 1
@@ -247,26 +247,41 @@ def fetch_matrix(settings, canvas, i18n=None):
         else:
             nxt = f'{t("New in")} {int(moon["days_to_new"])}{u("D")}'.upper()
 
-    nf, lines, lh, gap = _cv_wrap_fit(canvas, name, lw, int(H * (0.44 if nxt else 0.52)), 2)
-    pf = _cv_fit(canvas, pct, lw, max(7, int(H * 0.18)))
-    pb = pf.getbbox(pct)
-    ph = pb[3] - pb[1]
-    xf = _cv_fit(canvas, nxt, lw, max(7, int(H * 0.15))) if nxt else None
-    xh = (xf.getbbox(nxt)[3] - xf.getbbox(nxt)[1]) if nxt else 0
+    name_h = int(H * (0.44 if nxt else 0.52))
+    nf, lines, lh, gap = _cv_wrap_fit(canvas, name, lw, name_h, 2)
+    name_block = len(lines) * lh + (len(lines) - 1) * gap
+    name_fits = (max((nf.getlength(ln) for ln in lines), default=0) <= lw
+                 and name_block <= name_h
+                 and ' '.join(lines) == name)
 
-    block = len(lines) * lh + (len(lines) - 1) * gap
-    vgap = max(2, H // 14)
-    total = block + vgap + ph + ((vgap + xh) if nxt else 0)
-    y = (H - total) / 2.0
-    for ln in lines:
-        draw.text((lx, y - nf.getbbox(ln)[1]), ln, font=nf, fill=_NAME_COL)
-        y += lh + gap
-    y += vgap - gap
-    draw.text((lx, y - pb[1]), pct, font=pf, fill=_PCT_COL)
-    if nxt:
-        y += ph + vgap
-        xb = xf.getbbox(nxt)
-        draw.text((lx, y - xb[1]), nxt, font=xf, fill=_SUB_COL)
+    if not name_fits:
+        # Tiny panels: the name can't be told at a legible size — drop it and let
+        # the disc plus "% LIT" carry the story (wrapped, as large as fits).
+        pf, plines, plh, pgap = _cv_wrap_fit(canvas, pct, lw, H - 2, 2)
+        block = len(plines) * plh + (len(plines) - 1) * pgap
+        y = (H - block) / 2.0
+        for ln in plines:
+            draw.text((lx, y - pf.getbbox(ln)[1]), ln, font=pf, fill=_PCT_COL)
+            y += plh + pgap
+    else:
+        pf = _cv_fit(canvas, pct, lw, max(7, int(H * 0.18)))
+        pb = pf.getbbox(pct)
+        ph = pb[3] - pb[1]
+        xf = _cv_fit(canvas, nxt, lw, max(7, int(H * 0.15))) if nxt else None
+        xh = (xf.getbbox(nxt)[3] - xf.getbbox(nxt)[1]) if nxt else 0
+
+        vgap = max(2, H // 14)
+        total = name_block + vgap + ph + ((vgap + xh) if nxt else 0)
+        y = (H - total) / 2.0
+        for ln in lines:
+            draw.text((lx, y - nf.getbbox(ln)[1]), ln, font=nf, fill=_NAME_COL)
+            y += lh + gap
+        y += vgap - gap
+        draw.text((lx, y - pb[1]), pct, font=pf, fill=_PCT_COL)
+        if nxt:
+            y += ph + vgap
+            xb = xf.getbbox(nxt)
+            draw.text((lx, y - xb[1]), nxt, font=xf, fill=_SUB_COL)
 
     canvas.frame(img)
     # The terminator creeps a few pixels a day — five minutes between redraws

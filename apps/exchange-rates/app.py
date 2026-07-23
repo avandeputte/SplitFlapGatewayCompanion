@@ -114,12 +114,12 @@ _CV_CODE = (92, 205, 170)                  # currency-code teal
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -210,8 +210,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     st['page'] = (st['page'] + 1) % len(pages)
     page = pages[idx]
 
-    edges = [top + round(i * area / len(page)) for i in range(len(page) + 1)]
-    rh = min(edges[i + 1] - edges[i] for i in range(len(page)))
+    rh = area // len(page)
     fh = max(7, min(rh - 2, int(rh * 0.80)))
     cf = min((_cv_fit(canvas, c, int(W * 0.34), fh) for c, _v in page),
              key=lambda f: f.size)
@@ -220,18 +219,19 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     pf = min((_cv_fit(canvas, s, W - 6 - code_w - 5, fh) for s in texts),
              key=lambda f: f.size)
 
-    def vy(y0, y1, hgt):
-        """Full-height bands: the last row sits its ink on H-1 (the strip already
-        owns the top edge), rows above it center in their band."""
-        if y1 >= H - 1:
-            return y1 - hgt
-        return y0 + (y1 - y0 - hgt) / 2.0
-
+    # Uniform rows (the stocks pattern): every row gets the SAME ink-box height
+    # and the SAME computed gap — even spacing beats touching the bottom edge; a
+    # spare row under the table reads better than one lopsided gap. A lone row
+    # (the rotation's last page) takes the TOP slot, not the floor.
+    n = len(page)
+    row_ink = max(max(_cv_ink(cf, code), _cv_ink(pf, s))
+                  for (code, _v), s in zip(page, texts))
+    gap = max(1, (H - 1 - top - n * row_ink) // (n - 1)) if n > 1 else 0
     for i, ((code, _v), rate_s) in enumerate(zip(page, texts)):
-        y0, y1 = edges[i], edges[i + 1]
-        _cv_text(draw, 3, vy(y0, y1, _cv_ink(cf, code)), code, cf, _CV_CODE)
+        ry = top + i * (row_ink + gap)
+        _cv_text(draw, 3, ry + (row_ink - _cv_ink(cf, code)) // 2, code, cf, _CV_CODE)
         _cv_text(draw, W - 3 - pf.getlength(rate_s),
-                 vy(y0, y1, _cv_ink(pf, rate_s)), rate_s, pf, _CV_TEXT)
+                 ry + (row_ink - _cv_ink(pf, rate_s)) // 2, rate_s, pf, _CV_TEXT)
 
     canvas.frame(img)
     if len(pages) > 1:

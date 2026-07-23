@@ -147,12 +147,12 @@ _CV_DIM = (145, 150, 160)
 
 
 def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
+    size = max(8, int(max_h) + 2)
     font = canvas.font(size)
     for _ in range(80):
         b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
             return font
         size -= 1
         font = canvas.font(size)
@@ -255,8 +255,10 @@ def fetch_matrix(settings, canvas, i18n=None):
     # The number, large, with its label under (beside, on a squat panel).
     body_h = H - top - 1 - th
     lf = _cv_fit(canvas, label, W - 2 * pad, max(6, int(H * 0.13)))
-    lh = lf.getbbox(label)[3] - lf.getbbox(label)[1]
-    stacked = body_h >= lh + 12
+    if lf.getlength(label) > W - 2 * pad:
+        label = ''            # the caption can't fit at the 8px floor — the count carries it
+    lh = (lf.getbbox(label)[3] - lf.getbbox(label)[1]) if label else 0
+    stacked = bool(label) and body_h >= lh + 12
     cf = _cv_fit(canvas, big, W - 2 * pad, body_h - (lh + 2 if stacked else 0))
     ch = cf.getbbox(big)[3] - cf.getbbox(big)[1]
     if stacked:
@@ -268,10 +270,12 @@ def fetch_matrix(settings, canvas, i18n=None):
         _cv_text(draw, (W - lf.getlength(label)) / 2.0, y + ch + 2, label, lf, _CV_RED)
     else:
         # Beside the number; shorten (or drop) the label rather than clip it off-panel.
-        short = label if cf.getlength(big) + 4 + lf.getlength(label) <= W - 2 * pad else \
-            ('SUBS' if subs is not None else 'UPLOADS')
-        if cf.getlength(big) + 4 + lf.getlength(short) > W - 2 * pad:
-            short = ''
+        short = ''
+        if label:
+            short = label if cf.getlength(big) + 4 + lf.getlength(label) <= W - 2 * pad else \
+                ('SUBS' if subs is not None else 'UPLOADS')
+            if cf.getlength(big) + 4 + lf.getlength(short) > W - 2 * pad:
+                short = ''
         total = cf.getlength(big) + (4 + lf.getlength(short) if short else 0)
         x = max(pad, (W - total) / 2.0)
         y = top + (max(0, (body_h - ch) // 2) if title else max(0, body_h - ch + 1))
