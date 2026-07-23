@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.15
+
+- **Every Matrix-panel view now uses the full panel height.** A measured pass over all 43 views x 4
+  panel sizes: content reaches within one LED row of the top and bottom edges everywhere (previously
+  most views left 2-29 rows dark). Clocks, counters, discs, gauges and text blocks all grew to fill.
+
 ## 2.10.0-beta.14
 
 - **Panel-view polish:** Rocket Launch and Sports headers no longer clip their top pixel row;
