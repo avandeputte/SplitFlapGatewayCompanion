@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.19
+
+- **Legibility pass across every panel view**, from a pixel-level inspection of all 43 views at all
+  four panel sizes: text never renders below 8px (smaller sizes drew wrong-reading characters — an
+  "S" that looked like an 8, a "2" like a 7), and when something can't fit legibly it is shortened
+  or dropped instead. Row spacing is uniform everywhere; many small collisions and truncations
+  fixed (compass directions, prices, dates, captions).
+
 ## 2.10.0-beta.18
 
 - **Trivia**: a short answer centers in the card instead of sitting on the bottom edge.

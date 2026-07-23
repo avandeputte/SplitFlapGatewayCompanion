@@ -20,7 +20,7 @@
 # is no run script to do it. The app reads /data/options.json itself — see
 # config._addon_overrides() — which is what lets one image serve both worlds.
 name: SplitFlap Gateway Companion (Beta)
-version: "2.10.0-beta.18"
+version: "2.10.0-beta.19"
 slug: splitflap_companion_beta
 description: >-
   Prerelease. Drive a SplitFlap wall from Home Assistant — apps, playlists, schedules
