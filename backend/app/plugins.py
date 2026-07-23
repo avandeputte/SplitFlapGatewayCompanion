@@ -732,6 +732,12 @@ class PluginRuntime:
         s = self.surfaces(app_id)
         return "flap" in s and "matrix" in s and self.has_matrix_render(app_id)
 
+    def overlay(self, overrides=None):
+        """The saved settings overlaid with per-playlist-entry values (resolved keys), or None
+        when there are none — the mapping ``matrix_on``/``_perapp_value`` accept, so a playlist
+        entry's own toggle values steer surface decisions too."""
+        return _SettingsOverlay(self.settings, overrides) if overrides else None
+
     def matrix_on(self, app_id: str, settings=None) -> bool:
         """Whether this app should render on the Matrix panel right now. A matrix-only app: always.
         A dual-surface app: the per-app ``matrix`` toggle (default ON) — off ⇒ its flap view (plain

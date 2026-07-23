@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.1
+
+- **Playlist entry settings now steer where an app renders.** A per-entry "Show on Matrix panel"
+  override in a playlist is honored — previously only the app's saved setting was consulted, so
+  the same app can now appear once on the panel and once as flap text in one playlist.
+- An entry's own **Loop delay** override now also paces its panel redraws and channel dwell
+  (and an entry with other overrides no longer loses its saved loop delay on the panel).
+
 ## 2.10.0
 
 Every app now lives on both displays. This release turns the Matrix panel into a first-class

@@ -509,7 +509,7 @@ class DisplayController:
                 else self._app_loop)
         self._task = asyncio.create_task(loop(app_id))
 
-    def _surface_for(self, app_id: str) -> str | None:
+    def _surface_for(self, app_id: str, overrides=None) -> str | None:
         """Which surface this app renders on RIGHT NOW: ``"matrix"`` when the wall has a panel and
         the app draws there (matrix-only, or dual-surface with its toggle on); else ``"flap"`` when
         it has a flap view; else ``None`` — a matrix-only app on a wall with no panel, which can't
@@ -519,8 +519,10 @@ class DisplayController:
         surfaces API: with no ``matrix_on``/``renders_on`` it is treated as a plain flap app."""
         p = self.plugins
         matrix_on = getattr(p, "matrix_on", None)
-        if self._caps().has_canvas and matrix_on and matrix_on(app_id):
-            return "matrix"
+        if self._caps().has_canvas and matrix_on:
+            ov = getattr(p, "overlay", None)                 # entry overrides steer the toggle too
+            if matrix_on(app_id, ov(overrides) if (ov and overrides) else None):
+                return "matrix"
         renders_on = getattr(p, "renders_on", None)
         if renders_on is None or renders_on(app_id, "flap"):
             return "flap"
@@ -586,7 +588,8 @@ class DisplayController:
                 log.warning("canvas app %s draw error: %s", app_id, e)
                 hold = None
             await self._maybe_stream(url, caps, app_id, hold)
-            delay = float((hold if hold else self.plugins.loop_delay(app_id)) or 5)
+            delay = float((hold if hold else
+                           self.plugins.loop_delay(app_id, self.plugins.overlay(overrides))) or 5)
             if deadline is not None:
                 remaining = deadline - rt_loop.time()
                 if remaining <= 0:
@@ -642,7 +645,8 @@ class DisplayController:
             if not items:
                 await asyncio.sleep(1)
                 continue
-            delay = max(0.5, float(self.plugins.loop_delay(app_id, overrides) or 8))
+            delay = max(0.5, float(
+                self.plugins.loop_delay(app_id, self.plugins.overlay(overrides)) or 8))
             for text in items:
                 if not keep_going():
                     return
@@ -809,7 +813,7 @@ class DisplayController:
 
                     # Which surface this entry renders on, this wall (matrix-only, dual-with-toggle,
                     # or flap) — the same one decision run_app makes.
-                    surface = self._surface_for(app_id)
+                    surface = self._surface_for(app_id, ov)
                     matrix_channel = surface == "matrix" and self.plugins.is_channel_app(app_id)
                     if surface == "matrix" and not matrix_channel:
                         # A matrix app draws on the panel, not the flaps. Drive it like the

@@ -76,3 +76,33 @@ def test_the_catalog_exposes_surfaces_for_the_badge():
     assert by_id["countdown"]["surfaces"] == ["flap", "matrix"]
     assert by_id["canvas-art-clock"]["surfaces"] == ["matrix"]
     assert by_id["art-clock"]["surfaces"] == ["flap"]
+
+
+def test_a_playlist_entrys_toggle_override_steers_the_surface(tmp_path):
+    """A playlist entry's own 'Show on Matrix panel' value wins over the app's saved
+    setting: the engine's surface decision reads the entry overlay, both directions."""
+    from app.config import Config
+    from app.engine import DisplayController
+    from app.state import DisplayState
+
+    rt = _matrix("countdown")
+    ctl = DisplayController(Config(data_dir=tmp_path), DisplayState(45))
+    ctl.plugins = rt
+    assert ctl._surface_for("countdown") == "matrix"          # saved default: panel
+    assert ctl._surface_for("countdown", {"plugin_countdown_matrix": "no"}) == "flap"
+    rt.settings.set("plugin_countdown_matrix", "no")
+    assert ctl._surface_for("countdown") == "flap"            # saved opt-out
+    assert ctl._surface_for("countdown", {"plugin_countdown_matrix": "yes"}) == "matrix"
+
+
+def test_the_entry_overlay_layers_over_saved_settings():
+    """plugins.overlay() hands loop bodies a mapping where entry values win and every
+    other key follows the saved settings — never the bare overrides dict (which would
+    hide every saved value), and None when the entry has no overrides."""
+    rt = _matrix("countdown")
+    rt.settings.set("plugin_countdown_loop_delay", "15")
+    assert rt.loop_delay("countdown", rt.overlay({"plugin_countdown_loop_delay": "3"})) == 3.0
+    # a key the entry does NOT override still follows the saved value
+    assert rt.loop_delay("countdown", rt.overlay({"plugin_countdown_matrix": "no"})) == 15.0
+    assert rt.overlay(None) is None
+    assert rt.overlay({}) is None
