@@ -644,52 +644,46 @@ class PluginRuntime:
             return False
         return name in params or any(p.kind == p.VAR_KEYWORD for p in params.values())
 
+    # The helpers an app (or trigger) opts into by parameter name — ONE table, so the set of names
+    # and how each is built stay in one place. Each builder takes (self, app_id, ps, settings) and
+    # returns the value injected under that name; a fetch/trigger asks for one just by naming the
+    # parameter. (A trigger needs the weather/timezone for the same reasons a fetch does.)
+    _HELPER_BUILDERS = {
+        # get_weather() = current conditions; days=N adds a forecast + hourly temps;
+        # air=True adds AQI/UV/pollen (weather.py).
+        "get_weather": lambda self, app_id, ps, settings:
+            (lambda s=None, days=0, air=False:
+                weather.fetch_weather(s if s is not None else ps, days=days, air=air)),
+        "get_location": lambda self, app_id, ps, settings: (lambda: location.resolve(ps)),
+        # All Home Assistant entity states (Supervisor proxy or configured URL/token), cached; the
+        # Dashboard app filters to the entities it was told to show.
+        "get_ha_states": lambda self, app_id, ps, settings: (lambda: ha_rest.fetch_states()),
+        # A per-app Language override (plugin_<id>_language) wins over the global Language.
+        "i18n": lambda self, app_id, ps, settings: i18n.Localizer(self.content_lang(app_id, settings)),
+        # What this wall can show, so an app offers a pictograph where the wall has one and a WORD
+        # where it does not (♥, ♪, ● all degrade to "*" on a real reel).
+        "caps": lambda self, app_id, ps, settings: self._caps(),
+        # paginate(text, title="") → finished pages for a block of text, word-wrapped and balanced
+        # to THIS wall — the copy the advice/quote/fact apps each used to carry.
+        "paginate": lambda self, app_id, ps, settings: self._make_paginate(app_id),
+    }
+
     @classmethod
     def _wanted_helpers(cls, fn) -> frozenset:
-        """Which injected helpers ``fn`` opts into by parameter name — computed
-        once at load, not re-inspected per call."""
-        return frozenset(n for n in ("get_weather", "get_location", "get_ha_states", "i18n",
-                                     "caps", "paginate")
-                         if cls._fetch_accepts(fn, n))
+        """Which injected helpers ``fn`` opts into by parameter name — computed once at load."""
+        return frozenset(n for n in cls._HELPER_BUILDERS if cls._fetch_accepts(fn, n))
 
     def _helper_kwargs(self, app_id: str, wanted: frozenset, ps: dict, settings=None) -> dict:
-        """The injected-helper kwargs for a fetch() or trigger() — a trigger needs
-        the weather or the timezone for exactly the same reasons a fetch does, and
-        used to have to hand-roll both. ``wanted`` is the precomputed set from
-        ``_wanted_helpers``."""
+        """The injected-helper kwargs for a fetch()/trigger() — the ``wanted`` names built from the
+        one ``_HELPER_BUILDERS`` table."""
         settings = settings or self.settings
-        kwargs = {}
-        if "get_weather" in wanted:
-            # get_weather() = current conditions; days=N adds a forecast
-            # and hourly temps; air=True adds AQI/UV/pollen (weather.py).
-            kwargs["get_weather"] = lambda s=None, days=0, air=False: weather.fetch_weather(
-                s if s is not None else ps, days=days, air=air)
-        if "get_location" in wanted:
-            kwargs["get_location"] = lambda: location.resolve(ps)
-        if "get_ha_states" in wanted:
-            # All Home Assistant entity states (Supervisor proxy or configured URL/token),
-            # cached; the Dashboard app filters to the entities it was told to show.
-            kwargs["get_ha_states"] = lambda: ha_rest.fetch_states()
-        if "i18n" in wanted:
-            # A per-app Language override (plugin_<id>_language) wins over
-            # the global Language; blank/unset = follow global.
-            lang = self.content_lang(app_id, settings)
-            kwargs["i18n"] = i18n.Localizer(lang)
-        if "caps" in wanted:
-            # What this wall can show. An app asks so it can offer a pictograph
-            # where the wall has one and a WORD where it does not: ♥, ♪, ● and ☀
-            # all degrade to "*" on a real reel, which says nothing at all.
-            kwargs["caps"] = self._caps()
-        if "paginate" in wanted:
-            # paginate(text, title="") → the finished pages for a block of text,
-            # word-wrapped and balanced to THIS wall (textlayout.py). The advice /
-            # quote / fact apps each carried a copy of this; now it is one helper.
-            fmt = functools.partial(self.format_lines, align=self.vertical_align(app_id))
-            def _paginate(text, title="", _fmt=fmt):
-                return [_fmt(*page) for page in
-                        textlayout.balanced_pages(text, self.get_rows(), self.get_cols(), title)]
-            kwargs["paginate"] = _paginate
-        return kwargs
+        return {name: self._HELPER_BUILDERS[name](self, app_id, ps, settings) for name in wanted}
+
+    def _make_paginate(self, app_id: str):
+        fmt = functools.partial(self.format_lines, align=self.vertical_align(app_id))
+        return lambda text, title="": [fmt(*page) for page in
+                                       textlayout.balanced_pages(text, self.get_rows(),
+                                                                 self.get_cols(), title)]
 
     def build_canvas_surface(self):
         """A CanvasSurface for this wall, or None if it has no framebuffer. The transport the
