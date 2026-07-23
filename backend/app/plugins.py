@@ -1082,6 +1082,27 @@ class PluginRuntime:
         return (self._perapp_value(app_id, "language", settings)
                 or settings.get("language", "en-US"))
 
+    def app_settings_public(self, app_id: str) -> list:
+        """This app's own settings as ``{name, label, type, value, options?}`` — the settings
+        schema projected for a machine client (the MCP tools), with the storage prefix
+        (``plugin_<id>_``) stripped off the name. Skips notice rows and globals. Derived from
+        ``settings_schema`` so the two surfaces can never drift."""
+        schema = self.settings_schema(app_id)
+        values = schema.get("values", {})
+        prefix = f"plugin_{app_id}_"
+        out = []
+        for f in schema.get("fields", []):
+            key = f.get("key", "")
+            if f.get("type") == "notice" or not key.startswith(prefix):
+                continue
+            name = key[len(prefix):]
+            item = {"name": name, "label": f.get("label", name), "type": f.get("type"),
+                    "value": values.get(key, f.get("default", ""))}
+            if f.get("options"):
+                item["options"] = [o.get("value") for o in f["options"]]
+            out.append(item)
+        return out
+
     def _ordered(self, items: list, app_id: str, settings=None) -> list:
         """Items in the channel's effective order: a per-app ``order`` override wins over the
         manifest's declared order; ``random`` returns a shuffled COPY (each fetch a fresh pass, so a

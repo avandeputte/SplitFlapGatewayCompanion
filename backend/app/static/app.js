@@ -627,20 +627,12 @@ function richAppSelect(apps, value, onChange) {
     const a = apps.find((x) => x.id === cur) || apps[0];
     btn.innerHTML = (a ? optHTML(a) : `<span class="rsel-nm">${esc(t("Pick an app"))}</span>`) + `<span class="rsel-caret">▾</span>`;
   };
-  const place = () => { const r = btn.getBoundingClientRect(); menu.style.left = r.left + "px"; menu.style.top = r.bottom + 2 + "px"; menu.style.minWidth = r.width + "px"; };
-  const onRe = () => place();
-  const isOpen = () => menu.style.display !== "none";
-  const close = () => {
-    menu.style.display = "none"; btn.setAttribute("aria-expanded", "false");
-    window.removeEventListener("scroll", onRe, true); window.removeEventListener("resize", onRe);
-    OPEN_OVERLAYS.delete(close);
-  };
-  const open = () => {
-    menu.style.display = ""; place(); btn.setAttribute("aria-expanded", "true");
-    window.addEventListener("scroll", onRe, true); window.addEventListener("resize", onRe);
-    OPEN_OVERLAYS.add(close);
-    (menu.querySelector('[aria-selected="true"]') || menu.firstChild)?.focus();
-  };
+  const { show: open, hide: close, isOpen } = anchorOverlay(btn, menu, {
+    place: () => { const r = btn.getBoundingClientRect(); menu.style.left = r.left + "px"; menu.style.top = r.bottom + 2 + "px"; menu.style.minWidth = r.width + "px"; },
+    onShow: () => { btn.setAttribute("aria-expanded", "true");
+                    (menu.querySelector('[aria-selected="true"]') || menu.firstChild)?.focus(); },
+    onHide: () => btn.setAttribute("aria-expanded", "false"),
+  });
   apps.forEach((a) => {
     const row = el("div", "rsel-opt"); row.innerHTML = optHTML(a);
     row.setAttribute("role", "option"); row.tabIndex = -1;
@@ -803,6 +795,50 @@ function closeModal() {
   $("modal").classList.add("hidden");
   if (MODAL_RETURN && typeof MODAL_RETURN.focus === "function") MODAL_RETURN.focus();
   MODAL_RETURN = null;
+}
+
+// THE one floating-overlay mechanism: an element that floats as a fixed overlay anchored under
+// another (a select's menu, a search's results), positioned on show and repositioned on
+// scroll/resize, with its hide fn registered in OPEN_OVERLAYS so closing the modal drains the
+// listeners. Every dropdown goes through here — the anchoring math and the leak contract live once.
+function anchorOverlay(anchorEl, overlayEl, { place, onShow, onHide } = {}) {
+  const doPlace = place || (() => {
+    const r = anchorEl.getBoundingClientRect();
+    overlayEl.style.left = r.left + "px"; overlayEl.style.top = r.bottom + 2 + "px";
+    overlayEl.style.width = r.width + "px";
+  });
+  const onRe = () => doPlace();
+  const hide = () => {
+    overlayEl.style.display = "none";
+    window.removeEventListener("scroll", onRe, true); window.removeEventListener("resize", onRe);
+    OPEN_OVERLAYS.delete(hide);
+    if (onHide) onHide();
+  };
+  const show = () => {
+    overlayEl.style.display = ""; doPlace();
+    window.addEventListener("scroll", onRe, true); window.addEventListener("resize", onRe);
+    OPEN_OVERLAYS.add(hide);
+    if (onShow) onShow();
+  };
+  return { show, hide, isOpen: () => overlayEl.style.display !== "none" };
+}
+
+// The one debounced remote type-ahead: 250ms after the last keystroke, fetch
+// `searchUrl?q=…`, hand the `resultKey` items to `render` (which shows/fills the
+// results overlay); an empty query or a failed fetch hides it. Both search-backed
+// field kinds (chips, entity table) ride this.
+function wireRemoteSearch(search, { searchUrl, resultKey, render, hide }) {
+  let timer;
+  search.addEventListener("input", () => {
+    clearTimeout(timer); const q = search.value.trim();
+    if (!q) { hide(); return; }
+    timer = setTimeout(async () => {
+      try {
+        const data = await api(`${searchUrl}?q=${encodeURIComponent(q)}`);
+        render(data[resultKey] || []);
+      } catch { hide(); }
+    }, 250);
+  });
 }
 
 // ---- app settings form -----------------------------------------------------
@@ -1014,37 +1050,29 @@ function buildForm(schema, initial, { skip } = {}) {
       search.setAttribute("aria-activedescendant", os[active].id);
       os[active].scrollIntoView({ block: "nearest" });
     };
-    const placeResults = () => {
-      const rc = search.getBoundingClientRect();
-      results.style.left = rc.left + "px"; results.style.top = rc.bottom + 2 + "px"; results.style.width = rc.width + "px";
-    };
-    const onReposition = () => placeResults();
-    const showResults = () => { results.style.display = ""; search.setAttribute("aria-expanded", "true"); placeResults(); window.addEventListener("scroll", onReposition, true); window.addEventListener("resize", onReposition); OPEN_OVERLAYS.add(hideResults); };
-    const hideResults = () => { results.style.display = "none"; search.setAttribute("aria-expanded", "false"); search.removeAttribute("aria-activedescendant"); active = -1; window.removeEventListener("scroll", onReposition, true); window.removeEventListener("resize", onReposition); OPEN_OVERLAYS.delete(hideResults); };
+    const { show: showResults, hide: hideResults } = anchorOverlay(search, results, {
+      onShow: () => search.setAttribute("aria-expanded", "true"),
+      onHide: () => { search.setAttribute("aria-expanded", "false");
+                      search.removeAttribute("aria-activedescendant"); active = -1; },
+    });
     const addEntity = (it) => {
       const eid = it.value ?? it.id;
       if (eid && !rows.some((r) => r.eid === eid)) { rows.push({ eid, name: "", low: "", high: "" }); draw(); onFormChange(); }
       search.value = ""; hideResults(); search.focus();
     };
-    let timer;
-    search.addEventListener("input", () => {
-      clearTimeout(timer); const q = search.value.trim();
-      if (!q) { hideResults(); return; }
-      timer = setTimeout(async () => {
-        try {
-          const data = await api(`${f.searchUrl}?q=${encodeURIComponent(q)}`);
-          const items = data[f.resultKey] || [];
-          results.innerHTML = ""; active = -1; search.removeAttribute("aria-activedescendant");
-          items.forEach((it, idx) => {
-            const d = el("div"); d.textContent = it.label || it.name || it.value;
-            d.id = `${listId}-o${idx}`; d.setAttribute("role", "option"); d.setAttribute("aria-selected", "false");
-            d.addEventListener("mousedown", (e) => e.preventDefault());   // keep focus (and the caret) on the input
-            d.addEventListener("click", () => addEntity(it));
-            results.appendChild(d);
-          });
-          if (items.length) showResults(); else hideResults();
-        } catch { hideResults(); }
-      }, 250);
+    wireRemoteSearch(search, {
+      searchUrl: f.searchUrl, resultKey: f.resultKey, hide: hideResults,
+      render: (items) => {
+        results.innerHTML = ""; active = -1; search.removeAttribute("aria-activedescendant");
+        items.forEach((it, idx) => {
+          const d = el("div"); d.textContent = it.label || it.name || it.value;
+          d.id = `${listId}-o${idx}`; d.setAttribute("role", "option"); d.setAttribute("aria-selected", "false");
+          d.addEventListener("mousedown", (e) => e.preventDefault());   // keep focus (and the caret) on the input
+          d.addEventListener("click", () => addEntity(it));
+          results.appendChild(d);
+        });
+        if (items.length) showResults(); else hideResults();
+      },
     });
     search.addEventListener("keydown", (e) => {
       const open = results.style.display !== "none";
@@ -1073,56 +1101,31 @@ function buildForm(schema, initial, { skip } = {}) {
     };
     const search = el("input"); search.placeholder = t("Search…");
     const results = el("div", "chip-results"); results.style.display = "none";
-    // The results dropdown floats as a fixed overlay anchored under the input, so
-    // it doesn't inflate the modal body's scroll height (which caused a second,
-    // nested scrollbar). Position it on show and reposition on scroll/resize.
-    const placeResults = () => {
-      const r = search.getBoundingClientRect();
-      results.style.left = r.left + "px";
-      results.style.top = r.bottom + 2 + "px";
-      results.style.width = r.width + "px";
-    };
-    const onReposition = () => placeResults();
-    const showResults = () => {
-      results.style.display = ""; placeResults();
-      window.addEventListener("scroll", onReposition, true);
-      window.addEventListener("resize", onReposition);
-      OPEN_OVERLAYS.add(hideResults);
-    };
-    const hideResults = () => {
-      results.style.display = "none";
-      window.removeEventListener("scroll", onReposition, true);
-      window.removeEventListener("resize", onReposition);
-      OPEN_OVERLAYS.delete(hideResults);
-    };
-    let timer;
-    search.addEventListener("input", () => {
-      clearTimeout(timer); const q = search.value.trim();
-      if (!q) { hideResults(); return; }
-      timer = setTimeout(async () => {
-        try {
-          const data = await api(`${f.searchUrl}?q=${encodeURIComponent(q)}`);
-          const items = data[f.resultKey] || [];
-          results.innerHTML = "";
-          items.forEach((it) => {
-            const d = el("div"); d.textContent = it.label || it.name || it.value;
-            // Keyboard-reachable: each result is a button you can Tab to from the
-            // search box and pick with Enter/Space, not a mouse-only target.
-            d.setAttribute("role", "button"); d.tabIndex = 0;
-            const pick = () => {
-              if (maxItems === 1) chips = [];
-              if (chips.length < maxItems) { chips.push({ value: it.value ?? it.abbr ?? it.id, label: it.label || it.name || it.value }); draw(); onFormChange(); }
-              search.value = ""; hideResults(); search.focus();
-            };
-            d.onclick = pick;
-            d.addEventListener("keydown", (e) => {
-              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }
-            });
-            results.appendChild(d);
+    // The results dropdown floats as a fixed overlay anchored under the input (anchorOverlay), so
+    // it doesn't inflate the modal body's scroll height into a second, nested scrollbar.
+    const { show: showResults, hide: hideResults } = anchorOverlay(search, results);
+    wireRemoteSearch(search, {
+      searchUrl: f.searchUrl, resultKey: f.resultKey, hide: hideResults,
+      render: (items) => {
+        results.innerHTML = "";
+        items.forEach((it) => {
+          const d = el("div"); d.textContent = it.label || it.name || it.value;
+          // Keyboard-reachable: each result is a button you can Tab to from the
+          // search box and pick with Enter/Space, not a mouse-only target.
+          d.setAttribute("role", "button"); d.tabIndex = 0;
+          const pick = () => {
+            if (maxItems === 1) chips = [];
+            if (chips.length < maxItems) { chips.push({ value: it.value ?? it.abbr ?? it.id, label: it.label || it.name || it.value }); draw(); onFormChange(); }
+            search.value = ""; hideResults(); search.focus();
+          };
+          d.onclick = pick;
+          d.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }
           });
-          if (items.length) showResults(); else hideResults();
-        } catch { hideResults(); }
-      }, 250);
+          results.appendChild(d);
+        });
+        if (items.length) showResults(); else hideResults();
+      },
     });
     // Deferred, and only if focus didn't move INTO the list — Tabbing from the box
     // to a result must not hide the result out from under the keypress.

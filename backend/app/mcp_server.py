@@ -242,7 +242,7 @@ def build(displays) -> FastMCP:
         out = []
         for a in d.plugins.app_list():
             try:
-                configurable = bool(_app_fields(d, a["id"]))
+                configurable = bool(d.plugins.app_settings_public(a["id"]))
             except Exception:
                 configurable = False        # a broken/odd app must not sink the whole list
             out.append({"id": a["id"], "name": a["name"],
@@ -263,26 +263,6 @@ def build(displays) -> FastMCP:
         d.ha.publish_state()
         return {"ok": True, "active_app": app_id, "display": d.id}
 
-    def _app_fields(d, app_id: str) -> list[dict]:
-        """This app's own settings as {name, label, type, value, options?}, with the
-        storage prefix (plugin_<id>_) stripped off the name for a client to use. Skips the
-        notice rows and the pointer to the global settings."""
-        schema = d.plugins.settings_schema(app_id)
-        values = schema.get("values", {})
-        prefix = f"plugin_{app_id}_"
-        out = []
-        for f in schema.get("fields", []):
-            key = f.get("key", "")
-            if f.get("type") == "notice" or not key.startswith(prefix):
-                continue
-            name = key[len(prefix):]
-            item = {"name": name, "label": f.get("label", name), "type": f.get("type"),
-                    "value": values.get(key, f.get("default", ""))}
-            if f.get("options"):
-                item["options"] = [o.get("value") for o in f["options"]]
-            out.append(item)
-        return out
-
     @mcp.tool()
     def get_app_settings(app_id: str, display: str = "") -> dict:
         """An app's settings and their current values — what configure_app can change.
@@ -296,7 +276,7 @@ def build(displays) -> FastMCP:
         d = _res(display)
         app_id = app_id_from_ref(app_id)
         try:
-            return {"app_id": app_id, "settings": _app_fields(d, app_id)}
+            return {"app_id": app_id, "settings": d.plugins.app_settings_public(app_id)}
         except KeyError:
             raise ValueError(f"app not installed: {app_id}")
 
@@ -315,7 +295,7 @@ def build(displays) -> FastMCP:
         d = _res(display)
         app_id = app_id_from_ref(app_id)
         try:
-            valid = {f["name"] for f in _app_fields(d, app_id)}
+            valid = {f["name"] for f in d.plugins.app_settings_public(app_id)}
         except KeyError:
             raise ValueError(f"app not installed: {app_id}")
         if not isinstance(settings, dict) or not settings:
@@ -336,7 +316,7 @@ def build(displays) -> FastMCP:
         if d.controller.active_app == app_id:
             await d.controller.run_app(app_id)
         d.ha.publish_state()
-        return {"ok": True, "app_id": app_id, "settings": _app_fields(d, app_id)}
+        return {"ok": True, "app_id": app_id, "settings": d.plugins.app_settings_public(app_id)}
 
     @mcp.tool()
     def list_playlists(display: str = "") -> list[dict]:
