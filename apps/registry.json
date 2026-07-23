@@ -151,26 +151,6 @@
       "version": "1.0"
     },
     {
-      "id": "canvas-world",
-      "name": "World Time",
-      "icon": "🌍",
-      "description": "World clocks with a day/night sun or moon (Matrix panel)",
-      "category": "time",
-      "type": "functional",
-      "surface": "canvas",
-      "version": "1.0"
-    },
-    {
-      "id": "canvas-countdown",
-      "name": "Countdown Bars",
-      "icon": "⏳",
-      "description": "A countdown as full-width colour bars (Matrix panel)",
-      "category": "time",
-      "type": "functional",
-      "surface": "canvas",
-      "version": "1.0"
-    },
-    {
       "id": "canvas-overview",
       "name": "Overview",
       "icon": "📊",

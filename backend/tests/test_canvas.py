@@ -444,7 +444,7 @@ def test_the_canvas_apps_are_marked_canvas_surface():
     apps = Path(__file__).resolve().parents[2] / "apps"
     import json
     for app in ("effects", "canvas-art-clock", "canvas-image", "canvas-weather",
-                "canvas-date", "canvas-world", "canvas-countdown", "canvas-overview"):
+                "canvas-date", "canvas-overview"):
         m = json.loads((apps / app / "manifest.json").read_text())
         assert m.get("surface") == "canvas", app
 
@@ -569,11 +569,13 @@ def test_weather_caches_the_reading(gw_calls):
     assert n["c"] == 1                              # fetched once, cached for the animation
 
 
-# -- the frame-push apps built alongside (Date Card, World Time, Countdown Bars) --
+# -- the frame-push apps built alongside (Date Card, World Time, the Countdown bars view) --
 @pytest.mark.parametrize("app_id,settings", [
     ("canvas-date", {}),
-    ("canvas-world", {"world_clock_zones": "America/New_York,Europe/London,Asia/Tokyo"}),
-    ("canvas-countdown", {"countdown_event": "Launch", "countdown_target": "2027-06-01T00:00"}),
+    # World Clock is dual-view now: its canvas branch draws the lit rows (was canvas-world).
+    ("world_clock", {"world_clock_zones": "America/New_York,Europe/London,Asia/Tokyo"}),
+    # Countdown is dual-view now: its canvas branch draws the colour bars (was canvas-countdown).
+    ("countdown", {"countdown_event": "Launch", "countdown_target": "2027-06-01T00:00"}),
     ("canvas-overview", {}),                         # renders clock/date even with no weather
 ])
 @pytest.mark.parametrize("size", [(128, 32), (64, 32), (128, 64)])
@@ -633,7 +635,8 @@ def test_overview_weather_column_never_clips_off_the_bottom(gw_calls, monkeypatc
                     f"{W}x{H}: a {total}px stack overflows the {region_h}px region"
 
 
-@pytest.mark.parametrize("app_id", ["canvas-date", "canvas-world", "canvas-countdown"])
+# (countdown & world_clock are dual-view: with no panel they return flap pages, not None.)
+@pytest.mark.parametrize("app_id", ["canvas-date"])
 def test_new_canvas_apps_are_none_without_a_panel(app_id):
     assert _load(app_id).fetch({}, None, None, None, canvas=None) is None
 
@@ -760,10 +763,12 @@ def test_canvas_image_both_fit_modes_produce_a_frame():
 
 
 def test_countdown_arrived_and_no_target_do_not_crash(gw_calls):
-    app = _load("canvas-countdown")
+    app = _load("countdown")
+    # Past target -> the ARRIVED frame; empty settings -> slot 1's default New Year countdown
+    # (the flap default carries over to the panel). Both must draw a full frame, never crash.
     for settings in ({"countdown_event": "Party", "countdown_target": "2000-01-01T00:00"},  # past
                      {}):                                                                     # unset
-        _h, _i, content = _push(gw_calls, app, 128, 32, settings)
+        _h, _i, content = _push(gw_calls, app, 128, 32, settings, caps=None)
         assert len(content) == 128 * 32 * 3
 
 

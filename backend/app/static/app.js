@@ -579,6 +579,26 @@ function canvasMark() {
     `<g fill="#f5c518">${dots}</g></svg>`;
 }
 
+// A "dual-view" badge for an app that draws on BOTH surfaces: a split-flap card (with its seam)
+// beside a mini Matrix panel (the amber dots). Shown wherever a canvas app shows canvasMark(), so
+// an app that runs on flaps AND has a rich panel view reads as one at a glance.
+function dualMark() {
+  const label = esc(t("Split-flap + Matrix panel"));
+  let dots = "";
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++)
+    dots += `<circle cx="${20.5 + c * 3.6}" cy="${9 + r * 5.5}" r="1.5"/>`;
+  return `<svg class="app-dual" viewBox="0 0 34 24" role="img" aria-label="${label}">` +
+    `<title>${label}</title>` +
+    // split-flap module card (left), with the horizontal seam and side hinges
+    `<rect x="1" y="3" width="13" height="18" rx="2" fill="#141414" stroke="#3a3a3a"/>` +
+    `<line x1="1" y1="12" x2="14" y2="12" stroke="#000" stroke-width="1.6"/>` +
+    `<rect x="0" y="10.6" width="1.6" height="2.8" rx=".6" fill="#4a4a4a"/>` +
+    `<rect x="13.4" y="10.6" width="1.6" height="2.8" rx=".6" fill="#4a4a4a"/>` +
+    // mini Matrix panel (right)
+    `<rect x="17" y="2" width="16" height="20" rx="3" fill="#0c0c0c" stroke="#2b2b2b"/>` +
+    `<g fill="#f5c518">${dots}</g></svg>`;
+}
+
 // A single-select that renders rich options — an app's icon, name, the amber dot-matrix
 // canvas marker and the 🌐 badge — which a native <select> can't (its <option>s are text
 // only). Exposes `.value` (get/set) and calls onChange(id) on pick; keyboard + click, with
@@ -593,7 +613,7 @@ function richAppSelect(apps, value, onChange) {
   const optHTML = (a) =>
     `<span class="rsel-ic">${esc(a.icon || "🧩")}</span>` +
     `<span class="rsel-nm">${esc(a.name)}</span>` +
-    (a.surface === "canvas" ? canvasMark() : "") +
+    (a.surface === "canvas" ? canvasMark() : a.canvas_view ? dualMark() : "") +
     (a.i18n ? `<span class="rsel-i18n" title="${esc(t("Multilingual — adapts to the global Language"))}">🌐</span>` : "");
   const drawBtn = () => {
     const a = apps.find((x) => x.id === cur) || apps[0];
@@ -673,8 +693,8 @@ async function loadApps() {
       `<div class="app-foot">` +
         (a.i18n ? `<span class="app-i18n" title="${esc(t("Multilingual — adapts to the global Language"))}">🌐</span>` : "") +
         // A "draws on the panel" marker so a canvas app reads as one at a glance,
-        // whether or not this wall can run it.
-        (isCanvas ? canvasMark() : "") +
+        // whether or not this wall can run it; a dual-view app gets the both-surfaces badge.
+        (isCanvas ? canvasMark() : a.canvas_view ? dualMark() : "") +
         `<span class="app-badge"></span>` +
         (fits ? "" : `<span class="app-req">${esc(reqLabel)}</span>`) +
       `</div>`;
@@ -1306,6 +1326,11 @@ function libRow(a, reopen) {
   if (a.surface === "canvas") {
     const surf = el("span", "lib-tag canvas");
     surf.innerHTML = canvasMark() + " " + esc(t("Matrix panel"));
+    tags.appendChild(surf);
+  } else if (a.canvas_view) {
+    // A dual-view app runs on flaps AND has a rich Matrix-panel view — badge both.
+    const surf = el("span", "lib-tag canvas");
+    surf.innerHTML = dualMark() + " " + esc(t("Flaps + Matrix panel"));
     tags.appendChild(surf);
   }
   meta.append(name, desc, tags);

@@ -192,6 +192,10 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 /* The canvas marker is an inline SVG — a tiny amber dot-matrix echoing the LED panel. */
 .app-canvas { width: 16px; height: 16px; flex: none; vertical-align: middle; cursor: help; display: inline-block; }
 .app-tile .app-foot .app-canvas { width: 17px; height: 17px; }
+/* Dual-view badge: a flap card beside a Matrix panel — the app runs on both surfaces. */
+.app-dual { width: 22px; height: 16px; flex: none; vertical-align: middle; cursor: help; display: inline-block; }
+.app-tile .app-foot .app-dual { width: 23px; height: 17px; }
+.lib-filter-canvas .app-dual { width: 20px; height: 14px; }
 /* Canvas (Matrix-panel) apps stand apart from flap apps: the whole box takes a
    brand-tinted shade and a brand border, so at a glance you can tell which apps
    draw on an LED panel. */

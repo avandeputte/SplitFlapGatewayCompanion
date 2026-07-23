@@ -96,6 +96,12 @@ def _apps():
             # renderer.fold. Its case is rendered literally, so uppercase labels
             # ("DAYS", "MIN") are a deliberate typographic choice, not shouting.
             continue
+        if m.get("canvas_view"):
+            # A dual-view app (flap pages AND a rich canvas rendering) carries the same kind of
+            # Pillow typography as a surface:canvas app — its uppercase labels ("DAYS", "ARRIVED",
+            # "SET A TARGET") belong to that panel view, drawn literally, not to its flap pages
+            # (which are de-shouted at the source like every other app). Exempt for the same reason.
+            continue
         app = manifest.parent / "app.py"
         if app.exists():
             yield manifest.parent.name, app

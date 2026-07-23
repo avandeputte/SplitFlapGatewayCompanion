@@ -636,7 +636,8 @@ class PluginRuntime:
                                      "caps", "paginate", "canvas")
                          if cls._fetch_accepts(fn, n))
 
-    def _helper_kwargs(self, app_id: str, wanted: frozenset, ps: dict, settings=None) -> dict:
+    def _helper_kwargs(self, app_id: str, wanted: frozenset, ps: dict, settings=None,
+                       for_canvas: bool = False) -> dict:
         """The injected-helper kwargs for a fetch() or trigger() — a trigger needs
         the weather or the timezone for exactly the same reasons a fetch does, and
         used to have to hand-roll both. ``wanted`` is the precomputed set from
@@ -679,7 +680,15 @@ class PluginRuntime:
             # flap app can offer richer graphics where the panel allows and fall
             # back to flaps where it does not. (A pure canvas app is gated so it
             # never runs on a non-canvas wall at all — see the engine.)
-            kwargs["canvas"] = self.build_canvas_surface()
+            #
+            # A DUAL-VIEW app (manifest ``canvas_view``) is the either/or case, not enrich:
+            # it draws a rich panel view OR returns flap pages, branching on whether canvas is
+            # None. So it gets the surface ONLY on the canvas render path (``for_canvas``); in the
+            # flap-pages path it must see None and return pages — else it would draw AND the engine
+            # would also send its (empty) pages, fighting over the panel. Non-dual "enrich" apps
+            # keep the surface in both paths, as before.
+            if for_canvas or not self._registry.get(app_id, {}).get("canvas_view"):
+                kwargs["canvas"] = self.build_canvas_surface()
         return kwargs
 
     def build_canvas_surface(self):
@@ -1010,6 +1019,26 @@ class PluginRuntime:
         ``"surface": "canvas"``) instead of returning flap pages."""
         return self._registry.get(app_id, {}).get("surface") == "canvas"
 
+    def has_canvas_view(self, app_id: str) -> bool:
+        """A DUAL-VIEW app: a normal flap app (returns pages) that ALSO ships a rich canvas
+        rendering (manifest ``"canvas_view": true``), drawn on a Matrix panel when the per-app
+        ``matrix_view`` toggle is on. Unlike ``surface: canvas`` it runs on flap walls too — it
+        just falls back to its flap pages there. The capability that earns the dual-view badge."""
+        m = self._registry.get(app_id, {})
+        return bool(m.get("canvas_view")) and m.get("surface") != "canvas"
+
+    def canvas_view_on(self, app_id: str, settings=None) -> bool:
+        """Whether a dual-view app should render on the Matrix panel right now — the per-app
+        ``matrix_view`` toggle, defaulting ON (it only bites on a wall with a framebuffer; the
+        engine still checks has_canvas before routing there). Off ⇒ plain flap pages on the panel.
+        Mirrors ``channel_canvas_on`` for functional apps."""
+        if not self.has_canvas_view(app_id):
+            return False
+        v = self._perapp_value(app_id, "matrix_view", settings)
+        if v is None:
+            return True
+        return str(v).strip().lower() in ("yes", "on", "1", "true")
+
     def render_canvas(self, app_id: str, overrides: dict | None = None):
         """Run a canvas app's fetch once — it draws through the injected ``canvas``
         helper (the drawing is the point; there are no pages to return). Its return
@@ -1024,7 +1053,8 @@ class PluginRuntime:
             return None
         src = _SettingsOverlay(self.settings, overrides) if overrides else self.settings
         ps = self._plugin_settings(app_id, manifest, src)
-        kwargs = self._helper_kwargs(app_id, self._wants.get(app_id, frozenset()), ps, src)
+        kwargs = self._helper_kwargs(app_id, self._wants.get(app_id, frozenset()), ps, src,
+                                     for_canvas=True)
         fmt = functools.partial(self.format_lines, align=self.vertical_align(app_id))
         result = mod.fetch(ps, fmt, self.get_rows, self.get_cols, **kwargs)
         try:
@@ -1139,6 +1169,9 @@ class PluginRuntime:
             # "canvas" apps draw straight to a Matrix panel's framebuffer and need
             # a wall that has one — the UI hides them where it can't be run.
             "surface": manifest.get("surface", "flap"),
+            # A dual-view app runs on flaps AND has a rich Matrix-panel view — the UI badges it so
+            # its two-mode nature reads at a glance (it is NOT hidden on flap walls).
+            "canvas_view": bool(manifest.get("canvas_view")) and manifest.get("surface") != "canvas",
             "builtin": builtin,
         }
 
@@ -1366,6 +1399,22 @@ class PluginRuntime:
             fld = {
                 "key": f"plugin_{app_id}_matrix_art",
                 "label": "Show on Matrix panel (art + text)",
+                "type": "toggle",
+                "default": "yes",
+                "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}],
+            }
+            if not self._caps().has_canvas:
+                fld["disabled"] = True
+                fld["note"] = "Only on Matrix-panel displays."
+            fields.append(fld)
+
+        # A dual-view app (manifest ``canvas_view``) draws its own rich Matrix-panel view instead of
+        # the plain firmware text of its flap pages. Same toggle contract as a channel's art view —
+        # it only bites on a wall with a framebuffer, so it greys out on a flap-only display.
+        if self.has_canvas_view(app_id):
+            fld = {
+                "key": f"plugin_{app_id}_matrix_view",
+                "label": "Show on Matrix panel (rich view)",
                 "type": "toggle",
                 "default": "yes",
                 "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}],

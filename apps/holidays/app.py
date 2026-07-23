@@ -147,12 +147,11 @@ def _fun_days(today):
     return out
 
 
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=None):
+def _upcoming(settings, i18n, get_location):
+    """The deduped, date-sorted upcoming holidays as ``[(date, record, estimated), ...]`` plus the
+    resolved country code — shared by the flap pages and the canvas desk-calendar view, so the two
+    views always agree on WHICH holidays and in what order. Empty list on a broken install."""
     from datetime import date
-    rows, cols = get_rows(), get_cols()
-
-    def t(s, ctx="time"):
-        return i18n.t(s, ctx) if i18n is not None else s
 
     def on(key, default=''):
         return str(settings.get(key, default) or default).strip().lower() in \
@@ -174,52 +173,66 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
     want_cultural = on('cultural_traditions', 'on')
     want_fun = on('fun_days')          # off unless asked: one EVERY day
 
-    try:
-        locale = _pick_locale(lang, country)
-        # No dataset locale for the country is not the end: the cultural and fun
-        # layers can still carry the page (and the empty-page fallback says
-        # "None found" if every layer comes up dry).
-        entries = _dataset(locale).get('holidays', []) if locale else []
+    locale = _pick_locale(lang, country)
+    # No dataset locale for the country is not the end: the cultural and fun
+    # layers can still carry the page (and the empty fallback says "None found"
+    # if every layer comes up dry).
+    entries = _dataset(locale).get('holidays', []) if locale else []
 
-        today = date.today()
-        upcoming = []
-        for h in entries:
-            # Nationwide holidays + our own province/state's; drop other regions'
-            # (so Quebec doesn't list British Columbia Day).
-            subs = h.get('subdivisions')
-            if subs and (not subdivision or subdivision not in subs):
+    today = date.today()
+    upcoming = []
+    for h in entries:
+        # Nationwide holidays + our own province/state's; drop other regions'
+        # (so Quebec doesn't list British Columbia Day).
+        subs = h.get('subdivisions')
+        if subs and (not subdivision or subdivision not in subs):
+            continue
+        # Category gate. Every record is tagged: cultural traditions (April
+        # Fools', Nikolaus) show under their own switch; a non-public
+        # religious observance needs the religious switch AND its tradition;
+        # a public holiday is a day off and always shows.
+        if h.get('cultural'):
+            if not want_cultural:
                 continue
-            # Category gate. Every record is tagged: cultural traditions (April
-            # Fools', Nikolaus) show under their own switch; a non-public
-            # religious observance needs the religious switch AND its tradition;
-            # a public holiday is a day off and always shows.
-            if h.get('cultural'):
-                if not want_cultural:
-                    continue
-            elif not h.get('public'):
-                if not (want_religious and h.get('religious')
-                        and h.get('tradition') in traditions):
-                    continue
-            nd = _next_date(h, today)
-            if nd:
-                upcoming.append((nd[0], h, nd[1]))
+        elif not h.get('public'):
+            if not (want_religious and h.get('religious')
+                    and h.get('tradition') in traditions):
+                continue
+        nd = _next_date(h, today)
+        if nd:
+            upcoming.append((nd[0], h, nd[1]))
 
-        # The one layer that isn't per-locale: the global novelty calendar.
-        if want_fun:
-            upcoming += _fun_days(today)
+    # The one layer that isn't per-locale: the global novelty calendar.
+    if want_fun:
+        upcoming += _fun_days(today)
 
-        upcoming.sort(key=lambda e: e[0])
+    upcoming.sort(key=lambda e: e[0])
 
-        # A tradition can shadow a dataset entry under the same name on the same
-        # day (Assomption is both a public holiday and a cultural fixture) —
-        # show it once.
-        seen, deduped = set(), []
-        for dt, h, est in upcoming:
-            k = (dt, str(h.get('name', '')).casefold())
-            if k not in seen:
-                seen.add(k)
-                deduped.append((dt, h, est))
-        upcoming = deduped
+    # A tradition can shadow a dataset entry under the same name on the same day
+    # (Assomption is both a public holiday and a cultural fixture) — show it once.
+    seen, deduped = set(), []
+    for dt, h, est in upcoming:
+        k = (dt, str(h.get('name', '')).casefold())
+        if k not in seen:
+            seen.add(k)
+            deduped.append((dt, h, est))
+    return deduped, country
+
+
+def fetch(settings, format_lines, get_rows, get_cols, canvas=None, i18n=None, get_location=None):
+    # A Matrix panel gets the rich desk-calendar view; a flap wall (or the toggle off) gets pages.
+    if canvas is not None:
+        return _render_canvas(canvas, settings, i18n, get_location)
+
+    from datetime import date
+    rows, cols = get_rows(), get_cols()
+
+    def t(s, ctx="time"):
+        return i18n.t(s, ctx) if i18n is not None else s
+
+    try:
+        upcoming, country = _upcoming(settings, i18n, get_location)
+        today = date.today()
 
         pages = []
         for dt, h, estimated in upcoming[:4]:
@@ -263,3 +276,220 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
     except Exception:
         # The dataset is local — a failure here is a broken install, not weather.
         return [format_lines('Holidays', t('No data', 'holidays'), '')]
+
+
+# ---------------------------------------------------------------------------
+# Canvas view — a rich desk-calendar rendering for a Matrix panel. The same
+# upcoming holidays as the flap pages (via _upcoming), shown one at a time as a
+# slideshow: a red-banded calendar card (month + big day number) with the
+# holiday name and countdown beside it. On a panel too small for the card to sit
+# next to the text it drops to a compact stacked layout (a date strip over the
+# wrapped name) so it stays legible down to a 64x32 wall.
+# ---------------------------------------------------------------------------
+
+_BG_TOP, _BG_BOT = (30, 34, 46), (12, 14, 20)          # quiet dark backdrop
+_CARD, _CARD_EDGE = (244, 244, 246), (208, 208, 214)   # the desk-calendar card
+_BAND = (206, 52, 52)                                  # its classic red month band
+_DAY = (26, 26, 32)                                    # the big day number
+_SUB = (150, 150, 158)                                 # the weekday under it
+_NAME = (238, 238, 244)                                # the holiday name
+_SOON = (255, 180, 60)                                 # "IN N DAYS" amber
+_TODAY = (80, 220, 120)                                # "TODAY" green
+
+
+def _cv_shadow(draw, x, y, text, font, fill):
+    """Text with a 1px dark outline on all sides, so it stays legible over any backdrop."""
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)):
+        draw.text((x + dx, y + dy), text, font=font, fill=(0, 0, 0), anchor='la')
+    draw.text((x, y), text, font=font, fill=fill, anchor='la')
+
+
+def _cv_fit(canvas, text, max_w, max_h):
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
+    size = max(5, int(max_h) + 2)
+    font = canvas.font(size)
+    for _ in range(80):
+        b = font.getbbox(text or '0')
+        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+            return font
+        size -= 1
+        font = canvas.font(size)
+    return font
+
+
+def _cv_wrap(font, text, max_w, max_lines):
+    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines."""
+    words, lines, cur = str(text or '').split(), [], ''
+    for w in words:
+        cand = f'{cur} {w}'.strip()
+        if not cur or font.getlength(cand) <= max_w:
+            cur = cand
+        else:
+            lines.append(cur)
+            cur = w
+            if len(lines) >= max_lines:
+                break
+    if cur and len(lines) < max_lines:
+        lines.append(cur)
+    return lines[:max_lines] or ['']
+
+
+def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
+    """Pick the largest font at which ``text`` word-wraps into <= ``max_lines`` lines that together
+    fit ``max_w`` x ``max_h``. Returns (font, lines, line_height, gap)."""
+    size = max(5, int(max_h))
+    for _ in range(80):
+        font = canvas.font(size)
+        lines = _cv_wrap(font, text, max_w, max_lines)
+        b = font.getbbox('Ag')
+        lh = b[3] - b[1]
+        gap = max(1, lh // 6)
+        total = len(lines) * lh + (len(lines) - 1) * gap
+        widest = max((font.getlength(ln) for ln in lines), default=0)
+        if size <= 5 or (total <= max_h and widest <= max_w):
+            return font, lines, lh, gap
+        size -= 1
+    font = canvas.font(5)
+    lines = _cv_wrap(font, text, max_w, max_lines)
+    b = font.getbbox('Ag')
+    return font, lines, b[3] - b[1], 1
+
+
+def _cv_when(dt, days, i18n):
+    """The countdown line and its colour: 'TODAY' (green) or 'IN N DAYS' (amber)."""
+    def t(s):
+        return i18n.t(s, 'time') if i18n is not None else s
+    if days <= 0:
+        return t('Today').upper(), _TODAY
+    unit = t('day') if days == 1 else t('days')
+    return f'{t("In")} {days} {unit}'.upper(), _SOON
+
+
+def _cv_month_day(dt, i18n):
+    """(MONTH short, day number, weekday short) — localized where an i18n is present."""
+    if i18n is not None:
+        return (str(i18n.month(dt, short=True)).upper(), str(dt.day),
+                str(i18n.weekday(dt, short=True)).upper())
+    return dt.strftime('%b').upper(), str(dt.day), dt.strftime('%a').upper()
+
+
+def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
+    """The full desk-calendar view: the calendar card beside the name + countdown on a wide-enough
+    panel, else a compact stacked layout (date strip over the wrapped name)."""
+    W, H = canvas.width, canvas.height
+    img = canvas.vgrad(_BG_TOP, _BG_BOT)
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+    mon, day, dow = _cv_month_day(dt, i18n)
+    when, when_col = _cv_when(dt, days, i18n)
+    pre = '~' if estimated else ''
+
+    # Side-by-side calendar card only where it earns its space; otherwise stack.
+    if W >= 104 and H >= 34:
+        m = 3
+        cs = H - 2 * m                                   # a square card filling the height
+        cs = min(cs, int(W * 0.42))
+        x0, y0 = m, m
+        band_h = max(9, int(cs * 0.34))
+        # card body + red month band + big day number
+        draw.rounded_rectangle([x0, y0, x0 + cs, y0 + cs], radius=3, fill=_CARD, outline=_CARD_EDGE)
+        draw.rounded_rectangle([x0, y0, x0 + cs, y0 + band_h], radius=3, fill=_BAND)
+        draw.rectangle([x0, y0 + band_h - 3, x0 + cs, y0 + band_h], fill=_BAND)   # square off the band's base
+        mf = _cv_fit(canvas, mon, cs - 6, band_h - 3)
+        mb = mf.getbbox(mon)
+        draw.text((x0 + (cs - mf.getlength(mon)) / 2.0,
+                   y0 + (band_h - (mb[3] - mb[1])) / 2.0 - mb[1]), mon, font=mf, fill=(255, 255, 255))
+        low_h = cs - band_h
+        df = _cv_fit(canvas, day, cs - 6, int(low_h * 0.78))
+        db = df.getbbox(day)
+        draw.text((x0 + (cs - df.getlength(day)) / 2.0,
+                   y0 + band_h + (low_h - (db[3] - db[1])) / 2.0 - db[1] - 1), day, font=df, fill=_DAY)
+
+        # Right column: the holiday name (as many lines as fit) over the countdown.
+        rx = x0 + cs + 5
+        rw = W - 3 - rx
+        cf = _cv_fit(canvas, when, rw, max(7, int(H * 0.20)))
+        cb = cf.getbbox(when)
+        ch = cb[3] - cb[1]
+        name_h = H - 4 - ch - 2
+        nf, lines, lh, gap = _cv_wrap_fit(canvas, pre + name, rw, name_h, 3)
+        block = len(lines) * lh + (len(lines) - 1) * gap
+        ny = max(2.0, (name_h - block) / 2.0 + 2)
+        for ln in lines:
+            _cv_shadow(draw, rx, ny - nf.getbbox(ln)[1], ln, nf, _NAME)
+            ny += lh + gap
+        _cv_shadow(draw, rx, H - 3 - ch - cb[1], when, cf, when_col)
+        return img
+
+    # Compact: a coloured date strip across the top, the wrapped name filling the rest.
+    strip = f'{dow} {mon} {day}'
+    sf = _cv_fit(canvas, strip, W - 6, max(7, int(H * 0.30)))
+    sb = sf.getbbox(strip)
+    sh = sb[3] - sb[1]
+    _cv_shadow(draw, (W - sf.getlength(strip)) / 2.0, 2 - sb[1], strip, sf, when_col)
+    # a thin divider under the strip
+    dv = int(2 + sh + 3)
+    draw.line([(3, dv), (W - 4, dv)], fill=_BAND)
+    body_top = dv + 2
+    body_h = H - body_top - 2
+    nf, lines, lh, gap = _cv_wrap_fit(canvas, pre + name, W - 6, body_h, 3)
+    block = len(lines) * lh + (len(lines) - 1) * gap
+    ny = body_top + max(0.0, (body_h - block) / 2.0)
+    for ln in lines:
+        _cv_shadow(draw, (W - nf.getlength(ln)) / 2.0, ny - nf.getbbox(ln)[1], ln, nf, _NAME)
+        ny += lh + gap
+    return img
+
+
+def _cv_message(canvas, ImageDraw, line1, line2):
+    """A quiet two-line message (no holidays / broken install)."""
+    W, H = canvas.width, canvas.height
+    img = canvas.vgrad(_BG_TOP, _BG_BOT)
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
+    b1 = f1.getbbox(line1)
+    h1 = b1[3] - b1[1]
+    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
+    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
+    gap = 3 if line2 else 0
+    y = (H - (h1 + gap + h2)) / 2.0
+    _cv_shadow(draw, (W - f1.getlength(line1)) / 2.0, y - b1[1], line1, f1, _NAME)
+    if line2:
+        y += h1 + gap
+        _cv_shadow(draw, (W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1], line2, f2, _SUB)
+    return img
+
+
+def _render_canvas(canvas, settings, i18n, get_location):
+    """Draw one upcoming holiday as a desk-calendar frame, advancing through the list each redraw
+    (a slideshow paced by the app's ``loop_delay``). Panel-adaptive; offline-safe."""
+    from datetime import date
+    from PIL import ImageDraw
+    try:
+        upcoming, country = _upcoming(settings, i18n, get_location)
+    except Exception:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'HOLIDAYS', 'NO DATA'))
+        return 30.0
+    if not upcoming:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'NO HOLIDAYS', country))
+        return 30.0
+
+    items = upcoming[:8]
+    st = getattr(_render_canvas, '_state', None)
+    if st is None:
+        st = {'i': 0}
+        setattr(_render_canvas, '_state', st)
+    idx = st['i'] % len(items)
+    st['i'] = (st['i'] + 1) % len(items)
+
+    dt, rec, estimated = items[idx]
+    name = str((i18n.holiday(rec.get('name')) if i18n is not None else None)
+               or rec.get('name') or '').upper()
+    days = (dt - date.today()).days
+    canvas.frame(_cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n))
+    try:
+        dwell = float(settings.get('loop_delay', 6) or 6)
+    except (TypeError, ValueError):
+        dwell = 6.0
+    return max(3.0, min(30.0, dwell))

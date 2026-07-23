@@ -3,6 +3,21 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.3
+
+- **Dual-view apps: one app, both surfaces.** An app can now ship BOTH a split-flap view and a rich
+  Matrix-panel view, chosen per app with a new "Show on Matrix panel (rich view)" toggle (greyed out
+  on flap-only walls) — the same idea as a channel's art view, but the app draws its own panel
+  graphics. Dual-view apps carry a badge (a flap card beside a mini panel) so they read at a glance.
+- **Public Holidays gets a desk-calendar panel view.** On a Matrix panel it shows each upcoming
+  holiday as a red-banded calendar card (month + big day number) with the holiday name and countdown
+  beside it, adapting to a compact date-strip layout on small panels. Flap walls are unchanged.
+- **Countdown and World Clock are now dual-view — the two "canvas-" twins are folded in.** The
+  standalone "Countdown Bars" and "World Time" panel apps are merged into the regular **Countdown**
+  and **World Clock** apps, which now render the colour bars / lit day-night rows on a Matrix panel
+  and the text countdown / clocks on flaps, off one shared configuration. (If you had the old
+  canvas-only apps in a playlist, swap them for Countdown / World Clock.)
+
 ## 2.10.0-beta.2
 
 - **Fast Matrix-panel apps now draw over the v3.2 stream.** On a wall running firmware 3.2, a

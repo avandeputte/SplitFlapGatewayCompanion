@@ -37,7 +37,7 @@ def surface(monkeypatch):
 def test_world_clock_holds_until_the_next_minute(surface):
     """HH:MM per zone changes only on the minute — the hold is the time to the next boundary,
     never the old flat 1s that repainted ~60×/min."""
-    m = _load("canvas-world")
+    m = _load("world_clock")           # dual-view: canvas branch draws the lit rows (was canvas-world)
     hold = m.fetch({"world_clock_zones": "America/New_York, Europe/London"},
                    None, None, None, canvas=surface)
     now = datetime.now()
@@ -57,10 +57,13 @@ def test_date_card_holds_until_around_midnight(surface):
     assert hold == pytest.approx(min(3600.0, secs_to_midnight), abs=2.0)
 
 
-def test_countdown_prompt_is_not_a_fast_repaint(surface):
-    """With no target set the card is a static prompt — it holds, rather than repainting every
-    second like the live countdown does."""
-    m = _load("canvas-countdown")
-    m.fetch.__dict__.pop("_state", None)
-    hold = m.fetch({}, None, None, None, canvas=surface)   # no countdown_target -> the prompt
-    assert hold == 30.0
+def test_countdown_canvas_cadence(surface):
+    """The dual-view Countdown's canvas bars: seconds off -> a gentle 1s repaint; seconds on ->
+    the ~5fps sweep. Empty settings still draw slot 1's default New Year countdown (the flap
+    default carries over to the panel), so this is never a static prompt."""
+    m = _load("countdown")
+    m._render_canvas.__dict__.pop("_state", None)
+    slow = m.fetch({}, None, None, None, canvas=surface, caps=None)
+    assert slow == 1.0
+    fast = m.fetch({"show_seconds": "yes"}, None, None, None, canvas=surface, caps=None)
+    assert fast == 0.2

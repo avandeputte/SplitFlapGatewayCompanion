@@ -67,7 +67,6 @@
   "Choose a .zip first.": "Elige primero un .zip.",
   "Choose a GIF first.": "Elige primero un GIF.",
   "Christian": "Cristianas",
-  "Cities (as many as the wall has rows)": "Ciudades (tantas como filas)",
   "Clear": "Borrar",
   "Clock Format": "Formato de hora",
   "Close": "Cerrar",
@@ -144,7 +143,6 @@
   "Error: %s": "Error: %s",
   "Event Date (YYYY-MM-DD)": "Fecha del evento (AAAA-MM-DD)",
   "Event Name": "Nombre del evento",
-  "Event name": "Nombre del evento",
   "Failed: %s": "Fallo: %s",
   "Feet": "Pies",
   "Fetch a new fact every (minutes)": "Nuevo dato cada (minutos)",
@@ -393,7 +391,6 @@
   "Stop ID (e.g. place-NSTAT)": "ID de parada (p. ej. place-NSTAT)",
   "Symbols": "Símbolos",
   "Syncing…": "Sincronizando…",
-  "Target date & time": "Fecha y hora objetivo",
   "Teams & leagues to follow": "Equipos y ligas a seguir",
   "Temperature Unit": "Unidad de temperatura",
   "Text": "Texto",
@@ -480,5 +477,7 @@
   "＋ Add trigger": "＋ Añadir disparador",
   "＋ App": "＋ App",
   "＋ Library": "＋ Biblioteca",
-  "＋ Message": "＋ Mensaje"
+  "＋ Message": "＋ Mensaje",
+  "Flaps + Matrix panel": "Solapas + panel Matrix",
+  "Split-flap + Matrix panel": "Solapas + panel Matrix"
 }

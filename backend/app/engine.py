@@ -502,12 +502,17 @@ class DisplayController:
         # the flaps — only where there's a framebuffer to draw on.
         channel_canvas = (not canvas_app and self._caps().has_canvas
                           and self.plugins.channel_canvas_on(app_id))
+        # A dual-view app (flap app + a rich canvas view, ``matrix_view`` on) draws on the panel
+        # too — through the very same canvas loop as a pure canvas app. On a flap wall, or with the
+        # toggle off, this is False and it runs as an ordinary flap app.
+        dual_canvas = (not canvas_app and self._caps().has_canvas
+                       and self.plugins.canvas_view_on(app_id))
         await self._cancel_task()
         self._clear_driver_flags()
         self.active_app = app_id
         self.state.active_app = app_id
         self._remember({"kind": "app", "app": app_id})
-        loop = (self._canvas_loop if canvas_app
+        loop = (self._canvas_loop if (canvas_app or dual_canvas)
                 else self._channel_canvas_loop if channel_canvas
                 else self._app_loop)
         self._task = asyncio.create_task(loop(app_id))
@@ -811,10 +816,16 @@ class DisplayController:
                         return rt_loop.time() < deadline and self.active_playlist == want
 
                     is_canvas = getattr(self.plugins, "is_canvas_app", None)
-                    channel_canvas = (not (is_canvas and is_canvas(app_id))
+                    canvas_here = bool(is_canvas and is_canvas(app_id))
+                    # A dual-view app in a playlist draws its canvas view too, when the panel is
+                    # there and its ``matrix_view`` toggle is on — same take-over/hand-back path as
+                    # a pure canvas app. Otherwise it plays its flap pages.
+                    dual_canvas = (not canvas_here and self._caps().has_canvas
+                                   and self.plugins.canvas_view_on(app_id))
+                    channel_canvas = (not canvas_here and not dual_canvas
                                       and self._caps().has_canvas
                                       and self.plugins.channel_canvas_on(app_id))
-                    if is_canvas and is_canvas(app_id):
+                    if canvas_here or dual_canvas:
                         # A canvas app draws on the Matrix panel, not the flaps. Drive
                         # it like the standalone canvas loop — take the panel over, redraw
                         # until the entry's deadline — then HAND THE PANEL BACK before the
