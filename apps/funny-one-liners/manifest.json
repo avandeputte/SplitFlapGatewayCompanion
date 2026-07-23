@@ -6,7 +6,7 @@
   "category": "entertainment",
   "type": "channel",
   "surfaces": ["flap", "matrix"],
-  "canvas_art": "bubble",
+  "canvas_art": "grin",
   "version": "1.0",
   "refresh_interval": 300,
   "loop_delay": 8,
