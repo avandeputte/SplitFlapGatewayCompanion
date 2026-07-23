@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.8
+
+- **Every app now has a Matrix-panel view.** All 40 flap-only apps gained a rich `fetch_matrix`
+  rendering — clocks, sun arc, drawn moon, tide curve, quote/fact cards, scoreboards, departure
+  boards, quake cards, an ISS tracker map and more — each on solid black, adaptive from 256x64 down
+  to 64x32, showing the same data as its flap view, with a per-app "Show on Matrix panel" toggle.
+- **American English throughout** the code, comments and UI strings.
+
 ## 2.10.0-beta.7
 
 - **Internal clean-up release.** A full design-debt pass with no feature changes: one construction
