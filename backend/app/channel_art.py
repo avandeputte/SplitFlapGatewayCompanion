@@ -168,8 +168,9 @@ def _saber(d, x, y, s):
     x0, y0, x1, y1 = x + s * 0.20, y + s * 0.84, x + s * 0.82, y + s * 0.20
     hx, hy = x0 + (x1 - x0) * 0.28, y0 + (y1 - y0) * 0.28
     d.line([x0, y0, hx, hy], fill=(150, 156, 168), width=max(2, int(s * 0.12)))              # hilt
-    d.line([hx, hy, x1, y1], fill=(120, 235, 255), width=max(2, int(s * 0.14)))              # blade glow
-    d.line([hx, hy, x1, y1], fill=(240, 252, 255), width=max(1, int(s * 0.05)))              # blade core
+    # A RED blade: saturated glow around a hot light core — blue read as a plain white slash.
+    d.line([hx, hy, x1, y1], fill=(235, 40, 30), width=max(2, int(s * 0.14)))                # blade glow
+    d.line([hx, hy, x1, y1], fill=(255, 170, 150), width=max(1, int(s * 0.05)))              # blade core
 
 
 def _shower(d, x, y, s):

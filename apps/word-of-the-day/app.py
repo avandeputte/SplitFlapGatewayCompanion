@@ -221,7 +221,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         top = pad + (hf.getbbox(header)[3] - hf.getbbox(header)[1]) + 3
 
     # The gloss block first (its height decides how much the word may take).
-    df = canvas.font(8)
+    df = canvas.font(9)
     dl = df.getbbox('Ag')
     dlh = dl[3] - dl[1]
     def_lines = []

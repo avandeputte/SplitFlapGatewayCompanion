@@ -278,6 +278,10 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
     cw, ch = W // cols, H // rows
     tile = max(8, min(16, min(cw, ch) // 2)) & ~1
     show_name = ch >= tile + 12
+    # A card narrower than ~28px can't fit an icon AND a readable value — the value wins,
+    # the icon sits out (a tiny 64x32 wall with six entities is values-only).
+    if cw < 28:
+        use_sprites = False
 
     if use_sprites:
         canvas.upload_atlas(_icons(tile), persist=True)

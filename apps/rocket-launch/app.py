@@ -265,20 +265,23 @@ def fetch_matrix(settings, canvas, i18n=None):
     draw.fontmode = "1"
 
     if W >= 96 and H >= 48:
-        # Header: label left, launch time right, amber divider.
-        head_h = max(10, int(H * 0.2))
+        # Header: label left, launch time right, amber divider. Tall enough for a ~10px face,
+        # and the ink top CLAMPED to y>=2 — a fitted font whose ink overshoots the band must
+        # push the baseline down, never clip its own top row.
+        head_h = max(12, int(H * 0.22))
         lbl = 'NEXT LAUNCH'
         ww = 0
         if when:
             wf = _cv_fit(canvas, when, int(W * 0.42), head_h - 3)
             wb = wf.getbbox(when)
             ww = wf.getlength(when)
-            draw.text((W - 3 - ww, 2 + (head_h - 3 - (wb[3] - wb[1])) / 2.0 - wb[1]),
-                      when, font=wf, fill=_WHITE)
+            wy = max(2 - wb[1], 2 + (head_h - 3 - (wb[3] - wb[1])) / 2.0 - wb[1])
+            draw.text((W - 3 - ww, wy), when, font=wf, fill=_WHITE)
         lf = _cv_fit(canvas, lbl, W - 6 - ww - 8, head_h - 3)
         lb = lf.getbbox(lbl)
         if (lb[3] - lb[1]) >= 6:
-            draw.text((3, 2 + (head_h - 3 - (lb[3] - lb[1])) / 2.0 - lb[1]), lbl, font=lf, fill=_GRAY)
+            ly = max(2 - lb[1], 2 + (head_h - 3 - (lb[3] - lb[1])) / 2.0 - lb[1])
+            draw.text((3, ly), lbl, font=lf, fill=_GRAY)
         draw.line([(2, head_h + 1), (W - 3, head_h + 1)], fill=_AMBER)
 
         # A rocket riding the left edge, text beside it.

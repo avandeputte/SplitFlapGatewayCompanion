@@ -648,21 +648,23 @@ def fetch_matrix(settings, canvas, i18n=None):
 
     top, bottom = 2, H - 1
     if H >= 48:
-        # Header: league left, status right, a live dot when the game is on.
-        head_h = max(9, int(H * 0.2))
+        # Header: league left, status right, a live dot when the game is on. The band is tall
+        # enough for a ~10px face and every ink top is CLAMPED to y>=2 — a fitted font whose
+        # ink overshoots the band pushes down, never clips its own top row.
+        head_h = max(12, int(H * 0.22))
         if league:
             lf = _cv_fit(canvas, league.upper(), int(W * 0.4), head_h - 2)
             lb = lf.getbbox(league.upper())
-            draw.text((3, 1 + (head_h - 2 - (lb[3] - lb[1])) / 2.0 - lb[1]),
-                      league.upper(), font=lf, fill=_MX_GRAY)
+            ly = max(2 - lb[1], 1 + (head_h - 2 - (lb[3] - lb[1])) / 2.0 - lb[1])
+            draw.text((3, ly), league.upper(), font=lf, fill=_MX_GRAY)
         if status:
             sf = _cv_fit(canvas, status, int(W * 0.5), head_h - 2)
             sb = sf.getbbox(status)
             sx = W - 3 - sf.getlength(status)
-            draw.text((sx, 1 + (head_h - 2 - (sb[3] - sb[1])) / 2.0 - sb[1]),
-                      status, font=sf, fill=scol)
+            sy = max(2 - sb[1], 1 + (head_h - 2 - (sb[3] - sb[1])) / 2.0 - sb[1])
+            draw.text((sx, sy), status, font=sf, fill=scol)
             if state == 'in':
-                cy = 1 + (head_h - 2) // 2
+                cy = 2 + (head_h - 2) // 2
                 draw.ellipse([sx - 7, cy - 2, sx - 3, cy + 2], fill=_MX_LIVE)
         draw.line([(2, head_h + 1), (W - 3, head_h + 1)], fill=_MX_RULE)
         top = head_h + 3
