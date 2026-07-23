@@ -40,7 +40,8 @@ slightly smoother in these PNGs than on real LEDs.
 
 Every app with a split-flap surface, mocked up on a 3-row × 15-column wall of flap
 modules — the first page each app shows, with sample data. Colored tiles are the wall's
-seven color flaps (animations and emoji tiles render as solid color modules).
-Individual images are in [flap-3x15/](flap-3x15/).
+seven color flaps (emoji render as solid color modules). Animation apps are omitted —
+a static frame of a motion effect says nothing. Individual images are in
+[flap-3x15/](flap-3x15/).
 
 ![All apps on a 3x15 split-flap wall](contact-sheet-flap-3x15.png)
