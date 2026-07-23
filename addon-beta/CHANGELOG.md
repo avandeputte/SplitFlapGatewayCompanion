@@ -3,6 +3,10 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.16
+
+- **Formula 1**: the round-number label renders fully inside its red chip.
+
 ## 2.10.0-beta.15
 
 - **Every Matrix-panel view now uses the full panel height.** A measured pass over all 43 views x 4
