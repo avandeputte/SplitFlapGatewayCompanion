@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.10
+
+- **Two app merges.** The matrix-only **Overview** app is now the **Dashboard** app's Matrix-panel
+  view (big clock + date + a weather column with a seconds sweep), and the matrix-only
+  **HA Dashboard** is now the **Home Assistant** app's panel view (a grid of entity cards with
+  device icons, drawn on-device via ops + a persisted sprite atlas). Installs and playlists that
+  referenced the old apps follow the merge automatically. Dashboard gains Time-format and
+  Temperature-unit settings; Home Assistant gains a Columns setting.
+- **Magic 8 Ball** panel icon is now a glossy black ball (it read blue on LEDs).
+
 ## 2.10.0-beta.9
 
 - **Matrix-view polish.** News Headlines shows real mastheads for known feeds (BBC, NY Times,
