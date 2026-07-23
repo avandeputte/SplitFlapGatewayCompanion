@@ -13,7 +13,7 @@ cosmetic. From the Matrix Portal firmware's own reel.h:
 ASKED, NOT INFERRED
 -------------------
 Inferring from ``GET /api/config`` — "matrix portal" in the product name plus a firmware
-number of at least 1.6 ⇒ lowercase, pictographs and named colours — is wrong in every
+number of at least 1.6 ⇒ lowercase, pictographs and named colors — is wrong in every
 direction that matters:
 
   * it cannot see a PHYSICAL wall's reel at all, so the companion has no idea which
@@ -58,7 +58,7 @@ class Capabilities:
 
     lowercase: bool      # it has lowercase flaps, and a way to address them
     pictographs: bool    # the heart, sun, arrows … flaps
-    named_colours: bool  # colours are named, rather than spelled with r/o/y/g/b/p/w
+    named_colors: bool  # colors are named, rather than spelled with r/o/y/g/b/p/w
     indexed: bool = False  # it takes POST /api/display/cells (address a flap by INDEX)
 
     # How the wall MOVES — from the capabilities document's `motion` key (Gateway 3.10+ /
@@ -76,7 +76,7 @@ class Capabilities:
     # set" would then mean "everything".
     charset: frozenset[str] = field(default_factory=frozenset)
     uniform: bool = True                    # do all the modules carry the same reel?
-    colours: tuple[str, ...] = ()
+    colors: tuple[str, ...] = ()
 
     # CANVAS — a Matrix wall with a framebuffer can draw ANYTHING, free of the flap grid:
     # arbitrary pixels/lines/rects/text (POST /api/canvas/ops), a full raw frame
@@ -102,7 +102,7 @@ class Capabilities:
     # firmware version (`canvas_2_1`); `sprite` is the exception, carried in `canvas_ops`.
     fw_version: tuple[int, int] = (0, 0)
     canvas_readback: bool = False           # GET /api/canvas/frame — read the lit panel back
-    canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honours
+    canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honors
     # 3.1: PUT /api/canvas/rects — a frame-push app sends only the rectangles that changed since
     # its last frame instead of the whole panel. Advertised as canvas.rects.
     canvas_rects: bool = False
@@ -159,7 +159,7 @@ class Capabilities:
         """Can EVERY module on this wall show this character?
 
         Unknown charset -> True, deliberately: send it and hope — the inference path's
-        behaviour — is better than silently blanking text on a wall we simply have not asked.
+        behavior — is better than silently blanking text on a wall we simply have not asked.
         """
         if not self.charset:
             return True
@@ -167,13 +167,13 @@ class Capabilities:
 
 
 # The inference path's assumed real reel: 64 leaves, one byte per character, seven of its letters
-# spent on colours, and no idea which characters are actually printed on it.
-SPLIT_FLAP = Capabilities(lowercase=False, pictographs=False, named_colours=False, indexed=False,
+# spent on colors, and no idea which characters are actually printed on it.
+SPLIT_FLAP = Capabilities(lowercase=False, pictographs=False, named_colors=False, indexed=False,
                           motion="mechanical", settle_ms=4000)
 
 # Drawn modules: nothing to ration. Used only as the fallback guess for a Matrix Portal too old
 # to answer /api/capabilities.
-MATRIX_PORTAL = Capabilities(lowercase=True, pictographs=True, named_colours=True, indexed=True,
+MATRIX_PORTAL = Capabilities(lowercase=True, pictographs=True, named_colors=True, indexed=True,
                              motion="drawn")
 
 
@@ -218,7 +218,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     if not isinstance(common, str):
         common = ""
 
-    colours = tuple(str(c) for c in (doc.get("colors") or []) if isinstance(c, str))
+    colors = tuple(str(c) for c in (doc.get("colors") or []) if isinstance(c, str))
 
     # The wall's own statement about how it moves (Gateway 3.10+ / Matrix Portal 1.12+). Only
     # the two known kinds are accepted; anything else counts as "not reported", so `instant`
@@ -254,7 +254,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     return Capabilities(
         lowercase="lowercase" in features,
         pictographs="pictographs" in features,
-        named_colours="colors" in features or bool(colours),
+        named_colors="colors" in features or bool(colors),
         # ONLY "cells". This is the one flag that picks the WIRE FORMAT, and it names an
         # endpoint: POST /api/display/cells, the bulk index-addressed page API, which only a
         # Matrix Portal has.
@@ -271,7 +271,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         indexed="cells" in features,
         charset=frozenset(common),
         uniform=bool(cs.get("uniform", True)),
-        colours=colours,
+        colors=colors,
         motion=kind,
         settle_ms=settle,
         canvas_w=canvas_w,

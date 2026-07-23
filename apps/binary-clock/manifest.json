@@ -2,9 +2,9 @@
   "id": "binary-clock",
   "name": "Binary Clock",
   "icon": "🔢",
-  "description": "Time as a BCD binary clock in colour flaps",
+  "description": "Time as a BCD binary clock in color flaps",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "refresh_interval": 1,
   "loop_delay": 1,
   "category": "time",
@@ -39,7 +39,7 @@
     },
     {
       "key": "one_color",
-      "label": "Colour for 1",
+      "label": "Color for 1",
       "type": "select",
       "default": "green",
       "options": [
@@ -75,7 +75,7 @@
     },
     {
       "key": "zero_color",
-      "label": "Colour for 0",
+      "label": "Color for 0",
       "type": "select",
       "default": "red",
       "options": [

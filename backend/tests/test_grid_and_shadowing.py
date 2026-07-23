@@ -81,7 +81,7 @@ def test_heartbeat_resyncs_the_gateway_config():
     hb = main[main.index("async def _companion_heartbeat"):]
     hb = hb[:hb.index("\nasync def ", 10)]
     assert "do_gateway_sync(" in hb, "the heartbeat must re-sync the gateway config"
-    assert "sync_from_gateway" in hb, "…and must honour the sync_from_gateway switch"
+    assert "sync_from_gateway" in hb, "…and must honor the sync_from_gateway switch"
     # …for the display it heartbeats for: a second gateway must not resize the first.
     assert "do_gateway_sync(display)" in hb
 
@@ -126,7 +126,7 @@ def test_build_sync_patch_carries_any_geometry(rows, cols, modules):
 
 
 # ---------------------------------------------------------------------------
-# tall walls: centre the block, and let apps use the room
+# tall walls: center the block, and let apps use the room
 # ---------------------------------------------------------------------------
 def _runtime(rows, cols, tmp_path, **settings):
     from pathlib import Path as P
@@ -150,9 +150,9 @@ def _rows_of(page, rows, cols):
     return [page[r * cols:(r + 1) * cols] for r in range(rows)]
 
 
-def test_format_lines_centres_a_short_block_vertically(tmp_path):
+def test_format_lines_centers_a_short_block_vertically(tmp_path):
     """A 3-line app on a 5-row wall must not sit at the top with two dead rows —
-    the companion centres it; "vertical_align": "top" is the opt-out."""
+    the companion centers it; "vertical_align": "top" is the opt-out."""
     rt = _runtime(5, 15, tmp_path)
     page = rt.format_lines("ONE", "TWO", "THREE")
     lines = _rows_of(page, 5, 15)

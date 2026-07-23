@@ -1,3 +1,57 @@
+# =============================================================================
+# SHARED — the flight data both surfaces render. The provider stack, its
+# polling cadence and its cache all live inside fetch() (below); the shared
+# path runs that poll with throwaway formatting and reads the cached state, so
+# a wall and a panel always see the same aircraft from the same poll.
+# =============================================================================
+
+def _center(settings, get_location):
+    """Where to look — the same order fetch() uses: the global precise location,
+    then the per-app "lat,lon" override, then the default."""
+    import re
+    if get_location is not None:
+        loc = get_location() or {}
+        if loc.get("lat") is not None and loc.get("lon") is not None:
+            try:
+                return float(loc["lat"]), float(loc["lon"])
+            except (TypeError, ValueError):
+                pass
+    raw = str(settings.get("location", "") or "").strip()
+    m = re.match(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$", raw)
+    if m:
+        lat, lon = float(m.group(1)), float(m.group(2))
+        if -90 <= lat <= 90 and -180 <= lon <= 180:
+            return lat, lon
+    return 42.3601, -71.0589
+
+
+def _radius_km(settings):
+    """The configured search radius in km, clamped the way fetch() clamps it."""
+    try:
+        value = float(settings.get("radius", 100))
+    except Exception:
+        value = 100.0
+    value = max(1.0, value)
+    unit = str(settings.get("radius_unit", "mi")).lower()
+    km = value * 1.609344 if unit != "km" else value
+    return max(10.0, min(250.0, km))
+
+
+def _shared_flights(settings, get_location):
+    """The current flight list for any surface: run fetch()'s own poll (it respects its
+    polling_rate cache, so this does NOT hit the provider on every call) and read the
+    state it maintains. Returns (flights, (lat, lon), radius_km, error-or-None)."""
+    fetch(settings, lambda *a: "", lambda: 3, lambda: 22, get_location=get_location)
+    state = getattr(fetch, "_state", None) or {}
+    flights = state.get("flights") or []
+    err = state.get("last_error") if not flights else None
+    return flights, _center(settings, get_location), _radius_km(settings), err
+
+
+# =============================================================================
+# SPLIT-FLAP — fetch() (the provider stack + column pages) and the trigger.
+# =============================================================================
+
 def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
     import math
     import re
@@ -688,8 +742,8 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
     if line_w(kept) <= cols and (len(kept) >= 2 or len(cols_shown) <= 1):
         # ONE LINE per aircraft, columns aligned, packed `rows` aircraft to a page. The
         # lines are NOT stripped: every row is padded to the same width so format_lines
-        # centres them identically and the columns line up down the page (a right-stripped
-        # short row would be re-centred a column over).
+        # centers them identically and the columns line up down the page (a right-stripped
+        # short row would be re-centered a column over).
         lines = [g.join(cell(r, k) for k in kept) for r in rows_data]
         step = max(1, rows)
         for i in range(0, len(lines), step):
@@ -792,3 +846,264 @@ def trigger(settings, conditions):
         state['seen_callsigns'] = set(list(state['seen_callsigns'])[-200:])
 
     return new_found
+
+# =============================================================================
+# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+#
+# A radar card, one aircraft per hold: the callsign big, its route beside it,
+# a heading-true bearing arrow with distance + compass, the altitude in the
+# configured units — rotating through the same nearby list the flap pages
+# tabulate (same poll, same radius, same ordering). Black background.
+# =============================================================================
+
+_MX_WHITE = (240, 240, 244)
+_MX_GRAY = (150, 150, 158)
+_MX_DIM = (100, 100, 108)
+_MX_CYAN = (90, 200, 250)                   # the route
+_MX_AMBER = (255, 180, 60)                  # distance + bearing
+_MX_GREEN = (110, 220, 130)                 # altitude
+_MX_RULE = (48, 52, 62)
+
+
+def _cv_fit(canvas, text, max_w, max_h):
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
+    size = max(5, int(max_h) + 2)
+    font = canvas.font(size)
+    for _ in range(80):
+        b = font.getbbox(text or '0')
+        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+            return font
+        size -= 1
+        font = canvas.font(size)
+    return font
+
+
+def _cv_message(canvas, ImageDraw, line1, line2):
+    """A quiet two-line message (none nearby / provider down)."""
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
+    b1 = f1.getbbox(line1)
+    h1 = b1[3] - b1[1]
+    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
+    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
+    gap = 3 if line2 else 0
+    y = (H - (h1 + gap + h2)) / 2.0
+    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_MX_WHITE)
+    if line2:
+        y += h1 + gap
+        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_MX_GRAY)
+    return img
+
+
+def _mx_haversine(lat1, lon1, lat2, lon2):
+    import math
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 6371.0 * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _mx_bearing(lat1, lon1, lat2, lon2):
+    import math
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dl = math.radians(lon2 - lon1)
+    y = math.sin(dl) * math.cos(p2)
+    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return (math.degrees(math.atan2(y, x)) + 360) % 360
+
+
+def _mx_cardinal(deg):
+    return ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][int((deg + 22.5) // 45) % 8]
+
+
+def _mx_units(settings):
+    """(distance_unit, altitude_unit), resolved the way fetch() resolves them."""
+    preset = str(settings.get('units_preset', 'aviation')).lower()
+    du = str(settings.get('distance_unit', 'nm')).lower()
+    au = str(settings.get('altitude_unit', 'fl')).lower()
+    if preset == 'aviation':
+        du, au = 'nm', 'fl'
+    elif preset == 'metric':
+        du, au = 'km', 'm'
+    elif preset == 'imperial':
+        du, au = 'mi', 'ft'
+    if du not in ('km', 'mi', 'nm'):
+        du = 'km'
+    if au not in ('ft', 'fl', 'm'):
+        au = 'ft'
+    return du, au
+
+
+def _mx_dist(km, du):
+    if du == 'mi':
+        return f'{km * 0.621371:.1f} MI'
+    if du == 'nm':
+        return f'{km * 0.539957:.1f} NM'
+    return f'{km:.1f} KM'
+
+
+def _mx_alt(alt_m, au):
+    if alt_m is None:
+        return ''
+    if au == 'm':
+        return f'{int(round(alt_m))} M'
+    ft = alt_m * 3.28084
+    if au == 'fl':
+        return f'FL{int(round(ft / 100.0))}'
+    return f'{int(round(ft))} FT'
+
+
+def _mx_arrow(draw, cx, cy, r, deg, color):
+    """A little bearing arrow: which way to look for the aircraft."""
+    import math
+    rad = math.radians(deg)
+    dx, dy = math.sin(rad), -math.cos(rad)
+    tip = (cx + dx * r, cy + dy * r)
+    tail = (cx - dx * r, cy - dy * r)
+    draw.line([tail, tip], fill=color)
+    for off in (150, -150):
+        hr = math.radians(deg + off)
+        draw.line([tip, (tip[0] + math.sin(hr) * (r * 0.7), tip[1] - math.cos(hr) * (r * 0.7))], fill=color)
+
+
+def fetch_matrix(settings, canvas, get_location=None):
+    """Draw one nearby aircraft per hold, rotating through the same list the wall pages. The
+    provider poll is throttled inside the shared path (polling_rate), so redraws are cheap."""
+    import time
+    from PIL import ImageDraw
+
+    try:
+        flights, (lat, lon), radius_km, err = _shared_flights(settings, get_location)
+    except Exception:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'PLANES', 'DATA ERROR'))
+        return 60.0
+    if err and not flights:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'PLANES', 'API ERROR'))
+        return 60.0
+
+    now = int(time.time())
+    nearby = []
+    for f in flights:
+        if f.get('on_ground'):
+            continue
+        if f.get('last_seen') and (now - int(f['last_seen']) > 300):
+            continue
+        d = _mx_haversine(lat, lon, f['lat'], f['lon'])
+        if d > radius_km:
+            continue
+        nearby.append((d, _mx_bearing(lat, lon, f['lat'], f['lon']), f))
+    if not nearby:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'PLANES', 'NONE NEARBY'))
+        return 60.0
+    nearby.sort(key=lambda x: x[0])
+
+    try:
+        max_results = max(1, min(10, int(settings.get('max_results', '9'))))
+    except Exception:
+        max_results = 9
+    shown = nearby[:min(5, max_results)]
+
+    st = getattr(fetch_matrix, '_state', None)
+    if st is None:
+        st = {'i': 0}
+        setattr(fetch_matrix, '_state', st)
+    idx = st['i'] % len(shown)
+    st['i'] = (st['i'] + 1) % len(shown)
+
+    dist_km, bearing, f = shown[idx]
+    du, au = _mx_units(settings)
+    callsign = str(f.get('callsign') or 'UNKNOWN')
+    o, dst = f.get('origin', ''), f.get('destination', '')
+    route = f'{o}→{dst}' if (o and dst) else (f'{o}→' if o else (f'→{dst}' if dst else ''))
+    dist = f'{_mx_dist(dist_km, du)} {_mx_cardinal(bearing)}'
+    alt = _mx_alt(f.get('altitude_m'), au)
+
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+
+    if H >= 48:
+        # Header: a label + pagination dots (this aircraft lit), then the card.
+        head_h = max(9, int(H * 0.17))
+        lbl = 'OVERHEAD'
+        lf = _cv_fit(canvas, lbl, int(W * 0.55), head_h - 2)
+        lb = lf.getbbox(lbl)
+        if (lb[3] - lb[1]) >= 6:
+            draw.text((3, 1 + (head_h - 2 - (lb[3] - lb[1])) / 2.0 - lb[1]), lbl, font=lf, fill=_MX_GRAY)
+        step = 4
+        dy = 1 + (head_h - 2) // 2
+        dx = W - 3 - len(shown) * step
+        for j in range(len(shown)):
+            draw.rectangle([dx + j * step, dy - 1, dx + j * step + 1, dy],
+                           fill=_MX_WHITE if j == idx else _MX_DIM)
+        draw.line([(2, head_h + 1), (W - 3, head_h + 1)], fill=_MX_RULE)
+
+        # Hero: callsign big, route beside it in cyan.
+        hero_top = head_h + 3
+        hero_h = max(12, int(H * 0.34))
+        cf = _cv_fit(canvas, callsign, int(W * 0.62), hero_h)
+        cb = cf.getbbox(callsign)
+        draw.text((3, hero_top + (hero_h - (cb[3] - cb[1])) / 2.0 - cb[1]), callsign, font=cf, fill=_MX_WHITE)
+        if route:
+            rf = _cv_fit(canvas, route, W - 9 - cf.getlength(callsign), max(7, int(hero_h * 0.55)))
+            rb = rf.getbbox(route)
+            if (rb[3] - rb[1]) >= 6:
+                draw.text((W - 3 - rf.getlength(route),
+                           hero_top + (hero_h - (rb[3] - rb[1])) / 2.0 - rb[1]), route, font=rf, fill=_MX_CYAN)
+
+        # Info row: bearing arrow + distance (amber), altitude flush right (green).
+        info_top = hero_top + hero_h + 2
+        info_h = max(8, int(H * 0.2))
+        ax = 3 + info_h // 2
+        ay = info_top + info_h // 2
+        _mx_arrow(draw, ax, ay, max(3, info_h // 2 - 1), bearing, _MX_AMBER)
+        df = _cv_fit(canvas, dist, int(W * 0.5), info_h - 1)
+        db = df.getbbox(dist)
+        draw.text((ax + info_h // 2 + 3, info_top + (info_h - (db[3] - db[1])) / 2.0 - db[1]),
+                  dist, font=df, fill=_MX_AMBER)
+        if alt:
+            af = _cv_fit(canvas, alt, int(W * 0.32), info_h - 1)
+            ab = af.getbbox(alt)
+            if (ab[3] - ab[1]) >= 6:
+                draw.text((W - 3 - af.getlength(alt),
+                           info_top + (info_h - (ab[3] - ab[1])) / 2.0 - ab[1]), alt, font=af, fill=_MX_GREEN)
+
+        # Any room left names who else is up there.
+        others = [str(g.get('callsign') or '') for _, _, g in shown if g is not f][:2]
+        rest_top = info_top + info_h + 2
+        if others and H - rest_top >= 8:
+            line = '+ ' + '  '.join(o for o in others if o)
+            of = _cv_fit(canvas, line, W - 6, min(H - rest_top - 1, max(7, int(H * 0.14))))
+            ob = of.getbbox(line)
+            if (ob[3] - ob[1]) >= 5:
+                draw.text((3, rest_top + 1 - ob[1]), line, font=of, fill=_MX_DIM)
+    else:
+        # Compact: callsign over one amber distance line (plus altitude where it fits).
+        cs_h = max(11, int(H * 0.48))
+        cf = _cv_fit(canvas, callsign, W - 6, cs_h)
+        cb = cf.getbbox(callsign)
+        draw.text((3, 2 + (cs_h - (cb[3] - cb[1])) / 2.0 - cb[1]), callsign, font=cf, fill=_MX_WHITE)
+        info_top = cs_h + 3
+        info_h = H - info_top - 2
+        ax = 3 + info_h // 2
+        ay = info_top + info_h // 2
+        _mx_arrow(draw, ax, ay, max(3, info_h // 2 - 1), bearing, _MX_AMBER)
+        tx = ax + info_h // 2 + 3
+        avail = (W - int(W * 0.3) - 4 if (alt and W >= 112) else W - 2) - tx
+        df = _cv_fit(canvas, dist, avail, info_h - 1)
+        db = df.getbbox(dist)
+        draw.text((tx, info_top + (info_h - (db[3] - db[1])) / 2.0 - db[1]),
+                  dist, font=df, fill=_MX_AMBER)
+        if alt and W >= 112:
+            af = _cv_fit(canvas, alt, int(W * 0.3), info_h - 1)
+            ab = af.getbbox(alt)
+            if (ab[3] - ab[1]) >= 6:
+                draw.text((W - 3 - af.getlength(alt),
+                           info_top + (info_h - (ab[3] - ab[1])) / 2.0 - ab[1]), alt, font=af, fill=_MX_GREEN)
+
+    canvas.frame(img)
+    return 10.0

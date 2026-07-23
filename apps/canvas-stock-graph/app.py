@@ -263,7 +263,7 @@ def fetch_matrix(settings, canvas):
         R = _fit(canvas, rng, H * 0.16, W * 0.22)      # range tag, top-right
         _shadow(d, W - pad - R["w"], pad, rng, R, _scale(_MUTE, 0.8))
 
-    # Centre the stack in the space ABOVE the reserved bottom margin, so the last line (the arrow
+    # Center the stack in the space ABOVE the reserved bottom margin, so the last line (the arrow
     # + percentage) always clears the edge by at least `bot` pixels.
     total = sum(m["h"] for _, m, _ in rows) + gap * (len(rows) - 1)
     y = pad + max(0.0, ((H - pad - bot) - total) / 2.0)
@@ -271,7 +271,7 @@ def fetch_matrix(settings, canvas):
         _shadow(d, x, y, txt, m, c)
         y += m["h"] + gap
 
-    # Rotation cue: one dot per symbol along the bottom-right, the current one lit in the trend colour.
+    # Rotation cue: one dot per symbol along the bottom-right, the current one lit in the trend color.
     if not single:
         step, r = 4, 1
         dx = W - 2 - (len(symbols) * step - (step - 2 * r - 1))

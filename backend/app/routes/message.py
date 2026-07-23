@@ -44,14 +44,14 @@ def build(deps) -> APIRouter:
         # rather than SHOUTING IT BACK AT THEM — which is all the one-byte protocol can do.
         #
         # …unless it is `raw`, which is the click-to-type GRID: there a lowercase r/o/y/g/b/p/w
-        # is a COLOUR CELL the user placed, not a letter they typed.
+        # is a COLOR CELL the user placed, not a letter they typed.
         target = d.controller.send_text_bg(req.text, style=req.style, speed=req.speed,
                                            frame=req.raw)
         return {"ok": True, "target": target}
 
     @router.post("/api/message")
     async def show_message(request: Request, req: MessageRequest):
-        """Show a plain-text message, centred and word-wrapped onto the grid — the same layout
+        """Show a plain-text message, centered and word-wrapped onto the grid — the same layout
         the apps and the Vestaboard endpoint use. Unlike /api/compose/send (which takes a raw
         grid string from the click-to-type editor), this takes ordinary text.
 

@@ -6,7 +6,7 @@
   "description": "Time as written phrase",
   "category": "time",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "version": "1.0",
   "refresh_interval": 60,
   "loop_delay": 1,

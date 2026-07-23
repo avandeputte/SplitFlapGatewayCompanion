@@ -2,7 +2,7 @@
   "id": "anim_sweep",
   "name": "Sweep",
   "icon": "〰️",
-  "description": "Colour sweep",
+  "description": "Color sweep",
   "type": "functional",
   "surfaces": ["flap"],
   "refresh_interval": 0,

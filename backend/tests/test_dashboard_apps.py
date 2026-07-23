@@ -1,6 +1,6 @@
 """The rename/threshold logic behind the two Home Assistant dashboard apps —
-``canvas-dashboard`` (Matrix panel, colours the value) and ``entity-board`` (split-flap,
-picks a status/threshold colour flap). The interesting part is the config parsing and the
+``canvas-dashboard`` (Matrix panel, colors the value) and ``entity-board`` (split-flap,
+picks a status/threshold color flap). The interesting part is the config parsing and the
 green/amber/red banding; drive the pure helpers directly.
 """
 
@@ -44,7 +44,7 @@ def test_entities_dedup_and_cap_at_twelve():
     assert len(ids) == 12 and len(set(ids)) == 12              # deduped, capped
 
 
-# -- entity-board: value -> (text, colour flap) -----------------------------
+# -- entity-board: value -> (text, color flap) -----------------------------
 
 def test_entity_board_threshold_bands():
     m = _load("entity-board")

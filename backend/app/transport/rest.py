@@ -106,7 +106,7 @@ class RestTransport(DisplayTransport):
 
         ASKED, not inferred. The gateway knows its own reel — it is the thing that configures
         the modules — and it tells us: which characters every module carries, whether
-        it has lowercase and pictograph flaps, whether colours are named. A guess from the
+        it has lowercase and pictograph flaps, whether colors are named. A guess from the
         product name and a firmware number cannot see a physical wall's alphabet at all,
         so it is only the fallback: a gateway too old to answer gets the inference
         (device.of) and keeps working.
@@ -187,7 +187,7 @@ class RestTransport(DisplayTransport):
         for us: one stray glyph from an app would blank the wall. So anything the reel
         cannot show is turned into something it can, HERE, before it is sent.
         """
-        # A colour is a colour because the PAGE said so (renderer.normalize made it an
+        # A color is a color because the PAGE said so (renderer.normalize made it an
         # explicit COLOR_PUA codepoint), never because the character happens to be one of
         # the seven letters. Guessing here is how "Hello" comes out as "Hell<orange>".
         if renderer.is_color(ch):
@@ -242,7 +242,7 @@ class RestTransport(DisplayTransport):
         """Draw a whole page in one request.
 
         On a Matrix Portal this goes to /api/display/cells, which addresses flaps by INDEX:
-        lowercase and accents survive, pictographs are reachable at all, colours are named
+        lowercase and accents survive, pictographs are reachable at all, colors are named
         rather than stealing seven letters — and unchanged cells are skipped, so moving one
         digit of a clock does not repaint seventy-five modules.
 

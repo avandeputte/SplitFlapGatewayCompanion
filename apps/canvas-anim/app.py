@@ -19,7 +19,7 @@ def _fit(img, w, h, mode):
         out = Image.new("RGB", (w, h), (0, 0, 0))
         out.paste(img, ((w - img.size[0]) // 2, (h - img.size[1]) // 2))
         return out
-    s = max(w / iw, h / ih)                                # cover: fill, centre-crop
+    s = max(w / iw, h / ih)                                # cover: fill, center-crop
     img = img.resize((max(1, int(iw * s)), max(1, int(ih * s))))
     left, top = (img.size[0] - w) // 2, (img.size[1] - h) // 2
     return img.crop((left, top, left + w, top + h))

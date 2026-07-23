@@ -47,10 +47,10 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
   wall has its own geometry, apps, playlists, triggers and settings, and a switcher in
   the header moves between them. See **[Multiple displays](#multiple-displays)**.
 - **Matrix Gateway walls get their full alphabet** — lowercase and accents in the text you
-  type, fourteen **pictographs** (`♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀` …), and colours addressed by
+  type, fourteen **pictographs** (`♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀` …), and colors addressed by
   *name* rather than by spending seven letters on them. A physical split-flap is driven
   exactly as before. See **[Characters](#characters)**.
-- **Compose** — a click-to-type grid with colour tiles and every transition style
+- **Compose** — a click-to-type grid with color tiles and every transition style
   (`ltr`, `rtl`, `spiral`, `slot`, `columns`, `outside_in`, …).
 - **Live preview + Home all** — the board mirrors what's on the wall, and **⌂ Home
   all** returns every module to its blank home position, stopping whatever is playing.
@@ -163,7 +163,7 @@ pytest                                          # run the tests
 > Run it with `python -m app`, not a bare `uvicorn app.main:app`: the bare command
 > binds `127.0.0.1` (localhost only), so the companion isn't reachable on your LAN and
 > the URL it registers with the gateway won't work. `python -m app` binds `0.0.0.0`
-> and honours `COMPANION_HOST` / `COMPANION_PORT`.
+> and honors `COMPANION_HOST` / `COMPANION_PORT`.
 
 ---
 
@@ -235,18 +235,18 @@ A **Matrix Gateway** is different. Its modules are drawn rather than mechanical,
 nothing is rationed: 237 flaps, every Windows-1252 glyph, every lowercase letter, and
 fourteen pictographs. It is driven through an index-addressed API that reaches them, so
 the text you type in Compose, send to the Vestaboard endpoint or give an LLM arrives
-**as you wrote it** — and the seven colours are addressed by *name* instead of stealing
+**as you wrote it** — and the seven colors are addressed by *name* instead of stealing
 seven letters.
 
 |  | split-flap | Matrix Gateway |
 |---|---|---|
 | lowercase | folded to caps | shown as written |
 | pictographs `♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀` | nearest character (`↑` → `^`) | shown |
-| colours 🟥🟩🟦🟨🟧🟪⬜ | yes | yes, addressed by name |
+| colors 🟥🟩🟦🟨🟧🟪⬜ | yes | yes, addressed by name |
 
 Prefer the classic look on a Matrix Gateway? **Always uppercase** in Global settings folds
 it anyway — and costs nothing else: the wall still gets its pictographs and its named
-colours, just in capitals. It is **per display**, so one wall can shout while another
+colors, just in capitals. It is **per display**, so one wall can shout while another
 does not.
 
 The companion does **not** police characters: every glyph (accents, `€`, punctuation)
@@ -362,7 +362,7 @@ companion's URL, and it adds a **SplitFlap** device with:
 | **Playlist** (select) | Run a saved playlist, or `Off` |
 | **Showing** (sensor) | Which app is on the flaps right now — even mid-playlist |
 | **Message** (sensor) | What the board reads, as text (with a `lines` attribute) |
-| **Board** (image) | The wall as a live picture — split-flap tiles, colour flaps, accents and pictographs. Drop it in any Picture card or attach it to a notification; redrawn only when the board changes. |
+| **Board** (image) | The wall as a live picture — split-flap tiles, color flaps, accents and pictographs. Drop it in any Picture card or attach it to a notification; redrawn only when the board changes. |
 | **Clear / Stop / Home all** (buttons) | — |
 | `splitflap.message` (service) | Show text, with an optional style and a **timed auto-revert** |
 
@@ -438,10 +438,10 @@ rest_command:
 
 **Characters.** Codes follow Vestaboard's
 [table](https://docs.vestaboard.com/docs/charactercodes/): `0` blank, `1–26` A–Z,
-`27–35` 1–9, `36` 0, punctuation, and `63–69` the colour chips (`r o y g b p w`, violet
+`27–35` 1–9, `36` 0, punctuation, and `63–69` the color chips (`r o y g b p w`, violet
 → `p`). Two are lossy: **black (70) → blank** and **filled (71) → white**.
 **Geometry:** a 3 × 15 message lands cell-for-cell; a 6 × 22 Flagship message is trimmed
-of its blank padding and centred on your wall. **Animations:** Vestaboard's `strategy`
+of its blank padding and centered on your wall. **Animations:** Vestaboard's `strategy`
 maps onto the transition styles (`column` → `columns`, `edges-to-center` → `outside_in`,
 …); `step_interval_ms` / `step_size` are accepted and ignored.
 
@@ -468,7 +468,7 @@ written before multi-display working untouched.
 | Tool | Does |
 |---|---|
 | `get_display` | What's on the flaps, row by row; what's driving them; and, mid-playlist, which app is on screen and where in the rotation |
-| `show_message` | Put text on the board, centred and word-wrapped. `seconds` shows it temporarily, then reverts to what was playing |
+| `show_message` | Put text on the board, centered and word-wrapped. `seconds` shows it temporarily, then reverts to what was playing |
 | `clear_display` | Blank every module |
 | `list_apps` / `run_app` | The installed apps (with a `configurable` flag), and run one |
 | `get_app_settings` / `configure_app` | Read and change an app's settings (location, tickers, …) |

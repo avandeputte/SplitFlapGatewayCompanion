@@ -5,7 +5,7 @@
   "icon": "💱",
   "description": "Live currency rates (ECB)",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "refresh_interval": 3600,
   "loop_delay": 5,
   "category": "finance",

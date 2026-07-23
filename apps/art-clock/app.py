@@ -77,26 +77,26 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         lines.append(line)
 
     # On a wide wall, a 12-hour clock says WHICH HALF of the day it is: AM/PM drawn in
-    # COLOUR FLAPS like the digits — a little shorter, a 3x3 letter — to the right and
-    # vertically centred. Every line is padded to the same width so format_lines keeps
+    # COLOR FLAPS like the digits — a little shorter, a 3x3 letter — to the right and
+    # vertically centered. Every line is padded to the same width so format_lines keeps
     # the block aligned. A narrower wall has no room, so it goes without (and 24-hour
     # never needs it).
     if not h24 and cols >= 24:
         # 3x3 A / M / P. The first row tells A (peak) from P (bar); in a clock the
         # trailing M is unambiguous. Drawn white, like the colon, so the indicator
-        # reads apart from the hour/minute colours.
+        # reads apart from the hour/minute colors.
         letters = {'A': [' # ', '###', '# #'],
                    'M': ['# #', '###', '# #'],
                    'P': ['###', '###', '#  ']}
         marker = 'PM' if now.hour >= 12 else 'AM'
         block = [' '.join(letters[ch][r] for ch in marker).replace('#', 'w')
                  for r in range(3)]                     # 3 rows x 7 cols, white flaps
-        off = (height - 3) // 2                         # centre the 3-row mark vertically
+        off = (height - 3) // 2                         # center the 3-row mark vertically
         for i in range(len(lines)):
             mi = i - off
             lines[i] += ('  ' + block[mi]) if 0 <= mi < 3 else (' ' * 9)
 
-    # Through format_lines, not returned raw: it centres the block on the wall, both
+    # Through format_lines, not returned raw: it centers the block on the wall, both
     # horizontally (the digits are 15 wide, whatever the wall is) and vertically. Returned
     # raw, a 3-row clock sat in the top-left corner of anything that was not exactly 3x15.
     return [format_lines(*lines)]

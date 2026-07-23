@@ -54,7 +54,7 @@ def test_decimal_digits_align_under_the_binary_columns():
     """The plain-language time is the answer key under the bits — and each digit
     sits directly under its binary column. That means the decimal row has the
     SAME geometry as a bit row (two-digit H/M/S groups, colon in the gap), so it
-    is exactly as wide and per-line centring drops the digits onto the columns."""
+    is exactly as wide and per-line centering drops the digits onto the columns."""
     import re
     m, lines = _fetch(5, 15)
     assert len(lines) == 5
@@ -75,7 +75,7 @@ def test_units_row_sits_above_the_decimal_on_a_six_row_wall():
     import re
     m, lines = _fetch(6, 15)
     assert len(lines) == 6
-    # same width as the bit rows — per-line centring keeps H/M/S under the columns
+    # same width as the bit rows — per-line centering keeps H/M/S under the columns
     assert len(lines[4]) == len(lines[0])
     assert lines[4].replace(' ', '') == 'HMS'
     assert re.fullmatch(r"\d\d: \d\d: \d\d", lines[5]), lines[5]

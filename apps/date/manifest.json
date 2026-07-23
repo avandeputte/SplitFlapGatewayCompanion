@@ -5,7 +5,7 @@
   "icon": "📅",
   "description": "Full date view",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "refresh_interval": 1,
   "loop_delay": 1,
   "category": "time",

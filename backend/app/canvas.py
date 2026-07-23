@@ -592,7 +592,7 @@ def get_frame(url: str, fmt: str = "rgb888", timeout: float = 8.0):
 
 
 def _rgb565_to_888(data: bytes, w: int, h: int) -> bytes:
-    """Big-endian rgb565 → rgb888, expanding each channel to 8 bits (the panel's own quantisation
+    """Big-endian rgb565 → rgb888, expanding each channel to 8 bits (the panel's own quantization
     is already baked in; this only widens the container)."""
     out = bytearray(w * h * 3)
     n = min(len(data) // 2, w * h)
@@ -827,7 +827,7 @@ def release(url: str, timeout: float = 5.0) -> bool:
     return stopped or active_off
 
 
-# The named colours the firmware's colour flaps use, so a canvas app can say
+# The named colors the firmware's color flaps use, so a canvas app can say
 # `canvas.rect(..., color="red")` and match the rest of the ecosystem's palette.
 _NAMED = {
     "red": (255, 0, 0), "orange": (255, 96, 0), "yellow": (255, 200, 0),
@@ -844,8 +844,8 @@ _FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}
 
 
 def _rgb(color):
-    """A colour → an [r,g,b] list. Accepts a name, an (r,g,b)/[r,g,b], or a
-    #RRGGBB string. Defaults to white for anything unrecognised."""
+    """A color → an [r,g,b] list. Accepts a name, an (r,g,b)/[r,g,b], or a
+    #RRGGBB string. Defaults to white for anything unrecognized."""
     if isinstance(color, str):
         s = color.strip().lower()
         if s in _NAMED:
@@ -891,7 +891,7 @@ class CanvasSurface:
         self.can_anim = bool(caps.canvas_anim)
         self.can_ticker = bool(caps.canvas_ticker)
         self.effect_params = tuple(caps.effect_params)
-        # 1.19 / 1.25 / 2.1. `ops` is the draw-op vocabulary the wall honours (an app can consult
+        # 1.19 / 1.25 / 2.1. `ops` is the draw-op vocabulary the wall honors (an app can consult
         # it before reaching for a shape); `can_ops` is "any ops at all". The 2.1 endpoint families
         # aren't flagged one by one, so they all gate on the firmware version (caps.canvas_2_1).
         self.ops = tuple(caps.canvas_ops)
@@ -1299,7 +1299,7 @@ class CanvasSurface:
 
     def vgrad(self, top, bottom):
         """A panel-sized image with a vertical gradient from ``top`` to ``bottom``
-        (each a colour name / (r,g,b) / #hex). Built one column then stretched, so
+        (each a color name / (r,g,b) / #hex). Built one column then stretched, so
         it's cheap enough to redraw every frame."""
         from PIL import Image
         t, b = _rgb(top), _rgb(bottom)

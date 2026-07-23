@@ -9,7 +9,7 @@ Three related bugs, one theme — what the renderer planned was not what the wir
   * the legacy ``/api/rs485/batch`` path re-sent the whole board every page, because
     only the cells path had ``_shown`` diffing.
 
-Plus the smallest one: ``for_text``'s reverse colour map tested the wrong variable and
+Plus the smallest one: ``for_text``'s reverse color map tested the wrong variable and
 was permanently empty, so MCP ``get_display`` leaked raw U+E000-06 private-use chars
 instead of 🟥-style tiles.
 
@@ -29,9 +29,9 @@ from app.transport.rest import RestTransport
 
 
 # ---------------------------------------------------------------------------
-# for_text: a colour flap reads back as the tile a person would have typed
+# for_text: a color flap reads back as the tile a person would have typed
 # ---------------------------------------------------------------------------
-def test_for_text_turns_colour_flaps_into_tiles():
+def test_for_text_turns_color_flaps_into_tiles():
     page = renderer.normalize("🟥🟧🟨🟩🟦🟪⬜", 7)
     assert all(renderer.is_color(c) for c in page)
     assert "".join(renderer.for_text(c) for c in page) == "🟥🟧🟨🟩🟦🟪⬜"
@@ -46,7 +46,7 @@ def test_for_text_never_leaks_private_use_codepoints():
 
 
 def test_for_text_leaves_letters_alone():
-    """`r` the LETTER stays a letter — that ambiguity is the whole reason colours are
+    """`r` the LETTER stays a letter — that ambiguity is the whole reason colors are
     PUA codepoints internally."""
     assert renderer.for_text("r") == "r"
     assert renderer.for_text("A") == "A"

@@ -1,4 +1,4 @@
-"""Rainbow colour wave animation."""
+"""Rainbow color wave animation."""
 
 def fetch(settings, format_lines, get_rows, get_cols):
     colors = 'roygbpw'

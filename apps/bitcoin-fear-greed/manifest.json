@@ -5,7 +5,7 @@
   "description": "Bitcoin Fear and Greed Index",
   "category": "finance",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "i18n": true,
   "version": "1.0",
   "refresh_interval": 300,

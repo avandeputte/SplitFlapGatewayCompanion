@@ -3,7 +3,7 @@
   "i18n": true,
   "name": "Countdown",
   "icon": "⏳",
-  "description": "Timer to event — text on flaps, full-width colour bars on a Matrix panel",
+  "description": "Timer to event — text on flaps, full-width color bars on a Matrix panel",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
   "refresh_interval": 1,

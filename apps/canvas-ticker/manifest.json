@@ -35,7 +35,7 @@
     },
     {
       "key": "ticker_color",
-      "label": "Colour",
+      "label": "Color",
       "type": "toggle",
       "default": "amber",
       "options": [

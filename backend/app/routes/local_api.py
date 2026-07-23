@@ -107,7 +107,7 @@ def build(deps) -> APIRouter:
                                                       Home Assistant setups send text
 
         Like a compose push, this takes the display over: any running app or playlist is
-        cancelled (send_text_bg), which is what posting to a Vestaboard implies.
+        canceled (send_text_bg), which is what posting to a Vestaboard implies.
 
         The bare path drives the DEFAULT display, because that is the only one an existing
         Vestaboard client can reach; /local-api/<display-id>/message drives a named wall.
@@ -143,7 +143,7 @@ def build(deps) -> APIRouter:
             raise HTTPException(422, str(e))
 
         style = vestaboard.style_for(strategy, d.config.display.get("transition_style", "ltr"))
-        # Not a frame: the codec already turned every colour chip into a COLOUR (its own
+        # Not a frame: the codec already turned every color chip into a COLOR (its own
         # codepoint), so nothing here is a lowercase letter standing in for one.
         d.controller.send_text_bg(page, style=style)
         d.ha.publish_state()

@@ -3,10 +3,10 @@
 A canvas app (surface: canvas). It renders one whole frame with Pillow and
 pushes it (PUT /api/canvas/frame): a big clock as the focal point on the left,
 the date beneath it, and — on any panel with room — a weather column on the
-right (the temperature coloured by how warm it is, the condition, today's
+right (the temperature colored by how warm it is, the condition, today's
 high/low, and on a large panel feels-like, humidity and wind with a warm sun /
 cool moon accent). A thin seconds bar sweeps the bottom. Solid black behind it,
-crisp 1-bit text, curated high-contrast colour, no pink.
+crisp 1-bit text, curated high-contrast color, no pink.
 
 It fills whatever panel it's on: a small 128x32 shows a compact clock and a
 little temperature/condition; a big 256x64 spreads a large clock and full date
@@ -53,8 +53,8 @@ _C_SB_TRK = (24, 26, 34)       # the seconds bar: track / fill / leading pixel
 _C_SB_FIL = (222, 168, 92)
 _C_SB_HEAD = (255, 250, 240)
 
-# Temperature colour ramp by Fahrenheit — a saturated thermal scale so a mild temperature still
-# carries a colour instead of washing out to white on the LED panel: cold blue -> cyan -> green
+# Temperature color ramp by Fahrenheit — a saturated thermal scale so a mild temperature still
+# carries a color instead of washing out to white on the LED panel: cold blue -> cyan -> green
 # -> amber -> hot red. The hue runs through green (never straight blue->red), so no lerp hits pink.
 _TEMP_STOPS = [(5, (60, 120, 255)), (32, (40, 170, 255)), (48, (0, 205, 220)),
                (60, (40, 215, 130)), (72, (150, 215, 55)), (82, (250, 195, 35)),
@@ -125,14 +125,14 @@ def _truncate(font, text, max_w):
 
 
 def _line(font, segs):
-    """A drawable line: (font, [(text,colour)...], ink_height, ink_top)."""
+    """A drawable line: (font, [(text,color)...], ink_height, ink_top)."""
     txt = ''.join(s for s, _ in segs) or '8'
     bb = font.getbbox(txt)
     return (font, segs, bb[3] - bb[1], bb[1])
 
 
 def _draw_stack(draw, x, top, region_h, lines, gap):
-    """Left-align `lines` in a column at `x`, the block centred in [top, top+region_h)."""
+    """Left-align `lines` in a column at `x`, the block centered in [top, top+region_h)."""
     total = sum(ln[2] for ln in lines) + gap * max(0, len(lines) - 1)
     y = top + max(0, (region_h - total) // 2)
     for font, segs, ih, itop in lines:
@@ -290,7 +290,7 @@ def fetch_matrix(settings, canvas, get_weather=None):
                 draw.ellipse([cx - r + 1, cy - r + 1, cx + r - 1, cy + r - 1], fill=_C_SUN_CORE)
 
         specs = []
-        # the temperature — big, the focus of the column, coloured by how warm
+        # the temperature — big, the focus of the column, colored by how warm
         temp_s = f'{temp}{deg}' if temp is not None else '--'
         temp_col = _ramp(_TEMP_STOPS, float(tf)) if tf is not None else (232, 238, 246)
         specs.append(([(temp_s, temp_col)], int(H * (0.42 if rich_v else 0.46)), 9))

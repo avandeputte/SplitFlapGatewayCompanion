@@ -71,7 +71,7 @@ def test_packs_multiple_aircraft_even_when_wrapped(monkeypatch):
 
 
 def test_rows_stay_the_same_width_so_the_columns_align(monkeypatch):
-    """Regression: a right-stripped short row was re-centred a column over, drifting the
+    """Regression: a right-stripped short row was re-centered a column over, drifting the
     columns down the page. With mixed-width last columns (altitude A4050 vs A38K) every
     aircraft line must still be the SAME width."""
     def alt_plane(cs, lat, lon, alt_m):

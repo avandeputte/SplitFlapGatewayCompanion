@@ -32,6 +32,12 @@ Three things about iCal are worth knowing, because they are where the bugs live:
 # on Saturday start to look like a thing at 00:00, and then sort before Friday evening.
 
 
+# =============================================================================
+# SHARED — the iCal machinery: fetch the feeds, parse the events, expand the
+# recurrences, build the merged upcoming timeline. Both surfaces read the same
+# timeline, so a wall and a panel always agree on what is next.
+# =============================================================================
+
 def _unfold(text):
     """RFC 5545 line folding: a continuation line begins with a space or a tab."""
     out = []
@@ -112,12 +118,12 @@ def _events(text, tz, pytz):
             stack.append(value.upper())
             if value.upper() == 'VEVENT':
                 cur = {'summary': '', 'start': None, 'all_day': False,
-                       'rrule': '', 'exdates': [], 'cancelled': False}
+                       'rrule': '', 'exdates': [], 'canceled': False}
             continue
         if name == 'END':
             done = stack.pop() if stack else ''
             if done == 'VEVENT':
-                if cur and cur['start'] is not None and not cur['cancelled']:
+                if cur and cur['start'] is not None and not cur['canceled']:
                     out.append(cur)
                 cur = None
             continue
@@ -134,7 +140,7 @@ def _events(text, tz, pytz):
                 for one in value.split(','):
                     cur['exdates'].append(_to_dt(one, params, tz, pytz)[0])
             elif name == 'STATUS' and value.strip().upper() == 'CANCELLED':
-                cur['cancelled'] = True
+                cur['canceled'] = True
         except Exception:
             continue                              # one malformed property must not kill the feed
     return out
@@ -170,6 +176,84 @@ def _urls(raw):
     return out
 
 
+def _tz(settings, pytz):
+    """The configured timezone, UTC when the setting is unusable."""
+    try:
+        return pytz.timezone(str(settings.get('timezone', 'US/Eastern') or 'US/Eastern'))
+    except Exception:
+        return pytz.UTC
+
+
+def _fetch_feeds(urls):
+    """Each reachable feed's text. Several calendars — work, family, birthdays — merge into
+    one timeline. One of them being unreachable must not hide the others: a dead feed is a
+    reason to show less, not nothing. Only when EVERY feed fails is the app actually offline."""
+    import requests
+    feeds = []
+    for url in urls:
+        try:
+            r = requests.get(url, timeout=15,
+                             headers={'User-Agent': 'SplitFlapGatewayCompanion/1.0'})
+            r.raise_for_status()
+            feeds.append(r.text)
+        except Exception:
+            continue
+    return feeds
+
+
+def _upcoming(settings, feeds, tz, pytz, now):
+    """The merged, time-sorted upcoming events as ``[(when, all_day, summary), ...]``."""
+    from datetime import timedelta
+    try:
+        days = max(1, min(365, int(settings.get('days_ahead', 60) or 60)))
+    except (TypeError, ValueError):
+        days = 60
+    horizon = now + timedelta(days=days)
+    skip_all_day = str(settings.get('skip_all_day', 'no')).lower() == 'yes'
+
+    # An all-day event counts for the whole of its day, so "now" for it is midnight —
+    # otherwise today's birthday disappears at 00:01 and the wall says the next one is
+    # in a year.
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    upcoming = []
+    for text in feeds:                       # every calendar, into one timeline
+        for ev in _events(text, tz, pytz):
+            if ev['all_day'] and skip_all_day:
+                continue
+            when = _next_occurrence(ev, midnight if ev['all_day'] else now, horizon)
+            if when is not None and ev['summary']:
+                upcoming.append((when, ev['all_day'], ev['summary']))
+    upcoming.sort(key=lambda e: (e[0], e[2]))   # by time; the title only breaks a tie
+    return upcoming
+
+
+def _when(dt, all_day, now, i18n):
+    """The line a person would say: "Today 3:30PM", "Tomorrow", "Tue 9:00AM", "Jul 21"."""
+    def t(s, ctx='calendar'):
+        return i18n.t(s, ctx) if i18n is not None else s
+
+    days = (dt.date() - now.date()).days
+    if days == 0:
+        day = t('Today', 'time')
+    elif days == 1:
+        day = t('Tomorrow', 'time')
+    elif 0 < days < 7:
+        day = i18n.weekday(dt, short=True) if i18n is not None else dt.strftime('%a')
+    else:
+        day = i18n.date(dt, short=True) if i18n is not None else f"{dt.strftime('%b')} {dt.day}"
+
+    if all_day:
+        return day
+    clock = (i18n.time(dt, ampm_space=False) if i18n is not None
+             else dt.strftime('%I:%M%p').lstrip('0'))
+    return f'{day} {clock}'
+
+
+# =============================================================================
+# SPLIT-FLAP — fetch() and its helpers, unique to the character-grid flap wall.
+# =============================================================================
+
 def _wrap(text, cols, rows):
     """Break a title across at most `rows` lines, on spaces where it can."""
     words, lines, line = str(text).split(), [], ''
@@ -196,9 +280,8 @@ def _wrap(text, cols, rows):
 
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
-    import requests
     import pytz
-    from datetime import datetime, timedelta
+    from datetime import datetime
 
     rows, cols = get_rows(), get_cols()
 
@@ -209,49 +292,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     if not urls:
         return [format_lines(t('Calendar'), t('Configure', 'common'), 'iCal URL')]
 
-    try:
-        tz = pytz.timezone(str(settings.get('timezone', 'US/Eastern') or 'US/Eastern'))
-    except Exception:
-        tz = pytz.UTC
-
-    # Several calendars — work, family, birthdays — merge into one timeline. One of them being
-    # unreachable must not hide the others: a dead feed is a reason to show less, not nothing.
-    # Only when EVERY feed fails is the app actually offline.
-    feeds = []
-    for url in urls:
-        try:
-            r = requests.get(url, timeout=15,
-                             headers={'User-Agent': 'SplitFlapGatewayCompanion/1.0'})
-            r.raise_for_status()
-            feeds.append(r.text)
-        except Exception:
-            continue
+    tz = _tz(settings, pytz)
+    feeds = _fetch_feeds(urls)
     if not feeds:
         return [format_lines(t('Calendar'), t('Offline', 'common'))]
 
     try:
         now = datetime.now(tz)
-        try:
-            days = max(1, min(365, int(settings.get('days_ahead', 60) or 60)))
-        except (TypeError, ValueError):
-            days = 60
-        horizon = now + timedelta(days=days)
-        skip_all_day = str(settings.get('skip_all_day', 'no')).lower() == 'yes'
-
-        # An all-day event counts for the whole of its day, so "now" for it is midnight —
-        # otherwise today's birthday disappears at 00:01 and the wall says the next one is
-        # in a year.
-        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        upcoming = []
-        for text in feeds:                       # every calendar, into one timeline
-            for ev in _events(text, tz, pytz):
-                if ev['all_day'] and skip_all_day:
-                    continue
-                when = _next_occurrence(ev, midnight if ev['all_day'] else now, horizon)
-                if when is not None and ev['summary']:
-                    upcoming.append((when, ev['all_day'], ev['summary']))
-        upcoming.sort(key=lambda e: (e[0], e[2]))   # by time; the title only breaks a tie
+        upcoming = _upcoming(settings, feeds, tz, pytz, now)
 
         if not upcoming:
             return [format_lines(t('Calendar'), t('No events'))]
@@ -276,23 +324,170 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         return [format_lines(t('Calendar'), t('Error', 'common'))]
 
 
-def _when(dt, all_day, now, i18n):
-    """The line a person would say: "Today 3:30PM", "Tomorrow", "Tue 9:00AM", "Jul 21"."""
-    def t(s, ctx='calendar'):
-        return i18n.t(s, ctx) if i18n is not None else s
+# =============================================================================
+# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+#
+# An agenda: the next events as rows — a color-coded time chip (amber today,
+# cyan tomorrow, steel later) over each title in real type. The panel's height
+# decides how many events; the SAME timeline the flap pages read. Black
+# background, no gradient.
+# =============================================================================
 
+_WHITE = (240, 240, 244)
+_GRAY = (150, 150, 158)
+_TODAY = (255, 180, 60)                     # today's chip
+_TOMORROW = (90, 200, 250)                  # tomorrow's chip
+_LATER = (135, 150, 185)                    # further out
+_INK = (12, 12, 14)                         # chip text — near-black on the chip color
+
+
+def _cv_fit(canvas, text, max_w, max_h):
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
+    size = max(5, int(max_h) + 2)
+    font = canvas.font(size)
+    for _ in range(80):
+        b = font.getbbox(text or '0')
+        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+            return font
+        size -= 1
+        font = canvas.font(size)
+    return font
+
+
+def _cv_ellipsis(font, text, max_w):
+    """``text`` cut with an ellipsis to fit ``max_w`` at this font (full text if it fits)."""
+    if font.getlength(text) <= max_w:
+        return text
+    while text and font.getlength(text + '…') > max_w:
+        text = text[:-1].rstrip()
+    return (text + '…') if text else ''
+
+
+def _cv_message(canvas, ImageDraw, line1, line2):
+    """A quiet two-line message (no URL / offline / no events)."""
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
+    b1 = f1.getbbox(line1)
+    h1 = b1[3] - b1[1]
+    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
+    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
+    gap = 3 if line2 else 0
+    y = (H - (h1 + gap + h2)) / 2.0
+    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_WHITE)
+    if line2:
+        y += h1 + gap
+        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_GRAY)
+    return img
+
+
+def _cv_chip_color(dt, now):
     days = (dt.date() - now.date()).days
-    if days == 0:
-        day = t('Today', 'time')
-    elif days == 1:
-        day = t('Tomorrow', 'time')
-    elif 0 < days < 7:
-        day = i18n.weekday(dt, short=True) if i18n is not None else dt.strftime('%a')
-    else:
-        day = i18n.date(dt, short=True) if i18n is not None else f"{dt.strftime('%b')} {dt.day}"
+    if days <= 0:
+        return _TODAY
+    if days == 1:
+        return _TOMORROW
+    return _LATER
 
-    if all_day:
+
+def _cv_chip_label(when, all_day, now, i18n, cf_probe):
+    """The chip's text, degrading with the room: the full "TOMORROW 2:49AM", else the day
+    alone ("TMRW", "FRI") — except today, where the clock is the useful part."""
+    full = _when(when, all_day, now, i18n).upper()
+    if cf_probe(full):
+        return full
+    days = (when.date() - now.date()).days
+    if days == 0 and not all_day:
+        return full.rsplit(' ', 1)[-1]                       # the clock
+    day = _when(when, True, now, i18n).upper()               # the day alone
+    if cf_probe(day):
         return day
-    clock = (i18n.time(dt, ampm_space=False) if i18n is not None
-             else dt.strftime('%I:%M%p').lstrip('0'))
-    return f'{day} {clock}'
+    return (i18n.weekday(when, short=True) if i18n is not None
+            else when.strftime('%a')).upper()                # last resort: "THU"
+
+
+def _cv_chip(canvas, draw, x, y, h, label, color, max_w):
+    """A rounded time chip; returns its width."""
+    cf = _cv_fit(canvas, label, max_w, h - 3)
+    cb = cf.getbbox(label)
+    cw = int(cf.getlength(label)) + 7
+    draw.rounded_rectangle([x, y, x + cw, y + h - 1], radius=2, fill=color)
+    draw.text((x + (cw - cf.getlength(label)) / 2.0,
+               y + (h - 1 - (cb[3] - cb[1])) / 2.0 - cb[1]), label, font=cf, fill=_INK)
+    return cw
+
+
+def _cv_title(canvas, draw, summary, x, y, w, h):
+    """The event title: whole at the largest size that fits, else held at a readable
+    size and ellipsised. (Point size, not ink height, is the readability test — a
+    mixed-case bbox includes descenders and lies about how small the type is.)"""
+    tf = _cv_fit(canvas, summary, w, h)
+    text = summary
+    if tf.size < 9:
+        cap = 8 if w < 80 else int(h * 0.75)                 # narrow panels: chars over size
+        tf = _cv_fit(canvas, '0', w, max(8, cap))
+        text = _cv_ellipsis(tf, summary, w)
+    tb = tf.getbbox(text or '0')
+    draw.text((x, y + (h - (tb[3] - tb[1])) / 2.0 - tb[1]), text, font=tf, fill=_WHITE)
+
+
+def fetch_matrix(settings, canvas, i18n=None):
+    """Draw the next events as chip-and-title rows. A calendar shifts slowly — redraw every
+    two minutes keeps "Today 3:30PM" honest without hammering anyone's feed."""
+    import pytz
+    from datetime import datetime
+    from PIL import ImageDraw
+
+    urls = _urls(settings.get('ical_url', ''))
+    if not urls:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'CALENDAR', 'SET AN ICAL URL'))
+        return 300.0
+    tz = _tz(settings, pytz)
+    feeds = _fetch_feeds(urls)
+    if not feeds:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'CALENDAR', 'OFFLINE'))
+        return 120.0
+    try:
+        now = datetime.now(tz)
+        upcoming = _upcoming(settings, feeds, tz, pytz, now)
+    except Exception:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'CALENDAR', 'ERROR'))
+        return 120.0
+    if not upcoming:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'CALENDAR', 'NO EVENTS'))
+        return 300.0
+
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+
+    def probe(chip_h, max_w):
+        # can this label hold a readable size in this chip?
+        return lambda label: _cv_fit(canvas, label, max_w, chip_h - 3).size >= 8
+
+    if H >= 48:
+        # Stacked agenda: each event is a time chip over its title. Three events
+        # only on a panel tall enough to keep the titles readable.
+        want = 3 if H >= 96 else 2
+        shown = upcoming[:want]
+        row_h = (H - 2) // len(shown)
+        chip_h = max(11, int(row_h * 0.42))
+        for i, (when, all_day, summary) in enumerate(shown):
+            ry = 1 + i * row_h
+            label = _cv_chip_label(when, all_day, now, i18n, probe(chip_h, W - 10))
+            _cv_chip(canvas, draw, 2, ry, chip_h, label, _cv_chip_color(when, now), W - 10)
+            title_h = min(row_h - chip_h - 2, chip_h + 5)     # consistent rows, no ballooning
+            _cv_title(canvas, draw, summary, 4, ry + chip_h + 1, W - 8, title_h)
+    else:
+        # Short panel: one event — the chip line over the title, both full width.
+        when, all_day, summary = upcoming[0]
+        chip_h = max(11, int(H * 0.42))
+        label = _cv_chip_label(when, all_day, now, i18n, probe(chip_h, W - 10))
+        _cv_chip(canvas, draw, 1, 1, chip_h, label, _cv_chip_color(when, now), W - 10)
+        _cv_title(canvas, draw, summary, 2, chip_h + 2, W - 4, H - chip_h - 3)
+
+    canvas.frame(img)
+    return 120.0

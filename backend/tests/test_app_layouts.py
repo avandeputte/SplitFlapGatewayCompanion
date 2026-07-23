@@ -2,7 +2,7 @@
 
 Two things here:
 
-  * **Justification.** format_lines centres each line horizontally, so a line that is
+  * **Justification.** format_lines centers each line horizontally, so a line that is
     ALREADY `cols` wide passes through untouched. That is the seam these apps use to pin a
     label flush left and its number flush right — which is what makes a list of stocks, or
     clocks, or tides readable: you read DOWN the numbers, and they line up.
@@ -35,13 +35,13 @@ def _body(page, rows, cols):
 
 
 # ---------------------------------------------------------------------------
-# the shared trick: a full-width line survives centring untouched
+# the shared trick: a full-width line survives centering untouched
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("app", ["weather"])
 def test_row_pins_the_left_and_right_edges(app):
     row = _mod(app)._row
     line = row("AAPL", "$231.40", 15)
-    assert len(line) == 15, "a line that is not exactly cols wide gets re-centred"
+    assert len(line) == 15, "a line that is not exactly cols wide gets re-centered"
     assert line.startswith("AAPL")
     assert line.endswith("$231.40")
 
@@ -59,7 +59,7 @@ def test_row_trims_the_label_never_the_number(app):
 @pytest.mark.parametrize("app", ["world_clock", "stocks", "tides", "sun-times", "metro"])
 def test_columns_keep_the_pair_together_on_a_wide_wall(app):
     """The apps that lay two columns with _columns: on a WIDE wall the block stays
-    only as wide as its content (+ a gap) so format_lines centres the pair, instead
+    only as wide as its content (+ a gap) so format_lines centers the pair, instead
     of stranding the label and the value at opposite edges. The value column still
     lines up down the page, and a narrow wall trims the label, never the value."""
     columns = _mod(app)._columns
@@ -217,7 +217,7 @@ def test_clock_times_line_up_in_a_column():
     body = _body(rt.get_pages("world_clock")[0], 5, 15)
     assert len(body) == 3
     for l in body:
-        assert len(l) == 15, "the line was re-centred, so the times will not line up"
+        assert len(l) == 15, "the line was re-centered, so the times will not line up"
         assert l[0] != " ", "the city must be flush left"
         assert l[-1] != " ", "the time must be flush right"
     # The app no longer uppercases — the wall does, if it needs to.
@@ -287,9 +287,9 @@ def test_the_art_clock_uses_all_five_rows():
     assert all(l.strip() for l in lines), "a 3-row clock on a 5-row wall wastes 40% of it"
 
 
-def test_the_art_clock_is_centred_rather_than_stranded():
+def test_the_art_clock_is_centered_rather_than_stranded():
     """It used to return a RAW 3x15 page, so on any other geometry it sat in the top-left
-    corner. Going through format_lines centres it — horizontally and vertically."""
+    corner. Going through format_lines centers it — horizontally and vertically."""
     src = (APPS / "art-clock" / "app.py").read_text("utf-8")
     assert "return [format_lines(*lines)]" in src
     assert "return [raw]" not in src
@@ -297,4 +297,4 @@ def test_the_art_clock_is_centred_rather_than_stranded():
     rt = _runtime(3, 22, "art-clock")           # a wall that is NOT 15 wide
     lines = _lines(rt.get_pages("art-clock")[0], 3, 22)
     for l in lines:
-        assert l.startswith(" ") and l.endswith(" "), "not centred on a wider wall"
+        assert l.startswith(" ") and l.endswith(" "), "not centered on a wider wall"

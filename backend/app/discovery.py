@@ -157,7 +157,7 @@ async def _mdns_candidates(window: float = MDNS_WINDOW) -> list[str]:
     try:
         browser = AsyncServiceBrowser(azc.zeroconf, "_http._tcp.local.", handlers=[on_change])
         await asyncio.sleep(window)
-        # Let in-flight resolves land BEFORE the browser is cancelled and
+        # Let in-flight resolves land BEFORE the browser is canceled and
         # zeroconf closed — fire-and-forget meant late answers were silently
         # dropped on the floor. A resolve during the gather can add more.
         while resolves:

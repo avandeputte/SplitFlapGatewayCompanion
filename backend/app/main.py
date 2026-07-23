@@ -146,7 +146,7 @@ def display_by_id(display_id: str):
 
 def display_for(request: Request | None = None):
     """The display this request is about — the seam every endpoint resolves through.
-    Honours ``?display=<id>`` (via DisplayManager.current()) and falls back to the default when
+    Honors ``?display=<id>`` (via DisplayManager.current()) and falls back to the default when
     absent, so every endpoint below stays display-agnostic."""
     try:
         return displays.current(request)
@@ -249,7 +249,7 @@ async def resolve_companion_url() -> str:
     then, as an add-on, the host address + published port that Supervisor reports; then
     this host's detected LAN IP + port.
 
-    The add-on step is not an optimisation — it is the only correct answer there. The
+    The add-on step is not an optimization — it is the only correct answer there. The
     socket-based detection below sees the container's own address on Home Assistant's
     internal bridge (172.30.33.x), which no device on the LAN can reach, so the gateway
     would be handed a URL that can never work.
@@ -822,7 +822,7 @@ class _MCPPathFix:
     ``/mcp`` itself is a partial match, and because the SPA is mounted at ``/`` it
     gets claimed by StaticFiles instead (which answers 405 to a POST, since it only
     serves GET). But ``/mcp`` with no trailing slash is exactly what every MCP client
-    posts to, so normalise the path before routing rather than telling users to add a
+    posts to, so normalize the path before routing rather than telling users to add a
     slash no other MCP server needs.
     """
 

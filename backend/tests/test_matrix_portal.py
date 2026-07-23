@@ -9,13 +9,13 @@ WHY IT EXISTS — from the firmware's own reel.h, and it is the crux of everythi
 
 Both flaps EXIST on the reel (lowercase at 163..222, pictographs at 223..236). They are
 simply unreachable by character. /api/display/cells addresses them by INDEX and NAMES the
-colours instead of stealing seven letters for them.
+colors instead of stealing seven letters for them.
 
 Three things follow, and each is a way to get this wrong:
 
-  * **The colour ambiguity moves into the companion.** If a wall can show a lowercase `r`,
-    then a page has to say whether it meant the letter or the colour — and a bare `r`
-    cannot. So a colour becomes its own codepoint internally, produced only where a colour
+  * **The color ambiguity moves into the companion.** If a wall can show a lowercase `r`,
+    then a page has to say whether it meant the letter or the color — and a bare `r`
+    cannot. So a color becomes its own codepoint internally, produced only where a color
     is unambiguously meant.
   * **A page with an unrenderable character is a 400** — deliberately: "a half-written wall
     is worse than a rejected request". Right for the firmware; a trap for us, because one
@@ -54,11 +54,11 @@ def test_the_api_level_is_not_the_capability():
 
 
 # ---------------------------------------------------------------------------
-# a colour has to stop being a letter
+# a color has to stop being a letter
 # ---------------------------------------------------------------------------
-def test_a_colour_tile_becomes_a_colour_not_a_letter_when_case_is_kept():
-    """`🟥 hello` on a rich wall: the tile is a COLOUR and the `h` `e` `l` `l` `o` are
-    LETTERS. Carrying the colour as `r` — as the legacy encoding does — would make it
+def test_a_color_tile_becomes_a_color_not_a_letter_when_case_is_kept():
+    """`🟥 hello` on a rich wall: the tile is a COLOR and the `h` `e` `l` `l` `o` are
+    LETTERS. Carrying the color as `r` — as the legacy encoding does — would make it
     indistinguishable from the r in a word."""
     out = renderer.normalize("🟥 red", 5)
     assert renderer.is_color(out[0])
@@ -68,7 +68,7 @@ def test_a_colour_tile_becomes_a_colour_not_a_letter_when_case_is_kept():
 
 def test_legacy_pages_are_byte_for_byte_what_they_always_were():
     """A split-flap must see exactly what it always saw. It does — but the fold happens at
-    the WALL now (renderer.fold), and a colour is its own codepoint on the way there."""
+    the WALL now (renderer.fold), and a color is its own codepoint on the way there."""
     assert renderer.fold(renderer.normalize("hello", 5)) == "HELLO"
     assert "".join(renderer.for_legacy(c) for c in renderer.normalize("🟥🟩", 2)) == "rg"
     anim = renderer.normalize("www ggg", 7, frame=True)
@@ -101,7 +101,7 @@ def _rich_transport():
 
 
 @pytest.mark.anyio
-async def test_cells_carry_lowercase_named_colours_and_pictographs():
+async def test_cells_carry_lowercase_named_colors_and_pictographs():
     t = _rich_transport()
     page = renderer.normalize("He♥ 🟥", 5)
     await t.send_batch(list(enumerate(page)), 10)
@@ -112,7 +112,7 @@ async def test_cells_carry_lowercase_named_colours_and_pictographs():
     assert body["cells"][0] == {"ch": "H"}
     assert body["cells"][1] == {"ch": "e"}, "lowercase must survive — that is the point"
     assert body["cells"][2] == {"ch": "♥"}, "a pictograph goes as itself"
-    assert body["cells"][4] == {"color": "red"}, "colours are NAMED on this path"
+    assert body["cells"][4] == {"color": "red"}, "colors are NAMED on this path"
 
 
 @pytest.mark.anyio
@@ -186,8 +186,8 @@ def anyio_backend():
 # ---------------------------------------------------------------------------
 @pytest.mark.anyio
 async def test_hello_does_not_come_out_as_hell_orange():
-    """The letter `o` is not the ORANGE FLAP. A transport that decides a cell is a colour
-    because the character happens to be one of the seven colour letters renders "Hello" as
+    """The letter `o` is not the ORANGE FLAP. A transport that decides a cell is a color
+    because the character happens to be one of the seven color letters renders "Hello" as
     "Hell<orange>" — which is exactly what it did until the page was made to say which it
     meant."""
     t = _rich_transport()
@@ -202,9 +202,9 @@ async def test_hello_does_not_come_out_as_hell_orange():
 
 
 @pytest.mark.anyio
-async def test_a_legacy_page_still_gets_its_colour_flaps():
-    """The other half: weather's 🟩 and stocks' 🟥 are COLOURS, and they must stay colours
-    on a Matrix Portal — the fix for the letters must not cost us the colours."""
+async def test_a_legacy_page_still_gets_its_color_flaps():
+    """The other half: weather's 🟩 and stocks' 🟥 are COLORS, and they must stay colors
+    on a Matrix Portal — the fix for the letters must not cost us the colors."""
     t = _rich_transport()
     page = (renderer.normalize("AQI 🟩", 5))
     await t.send_batch(list(enumerate(page)), 0)
@@ -215,8 +215,8 @@ async def test_a_legacy_page_still_gets_its_colour_flaps():
 
 
 @pytest.mark.anyio
-async def test_an_animations_colour_codes_survive():
-    """art-clock and the anim_* apps draw with lowercase colour codes in a RAW page. That
+async def test_an_animations_color_codes_survive():
+    """art-clock and the anim_* apps draw with lowercase color codes in a RAW page. That
     convention is a hard contract, and it has to keep working."""
     t = _rich_transport()
     page = (renderer.normalize("rgb", 3, frame=True))
@@ -258,11 +258,11 @@ def test_folding_is_the_only_difference():
 
 
 def test_an_animation_is_never_touched():
-    """An animation's lowercase is a COLOUR, not a letter — so folding must not reach it. It
+    """An animation's lowercase is a COLOR, not a letter — so folding must not reach it. It
     is the one place an app still uppercases its own text, because nothing else will."""
     from app import renderer
     anim = renderer.normalize("www rgb", 7, frame=True)
-    assert renderer.fold(anim) == anim, "the fold ate a colour flap"
+    assert renderer.fold(anim) == anim, "the fold ate a color flap"
     assert "".join(renderer.for_legacy(c) for c in anim) == "www rgb"
 
 
@@ -270,7 +270,7 @@ def test_an_animation_is_never_touched():
 def test_animation_apps_still_uppercase_their_own_text(app_id):
     from pathlib import Path
     src = (Path(__file__).resolve().parents[2] / "apps" / app_id / "app.py").read_text("utf-8")
-    # they draw with lowercase colour codes, so nothing may fold their pages for them
+    # they draw with lowercase color codes, so nothing may fold their pages for them
     assert ".upper()" in src or "font" in src
 
 
@@ -278,9 +278,9 @@ def test_animation_apps_still_uppercase_their_own_text(app_id):
 # "raw" and "keep case" are two questions, not one
 # ---------------------------------------------------------------------------
 # `raw` used to mean BOTH "already laid out, do not fold it" AND "a lowercase letter is a
-# colour". They are independent, and conflating them is what put an orange flap in the
+# color". They are independent, and conflating them is what put an orange flap in the
 # middle of "Hello world": a composed message is laid out by the caller (raw) and made of
-# words (keep_case), while an ANIMATION is laid out and made of COLOURS.
+# words (keep_case), while an ANIMATION is laid out and made of COLORS.
 def _controller(rich: bool):
     from app.config import Config
     from app.engine import DisplayController
@@ -299,15 +299,15 @@ def _controller(rich: bool):
 
 
 def test_a_composed_message_keeps_its_letters():
-    """The reported bug. Every o, r and w in "Hello world" was becoming a colour flap."""
+    """The reported bug. Every o, r and w in "Hello world" was becoming a color flap."""
     from app import renderer
     c = _controller(rich=True)
     page = c._normalize("Hello world")          # words: NOT a frame
     assert page.startswith("Hello world")
-    assert not any(renderer.is_color(ch) for ch in page), "a letter became a colour flap"
+    assert not any(renderer.is_color(ch) for ch in page), "a letter became a color flap"
 
 
-def test_a_colour_tile_in_a_message_is_still_a_colour():
+def test_a_color_tile_in_a_message_is_still_a_color():
     from app import renderer
     c = _controller(rich=True)
     page = c._normalize("Hi 🟥", frame=True)
@@ -316,7 +316,7 @@ def test_a_colour_tile_in_a_message_is_still_a_colour():
 
 
 def test_an_animation_still_paints_with_lowercase():
-    """art-clock and the anim_* apps draw colours as lowercase r/o/y/g/b/p/w. Keeping the
+    """art-clock and the anim_* apps draw colors as lowercase r/o/y/g/b/p/w. Keeping the
     case there would turn a red flap into the letter r — the exact inverse of the bug."""
     from app import renderer
     c = _controller(rich=True)
@@ -332,8 +332,8 @@ def test_a_physical_wall_ignores_all_of_this():
 # ---------------------------------------------------------------------------
 # a trigger shows WORDS, unless the app is an animation
 # ---------------------------------------------------------------------------
-def test_a_trigger_does_not_paint_colour_flaps_through_the_words():
-    """fire_interrupt() defaulted to "raw" — i.e. "a lowercase letter is a COLOUR FLAP".
+def test_a_trigger_does_not_paint_color_flaps_through_the_words():
+    """fire_interrupt() defaulted to "raw" — i.e. "a lowercase letter is a COLOR FLAP".
 
     That was harmless only while every app uppercased its own output, so no lowercase letter
     could reach it. The apps stopped doing that (1.9.0-beta.13), and the default became a
@@ -344,10 +344,10 @@ def test_a_trigger_does_not_paint_colour_flaps_through_the_words():
     c = _controller(rich=True)
 
     words = c._normalize("Partly cloudy")
-    assert not any(renderer.is_color(ch) for ch in words), "a letter became a colour flap"
+    assert not any(renderer.is_color(ch) for ch in words), "a letter became a color flap"
     assert words.startswith("Partly cloudy")
 
-    # …and an ANIMATION still paints, because that is the only way it can ask for a colour
+    # …and an ANIMATION still paints, because that is the only way it can ask for a color
     frame = c._normalize("rgb", frame=True)
     assert [renderer.PUA_TO_NAME[ch] for ch in frame[:3]] == ["red", "green", "blue"]
 
@@ -376,7 +376,7 @@ def test_there_is_exactly_one_place_that_folds():
 # A capability is a fact about the hardware; whether to use it is a preference. Keeping the
 # two apart is what lets a Matrix Portal shout WITHOUT giving up anything else it can do:
 # it is still driven by the index-addressed API, still shows its pictographs, still gets its
-# colours by name. It is simply in capitals.
+# colors by name. It is simply in capitals.
 def _with_setting(value):
     from app.engine import DisplayController
     from app.state import DisplayState
@@ -412,12 +412,12 @@ def test_it_is_off_by_default():
 
 def test_shouting_costs_nothing_else():
     """Not a fallback to the legacy protocol: the wall keeps its pictographs and its named
-    colours, because those are capabilities and this is only a preference about CASE."""
+    colors, because those are capabilities and this is only a preference about CASE."""
     from app import renderer
     c = _with_setting("yes")
     page = c._normalize("Hi ♥ 🟥")
     assert "♥" in page, "the pictograph was thrown away with the lowercase"
-    assert any(renderer.is_color(ch) for ch in page), "the colour flap was lost"
+    assert any(renderer.is_color(ch) for ch in page), "the color flap was lost"
     assert c.caps.indexed is True, "it must still use the index-addressed API"
 
 

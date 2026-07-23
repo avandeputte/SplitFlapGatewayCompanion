@@ -1,22 +1,22 @@
-"""Forecast Ribbon — the shape of the day, painted in flap colours (keyless: Open-Meteo).
+"""Forecast Ribbon — the shape of the day, painted in flap colors (keyless: Open-Meteo).
 
 Each COLUMN is an hour. The BAR HEIGHT is how warm it gets relative to the rest of the
-window, and the COLOUR is the actual temperature — violet through blue, green, yellow and
+window, and the COLOR is the actual temperature — violet through blue, green, yellow and
 orange to red. So the day has a silhouette you read at a glance: a cold morning is a low
 blue foothill, the warm afternoon is a tall orange ridge, and a cold front arriving at four
 o'clock is a cliff.
 
 It is a sibling of art-clock: a picture, not a page of numbers. Like art-clock it declares
-`"animation": true`, which is what keeps its lowercase r/o/y/g/b/p/w meaning the COLOUR
+`"animation": true`, which is what keeps its lowercase r/o/y/g/b/p/w meaning the COLOR
 FLAPS rather than the letters — the companion sends an animation's page RAW.
 
-The colour is absolute and the height is relative, which is the whole trick: the height
-tells you the shape of *this* day, and the colour tells you whether that shape is a warm one.
+The color is absolute and the height is relative, which is the whole trick: the height
+tells you the shape of *this* day, and the color tells you whether that shape is a warm one.
 A flat green wall is a mild, boring day; a flat red one is a heatwave.
 """
 
-# Temperature (°C) -> flap colour. Absolute, so red always means hot — not merely "hotter
-# than the rest of today", which is what a normalized colour ramp would say on a cold day.
+# Temperature (°C) -> flap color. Absolute, so red always means hot — not merely "hotter
+# than the rest of today", which is what a normalized color ramp would say on a cold day.
 _BANDS = (
     (-5.0, 'p'),     # violet   — deep freeze
     (2.0, 'b'),      # blue     — freezing / near it
@@ -28,9 +28,9 @@ _HOTTEST = 'r'       # red      — hot
 
 
 def _band(c):
-    for limit, colour in _BANDS:
+    for limit, color in _BANDS:
         if c < limit:
-            return colour
+            return color
     return _HOTTEST
 
 
@@ -109,7 +109,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None):
         span = (hi - lo) or 1.0        # a dead-flat day would divide by zero
 
         # Column c is an hour; the bar rises from the bottom. Height is RELATIVE (the shape
-        # of this day), colour is ABSOLUTE (whether that shape is a warm one).
+        # of this day), color is ABSOLUTE (whether that shape is a warm one).
         page = [' '] * (rows * cols)
         for c, t in enumerate(window):
             height = 1 + int(round((t - lo) / span * (rows - 1)))

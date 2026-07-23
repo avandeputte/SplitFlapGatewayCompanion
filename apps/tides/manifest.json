@@ -4,7 +4,7 @@
   "icon": "🌊",
   "description": "Today's high & low tides (NOAA)",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "i18n": true,
   "refresh_interval": 3600,
   "loop_delay": 6,

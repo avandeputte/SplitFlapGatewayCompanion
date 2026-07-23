@@ -1,5 +1,11 @@
 """Sports scores via ESPN API — multi-league."""
 
+# =============================================================================
+# SHARED — the games: which leagues/teams are followed and every matching game
+# from ESPN, one list in one order. Both surfaces render from _gather_games, so
+# a wall and a panel always show the same games.
+# =============================================================================
+
 LEAGUES = {
     'nfl':    {'path': 'football/nfl',                       'name': 'NFL'},
     'nba':    {'path': 'basketball/nba',                     'name': 'NBA'},
@@ -62,18 +68,13 @@ def _t(s):
     return _LOC.t(s, "sports") if _LOC is not None else s
 
 
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
-    global _LOC
-    _LOC = i18n
+def _gather_games(settings, format_lines, get_cols):
+    """Every followed league's matching games, in follow order — the one list both
+    surfaces render. Each game carries its flap page AND its raw fields."""
     import requests, logging
 
     game_filter = settings.get('sports_filter', 'all')
-    show_league = settings.get('sports_show_league', 'yes') == 'yes'
-    compact = settings.get('sports_compact', 'no') == 'yes'
-
     by_league = _parse_follows(settings.get('follows', ''))
-    if not by_league:
-        return [format_lines("Sports", _t("Nothing"), _t("Followed"))]
 
     all_games = []
     for key, picks in by_league.items():
@@ -85,68 +86,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             all_games.extend(games)
         except Exception as e:
             logging.error(f"ESPN {key} error: {e}")
+    return all_games
 
-    if not all_games:
-        filter_labels = {'all': _t('All'), 'live': _t('Live'),
-                         'live+upcoming': f"{_t('Live')}/{_t('Upcoming')}",
-                         'live+final': f"{_t('Live')}/{_t('Final')}"}
-        return [format_lines("Sports", _t("No games"), filter_labels.get(game_filter, _t('Found')))]
-
-    rows = get_rows()
-    cols = get_cols()
-
-    # Wide wall, standard layout: a TABLE — one game per row, league / score / status in
-    # aligned columns, several games to a page, instead of one game on a 3-line page with
-    # the width to spare. (Golf and UFC bring their own multi-line pages, so this only
-    # kicks in when every game is a regular team score, and only when the row fits.)
-    if not compact and rows >= 2:
-        tabular = [g for g in all_games if g.get('score_line')]
-        if tabular and len(tabular) == len(all_games):
-            lw = max((len(g.get('league', '')) for g in tabular), default=0) if show_league else 0
-            sw = max(len(g['score_line']) for g in tabular)
-            tw = max(len(g['status']) for g in tabular)
-            gap = 2
-            row_w = (lw + gap if lw else 0) + sw + gap + tw
-            if row_w <= cols:
-                gg = ' ' * gap
-                lines = []
-                for g in tabular:
-                    parts = ([g.get('league', '').ljust(lw)] if lw else []) + \
-                            [g['score_line'].ljust(sw), g['status'].rjust(tw)]
-                    lines.append(gg.join(parts))
-                return [format_lines(*lines[i:i + rows]) for i in range(0, len(lines), rows)]
-
-    if rows == 1:
-        # Just score line
-        return [g['score_line'][:cols].center(cols) for g in all_games]
-
-    if not compact:
-        if rows == 2:
-            # score + status, no league name
-            return [g['score_line'][:cols].center(cols) + g['status'][:cols].center(cols) for g in all_games]
-        # 3+ rows: standard layout
-        if show_league:
-            return [g['page'] for g in all_games]
-        else:
-            return [g['score_line'][:cols].center(cols) + (' ' * cols) + g['status'][:cols].center(cols) for g in all_games]
-
-    # Compact mode: games_per_page = rows - 1 (leave 1 row for statuses), min 1
-    games_per_page = max(1, rows - 1)
-    pages = []
-    for i in range(0, len(all_games), games_per_page):
-        chunk = all_games[i:i+games_per_page]
-        score_rows = [g['score_line'][:cols].center(cols) for g in chunk]
-        # pad to games_per_page
-        while len(score_rows) < games_per_page:
-            score_rows.append(' ' * cols)
-        if rows > games_per_page:
-            # status row
-            statuses = [g['status'][:max(1, cols // games_per_page)] for g in chunk]
-            status_row = ''.join(s.ljust(cols // games_per_page) for s in statuses)[:cols]
-            pages.append(''.join(score_rows) + status_row)
-        else:
-            pages.append(''.join(score_rows))
-    return pages
 
 def _fetch_league(key, info, team_filter, show_all, format_lines, get_cols, requests, game_filter):
     from datetime import datetime, timedelta
@@ -230,7 +171,8 @@ def _fetch_last_game(info, team_abbr, format_lines, get_cols, requests, game_fil
             score_line = f"{aa} {a_score}  {ha} {h_score}"
             page = format_lines(info['name'], score_line, _t("Final"))
             return {'page': page, 'score_line': score_line, 'status': _t("Final"),
-                    'state': 'post', 'league': info['name']}
+                    'state': 'post', 'league': info['name'],
+                    'away': (aa, a_score), 'home': (ha, h_score)}
         return None
     except Exception as e:
         logging.error(f"Schedule fetch error for {team_abbr}: {e}")
@@ -272,7 +214,10 @@ def _parse_events(events, info, team_filter, show_all, format_lines, get_cols, g
         status = _t("Final") if state == 'post' else detail[:15]
         page = format_lines(info['name'], score_line, status)
         game = {'page': page, 'score_line': score_line, 'status': status,
-                'state': state, 'league': info['name']}
+                'state': state, 'league': info['name'],
+                # structured fields for pixel surfaces (the flap page ignores them)
+                'away': (aa, str(away.get('score', '') or '')),
+                'home': (ha, str(home.get('score', '') or ''))}
         (live if state == 'in' else upcoming if state == 'pre' else final).append(game)
     return live + upcoming + final
 
@@ -311,6 +256,86 @@ def _mma(events, info, format_lines):
         pages.append(format_lines("UFC", f"{n1} v {n2}", r3))
     return pages or [format_lines("UFC", _t("No fights"), _t("Scheduled"))]
 
+
+# =============================================================================
+# SPLIT-FLAP — fetch() and its page layouts, unique to the character-grid wall.
+# =============================================================================
+
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
+    global _LOC
+    _LOC = i18n
+
+    game_filter = settings.get('sports_filter', 'all')
+    show_league = settings.get('sports_show_league', 'yes') == 'yes'
+    compact = settings.get('sports_compact', 'no') == 'yes'
+
+    by_league = _parse_follows(settings.get('follows', ''))
+    if not by_league:
+        return [format_lines("Sports", _t("Nothing"), _t("Followed"))]
+
+    all_games = _gather_games(settings, format_lines, get_cols)
+
+    if not all_games:
+        filter_labels = {'all': _t('All'), 'live': _t('Live'),
+                         'live+upcoming': f"{_t('Live')}/{_t('Upcoming')}",
+                         'live+final': f"{_t('Live')}/{_t('Final')}"}
+        return [format_lines("Sports", _t("No games"), filter_labels.get(game_filter, _t('Found')))]
+
+    rows = get_rows()
+    cols = get_cols()
+
+    # Wide wall, standard layout: a TABLE — one game per row, league / score / status in
+    # aligned columns, several games to a page, instead of one game on a 3-line page with
+    # the width to spare. (Golf and UFC bring their own multi-line pages, so this only
+    # kicks in when every game is a regular team score, and only when the row fits.)
+    if not compact and rows >= 2:
+        tabular = [g for g in all_games if g.get('score_line')]
+        if tabular and len(tabular) == len(all_games):
+            lw = max((len(g.get('league', '')) for g in tabular), default=0) if show_league else 0
+            sw = max(len(g['score_line']) for g in tabular)
+            tw = max(len(g['status']) for g in tabular)
+            gap = 2
+            row_w = (lw + gap if lw else 0) + sw + gap + tw
+            if row_w <= cols:
+                gg = ' ' * gap
+                lines = []
+                for g in tabular:
+                    parts = ([g.get('league', '').ljust(lw)] if lw else []) + \
+                            [g['score_line'].ljust(sw), g['status'].rjust(tw)]
+                    lines.append(gg.join(parts))
+                return [format_lines(*lines[i:i + rows]) for i in range(0, len(lines), rows)]
+
+    if rows == 1:
+        # Just score line
+        return [g['score_line'][:cols].center(cols) for g in all_games]
+
+    if not compact:
+        if rows == 2:
+            # score + status, no league name
+            return [g['score_line'][:cols].center(cols) + g['status'][:cols].center(cols) for g in all_games]
+        # 3+ rows: standard layout
+        if show_league:
+            return [g['page'] for g in all_games]
+        else:
+            return [g['score_line'][:cols].center(cols) + (' ' * cols) + g['status'][:cols].center(cols) for g in all_games]
+
+    # Compact mode: games_per_page = rows - 1 (leave 1 row for statuses), min 1
+    games_per_page = max(1, rows - 1)
+    pages = []
+    for i in range(0, len(all_games), games_per_page):
+        chunk = all_games[i:i+games_per_page]
+        score_rows = [g['score_line'][:cols].center(cols) for g in chunk]
+        # pad to games_per_page
+        while len(score_rows) < games_per_page:
+            score_rows.append(' ' * cols)
+        if rows > games_per_page:
+            # status row
+            statuses = [g['status'][:max(1, cols // games_per_page)] for g in chunk]
+            status_row = ''.join(s.ljust(cols // games_per_page) for s in statuses)[:cols]
+            pages.append(''.join(score_rows) + status_row)
+        else:
+            pages.append(''.join(score_rows))
+    return pages
 
 def trigger(settings, conditions):
     """Fire when a followed team's game matches the configured event condition."""
@@ -458,3 +483,203 @@ def trigger(settings, conditions):
     except Exception:
         raise
     return False
+
+
+# =============================================================================
+# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+#
+# A scoreboard card, one game per hold: the two teams as big rows with their
+# scores, the league up top and the status color-coded (live green, upcoming
+# amber, final gray; the winner stays bright, the loser dims). Rotates through
+# the SAME games the flap pages show, from the same gather. Black background.
+# =============================================================================
+
+_MX_WHITE = (240, 240, 244)
+_MX_GRAY = (150, 150, 158)
+_MX_DIM = (128, 128, 136)                   # the losing side
+_MX_LIVE = (90, 220, 120)                   # in progress
+_MX_PRE = (255, 180, 60)                    # scheduled
+_MX_RULE = (48, 52, 62)                     # thin dividers
+
+
+def _cv_fit(canvas, text, max_w, max_h):
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
+    size = max(5, int(max_h) + 2)
+    font = canvas.font(size)
+    for _ in range(80):
+        b = font.getbbox(text or '0')
+        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+            return font
+        size -= 1
+        font = canvas.font(size)
+    return font
+
+
+def _cv_message(canvas, ImageDraw, line1, line2):
+    """A quiet two-line message (nothing followed / no games)."""
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
+    b1 = f1.getbbox(line1)
+    h1 = b1[3] - b1[1]
+    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
+    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
+    gap = 3 if line2 else 0
+    y = (H - (h1 + gap + h2)) / 2.0
+    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_MX_WHITE)
+    if line2:
+        y += h1 + gap
+        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_MX_GRAY)
+    return img
+
+
+def _mx_status_color(state):
+    return {'in': _MX_LIVE, 'pre': _MX_PRE}.get(state, _MX_GRAY)
+
+
+def _mx_team_rows(game):
+    """[(abbr, score), (abbr, score)] from the structured fields, or None (golf/UFC)."""
+    away, home = game.get('away'), game.get('home')
+    if not away or not home:
+        return None
+    return [away, home]
+
+
+def _mx_text_card(canvas, draw, lines, top, height):
+    """Golf and UFC pages carry their own lines — a centered typographic stack."""
+    W = canvas.width
+    lines = [ln for ln in lines if str(ln).strip()][:3] or ['']
+    lh = height // len(lines)
+    y = top
+    for ln in lines:
+        f = _cv_fit(canvas, ln, W - 6, lh - 2)
+        b = f.getbbox(ln)
+        draw.text(((W - f.getlength(ln)) / 2.0, y + (lh - (b[3] - b[1])) / 2.0 - b[1]),
+                  ln, font=f, fill=_MX_WHITE)
+        y += lh
+    return canvas
+
+
+def _mx_scoreboard(canvas, draw, game, top, height, rule=True):
+    """The two team rows: abbreviation left, score right (or a VS mark pre-game)."""
+    W = canvas.width
+    rows = _mx_team_rows(game)
+    state = game.get('state', 'pre')
+    row_h = height // 2
+
+    # One size for everything: the widest cell at the row height decides it.
+    cells = [c for pair in rows for c in pair if c]
+    probe = max(cells, key=len) if cells else '0'
+    f = _cv_fit(canvas, probe, int(W * 0.55), row_h - 2)
+    b = f.getbbox('AG0')
+
+    # post: the winner stays bright, the loser dims (a tie keeps both lit)
+    colors = [_MX_WHITE, _MX_WHITE]
+    if state == 'post':
+        try:
+            a, h = int(rows[0][1]), int(rows[1][1])
+            if a != h:
+                colors = [_MX_WHITE, _MX_DIM] if a > h else [_MX_DIM, _MX_WHITE]
+        except (TypeError, ValueError):
+            pass
+
+    for i, ((abbr, score), col) in enumerate(zip(rows, colors)):
+        ry = top + i * row_h
+        ty = ry + (row_h - (b[3] - b[1])) / 2.0 - b[1]
+        draw.text((3, ty), abbr, font=f, fill=col)
+        if score:
+            draw.text((W - 3 - f.getlength(score), ty), score, font=f, fill=col)
+    if rule:
+        draw.line([(3, top + row_h), (W - 4, top + row_h)], fill=_MX_RULE)
+    if state == 'pre':
+        vs = 'VS'
+        vf = _cv_fit(canvas, vs, int(W * 0.25), max(7, int(row_h * 0.5)))
+        vb = vf.getbbox(vs)
+        vx = W - 3 - vf.getlength(vs)
+        vy = top + (2 * row_h - (vb[3] - vb[1])) / 2.0 - vb[1]
+        draw.rectangle([vx - 2, vy + vb[1] - 1, vx + vf.getlength(vs) + 1, vy + vb[3] + 1], fill=(0, 0, 0))
+        draw.text((vx, vy), vs, font=vf, fill=_MX_GRAY)
+
+
+def fetch_matrix(settings, canvas, i18n=None):
+    """Draw one followed game per hold as a scoreboard card, advancing each redraw. ESPN is
+    polled at most once a minute (a cached gather); each game holds ~8s."""
+    global _LOC
+    _LOC = i18n
+    import time
+    from PIL import ImageDraw
+
+    if not _parse_follows(settings.get('follows', '')):
+        canvas.frame(_cv_message(canvas, ImageDraw, 'SPORTS', 'NOTHING FOLLOWED'))
+        return 120.0
+
+    st = getattr(fetch_matrix, '_state', None)
+    if st is None:
+        st = {'sig': None, 'ts': 0.0, 'games': [], 'i': 0}
+        setattr(fetch_matrix, '_state', st)
+    sig = (str(settings.get('follows', '')), str(settings.get('sports_filter', 'all')))
+    now = time.time()
+    if sig != st['sig'] or (now - st['ts']) > 60:
+        st['games'] = _gather_games(settings, lambda *lines: '\n'.join(str(x) for x in lines),
+                                    lambda: 24)
+        st['sig'] = sig
+        st['ts'] = now
+
+    games = st['games']
+    if not games:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'SPORTS', 'NO GAMES FOUND'))
+        return 120.0
+
+    idx = st['i'] % len(games)
+    st['i'] = (st['i'] + 1) % len(games)
+    game = games[idx]
+
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+
+    league = str(game.get('league', '') or '')
+    status = str(game.get('status', '') or '').upper()
+    state = game.get('state', 'pre')
+    scol = _mx_status_color(state)
+
+    top, bottom = 2, H - 1
+    if H >= 48:
+        # Header: league left, status right, a live dot when the game is on.
+        head_h = max(9, int(H * 0.2))
+        if league:
+            lf = _cv_fit(canvas, league.upper(), int(W * 0.4), head_h - 2)
+            lb = lf.getbbox(league.upper())
+            draw.text((3, 1 + (head_h - 2 - (lb[3] - lb[1])) / 2.0 - lb[1]),
+                      league.upper(), font=lf, fill=_MX_GRAY)
+        if status:
+            sf = _cv_fit(canvas, status, int(W * 0.5), head_h - 2)
+            sb = sf.getbbox(status)
+            sx = W - 3 - sf.getlength(status)
+            draw.text((sx, 1 + (head_h - 2 - (sb[3] - sb[1])) / 2.0 - sb[1]),
+                      status, font=sf, fill=scol)
+            if state == 'in':
+                cy = 1 + (head_h - 2) // 2
+                draw.ellipse([sx - 7, cy - 2, sx - 3, cy + 2], fill=_MX_LIVE)
+        draw.line([(2, head_h + 1), (W - 3, head_h + 1)], fill=_MX_RULE)
+        top = head_h + 3
+    elif status:
+        # Short panel: the status becomes a thin bottom line instead of a header.
+        foot_h = max(7, int(H * 0.22))
+        sf = _cv_fit(canvas, status, W - 6, foot_h)
+        sb = sf.getbbox(status)
+        if (sb[3] - sb[1]) >= 5:
+            draw.text(((W - sf.getlength(status)) / 2.0, H - 1 - foot_h + (foot_h - (sb[3] - sb[1])) / 2.0 - sb[1]),
+                      status, font=sf, fill=scol)
+            bottom = H - 2 - foot_h
+
+    if _mx_team_rows(game) is not None:
+        _mx_scoreboard(canvas, draw, game, top, bottom - top, rule=H >= 48)
+    else:
+        _mx_text_card(canvas, draw, str(game.get('page', '')).split('\n'), top, bottom - top)
+
+    canvas.frame(img)
+    return 8.0 if len(games) > 1 else 30.0

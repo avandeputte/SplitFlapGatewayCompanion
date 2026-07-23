@@ -1,4 +1,4 @@
-"""Colour band sweep animation."""
+"""Color band sweep animation."""
 
 def fetch(settings, format_lines, get_rows, get_cols):
     colors = 'roygbpw'

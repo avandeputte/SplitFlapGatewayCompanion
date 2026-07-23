@@ -3,7 +3,7 @@
 A canvas app: it pulls structured games from ESPN (home/away, scores, status, and each
 team's LOGO), downloads and caches the logos, and blits them from the sprite atlas beside big
 scores and a status line — rotating one game at a time. A team whose logo can't be fetched
-falls back to a colour badge with its abbreviation.
+falls back to a color badge with its abbreviation.
 
 Text goes through the injected ``canvas`` (``canvas.shadow_text`` keeps only CP1252 glyphs and
 snaps to the faces {8,9,10,13,18,20}); the atlas is a single shared slot, so the two badges are
@@ -151,7 +151,7 @@ def _logo_tile(url, size, cache):
 
 def _badge(canvas, x, y, tile, abbr, color, sprite_idx):
     """Draw a team badge at (x,y): the logo sprite (its index in the shared sheet) if we have one,
-    else a colour chip with the abbreviation. ``sprite_idx < 0`` means no logo."""
+    else a color chip with the abbreviation. ``sprite_idx < 0`` means no logo."""
     if sprite_idx >= 0:
         canvas.sprite(sprite_idx, x, y)
     else:
@@ -195,7 +195,7 @@ def fetch_matrix(settings, canvas):
         # only for a genuinely new logo and is bounded by the teams ever shown.
 
     games = st['games']
-    canvas.clear((0, 0, 0))                                   # black — team colours pop on unlit pixels
+    canvas.clear((0, 0, 0))                                   # black — team colors pop on unlit pixels
 
     if not games:
         canvas.shadow_text(W // 2, H // 2 - 5, 'No games', (210, 216, 232), canvas.face(min(13, H // 3)), align='center')
@@ -219,7 +219,7 @@ def fetch_matrix(settings, canvas):
     # ONE shared sheet holds every team's logo, blitted by index — so the whole app occupies a
     # single atlas slot instead of one per game, and never stores a logo twice. The sheet grows
     # lazily as games come round (no fetch burst), and the upload is deduped by the library, so a
-    # stable slate settles to one upload. A logo that can't be fetched -> index -1 -> colour chip.
+    # stable slate settles to one upload. A logo that can't be fetched -> index -1 -> color chip.
     ai = hi = -1
     if use_sprites:
         if st['sheet_for'] != tile:                     # a size change invalidates the built tiles
@@ -248,7 +248,7 @@ def fetch_matrix(settings, canvas):
     canvas.shadow_text(2, 1, g['lg'], (150, 160, 190), 8)
     canvas.shadow_text(W - 2, 1, g['status'], (235, 210, 120) if g['state'] == 'in' else (170, 178, 200), 8, align='right')
 
-    # team names, fanning outward from the centre logos — the fullest that fits each side.
+    # team names, fanning outward from the center logos — the fullest that fits each side.
     an, af = _pick_name(canvas, g['anm'], ax - 5)
     hn, hf = _pick_name(canvas, g['hnm'], W - 2 - (hx + tile + 3))
     canvas.shadow_text(ax - 3, by + (tile - af) // 2, an, (214, 222, 240), af, align='right')

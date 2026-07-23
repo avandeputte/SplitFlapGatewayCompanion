@@ -6,7 +6,7 @@
   "description": "Track elapsed time",
   "category": "time",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "version": "1.0",
   "refresh_interval": 1,
   "loop_delay": 1,

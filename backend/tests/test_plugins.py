@@ -410,7 +410,7 @@ def test_i18n_localizes_labels_and_dates():
     d = date(2026, 1, 5)                                     # a Monday
     # Natural case now — a wall that cannot show lowercase has the companion fold it on
     # the way out (renderer.normalize), so the flaps are unchanged. "lundi" is lowercase
-    # in French and "Montag" capitalised in German because that is what the languages do.
+    # in French and "Montag" capitalized in German because that is what the languages do.
     assert i18n.weekday(d, "fr") == "lundi" and i18n.weekday(d, "de") == "Montag"
     from app.renderer import cp1252_upper
     assert cp1252_upper(i18n.weekday(d, "fr")) == "LUNDI"   # what a split-flap still shows

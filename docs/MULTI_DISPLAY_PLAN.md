@@ -24,7 +24,7 @@ mcp         = mcp_server.build(config, state, controller, plugins, ...)
 `gateway.py` keeps module-level `_gateway_tabs`. The engine persists a single
 `last_run`. `GATEWAY_URL` is required at boot and *is* the identity of the one display.
 
-So the work is **90% de-singletonisation, 10% new feature**. The risk isn't the
+So the work is **90% de-singletonization, 10% new feature**. The risk isn't the
 concept, it's touching 51 endpoints and every consumer at once.
 
 ## The shape
@@ -102,7 +102,7 @@ new gateway already holds a settings blob of its own; that blob wins.)
 
 Each phase ships and is useful on its own. Nothing here is a big-bang rewrite.
 
-### Phase 0 — make one display an object (no behaviour change) ✅ DONE
+### Phase 0 — make one display an object (no behavior change) ✅ DONE
 
 Move the six singletons into `Display`, instantiate exactly one, and have `main.py`
 resolve it per request. Endpoints change from `controller.run_app(...)` to
@@ -233,7 +233,7 @@ Each needs a deliberate decision, and each is a place a naive implementation bre
 ## Risks and the honest cost
 
 - **The 51-endpoint refactor is the whole project.** Phase 0 exists precisely so that
-  lands separately, provably behaviour-neutral (the existing 347 tests are the check).
+  lands separately, provably behavior-neutral (the existing 347 tests are the check).
 - **Gateway registration is bidirectional**: each gateway registers *this* companion's
   URL and advertises its tabs. With N gateways the companion registers with each, and
   the tab strip must show the *active* one's tabs. `_gateway_tabs` becoming per-display

@@ -218,7 +218,7 @@ def canvas_surface(url, w, h, formats=(), effects=(), *, sprite=False, two_one=F
         fields["canvas_ops"] = tuple(set(fields.get("canvas_ops", ())) | {"sprite"})
     if two_one:
         fields["fw_version"] = (2, 1)
-    caps = device.Capabilities(lowercase=True, pictographs=True, named_colours=True, indexed=True,
+    caps = device.Capabilities(lowercase=True, pictographs=True, named_colors=True, indexed=True,
                                canvas_w=w, canvas_h=h, canvas_formats=tuple(formats),
                                effects=tuple(effects), **fields)
     return canvas_mod.CanvasSurface(url, caps)

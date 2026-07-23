@@ -3,7 +3,7 @@
 A canvas app: on a black (unlit) background — bright content reads best on an LED panel — it
 blits a CONDITION ICON from a generated sprite atlas and writes the temperature and a three-day
 strip with text ops. The icons (sun, moon, cloud, rain, snow, storm, fog) are drawn once with
-Pillow and uploaded to the panel's atlas; a wall without the sprite op falls back to a coloured disc.
+Pillow and uploaded to the panel's atlas; a wall without the sprite op falls back to a colored disc.
 
 Two things about the on-device text op (both handled by the injected ``canvas``): it draws
 CP1252 glyphs (the firmware decodes the UTF-8 we send back to CP1252), so ``canvas.shadow_text``
@@ -26,12 +26,12 @@ _WORD = {'clear': 'Clear', 'pcloudy': 'Partly', 'cloudy': 'Cloudy', 'fog': 'Fog'
 
 
 def _cloud(d, s, col, y):
-    """A flat-bottomed cumulus: a wide base with a tall centre puff and smaller side puffs, so it
+    """A flat-bottomed cumulus: a wide base with a tall center puff and smaller side puffs, so it
     reads as a cloud (not a blob) even at a small tile size."""
     cy = s * y
     d.rectangle([s * 0.16, cy + s * 0.06, s * 0.84, cy + s * 0.22], fill=col)   # flat base
     d.ellipse([s * 0.10, cy + s * 0.00, s * 0.44, cy + s * 0.26], fill=col)     # left puff
-    d.ellipse([s * 0.30, cy - s * 0.22, s * 0.72, cy + s * 0.24], fill=col)     # tall centre puff
+    d.ellipse([s * 0.30, cy - s * 0.22, s * 0.72, cy + s * 0.24], fill=col)     # tall center puff
     d.ellipse([s * 0.56, cy - s * 0.04, s * 0.92, cy + s * 0.26], fill=col)     # right puff
 
 
@@ -111,7 +111,7 @@ def _conv(f, unit):
     return round(f)
 
 
-# Colours read as their hue on an LED panel only when saturated. Warm high / cool low, a light
+# Colors read as their hue on an LED panel only when saturated. Warm high / cool low, a light
 # cyan condition word, muted stats — and the big temperature is tinted by how warm it is.
 _WARM, _COOL, _WORDC, _MUTE, _DAY = (255, 150, 55), (55, 150, 255), (120, 210, 235), (172, 182, 205), (208, 216, 234)
 _TEMP_RAMP = [(5, (60, 120, 255)), (32, (40, 170, 255)), (48, (0, 205, 220)), (60, (40, 215, 130)),
@@ -119,7 +119,7 @@ _TEMP_RAMP = [(5, (60, 120, 255)), (32, (40, 170, 255)), (48, (0, 205, 220)), (6
 
 
 def _ramp(temp_f):
-    """A saturated thermal colour for a Fahrenheit temperature (whatever unit it's shown in)."""
+    """A saturated thermal color for a Fahrenheit temperature (whatever unit it's shown in)."""
     if temp_f is None:
         return (236, 240, 250)
     if temp_f <= _TEMP_RAMP[0][0]:
@@ -134,7 +134,7 @@ def _ramp(temp_f):
 
 
 def _segs(canvas, x, y, segments, size, maxx):
-    """Draw ``(text, colour)`` runs left-to-right at ``size``, stopping before ``maxx`` so a
+    """Draw ``(text, color)`` runs left-to-right at ``size``, stopping before ``maxx`` so a
     narrow panel truncates between fields instead of clipping mid-word. Returns the end x."""
     for text, col in segments:
         text = canvas.cp(str(text))

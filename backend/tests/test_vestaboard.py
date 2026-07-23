@@ -21,7 +21,7 @@ def test_code_table_matches_the_published_one():
     assert vb.CODE_TO_CHAR[36] == "0"          # zero comes AFTER the nines
     assert vb.CODE_TO_CHAR[37] == "!" and vb.CODE_TO_CHAR[60] == "?"
     assert vb.CODE_TO_CHAR[62] == "°"
-    # Colour chips -> the firmware's COLOUR FLAPS, each its own codepoint rather than the
+    # Color chips -> the firmware's COLOR FLAPS, each its own codepoint rather than the
     # letter that used to stand in for it. Violet is `p`. Spelling a chip as `r` was only
     # ever safe because no wall could show a lowercase letter; one now can.
     from app import renderer
@@ -59,8 +59,8 @@ def test_encode_maps_unrepresentable_characters_to_blank():
     assert vb.encode(["é"], 1, 1) == [[0]]
 
 
-def test_encode_does_not_mistake_a_colour_flap_for_a_letter():
-    """A colour is its own codepoint, not the letter `y`.
+def test_encode_does_not_mistake_a_color_flap_for_a_letter():
+    """A color is its own codepoint, not the letter `y`.
 
     It HAS to be. While no wall could show lowercase, spelling yellow as `y` was safe. Once
     one can, `y` is the letter y — and reading the board back would have turned the y of
@@ -97,22 +97,22 @@ def test_a_note_shaped_message_lands_cell_for_cell():
 
 
 def test_a_flagship_message_is_compacted_onto_the_wall():
-    """A 6x22 client centres its text inside the board, so the payload is mostly blank
+    """A 6x22 client centers its text inside the board, so the payload is mostly blank
     padding. Cropping the top-left corner would show blank rows; compacting shows the
     message."""
     flagship = ["", "", "     HELLO WORLD", "     FROM VESTABOARD", "", ""]
     page = vb.fit(vb.decode(_matrix(flagship, 22)), ROWS, COLS)
     lines = [page[i * COLS:(i + 1) * COLS] for i in range(ROWS)]
-    # Two content rows can't centre exactly in three, so they sit at the top.
+    # Two content rows can't center exactly in three, so they sit at the top.
     assert [l.strip() for l in lines] == ["HELLO WORLD", "FROM VESTABOARD", ""]
     assert len(page) == ROWS * COLS
     # The block moves as a block: only the shared margin is trimmed, so the sender's
-    # relative alignment survives (lines are NOT re-centred one by one, which would
+    # relative alignment survives (lines are NOT re-centered one by one, which would
     # scramble something like a right-aligned column of numbers).
     assert lines[0] == "HELLO WORLD".ljust(COLS)
 
 
-def test_a_narrow_block_is_centred_on_the_wall():
+def test_a_narrow_block_is_centered_on_the_wall():
     page = vb.fit(vb.decode(_matrix(["", "         HI", ""], 22)), ROWS, COLS)
     assert page[COLS:COLS * 2] == "HI".center(COLS)
 
@@ -124,11 +124,11 @@ def test_an_all_blank_message_clears_the_board():
 
 def test_overlong_content_is_cropped_not_wrapped():
     page = vb.fit(vb.decode(_matrix(["X" * 30], 30)), ROWS, COLS)
-    assert page[COLS:COLS * 2] == "X" * COLS      # centred vertically, cropped to width
+    assert page[COLS:COLS * 2] == "X" * COLS      # centered vertically, cropped to width
 
 
 # --- the {"text": ...} extension ---------------------------------------------
-def test_text_is_wrapped_and_centred():
+def test_text_is_wrapped_and_centered():
     page = vb.layout_text("HELLO WORLD FROM HOME ASSISTANT", ROWS, COLS)
     lines = [page[i * COLS:(i + 1) * COLS] for i in range(ROWS)]
     assert [l.strip() for l in lines] == ["HELLO WORLD", "FROM HOME", "ASSISTANT"]
@@ -136,7 +136,7 @@ def test_text_is_wrapped_and_centred():
     assert lines[0] == "HELLO WORLD".center(COLS)
 
 
-def test_text_honours_explicit_newlines():
+def test_text_honors_explicit_newlines():
     page = vb.layout_text("ONE\nTWO", ROWS, COLS)
     lines = [page[i * COLS:(i + 1) * COLS] for i in range(ROWS)]
     assert [l.strip() for l in lines] == ["ONE", "TWO", ""]
@@ -193,7 +193,7 @@ def test_post_a_matrix_takes_over_the_display(client):
     assert r.status_code == 201 and r.json() == {"ok": True}
     # send_text_bg is the same call a compose push makes: it cancels any running app.
     assert client.sent["text"] == "".join(rows)
-    # NOT a frame: the codec already turned every colour chip into a COLOUR (its own
+    # NOT a frame: the codec already turned every color chip into a COLOR (its own
     # codepoint), so no lowercase letter here is standing in for one.
     assert client.sent["frame"] is False
 
@@ -211,14 +211,14 @@ def test_post_text_the_home_assistant_way(client):
     assert "hello world" in client.sent["text"]     # uppercased: there are no lowercase flaps
 
 
-def test_colour_chips_become_colour_flaps(client):
-    """A Vestaboard colour chip must reach the wall as a COLOUR. It used to be spelled as
+def test_color_chips_become_color_flaps(client):
+    """A Vestaboard color chip must reach the wall as a COLOR. It used to be spelled as
     the letter `r`, which on a wall that can show lowercase would have written the letter."""
     from app import renderer
     client.post("/local-api/message", json=[[63, 64, 65, 66, 67, 68, 69]], headers=AUTH)
     sent = client.sent["text"]
     assert all(renderer.COLOR_PUA[c] in sent for c in "roygbpw")
-    assert "roygbpw" not in sent, "a colour chip must not be spelled as letters"
+    assert "roygbpw" not in sent, "a color chip must not be spelled as letters"
 
 
 def test_read_back_the_live_board(client, monkeypatch):

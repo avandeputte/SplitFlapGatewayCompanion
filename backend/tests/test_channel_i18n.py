@@ -3,7 +3,7 @@
 A channel app ships its default pages in data.json and may add translations as
 ``data_<lang>.json`` sidecars. The pages served must follow the effective Language
 with the same precedence a functional app's Localizer gets: an exact locale wins,
-then the base language, then data.json. These pin that behaviour -- and pin the
+then the base language, then data.json. These pin that behavior -- and pin the
 fallback, which is what keeps an untranslated language from rendering blanks.
 """
 import json
@@ -49,7 +49,7 @@ PAGES = {
     ("en-US", "HELLO"),      # no translation -> data.json
     ("fr",    "BONJOUR"),    # exact match on the base language
     ("fr-BE", "BONJOUR"),    # regional variant falls back to its base language
-    ("fr_CA", "BONJOUR"),    # underscore form is normalised
+    ("fr_CA", "BONJOUR"),    # underscore form is normalized
     ("DE",    "HALLO"),      # case-insensitive
     ("de-AT", "HALLO"),
     ("pt-BR", "OLA BRASIL"), # exact locale beats the base language...

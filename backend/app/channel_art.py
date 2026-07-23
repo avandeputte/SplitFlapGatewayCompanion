@@ -46,7 +46,7 @@ def _shadow(d, x, y, s, f, col, sh=(0, 0, 0)):
 
 
 def _wrap(font, text, box_w):
-    """Word-wrap to box_w, honouring explicit newlines as hard breaks (so a quote's ``- Author``
+    """Word-wrap to box_w, honoring explicit newlines as hard breaks (so a quote's ``- Author``
     keeps its own line) and collapsing any other whitespace."""
     lines = []
     for para in str(text).split("\n"):

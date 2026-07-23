@@ -117,7 +117,7 @@ def test_escapes_are_unescaped():
     assert evs[0]["summary"] == "Lunch, then a walk; maybe"
 
 
-def test_a_cancelled_event_is_not_shown():
+def test_a_canceled_event_is_not_shown():
     evs = _parse(_ics(
         _vevent("DTSTART:20260716T130000Z", "SUMMARY:Called off", "STATUS:CANCELLED"),
         _vevent("DTSTART:20260716T140000Z", "SUMMARY:Still on", "STATUS:CONFIRMED"),

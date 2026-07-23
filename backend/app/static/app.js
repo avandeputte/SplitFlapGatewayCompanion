@@ -1,10 +1,10 @@
 // SplitFlapGatewayCompanion — SPA (vanilla JS, no build step).
 // Live preview + click-to-type compose grid + settings.
 
-// Lowercase r/o/y/g/b/p/w are COLOUR flaps; uppercase letters are letters.
+// Lowercase r/o/y/g/b/p/w are COLOR flaps; uppercase letters are letters.
 // Case-sensitive in the preview: 'y' = yellow tile, 'Y' = the letter Y.
-// A colour flap is its own codepoint (U+E000..U+E006), not the letter r/o/y/g/b/p/w.
-// It has to be: a wall that can show lowercase can show the LETTER r, and colouring every
+// A color flap is its own codepoint (U+E000..U+E006), not the letter r/o/y/g/b/p/w.
+// It has to be: a wall that can show lowercase can show the LETTER r, and coloring every
 // `o` would put an orange flap in the middle of "Hello". The server sends
 // the same sentinel it sends the wall (renderer.COLOR_PUA).
 const COLOR_CODES = ["r", "o", "y", "g", "b", "p", "w"];
@@ -138,7 +138,7 @@ function classForChar(ch) {
   return c ? `flap color-${c}` : "flap";
 }
 function glyph(ch) {
-  // colour codes (lowercase) render as an empty coloured tile
+  // color codes (lowercase) render as an empty colored tile
   return COLOR_PUA[ch] ? "" : (ch || "");
 }
 
@@ -315,11 +315,11 @@ function startPreview() {
 }
 
 // ---- compose ---------------------------------------------------------------
-// A cell holds one of: "" (blank), a typed character, or a COLOUR EMOJI.
+// A cell holds one of: "" (blank), a typed character, or a COLOR EMOJI.
 //
-// Colours are held as the emoji tile, not as the r/o/y/g/b/p/w code, and that is
+// Colors are held as the emoji tile, not as the r/o/y/g/b/p/w code, and that is
 // load-bearing. The server's normalize() uppercases the text BEFORE mapping emoji
-// to colour codes, so a bare lowercase "r" would come back as the LETTER R and the
+// to color codes, so a bare lowercase "r" would come back as the LETTER R and the
 // cell would show an R instead of turning red. Going through the emoji is the only
 // representation that survives the round trip -- and it is also what lets a typed
 // "r" stay a letter, which is the whole point of the case distinction the preview
@@ -394,7 +394,7 @@ function cmpText() {
   for (let r = 0; r < rows; r++) {
     let row = CMP.slice(r * cols, (r + 1) * cols).map((v) => v || " ");
     if ($("cmpCenter").checked) {
-      // Centre what was typed within the row, without disturbing the grid itself.
+      // Center what was typed within the row, without disturbing the grid itself.
       let a = 0, b = row.length;
       while (a < b && row[a] === " ") a++;
       while (b > a && row[b - 1] === " ") b--;
@@ -439,10 +439,10 @@ function cmpBuild() {
   Object.keys(EMOJI2CODE).forEach((emoji) => {
     const code = EMOJI2CODE[emoji];
     const b = el("button", "swatch");
-    // The map's blank entry (⬛ -> " ") is a blank flap, not a colour.
+    // The map's blank entry (⬛ -> " ") is a blank flap, not a color.
     const blank = code.trim() === "";
     b.classList.add(blank ? "swatch-blank" : `color-${code}`);
-    b.title = blank ? t("Blank") : t("Colour %s", code);
+    b.title = blank ? t("Blank") : t("Color %s", code);
     b.addEventListener("click", () => {
       $("cmpCatcher").focus();
       cmpSet(blank ? "" : emoji);
@@ -991,7 +991,7 @@ function buildForm(schema, initial, { skip } = {}) {
     wrap._getValue = () => ta.value; wrap._setValue = (v) => { ta.value = v; };
   } else if (f.type === "entity_table") {
     // A table of entities: reorder, rename, and set numeric thresholds in one place.
-    // Serialises to the app's `entity_id | Name | low,high` config (one line per row, in order).
+    // Serializes to the app's `entity_id | Name | low,high` config (one line per row, in order).
     let rows = parseEntityRows(val);
     const box = el("div", "entity-table");
     // The header is visual scaffolding — each input below carries its own aria-label, so hide the
@@ -1190,7 +1190,7 @@ function buildForm(schema, initial, { skip } = {}) {
       wrap.appendChild(inp);
     }
   }
-    // A statically disabled field (e.g. a Matrix-only toggle on a flap wall): grey it and lock
+    // A statically disabled field (e.g. a Matrix-only toggle on a flap wall): gray it and lock
     // every control, including the button-segmented toggle that `disabled_when` can't reach.
     if (f.disabled) {
       wrap.classList.add("disabled");

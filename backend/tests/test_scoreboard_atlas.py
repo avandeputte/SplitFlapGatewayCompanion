@@ -81,7 +81,7 @@ def test_scoreboard_refetches_when_the_follow_changes():
     assert calls == ["nba", "epl:ARS"]
 
 
-def test_a_missing_logo_falls_back_to_a_colour_chip():
+def test_a_missing_logo_falls_back_to_a_color_chip():
     m = _load()
     m._logo_tile = lambda url, size, cache: None        # no logo fetchable
     m._games = lambda follow, filt: _slate(2)
@@ -89,4 +89,4 @@ def test_a_missing_logo_falls_back_to_a_colour_chip():
     cv = _Cv()
     m.fetch_matrix({"follow": "nba"}, cv)
     assert m.fetch_matrix.__dict__["_state"]["sheet"] == []    # nothing uploaded
-    assert cv.blits == []                               # drawn as colour chips, not sprites
+    assert cv.blits == []                               # drawn as color chips, not sprites

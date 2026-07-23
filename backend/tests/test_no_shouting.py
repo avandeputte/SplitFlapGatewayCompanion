@@ -12,9 +12,9 @@ exactly why it needs a test. It went unnoticed through a whole release: the apps
 de-shouted, the app CODE was not, and so every app still shouted on a Matrix Portal.
 
 THE ONE EXCEPTION: an animation app (``"animation": true``) has its page sent RAW, and on that
-path a lowercase letter is not a letter at all — it is a COLOUR FLAP (``r`` red, ``o`` orange,
+path a lowercase letter is not a letter at all — it is a COLOR FLAP (``r`` red, ``o`` orange,
 ``y`` yellow, ``g`` green, ``b`` blue, ``p`` violet, ``w`` white). De-shouting one of those
-would silently turn its text into coloured squares, so their capitals are load-bearing and
+would silently turn its text into colored squares, so their capitals are load-bearing and
 they are skipped entirely.
 """
 
@@ -71,7 +71,7 @@ CODES = {
                         "VIPER", "MAGMA", "IRON", "DOOM", "SKULL", "GHOST", "ARMY", "NAVY",
                         "USMC", "USCG", "AFSOC", "DUKE", "BOXER",
                         "OPENSKY", "FLTAWARE", "FLIGHTAWARE", "AIRLABS", "AVSTACK"},
-    # Internal severity/colour tokens, mapped to a coloured tile before anything is shown.
+    # Internal severity/color tokens, mapped to a colored tile before anything is shown.
     "weather": {"GREEN", "YELLOW", "ORANGE", "RED", "NONE", "UNKNOWN"},
     # Column labels for the satellite's position — abbreviations, not words.
     "iss": {"LAT", "LON"},
@@ -89,7 +89,7 @@ def _apps():
         except ValueError:
             continue
         if m.get("animation"):
-            continue          # its capitals are colour flaps — see the module docstring
+            continue          # its capitals are color flaps — see the module docstring
         if "matrix" in (m.get("surfaces") or ["flap"]):
             # An app that draws on a Matrix panel (matrix-only or dual-surface) renders its own
             # pixels with a real font (Pillow) straight onto the panel — never through renderer.fold.

@@ -43,7 +43,7 @@ def test_the_worst_sky_describes_the_day():
 
 # ---------------------------------------------------------------------------
 # scales -> (label, band): the label speaks the provider's scale, the band is
-# canonical so one colour map fits all
+# canonical so one color map fits all
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("fn,val,label,band", [
     (weather.us_aqi_level, 42, "Good", "good"),

@@ -1,8 +1,8 @@
-"""Weather Sky — the weather as a rich, colourful scene on a Matrix panel.
+"""Weather Sky — the weather as a rich, colorful scene on a Matrix panel.
 
 A canvas app (surface: canvas). It renders a whole frame with Pillow and pushes it
 (PUT /api/canvas/frame) on a black (unlit) background — bright content reads best on an LED
-panel — with a glowing sun by day or a moon and coloured stars by night, drifting cloud, and
+panel — with a glowing sun by day or a moon and colored stars by night, drifting cloud, and
 rain or snow that falls. Over it sits the numbers: a big temperature, the condition, today's
 high/low, and the place.
 
@@ -125,7 +125,7 @@ def fetch_matrix(settings, canvas, get_weather=None):
     img = canvas.blank((0, 0, 0))               # black — bright weather elements read best on unlit pixels
     draw = ImageDraw.Draw(img)
 
-    # --- celestial: a crisp sun (day) or moon + coloured stars (night) ----------
+    # --- celestial: a crisp sun (day) or moon + colored stars (night) ----------
     # No soft glow — a blurred halo reads as an ugly gradient on the unlit black panel, so the
     # sun and moon are drawn as clean discs.
     icx, icy, ir = W - int(H * 0.42) - 1, int(H * 0.40), max(4, int(H * 0.26))
@@ -145,7 +145,7 @@ def fetch_matrix(settings, canvas, get_weather=None):
             _disc(draw, icx, icy, max(1, ir - 2), (255, 226, 120))
 
     # --- clouds: one resting by the sun/moon, one drifting across — both clearly cloud-SHAPED
-    # (three overlapping grey discs) so a cloud never reads as a lone white ball on the black sky.
+    # (three overlapping gray discs) so a cloud never reads as a lone white ball on the black sky.
     if sky in _CLOUDY:
         dark = sky in ('storm', 'hail')
         cc = (70, 74, 88) if dark else (150, 156, 172)

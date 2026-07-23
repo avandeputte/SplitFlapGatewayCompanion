@@ -148,7 +148,7 @@ def build(displays) -> FastMCP:
         out = {
             "rows": rows,
             "cols": cols,
-            # A colour flap has no letter to be reported as (the letter r is now the
+            # A color flap has no letter to be reported as (the letter r is now the
             # letter r), so it comes back as the tile a person would have typed.
             "lines": ["".join(renderer.for_text(c) for c in chars[r * cols:(r + 1) * cols])
                       for r in range(rows)],
@@ -171,7 +171,7 @@ def build(displays) -> FastMCP:
     @mcp.tool()
     async def show_message(text: str, style: str | None = None,
                            seconds: int | None = None, display: str = "") -> dict:
-        """Show text on the display, centred and word-wrapped (newlines force a line break).
+        """Show text on the display, centered and word-wrapped (newlines force a line break).
 
         `display` picks the wall (see list_displays); omit it for the default one.
 
@@ -194,8 +194,8 @@ def build(displays) -> FastMCP:
         # The wall folds the case, last, for everyone (engine._normalize) — a physical board
         # has no lowercase flaps; a Matrix Portal has them and keeps the text as written. We
         # only fold the lines we REPORT, so what we tell the caller matches what it will see.
-        # and layout_text is the shared "centre it on the wall" layout. The result is
-        # final characters, so it must go out raw — otherwise a colour flap (lowercase
+        # and layout_text is the shared "center it on the wall" layout. The result is
+        # final characters, so it must go out raw — otherwise a color flap (lowercase
         # r/o/y/g/b/p/w) would be uppercased into a letter.
         # NOT folded here: the wall does that, last, for everyone (engine._normalize). The
         # `lines` we report back are folded to match what the wall will actually show.

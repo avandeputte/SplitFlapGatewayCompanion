@@ -16,7 +16,7 @@ from app.state import DisplayState
 
 
 def test_normalize_basics():
-    """normalize() sizes the page and makes its colours explicit. It does NOT fold the case:
+    """normalize() sizes the page and makes its colors explicit. It does NOT fold the case:
     whether to uppercase is a property of the WALL, not of the text, so the engine does it
     last, once, for everyone (renderer.fold). A Matrix Portal shows "hello"."""
     out = renderer.normalize("hello", 15)
@@ -36,7 +36,7 @@ def test_normalize_passes_characters_through():
 
 
 def test_normalize_emoji_color_tiles():
-    """A colour tile becomes a COLOUR — its own codepoint, not the letter r or g. It has to
+    """A color tile becomes a COLOR — its own codepoint, not the letter r or g. It has to
     be: a wall that can show lowercase can show the letter r, so a page must say which it
     meant. On the wire a split-flap still gets the byte `r` (renderer.for_legacy)."""
     out = renderer.normalize("\U0001f7e5\U0001f7e9", 2)
@@ -44,13 +44,13 @@ def test_normalize_emoji_color_tiles():
     assert "".join(renderer.for_legacy(c) for c in out) == "rg"
 
 
-def test_a_frames_lowercase_is_a_colour():
-    """An animation draws with lowercase r/o/y/g/b/p/w — the only way it can ask for a colour
+def test_a_frames_lowercase_is_a_color():
+    """An animation draws with lowercase r/o/y/g/b/p/w — the only way it can ask for a color
     flap. `frame=True` is what says so, and it must survive."""
     out = renderer.normalize("roygbpw", 7, frame=True)
     assert [renderer.PUA_TO_NAME[c] for c in out] == \
         ["red", "orange", "yellow", "green", "blue", "purple", "white"]
-    assert renderer.fold(out) == out, "folding must never eat a colour"
+    assert renderer.fold(out) == out, "folding must never eat a color"
 
 
 def test_words_keep_their_letters():

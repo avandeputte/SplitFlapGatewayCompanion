@@ -361,7 +361,7 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
 
 
 def _cv_when(dt, days, i18n):
-    """The countdown line and its colour: 'TODAY' (green) or 'IN N DAYS' (amber)."""
+    """The countdown line and its color: 'TODAY' (green) or 'IN N DAYS' (amber)."""
     def t(s):
         return i18n.t(s, 'time') if i18n is not None else s
     if days <= 0:
@@ -426,7 +426,7 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
         _cv_shadow(draw, rx, H - 3 - ch - cb[1], when, cf, when_col)
         return img
 
-    # Compact: a coloured date strip across the top, the wrapped name filling the rest.
+    # Compact: a colored date strip across the top, the wrapped name filling the rest.
     strip = f'{dow} {mon} {day}'
     sf = _cv_fit(canvas, strip, W - 6, max(7, int(H * 0.30)))
     sb = sf.getbbox(strip)

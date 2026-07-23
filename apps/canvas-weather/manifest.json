@@ -2,7 +2,7 @@
   "id": "canvas-weather",
   "name": "Weather Sky",
   "icon": "🌦️",
-  "description": "A colourful animated weather sky (Matrix panel)",
+  "description": "A colorful animated weather sky (Matrix panel)",
   "type": "functional",
   "surfaces": ["matrix"],
   "refresh_interval": 1,

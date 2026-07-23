@@ -4,7 +4,7 @@ A canvas app that uses the panel's native scrolling ticker (POST /api/canvas/tic
 companion sends the text ONCE and the panel scrolls it smoothly itself, nothing streamed
 frame by frame — so it stays butter-smooth where a pushed-frame crawl janked. The source is
 a custom message or a live RSS feed (its headlines joined into one crawl). On a wall too old
-for the native ticker it falls back to a static centred line.
+for the native ticker it falls back to a static centered line.
 """
 
 _COLORS = {
@@ -33,7 +33,7 @@ def _headlines(feed_url):
 
 
 def _static(canvas, text, color):
-    """No native ticker on this wall: draw the text as a single centred line, trimmed to fit."""
+    """No native ticker on this wall: draw the text as a single centered line, trimmed to fit."""
     from PIL import ImageDraw
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)

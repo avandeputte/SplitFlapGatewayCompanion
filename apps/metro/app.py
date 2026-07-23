@@ -1,8 +1,58 @@
+# =============================================================================
+# SHARED — the MBTA data: next arrival per direction and where each direction
+# goes. Both surfaces read these, so a wall and a panel always show the same
+# trains in the same order.
+# =============================================================================
+
+def _next_arrivals(stop, route):
+    """The first predicted arrival per direction, as ``{direction_id: minutes}``.
+    Raises on a network failure — the caller decides what an error looks like."""
+    import requests
+    from datetime import datetime, timezone
+    r = requests.get(
+        'https://api-v3.mbta.com/predictions',
+        params={'filter[stop]': stop, 'filter[route]': route, 'sort': 'arrival_time'},
+        timeout=10
+    ).json()
+    preds = {}
+    now = datetime.now(timezone.utc)
+    for p in r.get('data', []):
+        arr = p['attributes'].get('arrival_time')
+        d_id = p['attributes'].get('direction_id', 0)
+        if arr and d_id not in preds:
+            dt = datetime.fromisoformat(arr)
+            preds[d_id] = max(0, int((dt - now).total_seconds() // 60))
+    return preds
+
+
+def _destinations(route):
+    """Where each direction actually GOES — "Forest Hills", not "Dir0". The route
+    carries a destination per direction_id; it never changes, so look it up once
+    and cache it. An empty mapping is the fallback if the lookup ever fails."""
+    import requests
+    cache = getattr(_destinations, '_cache', None)
+    if cache is None:
+        cache = {}
+        setattr(_destinations, '_cache', cache)
+    if route not in cache:
+        try:
+            rt = requests.get(f'https://api-v3.mbta.com/routes/{route}', timeout=8).json()
+            dd = (rt.get('data') or {}).get('attributes', {}).get('direction_destinations') or []
+            cache[route] = {i: name for i, name in enumerate(dd) if name}
+        except Exception:
+            cache[route] = {}
+    return cache[route]
+
+
+# =============================================================================
+# SPLIT-FLAP — fetch(), its column layout, and the arrival/alert trigger.
+# =============================================================================
+
 def _columns(pairs, cols, gap=3):
     """Two aligned columns — destination flush left, time flush right — kept together
-    as one CENTRED block rather than pinned to the wall's edges.
+    as one CENTERED block rather than pinned to the wall's edges.
 
-    format_lines centres each line, so the block is only as wide as its content plus a
+    format_lines centers each line, so the block is only as wide as its content plus a
     small gap: on a wide wall the destination and its time sit together in the middle
     instead of stranded at opposite ends. The times still line up in a column (every
     line the same width). A narrow wall falls back to the full width, trimming the
@@ -21,9 +71,6 @@ def _columns(pairs, cols, gap=3):
 
 
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
-    import requests
-    from datetime import datetime, timezone
-
     def t(s):
         return i18n.t(s, "transit") if i18n is not None else s
 
@@ -33,36 +80,9 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     route = settings.get('mbta_route', 'Orange')
     rows, cols = get_rows(), get_cols()
     try:
-        r = requests.get(
-            'https://api-v3.mbta.com/predictions',
-            params={'filter[stop]': stop, 'filter[route]': route, 'sort': 'arrival_time'},
-            timeout=10
-        ).json()
-        preds = {}
-        now = datetime.now(timezone.utc)
-        for p in r.get('data', []):
-            arr = p['attributes'].get('arrival_time')
-            d_id = p['attributes'].get('direction_id', 0)
-            if arr and d_id not in preds:
-                dt = datetime.fromisoformat(arr)
-                mins = max(0, int((dt - now).total_seconds() // 60))
-                preds[d_id] = f'{mins} {t("min")}'
-
-        # Where each direction actually GOES — "Forest Hills", not "Dir0". The route
-        # carries a destination per direction_id; it never changes, so look it up once
-        # and cache it. A generic label is the fallback if the lookup ever fails.
-        cache = getattr(fetch, '_dests', None)
-        if cache is None:
-            cache = {}
-            setattr(fetch, '_dests', cache)
-        if route not in cache:
-            try:
-                rt = requests.get(f'https://api-v3.mbta.com/routes/{route}', timeout=8).json()
-                dd = (rt.get('data') or {}).get('attributes', {}).get('direction_destinations') or []
-                cache[route] = {i: name for i, name in enumerate(dd) if name}
-            except Exception:
-                cache[route] = {}
-        dests = cache[route]
+        mins = _next_arrivals(stop, route)
+        preds = {d_id: f'{m} {t("min")}' for d_id, m in mins.items()}
+        dests = _destinations(route)
 
         def dname(d_id):
             return dests.get(d_id) or f'Dir{d_id}'
@@ -140,3 +160,150 @@ def trigger(settings, conditions):
     except Exception:
         raise
     return False
+
+
+# =============================================================================
+# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+#
+# A departure board: the line's own color as a header bar, then one row per
+# direction — destination left, minutes right, the minutes color-coded by
+# urgency (due now, soon, later). Black background, no gradient.
+# =============================================================================
+
+# The MBTA's own line colors, keyed by the route id's first word.
+_LINE_COLORS = {
+    'orange': (237, 139, 0),
+    'red': (218, 41, 28),
+    'blue': (0, 61, 165),
+    'green': (0, 132, 61),
+    'mattapan': (218, 41, 28),
+    'silver': (124, 135, 142),
+    'cr': (128, 39, 108),                   # commuter rail purple
+}
+_STEEL = (100, 110, 125)                    # an unknown route
+_WHITE = (240, 240, 244)
+_GRAY = (150, 150, 158)
+_DUE = (240, 70, 60)                        # <= 2 min: run
+_SOON = (255, 180, 60)                      # <= 5 min: go now
+_LATER = (100, 220, 120)                    # time to spare
+
+
+def _cv_fit(canvas, text, max_w, max_h):
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
+    size = max(5, int(max_h) + 2)
+    font = canvas.font(size)
+    for _ in range(80):
+        b = font.getbbox(text or '0')
+        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+            return font
+        size -= 1
+        font = canvas.font(size)
+    return font
+
+
+def _cv_ellipsis(font, text, max_w):
+    """``text`` cut with an ellipsis to fit ``max_w`` at this font (full text if it fits)."""
+    if font.getlength(text) <= max_w:
+        return text
+    while text and font.getlength(text + '…') > max_w:
+        text = text[:-1].rstrip()
+    return (text + '…') if text else ''
+
+
+def _cv_message(canvas, ImageDraw, line1, line2):
+    """A quiet two-line message (API unreachable / bad config)."""
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
+    b1 = f1.getbbox(line1)
+    h1 = b1[3] - b1[1]
+    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
+    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
+    gap = 3 if line2 else 0
+    y = (H - (h1 + gap + h2)) / 2.0
+    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_WHITE)
+    if line2:
+        y += h1 + gap
+        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_GRAY)
+    return img
+
+
+def _cv_line_color(route):
+    return _LINE_COLORS.get(str(route).lower().split('-')[0], _STEEL)
+
+
+def _cv_minutes(mins):
+    """(text, color) for a minutes-away value — 'DUE' red under two minutes."""
+    if mins is None:
+        return '--', _GRAY
+    if mins <= 1:
+        return 'DUE', _DUE
+    if mins <= 2:
+        return f'{mins}', _DUE
+    if mins <= 5:
+        return f'{mins}', _SOON
+    return f'{mins}', _LATER
+
+
+def fetch_matrix(settings, canvas):
+    """Draw the stop as a departure board: line-color header, a row per direction with the
+    destination and color-coded minutes. Predictions move by the minute — redraw every 30s."""
+    from PIL import ImageDraw
+
+    stop = settings.get('mbta_stop', 'place-NSTAT')
+    route = settings.get('mbta_route', 'Orange')
+    try:
+        mins = _next_arrivals(stop, route)
+        dests = _destinations(route)
+    except Exception:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'METRO', 'CHECK CONFIG'))
+        return 60.0
+
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+    color = _cv_line_color(route)
+
+    # Header: the line's color as a full-width bar with the route's name on it.
+    title = f'{route} LINE'.replace('-', ' ').upper() if W >= 96 else str(route).upper()
+    bar_h = max(9, int(H * 0.24))
+    draw.rectangle([0, 0, W - 1, bar_h - 1], fill=color)
+    tf = _cv_fit(canvas, title, W - 8, bar_h - 3)
+    tb = tf.getbbox(title)
+    draw.text(((W - tf.getlength(title)) / 2.0, (bar_h - 1 - (tb[3] - tb[1])) / 2.0 - tb[1]),
+              title, font=tf, fill=_WHITE)
+
+    # One row per direction: destination left, minutes right, urgency-colored.
+    rows = []
+    for d_id in (0, 1):
+        dest = str(dests.get(d_id) or f'Dir {d_id}').upper()
+        rows.append((dest, *_cv_minutes(mins.get(d_id))))
+
+    area_top = bar_h + 1
+    row_h = (H - area_top - 1) // 2
+    unit = ' MIN' if W >= 128 else ''
+    for i, (dest, mtxt, mcol) in enumerate(rows):
+        ry = area_top + i * row_h
+        mm = mtxt if (mtxt in ('DUE', '--') or not unit) else f'{mtxt}{unit}'
+        mf = _cv_fit(canvas, mm, int(W * 0.4), row_h - 2)
+        mb = mf.getbbox(mm)
+        mw = mf.getlength(mm)
+        draw.text((W - 3 - mw, ry + (row_h - (mb[3] - mb[1])) / 2.0 - mb[1]), mm, font=mf, fill=mcol)
+        # The whole destination at the largest size that fits the row; only when even
+        # that would drop below readable, hold a readable size and ellipsise instead.
+        avail = W - 8 - mw
+        df = _cv_fit(canvas, dest, avail, row_h - 2)
+        dtext = dest
+        if (df.getbbox(dest)[3] - df.getbbox(dest)[1]) < 6:
+            df = _cv_fit(canvas, '0', avail, 7)              # readable floor; whole name if it fits
+            dtext = _cv_ellipsis(df, dest, avail)
+        db = df.getbbox(dtext or '0')
+        draw.text((3, ry + (row_h - (db[3] - db[1])) / 2.0 - db[1]), dtext, font=df, fill=_WHITE)
+        if i == 0:
+            draw.line([(2, area_top + row_h), (W - 3, area_top + row_h)], fill=(45, 50, 60))
+
+    canvas.frame(img)
+    return 30.0

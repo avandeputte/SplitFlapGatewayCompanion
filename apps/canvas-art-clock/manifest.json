@@ -2,7 +2,7 @@
   "id": "canvas-art-clock",
   "name": "Lumina Clock",
   "icon": "🕰️",
-  "description": "The time as luminous colour digits (Matrix panel)",
+  "description": "The time as luminous color digits (Matrix panel)",
   "type": "functional",
   "surfaces": ["matrix"],
   "refresh_interval": 1,

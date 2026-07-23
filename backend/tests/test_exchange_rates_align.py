@@ -1,5 +1,5 @@
 """Exchange rates line their decimal points up into a column. Since format_lines
-centres each line on its own, that only holds if every rate line is the same
+centers each line on its own, that only holds if every rate line is the same
 length — so the app splits each value on the locale decimal separator,
 right-justifies the integer part and left-justifies the fraction. A whole-number
 rate (JPY) leaves the fraction column blank but keeps the point aligned."""
@@ -41,7 +41,7 @@ def test_decimal_points_align_across_rate_rows(monkeypatch):
 
 
 def test_all_rate_lines_share_one_length(monkeypatch):
-    """The property that makes centring preserve the column."""
+    """The property that makes centering preserve the column."""
     _rates(monkeypatch, {"EUR": 0.923, "JPY": 149.0, "CHF": 1.35})
     app = load_app("exchange-rates")
     out = app.fetch({"base": "USD", "targets": "EUR,JPY,CHF"},

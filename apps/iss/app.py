@@ -1,27 +1,48 @@
-def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
-    import requests
+# =============================================================================
+# SHARED — the ISS data: where it is and who is aboard (open-notify, keyless).
+# Both surfaces read the same two endpoints, so a wall and a panel always put
+# the station at the same coordinates with the same crew.
+# =============================================================================
 
+def _iss_position():
+    """The station's position document, raw. Raises on a network failure."""
+    import requests
+    return requests.get('http://api.open-notify.org/iss-now.json', timeout=10).json()
+
+
+def _astros():
+    """The who-is-in-space document, raw. Raises on a network failure."""
+    import requests
+    return requests.get('http://api.open-notify.org/astros.json', timeout=10).json()
+
+
+def _coord(v, hemis, dec):
+    """A hemisphere letter instead of a sign: "41.00S 123.45W" is 14 wide where
+    the API's raw "LAT -41.0050 LON 123.4506" was 25 — which no small wall
+    showed; it was silently cut mid-longitude."""
+    f = float(v)
+    return f'{abs(f):.{dec}f}{hemis[0] if f >= 0 else hemis[1]}'
+
+
+# =============================================================================
+# SPLIT-FLAP — fetch() and the overhead/crew trigger, unique to the flap wall.
+# =============================================================================
+
+def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     def t(s):
         return i18n.t(s, "space") if i18n is not None else s
 
     try:
-        pos = requests.get('http://api.open-notify.org/iss-now.json', timeout=10).json()
-        ppl = requests.get('http://api.open-notify.org/astros.json', timeout=10).json()
+        pos = _iss_position()
+        ppl = _astros()
         lat = pos['iss_position']['latitude']
         lon = pos['iss_position']['longitude']
         num = ppl['number']
         rows = get_rows()
 
-        # A hemisphere letter instead of a sign: "41.00S 123.45W" is 14 wide where
-        # the API's raw "LAT -41.0050 LON 123.4506" was 25 — which no small wall
-        # showed; it was silently cut mid-longitude.
-        def coord(v, hemis, dec):
-            f = float(v)
-            return f'{abs(f):.{dec}f}{hemis[0] if f >= 0 else hemis[1]}'
-
         if rows == 1:
-            return [format_lines(f'ISS {coord(lat, "NS", 0)} {coord(lon, "EW", 0)}')]
-        pos_line = f'{coord(lat, "NS", 2)} {coord(lon, "EW", 2)}'
+            return [format_lines(f'ISS {_coord(lat, "NS", 0)} {_coord(lon, "EW", 0)}')]
+        pos_line = f'{_coord(lat, "NS", 2)} {_coord(lon, "EW", 2)}'
         if rows == 2:
             return [format_lines('ISS tracker', pos_line)]
         if rows >= 4:
@@ -123,3 +144,168 @@ def trigger(settings, conditions, get_location=None):
     except Exception:
         raise
     return False
+
+
+# =============================================================================
+# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+#
+# A tracker view: a lat/lon world grid with the station's sinusoidal ground
+# track (51.6° inclination) threaded through its live position, the ISS as an
+# amber crosshair marker, coordinates and crew count beside or beneath it.
+# Black background, no gradient.
+# =============================================================================
+
+_WHITE = (240, 240, 244)
+_GRAY = (150, 150, 158)
+_CYAN = (90, 200, 250)                      # the coordinates
+_AMBER = (255, 200, 60)                     # the station marker
+_GRID = (38, 48, 66)                        # the map graticule
+_EQUATOR = (58, 74, 100)
+_TRACK = (0, 110, 150)                      # the ground-track sinusoid
+_INCL = 51.6                                # ISS orbital inclination, degrees
+
+
+def _cv_fit(canvas, text, max_w, max_h):
+    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
+    size = max(5, int(max_h) + 2)
+    font = canvas.font(size)
+    for _ in range(80):
+        b = font.getbbox(text or '0')
+        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
+            return font
+        size -= 1
+        font = canvas.font(size)
+    return font
+
+
+def _cv_shadow(draw, x, y, text, font, fill):
+    """Text with a 1px dark outline on all sides, so it stays legible over the map."""
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)):
+        draw.text((x + dx, y + dy), text, font=font, fill=(0, 0, 0), anchor='la')
+    draw.text((x, y), text, font=font, fill=fill, anchor='la')
+
+
+def _cv_message(canvas, ImageDraw, line1, line2):
+    """A quiet two-line message (API unreachable)."""
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
+    b1 = f1.getbbox(line1)
+    h1 = b1[3] - b1[1]
+    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
+    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
+    gap = 3 if line2 else 0
+    y = (H - (h1 + gap + h2)) / 2.0
+    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_WHITE)
+    if line2:
+        y += h1 + gap
+        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_GRAY)
+    return img
+
+
+def _cv_map(draw, x0, y0, mw, mh, lat, lon):
+    """The world grid, the ground track through (lat, lon), and the station marker.
+    Equirectangular: the whole earth in the box."""
+    import math
+
+    def xy(la, lo):
+        return (x0 + (lo + 180.0) / 360.0 * (mw - 1),
+                y0 + (90.0 - la) / 180.0 * (mh - 1))
+
+    # graticule: meridians every 60°, parallels every 30°, the equator a shade brighter
+    for lo in range(-120, 180, 60):
+        x = int(round(xy(0, lo)[0]))
+        draw.line([(x, y0), (x, y0 + mh - 1)], fill=_GRID)
+    for la in (-60, -30, 30, 60):
+        y = int(round(xy(la, 0)[1]))
+        draw.line([(x0, y), (x0 + mw - 1, y)], fill=_GRID)
+    eq = int(round(xy(0, 0)[1]))
+    draw.line([(x0, eq), (x0 + mw - 1, eq)], fill=_EQUATOR)
+    draw.rectangle([x0, y0, x0 + mw - 1, y0 + mh - 1], outline=_GRID)
+
+    # the ground track: lat = incl * sin(k), threaded through the live fix (dotted)
+    k0 = math.asin(max(-1.0, min(1.0, lat / _INCL)))
+    for px in range(0, mw, 2):
+        dlon = (px / (mw - 1)) * 360.0 - 180.0
+        k = k0 + math.radians(dlon)
+        tla = _INCL * math.sin(k)
+        tlo = lon + dlon
+        tlo = ((tlo + 180.0) % 360.0) - 180.0
+        tx, ty = xy(tla, tlo)
+        draw.point((int(round(tx)), int(round(ty))), fill=_TRACK)
+
+    # the station: an amber crosshair with a white heart
+    mx, my = (int(round(v)) for v in xy(lat, lon))
+    arm = max(2, mh // 12)
+    draw.line([(mx - arm, my), (mx + arm, my)], fill=_AMBER)
+    draw.line([(mx, my - arm), (mx, my + arm)], fill=_AMBER)
+    draw.point((mx, my), fill=_WHITE)
+
+
+def fetch_matrix(settings, canvas, i18n=None):
+    """Draw the live fix on a world grid with the ground track. The station moves about four
+    degrees a minute, so a 15s redraw keeps the marker honest without hammering the API."""
+    from PIL import ImageDraw
+
+    try:
+        pos = _iss_position()
+        lat = float(pos['iss_position']['latitude'])
+        lon = float(pos['iss_position']['longitude'])
+    except Exception:
+        canvas.frame(_cv_message(canvas, ImageDraw, 'ISS TRACKER', 'API FAIL'))
+        return 60.0
+
+    crew = ''
+    try:
+        num = _astros().get('number')
+        if num:
+            crew = f'CREW {num}'
+    except Exception:
+        pass
+
+    coords = f'{_coord(lat, "NS", 1)} {_coord(lon, "EW", 1)}'
+    W, H = canvas.width, canvas.height
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+
+    if W >= 112 and H >= 48:
+        # Map on the left (2:1, the earth's own shape), text column on the right.
+        mh = H - 4
+        mw = min(int(W * 0.62), mh * 2 + 8)
+        _cv_map(draw, 2, 2, mw, mh, lat, lon)
+        tx = 2 + mw + 5
+        tw = W - 3 - tx
+        title = 'ISS'
+        tf = _cv_fit(canvas, title, tw, max(10, int(H * 0.3)))
+        tb = tf.getbbox(title)
+        draw.text((tx, 4 - tb[1]), title, font=tf, fill=_WHITE)
+        y = 4 + (tb[3] - tb[1]) + 4
+        cf = _cv_fit(canvas, _coord(lat, "NS", 1), tw, max(7, int(H * 0.17)))
+        for ln in (_coord(lat, "NS", 1), _coord(lon, "EW", 1)):
+            b = cf.getbbox(ln)
+            draw.text((tx, y - b[1]), ln, font=cf, fill=_CYAN)
+            y += (b[3] - b[1]) + 3
+        if crew:
+            bf = _cv_fit(canvas, crew, tw, max(7, int(H * 0.15)))
+            bb = bf.getbbox(crew)
+            if (bb[3] - bb[1]) >= 6:
+                draw.text((tx, H - 3 - (bb[3] - bb[1]) - bb[1]), crew, font=bf, fill=_AMBER)
+    else:
+        # Compact: the map fills the panel, the coordinates ride its lower edge.
+        # Degrade the caption rather than the type: full precision, then whole
+        # degrees, then the bare coordinates — the first that stays readable wins.
+        _cv_map(draw, 1, 1, W - 2, H - 2, lat, lon)
+        c0 = f'{_coord(lat, "NS", 0)} {_coord(lon, "EW", 0)}'
+        for line in (f'ISS {coords}', f'ISS {c0}', c0):
+            lf = _cv_fit(canvas, line, W - 6, max(7, int(H * 0.24)))
+            lb = lf.getbbox(line)
+            if (lb[3] - lb[1]) >= 6:
+                break
+        _cv_shadow(draw, (W - lf.getlength(line)) / 2.0, H - 3 - (lb[3] - lb[1]) - lb[1],
+                   line, lf, _WHITE)
+
+    canvas.frame(img)
+    return 15.0

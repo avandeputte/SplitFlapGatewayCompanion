@@ -3,7 +3,7 @@
 A canvas app: it reads entity states through the injected ``get_ha_states`` helper (the
 backend reaches HA via the Supervisor proxy in the add-on, or COMPANION_HA_URL/TOKEN
 standalone), then draws a black card per entity with a DEVICE ICON from a generated sprite
-atlas, a name, and the value — the card border and the value coloured by state, or by
+atlas, a name, and the value — the card border and the value colored by state, or by
 per-entity thresholds for numeric sensors.
 
 Bright content on BLACK reads best on an LED panel. Text goes through the injected ``canvas``
@@ -21,10 +21,10 @@ _N_ICONS = 11
 _ON = {'on', 'home', 'open', 'unlocked', 'playing', 'active', 'heat', 'cool', 'auto', 'detected'}
 _OFF = {'off', 'away', 'closed', 'locked', 'idle', 'standby', 'paused', 'not_home', 'clear'}
 _DEAD = {'unavailable', 'unknown', 'none', ''}
-# An LED panel is additive on black, so a colour only reads as its hue when the OFF channels
+# An LED panel is additive on black, so a color only reads as its hue when the OFF channels
 # stay low (high saturation). Pale mixes like a light blue with r=110 read as tinted white — so
 # these push the off channels down and keep one or two channels bright.
-_GREEN, _GREY, _BLUE, _RED, _AMBER = (46, 220, 90), (150, 160, 175), (48, 140, 255), (255, 60, 45), (255, 176, 0)
+_GREEN, _GRAY, _BLUE, _RED, _AMBER = (46, 220, 90), (150, 160, 175), (48, 140, 255), (255, 60, 45), (255, 176, 0)
 _SHORT = {'unlocked': 'OPEN', 'locked': 'LOCK', 'closed': 'SHUT', 'not_home': 'AWAY',
           'detected': 'DET', 'clear': 'CLR', 'standby': 'IDLE', 'playing': 'PLAY', 'paused': 'PAUS'}
 
@@ -65,13 +65,13 @@ def _entities(cfg_order):
 
 
 def _value(state, attrs, thr, cp):
-    """(text, colour). Numeric values with a threshold colour green/amber/red by band.
+    """(text, color). Numeric values with a threshold color green/amber/red by band.
     ``cp`` filters units/text to the panel's charset (pass ``canvas.cp``)."""
     st = str(state or '').lower()
     if st in _DEAD:
-        return '--', _GREY
+        return '--', _GRAY
     if st in _ON or st in _OFF:
-        return _SHORT.get(st, st.upper())[:5], (_GREEN if st in _ON else _GREY)
+        return _SHORT.get(st, st.upper())[:5], (_GREEN if st in _ON else _GRAY)
     try:
         f = float(state)
         unit = cp((attrs or {}).get('unit_of_measurement', '')).strip()
@@ -204,7 +204,7 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
         name = canvas.cp(cname or attrs.get('friendly_name') or eid.split('.', 1)[-1].replace('_', ' '))
         val, col = _value(s.get('state'), attrs, thr, canvas.cp)
 
-        canvas.roundrect(x + 1, y + 1, cw - 2, ch - 2, 3, col, fill=False)   # black card, coloured border
+        canvas.roundrect(x + 1, y + 1, cw - 2, ch - 2, 3, col, fill=False)   # black card, colored border
         top_h = ch - (10 if show_name else 0)                                # icon + value share the top band
         vx0 = x + 3
         if use_sprites:

@@ -1,13 +1,13 @@
-"""Forecast Ribbon — the day's temperature as a colour bar chart.
+"""Forecast Ribbon — the day's temperature as a color bar chart.
 
 A sibling of art-clock: a picture rather than a page of numbers. Two things make it work,
 and both are easy to get wrong:
 
   * It must declare `"animation": true`. That is what makes the companion send its page RAW,
-    which is what keeps its lowercase r/o/y/g/b/p/w meaning the COLOUR FLAPS instead of the
+    which is what keeps its lowercase r/o/y/g/b/p/w meaning the COLOR FLAPS instead of the
     letters r, o, y, g, b, p and w.
-  * HEIGHT is relative (the shape of this day) but COLOUR is absolute (whether that shape is
-    a warm one). A colour ramp normalised to the day would paint a freezing morning red
+  * HEIGHT is relative (the shape of this day) but COLOR is absolute (whether that shape is
+    a warm one). A color ramp normalized to the day would paint a freezing morning red
     merely because it was the warmest hour of a freezing day.
 """
 import json
@@ -54,9 +54,9 @@ def _cols(page, rows, cols):
     return ["".join(page[r * cols + c] for r in range(rows)) for c in range(cols)]
 
 
-def test_it_is_an_animation_or_its_colours_become_letters():
-    """The whole app is drawn in lowercase colour codes. Without this flag the companion
-    folds the page and every colour flap turns into the LETTER of the same name."""
+def test_it_is_an_animation_or_its_colors_become_letters():
+    """The whole app is drawn in lowercase color codes. Without this flag the companion
+    folds the page and every color flap turns into the LETTER of the same name."""
     m = json.loads((APPS / APP / "manifest.json").read_text("utf-8"))
     assert m["animation"] is True
 
@@ -80,8 +80,8 @@ def test_height_is_relative_to_the_window(stub):
     assert heights[0] < heights[1] < heights[2]
 
 
-def test_colour_is_absolute_not_relative(stub):
-    """…but the COLOUR of that warmest hour is still freezing-blue. A ramp normalised to the
+def test_color_is_absolute_not_relative(stub):
+    """…but the COLOR of that warmest hour is still freezing-blue. A ramp normalized to the
     day would paint it red for being the least-cold hour of an arctic afternoon."""
     stub([-10, -5, 0] + [-10] * 21)
     page = _page(5, 3)
@@ -97,11 +97,11 @@ def test_a_hot_day_is_red(stub):
 
 def test_the_bands_run_cold_to_hot(stub):
     stub([-10, 0, 5, 14, 22, 30] + [0] * 18)
-    page = _page(1, 6)                     # one row: just the colour ribbon
+    page = _page(1, 6)                     # one row: just the color ribbon
     assert page == "pbgyor"
 
 
-def test_mono_draws_blocks_instead_of_colours(stub):
+def test_mono_draws_blocks_instead_of_colors(stub):
     stub([20] * 24)
     page = _page(3, 4, disable_colors="yes")   # a GLOBAL, as weather reads it
     assert set(page) - {" "} == {"#"}

@@ -8,6 +8,12 @@ hour (halb drei = 2:30). Anything without a builder (or a bare host) falls back 
 the original English behavior.
 """
 
+# =============================================================================
+# SHARED — the phrase itself: vocabulary, per-language grammar builders and the
+# rounding rule. Both surfaces speak the same sentence; only the typography
+# differs (flap rows there, a lit-words face here).
+# =============================================================================
+
 # Hour words 1..12 (index 0 unused) and minute-number words 1..29, accent-free to
 # match the display's Windows-1252 rendering. Gender follows each language (es
 # una/uno for hour/minute, pt uma/um).
@@ -198,26 +204,33 @@ def _b_nl(h, rounded):
 _BUILDERS = {'fr': _b_fr, 'de': _b_de, 'es': _b_es, 'it': _b_it, 'pt': _b_pt, 'nl': _b_nl}
 
 
-def _wrap(words, cols):
-    """Greedily pack words into lines no wider than the display."""
-    lines, cur = [], ''
-    for w in words:
-        cand = w if not cur else f'{cur} {w}'
-        if len(cand) <= cols or not cur:
-            cur = cand
-        else:
-            lines.append(cur)
-            cur = w
-    if cur:
-        lines.append(cur)
-    return lines
+def _tznow(settings):
+    from datetime import datetime
+    import pytz
+    try:
+        tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.timezone('US/Eastern')
+    return datetime.now(tz)
 
 
-def _fit(words, cols, rows):
-    lines = _wrap(words, cols)
-    if rows and rows >= 1 and len(lines) > rows:      # collapse overflow into the last visible row
-        lines = lines[:rows - 1] + [' '.join(lines[rows - 1:])]
-    return lines
+def _rounded(now, interval):
+    """(display_hour_24, rounded_minute) after snapping to the interval — rolling
+    into the next hour when the snap lands on :60."""
+    h, m = now.hour, now.minute
+    rounded = round(m / interval) * interval
+    if rounded == 60:
+        rounded = 0
+        h = (h + 1) % 24
+    return h, rounded
+
+
+def _interval(settings):
+    try:
+        interval = int(settings.get('interval', '5'))
+    except (TypeError, ValueError):
+        interval = 5
+    return max(1, min(30, interval))
 
 
 def _english(h, rounded, cols):
@@ -260,27 +273,34 @@ def _english(h, rounded, cols):
     return ["It's", mw, direction + ' ' + target]
 
 
+# =============================================================================
+# SPLIT-FLAP — fetch() and its helpers, unique to the character-grid flap wall.
+# =============================================================================
+
+def _wrap(words, cols):
+    """Greedily pack words into lines no wider than the display."""
+    lines, cur = [], ''
+    for w in words:
+        cand = w if not cur else f'{cur} {w}'
+        if len(cand) <= cols or not cur:
+            cur = cand
+        else:
+            lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def _fit(words, cols, rows):
+    lines = _wrap(words, cols)
+    if rows and rows >= 1 and len(lines) > rows:      # collapse overflow into the last visible row
+        lines = lines[:rows - 1] + [' '.join(lines[rows - 1:])]
+    return lines
+
+
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
-    from datetime import datetime
-    import pytz
-    try:
-        tz = pytz.timezone(settings.get('timezone', 'US/Eastern'))
-    except pytz.UnknownTimeZoneError:
-        tz = pytz.timezone('US/Eastern')
-    now = datetime.now(tz)
-    h, m = now.hour, now.minute
-
-    try:
-        interval = int(settings.get('interval', '5'))
-    except (TypeError, ValueError):
-        interval = 5
-    interval = max(1, min(30, interval))
-
-    rounded = round(m / interval) * interval
-    if rounded == 60:
-        rounded = 0
-        h = (h + 1) % 24
-
+    h, rounded = _rounded(_tznow(settings), _interval(settings))
     cols, rows = get_cols(), get_rows()
     lang = (i18n.lang if i18n is not None else 'en')[:2].lower()
 
@@ -289,3 +309,178 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     else:
         lines = _english(h, rounded, cols)
     return [format_lines(*lines)]
+
+
+# =============================================================================
+# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+#
+# The classic word-clock face: a grid of words with the current phrase lit
+# bright (hour word in amber) and the rest dimly visible — QLOCKTWO-style, on a
+# panel with room for it (English face). Other languages, and panels too small
+# for six readable rows, get the same phrase as a lit sentence instead, its
+# copula dimmed. Both read the SAME builders as the flap view. Black background.
+# =============================================================================
+
+_LIT_COL = (245, 245, 248)      # a lit word
+_HOUR_COL = (255, 178, 44)      # the hour word, in amber
+_OFF_COL = (44, 47, 56)         # an unlit word — there, but asleep
+
+# The English face: each cell is (word, role, key); _lit_keys decides which
+# (role, key) pairs light for a given time. FIVE and TEN appear twice — once as
+# minutes, once as hours — and light independently, like the real faces do.
+_GRID_EN = [
+    [("IT'S", 'on', 0), ('QUARTER', 'min', 15), ('TWENTY', 'min', 20)],
+    [('FIVE', 'min', 5), ('TEN', 'min', 10), ('HALF', 'min', 30)],
+    [('PAST', 'dir', 'past'), ('TO', 'dir', 'to'), ('ONE', 'hr', 1), ('TWO', 'hr', 2)],
+    [('THREE', 'hr', 3), ('FOUR', 'hr', 4), ('FIVE', 'hr', 5), ('SIX', 'hr', 6)],
+    [('SEVEN', 'hr', 7), ('EIGHT', 'hr', 8), ('NINE', 'hr', 9), ('TEN', 'hr', 10)],
+    [('ELEVEN', 'hr', 11), ('TWELVE', 'hr', 12), ("O'CLOCK", 'min', 0)],
+]
+
+# Leading copulas dimmed in the sentence fallback (IT'S / IL EST / ES IST ...).
+_COPULAS = {"it's", 'il', 'est', 'es', 'ist', 'son', 'sono', 'le', 'la', 'las',
+            'sao', 'het', 'is', "e'"}
+
+
+def _lit_keys(h, rounded):
+    """Which (role, key) cells light for this time — the grid's reading of the
+    same sentence the builders speak."""
+    disp, dispn = _ctx(h)
+    keys = {('on', 0)}
+    if rounded == 0:
+        keys |= {('min', 0), ('hr', disp)}
+        return keys
+    mm = rounded if rounded <= 30 else 60 - rounded
+    keys.add(('dir', 'past' if rounded <= 30 else 'to'))
+    keys.add(('hr', disp if rounded <= 30 else dispn))
+    if mm == 25:
+        keys |= {('min', 20), ('min', 5)}
+    else:
+        keys.add(('min', mm))
+    return keys
+
+
+def _grid_font(canvas, W, H):
+    """One size for the whole face: the largest at which every row fits the
+    width and six rows fit the height."""
+    size = max(5, H // 6)
+    while size > 5:
+        font = canvas.font(size)
+        lh = font.getbbox('AG')[3]
+        gap = font.getlength(' ') * 1.4
+        widest = max(sum(font.getlength(w) for w, _, _ in row) + gap * (len(row) - 1)
+                     for row in _GRID_EN)
+        if widest <= W - 6 and len(_GRID_EN) * (lh + 2) - 2 <= H - 4:
+            return font, lh, gap
+        size -= 1
+    font = canvas.font(5)
+    return font, font.getbbox('AG')[3], font.getlength(' ')
+
+
+def _draw_grid(canvas, draw, h, rounded):
+    W, H = canvas.width, canvas.height
+    lit = _lit_keys(h, rounded)
+    font, lh, gap = _grid_font(canvas, W, H)
+    rows = len(_GRID_EN)
+    row_pitch = (H - 4) / rows
+    for r, row in enumerate(_GRID_EN):
+        row_w = sum(font.getlength(w) for w, _, _ in row) + gap * (len(row) - 1)
+        x = (W - row_w) / 2.0
+        y = 2 + r * row_pitch + (row_pitch - lh) / 2.0
+        for word, role, key in row:
+            on = (role, key) in lit
+            col = _OFF_COL if not on else (_HOUR_COL if role == 'hr' else _LIT_COL)
+            draw.text((x, y), word, font=font, fill=col)
+            x += font.getlength(word) + gap
+    return True
+
+
+def _cv_wrap_fit(canvas, words, max_w, max_h, max_lines):
+    """Largest font at which ``words`` pack into <= ``max_lines`` lines fitting the
+    box. Returns (font, lines_of_words, line_height, gap)."""
+    def pack(font):
+        lines, cur, cur_w = [], [], 0.0
+        space = font.getlength(' ')
+        for w in words:
+            ww = font.getlength(w)
+            if cur and cur_w + space + ww > max_w:
+                lines.append(cur)
+                cur, cur_w = [w], ww
+                if len(lines) >= max_lines:
+                    break
+            else:
+                cur_w += (space if cur else 0) + ww
+                cur.append(w)
+        if cur and len(lines) < max_lines:
+            lines.append(cur)
+        return lines[:max_lines] or [['']]
+
+    size = max(5, int(max_h))
+    for _ in range(80):
+        font = canvas.font(size)
+        lines = pack(font)
+        lh = font.getbbox('Ag')[3] - font.getbbox('Ag')[1]
+        gap = max(1, lh // 5)
+        total = len(lines) * lh + (len(lines) - 1) * gap
+        packed = sum(len(ln) for ln in lines)
+        widest = max((sum(font.getlength(w) for w in ln)
+                      + font.getlength(' ') * (len(ln) - 1) for ln in lines), default=0)
+        if size <= 5 or (total <= max_h and widest <= max_w and packed >= len(words)):
+            return font, lines, lh, gap
+        size -= 1
+    font = canvas.font(5)
+    return font, pack(font), 6, 1
+
+
+def _draw_sentence(canvas, draw, words):
+    """The phrase as a lit sentence: copula dim, the words that carry the time
+    bright — the fallback face for other languages and small panels."""
+    W, H = canvas.width, canvas.height
+    words = [w.upper() for w in words if w]
+    font, lines, lh, gap = _cv_wrap_fit(canvas, words, W - 6, H - 6, 3)
+    total = len(lines) * lh + (len(lines) - 1) * gap
+    y = (H - total) / 2.0
+    idx = 0
+    for ln in lines:
+        line_w = sum(font.getlength(w) for w in ln) + font.getlength(' ') * (len(ln) - 1)
+        x = (W - line_w) / 2.0
+        for w in ln:
+            dim = idx < 2 and w.casefold() in _COPULAS
+            b = font.getbbox(w)
+            draw.text((x, y - b[1]), w, font=font,
+                      fill=(96, 100, 112) if dim else _LIT_COL)
+            x += font.getlength(w) + font.getlength(' ')
+            idx += 1
+        y += lh + gap
+    return True
+
+
+def fetch_matrix(settings, canvas, i18n=None):
+    from PIL import ImageDraw
+
+    now = _tznow(settings)
+    lang = (i18n.lang if i18n is not None else 'en')[:2].lower()
+    interval = _interval(settings)
+
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+
+    W, H = canvas.width, canvas.height
+    if lang not in _BUILDERS and W >= 110 and H >= 48:
+        # The full face. Its words exist at five-minute resolution — a finer
+        # interval snaps to the nearest five for the grid, as every real word
+        # clock does; coarser intervals (15/30) it honors exactly.
+        h, rounded = _rounded(now, max(5, interval))
+        _draw_grid(canvas, draw, h, rounded)
+    else:
+        h, rounded = _rounded(now, interval)
+        if lang in _BUILDERS:
+            words = _BUILDERS[lang](h, rounded)
+        else:
+            words = [w for chunk in _english(h, rounded, 10 ** 6) for w in chunk.split()]
+        _draw_sentence(canvas, draw, words)
+
+    canvas.frame(img)
+    # The sentence can only change on a minute boundary.
+    return max(1.0, 60.0 - now.second - now.microsecond / 1e6)

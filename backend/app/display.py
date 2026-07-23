@@ -144,7 +144,7 @@ class Display:
 
 class DisplayManager:
     """The set of displays, and which one the display-less surfaces mean. `current(request)` is the
-    seam every endpoint goes through — honouring `?display=<id>` (or a path prefix) lives in that one
+    seam every endpoint goes through — honoring `?display=<id>` (or a path prefix) lives in that one
     method rather than in the call sites."""
 
     def __init__(self, apps_dir: Path, *, registry=None, data_dir: Path | None = None):

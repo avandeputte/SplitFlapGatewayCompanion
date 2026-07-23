@@ -5,7 +5,7 @@
   "icon": "🌤️",
   "description": "Current conditions",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "refresh_interval": 300,
   "loop_delay": 8,
   "category": "data",
@@ -226,7 +226,7 @@
           "label": "5 days"
         }
       ],
-      "description": "Add a forecast page: one line per day, with its sky as a colour flap and the high/low."
+      "description": "Add a forecast page: one line per day, with its sky as a color flap and the high/low."
     },
     {
       "key": "show_aqi",

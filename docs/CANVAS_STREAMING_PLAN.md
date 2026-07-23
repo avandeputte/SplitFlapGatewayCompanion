@@ -64,7 +64,7 @@ its own return-value cadence and hands the panel back on switch. `device.from_ca
 Capability-gated, additive, with a clean fallback to today's per-frame HTTP path on any older wall or
 any stream error. Phased so each step ships and soaks on its own.
 
-### Phase 1 — capability detection (small, no behaviour change)
+### Phase 1 — capability detection (small, no behavior change)
 - `device.Capabilities`: add `canvas_stream: bool`; parse `canvas.get("stream")` in
   `from_capabilities`. Thread it through `plugins.build_canvas_surface(... stream=caps.canvas_stream)`
   into `CanvasSurface` (a `self.can_stream` flag), exactly like `can_rects`.

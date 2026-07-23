@@ -5,7 +5,7 @@
   "icon": "📈",
   "description": "Live prices",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "refresh_interval": 60,
   "loop_delay": 5,
   "trigger_interval": 120,

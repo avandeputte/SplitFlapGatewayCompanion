@@ -1,14 +1,14 @@
-"""Lumina Clock — the time as luminous colour, at the panel's full resolution.
+"""Lumina Clock — the time as luminous color, at the panel's full resolution.
 
 A canvas app (surface: canvas), and the richer descendant of the flap Art Clock.
-Where a flap grid can only spell the time in colour-flaps, this renders big
+Where a flap grid can only spell the time in color-flaps, this renders big
 anti-aliased numerals with Pillow — smooth curves, gradient fills, a soft glow —
 and pushes the whole frame to the Matrix panel (PUT /api/canvas/frame). Nothing
 here is bound to the blocky built-in font.
 
-Four treatments decide how the colour lives in the digits:
-  * Glow    — a light-to-colour vertical gradient with a soft halo
-  * Aurora  — colour that flows through the numerals, frame by frame
+Four treatments decide how the color lives in the digits:
+  * Glow    — a light-to-color vertical gradient with a soft halo
+  * Aurora  — color that flows through the numerals, frame by frame
   * Neon    — an even saturated fill with a strong tube-glow
   * Minimal — flat, soft, no glow
 

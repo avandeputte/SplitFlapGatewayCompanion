@@ -2,7 +2,7 @@
   "id": "forecast-ribbon",
   "name": "Forecast Ribbon",
   "icon": "🌈",
-  "description": "The day's temperature as a colour bar chart",
+  "description": "The day's temperature as a color bar chart",
   "category": "weather",
   "type": "functional",
   "surfaces": ["flap"],
@@ -16,7 +16,7 @@
     {
       "key": "_notice",
       "type": "notice",
-      "text": "Each column is an hour. The bar's HEIGHT is how warm it gets compared with the rest of the window; its COLOUR is the actual temperature — violet, blue, green, yellow, orange, red. Uses the global Location."
+      "text": "Each column is an hour. The bar's HEIGHT is how warm it gets compared with the rest of the window; its COLOR is the actual temperature — violet, blue, green, yellow, orange, red. Uses the global Location."
     }
   ]
 }

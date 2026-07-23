@@ -113,7 +113,7 @@ def test_home_assistant_is_optional_and_off_the_config_page(chan):
     ("auto"), so the option is noise on the Configuration page. Keeping it OUT of
     `options:` while leaving it optional in `schema:` parks it under HA's "unused
     optional configuration options" — still settable, no longer in the way. Absent
-    must mean the app's own default, not a behaviour change."""
+    must mean the app's own default, not a behavior change."""
     from app import config as cfg
 
     addon = CHANNELS[chan]
@@ -260,7 +260,7 @@ def test_env_still_beats_the_addon_options(options, monkeypatch):
     assert c.transport["gateway_url"] == "http://from-env"
 
 
-def test_the_log_level_option_is_honoured(options):
+def test_the_log_level_option_is_honored(options):
     """It is read at import, before Config exists, so it bypasses the merge entirely —
     which is exactly how it would end up silently ignored."""
     cfg = options({"log_level": "DEBUG"})

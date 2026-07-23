@@ -25,7 +25,7 @@
     {
       "key": "hue", "label": "Hue", "type": "number",
       "min": "0", "max": "255", "step": "5", "stepper": true, "ph": "Effect default",
-      "note": "Recolours the matrix rain and tints plasma / Life — on panels that support it. Blank keeps the effect's own colours."
+      "note": "Recolors the matrix rain and tints plasma / Life — on panels that support it. Blank keeps the effect's own colors."
     },
     {
       "key": "density", "label": "Density", "type": "number",

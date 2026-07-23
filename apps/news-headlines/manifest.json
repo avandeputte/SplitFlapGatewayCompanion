@@ -5,7 +5,7 @@
   "description": "Latest news via RSS",
   "category": "news",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "version": "1.0",
   "refresh_interval": 600,
   "loop_delay": 8,

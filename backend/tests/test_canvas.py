@@ -253,7 +253,7 @@ def test_the_sheet_name_is_wall_legal():
     assert a != canvas.atlas_name_for(b"\x01" * 192, 8, 8, 1, "rgb565")   # so does the format
 
 
-def test_a_canvas_app_honours_per_entry_overrides(monkeypatch, tmp_path):
+def test_a_canvas_app_honors_per_entry_overrides(monkeypatch, tmp_path):
     """A canvas app in a playlist must get the entry's setting overrides (a Scoreboard following
     its own teams) — the overlay a flap app already got, which the canvas render path used to drop."""
     from conftest import make_runtime
@@ -337,7 +337,7 @@ def test_frame_is_the_panel_sized_raw_buffer(gw_calls):
     assert len(content) == 128 * 32 * 3         # rgb888
 
 
-def test_colour_names_hex_and_tuples():
+def test_color_names_hex_and_tuples():
     assert canvas._rgb("red") == [255, 0, 0]
     assert canvas._rgb("#00ff00") == [0, 255, 0]
     assert canvas._rgb((10, 20, 30)) == [10, 20, 30]
@@ -352,7 +352,7 @@ def test_engine_takes_over_and_releases_the_panel(gw_calls, tmp_path):
         cfg.update({"transport": {"gateway_url": "http://gw"}})
         ctl = DisplayController(cfg, DisplayState(45))
         ps = PluginSettings(tmp_path)
-        ps.set_installed(["effect_plasma", "time"])
+        ps.set_installed(["effect_plasma", "art-clock"])
         rt = PluginRuntime(cfg, ps, __import__("pathlib").Path(__file__).resolve().parents[2] / "apps")
         caps = device.from_capabilities(CANVAS_DOC)
         rt.attach_caps(lambda: caps)            # before load: the per-effect apps synthesize from caps
@@ -370,7 +370,7 @@ def test_engine_takes_over_and_releases_the_panel(gw_calls, tmp_path):
         forgot = []
         real_forget = ctl.transport.forget
         ctl.transport.forget = lambda: (forgot.append(True), real_forget())[1]
-        await ctl.run_app("time")               # a flap app takes over
+        await ctl.run_app("art-clock")          # a flap-only app takes over
         await asyncio.sleep(0.3)
         assert not ctl._canvas_active
         # The flap page hands the panel back by auto-stopping canvas mode on the firmware (its
@@ -576,7 +576,7 @@ def test_weather_caches_the_reading(gw_calls):
     ("canvas-date", {}),
     # World Clock is dual-view now: its canvas branch draws the lit rows (was canvas-world).
     ("world_clock", {"world_clock_zones": "America/New_York,Europe/London,Asia/Tokyo"}),
-    # Countdown is dual-view now: its canvas branch draws the colour bars (was canvas-countdown).
+    # Countdown is dual-view now: its canvas branch draws the color bars (was canvas-countdown).
     ("countdown", {"countdown_event": "Launch", "countdown_target": "2027-06-01T00:00"}),
     ("canvas-overview", {}),                         # renders clock/date even with no weather
 ])
@@ -711,7 +711,7 @@ def test_frame_uses_qoi_when_advertised_else_raw(gw_calls):
     assert m == "PUT" and path == "/api/canvas/frame" and len(content) == 64 * 32 * 3
 
 
-def test_ticker_posts_text_colour_speed(gw_calls):
+def test_ticker_posts_text_color_speed(gw_calls):
     cv = canvas_surface("http://gw", 128, 32, ("rgb888",), (), ticker=True)
     assert cv.can_ticker
     cv.ticker("HELLO", (0, 255, 0), speed=6)
@@ -848,7 +848,7 @@ def test_controller_serves_a_canvas_preview_only_while_a_canvas_app_draws(gw_cal
         cfg.update({"transport": {"gateway_url": "http://gw"}})
         ctl = DisplayController(cfg, DisplayState(45))
         ps = PluginSettings(tmp_path)
-        ps.set_installed(["canvas-art-clock", "time"])
+        ps.set_installed(["canvas-art-clock", "art-clock"])
         rt = PluginRuntime(cfg, ps, Path(__file__).resolve().parents[2] / "apps")
         rt.load()
         rt.attach_caps(lambda: device.from_capabilities(CANVAS_DOC))
@@ -861,7 +861,7 @@ def test_controller_serves_a_canvas_preview_only_while_a_canvas_app_draws(gw_cal
         png = ctl.canvas_preview_png()
         assert png and png[:4] == b"\x89PNG"
 
-        await ctl.run_app("time")                       # a flap app: no preview
+        await ctl.run_app("art-clock")                  # a flap-only app: no preview
         await asyncio.sleep(0.1)
         assert not ctl.has_canvas_preview()
         assert ctl.canvas_preview_png() is None

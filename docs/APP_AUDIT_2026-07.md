@@ -94,7 +94,7 @@ by missing platform surface:
 7. **Tall-wall utilization**: on-this-day shows one event and discards the rest;
    formula1 shows only the championship leader; date/time leave a guaranteed
    blank row at rows≥4. Concrete "show more" targets. **S-M each**
-8. **Severity colour tiles** (universal squares, no caps needed): aurora Kp,
+8. **Severity color tiles** (universal squares, no caps needed): aurora Kp,
    earthquakes magnitude, bitcoin-fear-greed sentiment; moon-phase's illumination
    bar should use 🟨/⬛ tiles instead of the literal letter `w`. **S each**
 9. **Channel localization gaps**: magic-8-ball, fortune-cookie, stoic-quotes,
@@ -129,12 +129,12 @@ pictographs in channel data files (no can_show fallback possible — they'd blan
    all five; drop the baked `Advice:`/`Quote:` prefixes (title-row machinery
    exists); unify the three refresh-setting conventions (`refresh_minutes` vs none
    vs `frequency`).
-7. **Animation canon**: pure function of grid, colour codes on animation:true
+7. **Animation canon**: pure function of grid, color codes on animation:true
    pages, settings 4 / 0.1 / 10 / 0.1. anim_sweep deviates on min/step (0.05);
    anim_random_spin diverges structurally (module-global state shared across
    walls — use `fetch._state`; manifest default 4 vs code fallback 0.5; dwell-vs-
    speed semantics need reconciling).
-8. **Colour = emoji squares** in normal pages everywhere (art-clock's letter-code
+8. **Color = emoji squares** in normal pages everywhere (art-clock's letter-code
    + animation:true approach is the outlier; migrating changes its aesthetic —
    optional).
 9. **Dead `rows==1` branches** under `min_rows: 2` (calendar, holidays,

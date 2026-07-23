@@ -1,7 +1,7 @@
 """
 renderer.py — display text normalization + per-module "send plan" ordering.
 
-The animation orderings and colour-tile mapping are ports of the upstream
+The animation orderings and color-tile mapping are ports of the upstream
 app-plugin renderer (see ATTRIBUTION.md). The companion deliberately does
 **not** model a fixed flap character set: every module can carry a different
 char array, and a module renders a blank for any character it lacks, so the
@@ -19,8 +19,8 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-# Emoji colour tiles -> the single-char firmware colour codes (r o y g b p w),
-# black tile -> blank. A colour-tile syntax (not character policing).
+# Emoji color tiles -> the single-char firmware color codes (r o y g b p w),
+# black tile -> blank. A color-tile syntax (not character policing).
 COLOR_MAP = {
     "\U0001f7e5": "r",  # 🟥
     "\U0001f7e7": "o",  # 🟧
@@ -33,22 +33,22 @@ COLOR_MAP = {
 }
 
 # ---------------------------------------------------------------------------
-# The seven colour flaps, and why they are not simply the letters r o y g b p w.
+# The seven color flaps, and why they are not simply the letters r o y g b p w.
 #
 # The legacy wire carries ONE BYTE per character, and it spent seven of its letters on
-# colours: the byte for lowercase `r` MEANS RED. That is fine as long as everything is
+# colors: the byte for lowercase `r` MEANS RED. That is fine as long as everything is
 # uppercased on the way out — which it was, so a lowercase letter could never occur and
 # `r` was unambiguous.
 #
 # The Matrix Portal's index-addressed API (POST /api/display/cells) breaks that deal open:
-# it can show lowercase, so `r` has to be allowed to mean the LETTER r, and colours are
+# it can show lowercase, so `r` has to be allowed to mean the LETTER r, and colors are
 # NAMED instead. Which means a page must now say which one it meant — and a bare `r` in a
 # string cannot.
 #
-# So colours become their own codepoints inside the companion, in the Unicode private-use
-# area. They are produced where a colour is unambiguously intended (an emoji tile; a
-# lowercase colour code in a RAW page — the animation convention) and
-# consumed by the transport, which renders them as a colour flap however its wall wants:
+# So colors become their own codepoints inside the companion, in the Unicode private-use
+# area. They are produced where a color is unambiguously intended (an emoji tile; a
+# lowercase color code in a RAW page — the animation convention) and
+# consumed by the transport, which renders them as a color flap however its wall wants:
 # the legacy byte `r`, or {"color": "red"}. Nothing else in the pipeline has to care.
 COLOR_NAMES = ("red", "orange", "yellow", "green", "blue", "purple", "white")
 COLOR_CODES = "roygbpw"                       # the legacy bytes, in the same order
@@ -85,7 +85,7 @@ ORDERED_STYLES = (
     "anti_diagonal", "random", "rain", "reverse_rain", "columns",
     "columns_rtl", "alternating",
 )
-# Styles with bespoke timing/behaviour.
+# Styles with bespoke timing/behavior.
 SPECIAL_STYLES = ("sync", "slot")
 ALL_STYLES = ORDERED_STYLES + SPECIAL_STYLES
 
@@ -125,23 +125,23 @@ def cp1252_upper(text: str) -> str:
 
 
 def normalize(text: str, n: int, *, frame: bool = False) -> str:
-    """Normalize display text to exactly ``n`` module characters, and make its COLOURS
+    """Normalize display text to exactly ``n`` module characters, and make its COLORS
     explicit so that nothing downstream has to guess.
 
     ONE question decides everything here:
 
-        **Is a lowercase letter in this page a COLOUR, or a LETTER?**
+        **Is a lowercase letter in this page a COLOR, or a LETTER?**
 
-    ``frame=True`` says COLOUR. That is the animation convention and the only way an
+    ``frame=True`` says COLOR. That is the animation convention and the only way an
     animation can ask for one: art-clock and the anim_* apps draw with lowercase
     r/o/y/g/b/p/w, and a raw grid from the Compose editor may too. Such a page must NOT be
-    folded here, because folding it would turn its colours into the letters R, O, Y…
-    before anyone could tell they were colours.
+    folded here, because folding it would turn its colors into the letters R, O, Y…
+    before anyone could tell they were colors.
 
-    ``frame=False`` (the default) says LETTER — a page made of WORDS. Its colours can only
-    have come from a colour tile (🟥, 🟩 …), which is unambiguous.
+    ``frame=False`` (the default) says LETTER — a page made of WORDS. Its colors can only
+    have come from a color tile (🟥, 🟩 …), which is unambiguous.
 
-    Either way the result says explicitly which cells are colours (COLOR_PUA), so a
+    Either way the result says explicitly which cells are colors (COLOR_PUA), so a
     transport, the live preview and the Vestaboard codec never have to decide whether the
     `o` of "Hello" is the letter o or the orange flap. Left to guess, they get it wrong:
     "Hell<orange>".
@@ -150,20 +150,20 @@ def normalize(text: str, n: int, *, frame: bool = False) -> str:
     text, it is a property of the WALL — a reel with no lowercase flaps gets uppercase, a
     Matrix Portal does not — so the engine does it last, once, for everyone. ``frame`` is
     one flag, not two: a ``raw``/``keep_case`` pair would encode the same axis
-    inverted, and its fourth combination silently destroys an animation's colours.
+    inverted, and its fourth combination silently destroys an animation's colors.
     """
     clean = str(text)
     for tile, code in COLOR_MAP.items():
         clean = clean.replace(tile, COLOR_PUA.get(code, code))
     if frame:
-        # In a frame, a lowercase colour code IS a colour. Say so, before anything else can
+        # In a frame, a lowercase color code IS a color. Say so, before anything else can
         # mistake it for a letter.
         clean = "".join(COLOR_PUA.get(c, c) if c in COLOR_CODES else c for c in clean)
     return clean.ljust(n)[:n]
 
 
 def fold(page: str) -> str:
-    """A wall with no lowercase flaps gets uppercase — every cell that is not a colour.
+    """A wall with no lowercase flaps gets uppercase — every cell that is not a color.
 
     The wall has the LAST word on case, and it is the only one that has any word on it. A
     caller that folds early discards the one thing a Matrix Portal is for, and a
@@ -212,7 +212,7 @@ _EXPAND = {
 def expand(text: str, caps) -> str:
     """Replace a character with a MULTI-FLAP stand-in when the wall cannot show it.
 
-    Called on a line of text before it is centred onto the wall, because that is the last
+    Called on a line of text before it is centered onto the wall, because that is the last
     moment a string may change length. Once the page is a grid it is one flap per character,
     and "SS" no longer fits where "\u00df" was.
 
@@ -287,7 +287,7 @@ def degrade(page: str, caps) -> str:
     done anyway, except it is a deliberate space and not a hole nobody knew about.
 
     A wall that has not told us its charset is left alone entirely (``can_show`` answers True
-    for everything), so an old gateway keeps the send-and-hope behaviour.
+    for everything), so an old gateway keeps the send-and-hope behavior.
     """
     if not caps.knows_charset():
         return page
@@ -295,7 +295,7 @@ def degrade(page: str, caps) -> str:
     out = []
     for ch in page:
         if is_color(ch) or caps.can_show(ch):
-            out.append(ch)                       # a colour is a flap index, not a character
+            out.append(ch)                       # a color is a flap index, not a character
             continue
         for cand in (PICTOGRAPH_FALLBACK.get(ch),
                      _LOOKALIKE.get(ch),
@@ -316,12 +316,12 @@ def degrade(page: str, caps) -> str:
 
 
 def for_legacy(ch: str) -> str:
-    """One cell, as the legacy one-byte protocol wants it: a colour becomes its letter, and
+    """One cell, as the legacy one-byte protocol wants it: a color becomes its letter, and
     a pictograph — which has no byte at all — becomes the nearest thing that does."""
     return PUA_TO_CODE.get(ch, PICTOGRAPH_FALLBACK.get(ch, ch))
 
 
-# The reverse of COLOR_MAP: the legacy colour code back to the tile a person would have
+# The reverse of COLOR_MAP: the legacy color code back to the tile a person would have
 # typed ('r' -> 🟥). Keyed on the CODE (the map's value), not the tile: testing the tile
 # against COLOR_CODES left this permanently empty, and MCP get_display leaked raw
 # U+E000-06 private-use characters instead of tiles.
@@ -329,7 +329,7 @@ _CODE_TO_TILE = {code: tile for tile, code in COLOR_MAP.items() if code in COLOR
 
 
 def for_text(ch: str) -> str:
-    """One cell, as READABLE TEXT (an MCP tool's `lines`, a log line). A colour has no
+    """One cell, as READABLE TEXT (an MCP tool's `lines`, a log line). A color has no
     letter now — using one would be a lie, since `r` is the letter r — so it comes back as
     the tile a person would have typed."""
     return _CODE_TO_TILE.get(PUA_TO_CODE.get(ch, ""), ch)

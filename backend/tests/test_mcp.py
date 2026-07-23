@@ -148,14 +148,14 @@ def test_every_tool_takes_an_optional_display(mcp_on):
         assert "display" not in required, f"{t.name} made display mandatory"
 
 
-def test_show_message_centres_the_text_on_the_board(mcp_on):
+def test_show_message_centers_the_text_on_the_board(mcp_on):
     rows, cols = mcp_on.config.grid["rows"], mcp_on.config.grid["cols"]
     call(mcp_on, "show_message", {"text": "HELLO"})
 
     chars = "".join(mcp_on.state.current_chars)
     lines = [chars[r * cols:(r + 1) * cols] for r in range(rows)]
     assert "HELLO" in "".join(lines)
-    # centred, not jammed into the top-left corner
+    # centered, not jammed into the top-left corner
     assert lines[rows // 2].strip() == "HELLO"
 
 

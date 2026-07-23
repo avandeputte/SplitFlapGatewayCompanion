@@ -5,7 +5,7 @@ copy of. Now it lives once, and an app opts in with a ``paginate`` parameter
 (like ``i18n`` or ``get_weather``); the runtime binds it to the wall.
 
 **Balanced** means: when the text fits on one page, the words are spread evenly
-across the lines it needs — a tiny DP that minimises raggedness and prefers to
+across the lines it needs — a tiny DP that minimizes raggedness and prefers to
 end a line at sentence punctuation — instead of greedily filling and orphaning
 the last word on a line of its own. Text too long for one page word-wraps
 greedily and paginates.
@@ -27,7 +27,7 @@ def _need_lines(lens, cols):
 
 
 def _balance(words, lens, cols, k):
-    """Split words into exactly ``k`` lines (each <= cols) minimising raggedness,
+    """Split words into exactly ``k`` lines (each <= cols) minimizing raggedness,
     preferring to end a line at sentence punctuation. Returns the lines, or None
     if it can't be done in ``k`` lines. A tiny DP."""
     n = len(words)

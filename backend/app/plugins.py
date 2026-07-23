@@ -4,7 +4,7 @@ plugins.py — the plugin runtime (a faithful port of the app-plugin contract).
 Discovers and loads apps from ``apps/<id>/`` (functional ``app.py`` or channel
 ``data.json``), assembles the per-app settings dict exactly as the app-plugin contract expects,
 and produces display pages with the same caching/paging semantics. Keeping this
-behaviour-identical is what lets any compatible app drop in unchanged — see
+behavior-identical is what lets any compatible app drop in unchanged — see
 COMPATIBILITY.md.
 
 ``fetch()`` may do blocking network I/O, so callers run ``get_pages()`` in a
@@ -201,23 +201,23 @@ class PluginRuntime:
 
     # An app may declare where its block sits, with "vertical_align" in its manifest:
     #
-    #   center  (default)  the block is centred on the wall
+    #   center  (default)  the block is centered on the wall
     #   top                the block starts at the top; spare rows fall to the bottom
     #   bottom             the block is pushed to the bottom
     #
     # Absent means "center", so every existing app keeps
     # working untouched — the key is additive, and an app that never heard of it gets the
-    # behaviour it already had.
+    # behavior it already had.
     #
     # `top` is the escape hatch — pad only at the bottom — so an app that wants
     # to place its own rows (a fixed header, a hand-built layout) declares `top` and emits
     # blank lines wherever it wants them. Without it, an app doing its own vertical
-    # placement gets centred a SECOND time and drifts below the middle — which is why
+    # placement gets centered a SECOND time and drifts below the middle — which is why
     # cat-facts, on-this-day and sarcastic-fortune-cookies declare it.
     ALIGNMENTS = ("center", "top", "bottom")
 
     def vertical_align(self, app_id: str | None) -> str:
-        """Where this app's block sits. Unknown values fall back to centring rather than
+        """Where this app's block sits. Unknown values fall back to centering rather than
         failing the app: a typo in a manifest should not take the wall down."""
         if not app_id:
             return "center"
@@ -229,10 +229,10 @@ class PluginRuntime:
         return want
 
     def format_lines(self, *lines, cols=None, align="center") -> str:
-        """Build one page from up to `rows` lines: each centred horizontally, and the
+        """Build one page from up to `rows` lines: each centered horizontally, and the
         block placed VERTICALLY when the app gives fewer lines than the wall is tall.
 
-        Centred by default — a deliberate, documented choice (COMPATIBILITY.md):
+        Centered by default — a deliberate, documented choice (COMPATIBILITY.md):
         bottom-only padding is invisible on a 3-row wall but leaves a 3-line app
         stranded at the top of a 5-row wall with two dead rows under it. An app that
         wants its block at the top, or wants to place its own rows, says so with
@@ -249,9 +249,9 @@ class PluginRuntime:
         elif align == "bottom":
             top = pad
         else:
-            top = pad // 2                  # centred; an odd remainder falls to the bottom
+            top = pad // 2                  # centered; an odd remainder falls to the bottom
         padded = [""] * top + given + [""] * (pad - top)
-        # Expand BEFORE centring: a character the wall cannot show may need two flaps (ß -> SS
+        # Expand BEFORE centering: a character the wall cannot show may need two flaps (ß -> SS
         # on a reel with no ß), and this is the last moment the line is allowed to get longer.
         # Afterwards it is one flap per character and "SS" no longer fits where "ß" was.
         caps = self._caps()
@@ -744,7 +744,7 @@ class PluginRuntime:
     def _channel_raw_groups(self, app_id: str, lang: str) -> list:
         """The channel's RAW groups (unformatted text — a string or a list of segment strings) for
         the effective language: exact locale wins, then base, then data.json. Read straight from the
-        data file so the canvas renderer re-wraps the real words (the flap-formatted pages centre and
+        data file so the canvas renderer re-wraps the real words (the flap-formatted pages center and
         pad each line, which butts words together and can't be un-wrapped)."""
         app_dir = self._scan().get(app_id)
         if not app_dir:
@@ -767,9 +767,9 @@ class PluginRuntime:
 
     def channel_canvas_items(self, app_id: str, overrides: dict | None = None) -> list:
         """The channel's lines as plain text for the panel — one per group, a multi-segment group
-        (setup/punchline, quote + attribution) joined with a newline the renderer honours. Shuffled
+        (setup/punchline, quote + attribution) joined with a newline the renderer honors. Shuffled
         when the order is random. ``overrides`` are per-playlist-entry settings, layered like
-        get_pages does so an entry's own Language is honoured."""
+        get_pages does so an entry's own Language is honored."""
         settings = _SettingsOverlay(self.settings, overrides) if overrides else self.settings
         lang = self.content_lang(app_id, settings)
         groups = self._ordered(self._channel_raw_groups(app_id, lang), app_id, settings)
@@ -885,7 +885,7 @@ class PluginRuntime:
         return refresh
 
     # A C extension built with single-phase init — numpy is the one that matters here —
-    # can only be initialised ONCE per process. If its first import dies (numpy 2.4+ on a
+    # can only be initialized ONCE per process. If its first import dies (numpy 2.4+ on a
     # CPU without the x86-64-v2 baseline, say — a Proxmox `kvm64` VM), the .so is already
     # loaded but the module is gone from sys.modules, so every later import raises this
     # instead. It is permanent until restart, and it names nothing useful.

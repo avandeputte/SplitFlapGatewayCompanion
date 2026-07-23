@@ -2,14 +2,14 @@
   "id": "canvas-image",
   "name": "Image",
   "icon": "🖼️",
-  "description": "Mirror a picture onto a Matrix panel — fit and send it as a full-colour frame",
+  "description": "Mirror a picture onto a Matrix panel — fit and send it as a full-color frame",
   "type": "functional",
   "surfaces": ["matrix"],
   "refresh_interval": 1,
   "loop_delay": 60,
   "category": "animation",
   "settings": [
-    {"key": "image_url", "label": "Image URL (leave blank for a colour demo)", "type": "text",
+    {"key": "image_url", "label": "Image URL (leave blank for a color demo)", "type": "text",
      "default": "", "ph": "https://example.com/picture.png"},
     {"key": "fit", "label": "Fit", "type": "toggle", "default": "cover",
      "options": [{"value": "cover", "label": "Fill"}, {"value": "contain", "label": "Fit"}]}

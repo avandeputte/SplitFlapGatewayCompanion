@@ -1,15 +1,15 @@
 """Mirror an image onto a Matrix panel (the raw-frame path of the `canvas` capability).
 
 A canvas app: it renders a picture to the panel's exact pixel size and pushes it
-as one full-colour frame (PUT /api/canvas/frame). With no URL set it draws a
-colour-gradient demo, so it shows something out of the box. The image is fetched
+as one full-color frame (PUT /api/canvas/frame). With no URL set it draws a
+color-gradient demo, so it shows something out of the box. The image is fetched
 and fitted once, then held (loop_delay), because a frame is the heaviest thing
 you can send a wall.
 """
 
 
 def _demo(Image, w, h):
-    """A colour gradient — proof the panel is drawing true colour, no URL needed."""
+    """A color gradient — proof the panel is drawing true color, no URL needed."""
     img = Image.new("RGB", (w, h))
     px = img.load()
     for y in range(h):
@@ -31,7 +31,7 @@ def _fit(img, w, h, mode):
         canvas_img = Image.new("RGB", (w, h), (0, 0, 0))
         canvas_img.paste(img, ((w - img.size[0]) // 2, (h - img.size[1]) // 2))
         return canvas_img
-    # cover: scale to fill, centre-crop
+    # cover: scale to fill, center-crop
     scale = max(w / iw, h / ih)
     img = img.resize((max(1, int(iw * scale)), max(1, int(ih * scale))))
     left, top = (img.size[0] - w) // 2, (img.size[1] - h) // 2

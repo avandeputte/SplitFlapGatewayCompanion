@@ -1,5 +1,5 @@
 """Channel-on-canvas: a channel app can draw itself on a Matrix panel — its text laid out big with
-a themed icon — instead of the plain flap text. Opt-in per app (a toggle greyed out on a flap-only
+a themed icon — instead of the plain flap text. Opt-in per app (a toggle grayed out on a flap-only
 wall), art motif from the manifest. These pin the wiring; the look is eyeballed off-device.
 """
 
@@ -70,7 +70,7 @@ def test_channel_matrix_defaults_on_and_can_be_turned_off():
     rt = make_runtime(tmp_path=tempfile.mkdtemp(), installed=[ch], caps=device.from_capabilities(CANVAS_DOC))
     assert rt.matrix_on(ch) is True                            # default: render on the panel
     rt.settings.set(f"plugin_{ch}_matrix", "no")
-    assert rt.matrix_on(ch) is False                           # explicit opt-out honoured
+    assert rt.matrix_on(ch) is False                           # explicit opt-out honored
     assert rt.matrix_on("does-not-exist") is False             # only real matrix-capable apps
 
 

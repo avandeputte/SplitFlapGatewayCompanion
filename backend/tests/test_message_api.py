@@ -2,7 +2,7 @@
 Assistant integration and rest_commands use (no Vestaboard key needed).
 
 Unlike /api/compose/send (which takes a raw grid string from the click-to-type editor),
-this centres and word-wraps ordinary text, and `seconds` makes it a temporary takeover.
+this centers and word-wraps ordinary text, and `seconds` makes it a temporary takeover.
 """
 
 import pytest
@@ -33,7 +33,7 @@ def client(monkeypatch):
     return c
 
 
-def test_a_message_is_centred_on_the_board(client):
+def test_a_message_is_centered_on_the_board(client):
     r = client.post("/api/message", json={"text": "hello world"})
     assert r.status_code == 200 and r.json()["ok"] is True
     page = client.calls["send"]["text"]

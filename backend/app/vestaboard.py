@@ -11,7 +11,7 @@ The formats line up almost exactly:
   6x22, which `fit()` compacts down.)
 * A Vestaboard message is a matrix of character *codes*; a companion page is a flat
   row-major string of the same cells.
-* Vestaboard's colour chips are the companion's colour flaps ``r o y g b p w``.
+* Vestaboard's color chips are the companion's color flaps ``r o y g b p w``.
 
 Two house rules this module has to respect:
 
@@ -20,7 +20,7 @@ Two house rules this module has to respect:
    no substituting, no stripping. ``°`` (62) goes through as ``°``.
 2. **Case is load-bearing**: ``y`` is a yellow tile, ``Y`` is the letter Y. Everything
    this module emits is final, so callers must send it with ``raw=True`` to skip the
-   uppercasing that would turn every colour chip into a letter.
+   uppercasing that would turn every color chip into a letter.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ CODE_TO_CHAR: dict[int, str] = {
     44: "-", 46: "+", 47: "&", 48: "=", 49: ";", 50: ":",
     52: "'", 53: '"', 54: "%", 55: ",", 56: ".", 59: "/", 60: "?",
     62: "°",                                                   # Flagship degree (a Note shows a heart)
-    # Colour chips -> the firmware's COLOUR FLAPS, as their own codepoints — never the
+    # Color chips -> the firmware's COLOR FLAPS, as their own codepoints — never the
     # letters r/o/y/g/b/p/w: decoding a red chip to "r" would write the LETTER r on a Matrix
     # Portal, and encoding the r of "Hello" would read back as a red chip. Violet is `p`.
     63: renderer.COLOR_PUA["r"], 64: renderer.COLOR_PUA["o"], 65: renderer.COLOR_PUA["y"],
@@ -69,7 +69,7 @@ BLANK = 0
 # Vestaboard's animation strategies, mapped onto the transition styles we already
 # have (renderer.ALL_STYLES). `step_interval_ms` / `step_size` are accepted and
 # ignored on purpose: Vestaboard's default is 3000 ms *per animation step*, while a
-# style's speed here is milliseconds *per module frame* — honouring it literally
+# style's speed here is milliseconds *per module frame* — honoring it literally
 # would stretch one message into a multi-minute crawl across the wall.
 STRATEGY_TO_STYLE: dict[str, str] = {
     "column": "columns",
@@ -119,7 +119,7 @@ def decode(matrix: list) -> list[str]:
 
 def _trim(rows: list[str]) -> list[str]:
     """Drop the blank margin around the content — blank rows top and bottom, blank
-    columns left and right. Vestaboard clients centre text inside the full board, so
+    columns left and right. Vestaboard clients center text inside the full board, so
     a 6x22 message is mostly padding; cropping that padding is what lets the message
     itself survive the trip to a smaller wall."""
     keep = [r for r in rows if r.strip()]
@@ -131,7 +131,7 @@ def _trim(rows: list[str]) -> list[str]:
 
 
 def _center_block(rows: list[str], target_rows: int, target_cols: int) -> str:
-    """Centre `rows` in a target_rows x target_cols grid, cropping what overflows.
+    """Center `rows` in a target_rows x target_cols grid, cropping what overflows.
     Returns the flat row-major page string the engine wants."""
     if len(rows) > target_rows:                       # too tall: keep the middle rows
         top = (len(rows) - target_rows) // 2
@@ -152,7 +152,7 @@ def fit(rows: list[str], target_rows: int, target_cols: int) -> str:
 
     A matrix that already matches the grid (a Note-shaped 3x15 payload on a 3x15
     wall) passes through cell-for-cell. Anything else is *compacted*: the blank
-    margin is trimmed and the remaining content is centred, so a vertically-centred
+    margin is trimmed and the remaining content is centered, so a vertically-centered
     6x22 Flagship message lands as the message — not as the blank rows a naive crop
     of its top-left corner would give.
     """
@@ -164,10 +164,10 @@ def fit(rows: list[str], target_rows: int, target_cols: int) -> str:
 def layout_text(text: str, target_rows: int, target_cols: int, caps=None) -> str:
     """Lay plain text out on the wall — the `{"text": ...}` extension.
 
-    Vestaboard's own text API centres a message, and so do the companion's apps
+    Vestaboard's own text API centers a message, and so do the companion's apps
     (PluginRuntime.format_lines), so this does the same: explicit newlines split
     lines, anything longer than the wall is greedily word-wrapped (a word too long
-    to fit is hard-split), every line is centred, and the block is centred vertically.
+    to fit is hard-split), every line is centered, and the block is centered vertically.
     Uppercasing is left to the caller — the board has no lowercase flaps.
 
     `caps` (what the wall can show) is taken here and NOT further down, because a character
@@ -217,7 +217,7 @@ def encode(chars: list[str], rows: int, cols: int) -> list[list[int]]:
             i = r * cols + c
             ch = chars[i] if i < len(chars) else " "
             # A Vestaboard has no lowercase flaps, so a letter reads back as its capital.
-            # A COLOUR is not a letter — it is its own codepoint — so it can never be
+            # A COLOR is not a letter — it is its own codepoint — so it can never be
             # confused with the r of "Hello".
             row.append(CHAR_TO_CODE.get(ch, CHAR_TO_CODE.get(ch.upper(), BLANK)))
         out.append(row)

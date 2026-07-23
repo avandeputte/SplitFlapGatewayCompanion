@@ -7,7 +7,7 @@
  * It is this short because of a happy accident: the gateway's stylesheet is driven by the
  * same custom properties the companion's is (--bg, --card, --acc, --hi, --brand, --txt,
  * --dim, --grn, --ylw, --qt). Re-pointing those does most of the work; the rest is the
- * handful of places the gateway hardcodes a colour or a shape.
+ * handful of places the gateway hardcodes a color or a shape.
  *
  * Kept deliberately in step with the HA section of styles.css — same tokens, same reasoning. Dark mode
  * follows the browser/OS, which is the only signal an ingress page gets.
@@ -42,7 +42,7 @@ body {
   font-family: Roboto, "Noto Sans", system-ui, -apple-system, sans-serif;
 }
 
-/* Header — a card-coloured bar with a divider, not a second app header: inside the
+/* Header — a card-colored bar with a divider, not a second app header: inside the
    sidebar Home Assistant already draws one. */
 header {
   background: var(--card);

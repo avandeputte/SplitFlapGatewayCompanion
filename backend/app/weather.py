@@ -35,7 +35,7 @@ The document (fields may be None when a provider has no answer):
                      pollen: {grass, tree, weed, overall}, pollen_label,
                      pollen_band}. Labels are display text on the provider's own
                      scale; BANDS are canonical ('good'/'moderate'/'poor'/'bad',
-                     plus 'none'/'unknown'), so an app needs ONE colour map.
+                     plus 'none'/'unknown'), so an app needs ONE color map.
 
 Providers: Open-Meteo (keyless — the default and the fallback), OpenWeather,
 WeatherAPI and QWeather (keyed via the global weather_api_key). Temperatures
@@ -75,7 +75,7 @@ _cache: dict = {}   # (provider, key, lat, lon, days, air, lang) -> (fetched_at,
 GLOBAL_KEYS = ("weather_provider", "weather_api_key", "zip_code", "location_precise")
 
 # ---------------------------------------------------------------------------
-# The canonical sky. A colour tells you "wet"; the token tells you drizzle from
+# The canonical sky. A color tells you "wet"; the token tells you drizzle from
 # a downpour. Every provider's private code dialect is translated to these, so
 # no app ever reads a provider code again.
 # ---------------------------------------------------------------------------
@@ -223,7 +223,7 @@ def sky_of_qweather(icon):
 # ---------------------------------------------------------------------------
 # Air-quality scales. Each provider grades on its own curve; the LABEL is the
 # provider-scale display text, the BAND is the canonical 4-step class
-# ('good'/'moderate'/'poor'/'bad') every consumer can colour with one map.
+# ('good'/'moderate'/'poor'/'bad') every consumer can color with one map.
 # ---------------------------------------------------------------------------
 def us_aqi_level(val):
     """US EPA AQI (0-500) -> (label, band)."""

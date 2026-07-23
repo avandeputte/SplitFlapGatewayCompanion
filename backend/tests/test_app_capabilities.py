@@ -73,9 +73,9 @@ def test_an_arrow_still_reads_on_a_plain_reel(arrow, fallback):
     assert renderer.for_legacy(arrow) == fallback
 
 
-def test_stocks_shows_the_direction_even_with_colours_off():
-    """It was a COLOUR, and a colour is nothing at all with colours disabled — or on a mono
-    wall. The arrow carries the meaning; the colour reinforces it."""
+def test_stocks_shows_the_direction_even_with_colors_off():
+    """It was a COLOR, and a color is nothing at all with colors disabled — or on a mono
+    wall. The arrow carries the meaning; the color reinforces it."""
     src = (APPS / "stocks" / "app.py").read_text("utf-8")
     assert "\\u2191" in src and "\\u2193" in src
-    assert "arrow if no_color else" in src, "the arrow must survive with colours off"
+    assert "arrow if no_color else" in src, "the arrow must survive with colors off"

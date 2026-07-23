@@ -252,7 +252,7 @@ class DisplayController:
         """Stop any app/playlist and show ``text`` (background). Returns target.
 
         ``frame``: the text is a FRAME, not words — its lowercase r/o/y/g/b/p/w are the
-        COLOUR FLAPS. That is what an animation and a raw colour grid are."""
+        COLOR FLAPS. That is what an animation and a raw color grid are."""
         clean = self._normalize(text, frame=frame)
         self._clear_driver_flags()
         self._takeovers += 1
@@ -313,7 +313,7 @@ class DisplayController:
 
         Only the second one decides the fold. The first still decides the WIRE protocol: a
         Matrix Portal asked to shout is still driven by the index-addressed API, and still
-        shows its pictographs and named colours. It is just in capitals.
+        shows its pictographs and named colors. It is just in capitals.
         """
         return self.caps.lowercase and not self._forced_uppercase()
 
@@ -326,13 +326,13 @@ class DisplayController:
         """A page, ready for the wire.
 
         `frame` is the ONE question the caller has to answer: is a lowercase letter in this
-        text a COLOUR (an animation, a raw colour grid) or a LETTER (words)? One flag, not
+        text a COLOR (an animation, a raw color grid) or a LETTER (words)? One flag, not
         two: a `raw`/`keep_case` pair is the same axis inverted, and its fourth
-        combination silently destroys an animation's colours.
+        combination silently destroys an animation's colors.
 
         Folding is not the caller's business. A wall with no lowercase flaps gets uppercase;
         a Matrix Portal does not. That decision belongs to the wall, it is made here, once,
-        and it is made LAST — after the colours are explicit, so folding can never eat one.
+        and it is made LAST — after the colors are explicit, so folding can never eat one.
 
         Then DEGRADE, which is later still, and has to be: it asks "can this wall show this
         exact character", and until the case is settled that question has no answer. A reel
@@ -853,7 +853,7 @@ class DisplayController:
         """Briefly show ``text`` over whatever is running, then let it resume.
 
         `frame` defaults to FALSE — words. A "raw" default ("a lowercase letter is a
-        colour flap") would quietly sprinkle COLOUR FLAPS through any app page that
+        color flap") would quietly sprinkle COLOR FLAPS through any app page that
         contains a lowercase r, o, y, g, b, p or w: "Partly cloudy" comes out with an
         orange, a white and a yellow flap in the middle of the words.
 

@@ -143,15 +143,15 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
             return day_u[:cols]
         return f"{str(days)[:cols - len(day_u)]}{day_u}"
 
-    # One colour per unit — cool to urgent, top to bottom. The empty bar cell is
+    # One color per unit — cool to urgent, top to bottom. The empty bar cell is
     # the black square: it lands as a blank flap but keeps every line the same
-    # width, so a bar growing or shrinking never re-centres the row.
+    # width, so a bar growing or shrinking never re-centers the row.
     BAR_TILES = {'Y': '\U0001f7ea', 'D': '\U0001f7e6', 'H': '\U0001f7e9',
                  'M': '\U0001f7e8', 'S': '\U0001f7e5'}
     BAR_EMPTY = '⬛'
 
     def build_unit_rows(total_seconds, cols, max_rows):
-        """A tall wall gets one row per unit: the value, then a colour bar of how
+        """A tall wall gets one row per unit: the value, then a color bar of how
         much of that unit's own cycle remains — years of a decade, days of the
         year, hours of the day, minutes of the hour, seconds of the minute.
         Values sit right-aligned in a fixed field so a tick only touches the
@@ -331,13 +331,13 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
 # =============================================================================
 # MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
 #
-# The countdown as full-width draining colour bars — the pixel-native cousin of
+# The countdown as full-width draining color bars — the pixel-native cousin of
 # the flap bars above. It rotates through the SAME active slots as the flap view,
 # by the same wall-clock rule (_rotation_index), so a wall and a panel agree on
 # which countdown is up. Black background, no gradient.
 # =============================================================================
 
-# One colour per unit, cool (far off) to urgent (imminent). No pink anywhere.
+# One color per unit, cool (far off) to urgent (imminent). No pink anywhere.
 _UNITS = {
     'Y': ((150, 70, 230), 'YEARS', 'YEAR'),
     'D': ((60, 130, 245), 'DAYS', 'DAY'),
@@ -410,7 +410,7 @@ def _valstr(key, value):
 
 def _bar_font(canvas, avail_h, sample='80'):
     """Largest bundled font whose ``sample`` ink fits ``avail_h`` px tall; returns
-    (font, ink_top, ink_height) so callers can centre by ink."""
+    (font, ink_top, ink_height) so callers can center by ink."""
     size = max(5, int(avail_h * 1.5))
     font = canvas.font(size)
     for _ in range(64):

@@ -5,7 +5,7 @@
   "description": "Chuck Norris facts",
   "category": "entertainment",
   "type": "functional",
-  "surfaces": ["flap"],
+  "surfaces": ["flap", "matrix"],
   "version": "1.0",
   "refresh_interval": 300,
   "loop_delay": 10,

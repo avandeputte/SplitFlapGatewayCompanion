@@ -129,7 +129,7 @@ def test_current_resolves_the_default_when_no_display_is_named(tmp_path):
     assert m.current(FakeRequest()) is a
 
 
-def test_current_honours_an_explicit_display(tmp_path):
+def test_current_honors_an_explicit_display(tmp_path):
     m = DisplayManager(APPS_DIR)
     m.build_default(config=__import__("app.config", fromlist=["Config"]).Config(tmp_path / "d"))
     office = m.add(_display(tmp_path / "o", id="office"))

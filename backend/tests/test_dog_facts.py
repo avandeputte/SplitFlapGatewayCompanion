@@ -40,7 +40,7 @@ def test_it_falls_back_to_the_shortest_when_nothing_fits():
     assert dog._pick([MEDIUM, LONG], 250, _fits(2, 12)) == MEDIUM
 
 
-def test_max_length_is_honoured_over_filling_the_wall():
+def test_max_length_is_honored_over_filling_the_wall():
     """If you asked for facts under 40 characters, a 55-character one is not an answer."""
     assert dog._pick([SHORT, MEDIUM], 40, _fits(5, 22)) == SHORT
 

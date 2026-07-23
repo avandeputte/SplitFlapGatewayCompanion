@@ -51,10 +51,10 @@ def _columns(pairs, cols, gap=3):
     """Two aligned columns — `left` flush, `right` flush — kept CLOSE together
     rather than spread to the wall's edges.
 
-    format_lines centres each line, so the block is only as wide as its content
+    format_lines centers each line, so the block is only as wide as its content
     plus a small gap: on a wide wall the pair sits in the middle instead of the
     city and the time stranded at opposite edges. The right column still lines up
-    down the page (every line is the same width, so centring keeps them aligned).
+    down the page (every line is the same width, so centering keeps them aligned).
     A narrow wall falls back to the full width, trimming the left, never the right.
     """
     pairs = [(str(left), str(right)) for left, right in pairs]
@@ -92,7 +92,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
         pairs.append((city, t))
     if not pairs:
         return [format_lines('No valid', 'timezones')]
-    # No bottom padding: format_lines centres what it is given. Filling the page here
+    # No bottom padding: format_lines centers what it is given. Filling the page here
     # would pin three zones to the top of a five-row wall.
     return [format_lines(*_columns(pairs, cols))]
 

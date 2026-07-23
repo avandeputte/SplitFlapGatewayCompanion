@@ -2,7 +2,7 @@
   "id": "anim_rainbow",
   "name": "Rainbow",
   "icon": "🌈",
-  "description": "Colour wave",
+  "description": "Color wave",
   "type": "functional",
   "surfaces": ["flap"],
   "refresh_interval": 0,

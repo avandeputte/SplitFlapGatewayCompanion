@@ -8,7 +8,7 @@ to the Matrix panel (PUT /api/canvas/frame).
 
 The accent is a slim full-width bar along the bottom tracking the year's
 progress (day-of-year / days-in-year). It — and the weekday line — take a gentle
-Mon..Sun colour, a cool blue on Monday warming to a coral on Sunday, so each day
+Mon..Sun color, a cool blue on Monday warming to a coral on Sunday, so each day
 reads at a glance. The backdrop is a subtle very-dark-blue → black gradient and
 the big day picks up a whisper of the day's hue at its base. Curated, high
 contrast, no pink. The bundled font and the panel-sized helpers (font / vgrad /

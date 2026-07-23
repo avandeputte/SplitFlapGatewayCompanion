@@ -227,7 +227,7 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 /* Fields, inputs, buttons */
 label, .field > span, .field.inline > span { display: block; color: var(--dim); font-size: .8rem; margin: 7px 0 2px; }
 .field { margin: 4px 0; }
-/* A statically disabled field (e.g. a Matrix-panel-only toggle on a flap wall): greyed and inert,
+/* A statically disabled field (e.g. a Matrix-panel-only toggle on a flap wall): grayed and inert,
    but its name + note stay readable so it's clear WHY it's off. */
 .field.disabled { opacity: .5; }
 .field.disabled .seg, .field.disabled input, .field.disabled select { pointer-events: none; }
@@ -289,7 +289,7 @@ a.btn { text-decoration: none; display: inline-block; }
 .lib-filter:hover { color: var(--txt); }
 .lib-filter.active { background: var(--brand); border-color: var(--brand); color: #fff; }
 /* The Matrix-only toggle filters on a different axis (surface), so it's set apart from the
-   exclusive category buttons and lights amber — the panel's own colour — when on. */
+   exclusive category buttons and lights amber — the panel's own color — when on. */
 .lib-filter-canvas { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; }
 .lib-filter-canvas.active { background: #f5c518; border-color: #f5c518; color: #1a1a1a; }
 .lib-filter-canvas .app-canvas { width: 14px; height: 14px; }
@@ -364,13 +364,13 @@ a.btn { text-decoration: none; display: inline-block; }
 
 /* ---- Compose ------------------------------------------------------------- */
 /* The compose grid reuses .board/.flap so an authored cell looks exactly like the
-   flap it will become on the wall -- same size, same colours, same seam. Only the
+   flap it will become on the wall -- same size, same colors, same seam. Only the
    editing affordances are new. */
 .compose-board { cursor: text; outline: none; }
 .compose-board:focus-visible { box-shadow: 0 0 0 2px var(--b); }
 .cmp-cell { cursor: pointer; }
 .cmp-cell:hover { box-shadow: inset 0 0 0 1px #555; }
-/* The caret. An outline rather than a fill, so it reads on a coloured flap too. */
+/* The caret. An outline rather than a fill, so it reads on a colored flap too. */
 .cmp-at { box-shadow: inset 0 0 0 2px var(--b), 0 0 0 2px rgba(59, 111, 226, .35); }
 
 .swatches { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
@@ -439,11 +439,11 @@ a.btn { text-decoration: none; display: inline-block; }
  *
  * Two deliberate non-changes:
  *
- * 1. **The split-flap board keeps its own dark colours.** .board/.flap are
+ * 1. **The split-flap board keeps its own dark colors.** .board/.flap are
  *    hardcoded darks above because they depict physical flaps — a real module is
  *    a black tile with a white glyph. Nothing in this section may touch them.
- * 2. **The colour flaps (--r … --w) keep their values.** They are the firmware's
- *    seven flap colours, not decoration.
+ * 2. **The color flaps (--r … --w) keep their values.** They are the firmware's
+ *    seven flap colors, not decoration.
  * --------------------------------------------------------------------------- */
 
 :root {
@@ -482,7 +482,7 @@ body {
   font-family: Roboto, "Noto Sans", system-ui, -apple-system, sans-serif;
 }
 
-/* Header — a card-coloured bar with a divider, NOT a second blue app header.
+/* Header — a card-colored bar with a divider, NOT a second blue app header.
    Inside the sidebar HA already draws one; another would read as a nested app. */
 .topbar {
   background: var(--card);
@@ -584,7 +584,7 @@ input[type=checkbox] { accent-color: var(--brand); }
    The header switcher only exists when there is more than one wall (app.js hides
    it otherwise), so a single-gateway setup — nearly everyone — sees no new chrome. */
 .display-switch {
-  /* Colour, border and background come from the base `select` rule, so the switcher
+  /* Color, border and background come from the base `select` rule, so the switcher
      follows whichever theme is active — including Home Assistant's light one, where a
      palette of its own turned it into an unreadable dark box. Only the sizing is ours:
      `width` because the base rule stretches a select to 100%, which in a header is the

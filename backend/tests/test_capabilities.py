@@ -42,7 +42,7 @@ MATRIX = {
 
 def test_a_matrix_portal_reports_what_it_can_do():
     caps = device.from_capabilities(MATRIX)
-    assert caps.lowercase and caps.pictographs and caps.named_colours and caps.indexed
+    assert caps.lowercase and caps.pictographs and caps.named_colors and caps.indexed
     assert caps.can_show("é") and caps.can_show("♥")
 
 
@@ -77,7 +77,7 @@ def test_a_gateway_too_old_to_answer_falls_back_to_the_guess():
 
 
 def test_an_unknown_charset_means_send_it_and_hope():
-    """Exactly the old behaviour. An empty charset must NOT read as "shows nothing"."""
+    """Exactly the old behavior. An empty charset must NOT read as "shows nothing"."""
     caps = device.of({"product": "SplitFlap Gateway"})
     assert not caps.knows_charset()
     assert caps.can_show("é") and caps.can_show("♥")
@@ -120,10 +120,10 @@ def test_a_pictograph_with_no_stand_in_becomes_a_space(fr):
     assert renderer.degrade(renderer.fold("A ♥ B"), fr) == "A   B"
 
 
-def test_a_colour_is_never_degraded(fr):
-    """A colour is a flap INDEX, not a character; it is not in any charset and must pass
+def test_a_color_is_never_degraded(fr):
+    """A color is a flap INDEX, not a character; it is not in any charset and must pass
     through untouched or every animation turns to spaces."""
-    page = renderer.normalize("rgb", 3, frame=True)          # -> three colour sentinels
+    page = renderer.normalize("rgb", 3, frame=True)          # -> three color sentinels
     assert renderer.degrade(page, fr) == page
     assert all(renderer.is_color(c) for c in page)
 
@@ -142,7 +142,7 @@ def test_the_matrix_portal_degrades_nothing_it_can_show():
 #      spelling of SS, it is a misspelling ("STRASE").
 #
 # Two flaps means the substitution can only happen while the text is still TEXT — before it is
-# centred onto the grid, where one character is one module. That is expand(); degrade() runs
+# centered onto the grid, where one character is one module. That is expand(); degrade() runs
 # later, on the finished page, and must never truncate a two-character stand-in to get it to
 # fit.
 
@@ -252,9 +252,9 @@ def test_a_real_matrix_portal_still_uses_the_cells_api():
 
 
 def test_a_physical_gateway_advertising_colors_does_not_change_the_wire():
-    """It has colour FLAPS (r/o/y/g/b/p/w), which is not the same as naming them in an API.
+    """It has color FLAPS (r/o/y/g/b/p/w), which is not the same as naming them in an API.
     Only `indexed` selects the wire format, so this must not drag the cells API in with it."""
     caps = device.from_capabilities({
         "features": PHYSICAL_FEATURES, "colors": ["red", "blue"], "charset": {}})
-    assert caps.named_colours is True
+    assert caps.named_colors is True
     assert caps.indexed is False
