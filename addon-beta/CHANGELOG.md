@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.20
+
+- **Two more app merges.** The matrix-only **Date Card** is now the **Date** app's panel view
+  (localized), and **Weather Panel** is folded into **Weather Sky** — one rich weather app on the
+  panel. Installs and playlists follow the merges automatically.
+- **Magic 8 Ball and Shower Thoughts icons show properly on real panels** — their darker tones sat
+  below what a low-bit-depth LED panel can display and were being crushed to black.
+
 ## 2.10.0-beta.19
 
 - **Legibility pass across every panel view**, from a pixel-level inspection of all 43 views at all
