@@ -117,11 +117,16 @@ def _cookie(d, x, y, s):
 
 def _eightball(d, x, y, s):
     cx, cy, r = x + s / 2, y + s / 2, s * 0.44
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(18, 18, 22), outline=(90, 92, 102))
+    # A glossy BLACK ball. On an additive LED panel the body must stay charcoal and the rim a
+    # strictly NEUTRAL gray — any blue cast in the rim reads as a blue ball on black.
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(24, 24, 26), outline=(150, 150, 154))
+    w = max(1, int(s * 0.03))
+    d.arc([cx - r * 0.75, cy - r * 0.75, cx + r * 0.15, cy + r * 0.15],       # specular glint,
+          195, 285, fill=(205, 205, 210), width=w)                            # upper-left
     wr = r * 0.44
-    d.ellipse([cx - wr, cy - wr, cx + wr, cy + wr], fill=(240, 242, 248))     # white spot
-    for oy, rr in ((-wr * 0.28, wr * 0.34), (wr * 0.30, wr * 0.40)):          # a tiny 8, two ellipses
-        d.ellipse([cx - rr, cy + oy - rr, cx + rr, cy + oy + rr], outline=(20, 20, 24), width=max(1, int(s * 0.03)))
+    d.ellipse([cx - wr, cy - wr, cx + wr, cy + wr], fill=(240, 242, 246))     # white window
+    for oy, rr in ((-wr * 0.28, wr * 0.34), (wr * 0.30, wr * 0.40)):          # the 8, two rings
+        d.ellipse([cx - rr, cy + oy - rr, cx + rr, cy + oy + rr], outline=(15, 15, 16), width=w)
 
 
 def _quote(d, x, y, s):

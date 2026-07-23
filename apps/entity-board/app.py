@@ -131,120 +131,177 @@ def fetch(settings, format_lines, get_rows, get_cols, get_ha_states=None):
 # =============================================================================
 # MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
 #
-# The same entities as value cards on a grid: each card carries a status bar on
-# its left edge (the shared green/amber/red classification), the entity name
-# small above its value + unit. Cards past a screenful paginate, exactly like
-# the flap rows do. Solid black between the near-black cards.
+# A grid of entity CARDS drawn with canvas ops: a black card per entity with a
+# device icon from a generated sprite atlas, the name, and the value — the card
+# border and the value colored by state, or by the per-entity thresholds. Ops +
+# a persisted named atlas render on-device (firmware text, one small bind per
+# draw), so the grid costs almost nothing on the wire.
 # =============================================================================
 
-_CV_CARD = (22, 24, 28)               # the card face, barely above black
-_CV_NAME = (140, 146, 156)            # entity name — quiet gray caps
-_CV_VAL = (235, 238, 243)             # neutral value
-_CV_UNIT = (150, 156, 166)            # the unit beside the value
-_CV_BAND = {_GREEN: (75, 215, 120), _AMBER: (255, 185, 60), _RED: (255, 92, 78)}
-_CV_IDLE = (70, 74, 84)               # status bar with nothing to say
+import math
+
+_MAGENTA = (255, 0, 255)
+_DOMAIN = {'light': 0, 'switch': 1, 'sensor': 2, 'binary_sensor': 3, 'lock': 4, 'cover': 5,
+           'climate': 6, 'fan': 7, 'media_player': 8, 'person': 9}
+_N_ICONS = 11
+# An LED panel is additive on black, so a color only reads as its hue when the OFF channels
+# stay low (high saturation). Pale mixes like a light blue with r=110 read as tinted white — so
+# these push the off channels down and keep one or two channels bright.
+_C_GREEN, _C_GRAY, _C_BLUE, _C_RED, _C_AMBER = (46, 220, 90), (150, 160, 175), (48, 140, 255), (255, 60, 45), (255, 176, 0)
+_MX_SHORT = {'unlocked': 'OPEN', 'locked': 'LOCK', 'closed': 'SHUT', 'not_home': 'AWAY',
+          'detected': 'DET', 'clear': 'CLR', 'standby': 'IDLE', 'playing': 'PLAY', 'paused': 'PAUS'}
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 5px)."""
-    size = max(5, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 5 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
+def _mx_value(state, attrs, thr, cp):
+    """(text, color). Numeric values with a threshold color green/amber/red by band.
+    ``cp`` filters units/text to the panel's charset (pass ``canvas.cp``)."""
+    st = str(state or '').lower()
+    if st in _DEAD:
+        return '--', _C_GRAY
+    if st in _ON or st in _OFF:
+        return _MX_SHORT.get(st, st.upper())[:5], (_C_GREEN if st in _ON else _C_GRAY)
+    try:
+        f = float(state)
+        unit = cp((attrs or {}).get('unit_of_measurement', '')).strip()
+        unit = unit if len(unit) <= 2 else ''                  # keep °F/%/W; drop long units (the name says it)
+        txt = f'{round(f)}{unit}' if abs(f) >= 10 else f'{f:.1f}{unit}'
+        if thr:
+            lo, hi = thr
+            col = _C_RED if f > hi else _C_GREEN if f < lo else _C_AMBER
+        else:
+            col = _C_BLUE
+        return txt, col
+    except (TypeError, ValueError):
+        return cp(state).upper()[:6], _C_BLUE
 
 
-def _cv_trim(font, s, max_w):
-    """``s`` trimmed with an ellipsis until it fits ``max_w`` (never past empty)."""
-    if font.getlength(s) <= max_w:
-        return s
-    while s and font.getlength(s + '…') > max_w:
-        s = s[:-1]
-    return (s + '…') if s else ''
+def _icons(s):
+    """The device-icon atlas (on magenta), indexed by _DOMAIN; last tile is the generic dot."""
+    from PIL import Image, ImageDraw
+    W = max(1, int(s * 0.09))
+    C = (232, 236, 246)
+    out = []
 
+    def blank():
+        im = Image.new('RGB', (s, s), _MAGENTA)
+        return im, ImageDraw.Draw(im)
 
-def _cv_text(draw, x, y, text, font, fill):
-    """Baseline-corrected text draw (y is the ink top, whatever the glyph bbox says)."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill)
+    im, d = blank()                                            # 0 light — bulb
+    d.ellipse([s * 0.24, s * 0.14, s * 0.76, s * 0.66], fill=(255, 214, 90))
+    d.rectangle([s * 0.38, s * 0.62, s * 0.62, s * 0.82], fill=C)
+    d.line([s * 0.40, s * 0.86, s * 0.60, s * 0.86], fill=C, width=W)
+    out.append(im)
 
+    im, d = blank()                                            # 1 switch — toggle
+    d.rounded_rectangle([s * 0.14, s * 0.34, s * 0.86, s * 0.66], radius=int(s * 0.16), fill=(90, 200, 130))
+    d.ellipse([s * 0.52, s * 0.36, s * 0.52 + s * 0.28, s * 0.36 + s * 0.28], fill=(245, 250, 255))
+    out.append(im)
 
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (nothing configured / no data)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.30))
-    b1 = f1.getbbox(line1)
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.20)) if line2 else None
-    h1 = b1[3] - b1[1]
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    y = (H - (h1 + (3 if line2 else 0) + h2)) / 2.0
-    _cv_text(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_VAL)
-    if line2:
-        _cv_text(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + 3, line2, f2, _CV_NAME)
-    return img
+    im, d = blank()                                            # 2 sensor — dial
+    d.arc([s * 0.16, s * 0.20, s * 0.84, s * 0.88], 200, 340, fill=C, width=W)
+    d.line([s * 0.5, s * 0.62, s * 0.66, s * 0.36], fill=(255, 200, 90), width=W)
+    out.append(im)
 
+    im, d = blank()                                            # 3 binary_sensor — ring
+    d.ellipse([s * 0.26, s * 0.26, s * 0.74, s * 0.74], outline=C, width=W)
+    d.ellipse([s * 0.42, s * 0.42, s * 0.58, s * 0.58], fill=C)
+    out.append(im)
 
-def _cv_card_draw(canvas, draw, x, y, w, h, name, val, flap, unit):
-    """One value card: status bar on the left edge, name small over value + unit."""
-    draw.rounded_rectangle([x, y, x + w - 1, y + h - 1], radius=2, fill=_CV_CARD)
-    draw.rectangle([x, y + 1, x + 1, y + h - 2], fill=_CV_BAND.get(flap, _CV_IDLE))
-    tx = x + 5
-    tw = w - 8
-    name_h = max(6, int(h * 0.30))
-    nf = _cv_fit(canvas, 'AG', tw, name_h)          # size by cap height, then trim to width
-    ns = _cv_trim(nf, str(name).upper(), tw)
-    _cv_text(draw, tx, y + 2, ns, nf, _CV_NAME)
-    nh = nf.getbbox('AG')[3] - nf.getbbox('AG')[1]
-    vy = y + 2 + nh + 2
-    vh = y + h - 2 - vy
-    vf = _cv_fit(canvas, val, tw, max(7, vh))
-    vw = vf.getlength(val)
-    _cv_text(draw, tx, vy, val, vf, _CV_BAND.get(flap, _CV_VAL) if flap else _CV_VAL)
-    if unit and vw + 3 + nf.getlength(unit) <= tw:
-        vb = vf.getbbox(val)
-        ub = nf.getbbox(unit)
-        _cv_text(draw, tx + vw + 3, vy + (vb[3] - vb[1]) - (ub[3] - ub[1]) - 1, unit, nf, _CV_UNIT)
+    im, d = blank()                                            # 4 lock — padlock
+    d.arc([s * 0.30, s * 0.16, s * 0.70, s * 0.56], 180, 360, fill=C, width=W)
+    d.rounded_rectangle([s * 0.26, s * 0.44, s * 0.74, s * 0.82], radius=int(s * 0.08), fill=(230, 195, 95))
+    out.append(im)
+
+    im, d = blank()                                            # 5 cover — blinds
+    for yy in (0.22, 0.40, 0.58, 0.76):
+        d.line([s * 0.18, s * yy, s * 0.82, s * yy], fill=C, width=W)
+    out.append(im)
+
+    im, d = blank()                                            # 6 climate — thermometer
+    d.rounded_rectangle([s * 0.42, s * 0.16, s * 0.58, s * 0.70], radius=int(s * 0.08), fill=C)
+    d.ellipse([s * 0.36, s * 0.62, s * 0.64, s * 0.90], fill=(240, 120, 110))
+    d.rectangle([s * 0.47, s * 0.30, s * 0.53, s * 0.74], fill=(240, 120, 110))
+    out.append(im)
+
+    im, d = blank()                                            # 7 fan — blades
+    c = s / 2.0
+    for a in range(3):
+        ang = a * 2.09
+        d.polygon([(c, c), (c + math.cos(ang) * s * 0.34, c + math.sin(ang) * s * 0.34),
+                   (c + math.cos(ang + 0.6) * s * 0.30, c + math.sin(ang + 0.6) * s * 0.30)], fill=(130, 195, 245))
+    d.ellipse([c - s * 0.08, c - s * 0.08, c + s * 0.08, c + s * 0.08], fill=C)
+    out.append(im)
+
+    im, d = blank()                                            # 8 media_player — play
+    d.polygon([(s * 0.36, s * 0.24), (s * 0.36, s * 0.76), (s * 0.76, s * 0.5)], fill=C)
+    out.append(im)
+
+    im, d = blank()                                            # 9 person
+    d.ellipse([s * 0.36, s * 0.16, s * 0.64, s * 0.44], fill=C)
+    d.pieslice([s * 0.22, s * 0.50, s * 0.78, s * 1.06], 180, 360, fill=C)
+    out.append(im)
+
+    im, d = blank()                                            # 10 generic — dot
+    d.ellipse([s * 0.32, s * 0.32, s * 0.68, s * 0.68], fill=(160, 168, 190))
+    out.append(im)
+    return out
 
 
 def fetch_matrix(settings, canvas, get_ha_states=None):
-    from PIL import ImageDraw
+    W, H = canvas.width, canvas.height
+    use_sprites = bool(getattr(canvas, 'can_sprite', False))
+    canvas.clear((0, 0, 0))                                    # black — best contrast on the panel
 
-    items = _items(settings, get_ha_states)
-    W, H = int(canvas.width), int(canvas.height)
-    if not items:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'HOME ASSISTANT', 'Pick entities in settings'))
-        return 60.0
+    cfg, cfg_order = _parse_config(settings.get('config', ''))
+    ids = _entities(cfg_order)
+    if not ids:
+        canvas.shadow_text(W // 2, H // 2 - 5, 'Pick entities', (210, 216, 232), canvas.face(min(13, H // 3)), align='center')
+        canvas.show()
+        return 30.0
 
-    # Grid geometry: cards need ~64px of width and ~20px of height to breathe;
-    # a small panel simply shows fewer per page and rotates.
-    gcols = max(1, min(3, W // 64))
-    grows = max(1, H // 20)
-    # Don't reserve rows the items can never fill — the cards grow taller instead.
-    grows = max(1, min(grows, (min(len(items), gcols * grows) + gcols - 1) // gcols))
-    per = gcols * grows
-    st = getattr(fetch_matrix, '_state', None)
-    if st is None:
-        st = {'page': 0}
-        setattr(fetch_matrix, '_state', st)
-    pages = max(1, (len(items) + per - 1) // per)
-    page = st['page'] % pages
-    st['page'] = (st['page'] + 1) % pages
-    show = items[page * per:(page + 1) * per]
+    states = {}
+    try:
+        for s in (get_ha_states() if get_ha_states else []):
+            states[s.get('entity_id')] = s
+    except Exception:
+        states = {}
 
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    gap = 2
-    cw = (W - gap * (gcols - 1)) // gcols
-    ch = (H - gap * (grows - 1)) // grows
-    for i, (name, val, flap, unit) in enumerate(show):
-        r, c = divmod(i, gcols)
-        _cv_card_draw(canvas, draw, c * (cw + gap), r * (ch + gap), cw, ch, name, val, flap, unit)
-    canvas.frame(img)
-    return 10.0 if pages > 1 else 15.0
+    n = len(ids)
+    try:
+        cols = int(float(settings.get('columns', 0) or 0))
+    except (TypeError, ValueError):
+        cols = 0
+    if cols < 1:
+        cols = 1 if n == 1 else 2 if n <= 4 else 3 if n <= 9 else 4
+    cols = max(1, min(6, cols))
+    rows = max(1, math.ceil(n / cols))
+    cw, ch = W // cols, H // rows
+    tile = max(8, min(16, min(cw, ch) // 2)) & ~1
+    show_name = ch >= tile + 12
+
+    if use_sprites:
+        canvas.upload_atlas(_icons(tile), persist=True)
+
+    for i, eid in enumerate(ids):
+        r, c = divmod(i, cols)
+        x, y = c * cw, r * ch
+        s = states.get(eid, {})
+        domain = eid.split('.')[0]
+        attrs = s.get('attributes') or {}
+        cname, thr = cfg.get(eid, (None, None))
+        name = canvas.cp(cname or attrs.get('friendly_name') or eid.split('.', 1)[-1].replace('_', ' '))
+        val, col = _mx_value(s.get('state'), attrs, thr, canvas.cp)
+
+        canvas.roundrect(x + 1, y + 1, cw - 2, ch - 2, 3, col, fill=False)   # black card, colored border
+        top_h = ch - (10 if show_name else 0)                                # icon + value share the top band
+        vx0 = x + 3
+        if use_sprites:
+            canvas.sprite(_DOMAIN.get(domain, _N_ICONS - 1), x + 3, y + max(2, (top_h - tile) // 2))
+            vx0 = x + 3 + tile + 2
+        vf = canvas.fit(val, (x + cw - 3) - vx0, top_h - 3)          # fit the value in the space right of the icon
+        canvas.shadow_text((vx0 + x + cw - 3) // 2, y + max(2, (top_h - vf) // 2), val, col, vf, align='center')
+        if show_name:
+            canvas.shadow_text(x + cw // 2, y + ch - 11, name[:max(4, (cw - 4) // 5)], (222, 228, 242), 8, align='center')
+
+    canvas.show()
+    return 12.0

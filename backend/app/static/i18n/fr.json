@@ -5,7 +5,6 @@
   "%s setting(s) overridden for this entry": "%s réglage(s) remplacé(s) pour cette entrée",
   "%s — entry settings": "%s — réglages de l'entrée",
   "* APIs that are free or have a free tier.": "* API gratuites ou avec une offre gratuite.",
-  "0 = fit to the panel.": "0 = ajuster au panneau.",
   "12-hour (AM/PM)": "12 heures (AM/PM)",
   "12h": "12h",
   "12hr": "12 h",
@@ -48,7 +47,6 @@
   "Apps": "Applis",
   "Apps watch for events and briefly interrupt the display when something happens.": "Des applis surveillent des événements et interrompent brièvement l'affichage quand il se passe quelque chose.",
   "Aurora": "Aurore",
-  "Auto": "Auto",
   "Auto (AM/PM in English)": "Auto (AM/PM en anglais)",
   "Aviation": "Aviation",
   "Backup": "Sauvegarde",
@@ -75,7 +73,6 @@
   "Color for 0": "Couleur du 0",
   "Color for 1": "Couleur du 1",
   "Cols": "Colonnes",
-  "Columns": "Colonnes",
   "Comments (blank line separates slides, up to 3 lines each)": "Commentaires (une ligne vide sépare les diapos, 3 lignes max chacune)",
   "Compact (more games per page)": "Compact (plus de matchs par page)",
   "Compose": "Composer",
@@ -348,7 +345,6 @@
   "Search a team or league…": "Rechercher une équipe ou une ligue…",
   "Search apps…": "Rechercher des applis…",
   "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value gets a green flap below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.": "Cherchez pour ajouter des entités. Réorganisez avec les flèches, renommez et définissez des seuils numériques — une valeur reçoit un volet vert sous le seuil bas, ambre entre les deux, rouge au-dessus du seuil haut. Dans le module complémentaire, cela fonctionne automatiquement ; en Docker autonome, COMPANION_HA_URL + COMPANION_HA_TOKEN doivent être définis.",
-  "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value is green below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.": "Cherchez pour ajouter des entités. Réorganisez avec les flèches, renommez et définissez des seuils numériques — une valeur est verte sous le seuil bas, ambre entre les deux, rouge au-dessus du seuil haut. Dans le module complémentaire, cela fonctionne automatiquement ; en Docker autonome, COMPANION_HA_URL + COMPANION_HA_TOKEN doivent être définis.",
   "Search…": "Rechercher…",
   "Seconds Per Symbol": "Secondes par symbole",
   "Seconds each countdown is shown (before rotating to the next)": "Secondes d'affichage par compte à rebours (avant rotation)",
@@ -479,5 +475,6 @@
   "＋ Add trigger": "＋ Ajouter un déclencheur",
   "＋ App": "＋ Appli",
   "＋ Library": "＋ Bibliothèque",
-  "＋ Message": "＋ Message"
+  "＋ Message": "＋ Message",
+  "Columns on the Matrix panel (0 = auto)": "Colonnes sur le panneau Matrix (0 = auto)"
 }

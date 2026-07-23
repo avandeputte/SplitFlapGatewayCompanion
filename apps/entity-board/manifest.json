@@ -4,7 +4,10 @@
   "icon": "🏠",
   "description": "Home Assistant entity states as rows on the split-flap wall",
   "type": "functional",
-  "surfaces": ["flap", "matrix"],
+  "surfaces": [
+    "flap",
+    "matrix"
+  ],
   "refresh_interval": 15,
   "loop_delay": 8,
   "category": "other",
@@ -16,6 +19,16 @@
       "searchUrl": "/ha_entities",
       "resultKey": "results",
       "note": "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value gets a green flap below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set."
+    },
+    {
+      "key": "columns",
+      "label": "Columns on the Matrix panel (0 = auto)",
+      "type": "number",
+      "default": "0",
+      "min": "0",
+      "max": "6",
+      "step": "1",
+      "stepper": true
     }
   ],
   "min_cols": 12

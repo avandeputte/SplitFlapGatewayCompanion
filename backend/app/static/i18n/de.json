@@ -5,7 +5,6 @@
   "%s setting(s) overridden for this entry": "%s Einstellung(en) für diesen Eintrag überschrieben",
   "%s — entry settings": "%s — Einstellungen für diesen Eintrag",
   "* APIs that are free or have a free tier.": "* APIs, die kostenlos sind oder ein Gratiskontingent haben.",
-  "0 = fit to the panel.": "0 = an das Panel anpassen.",
   "12-hour (AM/PM)": "12-Stunden (AM/PM)",
   "12h": "12h",
   "12hr": "12 Std",
@@ -48,7 +47,6 @@
   "Apps": "Apps",
   "Apps watch for events and briefly interrupt the display when something happens.": "Apps achten auf Ereignisse und unterbrechen kurz die Anzeige, wenn etwas passiert.",
   "Aurora": "Aurora",
-  "Auto": "Auto",
   "Auto (AM/PM in English)": "Auto (AM/PM auf Englisch)",
   "Aviation": "Luftfahrt",
   "Backup": "Backup",
@@ -75,7 +73,6 @@
   "Color for 0": "Farbe für 0",
   "Color for 1": "Farbe für 1",
   "Cols": "Spalten",
-  "Columns": "Spalten",
   "Comments (blank line separates slides, up to 3 lines each)": "Kommentare (Leerzeile trennt die Seiten, je max. 3 Zeilen)",
   "Compact (more games per page)": "Kompakt (mehr Spiele pro Seite)",
   "Compose": "Verfassen",
@@ -348,7 +345,6 @@
   "Search a team or league…": "Team oder Liga suchen…",
   "Search apps…": "Apps suchen…",
   "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value gets a green flap below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.": "Zum Hinzufügen von Entitäten suchen. Mit den Pfeilen umsortieren, umbenennen und numerische Schwellen festlegen — ein Wert erhält eine grüne Klappe unter niedrig, gelb dazwischen, rot über hoch. Im Add-on funktioniert das automatisch; bei eigenständigem Docker müssen COMPANION_HA_URL + COMPANION_HA_TOKEN gesetzt sein.",
-  "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value is green below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.": "Zum Hinzufügen von Entitäten suchen. Mit den Pfeilen umsortieren, umbenennen und numerische Schwellen festlegen — ein Wert ist grün unter niedrig, gelb dazwischen, rot über hoch. Im Add-on funktioniert das automatisch; bei eigenständigem Docker müssen COMPANION_HA_URL + COMPANION_HA_TOKEN gesetzt sein.",
   "Search…": "Suchen…",
   "Seconds Per Symbol": "Sekunden pro Symbol",
   "Seconds each countdown is shown (before rotating to the next)": "Anzeigedauer je Countdown in Sekunden (vor dem Wechsel)",
@@ -479,5 +475,6 @@
   "＋ Add trigger": "＋ Trigger hinzufügen",
   "＋ App": "＋ App",
   "＋ Library": "＋ Bibliothek",
-  "＋ Message": "＋ Nachricht"
+  "＋ Message": "＋ Nachricht",
+  "Columns on the Matrix panel (0 = auto)": "Spalten auf dem Matrix-Panel (0 = auto)"
 }

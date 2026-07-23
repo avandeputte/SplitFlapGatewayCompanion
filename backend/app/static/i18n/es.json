@@ -5,7 +5,6 @@
   "%s setting(s) overridden for this entry": "%s ajuste(s) modificados para esta entrada",
   "%s — entry settings": "%s — ajustes de la entrada",
   "* APIs that are free or have a free tier.": "* APIs gratuitas o con un plan gratuito.",
-  "0 = fit to the panel.": "0 = ajustar al panel.",
   "12-hour (AM/PM)": "12 horas (AM/PM)",
   "12h": "12h",
   "12hr": "12 h",
@@ -48,7 +47,6 @@
   "Apps": "Apps",
   "Apps watch for events and briefly interrupt the display when something happens.": "Las apps vigilan eventos e interrumpen brevemente la pantalla cuando ocurre algo.",
   "Aurora": "Aurora",
-  "Auto": "Auto",
   "Auto (AM/PM in English)": "Auto (AM/PM en inglés)",
   "Aviation": "Aviación",
   "Backup": "Copia",
@@ -75,7 +73,6 @@
   "Color for 0": "Color del 0",
   "Color for 1": "Color del 1",
   "Cols": "Columnas",
-  "Columns": "Columnas",
   "Comments (blank line separates slides, up to 3 lines each)": "Comentarios (una línea en blanco separa diapositivas, 3 líneas máx. cada una)",
   "Compact (more games per page)": "Compacto (más partidos por página)",
   "Compose": "Componer",
@@ -348,7 +345,6 @@
   "Search a team or league…": "Busca un equipo o una liga…",
   "Search apps…": "Buscar apps…",
   "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value gets a green flap below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.": "Busca para añadir entidades. Reordena con las flechas, renombra y define umbrales numéricos — un valor recibe una tarjeta verde por debajo de bajo, ámbar entre medias, roja por encima de alto. En el complemento funciona automáticamente; en Docker autónomo hay que definir COMPANION_HA_URL + COMPANION_HA_TOKEN.",
-  "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value is green below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.": "Busca para añadir entidades. Reordena con las flechas, renombra y define umbrales numéricos — un valor es verde por debajo de bajo, ámbar entre medias, rojo por encima de alto. En el complemento funciona automáticamente; en Docker autónomo hay que definir COMPANION_HA_URL + COMPANION_HA_TOKEN.",
   "Search…": "Buscar…",
   "Seconds Per Symbol": "Segundos por símbolo",
   "Seconds each countdown is shown (before rotating to the next)": "Segundos que se muestra cada cuenta atrás (antes de rotar)",
@@ -479,5 +475,6 @@
   "＋ Add trigger": "＋ Añadir disparador",
   "＋ App": "＋ App",
   "＋ Library": "＋ Biblioteca",
-  "＋ Message": "＋ Mensaje"
+  "＋ Message": "＋ Mensaje",
+  "Columns on the Matrix panel (0 = auto)": "Columnas en el panel Matrix (0 = auto)"
 }

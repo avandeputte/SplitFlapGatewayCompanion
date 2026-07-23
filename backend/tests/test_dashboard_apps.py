@@ -1,5 +1,5 @@
 """The rename/threshold logic behind the two Home Assistant dashboard apps —
-``canvas-dashboard`` (Matrix panel, colors the value) and ``entity-board`` (split-flap,
+``entity-board``'s matrix view (colors the value) and its flap rows (split-flap,
 picks a status/threshold color flap). The interesting part is the config parsing and the
 green/amber/red banding; drive the pure helpers directly.
 """
@@ -66,15 +66,15 @@ def test_entity_board_row_clamps_to_columns():
     assert len(row) == 12                                       # never overflows the wall width
 
 
-# -- canvas-dashboard: value -> (text, RGB) ---------------------------------
+# -- entity-board's matrix value classifier: value -> (text, RGB) ------------
 
 def _cp(s):   # stands in for the injected canvas.cp (CP1252 filter)
     return str(s).encode("cp1252", "ignore").decode("cp1252")
 
 
-def test_canvas_dashboard_bands_and_unit():
-    m = _load("canvas-dashboard")
-    txt, col = m._value("2500", {"unit_of_measurement": "ppm"}, (1000, 2000), _cp)
-    assert col == m._RED and txt == "2500"                      # long unit dropped, above high -> red
-    assert m._value("640", {}, (1000, 2000), _cp)[1] == m._GREEN   # below low -> green
-    assert m._value("on", {}, None, _cp)[1] == m._GREEN         # on state -> green
+def test_matrix_value_bands_and_unit():
+    m = _load("entity-board")
+    txt, col = m._mx_value("2500", {"unit_of_measurement": "ppm"}, (1000, 2000), _cp)
+    assert col == m._C_RED and txt == "2500"                    # long unit dropped, above high -> red
+    assert m._mx_value("640", {}, (1000, 2000), _cp)[1] == m._C_GREEN   # below low -> green
+    assert m._mx_value("on", {}, None, _cp)[1] == m._C_GREEN    # on state -> green

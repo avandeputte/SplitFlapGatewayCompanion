@@ -343,7 +343,9 @@ class PluginRuntime:
 
     # Apps that were absorbed into another. A wall that had the old id installed
     # (or in a playlist) follows the merge instead of waking up to PLUGIN ERROR.
-    _RENAMED_APPS = {"national-today": "holidays"}
+    _RENAMED_APPS = {"national-today": "holidays",
+                     "canvas-overview": "dashboard",     # Overview's card is Dashboard's panel view
+                     "canvas-dashboard": "entity-board"}  # HA Dashboard's grid is Home Assistant's panel view
 
     def _migrate_renamed_apps(self) -> None:
         installed = list(self.settings.installed_apps)

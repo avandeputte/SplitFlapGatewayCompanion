@@ -151,16 +151,6 @@
       "version": "1.0"
     },
     {
-      "id": "canvas-overview",
-      "name": "Overview",
-      "icon": "📊",
-      "description": "A clock, date and weather dashboard (Matrix panel)",
-      "category": "time",
-      "type": "functional",
-      "surface": "canvas",
-      "version": "1.0"
-    },
-    {
       "id": "canvas-stock-graph",
       "name": "Stock Graph",
       "icon": "📈",

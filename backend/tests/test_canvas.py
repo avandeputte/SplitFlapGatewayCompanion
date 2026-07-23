@@ -444,7 +444,7 @@ def test_the_canvas_apps_declare_the_matrix_surface():
     apps = Path(__file__).resolve().parents[2] / "apps"
     import json
     for app in ("effects", "canvas-art-clock", "canvas-image", "canvas-weather",
-                "canvas-date", "canvas-overview"):
+                "canvas-date"):
         m = json.loads((apps / app / "manifest.json").read_text())
         assert m.get("surfaces") == ["matrix"], app
 
@@ -578,7 +578,8 @@ def test_weather_caches_the_reading(gw_calls):
     ("world_clock", {"world_clock_zones": "America/New_York,Europe/London,Asia/Tokyo"}),
     # Countdown is dual-view now: its canvas branch draws the color bars (was canvas-countdown).
     ("countdown", {"countdown_event": "Launch", "countdown_target": "2027-06-01T00:00"}),
-    ("canvas-overview", {}),                         # renders clock/date even with no weather
+    # Dashboard's panel view is the merged Overview card (was canvas-overview).
+    ("dashboard", {}),                               # renders clock/date even with no weather
 ])
 @pytest.mark.parametrize("size", [(128, 32), (64, 32), (128, 64)])
 def test_new_canvas_apps_push_a_frame(gw_calls, app_id, settings, size):
@@ -598,7 +599,7 @@ def test_canvas_apps_fill_a_big_256x64_panel(gw_calls):
                              {"date": "2026-07-17", "hi_f": 84, "lo_f": 61},
                              {"date": "2026-07-18", "hi_f": 79, "lo_f": 58}]}
     for app_id, kw in (("canvas-weather", {"get_weather": gww}),
-                       ("canvas-overview", {"get_weather": gww}),
+                       ("dashboard", {"get_weather": gww}),
                        ("canvas-date", {})):
         _h, img, content = _push(gw_calls, _load(app_id), 256, 64, {}, **kw)
         assert len(content) == 256 * 64 * 3 and _bright(img) > 30, app_id
@@ -610,7 +611,7 @@ def test_overview_weather_column_never_clips_off_the_bottom(gw_calls, monkeypatc
     region on a short panel — _fit_stack must shrink the column together so the
     last line never spills past the bottom edge. Spy on _draw_stack and assert
     every stack fits its region, for ordinary AND all-3-digit extreme readings."""
-    app = _load("canvas-overview")
+    app = _load("dashboard")
     seen = []
     orig = app._draw_stack
 
@@ -638,7 +639,7 @@ def test_overview_weather_column_never_clips_off_the_bottom(gw_calls, monkeypatc
 
 
 # A matrix-only app exposes fetch_matrix and no flap fetch (a dual app like countdown has both).
-@pytest.mark.parametrize("app_id", ["canvas-date", "canvas-overview", "effects"])
+@pytest.mark.parametrize("app_id", ["canvas-date", "effects"])
 def test_matrix_apps_expose_fetch_matrix_only(app_id):
     m = _load(app_id)
     assert callable(getattr(m, "fetch_matrix", None)) and not hasattr(m, "fetch")
