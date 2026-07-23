@@ -1043,8 +1043,11 @@ def fetch_matrix(settings, canvas, get_location=None):
         dy = 1 + (head_h - 2) // 2
         dx = W - 3 - len(shown) * step
         for j in range(len(shown)):
-            draw.rectangle([dx + j * step, dy - 1, dx + j * step + 1, dy],
-                           fill=_MX_WHITE if j == idx else _MX_DIM)
+            if j == idx:                          # the shown aircraft: amber + a hair bigger
+                draw.rectangle([dx + j * step - 1, dy - 2, dx + j * step + 2, dy + 1],
+                               fill=_MX_AMBER)
+            else:
+                draw.rectangle([dx + j * step, dy - 1, dx + j * step + 1, dy], fill=_MX_DIM)
         draw.line([(2, head_h + 1), (W - 3, head_h + 1)], fill=_MX_RULE)
 
         # Hero: callsign big, route beside it in cyan.

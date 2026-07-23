@@ -290,9 +290,12 @@ def fetch_matrix(settings, canvas):
         dy = (bar_h - 1 - 2) // 2
         dx = W - 2 - n * step
         for j in range(n):
-            on = (j == idx)
-            draw.rectangle([dx + j * step, dy, dx + j * step + 1, dy + 1],
-                           fill=_WHITE if on else (95, 95, 102))
+            if j == idx:                          # the current headline: the masthead red, and a
+                draw.rectangle([dx + j * step - 1, dy - 1,          # hair bigger — color, not just
+                                dx + j * step + 2, dy + 2], fill=_MAST)   # brightness, marks it
+            else:
+                draw.rectangle([dx + j * step, dy, dx + j * step + 1, dy + 1],
+                               fill=(95, 95, 102))
 
     # The headline, as big as it wraps — mixed case is the point on this panel.
     top = bar_h + 3
