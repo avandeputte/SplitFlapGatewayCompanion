@@ -3,6 +3,31 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0
+
+Every app now lives on both displays. This release turns the Matrix panel into a first-class
+surface for the entire app library, alongside a major panel-quality pass and support for the
+Matrix Gateway's newest firmware features.
+
+- **Every app has a rich Matrix-panel view.** All 40+ apps draw a designed, full-color panel view —
+  clocks that fill the panel, a drawn moon with its true phase, a sun arc, a tide curve, an ISS
+  tracker map, live scoreboards, departure boards, quote and fact cards, and more. Each app has a
+  "Show on Matrix panel" toggle (shown only on Matrix displays, at the top of its settings);
+  turned off, the app shows its classic text instead. Physical split-flap walls are unchanged.
+- **One app per idea.** The separate panel-only apps merged into their classic counterparts:
+  Overview into Dashboard, HA Dashboard into Home Assistant, Date Card into Date, Countdown Bars
+  into Countdown, World Time into World Clock, and Weather Panel into Weather Sky. Installs and
+  playlists follow the merges automatically.
+- **Faster animation on firmware 3.2+.** The companion drives fast-drawing apps over the gateway's
+  persistent draw stream — smooth animation at roughly triple the previous frame rate. Older
+  firmware keeps the existing path.
+- **Panel views use every LED.** Layouts fill the full panel height at every panel size, text never
+  drops below a legible size (elements shorten or step aside instead), row spacing is even, and
+  icons render correctly on low-bit-depth panels.
+- **For app authors:** an app declares its displays with `"surfaces": ["flap", "matrix"]` and
+  renders each with a matching entry point — `fetch()` for flaps, `fetch_matrix()` for the panel.
+  See the Writing Apps wiki page.
+
 ## 2.9.2
 
 - **Fortune-cookie panel icon** now uses an openly-licensed emoji (Noto Emoji, Apache-2.0) rather

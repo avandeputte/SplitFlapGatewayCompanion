@@ -3,148 +3,30 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
-## 2.10.0-beta.20
+## 2.10.0
 
-- **Two more app merges.** The matrix-only **Date Card** is now the **Date** app's panel view
-  (localized), and **Weather Panel** is folded into **Weather Sky** — one rich weather app on the
-  panel. Installs and playlists follow the merges automatically.
-- **Magic 8 Ball and Shower Thoughts icons show properly on real panels** — their darker tones sat
-  below what a low-bit-depth LED panel can display and were being crushed to black.
+Every app now lives on both displays. This release turns the Matrix panel into a first-class
+surface for the entire app library, alongside a major panel-quality pass and support for the
+Matrix Gateway's newest firmware features.
 
-## 2.10.0-beta.19
-
-- **Legibility pass across every panel view**, from a pixel-level inspection of all 43 views at all
-  four panel sizes: text never renders below 8px (smaller sizes drew wrong-reading characters — an
-  "S" that looked like an 8, a "2" like a 7), and when something can't fit legibly it is shortened
-  or dropped instead. Row spacing is uniform everywhere; many small collisions and truncations
-  fixed (compass directions, prices, dates, captions).
-
-## 2.10.0-beta.18
-
-- **Trivia**: a short answer centers in the card instead of sitting on the bottom edge.
-
-## 2.10.0-beta.17
-
-- **Stocks and Crypto**: row spacing on the panel is perfectly even (rows no longer stretch to the
-  bottom edge at the cost of one wider gap).
-
-## 2.10.0-beta.16
-
-- **Formula 1**: the round-number label renders fully inside its red chip.
-
-## 2.10.0-beta.15
-
-- **Every Matrix-panel view now uses the full panel height.** A measured pass over all 43 views x 4
-  panel sizes: content reaches within one LED row of the top and bottom edges everywhere (previously
-  most views left 2-29 rows dark). Clocks, counters, discs, gauges and text blocks all grew to fill.
-
-## 2.10.0-beta.14
-
-- **Panel-view polish:** Rocket Launch and Sports headers no longer clip their top pixel row;
-  Word of the Day's definition is a size larger; the Star Wars lightsaber is red (blue read as a
-  plain white slash); Home Assistant cards drop the icon on very small panels so values stay
-  readable.
-
-## 2.10.0-beta.13
-
-- **One Liners** shows the smiley on the Matrix panel (they're jokes).
-
-## 2.10.0-beta.12
-
-- **On This Day**: the year chip's numerals are solid black on the gold chip.
-
-## 2.10.0-beta.11
-
-- **Clearer pagination dots** on the News Headlines and Planes Overhead panel views: the current
-  item's dot is now accent-colored (red / amber) and slightly larger.
-
-## 2.10.0-beta.10
-
-- **Two app merges.** The matrix-only **Overview** app is now the **Dashboard** app's Matrix-panel
-  view (big clock + date + a weather column with a seconds sweep), and the matrix-only
-  **HA Dashboard** is now the **Home Assistant** app's panel view (a grid of entity cards with
-  device icons, drawn on-device via ops + a persisted sprite atlas). Installs and playlists that
-  referenced the old apps follow the merge automatically. Dashboard gains Time-format and
-  Temperature-unit settings; Home Assistant gains a Columns setting.
-- **Magic 8 Ball** panel icon is now a glossy black ball (it read blue on LEDs).
-
-## 2.10.0-beta.9
-
-- **Matrix-view polish.** News Headlines shows real mastheads for known feeds (BBC, NY Times,
-  Guardian, Reuters, AP...); Planes Overhead's header renders crisply; Sun Times at night shows a
-  star field and a "RISE IN 7H12M" countdown to sunrise (day length returns by day).
-
-## 2.10.0-beta.8
-
-- **Every app now has a Matrix-panel view.** All 40 flap-only apps gained a rich `fetch_matrix`
-  rendering — clocks, sun arc, drawn moon, tide curve, quote/fact cards, scoreboards, departure
-  boards, quake cards, an ISS tracker map and more — each on solid black, adaptive from 256x64 down
-  to 64x32, showing the same data as its flap view, with a per-app "Show on Matrix panel" toggle.
-- **American English throughout** the code, comments and UI strings.
-
-## 2.10.0-beta.7
-
-- **Internal clean-up release.** A full design-debt pass with no feature changes: one construction
-  path for the panel drawing surface, one owner for all per-wall panel state, the standalone and
-  playlist render loops share a single body per surface, duplicated dropdown/search/button code in
-  the web UI collapsed into shared helpers, and every code comment rewritten to describe current
-  behavior. The "Show on Matrix panel" toggle now appears only on Matrix-panel displays, at the top
-  of an app's settings.
-
-## 2.10.0-beta.6
-
-- **Public Holidays panel view: the day number is now solid black** on the calendar card (was a
-  near-black), for a cleaner desk-calendar look.
-
-## 2.10.0-beta.5
-
-- **Cleaner multi-surface app model.** An app now declares where it renders with one manifest field
-  — `"surfaces": ["flap"]`, `["matrix"]`, or both — and renders each with a matching entry point:
-  `fetch()` for flaps, `fetch_matrix()` for a Matrix panel. This replaces the older `surface:"canvas"`
-  flag, the `canvas_view` flag, and the single `fetch(canvas=…)` that branched on the surface. All
-  bundled apps were migrated; dual-surface apps (Countdown, World Clock, Public Holidays) split their
-  two views into two clean functions.
-- **One "Show on Matrix panel" toggle** across dual-surface apps (was two separate keys). If you had
-  turned a channel's panel view off, re-set it in that app's settings.
-- **Countdown bars view: drop the seconds bar once a years bar is shown** — matching the flap version
-  (a decade-out countdown ticking seconds is noise).
-
-## 2.10.0-beta.4
-
-- **Public Holidays panel view: black background.** The desk-calendar view now sits on solid black
-  (no dark gradient wash) — the calendar card and holiday name read cleaner on the panel.
-
-## 2.10.0-beta.3
-
-- **Dual-view apps: one app, both surfaces.** An app can now ship BOTH a split-flap view and a rich
-  Matrix-panel view, chosen per app with a new "Show on Matrix panel (rich view)" toggle (greyed out
-  on flap-only walls) — the same idea as a channel's art view, but the app draws its own panel
-  graphics. Dual-view apps carry a badge (a flap card beside a mini panel) so they read at a glance.
-- **Public Holidays gets a desk-calendar panel view.** On a Matrix panel it shows each upcoming
-  holiday as a red-banded calendar card (month + big day number) with the holiday name and countdown
-  beside it, adapting to a compact date-strip layout on small panels. Flap walls are unchanged.
-- **Countdown and World Clock are now dual-view — the two "canvas-" twins are folded in.** The
-  standalone "Countdown Bars" and "World Time" panel apps are merged into the regular **Countdown**
-  and **World Clock** apps, which now render the colour bars / lit day-night rows on a Matrix panel
-  and the text countdown / clocks on flaps, off one shared configuration. (If you had the old
-  canvas-only apps in a playlist, swap them for Countdown / World Clock.)
-
-## 2.10.0-beta.2
-
-- **Fast Matrix-panel apps now draw over the v3.2 stream.** On a wall running firmware 3.2, a
-  frequently-redrawing frame-push app (a sweeping clock, Weather Sky, Countdown, Stock Graph in
-  rotation …) runs over one persistent draw connection instead of a HTTP request per frame — much
-  higher frame rates and smoother animation. Delta frames go as rect records, keyframes as full
-  frames; the stream is always closed on hand-back, and any hiccup falls back to the per-frame path.
-  Walls below firmware 3.2, and slow/ops apps, are unaffected.
-
-## 2.10.0-beta.1
-
-- **Groundwork for the Matrix-panel *canvas stream* (firmware 3.2).** The companion now detects the
-  gateway's `canvas.stream` capability and ships the persistent draw-channel transport
-  (`PUT /api/canvas/stream`) — one long-lived connection that carries frame/rect/ops records with no
-  per-frame HTTP round trip. It is **not driving apps over it yet** (that's the next beta), so there
-  is no behaviour change; walls below firmware 3.2 are unaffected.
+- **Every app has a rich Matrix-panel view.** All 40+ apps draw a designed, full-color panel view —
+  clocks that fill the panel, a drawn moon with its true phase, a sun arc, a tide curve, an ISS
+  tracker map, live scoreboards, departure boards, quote and fact cards, and more. Each app has a
+  "Show on Matrix panel" toggle (shown only on Matrix displays, at the top of its settings);
+  turned off, the app shows its classic text instead. Physical split-flap walls are unchanged.
+- **One app per idea.** The separate panel-only apps merged into their classic counterparts:
+  Overview into Dashboard, HA Dashboard into Home Assistant, Date Card into Date, Countdown Bars
+  into Countdown, World Time into World Clock, and Weather Panel into Weather Sky. Installs and
+  playlists follow the merges automatically.
+- **Faster animation on firmware 3.2+.** The companion drives fast-drawing apps over the gateway's
+  persistent draw stream — smooth animation at roughly triple the previous frame rate. Older
+  firmware keeps the existing path.
+- **Panel views use every LED.** Layouts fill the full panel height at every panel size, text never
+  drops below a legible size (elements shorten or step aside instead), row spacing is even, and
+  icons render correctly on low-bit-depth panels.
+- **For app authors:** an app declares its displays with `"surfaces": ["flap", "matrix"]` and
+  renders each with a matching entry point — `fetch()` for flaps, `fetch_matrix()` for the panel.
+  See the Writing Apps wiki page.
 
 ## 2.9.2
 
