@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.2
+
+- **Channels stay readable on short panels.** On 32-pixel-tall panels a long quote or joke
+  now splits across several screens instead of shrinking the type below the panel's
+  readable floor (tiny sizes rendered garbled glyphs).
+- **Bigger facts and quotes on short panels.** Cat Facts, Dog Facts, Useless Facts, Advice,
+  and Quote drop their header on 32-pixel-tall panels so the text itself renders about a
+  third larger — a quote's attribution now fits on screen too.
+
 ## 2.10.1
 
 - **Playlist entry settings now steer where an app renders.** A per-entry "Show on Matrix panel"
