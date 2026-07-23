@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.4
+
+- **Public Holidays panel view: black background.** The desk-calendar view now sits on solid black
+  (no dark gradient wash) — the calendar card and holiday name read cleaner on the panel.
+
 ## 2.10.0-beta.3
 
 - **Dual-view apps: one app, both surfaces.** An app can now ship BOTH a split-flap view and a rich

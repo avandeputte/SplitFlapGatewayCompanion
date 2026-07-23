@@ -287,7 +287,6 @@ def fetch(settings, format_lines, get_rows, get_cols, canvas=None, i18n=None, ge
 # wrapped name) so it stays legible down to a 64x32 wall.
 # ---------------------------------------------------------------------------
 
-_BG_TOP, _BG_BOT = (30, 34, 46), (12, 14, 20)          # quiet dark backdrop
 _CARD, _CARD_EDGE = (244, 244, 246), (208, 208, 214)   # the desk-calendar card
 _BAND = (206, 52, 52)                                  # its classic red month band
 _DAY = (26, 26, 32)                                    # the big day number
@@ -377,7 +376,7 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
     """The full desk-calendar view: the calendar card beside the name + countdown on a wide-enough
     panel, else a compact stacked layout (date strip over the wrapped name)."""
     W, H = canvas.width, canvas.height
-    img = canvas.vgrad(_BG_TOP, _BG_BOT)
+    img = canvas.blank((0, 0, 0))          # black under the name — no backdrop wash
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
     mon, day, dow = _cv_month_day(dt, i18n)
@@ -444,7 +443,7 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
 def _cv_message(canvas, ImageDraw, line1, line2):
     """A quiet two-line message (no holidays / broken install)."""
     W, H = canvas.width, canvas.height
-    img = canvas.vgrad(_BG_TOP, _BG_BOT)
+    img = canvas.blank((0, 0, 0))          # black backdrop
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
     f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
