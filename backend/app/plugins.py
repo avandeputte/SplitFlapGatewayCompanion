@@ -316,27 +316,33 @@ class PluginRuntime:
         enabled = set(self.settings.installed_apps)
         for app_id, app_dir in scan.items():
             if app_id == "effects":
-                continue                          # a template for the per-effect apps (below)
+                continue                          # a template for the per-effect apps (see below)
             if app_id in enabled:
                 self._load_one(app_id, app_dir)
-        # The "Effects" app is presented as ONE app per effect the wall advertises (Plasma,
-        # Fire, Matrix Rain…), all sharing its module. Load that module once, then register a
-        # thin per-effect entry for each installed one.
-        eff_dir = scan.get("effects")
-        if eff_dir and self._effect_defs():
-            self._load_one("effects", eff_dir)    # loads the shared module (and a temp entry)
-            eff_mod = self._modules.get("effects")
-            eff_wants = self._wants.get("effects", frozenset())
-            eff_wants_matrix = self._wants_matrix.get("effects", frozenset())
-            self._registry.pop("effects", None)   # the generic app itself is never listed
-            for effect_id, token in self._effect_defs():
-                if effect_id in enabled and eff_mod is not None:
-                    self._registry[effect_id] = self._effect_manifest(effect_id, token)
-                    self._modules[effect_id] = eff_mod
-                    self._wants[effect_id] = eff_wants
-                    self._wants_matrix[effect_id] = eff_wants_matrix
+        self._load_effects(scan.get("effects"), enabled)
         # Multi-value settings (search_chips) are stored as JSON arrays on disk.
         self.settings.set_list_keys(self._list_keys())
+
+    def _load_effects(self, eff_dir, enabled: set) -> None:
+        """The single "Effects" app is presented as ONE app per effect the wall advertises (Plasma,
+        Fire, Matrix Rain…), all sharing its module. Load that module once, then register a thin
+        per-effect entry — its own manifest, the shared module and helper sets — for each installed
+        one. The generic ``effects`` app itself is never listed."""
+        if not eff_dir or not self._effect_defs():
+            return
+        self._load_one("effects", eff_dir)           # loads the shared module (and a temp entry)
+        eff_mod = self._modules.get("effects")
+        if eff_mod is None:
+            return
+        eff_wants = self._wants.get("effects", frozenset())
+        eff_wants_matrix = self._wants_matrix.get("effects", frozenset())
+        self._registry.pop("effects", None)          # the generic app itself is never listed
+        for effect_id, token in self._effect_defs():
+            if effect_id in enabled:
+                self._registry[effect_id] = self._effect_manifest(effect_id, token)
+                self._modules[effect_id] = eff_mod
+                self._wants[effect_id] = eff_wants
+                self._wants_matrix[effect_id] = eff_wants_matrix
 
     # Apps that were absorbed into another. A wall that had the old id installed
     # (or in a playlist) follows the merge instead of waking up to PLUGIN ERROR.
@@ -590,13 +596,7 @@ class PluginRuntime:
         if items is None:
             items = next((v for v in by_lang.values() if v), [])
 
-        # A per-app setting wins over the manifest's declared order.
-        order = (self._perapp_value(app_id, "order", settings)
-                 or self._registry.get(app_id, {}).get("order", "sequential"))
-        if str(order).lower() == "random":
-            items = list(items)
-            random.shuffle(items)
-        return [page for item in items for page in item]
+        return [page for item in self._ordered(items, app_id, settings) for page in item]
 
     def _load_functional(self, app_id: str, app_dir: Path) -> None:
         module_path = app_dir / "app.py"
@@ -782,12 +782,7 @@ class PluginRuntime:
         get_pages does so an entry's own Language is honoured."""
         settings = _SettingsOverlay(self.settings, overrides) if overrides else self.settings
         lang = self.content_lang(app_id, settings)
-        groups = self._channel_raw_groups(app_id, lang)
-        order = (self._perapp_value(app_id, "order", settings)
-                 or self._registry.get(app_id, {}).get("order", "sequential"))
-        if str(order).lower() == "random":
-            groups = list(groups)
-            random.shuffle(groups)
+        groups = self._ordered(self._channel_raw_groups(app_id, lang), app_id, settings)
         out = []
         for g in groups:
             segs = [g] if isinstance(g, str) else [s for s in g if isinstance(s, str)]
@@ -1093,6 +1088,18 @@ class PluginRuntime:
         settings = settings if settings is not None else self.settings
         return (self._perapp_value(app_id, "language", settings)
                 or settings.get("language", "en-US"))
+
+    def _ordered(self, items: list, app_id: str, settings=None) -> list:
+        """Items in the channel's effective order: a per-app ``order`` override wins over the
+        manifest's declared order; ``random`` returns a shuffled COPY (each fetch a fresh pass, so a
+        channel doesn't march the same way every day) — never the input list. The rule the flap
+        pages and the panel items both apply."""
+        order = (self._perapp_value(app_id, "order", settings)
+                 or self._registry.get(app_id, {}).get("order", "sequential"))
+        if str(order).lower() == "random":
+            items = list(items)
+            random.shuffle(items)
+        return items
 
     def _perapp_value(self, app_id: str, key: str, settings=None):
         """Effective value of a runtime-consumed per-app setting: the saved value,
