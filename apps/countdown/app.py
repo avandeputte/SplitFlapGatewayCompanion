@@ -73,7 +73,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     # Seconds are opt-in, and only where the wall says sub-second updates are
     # honest (caps.instant — its own motion statement): a mechanical module takes
     # seconds per flip, so a ticking seconds field would keep the wall permanently
-    # mid-clatter. getattr, so the app still runs on stock splitflap-os.
+    # mid-clatter. getattr: `instant` may be absent from a bare host's caps.
     show_secs = (str(settings.get('show_seconds', '')).strip().lower()
                  in {'1', 'true', 'yes', 'on'}
                  and bool(getattr(caps, 'instant', False)))
@@ -92,9 +92,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     def clean_event(value, fallback='Countdown'):
         text = str(value or '').strip()
         # caps.can_show is the wall's own answer to "can you show this?" — the
-        # old version reached into the host's __main__ for FLAP_CHARS, which was
-        # splitflap-os internals, not a contract. Without caps (stock
-        # splitflap-os) nothing is filtered: the renderer degrades what it must.
+        # public contract, not host internals. Without caps (a bare host)
+        # nothing is filtered: the renderer degrades what it must.
         can = getattr(caps, 'can_show', None)
         if callable(can):
             text = ''.join(ch if can(ch) else ' ' for ch in text)
@@ -110,8 +109,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
 
         # Keep the most useful leading units that still fit on the sign.
         # Only the seconds field is padded (with a space): it ticks every second
-        # at the end of the line, and a 10S -> 9S rollover used to shorten the
-        # line and shift everything left of it by a flap.
+        # at the end of the line, and the pad keeps a 10S -> 9S rollover from
+        # shortening the line and shifting everything left of it by a flap.
         day_u = u('D')
         # Past a year out, years lead: "8Y 267D 14H" reads where "3187D" only
         # counts. Only when years AND days actually fit together — on a very
@@ -160,7 +159,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
 
         Past a year out, a years row leads and the day row becomes days-within-
         the-year — which is also what keeps every value inside the 3-character
-        column (this used to clamp at 999D and lie for anything further out).
+        column (a bare day count would clamp at 999D and lie further out).
         Rows are trimmed least-significant-first to what the wall has: on a
         5-row wall an 8-year countdown shows Y/D/H/M and the ticking seconds
         yield — seconds are for launch day, not a retirement eight years away."""
@@ -235,7 +234,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
         if not target_str:
             if not allow_default:
                 return None
-            # Slot 1 keeps legacy behavior by defaulting to the next New Year.
+            # Slot 1 defaults to the next New Year when no target is set.
             return now.replace(
                 year=now.year + 1,
                 month=1,
@@ -295,8 +294,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     # That is what lets the seconds tick: the app is re-fetched every second (like
     # the clock app), so the shown countdown re-renders each second, while the
     # switch to the NEXT countdown happens only every `transition_seconds`. Returning
-    # them all as pages instead coupled the rotation to the 1-second page dwell —
-    # which is why they used to flip past once a second.
+    # them all as pages instead would couple the rotation to the 1-second page
+    # dwell and flip past each countdown once a second.
     groups = []
     for slot in slots:
         if not slot['enabled']:

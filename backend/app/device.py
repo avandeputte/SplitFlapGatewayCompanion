@@ -1,6 +1,6 @@
 """device.py — what a wall CAN DO, asked rather than assumed.
 
-There are several kinds of wall now — a physical split-flap, a Matrix Portal drawing the same
+There are several kinds of wall — a physical split-flap, a Matrix Portal drawing the same
 modules on an LED panel, and anything in between, including a MIXED wall whose modules do not
 all carry the same reel. They do not have the same alphabet, and the difference is not
 cosmetic. From the Matrix Portal firmware's own reel.h:
@@ -10,24 +10,22 @@ cosmetic. From the Matrix Portal firmware's own reel.h:
     fold to uppercase, and a heart -- which has no Windows-1252 byte -- cannot be
     addressed by character in ANY way.
 
-WHAT CHANGED, AND WHY THIS FILE LOOKS DIFFERENT NOW
----------------------------------------------------
-This module used to GUESS. It read ``GET /api/config``, looked for the word "matrix portal" in
-the product name and a firmware number of at least 1.6, and inferred from that that the wall
-had lowercase, pictographs and named colours. That was the best available answer and it was
-wrong in every direction that mattered:
+ASKED, NOT INFERRED
+-------------------
+Inferring from ``GET /api/config`` — "matrix portal" in the product name plus a firmware
+number of at least 1.6 ⇒ lowercase, pictographs and named colours — is wrong in every
+direction that matters:
 
-  * it could not see a PHYSICAL wall's reel at all, so the companion had no idea which
-    characters that wall could actually show. It sent the character and hoped. A module asked
+  * it cannot see a PHYSICAL wall's reel at all, so the companion has no idea which
+    characters that wall can actually show. It sends the character and hopes. A module asked
     for a flap it does not carry simply HOMES — a blank hole in the middle of a word — and
-    nothing reported it. That is why the translations had to be written in ASCII: `é` was a
-    gamble nobody could take;
-  * it assumed every module on a wall carries the same reel, which a wall built from two
+    nothing reports it. On that path only ASCII is safe: `é` is a gamble nobody can take;
+  * it assumes every module on a wall carries the same reel, which a wall built from two
     batches does not;
-  * and it hard-coded a version number, so the next firmware to gain a capability would have
-    to come and edit this file.
+  * and it hard-codes a version number, so the next firmware to gain a capability would
+    need an edit to this file.
 
-Gateways now answer ``GET /api/capabilities``, and it says what the wall can do:
+Gateways therefore answer ``GET /api/capabilities``, and it says what the wall can do:
 
     {"features": ["cells", "colors", "index", "lowercase", "pictographs", ...],
      "colors":   ["red", "orange", ...],
@@ -40,8 +38,8 @@ So we ask. ``common`` is the honest answer to "may I send this character": on a 
 is the reel; on a mixed wall it is the intersection, because a character only *some* modules
 carry is a character that will punch a hole in the ones that do not.
 
-The old inference is kept as ``of()`` and used only when a gateway is too old to answer — it
-must keep working, and on that path we are back to guessing and back to ASCII.
+The inference exists as ``of()`` and is used only when a gateway is too old to answer — it
+must keep working, and on that path we are guessing and confined to ASCII.
 
 It is a property of the GATEWAY ON THE OTHER END, not a setting: with several displays a
 companion can drive a Matrix Portal and a split-flap side by side, so it belongs to the
@@ -160,15 +158,15 @@ class Capabilities:
     def can_show(self, ch: str) -> bool:
         """Can EVERY module on this wall show this character?
 
-        Unknown charset -> True, deliberately: that is the old behaviour (send it and hope),
-        and it is better than silently blanking text on a wall we simply have not asked.
+        Unknown charset -> True, deliberately: send it and hope — the inference path's
+        behaviour — is better than silently blanking text on a wall we simply have not asked.
         """
         if not self.charset:
             return True
         return ch in self.charset
 
 
-# A real reel, as it used to be assumed: 64 leaves, one byte per character, seven of its letters
+# The inference path's assumed real reel: 64 leaves, one byte per character, seven of its letters
 # spent on colours, and no idea which characters are actually printed on it.
 SPLIT_FLAP = Capabilities(lowercase=False, pictographs=False, named_colours=False, indexed=False,
                           motion="mechanical", settle_ms=4000)

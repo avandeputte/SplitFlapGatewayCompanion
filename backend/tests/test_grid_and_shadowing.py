@@ -152,7 +152,7 @@ def _rows_of(page, rows, cols):
 
 def test_format_lines_centres_a_short_block_vertically(tmp_path):
     """A 3-line app on a 5-row wall must not sit at the top with two dead rows —
-    it is centred. This is our documented divergence from splitflap-os."""
+    the companion centres it; "vertical_align": "top" is the opt-out."""
     rt = _runtime(5, 15, tmp_path)
     page = rt.format_lines("ONE", "TWO", "THREE")
     lines = _rows_of(page, 5, 15)

@@ -130,11 +130,11 @@ def test_no_app_centres_itself():
 # ---------------------------------------------------------------------------
 # Centring is right for almost every app, but it is a POLICY, and an app that builds its
 # own layout (a fixed header, hand-placed rows) needs to be able to say so — otherwise its
-# placement gets centred a second time and drifts. "vertical_align": "top" is also exactly
-# splitflap-os's padding, so it doubles as the compatibility switch.
+# placement gets centred a second time and drifts. "vertical_align": "top" places lines
+# byte-for-byte where the app put them, so it is the opt-out for apps that pad themselves.
 def test_vertical_align_defaults_to_centre_when_the_manifest_says_nothing():
-    """Additive by construction: every existing app, and every splitflap-os app, has no
-    such key and must keep the behaviour it already has."""
+    """Additive by construction: an app whose manifest says nothing gets the default,
+    centre — the key is pure opt-in."""
     rt = _runtime(5, 15, "time")
     assert rt.vertical_align("time") == "center"
     assert rt.vertical_align(None) == "center"
@@ -143,7 +143,7 @@ def test_vertical_align_defaults_to_centre_when_the_manifest_says_nothing():
 
 @pytest.mark.parametrize("align,expected", [
     ("center", (1, 1)),      # blank above, blank below
-    ("top", (0, 2)),         # splitflap-os: everything falls to the bottom
+    ("top", (0, 2)),         # block at row 0, spare rows fall to the bottom
     ("bottom", (2, 0)),
 ])
 def test_vertical_align_places_the_block(align, expected):
@@ -175,8 +175,8 @@ def test_a_typo_in_the_manifest_does_not_take_the_wall_down(tmp_path, caplog):
 
 
 def test_the_app_gets_a_format_lines_bound_to_its_alignment():
-    """Apps call format_lines(*lines) — the signature splitflap-os apps expect. The
-    alignment has to reach it WITHOUT changing that signature, or drop-in compatibility
+    """Apps call format_lines(*lines) — a fixed public signature. The alignment has to
+    reach it WITHOUT changing that signature, or drop-in compatibility
     (a hard requirement, see COMPATIBILITY.md) is gone."""
     src = (Path(__file__).resolve().parents[1] / "app" / "plugins.py").read_text("utf-8")
     assert "functools.partial(self.format_lines," in src

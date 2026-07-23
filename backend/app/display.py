@@ -12,7 +12,7 @@ app/playlist loop:
 The default display is **explicit**, not inferred: `DisplayManager.default` is which wall the
 display-less surfaces resolve to — the bare `/api/...` routes, `/local-api/message` (a Vestaboard
 client sends no display id), an MCP call with no `display` argument, an existing HACS entry. It is
-persisted in the registry and settable. See docs/MULTI_DISPLAY_PLAN.md for the history.
+persisted in the registry and settable.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ from .registry import DEFAULT_ID, slugify  # noqa: E402  (re-export for callers)
 class Display:
     """One gateway and everything that belongs to it.
 
-    Owns exactly what main.py used to own at module level. Nothing here is global:
+    Nothing here is global:
     two Displays can run side by side, each with its own geometry, settings store,
     installed apps, playlists, triggers and running app.
     """
@@ -54,9 +54,9 @@ class Display:
     plugins: PluginRuntime
     scheduler: Scheduler
     ha: HomeAssistant
-    # The tabs this gateway advertises about itself (Gateway 3.4+). This was a
-    # module-level global in gateway.py, which with two gateways would have been
-    # last-writer-wins: the nav would show whichever one registered most recently.
+    # The tabs this gateway advertises about itself (Gateway 3.4+). Per-display on
+    # purpose: a module-level global would be last-writer-wins with two gateways —
+    # the nav would show whichever one registered most recently.
     gateway_tabs: list[dict[str, str]] = field(default_factory=list)
     # Pushes this display's live state to the browser over SSE (GET /api/events).
     # Set in build() once state + controller exist; None only for a bare hand-built
@@ -68,10 +68,10 @@ class Display:
               config: Config | None = None, data_dir: Path | None = None,
               gateway_url: str = "", own_settings: bool = False) -> "Display":
         """Construct a display and everything it owns, in the order they depend on
-        each other — the same order main.py used at import time.
+        each other.
 
         `own_settings` puts this display's store in ``data/displays/<id>/``. Off by default so a
-        bare Display.build() still reads the single-display file, which is what the registry-less
+        bare Display.build() reads the single-display file, which is what the registry-less
         tests and callers mean.
         """
         cfg = config or Config(data_dir, gateway_url=gateway_url)
@@ -121,7 +121,7 @@ class Display:
     def grid_changed(self) -> None:
         """The one correct reaction to new geometry, in the one correct order:
         resize the engine's canvas, then drop pages that were laid out for the
-        old grid. Callers used to repeat the pair by hand at every site."""
+        old grid. Written once so no call site can get the pair wrong."""
         self.controller.resize_grid()
         self.plugins.on_grid_changed()
 

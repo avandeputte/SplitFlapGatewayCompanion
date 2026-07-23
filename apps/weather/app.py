@@ -6,16 +6,16 @@ current conditions, a canonical ``sky`` token per forecast day, and air
 quality/UV/pollen already classified into bands. What remains here is entirely
 presentation: which of it fits this wall, in what order, in whose language.
 
-On a stock splitflap-os there is no helper to inject; ``_fallback_fetch`` keeps
-the app a working drop-in there via keyless Open-Meteo (current + forecast +
-air), with the keyed providers available only under the companion.
+On a host with no helper to inject, ``_fallback_fetch`` keeps the app working
+via keyless Open-Meteo (current + forecast + air), with the keyed providers
+available only under the companion.
 """
 
 
 # ---------------------------------------------------------------------------
 # Bands -> colours. The helper classifies every scale (US AQI, OpenWeather's
 # 1-5, WeatherAPI's 1-6, UV, pollen) into canonical bands, so ONE map colours
-# them all — there used to be three provider-specific ones.
+# them all.
 # ---------------------------------------------------------------------------
 _BAND_COLOR = {
     'good': 'GREEN', 'moderate': 'YELLOW', 'poor': 'ORANGE', 'bad': 'RED',
@@ -115,12 +115,12 @@ def _row(left, right, cols):
 # the mark means the same thing everywhere. And it is short, which is the whole problem: a
 # 15-column line has room for a day, a condition and 24/14, and nothing else.
 #
-# The marks are `-` and `!`, and the choice is forced. HEAVY used to be `+`, which is on the
+# The marks are `-` and `!`, and the choice is forced. `+` is ruled out: it is on the
 # English, German and Scandinavian reels — and on NO OTHER. A module asked for a flap it does
 # not carry simply homes, so on a French, Spanish, Italian, Portuguese or Dutch wall "Rain+"
-# came out as "Rain", making a downpour indistinguishable from ordinary rain. The suffix IS
-# the payload here, and it was being silently dropped in exactly the languages that have a
-# reel of their own. `-` and `!` are on every published set (see the wiki's Flaps & Character
+# would come out as "Rain", making a downpour indistinguishable from ordinary rain — the
+# suffix IS the payload, silently dropped in exactly the languages that have a reel of
+# their own. `-` and `!` are on every published set (see the wiki's Flaps & Character
 # Sets), so they carry the same meaning to every wall.
 #
 # The colour still comes along when the wall is wide enough for it.
@@ -281,9 +281,9 @@ def _forecast_lines(days, temp_unit, t, i18n, cols, no_color):
 
 
 def _fallback_fetch(settings, days, air):
-    """Stock splitflap-os has no helper to inject; keyless Open-Meteo keeps the
-    app a working drop-in there. Same document shape the helper returns, minus
-    the keyed providers."""
+    """With no injected helper (a bare host), keyless Open-Meteo keeps the app
+    working. Same document shape the helper returns, minus the keyed
+    providers."""
     import requests
 
     lat_s = str(settings.get('location_lat', '') or '').strip()
@@ -606,7 +606,7 @@ def trigger(settings, conditions):
             zip_code = settings.get('zip_code', '02118')
             geo = requests.get(
                 f'https://nominatim.openstreetmap.org/search?q={zip_code}&format=json&limit=1',
-                timeout=5, headers={'User-Agent': 'SplitFlapOS/1.0'}
+                timeout=5, headers={'User-Agent': 'SplitFlapGatewayCompanion/1.0'}
             ).json()
             if not geo:
                 return False

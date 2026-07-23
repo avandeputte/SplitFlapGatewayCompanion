@@ -40,9 +40,8 @@ CODE_TO_CHAR: dict[int, str] = {
     44: "-", 46: "+", 47: "&", 48: "=", 49: ";", 50: ":",
     52: "'", 53: '"', 54: "%", 55: ",", 56: ".", 59: "/", 60: "?",
     62: "°",                                                   # Flagship degree (a Note shows a heart)
-    # Colour chips -> the firmware's COLOUR FLAPS, as their own codepoints. They used to be
-    # the letters r/o/y/g/b/p/w, which was fine while no wall could show a lowercase letter.
-    # It is not fine now: decoding a red chip to "r" would write the LETTER r on a Matrix
+    # Colour chips -> the firmware's COLOUR FLAPS, as their own codepoints — never the
+    # letters r/o/y/g/b/p/w: decoding a red chip to "r" would write the LETTER r on a Matrix
     # Portal, and encoding the r of "Hello" would read back as a red chip. Violet is `p`.
     63: renderer.COLOR_PUA["r"], 64: renderer.COLOR_PUA["o"], 65: renderer.COLOR_PUA["y"],
     66: renderer.COLOR_PUA["g"], 67: renderer.COLOR_PUA["b"], 68: renderer.COLOR_PUA["p"],
@@ -219,7 +218,7 @@ def encode(chars: list[str], rows: int, cols: int) -> list[list[int]]:
             ch = chars[i] if i < len(chars) else " "
             # A Vestaboard has no lowercase flaps, so a letter reads back as its capital.
             # A COLOUR is not a letter — it is its own codepoint — so it can never be
-            # confused with the r of "Hello", which is exactly what used to happen.
+            # confused with the r of "Hello".
             row.append(CHAR_TO_CODE.get(ch, CHAR_TO_CODE.get(ch.upper(), BLANK)))
         out.append(row)
     return out

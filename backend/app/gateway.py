@@ -22,10 +22,10 @@ from .tabs import COMPANION_TABS, clean_tabs
 log = logging.getLogger("companion.gateway")
 
 # --- one pooled HTTP client per gateway ----------------------------------------
-# The gateway is a ~4-socket ESP32, and five helpers each used to open (and tear
-# down) their own one-shot client per call — a fresh TCP handshake for every
-# heartbeat, config pull and settings transfer. One keep-alive httpx.Client per
-# gateway base URL instead; httpx.Client is documented thread-safe, which matters
+# The gateway is a ~4-socket ESP32; a one-shot client per helper call would mean
+# a fresh TCP handshake for every heartbeat, config pull and settings transfer.
+# So: one keep-alive httpx.Client per
+# gateway base URL; httpx.Client is documented thread-safe, which matters
 # because the settings transfers run in background threads while the async helpers
 # run on the event loop (they reach the SAME pool via a worker thread).
 _clients_lock = threading.Lock()
@@ -69,9 +69,9 @@ async def _arequest(method: str, url: str, path: str, *, timeout: float, **kw):
 # Counted while a settings blob is being uploaded to / downloaded from a gateway.
 # The engine yields to it so display frames don't compete for the gateway's
 # attention mid-transfer. PER GATEWAY: one wall's settings push must not pause
-# sends to every other display. A COUNT, not a flag: two concurrent transfers to
-# the same gateway used to race the set/clear, and the first to finish dropped the
-# flag while the other was still mid-transfer.
+# sends to every other display. A COUNT, not a flag: with a flag, two concurrent
+# transfers to the same gateway race the set/clear, and the first to finish drops
+# the flag while the other is still mid-transfer.
 _transfer_cond = threading.Condition()
 _transfers: dict[str, int] = {}          # gateway base url -> transfers in flight
 
@@ -254,9 +254,9 @@ def detect_local_ip(gateway_url: str = "") -> str | None:
 
 
 # The tabs a gateway advertises about itself (Gateway 3.4+) belong to THAT gateway,
-# so they live on its Display (display.gateway_tabs) — not here. As a module global
-# this was last-writer-wins the moment a second gateway registered: the nav would
-# show whichever one had most recently answered. post_companion() hands the tabs it
+# so they live on its Display (display.gateway_tabs) — not here. A module global
+# would be last-writer-wins the moment a second gateway registers: the nav would
+# show whichever one most recently answered. post_companion() hands the tabs it
 # learned to the display it was called for.
 
 
@@ -401,9 +401,9 @@ def build_sync_patch(gw: dict) -> dict:
 
     Only the grid geometry is synced — that is all the gateway is the source of
     truth for. The transport choice, the gateway URL and the companion's own Home
-    Assistant broker are companion-owned and left untouched. (The gateway used to
-    publish an MQTT broker here too; firmware 3.0 removed MQTT from the gateway, so
-    the companion's HA integration now takes its broker from local config only.)
+    Assistant broker are companion-owned and left untouched. (A broker a pre-3.0
+    gateway publishes here is ignored too: the companion's HA integration takes
+    its broker from local config only, and a firmware 3.0+ gateway has no MQTT.)
     """
     grid: dict = {}
     rows, cols = _as_int(gw.get("gridRows")), _as_int(gw.get("gridCols"))

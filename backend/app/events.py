@@ -1,12 +1,12 @@
 """
 events.py — Server-Sent Events for the live preview.
 
-The browser used to poll ``/api/current_state`` a few times a second. Now the backend
-PUSHES the display state over an SSE stream (``GET /api/events``) the instant it changes,
-mirroring the Matrix gateway's own ``/api/events`` (firmware 3.0). One pump task per
-display diffs the snapshot on a short cadence and broadcasts it to every connected
-browser; the browser's ``EventSource`` applies it exactly as the old poll did, and falls
-back to polling if the stream drops.
+The backend PUSHES the display state over an SSE stream (``GET /api/events``) the
+instant it changes, mirroring the Matrix gateway's own ``/api/events`` (firmware 3.0).
+One pump task per display diffs the snapshot on a short cadence and broadcasts it to
+every connected browser; the browser's ``EventSource`` applies each frame exactly as it
+applies a ``/api/current_state`` poll result, and falls back to polling if the stream
+drops.
 
 Why diff-poll the snapshot rather than signal on every state mutation? Because the two
 things the preview cares about live in different places — the flap characters in

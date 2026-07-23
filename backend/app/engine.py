@@ -65,7 +65,7 @@ class DisplayController:
         # Valid only while the wall actually still shows it: _emit_page invalidates it
         # on EVERY paint (an interrupt's text, a manual message, a failed send), and
         # only a send that reached the wall re-validates it (record_as=). Without that,
-        # a static app was suppressed forever behind a trigger's text.
+        # a static app would stay suppressed forever behind a trigger's text.
         self._app_last_sent: str | None = None
         # Bumped by every manual takeover (compose / home). fire_interrupt compares it
         # so a message sent DURING a timed interrupt is not blanked when it ends.
@@ -85,8 +85,8 @@ class DisplayController:
 
     def attach_persist(self, cb) -> None:
         """Register a callback told what is now driving the display — an app, a playlist,
-        or nothing. It is what lets a restart pick up where it left off (a container
-        updating itself used to silently stop whatever was playing).
+        or nothing. It is what lets a restart pick up where it left off (without it,
+        a container updating itself silently stops whatever was playing).
 
         It lives here rather than in the endpoints because the display gets driven from
         four places — the API, the scheduler, triggers and MCP — and only the engine sees
@@ -326,9 +326,9 @@ class DisplayController:
         """A page, ready for the wire.
 
         `frame` is the ONE question the caller has to answer: is a lowercase letter in this
-        text a COLOUR (an animation, a raw colour grid) or a LETTER (words)? It used to be
-        two flags — `raw` and `keep_case` — which were the same axis inverted, and whose
-        fourth combination silently destroyed an animation's colours.
+        text a COLOUR (an animation, a raw colour grid) or a LETTER (words)? One flag, not
+        two: a `raw`/`keep_case` pair is the same axis inverted, and its fourth
+        combination silently destroys an animation's colours.
 
         Folding is not the caller's business. A wall with no lowercase flaps gets uppercase;
         a Matrix Portal does not. That decision belongs to the wall, it is made here, once,
@@ -424,9 +424,9 @@ class DisplayController:
         """One request per run of uniformly paced steps. ``step_ms`` paces the frames
         device-side, so a step whose ``delay_after`` IS that pace folds into the run;
         a step that holds for anything else (the slot style's 1.5 s spin-hold) ends
-        the run: flush, hold, continue. Ordered styles still collapse to exactly one
-        request — but the slot spin no longer vanishes and its hold is no longer
-        discarded, which is what ``dict()``-flattening the plan used to do."""
+        the run: flush, hold, continue. Ordered styles collapse to exactly one
+        request, and the slot spin and its hold survive — ``dict()``-flattening
+        the plan would discard both."""
         step_delay = max(0, speed) / 1000.0
         pending: list[tuple[int, str, int]] = []      # (module_id, char, grid_index)
 
@@ -513,9 +513,9 @@ class DisplayController:
         """Which surface this app renders on RIGHT NOW: ``"matrix"`` when the wall has a panel and
         the app draws there (matrix-only, or dual-surface with its toggle on); else ``"flap"`` when
         it has a flap view; else ``None`` — a matrix-only app on a wall with no panel, which can't
-        run. This one call replaces the old is_canvas / channel_canvas / dual_canvas tangle.
+        run. This one call is the single surface decision for run_app and the playlist loop.
 
-        Tolerant of a minimal plugins object (test stubs, stock splitflap-os) that predates the
+        Tolerant of a minimal plugins object (a test stub or bare harness) without the
         surfaces API: with no ``matrix_on``/``renders_on`` it is treated as a plain flap app."""
         p = self.plugins
         matrix_on = getattr(p, "matrix_on", None)
@@ -706,8 +706,7 @@ class DisplayController:
 
     async def _play_app_pages(self, app_id: str, ov: dict | None, keep_going) -> None:
         """ONE fetch → page-cycle pass of an app: the loop body shared by _app_loop and
-        a playlist's app entries. (It used to be duplicated in both, which meant the
-        stale-suppression bug had to be fixed twice.)
+        a playlist's app entries, so suppression behaves identically in both.
 
         Suppression: a non-anim app skips re-sending an unchanged page — but only
         while ``_app_last_sent`` is valid, i.e. the wall really still shows it. Every
@@ -748,9 +747,9 @@ class DisplayController:
                                    record_as: str | None = None) -> bool:
         """Emit on behalf of a driver loop — never over a live interrupt.
 
-        The old park-then-send was check-then-act: an interrupt that began between
-        ``_wait_if_interrupted`` and the send could be painted over by a stale app
-        page. _emit_page re-checks under the send lock and stands down (None); we
+        A bare park-then-send is check-then-act: an interrupt that begins between
+        ``_wait_if_interrupted`` and the send would be painted over by a stale app
+        page. So _emit_page re-checks under the send lock and stands down (None); we
         park again and retry."""
         while True:
             await self._wait_if_interrupted()
@@ -816,8 +815,8 @@ class DisplayController:
                         # A matrix app draws on the panel, not the flaps. Drive it like the
                         # standalone matrix loop — take the panel over, redraw until the entry's
                         # deadline — then HAND THE PANEL BACK before the next entry. Without that
-                        # release, an on-device effect in a playlist stayed lit forever (it never
-                        # went through _cancel_task, and _canvas_active was never set).
+                        # release, an on-device effect in a playlist stays lit forever (it never
+                        # goes through _cancel_task, so _canvas_active is never set).
                         await self._play_matrix_entry(app_id, deadline, want, ov)
                         await self._release_canvas()
                     elif matrix_channel:
@@ -853,11 +852,10 @@ class DisplayController:
                              frame: bool = False, blank_if_idle: bool = False) -> None:
         """Briefly show ``text`` over whatever is running, then let it resume.
 
-        `frame` defaults to FALSE — words. It used to default to "raw", i.e. "a lowercase
-        letter is a colour flap", which was harmless only while every app uppercased its own
-        output. They stopped, so a trigger on any app whose page contained a lowercase r, o,
-        y, g, b, p or w was quietly sprinkling COLOUR FLAPS through it: "Partly cloudy" came
-        out with an orange, a white and a yellow flap in the middle of the words.
+        `frame` defaults to FALSE — words. A "raw" default ("a lowercase letter is a
+        colour flap") would quietly sprinkle COLOUR FLAPS through any app page that
+        contains a lowercase r, o, y, g, b, p or w: "Partly cloudy" comes out with an
+        orange, a white and a yellow flap in the middle of the words.
 
         While interrupting, the app/playlist loops park on ``_wait_if_interrupted`` and pick
         back up the moment it clears. Our paint invalidates their unchanged-page record

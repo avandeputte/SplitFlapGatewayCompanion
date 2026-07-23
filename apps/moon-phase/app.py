@@ -74,8 +74,7 @@ def trigger(settings, conditions):
     from datetime import datetime, timezone
 
     phase_type = conditions.get('phase', 'full')
-    # UTC throughout — the phase doesn't depend on the configured timezone, and
-    # the old code converted to local time only to convert straight back.
+    # UTC throughout — the phase doesn't depend on the configured timezone.
     now = datetime.now(timezone.utc)
 
     ref = datetime(2000, 1, 6, 18, 14, 0, tzinfo=timezone.utc)

@@ -1,8 +1,7 @@
 """Apps / plugins routes — list, run, settings, preview, install/uninstall,
 upload and delete — plus the shared global settings apps rely on.
 
-Split out of main.py (audit E1); the bodies, docstrings and behaviour are
-main.py's, verbatim. ``deps`` is the app.main module — see routes/__init__.py.
+``deps`` is the app.main module — see routes/__init__.py.
 """
 
 from __future__ import annotations

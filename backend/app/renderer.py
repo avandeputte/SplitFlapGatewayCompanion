@@ -47,7 +47,7 @@ COLOR_MAP = {
 #
 # So colours become their own codepoints inside the companion, in the Unicode private-use
 # area. They are produced where a colour is unambiguously intended (an emoji tile; a
-# lowercase colour code in a RAW page, which is the splitflap-os animation convention) and
+# lowercase colour code in a RAW page — the animation convention) and
 # consumed by the transport, which renders them as a colour flap however its wall wants:
 # the legacy byte `r`, or {"color": "red"}. Nothing else in the pipeline has to care.
 COLOR_NAMES = ("red", "orange", "yellow", "green", "blue", "purple", "white")
@@ -132,7 +132,7 @@ def normalize(text: str, n: int, *, frame: bool = False) -> str:
 
         **Is a lowercase letter in this page a COLOUR, or a LETTER?**
 
-    ``frame=True`` says COLOUR. That is the splitflap-os convention and the only way an
+    ``frame=True`` says COLOUR. That is the animation convention and the only way an
     animation can ask for one: art-clock and the anim_* apps draw with lowercase
     r/o/y/g/b/p/w, and a raw grid from the Compose editor may too. Such a page must NOT be
     folded here, because folding it would turn its colours into the letters R, O, Y…
@@ -143,14 +143,14 @@ def normalize(text: str, n: int, *, frame: bool = False) -> str:
 
     Either way the result says explicitly which cells are colours (COLOR_PUA), so a
     transport, the live preview and the Vestaboard codec never have to decide whether the
-    `o` of "Hello" is the letter o or the orange flap. They did have to, once, and it came
-    out as "Hell<orange>".
+    `o` of "Hello" is the letter o or the orange flap. Left to guess, they get it wrong:
+    "Hell<orange>".
 
     NOTE what is NOT decided here: whether to UPPERCASE. That is not a property of the
     text, it is a property of the WALL — a reel with no lowercase flaps gets uppercase, a
-    Matrix Portal does not — so the engine does it last, once, for everyone. This used to
-    be two overlapping flags (``raw`` and ``keep_case``) which encoded the same axis
-    inverted, and whose fourth combination silently destroyed an animation's colours.
+    Matrix Portal does not — so the engine does it last, once, for everyone. ``frame`` is
+    one flag, not two: a ``raw``/``keep_case`` pair would encode the same axis
+    inverted, and its fourth combination silently destroys an animation's colours.
     """
     clean = str(text)
     for tile, code in COLOR_MAP.items():
@@ -166,8 +166,8 @@ def fold(page: str) -> str:
     """A wall with no lowercase flaps gets uppercase — every cell that is not a colour.
 
     The wall has the LAST word on case, and it is the only one that has any word on it. A
-    caller that folded early (as two of them did) discarded the one thing a Matrix Portal
-    was for, and a caller that forgot to fold sent lowercase to a reel that has none.
+    caller that folds early discards the one thing a Matrix Portal is for, and a
+    caller that forgets to fold sends lowercase to a reel that has none.
     """
     return "".join(c if is_color(c) else cp1252_upper(c) for c in page)
 
@@ -276,20 +276,18 @@ def degrade(page: str, caps) -> str:
     hears about it: it HOMES. You get a blank cell in the middle of a word, and the only way
     anyone finds out is by looking at the wall.
 
-    Until the gateway grew /api/capabilities we could not do anything about that, because we
-    did not know what was on the reel — which is why the shipped translations were written in
-    stripped-down ASCII, and why "Prévu" was a risk nobody could take. Now the wall tells us,
-    so a character it cannot show becomes the nearest one it can:
+    The wall tells us its reel (/api/capabilities), so a character it cannot show becomes
+    the nearest one it can:
 
         é -> E      (the accent goes, the word survives)
         ♥ -> *      (the pictograph's documented stand-in)
         — -> -      (typographic punctuation, from a feed that does not know about flaps)
 
     and only when nothing works does it become a space — which is what the module would have
-    done anyway, except now it is a deliberate space and not a hole nobody knew about.
+    done anyway, except it is a deliberate space and not a hole nobody knew about.
 
     A wall that has not told us its charset is left alone entirely (``can_show`` answers True
-    for everything), so an old gateway behaves exactly as it did.
+    for everything), so an old gateway keeps the send-and-hope behaviour.
     """
     if not caps.knows_charset():
         return page
@@ -489,7 +487,7 @@ def _plan_sync(clean_text: str, n: int) -> list[Step]:
     """All modules update together: emit every frame in a single step.
 
     A true "arrive at the same instant" stagger would need each module's flap
-    layout and per-character flip distance — which the companion no longer models
+    layout and per-character flip distance — which the companion does not model
     (modules own their char maps and flip concurrently). Sending them together is
     the layout-agnostic equivalent and needs no character-set knowledge.
     """

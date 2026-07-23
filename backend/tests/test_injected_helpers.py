@@ -108,6 +108,6 @@ def test_trigger_receives_injected_helpers(tmp_path):
 
 
 def test_legacy_two_arg_trigger_still_works(tmp_path):
-    """The splitflap-os trigger signature is a hard contract — no kwargs for it."""
+    """The bare two-positional-arg trigger signature is a hard contract — no kwargs for it."""
     rt = _runtime_with_app(tmp_path, LEGACY_TRIGGER_APP)
     assert rt.call_trigger("trigdemo", {}) is True

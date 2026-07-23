@@ -27,8 +27,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     def t(s):
         return i18n.t(s, "transit") if i18n is not None else s
 
-    # Defaults match the manifest (place-NSTAT = North Station) — they used to
-    # disagree, so a blank setting rode a different platform than the dialog showed.
+    # Defaults match the manifest (place-NSTAT = North Station), so a blank
+    # setting rides the same platform the settings dialog shows.
     stop = settings.get('mbta_stop', 'place-NSTAT')
     route = settings.get('mbta_route', 'Orange')
     rows, cols = get_rows(), get_cols()

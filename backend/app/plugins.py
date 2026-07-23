@@ -77,8 +77,8 @@ def app_id_from_ref(ref: str) -> str:
     return ref[len(_PLUGIN_PREFIX):] if ref.startswith(_PLUGIN_PREFIX) else ref
 
 # Translated app-store metadata (names, descriptions, settings labels) lives
-# OUTSIDE manifest.json — the manifest must stay a byte-compatible splitflap-os
-# manifest (its description is read as a plain string there). Two layers:
+# OUTSIDE manifest.json — the manifest stays a plain, portable format (its
+# description is read as a plain string). Two layers:
 #   backend/app/app_i18n/<lang>.json   central catalog for the vendored library
 #   apps/<id>/i18n/<lang>.json         per-app sidecar; travels in uploaded zips
 # The sidecar wins. See docs/UI_I18N_PLAN.md.
@@ -91,10 +91,10 @@ _json_cache: dict = {}   # Path -> (mtime_ns, parsed dict)
 
 
 def _read_json_cached(path: Path) -> dict:
-    """A JSON file, parsed at most once per on-disk version. The central
-    app_i18n/<lang>.json used to be re-read once per app per /api/apps request
+    """A JSON file, parsed at most once per on-disk version. Without the cache the
+    central app_i18n/<lang>.json is re-read once per app per /api/apps request
     (~4 reads x N apps in a non-English locale); the mtime check makes every
-    repeat read free while still picking up edits. Callers must not mutate the
+    repeat read free while picking up edits. Callers must not mutate the
     returned dict."""
     try:
         mt = path.stat().st_mtime_ns
@@ -205,15 +205,15 @@ class PluginRuntime:
     #   top                the block starts at the top; spare rows fall to the bottom
     #   bottom             the block is pushed to the bottom
     #
-    # Absent means "center", so every existing app and every splitflap-os app keeps
+    # Absent means "center", so every existing app keeps
     # working untouched — the key is additive, and an app that never heard of it gets the
     # behaviour it already had.
     #
-    # `top` is the escape hatch: it is exactly splitflap-os's padding, so an app that wants
+    # `top` is the escape hatch — pad only at the bottom — so an app that wants
     # to place its own rows (a fixed header, a hand-built layout) declares `top` and emits
     # blank lines wherever it wants them. Without it, an app doing its own vertical
-    # placement gets centred a SECOND time and drifts below the middle — which is precisely
-    # what happened to cat-facts, on-this-day and sarcastic-fortune-cookies.
+    # placement gets centred a SECOND time and drifts below the middle — which is why
+    # cat-facts, on-this-day and sarcastic-fortune-cookies declare it.
     ALIGNMENTS = ("center", "top", "bottom")
 
     def vertical_align(self, app_id: str | None) -> str:
@@ -232,11 +232,11 @@ class PluginRuntime:
         """Build one page from up to `rows` lines: each centred horizontally, and the
         block placed VERTICALLY when the app gives fewer lines than the wall is tall.
 
-        splitflap-os pads only at the bottom, which is invisible on the 3-row walls it
-        targets but leaves a 3-line app stranded at the top of a 5-row wall with two
-        dead rows under it. So we centre by default — a deliberate, documented divergence
-        (COMPATIBILITY.md) — and an app that wants the old behaviour, or wants to place its
-        own rows, says so with "vertical_align": "top" in its manifest.
+        Centred by default — a deliberate, documented choice (COMPATIBILITY.md):
+        bottom-only padding is invisible on a 3-row wall but leaves a 3-line app
+        stranded at the top of a 5-row wall with two dead rows under it. An app that
+        wants its block at the top, or wants to place its own rows, says so with
+        "vertical_align": "top" in its manifest.
 
         Nothing changes when an app fills the wall exactly.
         """
@@ -245,7 +245,7 @@ class PluginRuntime:
         given = list(lines)[:rows]
         pad = rows - len(given)
         if align == "top":
-            top = 0                         # splitflap-os: everything falls to the bottom
+            top = 0                         # block at the top; spare rows fall to the bottom
         elif align == "bottom":
             top = pad
         else:
@@ -293,9 +293,6 @@ class PluginRuntime:
 
     def load(self) -> None:
         """(Re)load all *installed* apps into the registry."""
-        # The companion no longer defines a fixed flap character set, so nothing
-        # is injected into __main__. A vendored app that still reads
-        # ``__main__.FLAP_CHARS`` (e.g. countdown) falls back to its own default.
         self._gen += 1
         self._registry.clear()
         self._modules.clear()
@@ -432,7 +429,7 @@ class PluginRuntime:
         # New format: {"groups": [...]} where a group is a STRING (one page) or a
         # LIST of strings (a multi-page item — a joke's setup + punchline). Each
         # string is the page's full text and the ENGINE wraps it to the wall, so
-        # the data no longer hard-codes line breaks for a 15-column sign. A ``\n``
+        # the data does not hard-code line breaks for a 15-column sign. A ``\n``
         # in a string forces a break (an attribution on its own line); everything
         # else word-wraps. Grouping is structural, so a shuffle can never split a
         # multi-page item.
@@ -664,7 +661,7 @@ class PluginRuntime:
         # where it does not (♥, ♪, ● all degrade to "*" on a real reel).
         "caps": lambda self, app_id, ps, settings: self._caps(),
         # paginate(text, title="") → finished pages for a block of text, word-wrapped and balanced
-        # to THIS wall — the copy the advice/quote/fact apps each used to carry.
+        # to THIS wall — shared here so the advice/quote/fact apps don't each carry a copy.
         "paginate": lambda self, app_id, ps, settings: self._make_paginate(app_id),
     }
 
@@ -727,14 +724,14 @@ class PluginRuntime:
             or self.is_channel_app(app_id)
 
     def is_dual_surface(self, app_id: str) -> bool:
-        """Renders on flaps AND a panel — the apps that carry the dual-view badge and the toggle."""
+        """Renders on flaps AND a panel — the apps that carry the dual-surface badge and the toggle."""
         s = self.surfaces(app_id)
         return "flap" in s and "matrix" in s and self.has_matrix_render(app_id)
 
     def matrix_on(self, app_id: str, settings=None) -> bool:
         """Whether this app should render on the Matrix panel right now. A matrix-only app: always.
         A dual-surface app: the per-app ``matrix`` toggle (default ON) — off ⇒ its flap view (plain
-        text) on the panel. The engine still checks the wall actually HAS a panel before routing."""
+        text) on the panel. The engine checks the wall actually HAS a panel before routing."""
         if not self.has_matrix_render(app_id):
             return False
         if self.is_matrix_only(app_id):
@@ -963,7 +960,7 @@ class PluginRuntime:
                     kwargs = self._helper_kwargs(
                         app_id, self._wants.get(app_id, frozenset()), ps, settings)
                     # Bound to THIS app's alignment, so the app calls format_lines(*lines)
-                    # exactly as it always has — the signature splitflap-os apps expect.
+                    # with the plain signature apps expect — no alignment argument.
                     fmt = functools.partial(self.format_lines,
                                             align=self.vertical_align(app_id))
                     pages = mod.fetch(ps, fmt, self.get_rows, self.get_cols, **kwargs)
@@ -1077,7 +1074,7 @@ class PluginRuntime:
     def content_lang(self, app_id: str, settings=None) -> str:
         """The language this app renders in: its per-app Language override
         (plugin_<id>_language) if set, else the global Language. The one rule,
-        written once — channels and functional apps used to each spell it out."""
+        written once — channels and functional apps all resolve through it."""
         settings = settings if settings is not None else self.settings
         return (self._perapp_value(app_id, "language", settings)
                 or settings.get("language", "en-US"))
@@ -1290,10 +1287,10 @@ class PluginRuntime:
         def map_key(rk):
             return resolved.get(rk) or self._resolve_key(app_id, rk, False)
 
-        # A notice is a block of prose whose content is `text`; it has no label. The
-        # key was being used as a stand-in when the manifest declared none, so the
-        # weather form literally printed "weatherapi_attribution_notice" at the user.
-        # Fall back to the key ONLY where a label is actually rendered as a label.
+        # A notice is a block of prose whose content is `text`; it has no label. Using
+        # the key as a stand-in when the manifest declares none would print
+        # "weatherapi_attribution_notice" at the user (the weather form). Fall back
+        # to the key ONLY where a label is actually rendered as a label.
         label = setting.get("label") or ("" if ftype == "notice" else raw)
         field = {"key": key, "label": label, "type": ftype}
         if "options" in setting:
@@ -1446,7 +1443,7 @@ class PluginRuntime:
     def _drop_caches(self, app_id: str) -> None:
         """Forget every cached render of this app — the bare key AND the
         override-keyed playlist entries (app_id\\x00...). Popping only the bare
-        key used to leave a playlist entry showing pre-edit pages until its
+        key would leave a playlist entry showing pre-edit pages until its
         refresh elapsed."""
         prefix = app_id + "\x00"
         for k in [k for k in self._caches if k == app_id or k.startswith(prefix)]:

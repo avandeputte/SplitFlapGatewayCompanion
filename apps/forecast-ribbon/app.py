@@ -69,7 +69,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None):
     try:
         # The shared helper carries an hourly series (keyless Open-Meteo, whatever
         # the provider) — one fetch, cached, shared with the weather app. Without
-        # a helper (stock splitflap-os) we ask Open-Meteo ourselves, as before.
+        # a helper (a bare host injects none) we ask Open-Meteo ourselves.
         if get_weather is not None:
             w = get_weather(days=1)
             if not w or not w.get('ok'):

@@ -105,13 +105,11 @@ class RestTransport(DisplayTransport):
         """Ask the wall what it can show. Called on connect, and again on a resync.
 
         ASKED, not inferred. The gateway knows its own reel — it is the thing that configures
-        the modules — and now it will tell us: which characters every module carries, whether
-        it has lowercase and pictograph flaps, whether colours are named. We used to guess all
-        of that from the product name and a firmware number, which could not see a physical
-        wall's alphabet at all.
-
-        A gateway too old to answer falls back to the guess, and keeps working exactly as it
-        did.
+        the modules — and it tells us: which characters every module carries, whether
+        it has lowercase and pictograph flaps, whether colours are named. A guess from the
+        product name and a firmware number cannot see a physical wall's alphabet at all,
+        so it is only the fallback: a gateway too old to answer gets the inference
+        (device.of) and keeps working.
         """
         if self._client is None:
             return
@@ -246,9 +244,9 @@ class RestTransport(DisplayTransport):
         On a Matrix Portal this goes to /api/display/cells, which addresses flaps by INDEX:
         lowercase and accents survive, pictographs are reachable at all, colours are named
         rather than stealing seven letters — and unchanged cells are skipped, so moving one
-        digit of a clock no longer repaints seventy-five modules.
+        digit of a clock does not repaint seventy-five modules.
 
-        Everywhere else it is /api/rs485/batch exactly as before (Gateway 3.0+). step_ms
+        Everywhere else it is /api/rs485/batch (Gateway 3.0+). step_ms
         paces the cascade device-side, so the call blocks for roughly the page's animation
         duration — one round-trip for the whole page. Raises on failure (the caller logs it).
         """
@@ -277,8 +275,8 @@ class RestTransport(DisplayTransport):
                     # This is a fallback rather than an error because of what the alternative
                     # costs: a wall in somebody's hallway goes dark and the UI says "offline"
                     # while the gateway is sitting there answering everything else perfectly.
-                    # It happened — a physical gateway advertises the `index` feature (which is
-                    # POST /api/flap/index, one module by flap number) and that was misread as
+                    # A physical gateway can advertise the `index` feature (which is
+                    # POST /api/flap/index, one module by flap number) and have it read as
                     # the bulk cells API. One wrong word in a feature list, and every page 404s.
                     #
                     # So: believe the endpoint, downgrade for the life of this transport, say so

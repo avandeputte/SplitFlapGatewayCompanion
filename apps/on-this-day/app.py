@@ -62,8 +62,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
     # Lead with the year (no wasted 'ON THIS DAY' header row) and keep each event
     # whole on its own page — up to three that fit, so the rotation shows more
-    # than one thing that happened today. (One page used to win and the rest of
-    # the feed was discarded.)
+    # than one thing that happened today.
     events = [(y, f'{y} {d}') for y, d in events]     # (year, "YEAR DESC")
     if rows == 1:
         picks = sorted(events, key=lambda e: len(e[1]))[:3]

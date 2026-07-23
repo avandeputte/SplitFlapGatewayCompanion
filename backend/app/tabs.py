@@ -3,8 +3,7 @@
 At registration the companion tells the gateway which tabs its own UI has, and
 the gateway answers with its own list (``gwTabs``). Each side then renders the
 other's tabs instead of a list hard-coded on the far side that goes stale the
-moment the near side gains or loses a tab — which is exactly what happened when
-the gateway folded its Backup tab into Settings.
+moment the near side gains or loses a tab.
 
 Both directions degrade to a hard-coded list when the peer says nothing, so every
 old/new combination keeps working:

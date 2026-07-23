@@ -1,7 +1,6 @@
 """App-data helper endpoints — served at the fixed root paths that dropped-in app
 manifests' searchUrl / resultKey point at, so they work unchanged.
 
-Split out of main.py (audit E1); the bodies and behaviour are main.py's, verbatim.
 ``deps`` is the app.main module (see routes/__init__.py) — unused here, because
 these routes are display-less by design: they delegate straight to helpers.py.
 """

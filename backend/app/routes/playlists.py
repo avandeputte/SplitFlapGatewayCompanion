@@ -1,7 +1,6 @@
 """Playlists and triggers routes.
 
-Split out of main.py (audit E1); the bodies, docstrings and behaviour are
-main.py's, verbatim. ``deps`` is the app.main module — see routes/__init__.py.
+``deps`` is the app.main module — see routes/__init__.py.
 """
 
 from __future__ import annotations
@@ -16,8 +15,8 @@ log = logging.getLogger("companion")
 
 class PlaylistSave(BaseModel):
     name: str
-    # list[dict], not list: a non-dict entry used to 500 deep in the engine's
-    # _entry_label — and PERSIST, so the playlist kept crashing on every run.
+    # list[dict], not list: a non-dict entry would 500 deep in the engine's
+    # _entry_label — and PERSIST, so the playlist would crash on every run.
     entries: list[dict] = []
     loop: bool = True
 

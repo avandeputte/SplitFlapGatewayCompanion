@@ -161,9 +161,9 @@ mcp = mcp_server.build(displays)
 
 def _redact(cfg: dict) -> dict:
     """Every credential the config can carry, not just the MQTT password —
-    /api/config is readable by anything that can reach the UI, and the
-    Vestaboard enablement token was leaking here without appearing anywhere
-    else in the product."""
+    /api/config is readable by anything that can reach the UI, and an
+    unredacted Vestaboard enablement token would leak here without appearing
+    anywhere else in the product."""
     cfg = copy.deepcopy(cfg)
     mqtt = cfg.get("transport", {}).get("mqtt", {})
     if mqtt.get("password"):
@@ -252,7 +252,7 @@ async def resolve_companion_url() -> str:
     The add-on step is not an optimisation — it is the only correct answer there. The
     socket-based detection below sees the container's own address on Home Assistant's
     internal bridge (172.30.33.x), which no device on the LAN can reach, so the gateway
-    was being handed a URL that could never work.
+    would be handed a URL that can never work.
     """
     explicit = (config.effective.get("companion_url") or "").strip()
     if explicit:
@@ -286,8 +286,8 @@ def _remember_driver(doc: dict | None, d=None) -> None:
 async def resume_last_run(d=None) -> None:
     """Start whatever was playing when we were last shut down — for ONE display.
 
-    A container that updates itself (the Home Assistant add-on does) used to come back to
-    a dead display: the playlist that had been running simply stopped. Nothing else knows
+    Without this, a container that updates itself (the Home Assistant add-on does) comes
+    back to a dead display: the playlist that was running simply stops. Nothing else knows
     to restart it — the gateway holds the hardware config, not what the companion was
     doing — so it has to be remembered here.
     """
@@ -427,11 +427,11 @@ async def _companion_heartbeat(gateway_url: str, companion_url: str, display=Non
                                  status=companion_status_string(display), display=display)
         except Exception as e:
             log.debug("companion heartbeat error: %s", e)
-        # Re-read the gateway's config on every heartbeat. Sync used to run ONCE, at
-        # startup: a gateway that was still booting (or briefly busy) left the companion
-        # on its default 3x15 forever, and a wall whose geometry changed on the gateway
-        # -- a bigger panel, a swapped board -- was never noticed. do_gateway_sync only
-        # acts when something actually moved, so this is a cheap GET the rest of the time.
+        # Re-read the gateway's config on every heartbeat, not once at startup: a
+        # startup-only sync leaves the companion on its default 3x15 forever when the
+        # gateway is still booting (or briefly busy), and never notices a wall whose
+        # geometry changed on the gateway -- a bigger panel, a swapped board. do_gateway_sync
+        # only acts when something actually moved, so this is a cheap GET the rest of the time.
         if display.config.effective.get("sync_from_gateway"):
             try:
                 await do_gateway_sync(display)
@@ -573,8 +573,8 @@ async def start_display(d, companion_url: str = "") -> list:
     await resume_last_run(d)
 
     # Home Assistant: "auto" brings the integration up when a broker is configured, off
-    # when none is (the gateway no longer publishes an HA switch to follow — firmware 3.0
-    # dropped MQTT — so a configured broker is the signal the user wants it). true/false
+    # when none is (a firmware 3.0+ gateway has no MQTT and publishes no HA switch to
+    # follow, so a configured broker is the signal the user wants it). true/false
     # force it. Started in the background so a slow/unreachable broker never delays startup.
     ha_mode = cfg.effective.get("ha", {}).get("enabled", "auto")
     has_broker = bool((cfg.transport.get("mqtt") or {}).get("broker"))
@@ -738,10 +738,10 @@ def _include_flat(router) -> None:
 
     FastAPI 0.139 made include_router lazy: app.routes then holds an
     _IncludedRouter wrapper and the real routes only materialise per request.
-    These routes have always been flat entries in app.routes — pinned by
-    test_multi_display, and what anything introspecting app.routes expects —
-    so keep them that way. This is byte-equivalent to the @app.<method>
-    declarations the routes used to be: every route in these routers is
+    These routes are flat entries in app.routes — pinned by
+    test_multi_display, and what anything introspecting app.routes expects.
+    This is byte-equivalent to declaring each route with @app.<method>
+    directly on the app: every route in these routers is
     declared with router-level defaults (no prefix, no extra dependencies,
     default response class), and each APIRouter is built with this app as its
     dependency_overrides_provider (see routes/*.build), which is exactly what

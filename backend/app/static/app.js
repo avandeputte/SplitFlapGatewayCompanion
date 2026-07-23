@@ -5,7 +5,7 @@
 // Case-sensitive in the preview: 'y' = yellow tile, 'Y' = the letter Y.
 // A colour flap is its own codepoint (U+E000..U+E006), not the letter r/o/y/g/b/p/w.
 // It has to be: a wall that can show lowercase can show the LETTER r, and colouring every
-// `o` was how "Hello" came out with an orange flap in the middle of it. The server sends
+// `o` would put an orange flap in the middle of "Hello". The server sends
 // the same sentinel it sends the wall (renderer.COLOR_PUA).
 const COLOR_CODES = ["r", "o", "y", "g", "b", "p", "w"];
 const COLOR_PUA = {};
@@ -461,8 +461,8 @@ function cmpBuild() {
   const disp = GRID.display || {};
   $("cmpSpeed").value = disp.transition_speed ?? 15;
   // onchange (assignment), NOT addEventListener: cmpBuild reruns on every grid change
-  // and display switch, and each run used to stack one more listener on the same
-  // persistent <select> — after N switches one change wrote the speed N times.
+  // and display switch, and each run would stack one more listener on the same
+  // persistent <select> — after N switches one change would write the speed N times.
   sel.onchange = () => {
     // 'slot' is the spin effect and is paced by its own, much slower global.
     $("cmpSpeed").value = sel.value === "slot"
@@ -1346,23 +1346,21 @@ function libRow(a, reopen) {
   }
   meta.append(name, desc, tags);
 
-  const btn = el("button", "btn btn-sm " + (a.installed ? "ghost" : "primary"));
-  btn.textContent = a.installed ? t("Remove") : t("Add");
-  btn.addEventListener("click", async () => {
+  const act = btn(a.installed ? t("Remove") : t("Add"), async () => {
     await post(`/api/apps/${a.id}/install`, { installed: !a.installed });
     reopen(); loadApps();
-  });
+  }, "btn btn-sm " + (a.installed ? "ghost" : "primary"));
 
-  row.append(icon, meta, btn);
+  row.append(icon, meta, act);
   if (!a.builtin) {
-    const dl = el("button", "btn btn-sm"); dl.textContent = "🗑"; dl.title = t("Delete uploaded app");
-    dl.style.background = "var(--hi)";
-    dl.addEventListener("click", async () => {
+    const dl = btn("🗑", async () => {
       if (!confirm(t('Delete "%s"? This removes the uploaded app for good.', a.name))) return;
       try { await del(`/api/apps/${encodeURIComponent(a.id)}`); }
       catch (e) { alert(t("Failed: %s", e.message)); return; }
       reopen(); loadApps();
-    });
+    }, "btn btn-sm");
+    dl.title = t("Delete uploaded app");
+    dl.style.background = "var(--hi)";
     row.appendChild(dl);
   }
   return row;
@@ -1472,10 +1470,9 @@ function plRender() {
       // Per-entry settings: override this entry's config (location/units/language…)
       // independently, so the same app can appear more than once configured differently.
       const nOv = Object.keys(e.overrides || {}).length;
-      const cfg = el("button", "del"); cfg.textContent = nOv ? `⚙ ${nOv}` : "⚙";
+      const cfg = btn(nOv ? `⚙ ${nOv}` : "⚙", () => openEntrySettings(e), "del");
       cfg.title = nOv ? t("%s setting(s) overridden for this entry", nOv) : t("Settings for this entry");
       if (nOv) cfg.style.color = "var(--brand)";
-      cfg.onclick = () => openEntrySettings(e);
       row.appendChild(cfg);
     } else {
       const inp = el("input"); inp.className = "grow"; inp.placeholder = t("MESSAGE"); inp.value = e.text || "";
@@ -1483,7 +1480,7 @@ function plRender() {
     }
     const dur = el("input"); dur.type = "number"; dur.min = 1; dur.style.width = "70px"; dur.title = t("seconds");
     dur.value = e.duration || 30; dur.oninput = () => (e.duration = Number(dur.value)); row.appendChild(dur);
-    const del = el("button", "del"); del.textContent = "✕"; del.onclick = () => { PL_ENTRIES.splice(i, 1); plRender(); }; row.appendChild(del);
+    row.appendChild(btn("✕", () => { PL_ENTRIES.splice(i, 1); plRender(); }, "del"));
     box.appendChild(row);
   });
   plSaveLabel();          // an empty editor has nothing to save
@@ -1499,19 +1496,17 @@ async function loadPlaylists() {
     row.dataset.name = n;      // identity, so plMarkEditing can move the highlight in place
     const nm = el("span", "grow"); nm.textContent = n; row.appendChild(nm);
     if (n === PL_NAME) { const tag = el("span", "pill sm"); tag.textContent = t("editing"); row.appendChild(tag); }
-    const run = el("button", "btn btn-sm primary"); run.textContent = t("Run");
-    run.onclick = async () => {
+    const run = btn(t("Run"), async () => {
       try { await post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n }); }
       catch (e) { alert(t("Failed: %s", e.message)); }
-    };
+    }, "btn btn-sm primary");
     row.appendChild(run);
-    const load = el("button", "btn btn-sm ghost"); load.textContent = t("Edit"); load.onclick = () => plEdit(n); row.appendChild(load);
-    const rm = el("button", "btn btn-sm ghost"); rm.textContent = t("Delete");
-    rm.onclick = async () => {
+    row.appendChild(btn(t("Edit"), () => plEdit(n), "btn btn-sm ghost"));
+    const rm = btn(t("Delete"), async () => {
       try { await del("/api/playlists/" + encodeURIComponent(n)); }
       catch (e) { alert(t("Failed: %s", e.message)); return; }
       loadPlaylists();
-    };
+    }, "btn btn-sm ghost");
     row.appendChild(rm);
     saved.appendChild(row);
   });
@@ -1535,8 +1530,8 @@ function plSaveLabel() {
 }
 
 // Move the "editing" mark to whatever PL_NAME now is, IN PLACE. Nothing about the
-// saved list's data changed, so refetching + rebuilding it (what plEdit/plNew used
-// to do via loadPlaylists) was a network round trip to move one highlight.
+// saved list's data changed, so refetching + rebuilding it via loadPlaylists would
+// be a network round trip just to move one highlight.
 function plMarkEditing() {
   document.querySelectorAll("#plSaved .saved-row").forEach((row) => {
     const on = row.dataset.name === PL_NAME;
@@ -1601,7 +1596,7 @@ function trigRender() {
     const nm = el("input"); nm.placeholder = t("Label"); nm.value = trig.name || ""; nm.oninput = () => (trig.name = nm.value); row.appendChild(nm);
     const cd = el("input"); cd.type = "number"; cd.style.width = "76px"; cd.title = t("cooldown (s)"); cd.value = trig.cooldown || 300; cd.oninput = () => (trig.cooldown = Number(cd.value)); row.appendChild(cd);
     const ds = el("input"); ds.type = "number"; ds.style.width = "68px"; ds.title = t("show (s)"); ds.value = trig.display_seconds || 30; ds.oninput = () => (trig.display_seconds = Number(ds.value)); row.appendChild(ds);
-    const del = el("button", "del"); del.textContent = "✕"; del.onclick = () => { TRIGS.splice(i, 1); trigRender(); }; row.appendChild(del);
+    row.appendChild(btn("✕", () => { TRIGS.splice(i, 1); trigRender(); }, "del"));
     box.appendChild(row);
   });
 }
@@ -1671,6 +1666,15 @@ function _hex2rgb(h) {
   return m ? [1, 2, 3].map((i) => parseInt(m[i], 16)) : [255, 255, 255];
 }
 
+// A row-action button: label, click handler, optional classes. Returns the
+// element so a caller can still set .title / .disabled / styles on it.
+function btn(label, onClick, cls) {
+  const b = el("button", cls);
+  b.textContent = label;
+  b.onclick = onClick;
+  return b;
+}
+
 function _panelRow(name, metaText, buttons) {
   const row = el("div", "panel-row");
   const n = el("span", "panel-name"); n.textContent = name;
@@ -1684,13 +1688,11 @@ function renderAnimList(anims, boot) {
   const box = $("animList"); box.innerHTML = "";
   if (!anims.length) { box.innerHTML = `<span class="hint">${t("None yet.")}</span>`; return; }
   anims.forEach((a) => {
-    const play = el("button", "btn ghost btn-sm"); play.textContent = t("Play");
-    play.onclick = () => panelDo("/api/panel/anim/play", { name: a.name });
-    const bootBtn = el("button", "btn ghost btn-sm");
-    bootBtn.textContent = a.name === boot ? t("Unset boot") : t("Set boot");
-    bootBtn.onclick = () => panelDo("/api/panel/boot", { name: a.name === boot ? "" : a.name }, refreshPanelLibrary);
-    const del = el("button", "btn ghost btn-sm"); del.textContent = t("Delete");
-    del.onclick = () => panelDo("/api/panel/anim/delete", { name: a.name }, refreshPanelLibrary);
+    const play = btn(t("Play"), () => panelDo("/api/panel/anim/play", { name: a.name }), "btn ghost btn-sm");
+    const bootBtn = btn(a.name === boot ? t("Unset boot") : t("Set boot"),
+      () => panelDo("/api/panel/boot", { name: a.name === boot ? "" : a.name }, refreshPanelLibrary),
+      "btn ghost btn-sm");
+    const del = btn(t("Delete"), () => panelDo("/api/panel/anim/delete", { name: a.name }, refreshPanelLibrary), "btn ghost btn-sm");
     const { row, name } = _panelRow(a.name, `${a.frames}f · ${a.fps || "?"}fps`, [play, bootBtn, del]);
     if (a.name === boot) { const p = el("span", "pill"); p.textContent = t("boot"); name.appendChild(p); }
     box.appendChild(row);
@@ -1701,8 +1703,7 @@ function renderFontList(fonts) {
   const box = $("fontList"); box.innerHTML = "";
   if (!fonts.length) { box.innerHTML = `<span class="hint">${t("None yet.")}</span>`; return; }
   fonts.forEach((f) => {
-    const del = el("button", "btn ghost btn-sm"); del.textContent = t("Delete");
-    del.onclick = () => panelDo("/api/panel/font/delete", { name: f.name }, refreshPanelLibrary);
+    const del = btn(t("Delete"), () => panelDo("/api/panel/font/delete", { name: f.name }, refreshPanelLibrary), "btn ghost btn-sm");
     box.appendChild(_panelRow(f.name, `${f.w}×${f.h}`, [del]).row);
   });
 }
@@ -1780,9 +1781,8 @@ let GW_TRIES = 0;
 
 async function setupGatewayTabs() {
   // NB: named neither `url` nor `gwUrl` — both are global helpers used below, and a local
-  // of the same name shadows them. `gwUrl` did exactly that once: it was a STRING here, so
-  // the gwUrl() call below threw "gwUrl is not a function", the whole tab render aborted,
-  // and the gateway's tabs simply never appeared.
+  // string of the same name would shadow them: the gwUrl() call below would throw
+  // "gwUrl is not a function" and abort the whole tab render, leaving no tabs.
   let gwAddr = "", tabs = [];
   try {
     const st = await api("/api/gateway/status");
@@ -1803,7 +1803,7 @@ async function setupGatewayTabs() {
       // Through the proxy (/gw/), not straight at the gateway's own address. A direct
       // link leaves Home Assistant altogether — HA can only put THIS add-on's port in the
       // sidebar, so the gateway can only appear in there if we serve it. Same origin, so
-      // no target="_top" either: that used to break out of the ingress iframe.
+      // no target="_top" either: that would break out of the ingress iframe.
       a.textContent = t(tab.label);
       // `base` (the gateway being registered) gates whether the link works; the href is
       // our proxy path, which url() prefixes with the ingress base when under Home Assistant.
@@ -2111,10 +2111,8 @@ async function openDisplays() {
       const info = el("span", "hint");
       info.textContent = d.grid ? `${d.grid.rows}×${d.grid.cols}` : t("not running");
 
-      const save = el("button", "btn btn-sm");
-      save.textContent = t("Save");
       // PATCH, not POST — a rename lands at once, a re-point needs a restart.
-      save.onclick = async () => {
+      const save = btn(t("Save"), async () => {
         let doc2;
         try {
           doc2 = await patch(`/api/displays/${encodeURIComponent(d.id)}`,
@@ -2126,22 +2124,17 @@ async function openDisplays() {
         }
         await render();
         await loadDisplays();
-      };
+      }, "btn btn-sm");
 
-      const mkDefault = el("button", "btn btn-sm ghost");
-      mkDefault.textContent = isDefault ? t("Default") : t("Make default");
-      mkDefault.disabled = isDefault;
-      mkDefault.title = t("The display that anything not naming one drives — Home Assistant, the Vestaboard API, an MCP call");
-      mkDefault.onclick = async () => {
+      const mkDefault = btn(isDefault ? t("Default") : t("Make default"), async () => {
         await post(`/api/displays/${encodeURIComponent(d.id)}/default`, {});
         await render();
         await loadDisplays();
-      };
+      }, "btn btn-sm ghost");
+      mkDefault.disabled = isDefault;
+      mkDefault.title = t("The display that anything not naming one drives — Home Assistant, the Vestaboard API, an MCP call");
 
-      const rm = el("button", "btn btn-sm warn");
-      rm.textContent = t("Remove");
-      rm.disabled = DISPLAYS.length < 2;
-      rm.onclick = async () => {
+      const rm = btn(t("Remove"), async () => {
         if (!confirm(t("Remove this display? Its settings, playlists and triggers are kept.")))
           return;
         try { await del(`/api/displays/${encodeURIComponent(d.id)}`); }
@@ -2150,7 +2143,8 @@ async function openDisplays() {
         await render();
         await loadDisplays();
         await switchDisplay(DEFAULT_DISPLAY);
-      };
+      }, "btn btn-sm warn");
+      rm.disabled = DISPLAYS.length < 2;
 
       // The buttons travel together: in a dialog this narrow the row always wraps, and
       // wrapping them one at a time strands "Remove" alone on a line of its own.
@@ -2164,16 +2158,14 @@ async function openDisplays() {
     const add = el("div", "display-row");
     const an = el("input", "input"); an.placeholder = t("Office wall");
     const ag = el("input", "input"); ag.placeholder = "http://192.168.1.50";
-    const btn = el("button", "btn btn-sm primary");
-    btn.textContent = t("Add display");
-    btn.onclick = async () => {
+    const addBtn = btn(t("Add display"), async () => {
       if (!ag.value.trim()) { ag.focus(); return; }
       if (!await addDisplay(an.value.trim() || ag.value.trim(), ag.value.trim())) return;
       an.value = ""; ag.value = "";
       await render();
       await loadDisplays();
-    };
-    add.append(an, ag, btn);
+    }, "btn btn-sm primary");
+    add.append(an, ag, addBtn);
     list.appendChild(add);
 
     const note = el("p", "hint");
@@ -2215,16 +2207,14 @@ async function openDisplays() {
       const row = el("div", "display-row");
       const label = el("span");
       label.textContent = `${g.url} · ${g.rows}×${g.cols}` + (g.version ? ` · v${g.version}` : "");
-      const btn = el("button", "btn btn-sm primary");
-      btn.textContent = t("Add");
-      btn.onclick = async () => {
-        btn.disabled = true;
-        if (!await addDisplay(g.name || g.url, g.url)) { btn.disabled = false; return; }
+      const addB = btn(t("Add"), async () => {
+        addB.disabled = true;
+        if (!await addDisplay(g.name || g.url, g.url)) { addB.disabled = false; return; }
         await render();
         await loadDisplays();
         await scan();
-      };
-      row.append(label, btn);
+      }, "btn btn-sm primary");
+      row.append(label, addB);
       dList.appendChild(row);
     });
   };
@@ -2281,8 +2271,8 @@ async function init() {
   // triggers
   $("trigAdd").addEventListener("click", addTrigger);
   $("trigSave").addEventListener("click", saveTriggers);
-  // Guarded: a throw here used to abort init() and take everything after it with it —
-  // the gateway tabs never appeared, and the only symptom was a console error.
+  // Guarded: an unhandled throw here would abort init() and take everything after it
+  // with it — no gateway tabs, and the only symptom a console error.
   try { await loadApps(); } catch (e) { console.error("loadApps failed:", e); }
   setupGatewayTabs();
   openTabFromHash();

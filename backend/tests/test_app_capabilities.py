@@ -8,8 +8,8 @@ anything:
     ♥ ♪ ● ☀  ->  *            the meaning is gone. Ask first.
 
 So `caps` is injected by parameter name, exactly like `i18n` and `get_location`, and only for
-an app that asks. It defaults to None — which is also what a stock splitflap-os host passes,
-and which correctly means "a plain reel", so an app using it stays drop-in both ways.
+an app that asks. It defaults to None — what a host that injects nothing passes — which
+correctly means "a plain reel", so an app using it stays drop-in both ways.
 """
 import pytest
 

@@ -43,11 +43,8 @@ def _translations(section):
 
     Keys are folded, because a lookup miss here is SILENT: ``translate()`` falls back
     to the English text, so a key whose case has drifted from its call site does not
-    raise — it just quietly stops translating, for every language at once. The catalog
-    was written when apps shouted, so every key was ``OFFLINE``; the day the apps
-    stopped shouting, ``t("Offline")`` would have missed all 169 of them and nobody
-    would have seen an error. Case is not meant to be part of the key's identity, so
-    do not let it be."""
+    raise — it just quietly stops translating, for every language at once. Case is
+    not meant to be part of the key's identity, so do not let it be."""
     out = {}
     for key, entry in (section or {}).items():
         k = str(key).casefold()
@@ -259,7 +256,7 @@ def clock(dt, lang, seconds=False, ampm_space=True):
     FRENCH SEPARATES ITS HOURS WITH AN ``h`` — ``15h48`` — and here that is not a matter of
     typographic taste. The fr-FR reel spends its 64 flaps on the thirteen accents French needs
     and has NO COLON on it. A module asked for a flap it does not carry simply homes, so
-    "15:48" was reaching a French wall as "15 48", with a hole where the colon should be — on
+    "15:48" would reach a French wall as "15 48", with a hole where the colon should be — on
     every clock, in every app, on every French display. `h` is the form a French speaker writes
     anyway, and it is on the reel.
     """
@@ -275,9 +272,9 @@ def clock(dt, lang, seconds=False, ampm_space=True):
 def tzinfo(name):
     """A tzinfo for an IANA zone name, falling back to UTC when the name is blank
     or unknown. This is the one guarded version of the ``pytz.timezone(...)``
-    boilerplate every clock app used to carry — a bad zone string coming out of
-    settings must never crash a fetch, and UTC is the only fallback that means
-    the same thing on every wall."""
+    boilerplate, shared so clock apps don't each carry it — a bad zone string
+    coming out of settings must never crash a fetch, and UTC is the only
+    fallback that means the same thing on every wall."""
     if name:
         try:
             import pytz

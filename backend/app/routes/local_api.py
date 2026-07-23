@@ -10,13 +10,12 @@ port 7000; publish the container as `-p 7000:8000` and clients that hard-code
 that port are satisfied too.
 
 NOTE: this key guards these routes ONLY. The rest of the companion's API is
-unauthenticated, as it always was — the key is Vestaboard compatibility, not a
+unauthenticated — the key is Vestaboard compatibility, not a
 security boundary for the host. The key itself is minted in main.py
 (vestaboard_key / _persistent_secret): it is process-wide, the dev menu shows
 it, and the MCP bearer token is its twin.
 
-Split out of main.py (audit E1); the bodies, docstrings and behaviour are
-main.py's, verbatim. ``deps`` is the app.main module — see routes/__init__.py.
+``deps`` is the app.main module — see routes/__init__.py.
 """
 
 from __future__ import annotations

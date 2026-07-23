@@ -1,8 +1,7 @@
 """Developer-menu routes. The GET is always safe to call (the UI uses `enabled` to
 decide whether to show the dev menu); the actions gated by COMPANION_DEV_MODE say so.
 
-Split out of main.py (audit E1); the bodies, docstrings and behaviour are
-main.py's, verbatim. ``deps`` is the app.main module — see routes/__init__.py.
+``deps`` is the app.main module — see routes/__init__.py.
 """
 
 from __future__ import annotations
@@ -110,7 +109,7 @@ def build(deps) -> APIRouter:
         """Turn the Vestaboard-compatible Local API on/off at runtime (see
         routes/local_api.py). COMPANION_VESTABOARD sets where it starts. The layer is
         ONE process-wide HTTP surface, so the toggle deliberately ignores ?display= —
-        the guards read the default config, and writing another display's copy used to
+        the guards read the default config, and writing another display's copy would
         make this a silent no-op while switched to a second wall."""
         deps.displays.default.config.set_vestaboard(req.on)
         if req.on:

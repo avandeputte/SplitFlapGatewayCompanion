@@ -1,8 +1,7 @@
-"""Routes for the SET of displays (the registry, Phase 1) and the per-display
+"""Routes for the SET of displays (the registry) and the per-display
 basics every surface reads — live state, grid geometry, config.
 
-Split out of main.py (audit E1); the bodies, docstrings and behaviour are
-main.py's, verbatim. ``deps`` is the app.main module — see routes/__init__.py.
+``deps`` is the app.main module — see routes/__init__.py.
 """
 
 from __future__ import annotations
@@ -28,7 +27,7 @@ class GridPatch(BaseModel):
 
 
 class ConfigPatch(BaseModel):
-    # grid is typed: a non-numeric rows/cols used to slip straight into the
+    # grid is typed: a non-numeric rows/cols would slip straight into the
     # in-memory config and 500 /api/grid until restart.
     grid: GridPatch | None = None
     transport: dict | None = None
@@ -62,7 +61,7 @@ def build(deps) -> APIRouter:
     router = APIRouter(dependency_overrides_provider=deps.app)
 
     # -----------------------------------------------------------------------
-    # Displays — the registry (Phase 1). These are the only routes that are ABOUT the
+    # Displays — the registry. These are the only routes that are ABOUT the
     # set of displays rather than about one of them, so they talk to the manager and
     # the registry directly instead of resolving through display_for().
     # -----------------------------------------------------------------------
@@ -97,7 +96,7 @@ def build(deps) -> APIRouter:
         """Register a second gateway — and bring it up now, not on the next restart.
 
         Adding a wall you then cannot use until you restart the add-on is a poor trade, and
-        everything a display needs to start is already per-display (Phase 0). If its gateway
+        everything a display needs to start is already per-display. If its gateway
         happens to be unreachable, it comes up anyway and its heartbeat keeps trying, which
         is exactly what the first display does.
         """

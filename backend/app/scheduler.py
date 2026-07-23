@@ -3,8 +3,8 @@ scheduler.py — app triggers.
 
 Runs each enabled app trigger's ``trigger(settings, conditions)`` on its interval
 (with cooldown + failure backoff) and briefly interrupts the display when one
-fires. Time-of-day schedules and quiet hours now live on the gateway (v3.0),
-which owns quiet-time, so the companion no longer schedules anything itself.
+fires. Time-of-day schedules and quiet hours live on the gateway (v3.0),
+which owns quiet-time; the companion does no time-of-day scheduling of its own.
 """
 
 from __future__ import annotations

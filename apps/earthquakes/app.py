@@ -51,7 +51,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
             # USGS place is like "134 km E of Bitung, Indonesia": show the distance
             # on the header line and give the location name the remaining rows so
             # it isn't cut off. Match on the folded text and slice the original —
-            # USGS writes "of" in lowercase, and the place is no longer uppercased.
+            # USGS writes "of" in lowercase, and the place keeps its original casing.
             folded = place.upper()
             if ' OF ' in folded:
                 cut = folded.index(' OF ')

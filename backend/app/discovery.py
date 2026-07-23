@@ -140,7 +140,7 @@ async def _mdns_candidates(window: float = MDNS_WINDOW) -> list[str]:
 
         async def resolve():
             # The full window, in ms — an answer is legitimate right up to the
-            # end of the browse (this was window*500: half the window).
+            # end of the browse.
             info = await azc.async_get_service_info(service_type, name, timeout=int(window * 1000))
             if not info:
                 return

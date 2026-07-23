@@ -1,11 +1,12 @@
 # apps/ — plugin library
 
 App plugins live here, one folder per app: `apps/<id>/manifest.json` +
-`apps/<id>/app.py` (plus any bundled data). The plugin contract is a **faithful,
-behavior-identical port of splitflap-os** so that **any splitflap-os app folder
-drops in here unmodified and works**. (The reverse is best-effort: an app authored
-here may run on splitflap-os, without the companion's injected helpers and
-unoptimized — no guarantees.)
+`apps/<id>/app.py` (plus any bundled data). The plugin contract is the
+**companion's own app format**: a plain `fetch()` entry point, with every extra
+(injected helpers, `caps`, `i18n`) opt-in by parameter name — so **an app folder
+written against the bare contract drops in here unmodified and works**. (An app
+authored here also runs on a bare host that injects none of the extras,
+unoptimized — best-effort, no guarantees.)
 See [Compatibility](https://github.com/avandeputte/SplitFlapGateway/wiki/Compatibility).
 
 ## Do not uppercase your own text
@@ -43,8 +44,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
 ```
 
 `caps` has `lowercase`, `pictographs` and `named_colours`. It is optional and defaults to
-`None`, so an app that asks for it still runs on splitflap-os — treat `None` as "a plain
-reel". Available pictographs: `♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`
+`None`, so an app that asks for it still runs on a host that injects nothing — treat
+`None` as "a plain reel". Available pictographs: `♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`
 
 **Check before you use one.** A wall without them substitutes the nearest character it has,
 and only some of those still mean anything:
@@ -76,13 +77,13 @@ so in the manifest:
 | value | what it does |
 |---|---|
 | `center` | *(default, and what you get if the key is absent)* block centred; odd spare row falls to the bottom |
-| `top` | block starts at row 0, spare rows fall to the bottom — byte-for-byte splitflap-os |
+| `top` | block starts at row 0, spare rows fall to the bottom — your lines land byte-for-byte where you put them |
 | `bottom` | block pushed to the bottom |
 
 With `top` you can emit blank lines wherever you want them and they will be respected.
 Without it, an app that centres its own block gets centred **twice** and drifts below the
 middle.
 
-Everything under `apps/` that is copied from
-[csader/splitflap-os](https://github.com/csader/splitflap-os) is licensed
-**CC BY-NC-SA 4.0** — see [`../ATTRIBUTION.md`](../ATTRIBUTION.md).
+Some apps under `apps/` are copied from an upstream open-source app library and
+are licensed **CC BY-NC-SA 4.0** — the source and full attribution are in
+[`../ATTRIBUTION.md`](../ATTRIBUTION.md).

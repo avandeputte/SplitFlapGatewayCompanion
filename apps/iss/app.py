@@ -62,12 +62,12 @@ def trigger(settings, conditions, get_location=None):
                 loc = get_location()
                 user_lat, user_lon = float(loc['lat']), float(loc['lon'])
             else:
-                # Off a companion host (splitflap-os injects nothing): geocode the
+                # No injected get_location (a bare host): geocode the
                 # ZIP ourselves.
                 zip_code = settings.get('zip_code', '02118')
                 geo = requests.get(
                     f'https://nominatim.openstreetmap.org/search?q={zip_code}&format=json&limit=1',
-                    timeout=5, headers={'User-Agent': 'SplitFlapOS/1.0'}
+                    timeout=5, headers={'User-Agent': 'SplitFlapGatewayCompanion/1.0'}
                 ).json()
                 if not geo:
                     return False

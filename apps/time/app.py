@@ -10,7 +10,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     # honest (caps.instant — its own motion statement): a mechanical module takes
     # seconds per flip, so a ticking seconds field would keep the wall permanently
     # mid-clatter. They also have to fit the row. getattr, so the app still runs
-    # on a stock splitflap-os whose caps has no such attribute.
+    # where caps has no such attribute (a bare host).
     want_secs = (str(settings.get('show_seconds', '')).strip().lower()
                  in ('1', 'true', 'yes', 'on')
                  and bool(getattr(caps, 'instant', False)))

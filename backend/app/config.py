@@ -100,8 +100,8 @@ DEFAULTS: dict = {
     # The companion's own Home Assistant MQTT integration (publishes app/playlist
     # controls). "auto" enables it when a broker is configured (transport.mqtt.broker),
     # off when none is; true/false force it. The broker must be set locally
-    # (COMPANION_MQTT_* / add-on options) — the Matrix gateway dropped MQTT in firmware
-    # 3.0, so it no longer supplies one.
+    # (COMPANION_MQTT_* / add-on options) — a Matrix gateway on firmware 3.0+
+    # has no MQTT and supplies no broker.
     "ha": {
         "enabled": "auto",
         "discovery_prefix": "homeassistant",
@@ -241,8 +241,8 @@ def _addon_overrides() -> dict:
     ov: dict = {"transport": {"mqtt": {}}}
     if val("gateway_url"):
         ov["transport"]["gateway_url"] = val("gateway_url")
-    # The Home Assistant broker. The gateway used to supply broker/port/username via the
-    # config sync; firmware 3.0 dropped MQTT, so an add-on user sets the broker here (host
+    # The Home Assistant broker. A firmware 3.0+ gateway has no MQTT and supplies no
+    # broker via the config sync, so an add-on user sets the broker here (host
     # of their Mosquitto, e.g. `core-mosquitto`). A blank broker leaves the HA device off.
     if val("mqtt_broker"):
         ov["transport"]["mqtt"]["broker"] = val("mqtt_broker")
@@ -286,7 +286,7 @@ class Config:
     """Loads, merges and persists companion configuration."""
 
     def __init__(self, data_dir: Path | None = None, *, gateway_url: str = ""):
-        # data_dir still holds app_settings.json + uploaded apps; the companion
+        # data_dir holds app_settings.json + uploaded apps; the companion
         # config itself is never written there (or anywhere).
         self.data_dir = Path(data_dir) if data_dir else default_data_dir()
         self.data_dir.mkdir(parents=True, exist_ok=True)

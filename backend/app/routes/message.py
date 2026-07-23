@@ -1,8 +1,7 @@
 """The message surface: compose/send, the plain-text message endpoint, clear,
 physical home, and the gateway status probe the Display tab reads.
 
-Split out of main.py (audit E1); the bodies, docstrings and behaviour are
-main.py's, verbatim. ``deps`` is the app.main module — see routes/__init__.py.
+``deps`` is the app.main module — see routes/__init__.py.
 """
 
 from __future__ import annotations
@@ -42,7 +41,7 @@ def build(deps) -> APIRouter:
         if req.style and req.style not in renderer.ALL_STYLES:
             raise HTTPException(400, f"unknown style: {req.style}")
         # A person typed this: on a wall that can show lowercase, show it as they typed it,
-        # rather than SHOUTING IT BACK AT THEM — which was all the one-byte protocol could do.
+        # rather than SHOUTING IT BACK AT THEM — which is all the one-byte protocol can do.
         #
         # …unless it is `raw`, which is the click-to-type GRID: there a lowercase r/o/y/g/b/p/w
         # is a COLOUR CELL the user placed, not a letter they typed.

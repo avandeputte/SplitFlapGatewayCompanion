@@ -217,7 +217,7 @@ async def test_a_legacy_page_still_gets_its_colour_flaps():
 @pytest.mark.anyio
 async def test_an_animations_colour_codes_survive():
     """art-clock and the anim_* apps draw with lowercase colour codes in a RAW page. That
-    convention is splitflap-os's, and it has to keep working."""
+    convention is a hard contract, and it has to keep working."""
     t = _rich_transport()
     page = (renderer.normalize("rgb", 3, frame=True))
     await t.send_batch(list(enumerate(page)), 0)
