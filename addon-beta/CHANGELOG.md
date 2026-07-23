@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.0-beta.6
+
+- **Public Holidays panel view: the day number is now solid black** on the calendar card (was a
+  near-black), for a cleaner desk-calendar look.
+
 ## 2.10.0-beta.5
 
 - **Cleaner multi-surface app model.** An app now declares where it renders with one manifest field

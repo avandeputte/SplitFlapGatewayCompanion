@@ -285,7 +285,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
 
 _CARD, _CARD_EDGE = (244, 244, 246), (208, 208, 214)   # the desk-calendar card
 _BAND = (206, 52, 52)                                  # its classic red month band
-_DAY = (26, 26, 32)                                    # the big day number
+_DAY = (0, 0, 0)                                       # the big day number — solid black
 _SUB = (150, 150, 158)                                 # the weekday under it
 _NAME = (238, 238, 244)                                # the holiday name
 _SOON = (255, 180, 60)                                 # "IN N DAYS" amber
