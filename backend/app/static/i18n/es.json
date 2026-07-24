@@ -73,6 +73,7 @@
   "Color for 0": "Color del 0",
   "Color for 1": "Color del 1",
   "Cols": "Columnas",
+  "Columns on the Matrix panel (0 = auto)": "Columnas en el panel Matrix (0 = auto)",
   "Comments (blank line separates slides, up to 3 lines each)": "Comentarios (una línea en blanco separa diapositivas, 3 líneas máx. cada una)",
   "Compact (more games per page)": "Compacto (más partidos por página)",
   "Compose": "Componer",
@@ -475,6 +476,5 @@
   "＋ Add trigger": "＋ Añadir disparador",
   "＋ App": "＋ App",
   "＋ Library": "＋ Biblioteca",
-  "＋ Message": "＋ Mensaje",
-  "Columns on the Matrix panel (0 = auto)": "Columnas en el panel Matrix (0 = auto)"
+  "＋ Message": "＋ Mensaje"
 }

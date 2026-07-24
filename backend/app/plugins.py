@@ -347,7 +347,8 @@ class PluginRuntime:
                      "canvas-overview": "dashboard",     # Overview's card is Dashboard's panel view
                      "canvas-dashboard": "entity-board",   # HA Dashboard's grid is Home Assistant's panel view
                      "canvas-date": "date",                # Date Card is Date's panel view
-                     "canvas-weather-panel": "canvas-weather"}  # Weather Panel folded into Weather Sky
+                     "canvas-weather-panel": "weather",    # Weather Panel -> Weather Sky -> Weather
+                     "canvas-weather": "weather"}          # Weather Sky is Weather's panel view
 
     def _migrate_renamed_apps(self) -> None:
         installed = list(self.settings.installed_apps)

@@ -443,12 +443,12 @@ def test_the_canvas_apps_declare_the_matrix_surface():
     from pathlib import Path
     apps = Path(__file__).resolve().parents[2] / "apps"
     import json
-    for app in ("effects", "canvas-art-clock", "canvas-image", "canvas-weather"):
+    for app in ("effects", "canvas-art-clock", "canvas-image"):
         m = json.loads((apps / app / "manifest.json").read_text())
         assert m.get("surfaces") == ["matrix"], app
 
 
-# --- the frame-push canvas apps (Lumina Clock, Weather Sky) ------------------
+# --- the frame-push canvas apps (Lumina Clock, Weather's sky view) -----------
 # Both render a whole PIL image and push it via canvas.frame() (PUT
 # /api/canvas/frame). These drive the REAL CanvasSurface (so canvas.font / blank
 # / vgrad / frame all work) against the stubbed gateway, and inspect the pushed
@@ -516,13 +516,13 @@ def _gw(sky="clear", t=52, hi=61, lo=44, city="Boston"):
                                       "hi_f": hi, "lo_f": lo, "city": city}
 
 
-def test_weather_is_a_matrix_app():
-    m = _load("canvas-weather")
-    assert callable(getattr(m, "fetch_matrix", None)) and not hasattr(m, "fetch")
+def test_weather_is_dual_surface_with_the_sky_view():
+    m = _load("weather")
+    assert callable(getattr(m, "fetch_matrix", None)) and callable(getattr(m, "fetch", None))
 
 
 def test_weather_pushes_a_scene_with_the_numbers(gw_calls):
-    hold, img, content = _push(gw_calls, _load("canvas-weather"), 128, 32,
+    hold, img, content = _push(gw_calls, _load("weather"), 128, 32,
                                {"temperature_unit": "f"}, get_weather=_gw("clear"))
     assert hold == 0.16 and gw_calls[-1][1] == "/api/canvas/frame"
     assert len(content) == 128 * 32 * 3 and _bright(img) > 40
@@ -532,33 +532,33 @@ def test_weather_pushes_a_scene_with_the_numbers(gw_calls):
     "clear", "pcloudy", "cloudy", "fog", "rainl", "rain", "rainh", "shwr",
     "snowl", "snow", "snowh", "sleet", "storm", "hail", "mystery"])
 def test_weather_every_sky_renders(gw_calls, sky):
-    app = _load("canvas-weather")
+    app = _load("weather")
     for _ in range(3):                              # advance the animation frame
         _, img, content = _push(gw_calls, app, 128, 32, {}, get_weather=_gw(sky))
     assert len(content) == 128 * 32 * 3 and img is not None
 
 
 def test_weather_adapts_to_panel_size(gw_calls):
-    app = _load("canvas-weather")
+    app = _load("weather")
     for W, H in ((64, 32), (128, 64)):
         _, _i, content = _push(gw_calls, app, W, H, {}, get_weather=_gw("rain"))
         assert len(content) == W * H * 3
 
 
 def test_weather_temperature_conversion():
-    app = _load("canvas-weather")
-    assert app._num(32, "c") == 0 and app._num(32, "k") == 273 and app._num(32, "f") == 32
-    assert app._num(None, "f") is None
+    app = _load("weather")
+    assert app._cv_num(32, "c") == 0 and app._cv_num(32, "k") == 273 and app._cv_num(32, "f") == 32
+    assert app._cv_num(None, "f") is None
 
 
 def test_weather_missing_temp_still_renders(gw_calls):
-    _, _img, content = _push(gw_calls, _load("canvas-weather"), 128, 32, {},
+    _, _img, content = _push(gw_calls, _load("weather"), 128, 32, {},
                              get_weather=_gw("cloudy", None))
     assert len(content) == 128 * 32 * 3
 
 
 def test_weather_caches_the_reading(gw_calls):
-    app = _load("canvas-weather")
+    app = _load("weather")
     n = {"c": 0}
 
     def gw(days=1, air=False):
@@ -598,7 +598,7 @@ def test_canvas_apps_fill_a_big_256x64_panel(gw_calls):
                 "forecast": [{"date": "2026-07-16", "hi_f": 90, "lo_f": 66},
                              {"date": "2026-07-17", "hi_f": 84, "lo_f": 61},
                              {"date": "2026-07-18", "hi_f": 79, "lo_f": 58}]}
-    for app_id, kw in (("canvas-weather", {"get_weather": gww}),
+    for app_id, kw in (("weather", {"get_weather": gww}),
                        ("dashboard", {"get_weather": gww}),
                        ("date", {})):
         _h, img, content = _push(gw_calls, _load(app_id), 256, 64, {}, **kw)

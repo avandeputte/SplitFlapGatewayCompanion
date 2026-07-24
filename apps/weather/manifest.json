@@ -3,9 +3,12 @@
   "i18n": true,
   "name": "Weather",
   "icon": "🌤️",
-  "description": "Current conditions",
+  "description": "Current conditions, forecast, and air quality — and on a Matrix panel, the weather drawn as a living sky scene.",
   "type": "functional",
-  "surfaces": ["flap", "matrix"],
+  "surfaces": [
+    "flap",
+    "matrix"
+  ],
   "refresh_interval": 300,
   "loop_delay": 8,
   "category": "data",
@@ -285,6 +288,22 @@
         {
           "value": "yes",
           "label": "On"
+        }
+      ]
+    },
+    {
+      "key": "show_city",
+      "label": "Show place name",
+      "type": "toggle",
+      "default": "yes",
+      "options": [
+        {
+          "value": "yes",
+          "label": "On"
+        },
+        {
+          "value": "no",
+          "label": "Off"
         }
       ]
     }

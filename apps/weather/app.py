@@ -683,195 +683,261 @@ def _pollen_label(val):
 # =============================================================================
 # MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
 #
-# A current-conditions card: the temperature big and white, the condition in a
-# sky-matched accent color, the day's high/low color-coded warm/cool — the
-# same document the flap pages render (via _conditions), deliberately simpler
-# than a forecast board. Solid black background; adaptive down to 64x32.
+# The weather as a living sky scene (the merged Weather Sky app): a black panel
+# with a crisp sun by day or a moon and colored stars by night, cloud-shaped
+# clouds, falling rain or snow, lightning in a storm — and over it the numbers:
+# a big temperature, the condition, high/low; a 256x64 panel opens into a full
+# info column (feels-like, humidity, wind, a 3-day forecast strip). The scene
+# animates (~6 fps hold); conditions come from the same _conditions document the
+# flap pages render, cached ten minutes while the sky moves.
 # =============================================================================
 
 
-_CV_TEXT = (238, 238, 244)                 # primary text
-_CV_DIM = (150, 150, 158)                  # secondary text
-_CV_HI = (255, 150, 70)                    # the day's high — warm
-_CV_LO = (95, 165, 255)                    # the day's low — cool
-_CV_SKY_ACCENT = {                         # condition accent, keyed by the sky token
-    'clear': (255, 200, 50), 'pcloudy': (215, 220, 230), 'cloudy': (170, 175, 185),
-    'fog': (150, 160, 172), 'rainl': (85, 155, 250), 'rain': (85, 155, 250),
-    'rainh': (65, 125, 240), 'shwr': (85, 155, 250), 'snowl': (190, 212, 255),
-    'snow': (190, 212, 255), 'snowh': (190, 212, 255), 'sleet': (165, 195, 240),
-    'storm': (255, 95, 70), 'hail': (255, 95, 70),
-}
+_CV_SKY_WORD = {'clear': 'Clear', 'pcloudy': 'Partly', 'cloudy': 'Cloudy', 'fog': 'Fog',
+                'rainl': 'Light rain', 'rain': 'Rain', 'rainh': 'Heavy rain', 'shwr': 'Showers',
+                'snowl': 'Light snow', 'snow': 'Snow', 'snowh': 'Heavy snow', 'sleet': 'Sleet',
+                'storm': 'Storm', 'hail': 'Hail'}
+_CV_RAIN = {'rainl': 8, 'rain': 14, 'rainh': 22, 'shwr': 13, 'sleet': 10}
+_CV_SNOW = {'snowl': 10, 'snow': 16, 'snowh': 24}
+_CV_CLOUDY = ('pcloudy', 'cloudy', 'fog', 'rainl', 'rain', 'rainh', 'shwr', 'sleet',
+              'snowl', 'snow', 'snowh', 'storm', 'hail')
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
+def _cv_disc(draw, cx, cy, r, col):
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=col)
 
 
-def _cv_ink(font, text):
-    """Ink height of ``text`` in ``font``."""
-    b = font.getbbox(text or '0')
-    return b[3] - b[1]
-
-
-def _cv_text(draw, x, y, text, font, fill):
-    """Draw with the ink's TOP at ``y`` (bbox-corrected), left edge at ``x``."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill, anchor='la')
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message on black (offline / no data) — never a crash, never blank."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    h1 = _cv_ink(f1, line1)
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = _cv_ink(f2, line2) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    _cv_text(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_TEXT)
-    if line2:
-        _cv_text(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + gap, line2, f2, _CV_DIM)
-    return img
-
-
-def _cv_temp(value, temp_unit):
-    """'72°' — the degree sign the flap reels never had. Kelvin keeps its K."""
-    body = _short_temp(value, temp_unit)
-    return f'{body}K' if temp_unit == 'k' else f'{body}\N{DEGREE SIGN}'
-
-
-def _cv_card(canvas, ImageDraw, w, temp_unit, t):
-    """The conditions card: temperature big and white, the condition in its sky's
-    accent, the high warm / low cool. Side-by-side on a roomy panel, stacked on a
-    small one; the city rides along only where there is height to spare."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    accent = _CV_SKY_ACCENT.get(w.get('sky'), _CV_SKY_ACCENT['cloudy'])
-    temp = _cv_temp(w.get('temp_f'), temp_unit)
-    # The same condition text the flap pages show (translated when it is ours to
-    # translate), just set in type instead of flaps.
-    desc = (t(w['desc']) if w.get('provider') == 'openmeteo'
-            else str(w.get('desc') or '')).upper()
-    hi, lo = _cv_temp(w.get('hi_f'), temp_unit), _cv_temp(w.get('lo_f'), temp_unit)
-
-    def hilo_row(x, y, font):
-        """H 75°  L 61° with each number in its own color, one shared baseline."""
-        y0 = y - font.getbbox('H0')[1]
-        for part, col in (('H ', _CV_DIM), (hi, _CV_HI), ('  L ', _CV_DIM), (lo, _CV_LO)):
-            draw.text((x, y0), part, font=font, fill=col, anchor='la')
-            x += font.getlength(part)
-
-    if W >= 96:
-        # Side by side: the temperature owns the left, the words own the right.
-        # The city is a quiet strip across the top (only where height allows) so
-        # the right column stays a two-item hierarchy: condition, then high/low.
-        city = str(w.get('city') or '').upper()
-        top = 0
-        if H >= 52 and city:
-            cf = _cv_fit(canvas, city, W - 8, 8)
-            _cv_text(draw, 4, 1, city, cf, _CV_DIM)
-            top = 1 + _cv_ink(cf, city) + 2
-        ah = H - top                                  # the card area under the strip
-        tf = _cv_fit(canvas, temp, int(W * 0.46), ah)
-        th = _cv_ink(tf, temp)
-        _cv_text(draw, 4, top + (ah - th) / 2.0, temp, tf, _CV_TEXT)
-        rx = 4 + tf.getlength(temp) + 7
-        rw = W - 4 - rx
-        # A long condition ("PARTLY CLOUDY") wraps onto two lines rather than
-        # shrinking to the 7px floor on one; the wrap point is the space nearest
-        # the middle, and both lines share the larger font that results.
-        dlines = [desc]
-        df = _cv_fit(canvas, desc, rw, max(8, int(ah * 0.40)))
-        words = desc.split()
-        if len(words) > 1 and df.size < 9:
-            mid = min(range(1, len(words)),
-                      key=lambda i: abs(len(' '.join(words[:i])) - len(desc) / 2))
-            dlines = [' '.join(words[:mid]), ' '.join(words[mid:])]
-            longest = max(dlines, key=lambda s: len(s))
-            df = _cv_fit(canvas, longest, rw, max(8, int(ah * 0.30)))
-        dh = _cv_ink(df, 'AG')
-        hl = f'H {hi}  L {lo}'
-        hf = _cv_fit(canvas, hl, rw, max(7, int(ah * 0.30)))
-        hh = _cv_ink(hf, hl)
-        dgap = max(1, dh // 5)
-        # The condition hangs from the top edge (or the city strip) and the
-        # high/low sits its ink on the bottom row — the card spends the whole
-        # height instead of banking slack above and below a centered block.
-        y = top if top else 1
-        for ln in dlines:
-            _cv_text(draw, rx, y, ln, df, accent)
-            y += dh + dgap
-        hilo_row(rx, H - hh, hf)
-    else:
-        # Stacked: temperature + high/low hung from the top edge, the condition
-        # strip sitting on the bottom row — every row of the panel works.
-        df = _cv_fit(canvas, desc, W - 4, max(7, int(H * 0.30)))
-        if df.getlength(desc) > W - 4 and ' ' in desc:
-            # Too long for a legible line even at the 8px floor: keep the noun
-            # ("CLOUDY", "RAIN"), not a smaller alphabet.
-            desc = desc.split()[-1]
-            df = _cv_fit(canvas, desc, W - 4, max(7, int(H * 0.30)))
-        dh = _cv_ink(df, desc)
-        top_h = H - dh - 2                            # everything above the strip
-        # The hi/lo column is measured FIRST (it can no longer shrink below the
-        # 8px floor); the temperature gets exactly the width that's left, so the
-        # degree sign can never collide with the column.
-        hi_s, lo_s = f'H {hi}', f'L {lo}'
-        sf = _cv_fit(canvas, max(hi_s, lo_s, key=len), W // 2, max(7, (top_h - 3) // 2))
-        sh = _cv_ink(sf, hi_s)
-        rx = W - 3 - max(sf.getlength(hi_s), sf.getlength(lo_s))
-        tf = _cv_fit(canvas, temp, max(10, rx - 6), top_h - 1)
-        _cv_text(draw, 3, 1, temp, tf, _CV_TEXT)
-        _cv_text(draw, rx, 1, hi_s, sf, _CV_HI)
-        _cv_text(draw, rx, top_h - 1 - sh, lo_s, sf, _CV_LO)
-        _cv_text(draw, (W - df.getlength(desc)) / 2.0, H - dh, desc, df, accent)
-    return img
-
-
-def fetch_matrix(settings, canvas, i18n=None, get_weather=None):
-    """Draw the current-conditions card from the same document the flap pages use
-    (_conditions); the last good card survives a transient outage. Holds for the
-    configured polling rate — weather does not change by the second."""
-    from PIL import ImageDraw
-
-    def t(s):
-        return i18n.t(s, "weather") if i18n is not None else s
-
-    temp_unit = str(settings.get('temperature_unit', 'f')).lower()
-    if temp_unit not in ('f', 'c', 'k'):
-        temp_unit = 'f'
+def _cv_num(v, unit):
+    """The document's Fahrenheit reading in the configured unit, as an int."""
+    if v is None:
+        return None
     try:
-        hold = float(settings.get('polling_rate', 300) or 300)
-    except (TypeError, ValueError):
-        hold = 300.0
-    hold = max(120.0, min(900.0, hold))
+        f = float(v)
+    except Exception:
+        return None
+    if unit == 'c':
+        return int(round((f - 32) * 5 / 9))
+    if unit == 'k':
+        return int(round((f - 32) * 5 / 9 + 273.15))
+    return int(round(f))
+
+
+def fetch_matrix(settings, canvas, get_weather=None):
+    import math
+    from datetime import datetime
+    from PIL import Image, ImageDraw, ImageFilter
 
     st = getattr(fetch_matrix, '_state', None)
     if st is None:
-        st = {'last': None}
+        st = {'frame': 0, 'wx': None, 'at': None}
         setattr(fetch_matrix, '_state', st)
+    st['frame'] += 1
+    frame = st['frame']
+
+    tzname = str(settings.get('timezone') or '').strip()
     try:
-        w = _conditions(settings, get_weather, 0, False)
-        if not w or not w.get('ok'):
-            raise RuntimeError(str((w or {}).get('error') or 'no data'))
-        st['last'] = w
+        now = datetime.now(__import__('pytz').timezone(tzname)) if tzname else datetime.now()
     except Exception:
-        w = st['last']                     # yesterday's weather beats an error card
-    if not w:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'WEATHER', 'OFFLINE'))
-        return 120.0
-    canvas.frame(_cv_card(canvas, ImageDraw, w, temp_unit, t))
-    return hold
+        now = datetime.now()
+    hour = now.hour
+    night = hour < 6 or hour >= 20
+
+    # One reading per ten minutes while the scene animates; a transient failure
+    # keeps showing the last good reading rather than a blank sky.
+    nowt = datetime.now()
+    stale = st['at'] is None or (nowt - st['at']).total_seconds() > 600
+    if st['wx'] is None or stale:
+        try:
+            wx = _conditions(settings, get_weather, 3, False)
+            if wx and wx.get('ok'):
+                st['wx'], st['at'] = wx, nowt
+            elif st['wx'] is None:
+                st['wx'], st['at'] = {'ok': False}, nowt
+        except Exception:
+            if st['wx'] is None:
+                st['wx'], st['at'] = {'ok': False}, nowt
+    wx = st['wx'] or {}
+
+    unit = str(settings.get('temperature_unit', 'f') or 'f').lower()
+    if unit not in ('f', 'c', 'k'):
+        unit = 'f'
+    show_city = str(settings.get('show_city', 'yes') or 'yes') != 'no'
+    sky = wx.get('sky') or 'cloudy'
+
+    W, H = canvas.width, canvas.height
+    large = W >= 192 and H >= 48                # a large panel gets the richer layout
+    img = canvas.blank((0, 0, 0))               # black — bright weather elements read best on unlit pixels
+    draw = ImageDraw.Draw(img)
+
+    # --- celestial: a crisp sun (day) or moon + colored stars (night) ----------
+    # No soft glow — a blurred halo reads as an ugly gradient on the unlit black panel, so the
+    # sun and moon are drawn as clean discs.
+    icx, icy, ir = W - int(H * 0.42) - 1, int(H * 0.40), max(4, int(H * 0.26))
+    if night:
+        stars = [(0.06, 0.18, (200, 210, 255)), (0.16, 0.42, (255, 240, 200)),
+                 (0.30, 0.12, (180, 220, 255)), (0.40, 0.55, (255, 220, 220)),
+                 (0.52, 0.24, (210, 235, 255)), (0.63, 0.10, (255, 245, 210))]
+        for i, (fx, fy, col) in enumerate(stars):
+            if (frame // 7 + i) % 4:
+                draw.point((int(W * fx), int(H * fy)), fill=col)
+        if sky in ('clear', 'pcloudy'):
+            _cv_disc(draw, icx, icy, ir, (232, 236, 250))
+            _cv_disc(draw, icx + int(ir * 0.55), icy - int(ir * 0.2), ir, (0, 0, 0))   # crescent cut
+    else:
+        if sky in ('clear', 'pcloudy'):
+            _cv_disc(draw, icx, icy, ir, (255, 210, 70))
+            _cv_disc(draw, icx, icy, max(1, ir - 2), (255, 226, 120))
+
+    # --- clouds: one resting by the sun/moon, one drifting across — both clearly cloud-SHAPED
+    # (three overlapping gray discs) so a cloud never reads as a lone white ball on the black sky.
+    if sky in _CV_CLOUDY:
+        dark = sky in ('storm', 'hail')
+        cc = (70, 74, 88) if dark else (150, 156, 172)
+
+        def _puff(px, py, s):
+            for dx, dy, rr in ((0, 0, s), (int(s * 0.9), 4, int(s * 0.78)), (-int(s * 0.9), 3, int(s * 0.72))):
+                _cv_disc(draw, int(px + dx), int(py + dy), max(2, rr), cc)
+
+        _puff(icx - int(W * 0.1), icy, ir)                       # the cloud beside the sun/moon
+        cx = (frame * 0.4) % (W + ir * 6) - ir * 3               # a smaller cloud drifting across
+        _puff(cx, H * 0.28, max(3, int(ir * 0.62)))
+
+    # --- precipitation ----------------------------------------------------------
+    if sky in _CV_RAIN:
+        for i in range(_CV_RAIN[sky]):
+            x = (i * 53 + 7) % W
+            y = int(H * 0.30) + (frame * 3 + i * 11) % max(1, int(H * 0.7))
+            draw.line([(x, y), (x - 1, min(H - 1, y + 3))], fill=(120, 170, 255))
+    elif sky in _CV_SNOW:
+        for i in range(_CV_SNOW[sky]):
+            x = (i * 41 + 5 + int(2 * math.sin(frame * 0.15 + i))) % W
+            y = int(H * 0.28) + (frame + i * 9) % max(1, int(H * 0.72))
+            draw.point((x, y), fill=(238, 244, 255))
+    if sky in ('storm', 'hail') and frame % 22 < 2:
+        bx = int(W * 0.3)
+        draw.line([(bx, int(H * 0.3)), (bx - 3, int(H * 0.55)), (bx + 2, int(H * 0.55)),
+                   (bx - 2, int(H * 0.8))], fill=(255, 255, 170), width=1)
+
+    # --- the text -----------------------------------------------------------
+    # A soft scrim blacks out the info column so the scene never crowds the text; the celestial
+    # scene keeps the right. A small panel gets a compact left column; a big panel (256x64) gets
+    # a full info dashboard, so the space isn't wasted.
+    temp = _cv_num(wx.get('temp_f'), unit)
+    hi, lo = _cv_num(wx.get('hi_f'), unit), _cv_num(wx.get('lo_f'), unit)
+    deg = '\N{DEGREE SIGN}'
+    word = _CV_SKY_WORD.get(sky, 'Weather')
+
+    def _outline(draw, x, y, s, font, col):
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):   # a dark outline for contrast
+            draw.text((x + dx, y + dy), s, font=font, fill=(0, 0, 0), anchor='la')
+        draw.text((x, y), s, font=font, fill=col, anchor='la')
+
+    if large:
+        # A dark info column on the left holds the place, a big temperature, the
+        # condition, high/low, feels-like, humidity, wind and a 3-day forecast; the
+        # sky scene fills the right.
+        pad, left_w = 3, int(W * 0.58)
+        name_f = canvas.font(max(8, int(H * 0.15)))
+        temp_f = canvas.font(max(12, int(H * 0.38)))
+        info_f = canvas.font(max(8, int(H * 0.15)))
+        step = info_f.size + 2
+        fy = H - info_f.size - 2                            # the forecast strip's top
+        scrim = Image.new('L', (W, H), 0)
+        _sd = ImageDraw.Draw(scrim)
+        _sd.rectangle([0, 0, left_w, fy], fill=196)          # left info panel
+        _sd.rectangle([0, fy - 1, W - 1, H - 1], fill=196)   # full-width forecast strip
+        img = Image.composite(Image.new('RGB', (W, H), (0, 0, 0)), img,
+                              scrim.filter(ImageFilter.GaussianBlur(6)))
+        draw = ImageDraw.Draw(img)
+        draw.fontmode = "1"
+
+        if show_city and wx.get('city'):
+            cs = str(wx['city'])
+            while cs and name_f.getlength(cs) > left_w - pad:
+                cs = cs[:-1]
+            _outline(draw, pad, 1, cs, name_f, (216, 226, 244))
+
+        ty = int(H * 0.20)
+        ts = f'{temp}{deg}' if temp is not None else '--'
+        _outline(draw, pad, ty, ts, temp_f, (255, 255, 255) if temp is not None else (200, 200, 200))
+        _outline(draw, pad, ty + temp_f.size, word[:14], info_f, (214, 226, 246))
+
+        dx, dyy = int(pad + temp_f.getlength(ts) + 8), ty
+        if hi is not None:
+            _outline(draw, dx, dyy, f'H {hi}{deg}', info_f, (255, 150, 55))
+            if lo is not None:
+                _outline(draw, dx + info_f.getlength(f'H {hi}{deg}') + 7, dyy,
+                         f'L {lo}{deg}', info_f, (55, 150, 255))
+            dyy += step
+        feels = _cv_num(wx.get('feels_like_f'), unit)
+        if feels is not None:
+            _outline(draw, dx, dyy, f'Feels {feels}{deg}', info_f, (198, 208, 228))
+            dyy += step
+        extra = []
+        if wx.get('humidity') is not None:
+            extra.append(f'Hum {int(wx["humidity"])}%')
+        if wx.get('wind_mph') is not None:
+            extra.append(f'Wind {int(wx["wind_mph"])}')
+        if extra:
+            _outline(draw, dx, dyy, '  '.join(extra), info_f, (198, 208, 228))
+
+        fc = wx.get('forecast') or []
+        if fc:
+            from datetime import datetime as _dt
+            n = min(3, len(fc))
+            cw = W // n                                     # spread across the FULL width
+            for i, day in enumerate(fc[:n]):
+                dhi, dlo = _cv_num(day.get('hi_f'), unit), _cv_num(day.get('lo_f'), unit)
+                try:
+                    lbl = _dt.strptime(str(day.get('date'))[:10], '%Y-%m-%d').strftime('%a')
+                except Exception:
+                    lbl = str(day.get('day') or '')[:3].title()
+                fs = f'{lbl}  {dhi}{deg}/{dlo}{deg}' if (dhi is not None and dlo is not None) else (lbl or '')
+                _outline(draw, i * cw + pad + 2, fy, fs, info_f, (206, 216, 234))
+    else:
+        # Compact: place, big temperature, then condition + high/low, all in a left
+        # column over the scrim.
+        pad = 2
+        text_w = int(W * 0.66)
+        scrim = Image.new('L', (W, H), 0)
+        ImageDraw.Draw(scrim).rectangle([0, 0, text_w, H], fill=180)
+        img = Image.composite(Image.new('RGB', (W, H), (0, 0, 0)), img,
+                              scrim.filter(ImageFilter.GaussianBlur(6)))
+        draw = ImageDraw.Draw(img)
+        draw.fontmode = "1"
+        tiny = canvas.font(max(8, int(H * 0.17)))          # 8px floor: smaller renders wrong-reading glyphs
+        small = canvas.font(max(8, int(H * 0.24)))
+
+        top = 0
+        if show_city and wx.get('city'):
+            cs = str(wx['city'])
+            while cs and tiny.getlength(cs) > text_w - pad:
+                cs = cs[:-1]
+            if cs:
+                _outline(draw, pad, 0, cs, tiny, (216, 226, 244))
+                top = tiny.size + 1
+
+        info_y = H - (small.size + 1)
+        band = info_y - top
+        big = canvas.font(max(10, int(band * 0.96)))
+        s = f'{temp}{deg}' if temp is not None else '--'
+        ty = top + max(0, (band - big.size) // 2)
+        _outline(draw, pad, ty, s, big, (255, 255, 255) if temp is not None else (200, 200, 200))
+
+        hi_s = f'{hi}{deg}' if hi is not None else ''
+        lo_s = f'{lo}{deg}' if lo is not None else ''
+        x = pad
+        if word and small.getlength(word + '  ' + hi_s + '/' + lo_s) <= text_w - pad:
+            _outline(draw, x, info_y, word, small, (214, 226, 246))
+            x += small.getlength(word + '  ')
+        if hi_s:
+            _outline(draw, x, info_y, hi_s, small, (255, 150, 55))
+            x += small.getlength(hi_s)
+        if hi_s and lo_s:
+            _outline(draw, x, info_y, '/', small, (186, 196, 216))
+            x += small.getlength('/')
+        if lo_s:
+            _outline(draw, x, info_y, lo_s, small, (55, 150, 255))
+
+    canvas.frame(img)
+    return 0.16

@@ -73,6 +73,7 @@
   "Color for 0": "Couleur du 0",
   "Color for 1": "Couleur du 1",
   "Cols": "Colonnes",
+  "Columns on the Matrix panel (0 = auto)": "Colonnes sur le panneau Matrix (0 = auto)",
   "Comments (blank line separates slides, up to 3 lines each)": "Commentaires (une ligne vide sépare les diapos, 3 lignes max chacune)",
   "Compact (more games per page)": "Compact (plus de matchs par page)",
   "Compose": "Composer",
@@ -475,6 +476,5 @@
   "＋ Add trigger": "＋ Ajouter un déclencheur",
   "＋ App": "＋ Appli",
   "＋ Library": "＋ Bibliothèque",
-  "＋ Message": "＋ Message",
-  "Columns on the Matrix panel (0 = auto)": "Colonnes sur le panneau Matrix (0 = auto)"
+  "＋ Message": "＋ Message"
 }
