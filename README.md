@@ -200,7 +200,7 @@ uploaded apps** — not any companion config, which is never persisted.
 | `GATEWAY_URL` | **Required.** Your gateway. Takes a **comma-separated list** to drive [several displays](#multiple-displays) | — |
 | `COMPANION_MODULE_ID_BASE` | Module id of grid index 0 | `0` |
 | `COMPANION_GRID_ROWS` / `_COLS` | Manual panel-size override | *(from gateway)* |
-| `COMPANION_MQTT_BROKER` / `_PORT` / `_PREFIX` / `_USER` | MQTT broker/port/prefix/user for the Home Assistant device (e.g. broker `core-mosquitto`) | *(unset — HA off)* |
+| `COMPANION_MQTT_BROKER` / `_PORT` / `_USER` | MQTT broker/port/user for the Home Assistant device (e.g. broker `core-mosquitto`) | *(unset — HA off)* |
 | `COMPANION_SETTINGS_STORE` | Where settings live: `mirror` \| `local` \| `gateway` — see below | `mirror` |
 | `COMPANION_DATA_DIR` | Where app settings, playlists, triggers + uploaded apps live | `<repo>/data` |
 | `COMPANION_DEV_MODE` | Enable **simulation mode** in the ⚙ tools menu — run apps without driving the wall, with a grid override while simulating | `off` |
@@ -334,9 +334,10 @@ Pick the stable channel unless you want prereleases. Both run the same published
 port (8000), so **only one runs at a time** unless you remap the port on one of them
 (Configuration tab → Network).
 
-**Options** (Configuration tab): `gateway_url` (required), `mqtt_password`,
-`companion_public_url`, `home_assistant`, `vestaboard` + `vestaboard_key`, `mcp` +
-`mcp_token`, `dev_mode`, `log_level`.
+**Options** (Configuration tab): `gateway_url` (required), `mqtt_broker` +
+`mqtt_port` / `mqtt_username` / `mqtt_password`, `companion_public_url`,
+`home_assistant`, `vestaboard` + `vestaboard_key`, `mcp` + `mcp_token`,
+`ui_language`, `dev_mode`, `log_level`.
 
 What makes it native:
 

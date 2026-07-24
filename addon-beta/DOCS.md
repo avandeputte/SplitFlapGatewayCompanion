@@ -39,6 +39,8 @@ Home Assistant integration).
 | `vestaboard_key` | *(generated)* | The key clients send as `X-Vestaboard-Local-Api-Key`. Leave blank and one is generated and kept with your settings. |
 | `mcp` | `false` | Expose an **MCP server**, so an LLM client can drive the display as tools. See below. |
 | `mcp_token` | *(generated)* | The bearer token MCP clients send. Leave blank and one is generated. |
+| `ui_language` | *(auto)* | The companion UI's own language (menus, dialogs). Follows your Home Assistant profile language when unset; apps' content language is the separate in-app **Language** setting. |
+| `dev_mode` | `false` | **Simulation mode** in the ⚙ tools menu — run apps without driving the wall, with a grid override while simulating. |
 | `log_level` | `INFO` | `DEBUG` adds the companion's own detail (gateway sync, settings mirror, app fetches). |
 
 ## Driving the board from an automation
@@ -122,8 +124,8 @@ hidden entirely and nothing about the app changes.
 
 A Matrix Gateway's modules are drawn rather than mechanical, so it has flaps a real reel does
 not: every **lowercase** letter, fourteen **pictographs** (`♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`), and
-colours addressed by name. The companion uses them automatically — the message you type
+colors addressed by name. The companion uses them automatically — the message you type
 arrives as you wrote it rather than SHOUTED BACK AT YOU.
 
 Prefer the classic look? **Always uppercase** in Global settings folds it anyway, per
-display, and costs nothing else: the wall keeps its pictographs and its colours.
+display, and costs nothing else: the wall keeps its pictographs and its colors.

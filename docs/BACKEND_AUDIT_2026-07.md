@@ -5,7 +5,9 @@
 > into `routes/`; E4 conftest with an autouse network guard) and the CI from B
 > (tests + hassfest + HACS validation, green). Deliberately left: the optional
 > app.js file split (E6 note), and the LICENSE/topics HACS checks are skipped
-> in CI pending a licensing decision — see the comments in ci.yml.
+> in CI pending a licensing decision — see the comments in ci.yml. Two later
+> amendments: A4's non-root `USER` was considered and NOT adopted (the
+> Dockerfile documents why), and §D's `skip_rotation` has since been deleted.
 
 Companion audit of everything *except* apps/ (audited separately, see
 [APP_AUDIT_2026-07.md](APP_AUDIT_2026-07.md)): the FastAPI backend, the web UI,

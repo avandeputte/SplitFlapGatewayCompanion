@@ -310,11 +310,11 @@ existing one so nobody retypes an API key. Removing one leaves its settings on d
 
 ### Still open
 
-- **The HACS integration lives in another repo** and is unchanged. Its existing config
-  entries keep working: they address no display, so they drive the default one. Giving it a
-  device per display means teaching its coordinator to fan out over `/api/displays` and
-  adding an optional `display` target to `splitflap.message` — a change to make there, not
-  here.
+- **The HACS integration (`custom_components/splitflap/` in this repo) is unchanged.**
+  Its existing config entries keep working: they address no display, so they drive the
+  default one. Giving it a device per display means teaching its coordinator to fan out
+  over `/api/displays` and adding an optional `display` target to `splitflap.message` — a
+  change to make in the integration, not the backend.
 - **Re-pointing a running display at a different gateway needs a restart.** The settings
   mirror, the HA device and the heartbeat are all bound to the old URL, and swapping it
   underneath them is how you mirror one wall's playlists onto another's box. Add/remove and
