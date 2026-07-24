@@ -11,7 +11,9 @@ surface as a 3×15 wall mockup (see [the last section](#split-flap-wall-3--15)).
 | [r128x32/](r128x32/) | 128 × 32 |
 | [r64x32/](r64x32/) | 64 × 32 |
 
-Images are saved at 4× so the LED pixels stay crisp. Channels (quotes, jokes, facts …)
+Images are saved at 4× so the LED pixels stay crisp. Contact-sheet tiles are labeled with
+each app's display name; the individual files are named by app id (so `entity-board.png`
+is the **Home Assistant** app). Channels (quotes, jokes, facts …)
 render generically on the panel — big text plus a themed icon — and are shown with one
 representative line each.
 
