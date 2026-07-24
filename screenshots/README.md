@@ -38,12 +38,24 @@ slightly smoother in these PNGs than on real LEDs.
 
 ![All apps at 64x32](contact-sheet-64x32.png)
 
-## Split-flap wall (3 × 15)
+## Split-flap walls
 
-Every app with a split-flap surface, mocked up on a 3-row × 15-column wall of flap
-modules — the first page each app shows, with sample data. Colored tiles are the wall's
-seven color flaps (emoji render as solid color modules). Animation apps are omitted —
-a static frame of a motion effect says nothing. Individual images are in
-[flap-3x15/](flap-3x15/).
+Every app with a split-flap surface, mocked up on a wall of flap modules — the first page
+each app shows, with sample data, at three common wall heights (15 columns each). Apps
+adapt to the wall: extra rows get more content or vertical centering, fewer rows drop the
+least important line. Colored tiles are the wall's seven color flaps (emoji render as
+solid color modules). Animation apps are omitted — a static frame of a motion effect says
+nothing. Individual images are in [flap-3x15/](flap-3x15/), [flap-5x15/](flap-5x15/), and
+[flap-2x15/](flap-2x15/).
+
+### 3 × 15
 
 ![All apps on a 3x15 split-flap wall](contact-sheet-flap-3x15.png)
+
+### 5 × 15
+
+![All apps on a 5x15 split-flap wall](contact-sheet-flap-5x15.png)
+
+### 2 × 15
+
+![All apps on a 2x15 split-flap wall](contact-sheet-flap-2x15.png)
