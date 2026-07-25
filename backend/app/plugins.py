@@ -51,6 +51,7 @@ _EFFECT_META = {
     "plasma": ("Plasma", "🌀"), "fire": ("Fire", "🔥"), "matrix": ("Matrix Rain", "💚"),
     "fliporama": ("Flip-o-rama", "🎞️"), "clock": ("Panel Clock", "🕛"),
     "life": ("Game of Life", "🦠"), "rainbow": ("Rainbow", "🌈"),
+    "spectrum": ("Spectrum", "🎚️"), "soundwall": ("Soundwall", "🔊"),
 }
 
 
@@ -1224,20 +1225,72 @@ class PluginRuntime:
             effects = []
         return [(f"effect_{e}", e) for e in effects if e]
 
+    # The knob fields the effects template declares; replaced wholesale when the wall
+    # describes its own (effectDefs).
+    _EFFECT_KNOB_KEYS = ("effect", "speed", "hue", "density")
+
+    def _effect_def_for(self, token: str) -> dict | None:
+        """This wall's self-description of one effect (fw 3.4 ``effectDefs``), or None on
+        older firmware — callers fall back to the template's fixed knobs."""
+        try:
+            for d in self._caps().effect_defs:
+                if d.get("id") == token:
+                    return d
+        except Exception:
+            pass
+        return None
+
+    @staticmethod
+    def _effect_def_fields(d: dict) -> list[dict]:
+        """Settings fields straight from an effect's def: an int param becomes a number
+        field with the declared range, a bool a toggle; labels shown verbatim. A param of
+        an unknown type gets no field (and the app skips it on the wire) — a future
+        firmware type degrades to the effect's on-device default, never an error."""
+        fields = []
+        for pd in d.get("params") or []:
+            key, typ = str(pd.get("key") or ""), str(pd.get("type") or "")
+            if not key:
+                continue
+            label = str(pd.get("label") or key.replace("_", " ").title())
+            if typ == "int":
+                f = {"key": key, "label": label, "type": "number", "step": "1",
+                     "default": "" if pd.get("default") is None else str(pd["default"])}
+                if pd.get("min") is not None:
+                    f["min"] = str(pd["min"])
+                if pd.get("max") is not None:
+                    f["max"] = str(pd["max"])
+                fields.append(f)
+            elif typ == "bool":
+                fields.append({"key": key, "label": label, "type": "toggle",
+                               "default": "yes" if pd.get("default") else "no",
+                               "options": [{"value": "yes", "label": "On"},
+                                           {"value": "no", "label": "Off"}]})
+        return fields
+
     def _effect_manifest(self, effect_id: str, token: str) -> dict:
         """A per-effect app's manifest, derived from the shared ``effects`` manifest: the
-        effect PICKER is dropped (the app IS one effect, pinned via ``pinned_effect``), the
-        speed/hue/density knobs stay."""
+        effect PICKER is dropped (the app IS one effect, pinned via ``pinned_effect``).
+        On a wall that describes its effects (fw 3.4 ``effectDefs``) the knob fields come
+        from the effect's own def — exactly the params it consumes, named by the firmware;
+        on older firmware the template's speed/hue/density stay."""
         d = self._scan().get("effects")
         tmpl = dict(_read_json_cached(d / "manifest.json")) if d else {}
         name, icon = _effect_name_icon(token)
         m = dict(tmpl)
         m["id"] = effect_id
+        edef = self._effect_def_for(token)
+        if edef and edef.get("name"):
+            name = str(edef["name"])                     # the firmware owns effect naming
         m["name"] = name
         m["icon"] = icon
         m["description"] = f"The {name} effect, rendered on the panel itself"
         m["pinned_effect"] = token
-        m["settings"] = [s for s in tmpl.get("settings", []) if s.get("key") != "effect"]
+        if edef is not None:
+            others = [s for s in tmpl.get("settings", [])
+                      if s.get("key") not in self._EFFECT_KNOB_KEYS]
+            m["settings"] = self._effect_def_fields(edef) + others
+        else:
+            m["settings"] = [s for s in tmpl.get("settings", []) if s.get("key") != "effect"]
         return m
 
     def available_list(self, lang=None) -> list[dict]:
@@ -1287,8 +1340,13 @@ class PluginRuntime:
             effects = []
         if not effects:
             return None
-        return [{"value": e, "label": self._EFFECT_LABELS.get(e, e.replace("_", " ").title())}
-                for e in effects]
+
+        def label(e):
+            d = self._effect_def_for(e)
+            if d and d.get("name"):
+                return str(d["name"])
+            return self._EFFECT_LABELS.get(e, e.replace("_", " ").title())
+        return [{"value": e, "label": label(e)} for e in effects]
 
     def _field(self, app_id: str, setting: dict, resolved: dict) -> dict:
         raw = setting["key"]

@@ -93,6 +93,11 @@ class Capabilities:
     canvas_anim: bool = False               # PUT /api/canvas/anim — upload a loop, plays on-device
     canvas_ticker: bool = False             # POST /api/canvas/ticker — on-device scrolling text
     effect_params: tuple[str, ...] = ()     # effect knobs, e.g. ("hue", "density")
+    # Self-describing effects (fw 3.4 "effectDefs"): one entry per effect declaring exactly
+    # the params it consumes (key/type/min/max/default/label), so effect UIs are built from
+    # the wall's own description. Empty on older firmware — clients fall back to the flat
+    # effects/effect_params pair.
+    effect_defs: tuple = ()
 
     # Newer still (Matrix Portal 1.19 / 1.25 / 2.1). `fw_version` is the wall's firmware,
     # parsed from the capabilities document's `fw` field ((0, 0) = not stated). `canvas_readback`
@@ -242,6 +247,9 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     canvas_formats = tuple(str(f) for f in (canvas.get("formats") or []) if isinstance(f, str))
     effects = tuple(str(e) for e in (doc.get("effects") or []) if isinstance(e, str))
     effect_params = tuple(str(p) for p in (doc.get("effectParams") or []) if isinstance(p, str))
+    effect_defs = tuple(d for d in (doc.get("effectDefs") or [])
+                        if isinstance(d, dict) and isinstance(d.get("id"), str)
+                        and isinstance(d.get("params"), list))
     # The draw-op vocabulary (1.25) and the panel readback flag (1.19), advertised directly. The
     # ops list is what gates a specific op the app is about to send — an unknown op is skipped by
     # the firmware, but knowing up front lets an app choose the frame path instead.
@@ -282,6 +290,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_anim=bool(canvas.get("anim")),
         canvas_ticker=bool(canvas.get("ticker")),
         effect_params=effect_params,
+        effect_defs=effect_defs,
         fw_version=fw_version,
         canvas_readback=canvas_readback,
         canvas_ops=canvas_ops,

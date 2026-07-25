@@ -181,20 +181,26 @@ def set_active(url: str, active: bool, timeout: float = 5.0) -> bool:
 
 
 def play_effect(url: str, effect: str, speed: int = 5, hue=None, density=None,
-                timeout: float = 5.0) -> bool:
+                params=None, timeout: float = 5.0) -> bool:
     """Start an on-device effect (plasma/fire/matrix/…), or "none" to return to the
     wall. The panel renders it itself — the companion sends one request and stops.
 
-    Optional ``hue`` (0–255) and ``density`` (1–100) tint/seed effects that support them
-    (see caps.effect_params); omitted, each effect keeps its own default look."""
+    Two calling styles. ``params`` (a dict) is the def-driven one: exactly those keys go on
+    the wire (the caller derived them from the wall's own ``effectDefs``, so an effect gets
+    the knobs it consumes and nothing else — no implicit speed). Without ``params``, the
+    legacy composition applies: ``speed`` always, plus ``hue`` (0–255) / ``density`` (1–100)
+    where given; omitted knobs keep the effect's own default look."""
     if _wall(url).sim:               # an on-device effect can't be simulated; don't start it
         return True
     try:
-        body = {"type": str(effect), "speed": max(1, min(10, int(speed)))}
-        if hue is not None:
-            body["hue"] = max(0, min(255, int(hue)))
-        if density is not None:
-            body["density"] = max(1, min(100, int(density)))
+        if params is not None:
+            body = {"type": str(effect), **{k: v for k, v in dict(params).items() if v is not None}}
+        else:
+            body = {"type": str(effect), "speed": max(1, min(10, int(speed)))}
+            if hue is not None:
+                body["hue"] = max(0, min(255, int(hue)))
+            if density is not None:
+                body["density"] = max(1, min(100, int(density)))
         return _ok(gateway._request("POST", url, "/api/canvas/effect", json=body, timeout=timeout))
     except Exception as e:
         log.debug("canvas play_effect(%s) failed: %s", effect, e)
@@ -891,6 +897,7 @@ class CanvasSurface:
         self.can_anim = bool(caps.canvas_anim)
         self.can_ticker = bool(caps.canvas_ticker)
         self.effect_params = tuple(caps.effect_params)
+        self.effect_defs = tuple(getattr(caps, 'effect_defs', ()) or ())
         # 1.19 / 1.25 / 2.1. `ops` is the draw-op vocabulary the wall honors (an app can consult
         # it before reaching for a shape); `can_ops` is "any ops at all". The 2.1 endpoint families
         # aren't flagged one by one, so they all gate on the firmware version (caps.canvas_2_1).
@@ -1045,15 +1052,17 @@ class CanvasSurface:
         return draw_ops(self.url, ops)
 
     # -- whole-panel content -------------------------------------------------
-    def effect(self, name, speed: int = 5, hue=None, density=None) -> bool:
+    def effect(self, name, speed: int = 5, hue=None, density=None, params=None) -> bool:
         """Play an on-device effect (from ``canvas.effects``); "none" returns to
-        the wall. The panel renders it — one request, then nothing. ``hue`` (0–255) and
-        ``density`` (1–100) tint/seed effects that support them (``canvas.effect_params``)."""
+        the wall. The panel renders it — one request, then nothing. ``params`` is the
+        def-driven style: exactly those keys go on the wire (derived from
+        ``canvas.effect_defs``). Without it, ``hue`` (0–255) and ``density`` (1–100)
+        tint/seed effects that support them (``canvas.effect_params``)."""
         # An effect draws on-device — there is no frame the companion holds for it. Drop any
         # frame a PREVIOUS frame-push app (a clock, weather) cached, or the live preview would keep
         # showing that stale frame instead of reading the running effect back off the panel.
         forget_frame(self.url)
-        return play_effect(self.url, name, speed, hue, density)
+        return play_effect(self.url, name, speed, hue, density, params=params)
 
     def _push_full(self, b: bytes) -> bool:
         # QOI where the wall takes it: the same picture over far less WiFi. Any encode
