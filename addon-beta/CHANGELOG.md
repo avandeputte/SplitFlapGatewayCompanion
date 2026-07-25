@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.4-beta.1
+
+- **Self-describing effects (Matrix Gateway firmware 3.4).** Each panel effect's settings
+  now come from the wall's own description (`effectDefs`): exactly the knobs that effect
+  consumes, with the firmware's ranges, defaults, and display names. On a 3.4 wall with
+  microphones that surfaces the new **Spectrum** and **Soundwall** effects as apps, and an
+  **Audio reactive** toggle on Plasma, Fire, and Matrix Rain. Future firmware effects and
+  options appear with no companion update; older walls keep the fixed speed/hue/density
+  knobs.
+
 ## 2.10.3
 
 - **Weather and Weather Sky are one app.** The Weather app's Matrix-panel view is now the
