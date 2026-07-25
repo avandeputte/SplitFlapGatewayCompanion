@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.3
+
+- **Weather and Weather Sky are one app.** The Weather app's Matrix-panel view is now the
+  living sky scene — a glowing sun by day, a moon and colored stars by night, drifting
+  cloud, falling rain or snow, and on big panels a full info column with a three-day
+  forecast strip. It follows the same weather provider, location, and API-key settings as
+  the flap pages. Existing Weather Sky installs and playlist entries move over
+  automatically; a **Show place name** toggle controls the city label.
+
 ## 2.10.2
 
 - **Channels stay readable on short panels.** On 32-pixel-tall panels a long quote or joke
