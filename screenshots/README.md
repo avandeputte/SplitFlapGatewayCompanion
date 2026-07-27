@@ -1,9 +1,9 @@
 # Screenshots
 
-Rendered views of every dual-surface app and channel — 57 of the catalog's 74 apps
-(matrix-only canvas apps, on-device panel effects, and flap animations are not in the
-render harness) — generated straight from the app code with sample data, one section
-per app: its Matrix-panel (LED) view at the four common panel resolutions,
+Rendered views of every dual-surface app and channel, plus Chomper — 58 of the
+catalog's 74 apps (the remaining matrix-only canvas apps, on-device panel effects, and
+flap animations are not in the render harness) — generated straight from the app code
+with sample data, one section per app: its Matrix-panel (LED) view at the four common panel resolutions,
 and its split-flap view on three wall heights (15 columns each). Apps adapt to the
 surface they are given: smaller panels get simpler layouts, extra flap rows get more
 content, fewer rows drop the least important line.
@@ -91,6 +91,13 @@ A few notes:
 | ![Cat Facts — Matrix 128 × 32](r128x32/cat-facts.png)<br>Matrix 128 × 32 | ![Cat Facts — Matrix 64 × 32](r64x32/cat-facts.png)<br>Matrix 64 × 32 |
 | ![Cat Facts — Flap wall 3 × 15](flap-3x15/cat-facts.png)<br>Flap wall 3 × 15 | ![Cat Facts — Flap wall 5 × 15](flap-5x15/cat-facts.png)<br>Flap wall 5 × 15 |
 | ![Cat Facts — Flap wall 2 × 15](flap-2x15/cat-facts.png)<br>Flap wall 2 × 15 |  |
+
+## Chomper
+
+| | |
+|---|---|
+| ![Chomper — Matrix 256 × 64](r256x64/canvas-chomper.png)<br>Matrix 256 × 64 | ![Chomper — Matrix 128 × 64](r128x64/canvas-chomper.png)<br>Matrix 128 × 64 |
+| ![Chomper — Matrix 128 × 32](r128x32/canvas-chomper.png)<br>Matrix 128 × 32 | ![Chomper — Matrix 64 × 32](r64x32/canvas-chomper.png)<br>Matrix 64 × 32 |
 
 ## Chuck Norris
 
