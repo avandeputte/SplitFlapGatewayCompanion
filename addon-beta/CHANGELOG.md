@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.4-beta.4
+
+- **Chomper's mazes are now the classic kind** — corridors exactly one dot wide, walls
+  exactly one cell thin, randomized fresh every level with loops and the occasional
+  dead-end pocket. (Replaces beta.3's blocky wall islands.)
+
 ## 2.10.4-beta.3
 
 - **New app: Chomper** 🟡 — a Pac-Man-style maze chase the Matrix panel plays by itself:
