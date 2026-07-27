@@ -3,6 +3,19 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.4-beta.3
+
+- **New app: Chomper** 🟡 — a Pac-Man-style maze chase the Matrix panel plays by itself:
+  organic mazes with dead-end pockets and a fresh layout every level, pellets, blinking
+  power-ups, ghosts that turn blue and flee, lives and a running score. Drawn entirely
+  with on-device draw ops.
+- **Home Assistant cards grow dials.** On firmware 3.5, a thresholded numeric entity's
+  icon becomes a live arc-gauge — a dim track with the value's sweep in its band color.
+- **Matrix Gateway firmware 3.5 support.** The full new draw-ops vocabulary (arcs,
+  polygons, clip/origin, word-wrapped textboxes, stroke thickness, text styles, sprite
+  transforms) is available to apps, gated per-op on what the wall advertises — and text
+  labels on ops-drawn apps now cost half the ops they used to.
+
 ## 2.10.4-beta.2
 
 - **Deep cleanup after a full code review** — about 2,000 lines of duplicate and dead code
