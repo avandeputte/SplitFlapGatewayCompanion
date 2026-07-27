@@ -24,53 +24,40 @@ _FRIGHT_STEPS = 40
 
 
 def _maze(cols, rows, rng):
-    """A fresh maze for this panel: the interior starts as open lanes, then wall
-    islands of varied width and height drop in wherever every remaining lane stays
-    reachable — organic blocks, protrusions off the border, and the occasional
-    dead-end pocket. A new layout every level (the rng is seeded per level). The
-    four power-pellet corners always stay open. Returns (walls, corridor cells)."""
+    """A classic arcade maze, randomized fresh every level: corridors exactly ONE cell
+    wide and walls exactly ONE cell thick. A recursive-backtracker spanning tree over
+    the odd-coordinate node lattice carves the corridors; braiding then gives most dead
+    ends a second exit (loops to run in) while the rest stay as pockets. ``cols`` and
+    ``rows`` must be odd so the outer wall stays one cell thick on every side.
+    Returns (walls, corridor cells)."""
     walls = [[True] * cols for _ in range(rows)]
-    for r in range(1, rows - 1):
-        for x in range(1, cols - 1):
-            walls[r][x] = False
-    inner_h = rows - 2
-    keep = {(1, 1), (cols - 2, 1), (1, rows - 2), (cols - 2, rows - 2)}
-
-    def connected():
-        cells = [(x, r) for r in range(rows) for x in range(cols) if not walls[r][x]]
-        seen = {cells[0]}
-        stack = [cells[0]]
-        while stack:
-            cx0, cy0 = stack.pop()
-            for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
-                nx, ny = cx0 + dx, cy0 + dy
-                if 0 <= ny < rows and 0 <= nx < cols and not walls[ny][nx]                         and (nx, ny) not in seen:
-                    seen.add((nx, ny))
-                    stack.append((nx, ny))
-        return len(seen) == len(cells)
-
-    target = int((cols - 2) * inner_h * 0.32)      # about a third becomes islands
-    placed = 0
-    for _ in range(cols * rows):
-        if placed >= target:
-            break
-        w = rng.randint(2, max(2, min(6, cols // 5)))
-        h = rng.randint(1, max(1, min(2, inner_h // 3)))
-        x0 = rng.randint(1, cols - 1 - w)
-        y0 = rng.randint(1, rows - 1 - h)
-        rect = [(x, y) for y in range(y0, y0 + h) for x in range(x0, x0 + w)]
-        if any(walls[y][x] for x, y in rect) or any(c in keep for c in rect):
-            continue
-        for x, y in rect:
-            walls[y][x] = True
-        if connected():
-            placed += len(rect)
+    node_set = {(x, y) for y in range(1, rows - 1, 2) for x in range(1, cols - 1, 2)}
+    for x, y in node_set:
+        walls[y][x] = False
+    start = next(iter(node_set))
+    stack, seen = [start], {start}
+    while stack:
+        x, y = stack[-1]
+        nbrs = [(x + dx, y + dy) for dx, dy in ((2, 0), (-2, 0), (0, 2), (0, -2))
+                if (x + dx, y + dy) in node_set and (x + dx, y + dy) not in seen]
+        if nbrs:
+            nx, ny = nbrs[rng.randrange(len(nbrs))]
+            walls[(y + ny) // 2][(x + nx) // 2] = False    # knock out the between wall
+            seen.add((nx, ny))
+            stack.append((nx, ny))
         else:
-            for x, y in rect:
-                walls[y][x] = False
+            stack.pop()
+    for x, y in node_set:                                  # braid: loops beat corridors
+        exits = sum(1 for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
+                    if not walls[y + dy][x + dx])
+        if exits == 1 and rng.random() < 0.6:
+            cands = [(dx, dy) for dx, dy in ((2, 0), (-2, 0), (0, 2), (0, -2))
+                     if (x + dx, y + dy) in node_set and walls[y + dy // 2][x + dx // 2]]
+            if cands:
+                dx, dy = cands[rng.randrange(len(cands))]
+                walls[y + dy // 2][x + dx // 2] = False
     cells = [(x, r) for r in range(rows) for x in range(cols) if not walls[r][x]]
     return walls, cells
-
 
 def _wall_rects(walls):
     """The wall mask decomposed into a few maximal rectangles — greedy row runs grown
@@ -259,10 +246,12 @@ def _draw_ghost(canvas, x, y, r, col, d):
 
 def fetch_matrix(settings, canvas):
     W, H = canvas.width, canvas.height
-    c = 8 if (H >= 48 and W >= 80) else 6 if H >= 30 else 4
-    cols, rows = max(10, W // c), max(5, H // c)
+    c = 6 if H >= 30 else 4                            # one-cell corridors need small cells
+    cols, rows = max(11, W // c), max(5, H // c)
     if cols * c > W or rows * c > H:                   # tiny panel: shrink to fit
         c = min(W // cols, H // rows)
+    cols -= 1 - (cols % 2)                             # odd dims: the outer wall stays
+    rows -= 1 - (rows % 2)                             # one cell thick on every side
     try:
         n_ghosts = max(1, min(4, int(float(settings.get('ghosts', 4) or 4))))
     except (TypeError, ValueError):
@@ -296,8 +285,8 @@ def fetch_matrix(settings, canvas):
     pac = st['pac']
     _draw_pac(canvas, cx(pac['cell']), cy(pac['cell']), pr, pac['dir'], pac['phase'])
 
-    if c >= 8:                                         # score rides the top wall band
-        canvas.shadow_text(ox + 3, oy, str(st['score']), (255, 255, 255), 8)
+    if W >= 128:                                       # score rides the top wall band
+        canvas.shadow_text(ox + 2, max(0, oy + c - 9), str(st['score']), (255, 255, 255), 8)
         for i in range(st['lives']):
             canvas.circle(ox + cols * c - 5 - i * 7, oy + c // 2, 2, _PAC, fill=True)
 
