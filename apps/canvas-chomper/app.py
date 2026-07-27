@@ -6,13 +6,12 @@ the chomper as a firmware-3.5 filled ``arc`` whose mouth wedge opens and shuts a
 runs (a ``circle`` with a ``triangle`` bite on older walls), ghosts as circle + rect
 with a ``poly`` skirt. The game simulates itself: the chomper chases the nearest pellet
 by breadth-first search, ghosts chase the chomper — and flee, blue, while a power
-pellet is up — and lives and levels turn over forever.
+pellet is up — side tunnels wrap arcade-style, and lives and levels turn over forever.
 """
 
 import random
 
-_WALL_FILL = (14, 24, 96)
-_WALL_EDGE = (58, 92, 255)
+_WALL = (44, 76, 235)
 _DOT = (255, 196, 140)
 _PAC = (255, 210, 40)
 _FRIGHT = (56, 90, 255)
@@ -47,15 +46,20 @@ def _maze(cols, rows, rng):
             stack.append((nx, ny))
         else:
             stack.pop()
-    for x, y in node_set:                                  # braid: loops beat corridors
+    for x, y in node_set:                                  # braid: every dead end opens
         exits = sum(1 for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
                     if not walls[y + dy][x + dx])
-        if exits == 1 and rng.random() < 0.6:
+        if exits == 1:
             cands = [(dx, dy) for dx, dy in ((2, 0), (-2, 0), (0, 2), (0, -2))
                      if (x + dx, y + dy) in node_set and walls[y + dy // 2][x + dx // 2]]
             if cands:
                 dx, dy = cands[rng.randrange(len(cands))]
                 walls[y + dy // 2][x + dx // 2] = False
+    tunnel_rows = [y for y in range(1, rows - 1, 2)]
+    rng.shuffle(tunnel_rows)
+    for ty in tunnel_rows[:2 if rows >= 9 else 1]:         # the side tunnels wrap
+        walls[ty][0] = False
+        walls[ty][cols - 1] = False
     cells = [(x, r) for r in range(rows) for x in range(cols) if not walls[r][x]]
     return walls, cells
 
@@ -87,9 +91,10 @@ def _wall_rects(walls):
 
 
 def _neighbors(walls, x, y):
+    cols = len(walls[0])
     for d, (dx, dy) in _DIRS.items():
-        nx, ny = x + dx, y + dy
-        if 0 <= ny < len(walls) and 0 <= nx < len(walls[0]) and not walls[ny][nx]:
+        nx, ny = (x + dx) % cols, y + dy      # x wraps: the side tunnels
+        if 0 <= ny < len(walls) and not walls[ny][nx]:
             yield d, nx, ny
 
 
@@ -104,8 +109,8 @@ def _bfs_dir(walls, start, targets, prefer=None):
     frontier = []
     for d in order:
         dx, dy = _DIRS[d]
-        nx, ny = start[0] + dx, start[1] + dy
-        if 0 <= ny < len(walls) and 0 <= nx < len(walls[0]) and not walls[ny][nx]:
+        nx, ny = (start[0] + dx) % len(walls[0]), start[1] + dy
+        if 0 <= ny < len(walls) and not walls[ny][nx]:
             frontier.append(((nx, ny), d))
             seen.add((nx, ny))
     while frontier:
@@ -136,7 +141,7 @@ def _new_level(st):
     cx0, cy0 = st['cols'] / 2, st['rows'] / 2
     st['spawn'] = min(cells, key=lambda c: abs(c[0] - cx0) + abs(c[1] - cy0))
     top_r, bot_r = 1, st['rows'] - 2
-    st['dots'] = set(cells)
+    st['dots'] = {cc for cc in cells if 0 < cc[0] < st['cols'] - 1}   # tunnels stay bare
     st['power'] = {(1, top_r), (st['cols'] - 2, top_r), (1, bot_r), (st['cols'] - 2, bot_r)}
     st['dots'] -= st['power']
     _reset_positions(st)
@@ -168,7 +173,7 @@ def _step(st):
     old_pac = pac['cell']
     if d:
         dx, dy = _DIRS[d]
-        pac['cell'] = (px + dx, py + dy)
+        pac['cell'] = ((px + dx) % st['cols'], py + dy)
         pac['dir'] = d
     pac['phase'] = (pac['phase'] + 1) % 4
 
@@ -269,9 +274,7 @@ def fetch_matrix(settings, canvas):
 
     canvas.clear((0, 0, 0))
     for x0, r0, w0, h0 in st['wall_rects']:            # the maze in a handful of rects
-        rx, ry = ox + x0 * c, oy + r0 * c
-        canvas.rect(rx, ry, w0 * c, h0 * c, _WALL_FILL, fill=True)
-        canvas.rect(rx, ry, w0 * c, h0 * c, _WALL_EDGE)
+        canvas.rect(ox + x0 * c, oy + r0 * c, w0 * c, h0 * c, _WALL, fill=True)
     for cell in st['dots']:
         canvas.pixel(cx(cell), cy(cell), _DOT)
     if (st['step'] // 2) % 2 == 0:                     # power pellets blink
