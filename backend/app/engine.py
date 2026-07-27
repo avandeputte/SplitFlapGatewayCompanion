@@ -615,11 +615,14 @@ class DisplayController:
                 canvas.stream_end(url)
 
     async def _maybe_stream(self, url: str, caps, app_id: str, hold) -> None:
-        """Adopt the v3.2 draw stream for a FAST FRAME-PUSH app once we've seen it draw: a wall that
-        advertises canvas.stream, a frame (not ops) push, and a short hold (so it never trips the
-        stream's 30 s idle timeout). Slow / ops apps stay on the per-frame HTTP path."""
+        """Adopt the v3.2 draw stream for a FAST app once we've seen it draw: a wall that
+        advertises canvas.stream, a short hold (so it never trips the stream's 30 s idle
+        timeout), and a push kind the stream carries whole — a frame, or a BINARY ops
+        batch (fw 3.5 record 0x06; a game like Chomper). JSON-ops apps stay on the
+        per-batch HTTP path: their batches can carry what only REST accepts (an atlas
+        upload) which would 409 against an open stream."""
         if (url and getattr(caps, "canvas_stream", False) and not canvas.has_stream(url)
-                and canvas.last_push_was_frame(url)
+                and (canvas.last_push_was_frame(url) or canvas.last_push_was_opsb(url))
                 and isinstance(hold, (int, float)) and hold <= _CANVAS_STREAM_MAX_HOLD):
             await asyncio.to_thread(canvas.stream_begin, url)
 

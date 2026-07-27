@@ -109,3 +109,29 @@ def test_a_chomper_frame_is_fully_representable(gw_calls):
     app.fetch_matrix({"speed": "5", "ghosts": "4"}, cv)
     paths = [c[1] for c in gw_calls]
     assert "/api/canvas/opsb" in paths and "/api/canvas/ops" not in paths
+
+
+def test_show_rides_an_open_stream_with_the_binary_record():
+    """Once the engine has opened the draw stream, every batch goes over it: a
+    representable batch as record 0x06, a JSON-only batch as record 0x03 — never
+    REST, which answers 409 while a stream is open."""
+    from test_canvas_stream import FakeSock
+    from app import canvas as canvas_mod
+    cv = _cv()
+    fs = FakeSock()
+    st = canvas_mod.CanvasStream(cv.url, connect=lambda: fs)
+    assert st.open()
+    canvas_mod._wall(cv.url).stream = st
+    try:
+        cv.rect(0, 0, 8, 8, (1, 2, 3), fill=True)
+        assert cv.show()
+        body = fs.writes[-1]
+        rec = body[body.index(b"\r\n\r\n") + 4:] if b"\r\n\r\n" in body else body
+        assert rec[0] == 0x06                      # the binary ops record
+        assert canvas_mod.last_push_was_opsb(cv.url)
+        cv._ops.append({"op": "atlas", "name": "icons"})
+        cv.sprite(1, 0, 0)
+        assert cv.show()
+        assert fs.writes[-1][0] == 0x03            # JSON ops record — still the stream
+    finally:
+        canvas_mod._wall(cv.url).stream = None

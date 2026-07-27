@@ -394,6 +394,9 @@ class CanvasStream:
     def ops(self, ops_json: bytes) -> bool:                      # 0x03 ops JSON (presents via its show op)
         return self._send(_tlv(0x03, ops_json))
 
+    def opsb(self, payload: bytes) -> bool:                      # 0x06 binary ops (fw 3.5; presents via SHOW)
+        return self._send(_tlv(0x06, bytes(payload)))
+
     def bind(self, name: str) -> bool:                           # 0x04 bind a named atlas sheet
         return self._send(_tlv(0x04, str(name).encode()))
 
@@ -460,6 +463,12 @@ def stream_end(url: str) -> None:
 def has_stream(url: str) -> bool:
     st = _wall(url).stream
     return st is not None and st.alive
+
+
+def last_push_was_opsb(url: str) -> bool:
+    """Whether the app's last push was a BINARY ops batch — the cue that it can ride the
+    draw stream's 0x06 record (its whole vocabulary is stream-representable)."""
+    return _wall(url).last_kind == "opsb"
 
 
 def last_push_was_frame(url: str) -> bool:
@@ -1230,15 +1239,30 @@ class CanvasSurface:
         if not self._ops:
             return True
         ops, self._ops = self._ops + [{"op": "show"}], []
-        _wall(self.url).last_kind = "ops"                     # an ops app — not streamed (a later phase)
-        if _wall(self.url).sim:                       # sim: an ops app renders on-device, so it
+        wall = _wall(self.url)
+        if wall.sim:                                  # sim: an ops app renders on-device, so it
+            wall.last_kind = "ops"
             log.info("canvas %s: [sim] %d op(s) not sent", self.url, len(ops))
             return True                                 # cannot preview here; just don't drive the panel
-        if self.can_ops_bin:
-            payload = encode_ops_bin(ops)          # None: something only JSON can carry
+        payload = encode_ops_bin(ops) if self.can_ops_bin else None
+        # A binary-representable batch marks the wall "opsb" — the engine's stream
+        # heuristic adopts the draw stream for such apps, and every later batch rides
+        # a 0x06 record. While a stream is OPEN nothing may go over REST (409), so a
+        # JSON-only batch is carried as the stream's 0x03 record instead.
+        wall.last_kind = "opsb" if payload is not None else "ops"
+        st = wall.stream
+        if st is not None and st.alive:
             if payload is not None:
-                log.info("canvas %s: opsb %d op(s) %d B", self.url, len(ops), len(payload))
-                return post_ops_bin(self.url, payload)
+                if st.opsb(payload):
+                    return True
+            else:
+                import json
+                if st.ops(json.dumps(ops).encode()):
+                    return True
+            # the stream died mid-send: fall through to the per-batch HTTP path
+        if payload is not None:
+            log.info("canvas %s: opsb %d op(s) %d B", self.url, len(ops), len(payload))
+            return post_ops_bin(self.url, payload)
         if log.isEnabledFor(logging.INFO):
             import json
             log.info("canvas %s: ops %d op(s) %d B", self.url, len(ops), len(json.dumps(ops).encode()))
