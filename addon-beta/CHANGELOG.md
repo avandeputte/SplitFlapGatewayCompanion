@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.4-beta.6
+
+- **Chomper runs at game rate.** Draw batches now use the Matrix Gateway 3.5 binary ops
+  format (a 256×64 frame: 29 KB of JSON → 4 KB of bytes, and the panel skips JSON parsing
+  entirely), and fast binary-ops apps ride the persistent draw stream — no per-frame HTTP
+  round trip. The speed setting's top end now delivers what it promises; older walls keep
+  the JSON path, pixel-identical.
+
 ## 2.10.4-beta.5
 
 - **Chomper, polished by play-testing.** Classic thin-wall mazes stretched edge-to-edge
