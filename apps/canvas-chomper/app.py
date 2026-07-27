@@ -23,24 +23,80 @@ _DIR_DEG = {'u': 0, 'r': 90, 'd': 180, 'l': 270}   # the wall's gauge convention
 _FRIGHT_STEPS = 40
 
 
-def _maze(cols, rows):
-    """The ladder maze for this panel: corridor rows top / middle / bottom joined by
-    rungs every few columns — deterministic per size, fully connected, no dead ends.
-    Returns (walls, corridor cells)."""
+def _maze(cols, rows, rng):
+    """A fresh maze for this panel: the interior starts as open lanes, then wall
+    islands of varied width and height drop in wherever every remaining lane stays
+    reachable — organic blocks, protrusions off the border, and the occasional
+    dead-end pocket. A new layout every level (the rng is seeded per level). The
+    four power-pellet corners always stay open. Returns (walls, corridor cells)."""
     walls = [[True] * cols for _ in range(rows)]
-    top_r, bot_r, mid = 1, rows - 2, rows // 2
-    rows_open = {top_r, bot_r}
-    if top_r < mid < bot_r:
-        rows_open.add(mid)
-    for r in rows_open:
+    for r in range(1, rows - 1):
         for x in range(1, cols - 1):
             walls[r][x] = False
-    rungs = {1, cols - 2} | set(range(4, cols - 2, 4))
-    for x in rungs:
-        for r in range(top_r, bot_r + 1):
-            walls[r][x] = False
+    inner_h = rows - 2
+    keep = {(1, 1), (cols - 2, 1), (1, rows - 2), (cols - 2, rows - 2)}
+
+    def connected():
+        cells = [(x, r) for r in range(rows) for x in range(cols) if not walls[r][x]]
+        seen = {cells[0]}
+        stack = [cells[0]]
+        while stack:
+            cx0, cy0 = stack.pop()
+            for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                nx, ny = cx0 + dx, cy0 + dy
+                if 0 <= ny < rows and 0 <= nx < cols and not walls[ny][nx]                         and (nx, ny) not in seen:
+                    seen.add((nx, ny))
+                    stack.append((nx, ny))
+        return len(seen) == len(cells)
+
+    target = int((cols - 2) * inner_h * 0.32)      # about a third becomes islands
+    placed = 0
+    for _ in range(cols * rows):
+        if placed >= target:
+            break
+        w = rng.randint(2, max(2, min(6, cols // 5)))
+        h = rng.randint(1, max(1, min(2, inner_h // 3)))
+        x0 = rng.randint(1, cols - 1 - w)
+        y0 = rng.randint(1, rows - 1 - h)
+        rect = [(x, y) for y in range(y0, y0 + h) for x in range(x0, x0 + w)]
+        if any(walls[y][x] for x, y in rect) or any(c in keep for c in rect):
+            continue
+        for x, y in rect:
+            walls[y][x] = True
+        if connected():
+            placed += len(rect)
+        else:
+            for x, y in rect:
+                walls[y][x] = False
     cells = [(x, r) for r in range(rows) for x in range(cols) if not walls[r][x]]
     return walls, cells
+
+
+def _wall_rects(walls):
+    """The wall mask decomposed into a few maximal rectangles — greedy row runs grown
+    downward — so the whole maze draws in a handful of rect ops."""
+    rows, cols = len(walls), len(walls[0])
+    used = [[False] * cols for _ in range(rows)]
+    rects = []
+    for r in range(rows):
+        x = 0
+        while x < cols:
+            if walls[r][x] and not used[r][x]:
+                x0 = x
+                while x < cols and walls[r][x] and not used[r][x]:
+                    x += 1
+                w = x - x0
+                h = 1
+                while r + h < rows and all(walls[r + h][xx] and not used[r + h][xx]
+                                           for xx in range(x0, x0 + w)):
+                    h += 1
+                for rr in range(r, r + h):
+                    for xx in range(x0, x0 + w):
+                        used[rr][xx] = True
+                rects.append((x0, r, w, h))
+            else:
+                x += 1
+    return rects
 
 
 def _neighbors(walls, x, y):
@@ -79,16 +135,19 @@ def _bfs_dir(walls, start, targets, prefer=None):
 
 
 def _reset_positions(st):
-    cols, rows = st['cols'], st['rows']
+    rows = st['rows']
     st['pac'] = {'cell': (1, rows - 2), 'dir': 'r', 'phase': 0}
-    spawn = (cols // 2, rows // 2 if not st['walls'][rows // 2][cols // 2] else 1)
-    st['ghost_list'] = [{'cell': spawn, 'dir': 'l', 'col': _GHOSTS[i % len(_GHOSTS)]}
+    st['ghost_list'] = [{'cell': st['spawn'], 'dir': 'l', 'col': _GHOSTS[i % len(_GHOSTS)]}
                        for i in range(st['n_ghosts'])]
     st['fright'] = 0
 
 
 def _new_level(st):
-    st['walls'], cells = _maze(st['cols'], st['rows'])
+    rng = random.Random(st['level'] * 1000003 + st['cols'] * 1009 + st['rows'])
+    st['walls'], cells = _maze(st['cols'], st['rows'], rng)
+    st['wall_rects'] = _wall_rects(st['walls'])
+    cx0, cy0 = st['cols'] / 2, st['rows'] / 2
+    st['spawn'] = min(cells, key=lambda c: abs(c[0] - cx0) + abs(c[1] - cy0))
     top_r, bot_r = 1, st['rows'] - 2
     st['dots'] = set(cells)
     st['power'] = {(1, top_r), (st['cols'] - 2, top_r), (1, bot_r), (st['cols'] - 2, bot_r)}
@@ -158,8 +217,7 @@ def _step(st):
         if hit:
             if st['fright'] > 0:
                 st['score'] += 200                       # eaten: back to the spawn cell
-                cols, rows = st['cols'], st['rows']
-                g['cell'] = (cols // 2, rows // 2 if not walls[rows // 2][cols // 2] else 1)
+                g['cell'] = st['spawn']
             else:
                 died = True
     if died:
@@ -221,19 +279,10 @@ def fetch_matrix(settings, canvas):
         return oy + cell[1] * c + c // 2
 
     canvas.clear((0, 0, 0))
-    walls = st['walls']
-    for r in range(rows):                              # wall cells merged into runs
-        x = 0
-        while x < cols:
-            if walls[r][x]:
-                x0 = x
-                while x < cols and walls[r][x]:
-                    x += 1
-                rx, rw = ox + x0 * c, (x - x0) * c
-                canvas.rect(rx, oy + r * c, rw, c, _WALL_FILL, fill=True)
-                canvas.rect(rx, oy + r * c, rw, c, _WALL_EDGE)
-            else:
-                x += 1
+    for x0, r0, w0, h0 in st['wall_rects']:            # the maze in a handful of rects
+        rx, ry = ox + x0 * c, oy + r0 * c
+        canvas.rect(rx, ry, w0 * c, h0 * c, _WALL_FILL, fill=True)
+        canvas.rect(rx, ry, w0 * c, h0 * c, _WALL_EDGE)
     for cell in st['dots']:
         canvas.pixel(cx(cell), cy(cell), _DOT)
     if (st['step'] // 2) % 2 == 0:                     # power pellets blink
