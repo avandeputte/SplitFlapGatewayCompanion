@@ -3,6 +3,18 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.4-beta.2
+
+- **Deep cleanup after a full code review** — about 2,000 lines of duplicate and dead code
+  removed. Every app's panel text now renders through one shared toolkit (same look, one
+  place to fix), and a latent settings-dialog crash was fixed before it could trigger.
+- **Readability:** Dog Facts, Stock Graph, and Lumina Clock no longer render text below
+  the panel's 8px readability floor.
+- UI actions that used to fail silently now report their error.
+- **Removed:** automatic rewriting of pre-2.10 app ids (canvas-date, canvas-weather, …)
+  in saved installs and playlists. If an old playlist entry stops playing, re-add the app
+  under its current name.
+
 ## 2.10.4-beta.1
 
 - **Self-describing effects (Matrix Gateway firmware 3.4).** Each panel effect's settings
