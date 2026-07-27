@@ -1,0 +1,29 @@
+{
+  "id": "canvas-chomper",
+  "name": "Chomper",
+  "icon": "🟡",
+  "description": "A Pac-Man-style maze chase the panel plays by itself — pellets, power-ups, and ghosts with moods, drawn entirely with on-device draw ops (firmware 3.5 arcs and polygons where the wall has them)",
+  "type": "functional",
+  "surfaces": ["matrix"],
+  "category": "fun",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "settings": [
+    {
+      "key": "speed",
+      "label": "Speed",
+      "type": "number",
+      "default": "5",
+      "min": "1", "max": "10", "step": "1", "stepper": true
+    },
+    {
+      "key": "ghosts",
+      "label": "Ghosts",
+      "type": "number",
+      "default": "4",
+      "min": "1", "max": "4", "step": "1", "stepper": true
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 15
+}

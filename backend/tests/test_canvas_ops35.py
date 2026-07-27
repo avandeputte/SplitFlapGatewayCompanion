@@ -81,3 +81,58 @@ def test_shadow_text_is_one_op_on_a_35_wall_and_two_before():
     old.shadow_text(10, 5, "SCORE", (255, 255, 255), 10)
     assert len(old._ops) == 2 and old._ops[0]["color"] == [0, 0, 0] \
         and "shadow" not in old._ops[1]
+
+
+def test_entity_board_draws_arc_gauges_for_banded_entities(gw_calls):
+    """A thresholded numeric entity renders as a dial (two arc ops: track + sweep) in
+    its icon slot on a 3.5 wall; an unbanded entity keeps its sprite icon."""
+    from conftest import load_app
+    app = load_app("entity-board")
+    ha = [{"entity_id": "sensor.co2", "state": "612",
+           "attributes": {"friendly_name": "CO2", "unit_of_measurement": "ppm"}},
+          {"entity_id": "sensor.hum", "state": "47",
+           "attributes": {"friendly_name": "Hum", "unit_of_measurement": "%"}}]
+    cfg = "sensor.co2 | CO2 | 500,1000\nsensor.hum | Hum"
+    cv = _cv(w=128, h=64)
+    cv.can_sprite = True
+    app.fetch_matrix({"config": cfg}, cv, get_ha_states=lambda: ha)
+    batch = next(b for p, b in [(c[1], c[2]) for c in gw_calls]
+                 if p == "/api/canvas/ops" and isinstance(b, list))
+    arcs = [o for o in batch if o["op"] == "arc"]
+    sprites = [o for o in batch if o["op"] == "sprite"]
+    assert len(arcs) == 2 and len(sprites) == 1        # dial for CO2, icon for Hum
+    # the older wall keeps icons for both
+    gw_calls.clear()
+    cv_old = _cv(OPS_OLD, w=128, h=64)
+    cv_old.can_sprite = True
+    load_app("entity-board").fetch_matrix({"config": cfg}, cv_old, get_ha_states=lambda: ha)
+    batch = next(b for p, b in [(c[1], c[2]) for c in gw_calls]
+                 if p == "/api/canvas/ops" and isinstance(b, list))
+    assert not [o for o in batch if o["op"] == "arc"]
+    assert len([o for o in batch if o["op"] == "sprite"]) == 2
+
+
+def test_chomper_plays_itself_through_ops(gw_calls):
+    """The arcade app emits one ops batch per frame — a filled-arc chomper and poly
+    ghost skirts on a 3.5 wall, the circle+triangle fallback before — and the
+    simulation advances between frames."""
+    from conftest import load_app
+    app = load_app("canvas-chomper")
+    cv = _cv(w=256, h=64)
+    hold = app.fetch_matrix({"speed": "5", "ghosts": "2"}, cv)
+    batch = [b for p, b in [(c[1], c[2]) for c in gw_calls]
+             if p == "/api/canvas/ops" and isinstance(b, list)][-1]
+    assert 0.05 <= hold <= 0.35
+    assert any(o["op"] == "arc" and o.get("fill") for o in batch)      # the chomper
+    assert any(o["op"] == "rect" for o in batch)                       # maze walls
+    score_before = app._state._st["step"]
+    app.fetch_matrix({"speed": "5", "ghosts": "2"}, cv)
+    assert app._state._st["step"] == score_before + 1                  # the sim ticks
+    # pre-3.5 wall: same game, no 3.5 ops
+    gw_calls.clear()
+    old = load_app("canvas-chomper")
+    old.fetch_matrix({"speed": "5", "ghosts": "2"}, _cv(OPS_OLD, w=256, h=64))
+    batch = [b for p, b in [(c[1], c[2]) for c in gw_calls]
+             if p == "/api/canvas/ops" and isinstance(b, list)][-1]
+    assert not [o for o in batch if o["op"] in ("arc", "poly")]
+    assert any(o["op"] == "triangle" for o in batch)                   # the mouth bite

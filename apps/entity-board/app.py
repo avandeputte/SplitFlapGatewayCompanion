@@ -175,6 +175,28 @@ def _mx_value(state, attrs, thr, cp):
         return cp(state).upper()[:6], _C_BLUE
 
 
+def _cv_gauge(canvas, x, y, size, state, thr, col):
+    """A banded numeric entity's dial, drawn in the icon slot with the fw 3.5 ``arc``
+    op: a dim 270° track opening at the bottom, the value's sweep in the band color
+    (the same green/amber/red as the value text). The gauge maps the value onto
+    [lo - span/2 .. hi + span/2], so the band itself is the dial's middle half.
+    Returns False for a non-numeric state — the caller falls back to the icon."""
+    try:
+        f = float(state)
+    except (TypeError, ValueError):
+        return False
+    lo, hi = float(thr[0]), float(thr[1])
+    span = (hi - lo) or max(abs(hi) * 0.5, 1.0)
+    frac = max(0.0, min(1.0, (f - (lo - span * 0.5)) / (span * 2.0)))
+    cx, cy = x + size // 2, y + size // 2
+    r = max(4, size // 2 - 1)
+    th = max(2, size // 5)
+    canvas.arc(cx, cy, r, -135, 135, (56, 60, 72), t=th)      # the dim track
+    if frac > 0:
+        canvas.arc(cx, cy, r, -135, int(round(-135 + 270 * frac)), col, t=th)
+    return True
+
+
 def _cv_icons(s):
     """The device-icon atlas (on magenta), indexed by _DOMAIN; last tile is the generic dot."""
     from PIL import Image, ImageDraw
@@ -307,7 +329,13 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
         top_h = card_h - (10 if show_name else 0)                            # icon + value share the top band
         vx0 = x + 3
         if use_sprites:
-            canvas.sprite(_DOMAIN.get(domain, _N_ICONS - 1), x + 3, y + max(2, (top_h - tile) // 2))
+            iy = y + max(2, (top_h - tile) // 2)
+            # A thresholded numeric entity gets a live dial where its icon would sit —
+            # the fw 3.5 arc op; walls without it (and non-numeric states) keep the icon.
+            drew = (thr is not None and canvas.has_op('arc')
+                    and _cv_gauge(canvas, x + 3, iy, tile, s.get('state'), thr, col))
+            if not drew:
+                canvas.sprite(_DOMAIN.get(domain, _N_ICONS - 1), x + 3, iy)
             vx0 = x + 3 + tile + 2
         slot_w = (x + cw - 3) - vx0
         vf = canvas.fit(val, slot_w, top_h - 3)          # fit the value in the space right of the icon

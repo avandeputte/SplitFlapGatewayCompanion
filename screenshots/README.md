@@ -1,6 +1,6 @@
 # Screenshots
 
-Rendered views of every dual-surface app and channel — 57 of the catalog's 73 apps
+Rendered views of every dual-surface app and channel — 57 of the catalog's 74 apps
 (matrix-only canvas apps, on-device panel effects, and flap animations are not in the
 render harness) — generated straight from the app code with sample data, one section
 per app: its Matrix-panel (LED) view at the four common panel resolutions,
