@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.4-beta.5
+
+- **Chomper, polished by play-testing.** Classic thin-wall mazes stretched edge-to-edge
+  (a 64px panel plays six corridor rows), all loops — no dead ends to get cornered in —
+  solid walls, one or two side tunnels on random rows plus a vertical tunnel, all
+  wrapping to the far edge, and an arcade-style bottom-center start.
+
 ## 2.10.4-beta.4
 
 - **Chomper's mazes are now the classic kind** — corridors exactly one dot wide, walls
