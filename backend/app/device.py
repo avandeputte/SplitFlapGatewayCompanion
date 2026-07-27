@@ -76,6 +76,8 @@ class Capabilities:
     # set" would then mean "everything".
     charset: frozenset[str] = field(default_factory=frozenset)
     uniform: bool = True                    # do all the modules carry the same reel?
+    # Reserved for the app contract (apps/README.md documents named_colors as app-facing);
+    # no bundled consumer yet.
     colors: tuple[str, ...] = ()
 
     # CANVAS — a Matrix wall with a framebuffer can draw ANYTHING, free of the flap grid:
@@ -138,12 +140,6 @@ class Capabilities:
         """Can this wall draw arbitrary graphics — pixels, a raw frame — bypassing the
         flap grid entirely? Only a Matrix wall with a framebuffer."""
         return self.canvas_w > 0 and self.canvas_h > 0
-
-    @property
-    def canvas_qoi(self) -> bool:
-        """Whether the wall accepts a QOI-encoded frame (PUT /api/canvas/qoi) — lossless,
-        2–4× smaller than raw, so the same picture over far less WiFi."""
-        return "qoi" in self.canvas_formats
 
     @property
     def instant(self) -> bool:

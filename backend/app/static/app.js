@@ -2026,8 +2026,15 @@ async function loadDisplays() {
   let doc;
   try {
     doc = await api("/api/displays");
-  } catch {
-    return;                       // an older server: one wall, no switcher, carry on
+  } catch (e) {
+    // The server always exposes /api/displays (it ships with this page) — a failure
+    // here is transient. One retry, then carry on with the default wall.
+    console.warn("displays load failed, retrying once:", e.message);
+    try {
+      doc = await api("/api/displays");
+    } catch {
+      return;
+    }
   }
   DISPLAYS = doc.displays || [];
   DEFAULT_DISPLAY = doc.default || "default";

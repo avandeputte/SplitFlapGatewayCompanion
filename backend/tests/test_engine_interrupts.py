@@ -153,7 +153,9 @@ def test_a_manual_send_during_a_temporary_message_is_not_blanked(tmp_path):
 
         await c.send_text("HI THERE")
         assert _shown(c).startswith("HI THERE")
-        await asyncio.sleep(0.4)          # let the note's timer expire
+        await _until(lambda: c._temp_task is None or c._temp_task.done(),
+                     "the temporary note's timer never expired")
+        await asyncio.sleep(0.05)          # a beat for any (wrong) blanking to land
         assert _shown(c).startswith("HI THERE"), \
             "the expiring temporary message blanked a newer manual message"
         await c.stop()

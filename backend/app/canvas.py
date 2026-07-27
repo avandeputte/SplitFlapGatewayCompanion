@@ -783,14 +783,6 @@ def atlas_save(url: str, name: str, timeout: float = 15.0) -> bool:
     return ok
 
 
-def atlas_delete(url: str, name: str, timeout: float = 10.0) -> bool:
-    """Drop a sheet from the wall, resident and persisted."""
-    ok = _ok(gateway._request("DELETE", url, f"/api/canvas/atlas/{name}", timeout=timeout))
-    if ok:
-        ((_wall(url).atlas or {}).get("rows") or {}).pop(name, None)
-    return ok
-
-
 def _atlas_lib(url: str) -> dict:
     """``{name: row}`` of the wall's atlas library from what we last saw, re-reading it when the
     belief is older than the verify window — a sheet can be evicted or lost to a reboot under us."""
@@ -806,20 +798,6 @@ def _atlas_row(url: str, name: str):
     """The library row for ``name`` (with its ``persisted``/``resident`` flags), or None if the
     wall doesn't have it — in which case the caller uploads."""
     return _atlas_lib(url).get(name)
-
-
-def atlas_has(url: str, name: str) -> bool:
-    """Is ``name`` bindable on this wall (resident or persisted)?"""
-    return name in _atlas_lib(url)
-
-
-def get_state(url: str, timeout: float = 5.0) -> dict:
-    """{active, width, height, formats, effect, effects} — the panel's canvas state."""
-    try:
-        r = gateway._request("GET", url, "/api/canvas", timeout=timeout)
-        return r.json() if _ok(r) else {}
-    except Exception:
-        return {}
 
 
 def release(url: str, timeout: float = 5.0) -> bool:
@@ -897,7 +875,7 @@ class CanvasSurface:
         self.can_anim = bool(caps.canvas_anim)
         self.can_ticker = bool(caps.canvas_ticker)
         self.effect_params = tuple(caps.effect_params)
-        self.effect_defs = tuple(getattr(caps, 'effect_defs', ()) or ())
+        self.effect_defs = tuple(caps.effect_defs or ())
         # 1.19 / 1.25 / 2.1. `ops` is the draw-op vocabulary the wall honors (an app can consult
         # it before reaching for a shape); `can_ops` is "any ops at all". The 2.1 endpoint families
         # aren't flagged one by one, so they all gate on the firmware version (caps.canvas_2_1).

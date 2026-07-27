@@ -18,12 +18,7 @@ from app.plugins import PluginRuntime
 from app.state import DisplayState
 from conftest import canvas_surface
 
-CANVAS_DOC = {
-    "features": ["cells", "colors", "lowercase", "pictographs", "canvas", "effects"],
-    "colors": ["red", "green"], "charset": {"uniform": True, "common": "ABC"},
-    "canvas": {"formats": ["rgb888", "rgb565"], "width": 128, "height": 32},
-    "effects": ["plasma", "fire", "matrix"], "motion": {"kind": "drawn"},
-}
+from conftest import CANVAS_DOC  # noqa: E402  (shared capability doc)
 
 
 # --- capability parsing -----------------------------------------------------
@@ -407,7 +402,10 @@ def test_effect_in_a_playlist_is_released_when_its_slot_ends(gw_calls, tmp_path)
 
         await ctl.run_playlist([{"type": "app", "app": "effect_plasma", "duration": 0.25},
                                 {"type": "app", "app": "time", "duration": 0.25}], loop=False)
-        await asyncio.sleep(0.7)                 # effect slot -> release -> flap slot
+        from conftest import until
+        await until(lambda: not ctl._canvas_active and any(
+            p == "/api/canvas/effect" for _, p, _, _ in gw_calls),
+            "the effect slot never ran and released", timeout=3.0)
 
         bodies = [(p, b) for _, p, b, _ in gw_calls]
         assert any(p == "/api/canvas/effect" for p, _ in bodies), "effect never started"
@@ -683,7 +681,7 @@ def test_capabilities_parse_the_canvas_extras():
                        "rect": True, "anim": True, "ticker": True},
                effects=["plasma", "clock", "life"], effectParams=["hue", "density"])
     caps = device.from_capabilities(doc)
-    assert caps.canvas_qoi and caps.canvas_rect and caps.canvas_anim and caps.canvas_ticker
+    assert caps.canvas_rect and caps.canvas_anim and caps.canvas_ticker
     assert caps.effect_params == ("hue", "density")
 
 

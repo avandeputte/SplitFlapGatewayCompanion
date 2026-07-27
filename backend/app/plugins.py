@@ -310,7 +310,6 @@ class PluginRuntime:
         scan = self._scan()
         # Let the settings store nest per-app keys by app id when it persists.
         self.settings.set_known_apps(list(scan.keys()))
-        self._migrate_renamed_apps()
         enabled = set(self.settings.installed_apps)
         for app_id, app_dir in scan.items():
             if app_id == "effects":
@@ -341,34 +340,6 @@ class PluginRuntime:
                 self._modules[effect_id] = eff_mod
                 self._wants[effect_id] = eff_wants
                 self._wants_matrix[effect_id] = eff_wants_matrix
-
-    # Apps that were absorbed into another. A wall that had the old id installed
-    # (or in a playlist) follows the merge instead of waking up to PLUGIN ERROR.
-    _RENAMED_APPS = {"national-today": "holidays",
-                     "canvas-overview": "dashboard",     # Overview's card is Dashboard's panel view
-                     "canvas-dashboard": "entity-board",   # HA Dashboard's grid is Home Assistant's panel view
-                     "canvas-date": "date",                # Date Card is Date's panel view
-                     "canvas-weather-panel": "weather",    # Weather Panel -> Weather Sky -> Weather
-                     "canvas-weather": "weather"}          # Weather Sky is Weather's panel view
-
-    def _migrate_renamed_apps(self) -> None:
-        installed = list(self.settings.installed_apps)
-        migrated = [self._RENAMED_APPS.get(a, a) for a in installed]
-        deduped = list(dict.fromkeys(migrated))
-        if deduped != installed:
-            self.settings.set_installed(deduped)
-            log.info("migrated renamed apps in the installed list: %s", installed)
-        playlists = self.settings.get("saved_app_playlists")
-        if isinstance(playlists, dict):
-            changed = False
-            for doc in playlists.values():
-                for e in (doc or {}).get("entries", []):
-                    if isinstance(e, dict) and e.get("app") in self._RENAMED_APPS:
-                        e["app"] = self._RENAMED_APPS[e["app"]]
-                        changed = True
-            if changed:
-                self.settings.set("saved_app_playlists", playlists)
-                log.info("migrated renamed apps inside saved playlists")
 
     def on_grid_changed(self) -> None:
         """The grid dimensions changed. Drop cached pages (they were centered/
@@ -1323,7 +1294,6 @@ class PluginRuntime:
 
     # Effect names get a friendlier label; anything the firmware adds later is
     # title-cased automatically (new_effect -> "New Effect").
-    _EFFECT_LABELS = {"plasma": "Plasma", "fire": "Fire", "matrix": "Matrix rain"}
 
     def _dynamic_options(self, setting: dict):
         """Options a setting draws from the LIVE wall instead of the manifest.
@@ -1345,7 +1315,7 @@ class PluginRuntime:
             d = self._effect_def_for(e)
             if d and d.get("name"):
                 return str(d["name"])
-            return self._EFFECT_LABELS.get(e, e.replace("_", " ").title())
+            return _effect_name_icon(e)[0]
         return [{"value": e, "label": label(e)} for e in effects]
 
     def _field(self, app_id: str, setting: dict, resolved: dict) -> dict:
@@ -1354,7 +1324,7 @@ class PluginRuntime:
         ftype = setting.get("type", "text")
 
         def map_key(rk):
-            return resolved.get(rk) or self._resolve_key(app_id, rk, False)
+            return resolved.get(rk) or self._resolve_key(app_id, rk)
 
         # A notice is a block of prose whose content is `text`; it has no label. Using
         # the key as a stand-in when the manifest declares none would print

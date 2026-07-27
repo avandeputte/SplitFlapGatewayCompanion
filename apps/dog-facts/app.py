@@ -126,7 +126,7 @@ def _cv_wrap(font, text, max_w):
     return lines or ['']
 
 
-def _cv_pages(canvas, text, max_w, max_h, min_size=7):
+def _cv_pages(canvas, text, max_w, max_h, min_size=8):
     """The largest font (>= ``min_size``) at which the WHOLE text wraps into
     ``max_w`` x ``max_h`` — one page. When even ``min_size`` can't hold it, wrap
     at ``min_size`` and split the lines into pages to rotate through across

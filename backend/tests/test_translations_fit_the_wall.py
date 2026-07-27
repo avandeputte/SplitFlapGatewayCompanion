@@ -33,20 +33,7 @@ DATA = Path(__file__).resolve().parents[1] / "app" / "i18n_data.json"
 # The width of the common wall. Every one of these labels is meant to sit on one line of it.
 MAX_COLS = 15
 
-# The 64-flap reels we publish, one per locale. Uppercase only: this is what a split-flap is
-# actually sent. Keep in step with the wiki's Flaps & Character Sets page.
-_BASE = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789€!?.,'-"
-REELS = {
-    "fr": _BASE + "ÀÂÇÈÉÊËÎÏÔÙÛÜ",
-    "de": _BASE + "ÄÖÜß" + ":%&()@#+=",
-    "es": _BASE + "ÁÉÍÑÓÚÜ" + ":%&()@",
-    "it": _BASE + "ÀÈÉÌÒÙ" + ":%&()@#",
-    "pt": _BASE + "ÀÁÂÃÇÉÊÍÓÔÕÚ" + ":",
-    "nl": _BASE + "ÁÉËÍÓÚÜ" + ":%&()@",
-    "sv": _BASE + "ÅÄÖ" + ":%&()@#+=/",
-    "da": _BASE + "ÆØÅ" + ":%&()@#+=/",
-    "no": _BASE + "ÆØÅ" + ":%&()@#+=/",
-}
+from conftest import REELS  # noqa: E402  (the published per-locale reels)
 
 
 def _translations():
@@ -61,12 +48,20 @@ CASES = list(_translations())
 IDS = [f"{lang}:{domain}:{key}" for domain, key, lang, _ in CASES]
 
 
+def test_every_shipped_language_has_a_reel():
+    """A new language added to the dataset without a REELS entry must FAIL here —
+    a skip would silently drop the missing-flap check for exactly the language
+    that most needs it."""
+    langs = {lang for _, _, lang, _ in CASES}
+    assert langs <= set(REELS), f"languages without a published reel: {sorted(langs - set(REELS))}"
+
+
 @pytest.mark.parametrize("domain,key,lang,value", CASES, ids=IDS)
 def test_translation_is_on_the_reel(domain, key, lang, value):
     """Every character exists as a flap on that language's reel."""
     reel = REELS.get(lang)
     if reel is None:
-        pytest.skip(f"no published reel for {lang!r}")
+        pytest.skip(f"no published reel for {lang!r} — see test_every_shipped_language_has_a_reel")
     missing = sorted({c for c in renderer.fold(value) if c not in reel})
     assert not missing, (
         f"{lang} {key!r} = {value!r} needs {missing}, which the {lang} reel does not carry — "

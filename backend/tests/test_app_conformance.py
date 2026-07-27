@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from test_translations_fit_the_wall import REELS
+from conftest import REELS
 
 APPS = Path(__file__).resolve().parents[2] / "apps"
 

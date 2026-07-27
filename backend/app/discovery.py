@@ -176,7 +176,7 @@ async def discover(known_urls: list[str], *, transport: httpx.AsyncBaseTransport
     """Scan for gateways. Returns entries ``{url, rows, cols, version, name,
     known}`` — ``known`` when a registered display already points there.
 
-    ``transport`` exists for tests: probing real neighbours (let alone live
+    ``transport`` exists for tests: probing real neighbors (let alone live
     hardware) from a test run is exactly what this project does not do.
     """
     mdns_task = asyncio.ensure_future(_mdns_candidates()) if mdns else None

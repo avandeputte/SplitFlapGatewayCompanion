@@ -64,6 +64,30 @@ def fresh_dir(label: str = "rt") -> Path:
     return _tmp_factory.mktemp(label, numbered=True)
 
 
+# The 64-flap reels we publish, one per locale. Uppercase only: this is what a split-flap is
+# actually sent. Keep in step with the wiki's Flaps & Character Sets page.
+_BASE = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789€!?.,'-"
+REELS = {
+    "fr": _BASE + "ÀÂÇÈÉÊËÎÏÔÙÛÜ",
+    "de": _BASE + "ÄÖÜß" + ":%&()@#+=",
+    "es": _BASE + "ÁÉÍÑÓÚÜ" + ":%&()@",
+    "it": _BASE + "ÀÈÉÌÒÙ" + ":%&()@#",
+    "pt": _BASE + "ÀÁÂÃÇÉÊÍÓÔÕÚ" + ":",
+    "nl": _BASE + "ÁÉËÍÓÚÜ" + ":%&()@",
+    "sv": _BASE + "ÅÄÖ" + ":%&()@#+=/",
+    "da": _BASE + "ÆØÅ" + ":%&()@#+=/",
+    "no": _BASE + "ÆØÅ" + ":%&()@#+=/",
+}
+
+# The canonical Matrix-wall capability document tests build runtimes from.
+CANVAS_DOC = {
+    "features": ["cells", "colors", "lowercase", "pictographs", "canvas", "effects"],
+    "colors": ["red", "green"], "charset": {"uniform": True, "common": "ABC"},
+    "canvas": {"formats": ["rgb888", "rgb565"], "width": 128, "height": 32},
+    "effects": ["plasma", "fire", "matrix"], "motion": {"kind": "drawn"},
+}
+
+
 def make_runtime(tmp_path=None, installed=None, *, rows=None, cols=None,
                  apps_dir=APPS_DIR, user_apps_dir=None, caps=None,
                  settings=None, load=True):
@@ -222,3 +246,25 @@ def canvas_surface(url, w, h, formats=(), effects=(), *, sprite=False, two_one=F
                                canvas_w=w, canvas_h=h, canvas_formats=tuple(formats),
                                effects=tuple(effects), **fields)
     return canvas_mod.CanvasSurface(url, caps)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_gateway_clients():
+    """Clear gateway's per-URL httpx client cache between tests, so a client built
+    under one test's monkeypatched httpx never leaks into the next test."""
+    yield
+    from app import gateway
+    with gateway._clients_lock:
+        gateway._clients.clear()
+
+
+async def until(pred, msg="condition never became true", timeout=3.0, step=0.02):
+    """Poll ``pred`` to True instead of sleeping a fixed wall-clock amount — the
+    anti-flake idiom for anything that completes "soon" but not instantly."""
+    import asyncio, time
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if pred():
+            return
+        await asyncio.sleep(step)
+    raise AssertionError(msg)

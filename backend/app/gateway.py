@@ -38,13 +38,9 @@ def _client(url: str):
     base = (url or "").rstrip("/")
     with _clients_lock:
         c = _clients.get(base)
-        # A cached client survives for the life of the process. The isinstance guard
-        # exists for the test suite: a client built from a monkeypatched httpx.Client
-        # must not outlive its test and leak into the next one.
-        try:
-            stale = c is None or not isinstance(c, httpx.Client) or getattr(c, "is_closed", False)
-        except TypeError:
-            stale = True
+        # A cached client survives for the life of the process (the test suite clears
+        # the cache between tests from a conftest fixture).
+        stale = c is None or getattr(c, "is_closed", False)
         if stale:
             c = httpx.Client(base_url=base, timeout=5.0,
                              limits=httpx.Limits(max_keepalive_connections=2,

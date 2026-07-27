@@ -7,6 +7,11 @@ silently made a second one next to it.
 
 So the editor now has an identity (PL_NAME), and the name field is it.
 """
+
+# NOTE (source-text tests): this file asserts that app.js CONTAINS literal source
+# strings — it pins the presence of the feature's code, not its behavior (there is
+# no JS runtime in this suite). These asserts break on cosmetic refactors and pass
+# on dead code; treat failures here as "the source moved", not "the feature broke".
 from pathlib import Path
 
 APP_JS = (Path(__file__).resolve().parents[1] / "app" / "static" / "app.js").read_text("utf-8")

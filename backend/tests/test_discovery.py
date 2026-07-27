@@ -14,7 +14,7 @@ from app import discovery
 # ---------------------------------------------------------------------------
 # the /api/config fingerprint
 # ---------------------------------------------------------------------------
-def test_fingerprint():
+def test_looks_like_gateway_fingerprints():
     assert discovery.looks_like_gateway({"gridRows": 3, "gridCols": 15})
     # the Matrix Portal serializes numbers as numbers, but be tolerant of strings
     assert discovery.looks_like_gateway({"gridRows": "3", "gridCols": "15"})

@@ -26,10 +26,6 @@ def build(deps) -> APIRouter:
     async def h_location_reverse(lat: str = "", lon: str = ""):
         return await helpers.location_reverse(lat, lon)
 
-    @router.get("/location_timezone")
-    async def h_location_timezone(lat: str = "", lon: str = ""):
-        return await helpers.location_timezone(lat, lon)
-
     @router.get("/timezones")
     async def h_timezones(q: str = ""):
         return helpers.timezones(q)

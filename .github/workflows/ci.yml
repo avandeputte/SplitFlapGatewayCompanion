@@ -60,7 +60,7 @@ jobs:
           mkdir -p /tmp/hassfest
           cp -r custom_components /tmp/hassfest/
       - name: Run hassfest
-        run: docker run --rm -v /tmp/hassfest://github/workspace ghcr.io/home-assistant/hassfest
+        run: docker run --rm -v /tmp/hassfest://github/workspace ghcr.io/home-assistant/hassfest@sha256:5bfa5a99e0871626094906c5c679a977de525e5b3f261aed1f8774c9083f601c  # latest 2026-07-26
 
   # HACS's installability checks for the same integration. Skipped on purpose:
   #  - brands: HA ≥2026.3 serves brand icons from the integration's own brand/

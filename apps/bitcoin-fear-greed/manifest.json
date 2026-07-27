@@ -5,7 +5,10 @@
   "description": "Bitcoin Fear and Greed Index",
   "category": "finance",
   "type": "functional",
-  "surfaces": ["flap", "matrix"],
+  "surfaces": [
+    "flap",
+    "matrix"
+  ],
   "i18n": true,
   "version": "1.0",
   "refresh_interval": 300,
@@ -20,9 +23,18 @@
       "type": "toggle",
       "default": "extreme_fear",
       "options": [
-        {"value": "extreme_fear",  "label": "Extreme Fear"},
-        {"value": "extreme_greed", "label": "Extreme Greed"},
-        {"value": "either",        "label": "Either extreme"}
+        {
+          "value": "extreme_fear",
+          "label": "Extreme Fear"
+        },
+        {
+          "value": "extreme_greed",
+          "label": "Extreme Greed"
+        },
+        {
+          "value": "either",
+          "label": "Either extreme"
+        }
       ]
     },
     {
@@ -35,5 +47,7 @@
       "step": "5"
     }
   ],
-  "settings": []
+  "settings": [],
+  "min_rows": 1,
+  "min_cols": 14
 }

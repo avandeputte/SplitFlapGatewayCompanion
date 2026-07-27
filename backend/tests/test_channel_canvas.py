@@ -13,7 +13,7 @@ from PIL import Image, ImageFont
 from app import channel_art, device
 from app.canvas import _FONT_DIR
 from conftest import APPS_DIR, make_runtime
-from test_canvas import CANVAS_DOC
+from conftest import CANVAS_DOC
 
 
 def _channels():
@@ -107,3 +107,14 @@ def test_long_channel_text_paginates_instead_of_shrinking():
 def test_the_fitter_never_goes_below_the_readable_floor():
     f, lines, lh, gap = channel_art._fit_block(_Cap().font, "x " * 300, 122, 26, 23)
     assert f.size >= channel_art._MIN_READABLE
+
+
+def test_fit_pages_degenerate_inputs():
+    """Empty text stays one (empty) page, and a single word wider than the box is
+    force-accepted rather than looping or dropping it — it overflows the width at
+    the floor, which the renderer clips, but every word survives."""
+    cap = _Cap(64, 32)
+    assert channel_art.fit_pages(cap, "", "quote") == [""]
+    pages = channel_art.fit_pages(cap, "antidisestablishmentarianism floccinaucinihilipilification", "quote")
+    assert [p for p in pages if p] and " ".join(" ".join(p.split()) for p in pages).split() == [
+        "antidisestablishmentarianism", "floccinaucinihilipilification"]

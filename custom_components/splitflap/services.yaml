@@ -35,6 +35,6 @@ message:
       selector:
         number:
           min: 0
-          max: 3600
+          max: 86400
           unit_of_measurement: s
           mode: box

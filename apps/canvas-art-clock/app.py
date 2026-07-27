@@ -65,10 +65,10 @@ def _resolve(palette, hourf):
 def _fit_font(canvas, W, H):
     """Largest bundled font whose 'HH:MM' fits the panel, plus cap metrics."""
     cap = max(6, int(round(H * 0.80)))
-    size = max(6, int(round(cap / 0.75)))
+    size = max(8, int(round(cap / 0.75)))
     font = canvas.font(size)
     for _ in range(60):
-        if font.getlength('88:88') <= W - 2 or size <= 6:
+        if font.getlength('88:88') <= W - 2 or size <= 8:
             break
         size -= 1
         font = canvas.font(size)

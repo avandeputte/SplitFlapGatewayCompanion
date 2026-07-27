@@ -31,5 +31,6 @@
       "stepper": true
     }
   ],
-  "min_cols": 12
+  "min_cols": 12,
+  "min_rows": 1
 }

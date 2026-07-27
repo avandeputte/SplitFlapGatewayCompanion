@@ -110,14 +110,6 @@ def build(deps) -> APIRouter:
             await d.controller.run_app(d.controller.active_app)
         return {"ok": True}
 
-    @router.get("/api/apps/{app_id}/preview")
-    async def apps_preview(request: Request, app_id: str):
-        d = deps.display_for(request)
-        if d.plugins.manifest(app_id) is None:
-            raise HTTPException(404, f"app not installed: {app_id}")
-        pages = await asyncio.get_running_loop().run_in_executor(None, d.plugins.get_pages, app_id)
-        return {"pages": pages, "rows": d.plugins.get_rows(), "cols": d.plugins.get_cols()}
-
     @router.post("/api/apps/{app_id}/install")
     async def apps_install(request: Request, app_id: str, req: InstallRequest):
         d = deps.display_for(request)
@@ -127,8 +119,7 @@ def build(deps) -> APIRouter:
             await d.controller.stop_app()
         # set_installed() reloads all plugins (re-executes each app.py), so run it off
         # the event loop to avoid freezing the display loop and other requests.
-        await asyncio.get_running_loop().run_in_executor(
-            None, d.plugins.set_installed, app_id, req.installed)
+        await asyncio.to_thread(d.plugins.set_installed, app_id, req.installed)
         d.ha.refresh_discovery()  # app option list changed
         d.ha.publish_state()
         return {"ok": True, "installed": req.installed}
@@ -144,7 +135,7 @@ def build(deps) -> APIRouter:
         if len(data) > 8 * 1024 * 1024:
             raise HTTPException(413, "app too large (max 8 MB)")
         try:
-            info = await asyncio.get_running_loop().run_in_executor(None, d.plugins.install_zip, data)
+            info = await asyncio.to_thread(d.plugins.install_zip, data)
         except ValueError as e:
             raise HTTPException(400, str(e))
         d.ha.refresh_discovery()
@@ -159,7 +150,7 @@ def build(deps) -> APIRouter:
             await d.controller.stop_app()
         try:
             # delete_app() reloads all plugins — run it off the event loop.
-            await asyncio.get_running_loop().run_in_executor(None, d.plugins.delete_app, app_id)
+            await asyncio.to_thread(d.plugins.delete_app, app_id)
         except KeyError:
             raise HTTPException(404, f"unknown app: {app_id}")
         except ValueError as e:

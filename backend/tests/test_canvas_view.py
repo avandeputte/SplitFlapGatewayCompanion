@@ -9,7 +9,7 @@ import tempfile
 
 from app import device
 from conftest import make_runtime
-from test_canvas import CANVAS_DOC
+from conftest import CANVAS_DOC
 
 
 def _matrix(*apps):

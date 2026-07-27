@@ -87,11 +87,11 @@ def _fit(canvas, text, max_cap, max_w):
     max_cap, max_w = max(6.0, max_cap), max(6.0, max_w)
     n = max(1, len(text))
     est = min(max_cap / 0.66, max_w / (0.60 * n))
-    size = max(6, int(est) + 8)
+    size = max(8, int(est) + 8)
     font = canvas.font(size)
     for _ in range(300):
         l, t, r, b = font.getbbox(text)
-        if ((b - t) <= max_cap and (r - l) <= max_w) or size <= 6:
+        if ((b - t) <= max_cap and (r - l) <= max_w) or size <= 8:
             break
         size -= 1
         font = canvas.font(size)

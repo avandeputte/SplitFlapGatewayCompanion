@@ -174,7 +174,7 @@ def build(deps) -> APIRouter:
     async def discover_displays():
         """Scan the LAN for gateways — the Displays dialog's scan, and nothing else.
 
-        On demand only: a scan probes neighbours (and opens an mDNS socket where
+        On demand only: a scan probes neighbors (and opens an mDNS socket where
         multicast works at all), which is dialog behavior, not background
         behavior. See discovery module docstring for why this is an HTTP sweep
         first and mDNS second."""

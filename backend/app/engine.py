@@ -293,8 +293,8 @@ class DisplayController:
 
     def _forced_uppercase(self) -> bool:
         """Has the user asked this wall to shout, even though it need not?"""
-        plugins = getattr(self, "plugins", None)
-        if plugins is None:
+        plugins = self.plugins
+        if plugins is None:              # nothing attached yet — nobody to ask
             return False
         try:
             v = plugins.settings.get("force_uppercase", "no")

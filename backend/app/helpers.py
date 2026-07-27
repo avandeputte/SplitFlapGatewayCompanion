@@ -122,19 +122,6 @@ async def location_reverse(lat: str, lon: str) -> dict:
                        "value": f"{lat},{lon}|{name}", "label": name}}
 
 
-async def location_timezone(lat: str, lon: str) -> dict:
-    if not lat or not lon:
-        return {"timezone": ""}
-    try:
-        data = await _get_json("https://api.open-meteo.com/v1/forecast",
-                               params={"latitude": lat, "longitude": lon,
-                                       "forecast_days": 1, "current": "temperature_2m"},
-                               timeout=6.0)
-        return {"timezone": data.get("timezone", "")}
-    except Exception:
-        return {"timezone": ""}
-
-
 def timezones(q: str) -> dict:
     q = (q or "").strip().lower()
     common = ["US/Eastern", "US/Central", "US/Mountain", "US/Pacific", "US/Hawaii",
@@ -253,7 +240,6 @@ async def sports_search(q: str) -> dict:
     ``"<league>:*|<label>"`` for a whole league); the app splits on ``|`` to get
     the routable ``league:team`` and shows the label. Comma-free so it round-trips
     through the comma-joined chip list."""
-    import asyncio
 
     q = (q or "").strip().lower()
 

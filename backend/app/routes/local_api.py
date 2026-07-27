@@ -123,22 +123,8 @@ def build(deps) -> APIRouter:
 
         g = d.config.grid
         rows, cols = int(g["rows"]), int(g["cols"])
-        strategy = None
-
         try:
-            if isinstance(body, list):                       # the bare-matrix form
-                page = vestaboard.fit(vestaboard.decode(body), rows, cols)
-            elif isinstance(body, dict) and body.get("characters") is not None:
-                strategy = body.get("strategy")
-                page = vestaboard.fit(vestaboard.decode(body["characters"]), rows, cols)
-            elif isinstance(body, dict) and isinstance(body.get("text"), str):
-                strategy = body.get("strategy")
-                # The board has no lowercase flaps; uppercase exactly the way every other
-                # text path here does (cp1252-aware, so accents survive as one cell).
-                page = vestaboard.layout_text(body["text"], rows, cols, d.controller.caps)
-            else:
-                raise HTTPException(422, "expected a character matrix, {\"characters\": [[...]]}, "
-                                         "or {\"text\": \"...\"}")
+            page, strategy = vestaboard.decode_request(body, rows, cols, d.controller.caps)
         except vestaboard.VestaboardError as e:
             raise HTTPException(422, str(e))
 

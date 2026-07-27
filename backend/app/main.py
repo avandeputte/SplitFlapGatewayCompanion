@@ -356,7 +356,7 @@ async def setup_settings_sync(d=None) -> None:
         doc["displays"] = registry.snapshot()
         return push_gateway_settings(url, doc)
 
-    debounce = float(cfg.effective.get("settings_debounce", 3.0))
+    debounce = 3.0                      # settle window for burst saves
     if mode == "gateway":
         remote = await asyncio.to_thread(fetch_gateway_settings, url)
         if remote is not None:

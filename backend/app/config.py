@@ -283,7 +283,7 @@ def default_data_dir() -> Path:
 
 
 class Config:
-    """Loads, merges and persists companion configuration."""
+    """Loads and merges companion configuration; nothing is written back to disk."""
 
     def __init__(self, data_dir: Path | None = None, *, gateway_url: str = ""):
         # data_dir holds app_settings.json + uploaded apps; the companion

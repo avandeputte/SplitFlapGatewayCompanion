@@ -137,9 +137,3 @@ def test_the_curated_locales_ship():
             "en-ca", "en-au", "en-nz", "sv-se", "da-dk", "no-no", "es-es",
             "es-mx", "es-ar", "pt-pt", "pt-br"} <= have
 
-
-def test_the_old_app_id_migrates(tmp_path):
-    from conftest import make_runtime
-    rt = make_runtime(tmp_path, ["national-today", "holidays", "time"])
-    assert "national-today" not in rt.settings.installed_apps
-    assert "holidays" in rt.settings.installed_apps

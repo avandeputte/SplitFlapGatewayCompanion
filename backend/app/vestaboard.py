@@ -204,6 +204,22 @@ def layout_text(text: str, target_rows: int, target_cols: int, caps=None) -> str
     return _center_block(lines, target_rows, target_cols)
 
 
+def decode_request(body, rows: int, cols: int, caps=None):
+    """One Local-API message body -> ``(page, strategy)``. Accepts the three documented
+    shapes — a bare character matrix, ``{"characters": [[...]]}`` or ``{"text": "..."}`` —
+    and raises VestaboardError for anything else, so the endpoint stays a thin HTTP shim."""
+    if isinstance(body, list):                               # the bare-matrix form
+        return fit(decode(body), rows, cols), None
+    if isinstance(body, dict) and body.get("characters") is not None:
+        return fit(decode(body["characters"]), rows, cols), body.get("strategy")
+    if isinstance(body, dict) and isinstance(body.get("text"), str):
+        # The board has no lowercase flaps; uppercase exactly the way every other
+        # text path does (cp1252-aware, so accents survive as one cell).
+        return layout_text(body["text"], rows, cols, caps), body.get("strategy")
+    raise VestaboardError('expected a character matrix, {"characters": [[...]]}, '
+                          'or {"text": "..."}')
+
+
 def encode(chars: list[str], rows: int, cols: int) -> list[list[int]]:
     """The live board -> a Vestaboard character-code matrix (for reads).
 

@@ -16,7 +16,7 @@ display content, and we don't duplicate those:
 Command topics let HA automations start/stop apps and playlists (receive
 triggers from HA); the select states let HA see which app/playlist is active.
 
-Commands arrive on the paho thread and are marshalled onto the asyncio loop via
+Commands arrive on the paho thread and are marshaled onto the asyncio loop via
 run_coroutine_threadsafe, since the controller's run/stop are coroutines.
 """
 
