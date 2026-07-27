@@ -4,20 +4,13 @@ duplicate each team's logo. This pins the app-level shape; the wire-level dedup 
 upload once) is covered in test_canvas.py.
 """
 
-import importlib.util
-from pathlib import Path
-
 from PIL import Image
 
-ROOT = Path(__file__).resolve().parents[2]
+from conftest import load_app
 
 
 def _load():
-    p = ROOT / "apps" / "canvas-scoreboard" / "app.py"
-    spec = importlib.util.spec_from_file_location("_sb", p)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
+    return load_app("canvas-scoreboard")
 
 
 class _Cv:

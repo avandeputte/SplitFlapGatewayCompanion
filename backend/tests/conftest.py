@@ -11,6 +11,12 @@ Three helpers that a dozen files used to hand-roll, plus one guard:
                              ``_gen``, ``_wants``, ``_trigger_wants``).
   * ``stub_http``          — a fixture routing the weather helper's sync
                              ``httpx.Client`` at a handler, clearing its doc cache.
+  * ``json_response(...)`` — the one canned-HTTP-response factory (json/status/
+                             raise_for_status) behind every stubbed request seam.
+  * ``gw_calls``           — a fixture recording gateway._request traffic as
+                             (method, path, json, content) tuples.
+  * ``capture_surface(...)``— the PIL canvas fake frame-push app tests draw on.
+  * ``_lines(...)``        — split a rendered page string back into wall rows.
   * an AUTOUSE socket guard: no test may open a TCP connection off the loopback.
     A layout test that needs the internet is a layout test that fails on a train —
     and worse, one that passes while quietly hammering someone's free API.
@@ -143,6 +149,30 @@ class Resp:
         return self._payload
 
 
+class _JsonResp(Resp):
+    """Resp plus the status half: ``.status_code`` and a loosely-httpx
+    ``raise_for_status()`` — together the union of what the tests' local
+    response stubs actually exercised."""
+
+    def __init__(self, payload, status=200):
+        super().__init__(payload)
+        self.status_code = status
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            import httpx
+            raise httpx.HTTPStatusError(f"status {self.status_code}",
+                                        request=None, response=self)
+
+
+def json_response(payload, status=200):
+    """A canned response for any stubbed HTTP seam (requests.get, httpx.get,
+    gateway._request): ``.json()`` -> payload, ``.status_code``, and
+    ``raise_for_status()`` raising from 400 up. One factory instead of the
+    dozen local ``_Resp`` classes it replaced."""
+    return _JsonResp(payload, status)
+
+
 class FakeClient:
     """Stands in for ``httpx.Client`` inside the shared weather helper: a context
     manager whose ``get`` hands every request to the test's handler."""
@@ -246,6 +276,72 @@ def canvas_surface(url, w, h, formats=(), effects=(), *, sprite=False, two_one=F
                                canvas_w=w, canvas_h=h, canvas_formats=tuple(formats),
                                effects=tuple(effects), **fields)
     return canvas_mod.CanvasSurface(url, caps)
+
+
+@pytest.fixture
+def gw_calls(monkeypatch):
+    """Route the pooled gateway seam (``app.gateway._request``) into a list of
+    ``(method, path, json, content)`` tuples, every call answered 200/{"active": True}
+    — the wire-shape recorder behind the canvas transport tests."""
+    calls = []
+    import app.gateway as gateway
+    monkeypatch.setattr(gateway, "_request",
+                        lambda method, url, path, *, timeout, **kw:
+                        (calls.append((method, path, kw.get("json"), kw.get("content")))
+                         or json_response({"active": True})))
+    return calls
+
+
+class _CaptureSurface:
+    """A canvas fake that renders for real — blank/vgrad/font behave like
+    CanvasSurface's, so an app's layout maths run — but ``frame()`` captures the
+    image in ``.img`` instead of pushing it to a wall."""
+
+    def __init__(self, w, h):
+        self.width, self.height, self.img = w, h, None
+
+    def blank(self, color=(0, 0, 0)):
+        from PIL import Image
+        return Image.new("RGB", (self.width, self.height), tuple(color))
+
+    def vgrad(self, top, bottom):
+        from PIL import Image
+        img = Image.new("RGB", (self.width, self.height))
+        for y in range(self.height):
+            f = y / max(1, self.height - 1)
+            row = tuple(int(top[i] + (bottom[i] - top[i]) * f) for i in range(3))
+            img.paste(row, (0, y, self.width, y + 1))
+        return img
+
+    def font(self, size, name="DejaVuSans-Bold.ttf"):
+        import os
+        from PIL import ImageFont
+        from app.canvas import _FONT_DIR
+        return ImageFont.truetype(os.path.join(_FONT_DIR, name), max(5, int(size)))
+
+    def frame(self, image):
+        self.img = image
+        return True
+
+
+def capture_surface(w=256, h=64):
+    """The lightweight PIL canvas fake the frame-push app tests share (the default
+    size is the tests' common 256x64 panel)."""
+    return _CaptureSurface(w, h)
+
+
+def _lines(page, rows=None, cols=None, strip=False):
+    """Split a rendered page string back into its rows of ``cols`` characters.
+
+    ``rows`` given: exactly that many rows (a wall page is rows*cols long);
+    ``rows=None``: every ``cols``-sized chunk of the string. ``strip=True`` trims
+    each row — right for "is the word on the page" checks, wrong for column-
+    alignment checks, which is why it is off by default."""
+    if rows is None:
+        out = [page[i:i + cols] for i in range(0, len(page), cols)]
+    else:
+        out = [page[r * cols:(r + 1) * cols] for r in range(rows)]
+    return [l.strip() for l in out] if strip else out
 
 
 @pytest.fixture(autouse=True)

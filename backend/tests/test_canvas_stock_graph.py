@@ -4,43 +4,17 @@ yfinance is faked so these run offline. (Rendering fidelity is eyeballed off-dev
 the data / rotation / cadence contract.)
 """
 
-import importlib.util
 import sys
 import types
-from pathlib import Path
 
-from PIL import Image, ImageFont
+from PIL import Image
 
-from app.canvas import _FONT_DIR
-
-ROOT = Path(__file__).resolve().parents[2]
+from conftest import capture_surface as _Cap
+from conftest import load_app
 
 
 def _load():
-    p = ROOT / "apps" / "canvas-stock-graph" / "app.py"
-    spec = importlib.util.spec_from_file_location("_stockgraph", p)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-class _Cap:
-    """A canvas that renders for real (so _fit/font/blank behave) and captures the pushed frame."""
-    width, height = 256, 64
-
-    def __init__(self):
-        self.img = None
-
-    def blank(self, color=(0, 0, 0)):
-        return Image.new("RGB", (self.width, self.height), tuple(color))
-
-    def font(self, size, name="DejaVuSans-Bold.ttf"):
-        import os
-        return ImageFont.truetype(os.path.join(_FONT_DIR, name), max(5, int(size)))
-
-    def frame(self, image):
-        self.img = image if isinstance(image, Image.Image) else True
-        return True
+    return load_app("canvas-stock-graph")
 
 
 def _fake_yf(data, tz="America/New_York"):

@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from app.textlayout import balanced_pages
-from conftest import load_app, make_runtime
+from conftest import json_response, load_app, make_runtime
 
 dog = load_app("dog-facts")
 
@@ -68,14 +68,10 @@ def api(monkeypatch):
 
     holder = {"json": {"data": [{"attributes": {"body": MEDIUM}}]}, "boom": False}
 
-    class _Resp:
-        def json(self):
-            return holder["json"]
-
     def _get(*a, **k):
         if holder["boom"]:
             raise requests.exceptions.ConnectionError("no network")
-        return _Resp()
+        return json_response(holder["json"])
 
     monkeypatch.setattr(requests, "get", _get)
     return holder

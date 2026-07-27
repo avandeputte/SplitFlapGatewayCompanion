@@ -18,10 +18,12 @@ quietly:
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from functools import partial
 
 import pytest
 import pytz
 
+from conftest import _lines as _conftest_lines
 from conftest import load_app, make_runtime
 
 cal = load_app("calendar")
@@ -212,8 +214,8 @@ def feed(monkeypatch):
     return holder
 
 
-def _lines(page, rows, cols):
-    return [page[r * cols:(r + 1) * cols].strip() for r in range(rows)]
+# The stripped rows of a rendered page (these tests ask "is the event there", not alignment).
+_lines = partial(_conftest_lines, strip=True)
 
 
 def test_a_tall_wall_shows_the_second_event_too(feed):

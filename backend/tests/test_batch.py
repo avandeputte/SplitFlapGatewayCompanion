@@ -9,16 +9,7 @@ from app.config import Config
 from app.engine import DisplayController
 from app.state import DisplayState
 from app.transport.rest import RestTransport
-
-
-class FakeResp:
-    def __init__(self, status):
-        self.status_code = status
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            import httpx
-            raise httpx.HTTPStatusError("err", request=None, response=self)
+from conftest import json_response
 
 
 class FakeHttp:
@@ -29,7 +20,7 @@ class FakeHttp:
     async def post(self, url, json=None, content=None, headers=None, timeout=None):
         # The transport now sends a Windows-1252-encoded body via `content=`.
         self.calls.append({"url": url, "content": content, "headers": headers})
-        return FakeResp(self.status)
+        return json_response(None, self.status)
 
 
 def _rest(status=200):

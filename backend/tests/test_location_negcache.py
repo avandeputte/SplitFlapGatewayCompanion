@@ -10,14 +10,7 @@ these tests patch the same seam.
 import requests
 
 from app import location
-
-
-class _Resp:
-    def __init__(self, payload):
-        self._p = payload
-
-    def json(self):
-        return self._p
+from conftest import json_response as _Resp
 
 
 def _reset():

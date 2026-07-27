@@ -20,6 +20,8 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
+from conftest import json_response
+
 ROOT = Path(__file__).resolve().parents[2]
 STATIC = ROOT / "backend" / "app" / "static"
 
@@ -374,15 +376,7 @@ class _FakeSupervisor:
                 {"interface": "hassio", "primary": False, "ipv4": {"ip_address": "172.30.33.4/23"}},
                 {"interface": "eth0", "primary": self.primary, "ipv4": {"ip_address": self.ip}},
             ]}}
-        return _Resp(body)
-
-
-class _Resp:
-    def __init__(self, body):
-        self._body = body
-
-    def json(self):
-        return self._body
+        return json_response(body)
 
 
 @pytest.fixture

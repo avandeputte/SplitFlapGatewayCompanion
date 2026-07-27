@@ -15,6 +15,7 @@ APP_DIR = Path(__file__).resolve().parents[2] / "apps" / "holidays"
 
 
 def _fixture_app(tmp_path, holidays, locale="en-us"):
+    # Not conftest.load_app: this loads a COPY of app.py from a tmp dir seeded with fixture data.
     d = tmp_path / "hol"
     d.mkdir()
     shutil.copy(APP_DIR / "app.py", d / "app.py")
@@ -91,9 +92,8 @@ def test_own_subdivision_is_included(tmp_path):
 # --- locale ladder -----------------------------------------------------------
 
 def test_locale_prefers_the_walls_language_then_english_then_any():
-    spec = importlib.util.spec_from_file_location("_hol_real", APP_DIR / "app.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
+    from conftest import load_app
+    m = load_app("holidays")
     assert m._pick_locale("fr", "CA") == "fr-ca"      # the wall's language there
     assert m._pick_locale("sv", "US") == "en-us"      # no sv-us -> English there
     assert m._pick_locale("en", "VA") == "it-va"      # no English -> any for the country

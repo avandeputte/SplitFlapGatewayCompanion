@@ -160,17 +160,12 @@ def test_stream_begin_end_and_frame_routing(monkeypatch, clean_stream_state):
     assert fs.writes[-1] == canvas._tlv(0x00)                # end record on close
 
 
-def test_push_rgb_falls_back_to_http_when_the_stream_dies(monkeypatch, clean_stream_state):
+def test_push_rgb_falls_back_to_http_when_the_stream_dies(monkeypatch, clean_stream_state, gw_calls):
     url = "http://gw2"
     fs = FakeSock(fail_on=1)                                 # the first record (the frame) fails
     monkeypatch.setattr(canvas.socket, "create_connection", lambda *a, **k: fs)
     canvas.stream_begin(url)                                 # open() doesn't send, so it's still alive here
-    calls = []
-    import app.gateway as gateway
-    monkeypatch.setattr(gateway, "_request",
-                        lambda m, u, p, **k: calls.append(p) or type("R", (), {"status_code": 200,
-                                                                              "json": lambda s: {}})())
     surf = canvas_surface(url, 4, 2, ("rgb888",))       # no rects/qoi -> a raw full frame
     assert surf.frame(bytes(4 * 2 * 3)) is True
-    assert calls == ["/api/canvas/frame"]                    # stream send failed -> HTTP fallback
+    assert [path for _, path, _, _ in gw_calls] == ["/api/canvas/frame"]   # stream send failed -> HTTP fallback
     assert canvas.has_stream(url) is False                   # the dead stream stays closed

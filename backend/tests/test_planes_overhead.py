@@ -4,18 +4,8 @@ import sys
 import time
 import types
 
+from conftest import json_response as _Resp
 from conftest import load_app as _mod
-
-
-class _Resp:
-    def __init__(self, d):
-        self._d = d
-
-    def json(self):
-        return self._d
-
-    def raise_for_status(self):
-        pass
 
 
 def _plane(cs, lat, lon, dep, arr):

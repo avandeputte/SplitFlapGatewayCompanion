@@ -44,6 +44,7 @@ def _fixture_app(tmp_path, cultural=None, fun=None):
                            "dates": ["2099-01-05"]}] + cult_records}), "utf-8")
     if fun:
         (d / "fun.json").write_text(json.dumps({KEY: [fun]}), "utf-8")
+    # Not conftest.load_app: this loads a COPY of app.py from a tmp dir seeded with fixture data.
     spec = importlib.util.spec_from_file_location("_holc_test", d / "app.py")
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)

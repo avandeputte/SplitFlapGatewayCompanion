@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import device
+from conftest import json_response
 
 DOC_2_1 = {
     "product": "Matrix Portal Gateway", "fw": "2.1.0", "api": "3.1.0",
@@ -30,15 +31,9 @@ def canvas_wall(monkeypatch):
     main.config.update({"transport": {"gateway_url": "http://gw"}})
 
     calls = []
-
-    class Resp:
-        status_code = 200
-
-        def json(self):
-            return {"ok": True, "frames": 42, "fps": 12}
-
+    resp = json_response({"ok": True, "frames": 42, "fps": 12})
     monkeypatch.setattr(gateway, "_request",
-                        lambda m, u, p, *, timeout, **kw: (calls.append((m, p, kw.get("json"))) or Resp()))
+                        lambda m, u, p, *, timeout, **kw: (calls.append((m, p, kw.get("json"))) or resp))
 
     async def _cfg(url, timeout=5.0):
         return {"bootAnim": "rainbow"}

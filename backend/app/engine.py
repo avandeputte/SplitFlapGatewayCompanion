@@ -529,6 +529,11 @@ class DisplayController:
         return None
 
     def _caps(self):
+        """The PLUGINS' capability view — deliberately not ``self.caps``. Surface routing
+        must agree with the caps that gated the app's settings (the matrix toggle only
+        exists where plugins saw a canvas), and that view is what tests and simulation pin
+        via ``attach_caps``. In production display.py wires it back to this controller's
+        own caps, so the two views coincide there."""
         prov = getattr(self.plugins, "_caps", None)
         return prov() if callable(prov) else device.SPLIT_FLAP
 
@@ -785,6 +790,39 @@ class DisplayController:
                         "entries": entries, "loop": bool(loop)})
         self._task = asyncio.create_task(self._playlist_loop(entries, loop))
 
+    async def _run_playlist_app_entry(self, entry: dict, duration: float, want,
+                                      rt_loop) -> None:
+        """One playlist APP entry, on whichever surface it renders here — the same single
+        surface decision run_app makes, driven until the slot's deadline. A panel-rendering
+        entry takes the panel over and HANDS IT BACK before the next entry; without that
+        release, an on-device effect in a playlist stays lit forever (it never goes through
+        _cancel_task, so _canvas_active is never cleared)."""
+        app_id = app_id_from_ref(entry.get("app", ""))
+        if not app_id or self.plugins.manifest(app_id) is None:
+            return
+        self.state.current_app = app_id        # this app is on the flaps now
+        # Per-entry setting overrides (own location/language/config), so the same app
+        # can appear twice with different configuration.
+        ov = entry.get("overrides") or None
+        deadline = rt_loop.time() + duration
+
+        def keep_going() -> bool:
+            return rt_loop.time() < deadline and self.active_playlist == want
+
+        surface = self._surface_for(app_id, ov)
+        matrix_channel = surface == "matrix" and self.plugins.is_channel_app(app_id)
+        if surface == "matrix" and not matrix_channel:
+            await self._play_matrix_entry(app_id, deadline, want, ov)
+            await self._release_canvas()
+        elif matrix_channel:
+            # A channel rendering on the panel (text + art) — same take-over-then-release
+            # contract as a matrix app so the next flap entry gets a clean wall.
+            await self._play_channel_canvas_entry(app_id, deadline, want, ov)
+            await self._release_canvas()
+        else:
+            while keep_going():
+                await self._play_app_pages(app_id, ov, keep_going)
+
     async def _playlist_loop(self, entries: list[dict], loop: bool) -> None:
         rt_loop = asyncio.get_running_loop()
         want = self.active_playlist
@@ -801,39 +839,8 @@ class DisplayController:
                     await self._emit_page_from_loop(clean, style=entry.get("style", "ltr"),
                                                     speed=int(entry.get("speed", 15)))
                     await asyncio.sleep(duration)
-                else:  # app entry — run the app's pages until the deadline
-                    app_id = app_id_from_ref(entry.get("app", ""))
-                    if not app_id or self.plugins.manifest(app_id) is None:
-                        continue
-                    self.state.current_app = app_id    # this app is on the flaps now
-                    # Per-entry setting overrides (own location/language/config), so
-                    # the same app can appear twice with different configuration.
-                    ov = entry.get("overrides") or None
-                    deadline = rt_loop.time() + duration
-
-                    def keep_going() -> bool:
-                        return rt_loop.time() < deadline and self.active_playlist == want
-
-                    # Which surface this entry renders on, this wall (matrix-only, dual-with-toggle,
-                    # or flap) — the same one decision run_app makes.
-                    surface = self._surface_for(app_id, ov)
-                    matrix_channel = surface == "matrix" and self.plugins.is_channel_app(app_id)
-                    if surface == "matrix" and not matrix_channel:
-                        # A matrix app draws on the panel, not the flaps. Drive it like the
-                        # standalone matrix loop — take the panel over, redraw until the entry's
-                        # deadline — then HAND THE PANEL BACK before the next entry. Without that
-                        # release, an on-device effect in a playlist stays lit forever (it never
-                        # goes through _cancel_task, so _canvas_active is never set).
-                        await self._play_matrix_entry(app_id, deadline, want, ov)
-                        await self._release_canvas()
-                    elif matrix_channel:
-                        # A channel rendering on the panel (text + art) — same take-over-then-release
-                        # contract as a matrix app so the next flap entry gets a clean wall.
-                        await self._play_channel_canvas_entry(app_id, deadline, want, ov)
-                        await self._release_canvas()
-                    else:
-                        while keep_going():
-                            await self._play_app_pages(app_id, ov, keep_going)
+                else:  # app entry — run the app until its slot's deadline
+                    await self._run_playlist_app_entry(entry, duration, want, rt_loop)
             if not loop:
                 # A playlist that has run out is a display with nothing running, and it
                 # should show nothing — not the last page it happened to stop on.

@@ -5,33 +5,21 @@ time-based apps — the animated ones (aquarium, weather-sky, the countdown swee
 frame rate and aren't covered here.
 """
 
-import importlib.util
 from datetime import datetime
-from pathlib import Path
 
 import pytest
 
 from app import canvas as canvas_mod
-from conftest import canvas_surface
+from conftest import canvas_surface, load_app
 
-ROOT = Path(__file__).resolve().parents[2]
-
-
-def _load(app_id):
-    p = ROOT / "apps" / app_id / "app.py"
-    spec = importlib.util.spec_from_file_location(f"_c_{app_id.replace('-', '_')}", p)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
+_load = load_app
 
 
 @pytest.fixture
-def surface(monkeypatch):
-    """A real CanvasSurface whose transport is stubbed — font/blank/vgrad/frame all behave, but
-    frame() never touches the network, so an app renders exactly as it would on a wall."""
-    import app.gateway as gateway
-    monkeypatch.setattr(gateway, "_request",
-                        lambda *a, **k: type("R", (), {"status_code": 200, "json": lambda s: {}})())
+def surface(gw_calls):
+    """A real CanvasSurface whose transport is stubbed (conftest's gw_calls) — font/blank/vgrad/
+    frame all behave, but frame() never touches the network, so an app renders exactly as it
+    would on a wall."""
     return canvas_surface("http://gw", 256, 64, ("rgb888", "qoi"), ())
 
 

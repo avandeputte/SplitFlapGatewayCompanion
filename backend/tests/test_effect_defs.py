@@ -114,21 +114,9 @@ def test_without_defs_the_legacy_call_shape_is_unchanged():
     assert c["params"] is None and c["speed"] == 7 and c["hue"] == 40
 
 
-def test_def_driven_wire_body_has_no_implicit_speed(monkeypatch):
+def test_def_driven_wire_body_has_no_implicit_speed(gw_calls):
     from conftest import canvas_surface
-    import app.gateway as gateway
-    calls = []
-
-    class _Resp:
-        status_code = 200
-
-        def json(self):
-            return {"ok": True}
-
-    monkeypatch.setattr(gateway, "_request",
-                        lambda method, url, path, *, timeout, **kw:
-                        (calls.append((method, path, kw.get("json"))) or _Resp()))
     cv = canvas_surface("http://gw", 128, 32, ("rgb888",), ("fire",))
     assert cv.effect("fire", params={"audio": True})
-    method, path, body = calls[-1]
+    method, path, body, _content = gw_calls[-1]
     assert path == "/api/canvas/effect" and body == {"type": "fire", "audio": True}

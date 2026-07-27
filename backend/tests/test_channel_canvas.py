@@ -4,16 +4,15 @@ wall), art motif from the manifest. These pin the wiring; the look is eyeballed 
 """
 
 import json
-import os
 import tempfile
 
 import pytest
-from PIL import Image, ImageFont
+from PIL import Image
 
 from app import channel_art, device
-from app.canvas import _FONT_DIR
 from conftest import APPS_DIR, make_runtime
 from conftest import CANVAS_DOC
+from conftest import capture_surface as _Cap
 
 
 def _channels():
@@ -26,21 +25,6 @@ def _channels():
 
 
 CHANNELS = _channels()
-
-
-class _Cap:
-    def __init__(self, w=256, h=64):
-        self.width, self.height, self.img = w, h, None
-
-    def blank(self, color=(0, 0, 0)):
-        return Image.new("RGB", (self.width, self.height), tuple(color))
-
-    def font(self, size, name="DejaVuSans-Bold.ttf"):
-        return ImageFont.truetype(os.path.join(_FONT_DIR, name), max(5, int(size)))
-
-    def frame(self, image):
-        self.img = image
-        return True
 
 
 @pytest.mark.parametrize("app_id", CHANNELS, ids=CHANNELS)

@@ -4,51 +4,12 @@ a panel-sized frame at every size (card layout on a roomy panel, compact on a sm
 through the upcoming holidays, and never crashes offline — while the flap branch still returns pages.
 """
 
-import importlib.util
-from pathlib import Path
+from PIL import Image
 
-from PIL import Image, ImageFont
+from conftest import capture_surface as _Cap
+from conftest import load_app
 
-from app.canvas import _FONT_DIR
-
-ROOT = Path(__file__).resolve().parents[2]
-
-
-def _load():
-    p = ROOT / "apps" / "holidays" / "app.py"
-    spec = importlib.util.spec_from_file_location("_holidays", p)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-class _Cap:
-    """A canvas that renders for real (so the font/wrap/fit maths run) and captures the frame."""
-
-    def __init__(self, w, h):
-        self.width, self.height, self.img = w, h, None
-
-    def blank(self, color=(0, 0, 0)):
-        return Image.new("RGB", (self.width, self.height), tuple(color))
-
-    def vgrad(self, top, bottom):
-        img = Image.new("RGB", (self.width, self.height))
-        for y in range(self.height):
-            f = y / max(1, self.height - 1)
-            row = tuple(int(top[i] + (bottom[i] - top[i]) * f) for i in range(3))
-            img.paste(row, (0, y, self.width, y + 1))
-        return img
-
-    def font(self, size, name="DejaVuSans-Bold.ttf"):
-        import os
-        return ImageFont.truetype(os.path.join(_FONT_DIR, name), max(5, int(size)))
-
-    def frame(self, image):
-        self.img = image
-        return True
-
-
-HOL = _load()
+HOL = load_app("holidays")
 _SETTINGS = {"country": "US", "fun_days": "on"}     # fun_days => always at least one upcoming
 
 

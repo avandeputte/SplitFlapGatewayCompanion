@@ -741,12 +741,10 @@ function updateActiveUI(activeApp, activePlaylist) {
 }
 
 async function runApp(id) {
-  try { await post("/api/apps/run", { app: id }); updateActiveUI(id, null); }
-  catch (e) { alert(t("Failed: %s", e.message)); }
+  await guard(async () => { await post("/api/apps/run", { app: id }); updateActiveUI(id, null); });
 }
 async function stopApp() {
-  try { await post("/api/apps/stop"); updateActiveUI(null, null); }
-  catch (e) { alert(t("Failed: %s", e.message)); }
+  await guard(async () => { await post("/api/apps/stop"); updateActiveUI(null, null); });
 }
 
 // Physically home every module (stops whatever is playing, blanks the wall).
@@ -1496,17 +1494,15 @@ async function loadPlaylists() {
     row.dataset.name = n;      // identity, so plMarkEditing can move the highlight in place
     const nm = el("span", "grow"); nm.textContent = n; row.appendChild(nm);
     if (n === PL_NAME) { const tag = el("span", "pill sm"); tag.textContent = t("editing"); row.appendChild(tag); }
-    const run = btn(t("Run"), async () => {
-      try { await post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n }); }
-      catch (e) { alert(t("Failed: %s", e.message)); }
-    }, "btn btn-sm primary");
+    const run = btn(t("Run"), () => guard(() =>
+      post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n })
+    ), "btn btn-sm primary");
     row.appendChild(run);
     row.appendChild(btn(t("Edit"), () => plEdit(n), "btn btn-sm ghost"));
-    const rm = btn(t("Delete"), async () => {
-      try { await del("/api/playlists/" + encodeURIComponent(n)); }
-      catch (e) { alert(t("Failed: %s", e.message)); return; }
+    const rm = btn(t("Delete"), () => guard(async () => {
+      await del("/api/playlists/" + encodeURIComponent(n));
       loadPlaylists();
-    }, "btn btn-sm ghost");
+    }), "btn btn-sm ghost");
     row.appendChild(rm);
     saved.appendChild(row);
   });
@@ -1515,8 +1511,7 @@ async function loadPlaylists() {
 }
 async function runPlaylistNow() {
   if (!PL_ENTRIES.length) return;
-  try { await post("/api/playlists/run", { entries: PL_ENTRIES, loop: $("plLoop").checked, name: PL_NAME || "(unsaved)" }); }
-  catch (e) { alert(t("Failed: %s", e.message)); }
+  await guard(() => post("/api/playlists/run", { entries: PL_ENTRIES, loop: $("plLoop").checked, name: PL_NAME || "(unsaved)" }));
 }
 // The editor's name field IS the identity. Saving writes to whatever it says: unchanged,
 // that updates the playlist you loaded; changed, it renames it (and the button says so, so
@@ -1568,17 +1563,16 @@ async function savePlaylist() {
   const name = $("plName").value.trim();
   if (!name) { $("plName").focus(); return; }
   if (!PL_ENTRIES.length) return;
-  try {
+  const ok = await guard(async () => {
     await post("/api/playlists", { name, entries: PL_ENTRIES, loop: $("plLoop").checked });
     // A rename is a save under the new name plus a delete of the old — otherwise the one
     // you renamed away from lingers as a stale duplicate of what you just edited.
     if (PL_NAME && PL_NAME !== name) {
       await del("/api/playlists/" + encodeURIComponent(PL_NAME));
     }
-  } catch (e) {
-    alert(t("Failed: %s", e.message));
-    return;
-  }
+    return true;
+  });
+  if (!ok) return;
   PL_NAME = name;
   await loadPlaylists();
 }
@@ -1617,12 +1611,10 @@ function addTrigger() {
   trigRender();
 }
 async function saveTriggers() {
-  try {
+  await guard(async () => {
     await post("/api/triggers", { triggers: TRIGS, triggers_enabled: $("trigEnabled").checked });
     $("trigMsg").textContent = t("Saved ✓");
-  } catch (e) {
-    $("trigMsg").textContent = t("Failed: %s", e.message);
-  }
+  }, $("trigMsg"));
   setTimeout(() => ($("trigMsg").textContent = ""), 4000);
 }
 
@@ -1675,6 +1667,17 @@ function btn(label, onClick, cls) {
   return b;
 }
 
+// Run a fire-and-forget action; route failure to `sink` (a hint element) or an
+// alert. The one place action errors surface, so none get swallowed.
+async function guard(fn, sink) {
+  try { return await fn(); }
+  catch (e) {
+    const msg = t("Failed: %s", e.message);
+    if (sink) sink.textContent = msg; else alert(msg);
+    return undefined;
+  }
+}
+
 function _panelRow(name, metaText, buttons) {
   const row = el("div", "panel-row");
   const n = el("span", "panel-name"); n.textContent = name;
@@ -1709,8 +1712,7 @@ function renderFontList(fonts) {
 }
 
 async function panelDo(path, body, after) {
-  try { await post(path, body); if (after) await after(); }
-  catch (e) { $("animMsg").textContent = t("Failed: %s", e.message); }
+  await guard(async () => { await post(path, body); if (after) await after(); }, $("animMsg"));
 }
 
 async function _rawPut(path, buf) {
@@ -1727,11 +1729,14 @@ function wirePanel() {
       $("panelMeta").textContent = t("Overlay showing.");
     } catch (e) { $("panelMeta").textContent = t("Failed: %s", e.message); }
   });
-  $("ovClear").addEventListener("click", () =>
-    post("/api/panel/overlay", { text: "" }).then(() => ($("ovText").value = "")).catch(() => {}));
-  $("trApply").addEventListener("click", () =>
-    post("/api/panel/transition", { type: $("trType").value, ms: +$("trMs").value || 400 })
-      .then(() => ($("panelMeta").textContent = t("Transition set."))).catch(() => {}));
+  $("ovClear").addEventListener("click", () => guard(async () => {
+    await post("/api/panel/overlay", { text: "" });
+    $("ovText").value = "";
+  }, $("panelMeta")));
+  $("trApply").addEventListener("click", () => guard(async () => {
+    await post("/api/panel/transition", { type: $("trType").value, ms: +$("trMs").value || 400 });
+    $("panelMeta").textContent = t("Transition set.");
+  }, $("panelMeta")));
 
   $("gifUpload").addEventListener("click", async () => {
     const f = $("gifFile").files[0];
@@ -2120,11 +2125,10 @@ async function openDisplays() {
 
       // PATCH, not POST — a rename lands at once, a re-point needs a restart.
       const save = btn(t("Save"), async () => {
-        let doc2;
-        try {
-          doc2 = await patch(`/api/displays/${encodeURIComponent(d.id)}`,
-            { name: name.value.trim(), gateway_url: gw.value.trim() });
-        } catch (e) { alert(t("Failed: %s", e.message)); return; }
+        const doc2 = await guard(() =>
+          patch(`/api/displays/${encodeURIComponent(d.id)}`,
+            { name: name.value.trim(), gateway_url: gw.value.trim() }));
+        if (doc2 === undefined) return;
         if (doc2 && doc2.restart_required) {
           info.textContent = t("Restart the add-on to re-point this display");
           info.className = "warn sm";
@@ -2133,11 +2137,11 @@ async function openDisplays() {
         await loadDisplays();
       }, "btn btn-sm");
 
-      const mkDefault = btn(isDefault ? t("Default") : t("Make default"), async () => {
+      const mkDefault = btn(isDefault ? t("Default") : t("Make default"), () => guard(async () => {
         await post(`/api/displays/${encodeURIComponent(d.id)}/default`, {});
         await render();
         await loadDisplays();
-      }, "btn btn-sm ghost");
+      }), "btn btn-sm ghost");
       mkDefault.disabled = isDefault;
       mkDefault.title = t("The display that anything not naming one drives — Home Assistant, the Vestaboard API, an MCP call");
 

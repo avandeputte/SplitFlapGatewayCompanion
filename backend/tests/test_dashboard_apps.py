@@ -4,18 +4,9 @@ picks a status/threshold color flap). The interesting part is the config parsing
 green/amber/red banding; drive the pure helpers directly.
 """
 
-import importlib.util
-from pathlib import Path
+from conftest import load_app
 
-ROOT = Path(__file__).resolve().parents[2]
-
-
-def _load(app_id):
-    p = ROOT / "apps" / app_id / "app.py"
-    spec = importlib.util.spec_from_file_location(f"_app_{app_id.replace('-', '_')}", p)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+_load = load_app
 
 
 # -- config parsing (shared shape across both apps) -------------------------

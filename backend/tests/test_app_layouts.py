@@ -18,16 +18,13 @@ import pytest
 
 from conftest import APPS_DIR as APPS
 from conftest import Resp as _Resp
+from conftest import _lines
 from conftest import load_app as _mod
 from conftest import make_runtime
 
 
 def _runtime(rows, cols, app_id, **settings):
     return make_runtime(installed=[app_id], rows=rows, cols=cols, settings=settings)
-
-
-def _lines(page, rows, cols):
-    return [page[r * cols:(r + 1) * cols] for r in range(rows)]
 
 
 def _body(page, rows, cols):

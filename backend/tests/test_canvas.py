@@ -38,23 +38,7 @@ def test_a_physical_wall_has_no_canvas():
 
 
 # --- transport + helper -----------------------------------------------------
-
-@pytest.fixture
-def gw_calls(monkeypatch):
-    calls = []
-
-    class _Resp:
-        status_code = 200
-
-        def json(self):
-            return {"active": True}
-
-    import app.gateway as gateway
-    monkeypatch.setattr(gateway, "_request",
-                        lambda method, url, path, *, timeout, **kw:
-                        (calls.append((method, path, kw.get("json"), kw.get("content"))) or _Resp()))
-    return calls
-
+# (the gw_calls fixture these tests lean on lives in conftest now)
 
 def _surface():
     return canvas_surface("http://gw", 128, 32, ("rgb888", "rgb565"),
@@ -454,9 +438,7 @@ def test_the_canvas_apps_declare_the_matrix_surface():
 from PIL import Image                                                       # noqa: E402
 
 
-def _load(name):
-    from conftest import load_app
-    return load_app(name)
+from conftest import load_app as _load                                      # noqa: E402
 
 
 def _push(gw_calls, app, W, H, settings, **kw):

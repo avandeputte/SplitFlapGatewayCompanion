@@ -5,24 +5,12 @@ right-justifies the integer part and left-justifies the fraction. A whole-number
 rate (JPY) leaves the fraction column blank but keeps the point aligned."""
 import requests
 
-from conftest import load_app
-
-
-class _Resp:
-    def __init__(self, payload):
-        self._payload = payload
-
-    def json(self):
-        return self._payload
+from conftest import _lines, json_response, load_app
 
 
 def _rates(monkeypatch, payload):
     monkeypatch.setattr(requests, "get",
-                        lambda *a, **k: _Resp({"rates": payload}))
-
-
-def _lines(page, cols=15):
-    return [page[i:i + cols] for i in range(0, len(page), cols)]
+                        lambda *a, **k: json_response({"rates": payload}))
 
 
 def test_decimal_points_align_across_rate_rows(monkeypatch):
@@ -32,7 +20,7 @@ def test_decimal_points_align_across_rate_rows(monkeypatch):
     page = app.fetch({"base": "USD", "targets": "EUR,GBP,JPY,CHF"},
                      lambda *l, **k: "".join(x.ljust(15) for x in l),
                      lambda: 6, lambda: 15)[0]
-    rows = [r for r in _lines(page) if any(c in r for c in "EGJC") and "USD" not in r]
+    rows = [r for r in _lines(page, cols=15) if any(c in r for c in "EGJC") and "USD" not in r]
     dots = {r.index(".") for r in rows if "." in r}
     assert len(dots) == 1, rows            # every decimal point in one column
     # the whole-number rate has no point but its ones digit sits just left of it

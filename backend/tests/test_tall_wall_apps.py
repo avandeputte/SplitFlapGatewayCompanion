@@ -16,10 +16,13 @@ app is checked at 3 rows too.
 The providers are stubbed. These assert LAYOUT, and a layout test that needs the
 internet is a layout test that fails on a train.
 """
+from functools import partial
+
 import pytest
 
 from conftest import APPS_DIR as APPS
 from conftest import Resp as _Resp
+from conftest import _lines as _conftest_lines
 from conftest import load_app as _mod
 from conftest import make_runtime
 
@@ -73,9 +76,8 @@ def _runtime(rows, cols, tmp_path, app_id, **settings):
     return make_runtime(tmp_path, [app_id], rows=rows, cols=cols, settings=settings)
 
 
-def _lines(page, rows, cols):
-    """The non-blank rows of a rendered page."""
-    return [page[r * cols:(r + 1) * cols].strip() for r in range(rows)]
+# The stripped rows of a rendered page (these tests ask "is the word there", not alignment).
+_lines = partial(_conftest_lines, strip=True)
 
 
 def _body(page, rows, cols):

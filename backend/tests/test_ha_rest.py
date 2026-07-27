@@ -8,6 +8,7 @@ actually injects ``get_ha_states`` into an app that asks for it.
 import pytest
 
 from app import ha_rest
+from conftest import json_response
 
 
 @pytest.fixture(autouse=True)
@@ -18,14 +19,6 @@ def _isolate(monkeypatch):
     ha_rest._cache.update(at=0.0, states=[])
     yield
     ha_rest._cache.update(at=0.0, states=[])
-
-
-class _Resp:
-    def __init__(self, code, payload):
-        self.status_code, self._payload = code, payload
-
-    def json(self):
-        return self._payload
 
 
 # -- endpoint precedence ----------------------------------------------------
@@ -60,7 +53,7 @@ def test_fetch_states_caches_then_keeps_last_good(monkeypatch):
 
     def ok(url, **kw):
         calls["n"] += 1
-        return _Resp(200, good)
+        return json_response(good)
 
     monkeypatch.setattr(ha_rest.httpx, "get", ok)
     assert ha_rest.fetch_states() == good and calls["n"] == 1
@@ -76,14 +69,14 @@ def test_fetch_states_caches_then_keeps_last_good(monkeypatch):
 def test_fetch_states_ignores_non_list_body(monkeypatch):
     monkeypatch.setenv("COMPANION_HA_URL", "http://ha.local")
     monkeypatch.setenv("COMPANION_HA_TOKEN", "tok")
-    monkeypatch.setattr(ha_rest.httpx, "get", lambda url, **kw: _Resp(200, {"error": "nope"}))
+    monkeypatch.setattr(ha_rest.httpx, "get", lambda url, **kw: json_response({"error": "nope"}))
     assert ha_rest.fetch_states() == []                          # a dict body is not a state list
 
 
 def test_fetch_states_ignores_error_status(monkeypatch):
     monkeypatch.setenv("COMPANION_HA_URL", "http://ha.local")
     monkeypatch.setenv("COMPANION_HA_TOKEN", "tok")
-    monkeypatch.setattr(ha_rest.httpx, "get", lambda url, **kw: _Resp(401, [{"entity_id": "x"}]))
+    monkeypatch.setattr(ha_rest.httpx, "get", lambda url, **kw: json_response([{"entity_id": "x"}], 401))
     assert ha_rest.fetch_states() == []                          # non-200 body never trusted
 
 
