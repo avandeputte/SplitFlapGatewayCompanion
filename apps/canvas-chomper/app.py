@@ -251,7 +251,7 @@ def _draw_ghost(canvas, x, y, r, col, d):
 
 def fetch_matrix(settings, canvas):
     W, H = canvas.width, canvas.height
-    c = 6 if H >= 30 else 4                            # one-cell corridors need small cells
+    c = 5 if H >= 48 else 4                            # slim cells: 5px lanes fit the 5px sprites
     cols, rows = max(11, W // c), max(5, H // c)
     if cols * c > W or rows * c > H:                   # tiny panel: shrink to fit
         c = min(W // cols, H // rows)
