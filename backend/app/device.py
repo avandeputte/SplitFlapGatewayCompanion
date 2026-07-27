@@ -110,6 +110,7 @@ class Capabilities:
     fw_version: tuple[int, int] = (0, 0)
     canvas_readback: bool = False           # GET /api/canvas/frame — read the lit panel back
     canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honors
+    canvas_ops_bin: int = 0                 # binary ops format version (fw 3.5 "opsBin"); 0 = JSON only
     # 3.1: PUT /api/canvas/rects — a frame-push app sends only the rectangles that changed since
     # its last frame instead of the whole panel. Advertised as canvas.rects.
     canvas_rects: bool = False
@@ -250,6 +251,10 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     # ops list is what gates a specific op the app is about to send — an unknown op is skipped by
     # the firmware, but knowing up front lets an app choose the frame path instead.
     canvas_ops = tuple(str(o) for o in (canvas.get("ops") or []) if isinstance(o, str))
+    try:
+        canvas_ops_bin = int(canvas.get("opsBin") or 0)
+    except (TypeError, ValueError):
+        canvas_ops_bin = 0
     canvas_readback = bool(canvas.get("readback"))
     # `fw` is the firmware version string, e.g. "2.1.0"; take the leading major.minor. The 2.1
     # endpoint families gate on this because the capabilities document does not flag them.
@@ -287,6 +292,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_ticker=bool(canvas.get("ticker")),
         effect_params=effect_params,
         effect_defs=effect_defs,
+        canvas_ops_bin=canvas_ops_bin,
         fw_version=fw_version,
         canvas_readback=canvas_readback,
         canvas_ops=canvas_ops,
