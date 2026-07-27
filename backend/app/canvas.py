@@ -847,6 +847,13 @@ def _rgb(color):
         return [255, 255, 255]
 
 
+def _with_t(op, t):
+    """Attach fw-3.5 stroke thickness to a drawing op when the caller asks for one."""
+    if int(t) > 1:
+        op["t"] = int(t)
+    return op
+
+
 class CanvasSurface:
     """The drawing surface an app receives as its ``canvas`` helper. Draw calls
     accumulate ops; ``show()`` sends the batch and presents it. The panel is the
@@ -876,6 +883,12 @@ class CanvasSurface:
         self.can_ticker = bool(caps.canvas_ticker)
         self.effect_params = tuple(caps.effect_params)
         self.effect_defs = tuple(caps.effect_defs or ())
+        # The wall's draw-op vocabulary, verbatim (capabilities canvas.ops). has_op() is
+        # the per-op gate; fw 3.5's additions (arc/poly/clip/origin/textbox, text styles,
+        # sprite transforms, stroke thickness) all landed together, and ``textbox`` is the
+        # generation marker the text helpers key off.
+        self.op_names = tuple(caps.canvas_ops)
+        self.can_text_styles = "textbox" in self.op_names
         # 1.19 / 1.25 / 2.1. `ops` is the draw-op vocabulary the wall honors (an app can consult
         # it before reaching for a shape); `can_ops` is "any ops at all". The 2.1 endpoint families
         # aren't flagged one by one, so they all gate on the firmware version (caps.canvas_2_1).
@@ -908,24 +921,24 @@ class CanvasSurface:
         self._ops.append({"op": "vline", "x": int(x), "y": int(y), "h": int(h), "color": _rgb(color)})
         return self
 
-    def rect(self, x, y, w, h, color=(255, 255, 255), fill=False):
-        self._ops.append({"op": "rect", "x": int(x), "y": int(y), "w": int(w), "h": int(h),
-                          "color": _rgb(color), "fill": bool(fill)})
+    def rect(self, x, y, w, h, color=(255, 255, 255), fill=False, t=1):
+        self._ops.append(_with_t({"op": "rect", "x": int(x), "y": int(y), "w": int(w),
+                                  "h": int(h), "color": _rgb(color), "fill": bool(fill)}, t))
         return self
 
-    def line(self, x, y, x1, y1, color=(255, 255, 255)):
-        self._ops.append({"op": "line", "x": int(x), "y": int(y), "x1": int(x1), "y1": int(y1),
-                          "color": _rgb(color)})
+    def line(self, x, y, x1, y1, color=(255, 255, 255), t=1):
+        self._ops.append(_with_t({"op": "line", "x": int(x), "y": int(y), "x1": int(x1),
+                                  "y1": int(y1), "color": _rgb(color)}, t))
         return self
 
-    def circle(self, x, y, r, color=(255, 255, 255), fill=False):
-        self._ops.append({"op": "circle", "x": int(x), "y": int(y), "r": int(r),
-                          "color": _rgb(color), "fill": bool(fill)})
+    def circle(self, x, y, r, color=(255, 255, 255), fill=False, t=1):
+        self._ops.append(_with_t({"op": "circle", "x": int(x), "y": int(y), "r": int(r),
+                                  "color": _rgb(color), "fill": bool(fill)}, t))
         return self
 
-    def ellipse(self, x, y, rx, ry, color=(255, 255, 255), fill=False):
-        self._ops.append({"op": "ellipse", "x": int(x), "y": int(y), "rx": int(rx), "ry": int(ry),
-                          "color": _rgb(color), "fill": bool(fill)})
+    def ellipse(self, x, y, rx, ry, color=(255, 255, 255), fill=False, t=1):
+        self._ops.append(_with_t({"op": "ellipse", "x": int(x), "y": int(y), "rx": int(rx),
+                                  "ry": int(ry), "color": _rgb(color), "fill": bool(fill)}, t))
         return self
 
     def triangle(self, x, y, x1, y1, x2, y2, color=(255, 255, 255), fill=False):
@@ -945,16 +958,24 @@ class CanvasSurface:
                           "from": _rgb(frm), "to": _rgb(to), "dir": "h" if direction == "h" else "v"})
         return self
 
-    def polyline(self, points, color=(255, 255, 255)):
+    def polyline(self, points, color=(255, 255, 255), t=1):
         """Connect ``points`` — a list of (x, y) — with lines."""
-        self._ops.append({"op": "polyline", "color": _rgb(color),
-                          "points": [[int(px), int(py)] for px, py in points]})
+        self._ops.append(_with_t({"op": "polyline", "color": _rgb(color),
+                                  "points": [[int(px), int(py)] for px, py in points]}, t))
         return self
 
-    def sprite(self, i, x, y):
+    def sprite(self, i, x, y, flip=None, rot=None, scale=1):
         """Blit tile ``i`` of the uploaded atlas (see :meth:`upload_atlas`) at (x, y). Magenta is
-        transparent. Needs ``canvas.can_sprite``."""
-        self._ops.append({"op": "sprite", "i": int(i), "x": int(x), "y": int(y)})
+        transparent. Needs ``canvas.can_sprite``. Firmware 3.5 transforms: ``flip`` "h"/"v"/"hv",
+        ``rot`` 90/180/270, ``scale`` 1–4 — one sheet serves every orientation."""
+        op = {"op": "sprite", "i": int(i), "x": int(x), "y": int(y)}
+        if flip in ("h", "v", "hv"):
+            op["flip"] = flip
+        if rot in (90, 180, 270):
+            op["rot"] = int(rot)
+        if int(scale) > 1:
+            op["scale"] = int(scale)
+        self._ops.append(op)
         return self
 
     def scroll(self, dx, dy, color=(0, 0, 0)):
@@ -963,18 +984,84 @@ class CanvasSurface:
         self._ops.append({"op": "scroll", "dx": int(dx), "dy": int(dy), "color": _rgb(color)})
         return self
 
-    def text(self, x, y, s, color=(255, 255, 255), size=10, align="left", font=None):
+    def text(self, x, y, s, color=(255, 255, 255), size=10, align="left", font=None,
+             aa=False, outline=None, shadow=None):
         """Draw a text label. ``size`` selects a bundled CP1252 face (8–20); ``align`` is "left"
         (default) / "center" / "right" about (x, y); ``font`` (firmware 2.1) names an uploaded or
-        library face — "custom" or a saved name — falling back to the built-in face if unknown."""
+        library face — "custom" or a saved name — falling back to the built-in face if unknown.
+        Firmware 3.5 styles (see ``can_text_styles``): ``aa=True`` renders the smooth Orbitron
+        faces (34/24/13 px, A–Z 0–9 ``:.-+%/`` only, folded to uppercase); ``outline``/``shadow``
+        layer a 1px ring / +1,+1 drop in the given color under the bitmap-font path."""
         op = {"op": "text", "x": int(x), "y": int(y), "s": str(s),
               "color": _rgb(color), "size": int(size)}
         if align in ("center", "right"):
             op["align"] = align
         if font:
             op["font"] = str(font)
+        if aa:
+            op["aa"] = True
+        if outline is not None:
+            op["outline"] = _rgb(outline)
+        if shadow is not None:
+            op["shadow"] = _rgb(shadow)
         self._ops.append(op)
         return self
+
+    def arc(self, x, y, r, start, end, color=(255, 255, 255), t=2, fill=False):
+        """An arc/annulus segment — or a pie slice with ``fill`` — from ``start`` to ``end``
+        degrees, 0° at 12 o'clock, clockwise; ``t`` is the ring thickness. The gauge/meter
+        primitive (firmware 3.5; gate on ``has_op("arc")``)."""
+        self._ops.append({"op": "arc", "x": int(x), "y": int(y), "r": int(r),
+                          "start": int(start), "end": int(end), "color": _rgb(color),
+                          "t": int(t), "fill": bool(fill)})
+        return self
+
+    def poly(self, points, color=(255, 255, 255), fill=True, t=1):
+        """A closed polygon (≤16 vertices): even-odd filled by default, else outlined with
+        thickness ``t`` (firmware 3.5; gate on ``has_op("poly")``)."""
+        op = {"op": "poly", "points": [[int(px), int(py)] for px, py in points],
+              "color": _rgb(color), "fill": bool(fill)}
+        if not fill and int(t) != 1:
+            op["t"] = int(t)
+        self._ops.append(op)
+        return self
+
+    def clip(self, x=None, y=None, w=None, h=None):
+        """Clip all later ops in this batch to the window; call with no args to clear.
+        Batch-scoped on the wall (firmware 3.5; gate on ``has_op("clip")``)."""
+        if x is None:
+            self._ops.append({"op": "clip"})
+        else:
+            self._ops.append({"op": "clip", "x": int(x), "y": int(y), "w": int(w), "h": int(h)})
+        return self
+
+    def origin(self, x=None, y=None):
+        """Translate every later coordinate in this batch by (x, y) — placeable components;
+        no args resets. Batch-scoped on the wall (firmware 3.5; gate on ``has_op("origin")``)."""
+        if x is None:
+            self._ops.append({"op": "origin"})
+        else:
+            self._ops.append({"op": "origin", "x": int(x), "y": int(y)})
+        return self
+
+    def textbox(self, x, y, w, h, s, color=(255, 255, 255), size=10,
+                align="left", valign="top", font=None):
+        """Word-wrapped text inside a box, aligned on both axes, clipped to the box;
+        explicit newlines honored (firmware 3.5; gate on ``has_op("textbox")``)."""
+        op = {"op": "textbox", "x": int(x), "y": int(y), "w": int(w), "h": int(h),
+              "s": str(s), "color": _rgb(color), "size": int(size)}
+        if align in ("center", "right"):
+            op["align"] = align
+        if valign in ("middle", "bottom", "center"):
+            op["valign"] = valign
+        if font:
+            op["font"] = str(font)
+        self._ops.append(op)
+        return self
+
+    def has_op(self, name) -> bool:
+        """Whether this wall's ops vocabulary includes ``name`` (capabilities canvas.ops)."""
+        return str(name) in self.op_names
 
     # -- text helpers (the bundled faces are fixed-width per size) ------------
     @property
@@ -1011,6 +1098,8 @@ class CanvasSurface:
         s = self.cp(s)
         if not s:
             return self
+        if self.can_text_styles:                 # fw 3.5: the shadow is one op, not two
+            return self.text(x, y, s, color, size=size, align=align, shadow=shadow)
         self.text(x + 1, y + 1, s, shadow, size=size, align=align)
         self.text(x, y, s, color, size=size, align=align)
         return self
