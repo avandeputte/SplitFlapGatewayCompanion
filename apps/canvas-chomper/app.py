@@ -55,11 +55,16 @@ def _maze(cols, rows, rng):
             if cands:
                 dx, dy = cands[rng.randrange(len(cands))]
                 walls[y + dy // 2][x + dx // 2] = False
-    tunnel_rows = [y for y in range(1, rows - 1, 2)]
-    rng.shuffle(tunnel_rows)
-    for ty in tunnel_rows[:2 if rows >= 9 else 1]:         # the side tunnels wrap
+    h_rows = [y for y in range(1, rows - 1, 2)]            # tunnels: randomized count and
+    v_cols = [x for x in range(1, cols - 1, 2)]            # place, wrapping to the far edge
+    rng.shuffle(h_rows)
+    rng.shuffle(v_cols)
+    for ty in h_rows[:rng.randint(1, 2 if rows >= 9 else 1)]:
         walls[ty][0] = False
         walls[ty][cols - 1] = False
+    for tx in v_cols[:1]:                                  # and one vertical, arcade-plus
+        walls[0][tx] = False
+        walls[rows - 1][tx] = False
     cells = [(x, r) for r in range(rows) for x in range(cols) if not walls[r][x]]
     return walls, cells
 
@@ -91,10 +96,10 @@ def _wall_rects(walls):
 
 
 def _neighbors(walls, x, y):
-    cols = len(walls[0])
+    cols, rows = len(walls[0]), len(walls)
     for d, (dx, dy) in _DIRS.items():
-        nx, ny = (x + dx) % cols, y + dy      # x wraps: the side tunnels
-        if 0 <= ny < len(walls) and not walls[ny][nx]:
+        nx, ny = (x + dx) % cols, (y + dy) % rows      # both axes wrap: the tunnels
+        if not walls[ny][nx]:
             yield d, nx, ny
 
 
@@ -109,8 +114,8 @@ def _bfs_dir(walls, start, targets, prefer=None):
     frontier = []
     for d in order:
         dx, dy = _DIRS[d]
-        nx, ny = (start[0] + dx) % len(walls[0]), start[1] + dy
-        if 0 <= ny < len(walls) and not walls[ny][nx]:
+        nx, ny = (start[0] + dx) % len(walls[0]), (start[1] + dy) % len(walls)
+        if not walls[ny][nx]:
             frontier.append(((nx, ny), d))
             seen.add((nx, ny))
     while frontier:
@@ -127,8 +132,7 @@ def _bfs_dir(walls, start, targets, prefer=None):
 
 
 def _reset_positions(st):
-    rows = st['rows']
-    st['pac'] = {'cell': (1, rows - 2), 'dir': 'r', 'phase': 0}
+    st['pac'] = {'cell': st['pac_start'], 'dir': 'r', 'phase': 0}
     st['ghost_list'] = [{'cell': st['spawn'], 'dir': 'l', 'col': _GHOSTS[i % len(_GHOSTS)]}
                        for i in range(st['n_ghosts'])]
     st['fright'] = 0
@@ -140,8 +144,12 @@ def _new_level(st):
     st['wall_rects'] = _wall_rects(st['walls'])
     cx0, cy0 = st['cols'] / 2, st['rows'] / 2
     st['spawn'] = min(cells, key=lambda c: abs(c[0] - cx0) + abs(c[1] - cy0))
+    # The chomper opens at bottom-center, arcade style — and a corridor away from the
+    # power-pellet corners, so a round doesn't start with every ghost already blue.
+    st['pac_start'] = min(cells, key=lambda c: abs(c[0] - cx0) + abs(c[1] - (st['rows'] - 2)))
     top_r, bot_r = 1, st['rows'] - 2
-    st['dots'] = {cc for cc in cells if 0 < cc[0] < st['cols'] - 1}   # tunnels stay bare
+    st['dots'] = {cc for cc in cells if 0 < cc[0] < st['cols'] - 1
+                  and 0 < cc[1] < st['rows'] - 1}                     # tunnels stay bare
     st['power'] = {(1, top_r), (st['cols'] - 2, top_r), (1, bot_r), (st['cols'] - 2, bot_r)}
     st['dots'] -= st['power']
     _reset_positions(st)
@@ -173,7 +181,7 @@ def _step(st):
     old_pac = pac['cell']
     if d:
         dx, dy = _DIRS[d]
-        pac['cell'] = ((px + dx) % st['cols'], py + dy)
+        pac['cell'] = ((px + dx) % st['cols'], (py + dy) % st['rows'])
         pac['dir'] = d
     pac['phase'] = (pac['phase'] + 1) % 4
 
@@ -251,12 +259,14 @@ def _draw_ghost(canvas, x, y, r, col, d):
 
 def fetch_matrix(settings, canvas):
     W, H = canvas.width, canvas.height
-    c = 5 if H >= 48 else 4                            # slim cells: 5px lanes fit the 5px sprites
-    cols, rows = max(11, W // c), max(5, H // c)
-    if cols * c > W or rows * c > H:                   # tiny panel: shrink to fit
-        c = min(W // cols, H // rows)
-    cols -= 1 - (cols % 2)                             # odd dims: the outer wall stays
-    rows -= 1 - (rows % 2)                             # one cell thick on every side
+    # The grid is stretched edge-to-edge: as many ~4.5px cells as fit (odd counts, so
+    # the outer wall stays one cell thick), each row/column mapped to pixel edges — no
+    # dead margin anywhere, and a 64px panel plays six corridor rows.
+    cols, rows = max(11, int(W / 4.5)), max(5, int(H / 4.5))
+    cols -= 1 - (cols % 2)
+    rows -= 1 - (rows % 2)
+    xe = [round(i * W / cols) for i in range(cols + 1)]
+    ye = [round(r * H / rows) for r in range(rows + 1)]
     try:
         n_ghosts = max(1, min(4, int(float(settings.get('ghosts', 4) or 4))))
     except (TypeError, ValueError):
@@ -264,24 +274,23 @@ def fetch_matrix(settings, canvas):
     st = _state(cols, rows, n_ghosts)
     _step(st)
 
-    ox, oy = (W - cols * c) // 2, (H - rows * c) // 2
-
     def cx(cell):
-        return ox + cell[0] * c + c // 2
+        return (xe[cell[0]] + xe[cell[0] + 1]) // 2
 
     def cy(cell):
-        return oy + cell[1] * c + c // 2
+        return (ye[cell[1]] + ye[cell[1] + 1]) // 2
 
     canvas.clear((0, 0, 0))
     for x0, r0, w0, h0 in st['wall_rects']:            # the maze in a handful of rects
-        canvas.rect(ox + x0 * c, oy + r0 * c, w0 * c, h0 * c, _WALL, fill=True)
+        canvas.rect(xe[x0], ye[r0], xe[x0 + w0] - xe[x0], ye[r0 + h0] - ye[r0],
+                    _WALL, fill=True)
     for cell in st['dots']:
         canvas.pixel(cx(cell), cy(cell), _DOT)
     if (st['step'] // 2) % 2 == 0:                     # power pellets blink
         for cell in st['power']:
-            canvas.circle(cx(cell), cy(cell), max(1, c // 4), _DOT, fill=True)
+            canvas.circle(cx(cell), cy(cell), 1, _DOT, fill=True)
 
-    pr = max(2, c // 2 - 1)
+    pr = 2                                             # 5px sprites, arcade-oversized for the lanes
     for g in st['ghost_list']:
         col = _FRIGHT if st['fright'] > 0 else g['col']
         _draw_ghost(canvas, cx(g['cell']), cy(g['cell']), pr, col, g['dir'])
@@ -289,9 +298,9 @@ def fetch_matrix(settings, canvas):
     _draw_pac(canvas, cx(pac['cell']), cy(pac['cell']), pr, pac['dir'], pac['phase'])
 
     if W >= 128:                                       # score rides the top wall band
-        canvas.shadow_text(ox + 2, max(0, oy + c - 9), str(st['score']), (255, 255, 255), 8)
+        canvas.shadow_text(2, 0, str(st['score']), (255, 255, 255), 8)
         for i in range(st['lives']):
-            canvas.circle(ox + cols * c - 5 - i * 7, oy + c // 2, 2, _PAC, fill=True)
+            canvas.circle(W - 5 - i * 7, max(2, ye[1] // 2), 2, _PAC, fill=True)
 
     canvas.show()
     try:
