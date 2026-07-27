@@ -120,19 +120,6 @@ def _dim(color, k=0.24):
     return tuple(max(0, min(255, int(round(v * k)))) for v in color)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px — smaller renders wrong-reading glyphs)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _dot_geometry(W, H, n, label_h):
     """Dot diameter + gaps so 4 rows fit the height and the n columns (in pairs,
     with wider group gaps) fit the width. Returns (d, pair_gap, group_gap, vgap)."""
@@ -195,7 +182,7 @@ def fetch_matrix(settings, canvas, caps=None):
         if seconds:
             units.append(f'{now.second:02d}')
         text = ':'.join(units)
-        f = _cv_fit(canvas, text, W - 6, label_h - 2)
+        f = canvas.fit_font(text, W - 6, label_h - 2)
         b = f.getbbox(text)
         ly = H - (b[3] - b[1]) - b[1]           # digits sit on the bottom row
         draw.text(((W - f.getlength(text)) / 2.0, ly), text, font=f, fill=(238, 238, 244))

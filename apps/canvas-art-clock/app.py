@@ -39,30 +39,26 @@ _RAMP = [(0, (70, 120, 235)), (4, (80, 90, 150)), (6, (255, 165, 75)),
 _GLOW = {'glow': 0.33, 'neon': 0.6, 'aurora': 0.28, 'minimal': 0.0}
 
 
-def _lerp(a, b, t):
-    return tuple(int(round(a[k] + (b[k] - a[k]) * t)) for k in range(3))
-
-
-def _ramp(hf):
+def _cv_ramp(canvas, hf):
     for i in range(len(_RAMP) - 1):
         h0, c0 = _RAMP[i]
         h1, c1 = _RAMP[i + 1]
         if h0 <= hf <= h1:
-            return _lerp(c0, c1, (hf - h0) / ((h1 - h0) or 1))
+            return canvas.mix(c0, c1, (hf - h0) / ((h1 - h0) or 1))
     return (255, 255, 255)
 
 
-def _resolve(palette, hourf):
+def _cv_resolve(canvas, palette, hourf):
     """(A_tone, B_tone, colon_rgb) for the chosen palette."""
     if palette == 'daylight':
-        c = _ramp(hourf)
-        t = (c, _lerp(c, (255, 255, 255), 0.55), tuple(int(v * 0.6) for v in c))
+        c = _cv_ramp(canvas, hourf)
+        t = (c, canvas.mix(c, (255, 255, 255), 0.55), tuple(int(v * 0.6) for v in c))
         return t, t, (255, 255, 255)
     p = _PAL.get(palette, _PAL['amber'])
     return p['A'], p['B'], p['colon']
 
 
-def _fit_font(canvas, W, H):
+def _cv_fit_clock(canvas, W, H):
     """Largest bundled font whose 'HH:MM' fits the panel, plus cap metrics."""
     cap = max(6, int(round(H * 0.80)))
     size = max(8, int(round(cap / 0.75)))
@@ -76,7 +72,7 @@ def _fit_font(canvas, W, H):
     return font, t, b - t                    # font, ink_top, cap_height
 
 
-def _fill(Image, treatment, tone, W, H, y0, y1, frame):
+def _cv_fill(canvas, Image, treatment, tone, W, H, y0, y1, frame):
     """A panel-sized RGB image to show through a glyph mask, per treatment."""
     on, light, _ = tone
     if treatment == 'minimal':
@@ -90,14 +86,14 @@ def _fill(Image, treatment, tone, W, H, y0, y1, frame):
         phase = (frame * 0.06) % 1.0
         for x in range(W):
             k = 0.5 + 0.5 * math.sin((x / max(1, W - 1) * 2.2 + phase * 2) * math.pi)
-            px[x, 0] = _lerp(on, light, k)
+            px[x, 0] = canvas.mix(on, light, k)
         return row.resize((W, H))
     # glow: vertical light -> on across the cap band
     col = Image.new('RGB', (1, H))
     px = col.load()
     for y in range(H):
         t = min(1.0, max(0.0, (y - y0) / max(1, (y1 - y0))))
-        px[0, y] = _lerp(light, on, t)
+        px[0, y] = canvas.mix(light, on, t)
     return col.resize((W, H))
 
 
@@ -131,8 +127,8 @@ def fetch_matrix(settings, canvas):
     hh, mm = f'{hour:02d}', f'{now.minute:02d}'
 
     W, H = canvas.width, canvas.height
-    A, B, colon_c = _resolve(palette, now.hour + now.minute / 60.0)
-    font, ink_top, cap = _fit_font(canvas, W, H)
+    A, B, colon_c = _cv_resolve(canvas, palette, now.hour + now.minute / 60.0)
+    font, ink_top, cap = _cv_fit_clock(canvas, W, H)
 
     # Horizontal layout via the font's own advances, so HH:MM reads naturally.
     total = font.getlength(f'{hh}:{mm}')
@@ -162,8 +158,8 @@ def fetch_matrix(settings, canvas):
             gl = m.filter(blur).point(lambda v: int(v * amt))
             base = Image.composite(Image.new('RGB', (W, H), tone[2]), base, gl)
 
-    base = Image.composite(_fill(Image, treatment, A, W, H, cap_y0, cap_y1, frame), base, m_hh)
-    base = Image.composite(_fill(Image, treatment, B, W, H, cap_y0, cap_y1, frame), base, m_mm)
+    base = Image.composite(_cv_fill(canvas, Image, treatment, A, W, H, cap_y0, cap_y1, frame), base, m_hh)
+    base = Image.composite(_cv_fill(canvas, Image, treatment, B, W, H, cap_y0, cap_y1, frame), base, m_mm)
     base = Image.composite(Image.new('RGB', (W, H), colon_c), base, m_c)
 
     if show_seconds:

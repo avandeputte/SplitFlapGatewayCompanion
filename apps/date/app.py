@@ -60,15 +60,7 @@ _WEEKDAY = [
 ]
 
 
-def _lerp(a, b, t):
-    return tuple(int(round(a[k] + (b[k] - a[k]) * t)) for k in range(3))
-
-
-def _scale(c, k):
-    return tuple(max(0, min(255, int(c[i] * k))) for i in range(3))
-
-
-def _fit(canvas, text, max_cap, max_w):
+def _cv_fit_ink(canvas, text, max_cap, max_w):
     """Largest bundled font whose ``text`` fits both a cap height and a width.
     Returns the font plus the text's ink metrics so it can be placed precisely."""
     max_cap, max_w = max(8.0, max_cap), max(8.0, max_w)
@@ -86,14 +78,14 @@ def _fit(canvas, text, max_cap, max_w):
     return {"font": font, "text": text, "w": r - l, "h": b - t, "l": l, "t": t}
 
 
-def _vfill(Image, W, H, top, bot, y0, y1):
+def _cv_vfill(canvas, Image, W, H, top, bot, y0, y1):
     """A panel-sized image whose vertical gradient runs ``top``→``bot`` across the
     band [y0, y1] — shown through a glyph mask so the big numeral is filled by it."""
     col = Image.new("RGB", (1, H))
     px = col.load()
     span = max(1.0, y1 - y0)
     for yy in range(H):
-        px[0, yy] = _lerp(top, bot, min(1.0, max(0.0, (yy - y0) / span)))
+        px[0, yy] = canvas.mix(top, bot, min(1.0, max(0.0, (yy - y0) / span)))
     return col.resize((W, H))
 
 
@@ -123,7 +115,7 @@ def fetch_matrix(settings, canvas, i18n=None):
     # -- the big day-of-month numeral on the left ---------------------------
     day_str = str(now.day)
     day_cap = content_h * (0.94 if len(day_str) == 1 else 0.86)
-    day = _fit(canvas, day_str, day_cap, W * left_frac)
+    day = _cv_fit_ink(canvas, day_str, day_cap, W * left_frac)
     day_center_y = content_top + content_h / 2.0
     day_top = day_center_y - day["h"] / 2.0
 
@@ -140,7 +132,7 @@ def fetch_matrix(settings, canvas, i18n=None):
 
     def choose(full, abbr, cap):
         """Full name when it fits the column at its target size, else the abbrev."""
-        f = _fit(canvas, full, cap, col_w)
+        f = _cv_fit_ink(canvas, full, cap, col_w)
         return full if f["h"] >= cap - 1 else abbr
 
     if i18n is not None:                 # localized names, like the flap view
@@ -154,7 +146,7 @@ def fetch_matrix(settings, canvas, i18n=None):
     yr_text = str(now.year)
 
     def stack(scale=1.0):
-        return [_fit(canvas, t, c * scale, col_w) for t, c in
+        return [_cv_fit_ink(canvas, t, c * scale, col_w) for t, c in
                 ((wk_text, wk_cap), (mo_text, mo_cap), (yr_text, yr_cap))]
 
     lines = stack()
@@ -171,8 +163,9 @@ def fetch_matrix(settings, canvas, i18n=None):
     dm.fontmode = "1"                           # crisp 1-bit glyph mask — no AA edges
     dm.text((pad_x - day["l"], day_top - day["t"]), day_str,
             fill=255, font=day["font"], anchor="la")
-    fill = _vfill(Image, W, H, (255, 255, 255), _lerp((255, 255, 255), accent, 0.16),
-                  day_top, day_top + day["h"])
+    fill = _cv_vfill(canvas, Image, W, H, (255, 255, 255),
+                     canvas.mix((255, 255, 255), accent, 0.16),
+                     day_top, day_top + day["h"])
     base = Image.composite(fill, base, m)
 
     draw = ImageDraw.Draw(base)
@@ -193,7 +186,7 @@ def fetch_matrix(settings, canvas, i18n=None):
                  f"{(366 if leap2 else 365) - yday} LEFT"]
         info_w = max(10, W - info_x - pad_x)
         icap = content_h * 0.26
-        ifs = [_fit(canvas, s, icap, info_w) for s in facts]
+        ifs = [_cv_fit_ink(canvas, s, icap, info_w) for s in facts]
         itot = sum(f["h"] for f in ifs) + 2 * gap_v
         iy = content_top + (content_h - itot) / 2.0
         for f, col in zip(ifs, ((214, 224, 240), (192, 202, 224), (168, 180, 206))):
@@ -209,7 +202,7 @@ def fetch_matrix(settings, canvas, i18n=None):
     frac = min(1.0, max(0.0, frac))
     bar_y = H - bar_h
     fill_w = int(round(frac * W))
-    draw.rectangle([0, bar_y, W - 1, H - 1], fill=_scale(accent, 0.18))
+    draw.rectangle([0, bar_y, W - 1, H - 1], fill=canvas.dim(accent, 0.18))
     if fill_w > 0:
         draw.rectangle([0, bar_y, fill_w - 1, H - 1], fill=accent)
     if 0 < fill_w < W:

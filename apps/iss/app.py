@@ -156,7 +156,6 @@ def trigger(settings, conditions, get_location=None):
 # =============================================================================
 
 _WHITE = (240, 240, 244)
-_GRAY = (150, 150, 158)
 _CYAN = (90, 200, 250)                      # the coordinates
 _AMBER = (255, 200, 60)                     # the station marker
 _GRID = (38, 48, 66)                        # the map graticule
@@ -165,44 +164,11 @@ _TRACK = (0, 110, 150)                      # the ground-track sinusoid
 _INCL = 51.6                                # ISS orbital inclination, degrees
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px — smaller renders wrong-reading glyphs)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _cv_shadow(draw, x, y, text, font, fill):
     """Text with a 1px dark outline on all sides, so it stays legible over the map."""
     for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)):
         draw.text((x + dx, y + dy), text, font=font, fill=(0, 0, 0), anchor='la')
     draw.text((x, y), text, font=font, fill=fill, anchor='la')
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (API unreachable)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_WHITE)
-    if line2:
-        y += h1 + gap
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_GRAY)
-    return img
 
 
 def _cv_map(draw, x0, y0, mw, mh, lat, lon):
@@ -254,7 +220,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         lat = float(pos['iss_position']['latitude'])
         lon = float(pos['iss_position']['longitude'])
     except Exception:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'ISS TRACKER', 'API FAIL'))
+        canvas.frame(canvas.message('ISS TRACKER', 'API FAIL', color=_WHITE))
         return 60.0
 
     crew = ''
@@ -280,17 +246,17 @@ def fetch_matrix(settings, canvas, i18n=None):
         tx = mw + 5
         tw = W - 3 - tx
         title = 'ISS'
-        tf = _cv_fit(canvas, title, tw, max(10, int(H * 0.3)))
+        tf = canvas.fit_font(title, tw, max(10, int(H * 0.3)))
         tb = tf.getbbox(title)
         draw.text((tx, 1 - tb[1]), title, font=tf, fill=_WHITE)
         y = 1 + (tb[3] - tb[1]) + 4
-        cf = _cv_fit(canvas, _coord(lat, "NS", 1), tw, max(7, int(H * 0.17)))
+        cf = canvas.fit_font(_coord(lat, "NS", 1), tw, max(7, int(H * 0.17)))
         for ln in (_coord(lat, "NS", 1), _coord(lon, "EW", 1)):
             b = cf.getbbox(ln)
             draw.text((tx, y - b[1]), ln, font=cf, fill=_CYAN)
             y += (b[3] - b[1]) + 3
         if crew:
-            bf = _cv_fit(canvas, crew, tw, max(7, int(H * 0.15)))
+            bf = canvas.fit_font(crew, tw, max(7, int(H * 0.15)))
             bb = bf.getbbox(crew)
             if (bb[3] - bb[1]) >= 6:
                 draw.text((tx, H - 1 - (bb[3] - bb[1]) - bb[1]), crew, font=bf, fill=_AMBER)
@@ -301,7 +267,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         _cv_map(draw, 0, 0, W, H, lat, lon)
         c0 = f'{_coord(lat, "NS", 0)} {_coord(lon, "EW", 0)}'
         for line in (f'ISS {coords}', f'ISS {c0}', c0):
-            lf = _cv_fit(canvas, line, W - 6, max(7, int(H * 0.24)))
+            lf = canvas.fit_font(line, W - 6, max(7, int(H * 0.24)))
             lb = lf.getbbox(line)
             if (lb[3] - lb[1]) >= 6:
                 break

@@ -117,48 +117,6 @@ def _cv_zone_color(n):
     return _CV_ZONES[-1][1]
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px — smaller renders wrong-reading glyphs)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_ink(font, text):
-    """Ink height of ``text`` in ``font``."""
-    b = font.getbbox(text or '0')
-    return b[3] - b[1]
-
-
-def _cv_text(draw, x, y, text, font, fill):
-    """Draw with the ink's TOP at ``y`` (bbox-corrected), left edge at ``x``."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill, anchor='la')
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message on black (offline) — never a crash, never blank."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    h1 = _cv_ink(f1, line1)
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = _cv_ink(f2, line2) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    _cv_text(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_TEXT)
-    if line2:
-        _cv_text(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + gap, line2, f2, _CV_DIM)
-    return img
-
-
 def _cv_gauge(canvas, ImageDraw, value, label):
     """The index as a red->green gauge: the zone scale runs dim across the width,
     lit bright up to the value, a white marker on the spot; the number sits above
@@ -173,9 +131,9 @@ def _cv_gauge(canvas, ImageDraw, value, label):
     top = 1
     if H >= 48:
         title = 'BTC FEAR & GREED'
-        tf = _cv_fit(canvas, title, W - 6, 8)
-        _cv_text(draw, (W - tf.getlength(title)) / 2.0, 1, title, tf, _CV_DIM)
-        top = 1 + _cv_ink(tf, title) + 2
+        tf = canvas.fit_font(title, W - 6, 8)
+        canvas.text_top(draw, (W - tf.getlength(title)) / 2.0, 1, title, tf, _CV_DIM)
+        top = 1 + canvas.ink(tf, title) + 2
 
     bar_h = max(4, H // 8)
     by1 = H - 1                                    # the gauge sits on the bottom row
@@ -193,18 +151,18 @@ def _cv_gauge(canvas, ImageDraw, value, label):
     vs = str(value)
     lab = label.upper()
     lab_lines = lab.split(None, 1) if (W < 110 and ' ' in lab) else [lab]
-    vf = _cv_fit(canvas, vs, int(W * 0.40), mid_h)
-    vw, vh = vf.getlength(vs), _cv_ink(vf, vs)
+    vf = canvas.fit_font(vs, int(W * 0.40), mid_h)
+    vw, vh = vf.getlength(vs), canvas.ink(vf, vs)
     gap = 5
     lw_max = W - 8 - vw - gap
-    lf = min((_cv_fit(canvas, ln, lw_max, max(7, int(mid_h * (0.42 if len(lab_lines) > 1 else 0.55))))
+    lf = min((canvas.fit_font(ln, lw_max, max(7, int(mid_h * (0.42 if len(lab_lines) > 1 else 0.55))))
               for ln in lab_lines), key=lambda f: f.size)
     if lf.size < 7 and len(lab.split()) > 1:
         # Too tight even wrapped: keep the classification's noun ("FEAR") legible —
         # the number and the color already carry the "extreme".
         lab_lines = [lab.split()[-1]]
-        lf = _cv_fit(canvas, lab_lines[0], lw_max, max(7, int(mid_h * 0.55)))
-    lh = _cv_ink(lf, 'AG')
+        lf = canvas.fit_font(lab_lines[0], lw_max, max(7, int(mid_h * 0.55)))
+    lh = canvas.ink(lf, 'AG')
     lgap = max(1, lh // 5)
     lblock = len(lab_lines) * lh + (len(lab_lines) - 1) * lgap
     lw = max(lf.getlength(ln) for ln in lab_lines)
@@ -212,10 +170,10 @@ def _cv_gauge(canvas, ImageDraw, value, label):
     # With a title strip the block centers between it and the gauge; without one
     # (short panels) the number hangs from the top edge so no rows go dark.
     vy0 = top + (mid_h - vh) / 2.0 if top > 1 else float(top)
-    _cv_text(draw, x, vy0, vs, vf, col)
+    canvas.text_top(draw, x, vy0, vs, vf, col)
     ly = vy0 + (vh - lblock) / 2.0
     for ln in lab_lines:
-        _cv_text(draw, x + vw + gap, ly, ln, lf, _CV_TEXT)
+        canvas.text_top(draw, x + vw + gap, ly, ln, lf, _CV_TEXT)
         ly += lh + lgap
     return img
 
@@ -237,7 +195,7 @@ def fetch_matrix(settings, canvas, i18n=None):
     except Exception:
         pass
     if st['last'] is None:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'FEAR & GREED', t('Offline').upper()))
+        canvas.frame(canvas.message('FEAR & GREED', t('Offline').upper()))
         return 120.0
     value, classification = st['last']
     canvas.frame(_cv_gauge(canvas, ImageDraw, value, t(classification)))

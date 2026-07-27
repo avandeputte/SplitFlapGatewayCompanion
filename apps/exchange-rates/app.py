@@ -113,49 +113,6 @@ _CV_DIM = (150, 150, 158)                  # secondary text
 _CV_CODE = (92, 205, 170)                  # currency-code teal
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_ink(font, text):
-    """Ink height of ``text`` in ``font``."""
-    b = font.getbbox(text or '0')
-    return b[3] - b[1]
-
-
-def _cv_text(draw, x, y, text, font, fill):
-    """Draw with the ink's TOP at ``y`` (bbox-corrected), left edge at ``x``."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill, anchor='la')
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message on black (offline / bad codes) — never a crash,
-    never a blank panel."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    h1 = _cv_ink(f1, line1)
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = _cv_ink(f2, line2) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    _cv_text(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_TEXT)
-    if line2:
-        _cv_text(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + gap, line2, f2, _CV_DIM)
-    return img
-
-
 def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     """The same rate table as the flap pages — '1 BASE =' as a quiet strip, then a
     row per target: code in teal, rate right-aligned in white, decimals in a
@@ -183,7 +140,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     rates = st['rates'] or {}
     pairs = [(c, rates[c]) for c in targets if c in rates]
     if not pairs:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'FX RATES', 'OFFLINE'))
+        canvas.frame(canvas.message('FX RATES', 'OFFLINE'))
         return 300.0
 
     W, H = canvas.width, canvas.height
@@ -194,8 +151,8 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     # '1 EUR =' strip: the base in teal so the two currency roles read apart.
     # One shared baseline for the three parts ('=' has no ascender of its own).
     head = f'1 {base} ='
-    hf = _cv_fit(canvas, head, W - 6, max(7, min(9, int(H * 0.22))))
-    hh = _cv_ink(hf, head)
+    hf = canvas.fit_font(head, W - 6, max(7, min(9, int(H * 0.22))))
+    hh = canvas.ink(hf, head)
     ym = 1                                               # the strip hugs the top edge
     x, y0 = 3, ym - hf.getbbox(head)[1]
     for part, col in (('1 ', _CV_DIM), (base, _CV_CODE), (' =', _CV_DIM)):
@@ -212,11 +169,11 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
 
     rh = area // len(page)
     fh = max(7, min(rh - 2, int(rh * 0.80)))
-    cf = min((_cv_fit(canvas, c, int(W * 0.34), fh) for c, _v in page),
+    cf = min((canvas.fit_font(c, int(W * 0.34), fh) for c, _v in page),
              key=lambda f: f.size)
     code_w = max(cf.getlength(c) for c, _v in page)
     texts = [_fmt_rate(v, i18n) for _c, v in page]
-    pf = min((_cv_fit(canvas, s, W - 6 - code_w - 5, fh) for s in texts),
+    pf = min((canvas.fit_font(s, W - 6 - code_w - 5, fh) for s in texts),
              key=lambda f: f.size)
 
     # Uniform rows (the stocks pattern): every row gets the SAME ink-box height
@@ -224,14 +181,14 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     # spare row under the table reads better than one lopsided gap. A lone row
     # (the rotation's last page) takes the TOP slot, not the floor.
     n = len(page)
-    row_ink = max(max(_cv_ink(cf, code), _cv_ink(pf, s))
+    row_ink = max(max(canvas.ink(cf, code), canvas.ink(pf, s))
                   for (code, _v), s in zip(page, texts))
     gap = max(1, (H - 1 - top - n * row_ink) // (n - 1)) if n > 1 else 0
     for i, ((code, _v), rate_s) in enumerate(zip(page, texts)):
         ry = top + i * (row_ink + gap)
-        _cv_text(draw, 3, ry + (row_ink - _cv_ink(cf, code)) // 2, code, cf, _CV_CODE)
-        _cv_text(draw, W - 3 - pf.getlength(rate_s),
-                 ry + (row_ink - _cv_ink(pf, rate_s)) // 2, rate_s, pf, _CV_TEXT)
+        canvas.text_top(draw, 3, ry + (row_ink - canvas.ink(cf, code)) // 2, code, cf, _CV_CODE)
+        canvas.text_top(draw, W - 3 - pf.getlength(rate_s),
+                        ry + (row_ink - canvas.ink(pf, rate_s)) // 2, rate_s, pf, _CV_TEXT)
 
     canvas.frame(img)
     if len(pages) > 1:

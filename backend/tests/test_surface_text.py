@@ -82,3 +82,14 @@ def test_mix_and_dim():
     cv = _cv()
     assert cv.mix((0, 0, 0), (255, 255, 255), 0.5) == (127, 127, 127)
     assert cv.dim((100, 200, 50), 0.5) == (50, 100, 25)
+
+
+def test_wrap_fit_shrinks_to_keep_words_whole():
+    """A long word must shrink the font, never survive as a hyphen-split at a large
+    size whose max_lines cut then drops the following words (the birdnet
+    'Black-cap-/ped…' regression)."""
+    cv = _cv(128, 64)
+    font, lines = cv.wrap_fit("Black-capped Chickadee", 120, 40, max_lines=2)
+    joined = " ".join(lines)
+    assert "Chickadee" in joined and not joined.endswith("…")
+    assert font.size >= 8

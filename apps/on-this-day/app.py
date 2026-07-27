@@ -117,19 +117,6 @@ _CV_TXT = (238, 240, 244)
 _CV_DIM = (140, 146, 156)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px — smaller renders wrong-reading glyphs)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _cv_wrap(font, text, max_w, max_lines):
     """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines."""
     words, lines, cur = str(text or '').split(), [], ''
@@ -172,11 +159,6 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines, min_size=8):
     lines = _cv_wrap(font, text, max_w, max_lines)
     b = font.getbbox('Ag')
     return font, lines, b[3] - b[1], 1
-
-
-def _cv_text(draw, x, y, text, font, fill):
-    """Baseline-corrected text draw (y is the ink top, whatever the glyph bbox says)."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill)
 
 
 def fetch_matrix(settings, canvas):
@@ -239,24 +221,24 @@ def fetch_matrix(settings, canvas):
             ys = [round((H - own) - pitch * (k - 1 - i)) for i in range(k)]
         for i, (y, ln) in enumerate(zip(ys, lines)):
             if i == 0 and ln.startswith(year):
-                _cv_text(draw, pad, y, year, f, _CV_CHIP)
-                _cv_text(draw, pad + f.getlength(year + ' '), y, ln[len(year):].strip(), f, _CV_TXT)
+                canvas.text_top(draw, pad, y, year, f, _CV_CHIP)
+                canvas.text_top(draw, pad + f.getlength(year + ' '), y, ln[len(year):].strip(), f, _CV_TXT)
             else:
-                _cv_text(draw, pad, y, ln, f, _CV_TXT)
+                canvas.text_top(draw, pad, y, ln, f, _CV_TXT)
         canvas.frame(img)
         return dwell
 
     # The gold year chip flush with the panel's top edge, today's date opposite.
     ch_h = max(11, int(H * 0.24))
-    yf = _cv_fit(canvas, year, int(W * 0.4), ch_h - 4)
+    yf = canvas.fit_font(year, int(W * 0.4), ch_h - 4)
     yw = yf.getlength(year)
     yh = yf.getbbox(year)[3] - yf.getbbox(year)[1]
     draw.rounded_rectangle([pad, 0, pad + yw + 8, ch_h - 1], radius=3, fill=_CV_CHIP)
-    _cv_text(draw, pad + 5, (ch_h - yh) // 2, year, yf, _CV_CHIP_TXT)
-    df = _cv_fit(canvas, today, int(W * 0.35), max(6, int(ch_h * 0.55)))
+    canvas.text_top(draw, pad + 5, (ch_h - yh) // 2, year, yf, _CV_CHIP_TXT)
+    df = canvas.fit_font(today, int(W * 0.35), max(6, int(ch_h * 0.55)))
     if pad + yw + 14 + df.getlength(today) <= W - pad:
         dh = df.getbbox(today)[3] - df.getbbox(today)[1]
-        _cv_text(draw, W - pad - df.getlength(today), (ch_h - dh) // 2, today, df, _CV_DIM)
+        canvas.text_top(draw, W - pad - df.getlength(today), (ch_h - dh) // 2, today, df, _CV_DIM)
 
     # The event, wrapped as large as the room allows (ellipsis when it can't all
     # fit), anchored to the panel floor with the leading stretched up to the chip.
@@ -275,7 +257,7 @@ def fetch_matrix(settings, canvas):
         step += max(0, min(lh, (H - own - body_top) // (len(lines) - 1) - step))
     y = H - own - step * (len(lines) - 1)
     for ln in lines:
-        _cv_text(draw, pad, y, ln, f, _CV_TXT)
+        canvas.text_top(draw, pad, y, ln, f, _CV_TXT)
         y += step
     canvas.frame(img)
     return dwell

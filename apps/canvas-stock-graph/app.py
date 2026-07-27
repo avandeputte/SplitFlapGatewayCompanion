@@ -40,11 +40,7 @@ _INK = (238, 242, 250)    # near-white — the big value
 _MUTE = (150, 160, 182)   # label / range tag
 
 
-def _scale(c, k):
-    return tuple(max(0, min(255, int(c[i] * k))) for i in range(3))
-
-
-def _label(sym, settings, single):
+def _cv_label(sym, settings, single):
     """The name shown on the card: the manifest override (only meaningful for a single symbol),
     else a clean index name, else the bare ticker."""
     if single:
@@ -54,7 +50,7 @@ def _label(sym, settings, single):
     return _INDEX.get(sym.upper()) or sym.upper().lstrip('^')
 
 
-def _tz_of(info):
+def _cv_tz_of(info):
     """The exchange timezone from a yfinance fast_info, if it exposes one (for market hours)."""
     for key in ('timezone', 'exchangeTimezoneName'):
         try:
@@ -81,9 +77,11 @@ def _exchange_open(tz_name, now_utc):
     return 4 * 60 <= mins < 20 * 60
 
 
-def _fit(canvas, text, max_cap, max_w):
+def _cv_fit_ink(canvas, text, max_cap, max_w):
     """Largest bundled font whose ``text`` fits both a cap height and a width. Returns the font
-    plus the text's ink metrics so it can be placed precisely (as the Date Card does)."""
+    plus the text's ink metrics so it can be placed precisely (as the Date Card does).
+    NOT the toolkit's fit_font: this fits the INK to a cap height seeded well above
+    max_h+2, so the type runs bigger — it stays local."""
     max_cap, max_w = max(6.0, max_cap), max(6.0, max_w)
     n = max(1, len(text))
     est = min(max_cap / 0.66, max_w / (0.60 * n))
@@ -99,30 +97,32 @@ def _fit(canvas, text, max_cap, max_w):
     return {"font": font, "w": r - l, "h": b - t, "l": l, "t": t}
 
 
-def _shadow(draw, x, y, text, m, fill, shadow=(0, 0, 0)):
+def _cv_shadow(draw, x, y, text, m, fill, shadow=(0, 0, 0)):
     """Draw ``text`` at (x, y) with a cheap dark outline, so it stays legible over the graph.
-    ``m`` is the metrics dict from ``_fit`` (anchor is top-left, corrected by its ink offset)."""
+    ``m`` is the metrics dict from ``_cv_fit_ink`` (anchor is top-left, corrected by its ink offset)."""
     ox, oy = x - m["l"], y - m["t"]
     for dx, dy in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
         draw.text((ox + dx, oy + dy), text, fill=shadow, font=m["font"], anchor="la")
     draw.text((ox, oy), text, fill=fill, font=m["font"], anchor="la")
 
 
-def _message(canvas, ImageDraw, title, sub):
+def _cv_notice(canvas, ImageDraw, title, sub):
+    """This card's two-line notice. NOT the toolkit's message(): it keeps the app's
+    own muted palette, ink-fit type (bigger than fit_font's) and outline draw."""
     img = canvas.blank((0, 0, 0))
     d = ImageDraw.Draw(img)
     d.fontmode = "1"
     W, H = canvas.width, canvas.height
-    T = _fit(canvas, title, H * 0.34, W - 4)
-    S = _fit(canvas, sub, H * 0.22, W - 4)
+    T = _cv_fit_ink(canvas, title, H * 0.34, W - 4)
+    S = _cv_fit_ink(canvas, sub, H * 0.22, W - 4)
     total = T["h"] + 2 + S["h"]
     y = (H - total) / 2.0
-    _shadow(d, (W - T["w"]) / 2.0, y, title, T, _MUTE)
-    _shadow(d, (W - S["w"]) / 2.0, y + T["h"] + 2, sub, S, _scale(_MUTE, 0.8))
+    _cv_shadow(d, (W - T["w"]) / 2.0, y, title, T, _MUTE)
+    _cv_shadow(d, (W - S["w"]) / 2.0, y + T["h"] + 2, sub, S, canvas.dim(_MUTE, 0.8))
     return img
 
 
-def _pull(sym, period, interval):
+def _cv_pull(sym, period, interval):
     """(closes, last, prev, tz) from yfinance, or None on failure. ``closes`` drops NaN bars and
     ends on the live last price so the line's tip matches the big number."""
     import yfinance as yf
@@ -137,7 +137,7 @@ def _pull(sym, period, interval):
         lp, pc = info['lastPrice'], info['previousClose']
         last = float(lp) if lp == lp else None
         prev = float(pc) if pc == pc else None
-        tz = _tz_of(info)
+        tz = _cv_tz_of(info)
     except Exception:
         pass
     if last is None:
@@ -188,7 +188,7 @@ def fetch_matrix(settings, canvas):
     idx = st['idx'] % len(symbols)
     st['idx'] = (idx + 1) % len(symbols)              # advance so the next call shows the next one
     sym = symbols[idx]
-    label = _label(sym, settings, single)
+    label = _cv_label(sym, settings, single)
 
     now_utc = datetime.now(timezone.utc)
     cache = st['data'].get(sym)
@@ -197,7 +197,7 @@ def fetch_matrix(settings, canvas):
     closed = market_only and have and cache.get('tz') and not _exchange_open(cache['tz'], now_utc)
     if not have or (age >= poll and not closed):
         try:
-            got = _pull(sym, period, interval)
+            got = _cv_pull(sym, period, interval)
         except Exception:
             got = None
         if got:
@@ -206,7 +206,7 @@ def fetch_matrix(settings, canvas):
             st['data'][sym] = cache
             have = True
         elif not have:                                # no data for this one — still rotate past it
-            canvas.frame(_message(canvas, ImageDraw, label, 'NO DATA'))
+            canvas.frame(_cv_notice(canvas, ImageDraw, label, 'NO DATA'))
             return float(dwell) if not single else 60.0
 
     series, last = cache['series'], cache['last']
@@ -233,11 +233,11 @@ def fetch_matrix(settings, canvas):
     n = len(series)
     pts = [((W - 1) * (i / max(1, n - 1)), yof(series[i])) for i in range(n)]
 
-    d.polygon(pts + [(W - 1, gy1 + 1), (0, gy1 + 1)], fill=_scale(col, 0.17))   # dim fill under the line
+    d.polygon(pts + [(W - 1, gy1 + 1), (0, gy1 + 1)], fill=canvas.dim(col, 0.17))  # dim fill under the line
     by = yof(base)
-    for xx in range(0, W, 4):                                                   # faint dashed baseline
-        d.line([xx, by, xx + 1, by], fill=_scale(_MUTE, 0.45))
-    d.line(pts, fill=_scale(col, 0.66), width=2 if H >= 48 else 1)              # the price line
+    for xx in range(0, W, 4):                                                      # faint dashed baseline
+        d.line([xx, by, xx + 1, by], fill=canvas.dim(_MUTE, 0.45))
+    d.line(pts, fill=canvas.dim(col, 0.66), width=2 if H >= 48 else 1)             # the price line
 
     # -- the numbers, biggest thing on the panel, left-aligned over the chart -------------------
     d.fontmode = "1"                                   # crisp 1-bit type — no anti-aliased fuzz
@@ -252,23 +252,23 @@ def fetch_matrix(settings, canvas):
     if H < 44:
         # A short panel can't carry three lines and a tag legibly — give the two things that
         # matter (value + percentage) the whole height; the graph still says which way and how far.
-        V = _fit(canvas, value_str, H * 0.50, int(W * 0.72))
-        P = _fit(canvas, pct_str, H * 0.38, int(W * 0.72))
+        V = _cv_fit_ink(canvas, value_str, H * 0.50, int(W * 0.72))
+        P = _cv_fit_ink(canvas, pct_str, H * 0.38, int(W * 0.72))
         rows = [(value_str, V, _INK), (pct_str, P, col)]
     else:
-        L = _fit(canvas, label, H * 0.18, wbudget)
-        V = _fit(canvas, value_str, H * 0.40, wbudget)
-        P = _fit(canvas, pct_str, H * 0.26, wbudget)
+        L = _cv_fit_ink(canvas, label, H * 0.18, wbudget)
+        V = _cv_fit_ink(canvas, value_str, H * 0.40, wbudget)
+        P = _cv_fit_ink(canvas, pct_str, H * 0.26, wbudget)
         rows = [(label, L, _MUTE), (value_str, V, _INK), (pct_str, P, col)]
-        R = _fit(canvas, rng, H * 0.16, W * 0.22)      # range tag, top-right
-        _shadow(d, W - pad - R["w"], pad, rng, R, _scale(_MUTE, 0.8))
+        R = _cv_fit_ink(canvas, rng, H * 0.16, W * 0.22)   # range tag, top-right
+        _cv_shadow(d, W - pad - R["w"], pad, rng, R, canvas.dim(_MUTE, 0.8))
 
     # Center the stack in the space ABOVE the reserved bottom margin, so the last line (the arrow
     # + percentage) always clears the edge by at least `bot` pixels.
     total = sum(m["h"] for _, m, _ in rows) + gap * (len(rows) - 1)
     y = pad + max(0.0, ((H - pad - bot) - total) / 2.0)
     for txt, m, c in rows:
-        _shadow(d, x, y, txt, m, c)
+        _cv_shadow(d, x, y, txt, m, c)
         y += m["h"] + gap
 
     # Rotation cue: one dot per symbol along the bottom-right, the current one lit in the trend color.
@@ -277,7 +277,7 @@ def fetch_matrix(settings, canvas):
         dx = W - 2 - (len(symbols) * step - (step - 2 * r - 1))
         dy = H - 2 - 2 * r
         for k in range(len(symbols)):
-            d.ellipse([dx, dy, dx + 2 * r, dy + 2 * r], fill=col if k == idx else _scale(_MUTE, 0.5))
+            d.ellipse([dx, dy, dx + 2 * r, dy + 2 * r], fill=col if k == idx else canvas.dim(_MUTE, 0.5))
             dx += step
 
     canvas.frame(img)

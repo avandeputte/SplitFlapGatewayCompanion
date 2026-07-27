@@ -309,22 +309,10 @@ def _cv_shadow(draw, x, y, text, font, fill):
     draw.text((x, y), text, font=font, fill=fill, anchor='la')
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
-    smaller sizes render wrong-reading glyphs on the panel)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _cv_wrap(font, text, max_w, max_lines):
-    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines."""
+    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines.
+    Stays local: canvas.wrap hyphen-splits overlong words, which lets canvas.wrap_fit
+    settle on a larger font and cut the tail (holiday names would lose words)."""
     words, lines, cur = str(text or '').split(), [], ''
     for w in words:
         cand = f'{cur} {w}'.strip()
@@ -399,12 +387,12 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
         draw.rounded_rectangle([x0, y0, x0 + cs, y0 + cs], radius=3, fill=_CARD, outline=_CARD_EDGE)
         draw.rounded_rectangle([x0, y0, x0 + cs, y0 + band_h], radius=3, fill=_BAND)
         draw.rectangle([x0, y0 + band_h - 3, x0 + cs, y0 + band_h], fill=_BAND)   # square off the band's base
-        mf = _cv_fit(canvas, mon, cs - 6, band_h - 3)
+        mf = canvas.fit_font(mon, cs - 6, band_h - 3)
         mb = mf.getbbox(mon)
         draw.text((x0 + (cs - mf.getlength(mon)) / 2.0,
                    y0 + (band_h - (mb[3] - mb[1])) / 2.0 - mb[1]), mon, font=mf, fill=(255, 255, 255))
         low_h = cs - band_h
-        df = _cv_fit(canvas, day, cs - 6, int(low_h * 0.78))
+        df = canvas.fit_font(day, cs - 6, int(low_h * 0.78))
         db = df.getbbox(day)
         draw.text((x0 + (cs - df.getlength(day)) / 2.0,
                    y0 + band_h + (low_h - (db[3] - db[1])) / 2.0 - db[1] - 1), day, font=df, fill=_DAY)
@@ -413,7 +401,7 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
         # top row, the countdown pinned to the bottom row.
         rx = x0 + cs + 5
         rw = W - 3 - rx
-        cf = _cv_fit(canvas, when, rw, max(7, int(H * 0.20)))
+        cf = canvas.fit_font(when, rw, max(7, int(H * 0.20)))
         cb = cf.getbbox(when)
         ch = cb[3] - cb[1]
         name_h = H - 4 - ch
@@ -428,7 +416,7 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
     # Compact: a colored date strip pinned to the top row, the wrapped name
     # filling the rest, its last line pinned to the bottom row.
     strip = f'{dow} {mon} {day}'
-    sf = _cv_fit(canvas, strip, W - 6, max(7, int(H * 0.30)))
+    sf = canvas.fit_font(strip, W - 6, max(7, int(H * 0.30)))
     sb = sf.getbbox(strip)
     sh = sb[3] - sb[1]
     _cv_shadow(draw, (W - sf.getlength(strip)) / 2.0, 1 - sb[1], strip, sf, when_col)
@@ -447,26 +435,6 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
     return img
 
 
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (no holidays / broken install)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))          # black backdrop
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    _cv_shadow(draw, (W - f1.getlength(line1)) / 2.0, y - b1[1], line1, f1, _NAME)
-    if line2:
-        y += h1 + gap
-        _cv_shadow(draw, (W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1], line2, f2, _SUB)
-    return img
-
-
 def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     """Draw one upcoming holiday as a desk-calendar frame, advancing through the list each redraw
     (a slideshow paced by the app's ``loop_delay``). Panel-adaptive; offline-safe."""
@@ -475,10 +443,10 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     try:
         upcoming, country = _upcoming(settings, i18n, get_location)
     except Exception:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'HOLIDAYS', 'NO DATA'))
+        canvas.frame(canvas.message('HOLIDAYS', 'NO DATA'))
         return 30.0
     if not upcoming:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'NO HOLIDAYS', country))
+        canvas.frame(canvas.message('NO HOLIDAYS', country))
         return 30.0
 
     items = upcoming[:8]

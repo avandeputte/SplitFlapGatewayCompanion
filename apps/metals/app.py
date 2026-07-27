@@ -106,49 +106,6 @@ _CV_GOLD = (238, 196, 64)                  # the metal itself names the row's co
 _CV_SILVER = (200, 206, 218)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
-    smaller sizes render wrong-reading glyphs on the panel)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_ink(font, text):
-    """Ink height of ``text`` in ``font``."""
-    b = font.getbbox(text or '0')
-    return b[3] - b[1]
-
-
-def _cv_text(draw, x, y, text, font, fill):
-    """Draw with the ink's TOP at ``y`` (bbox-corrected), left edge at ``x``."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill, anchor='la')
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message on black (offline) — never a crash, never blank."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    h1 = _cv_ink(f1, line1)
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = _cv_ink(f2, line2) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    _cv_text(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_TEXT)
-    if line2:
-        _cv_text(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + gap, line2, f2, _CV_DIM)
-    return img
-
-
 def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     """Gold and silver as two spot-price rows, each metal named in its own color
     (a 'SPOT /OZ' strip on panels tall enough to afford it). Same keyless source
@@ -177,7 +134,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
             st['data'] = (ccy, rate, gold, silver)
         st['ts'] = now                     # even after a failure: no hammering
     if st['data'] is None:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'METALS', t('Offline').upper()))
+        canvas.frame(canvas.message('METALS', t('Offline').upper()))
         return 120.0
     ccy, rate, gold, silver = st['data']
 
@@ -203,9 +160,9 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     top = 0
     if H >= 48:
         head = f'{t("Spot price")} /OZ'.upper()
-        hf = _cv_fit(canvas, head, W - 8, 8)
-        _cv_text(draw, (W - hf.getlength(head)) / 2.0, 1, head, hf, _CV_DIM)
-        top = 1 + _cv_ink(hf, head) + 2
+        hf = canvas.fit_font(head, W - 8, 8)
+        canvas.text_top(draw, (W - hf.getlength(head)) / 2.0, 1, head, hf, _CV_DIM)
+        top = 1 + canvas.ink(hf, head) + 2
 
     rows = [(t('Gold').upper(), fmt(gold), _CV_GOLD),
             (t('Silver').upper(), fmt(silver), _CV_SILVER)]
@@ -214,20 +171,20 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     rh = area // n_rows
     fh = max(7, min(rh - 3, int(rh * 0.80)))
     # one font per column, sized by the longest entry, so the two rows align
-    name_f = min((_cv_fit(canvas, nm, int(W * 0.45), fh) for nm, _p, _c in rows),
+    name_f = min((canvas.fit_font(nm, int(W * 0.45), fh) for nm, _p, _c in rows),
                  key=lambda f: f.size)
     name_w = max(name_f.getlength(nm) for nm, _p, _c in rows)
-    price_f = min((_cv_fit(canvas, p, max(12, W - 6 - name_w - 5), fh) for _n, p, _c in rows),
+    price_f = min((canvas.fit_font(p, max(12, W - 6 - name_w - 5), fh) for _n, p, _c in rows),
                   key=lambda f: f.size)
     # Uniform rows (the stocks pattern): every row gets the SAME ink-box height
     # and the SAME gap between boxes — even spacing beats touching the bottom
     # edge (a spare row under the table reads better than one lopsided gap).
-    row_ink = max(max(_cv_ink(name_f, nm), _cv_ink(price_f, p)) for nm, p, _c in rows)
+    row_ink = max(max(canvas.ink(name_f, nm), canvas.ink(price_f, p)) for nm, p, _c in rows)
     gap = max(1, (area - 2 - n_rows * row_ink) // (n_rows - 1)) if n_rows > 1 else 0
     for i, (name, prc, col) in enumerate(rows):
         ry = top + 1 + i * (row_ink + gap)
-        _cv_text(draw, 3, ry + (row_ink - _cv_ink(name_f, name)) // 2, name, name_f, col)
-        _cv_text(draw, W - 3 - price_f.getlength(prc),
-                 ry + (row_ink - _cv_ink(price_f, prc)) // 2, prc, price_f, _CV_TEXT)
+        canvas.text_top(draw, 3, ry + (row_ink - canvas.ink(name_f, name)) // 2, name, name_f, col)
+        canvas.text_top(draw, W - 3 - price_f.getlength(prc),
+                        ry + (row_ink - canvas.ink(price_f, prc)) // 2, prc, price_f, _CV_TEXT)
     canvas.frame(img)
     return 300.0

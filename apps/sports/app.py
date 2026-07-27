@@ -502,39 +502,6 @@ _MX_PRE = (255, 180, 60)                    # scheduled
 _MX_RULE = (48, 52, 62)                     # thin dividers
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (nothing followed / no games)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_MX_WHITE)
-    if line2:
-        y += h1 + gap
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_MX_GRAY)
-    return img
-
-
 def _mx_status_color(state):
     return {'in': _MX_LIVE, 'pre': _MX_PRE}.get(state, _MX_GRAY)
 
@@ -554,7 +521,7 @@ def _mx_text_card(canvas, draw, lines, top, height):
     lines = [ln for ln in lines if str(ln).strip()][:3] or ['']
     lh = height // len(lines)
     for i, ln in enumerate(lines):
-        f = _cv_fit(canvas, ln, W - 6, lh - 2)
+        f = canvas.fit_font(ln, W - 6, lh - 2)
         b = f.getbbox(ln)
         if i == 0:
             ty = top - b[1]
@@ -579,7 +546,7 @@ def _mx_scoreboard(canvas, draw, game, top, height, rule=True, even=False):
     # One size for everything: the widest cell at the row height decides it.
     cells = [c for pair in rows for c in pair if c]
     probe = max(cells, key=len) if cells else '0'
-    f = _cv_fit(canvas, probe, int(W * 0.55), row_h - 2)
+    f = canvas.fit_font(probe, int(W * 0.55), row_h - 2)
     b = f.getbbox('AG0')
 
     # post: the winner stays bright, the loser dims (a tie keeps both lit)
@@ -610,7 +577,7 @@ def _mx_scoreboard(canvas, draw, game, top, height, rule=True, even=False):
         draw.line([(3, top + row_h), (W - 4, top + row_h)], fill=_MX_RULE)
     if state == 'pre':
         vs = 'VS'
-        vf = _cv_fit(canvas, vs, int(W * 0.25), max(7, int(row_h * 0.5)))
+        vf = canvas.fit_font(vs, int(W * 0.25), max(7, int(row_h * 0.5)))
         vb = vf.getbbox(vs)
         vx = W - 3 - vf.getlength(vs)
         vy = top + (2 * row_h - (vb[3] - vb[1])) / 2.0 - vb[1]
@@ -627,7 +594,7 @@ def fetch_matrix(settings, canvas, i18n=None):
     from PIL import ImageDraw
 
     if not _parse_follows(settings.get('follows', '')):
-        canvas.frame(_cv_message(canvas, ImageDraw, 'SPORTS', 'NOTHING FOLLOWED'))
+        canvas.frame(canvas.message('SPORTS', 'NOTHING FOLLOWED', color=_MX_WHITE))
         return 120.0
 
     st = getattr(fetch_matrix, '_state', None)
@@ -644,7 +611,7 @@ def fetch_matrix(settings, canvas, i18n=None):
 
     games = st['games']
     if not games:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'SPORTS', 'NO GAMES FOUND'))
+        canvas.frame(canvas.message('SPORTS', 'NO GAMES FOUND', color=_MX_WHITE))
         return 120.0
 
     idx = st['i'] % len(games)
@@ -668,11 +635,11 @@ def fetch_matrix(settings, canvas, i18n=None):
         # tops are PINNED to y=1 — the top row works and glyph tops never clip.
         head_h = max(12, int(H * 0.22))
         if league:
-            lf = _cv_fit(canvas, league.upper(), int(W * 0.4), head_h - 2)
+            lf = canvas.fit_font(league.upper(), int(W * 0.4), head_h - 2)
             lb = lf.getbbox(league.upper())
             draw.text((3, 1 - lb[1]), league.upper(), font=lf, fill=_MX_GRAY)
         if status:
-            sf = _cv_fit(canvas, status, int(W * 0.5), head_h - 2)
+            sf = canvas.fit_font(status, int(W * 0.5), head_h - 2)
             sb = sf.getbbox(status)
             sx = W - 3 - sf.getlength(status)
             draw.text((sx, 1 - sb[1]), status, font=sf, fill=scol)
@@ -685,7 +652,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         # Short panel: the status is the third row, its ink on H-1 — the two team
         # rows above spread with matching air instead of floor-anchoring onto it.
         foot_h = max(7, int(H * 0.22))
-        sf = _cv_fit(canvas, status, W - 6, foot_h)
+        sf = canvas.fit_font(status, W - 6, foot_h)
         sb = sf.getbbox(status)
         if (sb[3] - sb[1]) >= 5:
             draw.text(((W - sf.getlength(status)) / 2.0, H - sb[3]),

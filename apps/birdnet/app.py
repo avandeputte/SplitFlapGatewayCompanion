@@ -224,21 +224,10 @@ _CV_TRACK = (40, 44, 52)              # the confidence bar's unlit track
 _CV_AMBER = (255, 185, 60)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px — smaller renders wrong-reading glyphs)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _cv_wrap(font, text, max_w, max_lines):
-    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines."""
+    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines.
+    Stays local: canvas.wrap hyphen-splits overlong words, which lets canvas.wrap_fit
+    settle on a larger font and cut the tail (species names would lose words)."""
     words, lines, cur = str(text or '').split(), [], ''
     for w in words:
         cand = f'{cur} {w}'.strip()
@@ -256,7 +245,7 @@ def _cv_wrap(font, text, max_w, max_lines):
 
 def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
     """Largest font at which ``text`` wraps into <= ``max_lines`` lines fitting the box.
-    Returns (font, lines, line_height, gap)."""
+    Returns (font, lines, line_height, gap). Stays local (see _cv_wrap)."""
     size = max(8, int(max_h))
     for _ in range(80):
         font = canvas.font(size)
@@ -275,26 +264,22 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
     return font, lines, b[3] - b[1], 1
 
 
-def _cv_text(draw, x, y, text, font, fill):
-    """Baseline-corrected text draw (y is the ink top, whatever the glyph bbox says)."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill)
-
-
 def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (no host / offline / nothing heard yet)."""
+    """A quiet two-line message (no host / offline / nothing heard yet).
+    Stays local: its fit bands (0.30/0.20 of H) and near-white differ from
+    canvas.message's 0.32/0.22 defaults."""
     W, H = canvas.width, canvas.height
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.30))
-    b1 = f1.getbbox(line1)
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.20)) if line2 else None
-    h1 = b1[3] - b1[1]
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
+    f1 = canvas.fit_font(line1, W - 4, int(H * 0.30))
+    f2 = canvas.fit_font(line2, W - 4, int(H * 0.20)) if line2 else None
+    h1 = canvas.ink(f1, line1)
+    h2 = canvas.ink(f2, line2) if line2 else 0
     y = (H - (h1 + (3 if line2 else 0) + h2)) / 2.0
-    _cv_text(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_NAME)
+    canvas.text_top(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_NAME)
     if line2:
-        _cv_text(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + 3, line2, f2, _CV_DIM)
+        canvas.text_top(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + 3, line2, f2, _CV_DIM)
     return img
 
 
@@ -321,15 +306,15 @@ def _cv_detection_card(canvas, ImageDraw, bird):
 
     top = 1                            # the header's ink rides row 1
     if H >= 48:                        # header row only where it doesn't crowd the name
-        hf = _cv_fit(canvas, 'BIRDNET', W - 2 * pad, max(7, int(H * 0.14)))
-        _cv_text(draw, pad, 1, 'BIRDNET', hf, _CV_ACCENT)
+        hf = canvas.fit_font('BIRDNET', W - 2 * pad, max(7, int(H * 0.14)))
+        canvas.text_top(draw, pad, 1, 'BIRDNET', hf, _CV_ACCENT)
         when = _cv_det_time(bird)
         if when:
-            _cv_text(draw, W - pad - hf.getlength(when), 1, when, hf, _CV_DIM)
+            canvas.text_top(draw, W - pad - hf.getlength(when), 1, when, hf, _CV_DIM)
         top = 1 + (hf.getbbox('BIRDNET')[3] - hf.getbbox('BIRDNET')[1]) + 3
 
     bar_h = max(3, min(7, H // 9))
-    pf = _cv_fit(canvas, pct, max(24, int(W * 0.22)), max(8, bar_h + 4))
+    pf = canvas.fit_font(pct, max(24, int(W * 0.22)), max(8, bar_h + 4))
     ph = pf.getbbox(pct)[3] - pf.getbbox(pct)[1]
 
     # Bottom row geometry first: bar and percentage share a lane whose ink ends
@@ -344,7 +329,7 @@ def _cv_detection_card(canvas, ImageDraw, bird):
     # Centered under the header; with no header the name itself IS the top row.
     ny = top + (max(0, (lane_top - 2 - top - block) // 2) if H >= 48 else 0)
     for ln in lines:
-        _cv_text(draw, pad, ny, ln, nf, _CV_NAME)
+        canvas.text_top(draw, pad, ny, ln, nf, _CV_NAME)
         ny += lh + gap
 
     # Confidence bar: unlit track, lit fill, the percentage at its right end.
@@ -352,7 +337,7 @@ def _cv_detection_card(canvas, ImageDraw, bird):
     draw.rectangle([pad, by, pad + bw, by + bar_h - 1], fill=_CV_TRACK)
     fill_w = max(1, int(bw * min(1.0, conf)))
     draw.rectangle([pad, by, pad + fill_w, by + bar_h - 1], fill=col)
-    _cv_text(draw, pad + bw + 4, lane_top + (lane - ph) // 2, pct, pf, col)
+    canvas.text_top(draw, pad + bw + 4, lane_top + (lane - ph) // 2, pct, pf, col)
     return img
 
 
@@ -366,7 +351,7 @@ def _cv_leaderboard(canvas, ImageDraw, counts):
     n = len(counts)
     row_h = (H - 1) // n
     top_count = max(c for _s, c in counts) or 1
-    f = _cv_fit(canvas, 'Ag', W, max(6, min(10, row_h - 4)))
+    f = canvas.fit_font('Ag', W, max(6, min(10, row_h - 4)))
     lh = f.getbbox('Ag')[3] - f.getbbox('Ag')[1]
     cw = max(f.getlength(str(c)) for _s, c in counts)
     bar_h = max(2, min(4, row_h - lh - 3))
@@ -384,8 +369,8 @@ def _cv_leaderboard(canvas, ImageDraw, counts):
             while name and f.getlength(name + '…') > bw - 5:
                 name = name[:-1]
             name += '…'
-        _cv_text(draw, pad, y, name, f, _CV_NAME)
-        _cv_text(draw, W - pad - f.getlength(str(count)), y, str(count), f, _CV_ACCENT)
+        canvas.text_top(draw, pad, y, name, f, _CV_NAME)
+        canvas.text_top(draw, W - pad - f.getlength(str(count)), y, str(count), f, _CV_ACCENT)
         by = by_solo if n == 1 else y + lh + 1
         draw.rectangle([pad, by, pad + bw, by + bar_h - 1], fill=_CV_TRACK)
         draw.rectangle([pad, by, pad + max(1, int(bw * count / top_count)), by + bar_h - 1],

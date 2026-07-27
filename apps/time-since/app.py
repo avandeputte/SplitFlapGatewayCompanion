@@ -128,51 +128,17 @@ _UNIT_COL = (255, 178, 44)
 _FOOT_COL = (132, 136, 148)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _cv_trim(canvas, text, max_w, max_h, min_ink=6):
-    """Like _cv_fit, but rather than shrinking a long text into illegibility it
-    keeps a readable size and trims with an ellipsis. Returns (font, text)."""
-    font = _cv_fit(canvas, text, max_w, max_h)
+    """Like canvas.fit_font, but rather than shrinking a long text into illegibility
+    it keeps a readable size and trims with an ellipsis. Returns (font, text)."""
+    font = canvas.fit_font(text, max_w, max_h)
     b = font.getbbox(text or '0')
     if not text or b[3] - b[1] >= min_ink:
         return font, text
-    font = _cv_fit(canvas, 'AG', max_w, max_h)          # height-bound size
+    font = canvas.fit_font('AG', max_w, max_h)          # height-bound size
     while text and font.getlength(text + '…') > max_w:
         text = text[:-1].rstrip()
     return font, (text + '…') if text else '…'
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (invalid date / not started yet)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_NAME_COL)
-    if line2:
-        y += h1 + gap
-        b2 = f2.getbbox(line2)
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - b2[1]), line2, font=f2, fill=_FOOT_COL)
-    return img
 
 
 def _segments(diff, u, with_secs):
@@ -201,11 +167,13 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
     event, start, now = _event(settings)
     W, H = canvas.width, canvas.height
     if start is None:
-        canvas.frame(_cv_message(canvas, ImageDraw, event.upper(), t('Invalid date').upper()))
+        canvas.frame(canvas.message(event.upper(), t('Invalid date').upper(),
+                                    color=_NAME_COL, dim=_FOOT_COL))
         return 60.0
     diff = now - start
     if diff.total_seconds() < 0:
-        canvas.frame(_cv_message(canvas, ImageDraw, event.upper(), t('Not yet').upper()))
+        canvas.frame(canvas.message(event.upper(), t('Not yet').upper(),
+                                    color=_NAME_COL, dim=_FOOT_COL))
         return 60.0
 
     years = diff.days // 365
@@ -232,7 +200,7 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
     if H >= 48:
         since_date = i18n.date(start, year=True) if i18n is not None else start.strftime('%b %d %Y')
         foot = f'{t("Time since")} {since_date}'.upper()
-    ff = _cv_fit(canvas, foot, W - 4, max(7, int(H * 0.15))) if foot else None
+    ff = canvas.fit_font(foot, W - 4, max(7, int(H * 0.15))) if foot else None
     fb = ff.getbbox(foot) if foot else None
     fh = (fb[3] - fb[1]) if foot else 0
 
@@ -247,7 +215,7 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
     # The counter: fit "12D 4H 33M 21S" as one string for sizing, then draw it
     # segment by segment so the unit letters can take the accent color.
     rows = [segs]
-    cf = _cv_fit(canvas, row_text(segs), W - 2, box_h)
+    cf = canvas.fit_font(row_text(segs), W - 2, box_h)
     cb = cf.getbbox(row_text(segs))
     rgap = 0
     if len(segs) >= 2 and (cb[3] - cb[1]) < 0.58 * box_h:
@@ -259,14 +227,14 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
         rows = [segs[:cut], segs[cut:]]
         rgap = max(1, gap // 2)
         wide = max(rows, key=lambda r: ref.getlength(row_text(r)))
-        cf = _cv_fit(canvas, row_text(wide), W - 2, (box_h - rgap) / 2.0)
+        cf = canvas.fit_font(row_text(wide), W - 2, (box_h - rgap) / 2.0)
 
     heights = [(lambda b: b[3] - b[1])(cf.getbbox(row_text(r))) for r in rows]
     block = sum(heights) + rgap * (len(rows) - 1)
     # Unit letters a step smaller than the values, sharing the baseline — but on
     # a counter already small, one size for both beats two illegible ones.
     ref_h = max(heights)
-    uf = _cv_fit(canvas, 'D', int(W * 0.2), int(ref_h * 0.62)) if ref_h >= 12 else cf
+    uf = canvas.fit_font('D', int(W * 0.2), int(ref_h * 0.62)) if ref_h >= 12 else cf
 
     draw.text(((W - nf.getlength(name)) / 2.0, 1 - nb[1]), name, font=nf, fill=_NAME_COL)
 

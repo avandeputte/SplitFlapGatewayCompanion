@@ -165,41 +165,6 @@ _CV_POS = (168, 148, 255)
 _CV_DEF = (150, 156, 166)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_wrap(font, text, max_w, max_lines):
-    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines."""
-    words, lines, cur = str(text or '').split(), [], ''
-    for w in words:
-        cand = f'{cur} {w}'.strip()
-        if not cur or font.getlength(cand) <= max_w:
-            cur = cand
-        else:
-            lines.append(cur)
-            cur = w
-            if len(lines) >= max_lines:
-                break
-    if cur and len(lines) < max_lines:
-        lines.append(cur)
-    return lines[:max_lines] or ['']
-
-
-def _cv_text(draw, x, y, text, font, fill):
-    """Baseline-corrected text draw (y is the ink top, whatever the glyph bbox says)."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill)
-
-
 def fetch_matrix(settings, canvas, i18n=None):
     from PIL import ImageDraw
 
@@ -216,8 +181,8 @@ def fetch_matrix(settings, canvas, i18n=None):
     # Header label — only where it doesn't crowd the word off a short panel.
     top = 1
     if H >= 48:
-        hf = _cv_fit(canvas, header, W - 2 * pad, max(6, int(H * 0.12)))
-        _cv_text(draw, (W - hf.getlength(header)) / 2.0, 1, header, hf, _CV_LABEL)
+        hf = canvas.fit_font(header, W - 2 * pad, max(6, int(H * 0.12)))
+        canvas.text_top(draw, (W - hf.getlength(header)) / 2.0, 1, header, hf, _CV_LABEL)
         top = 1 + (hf.getbbox(header)[3] - hf.getbbox(header)[1]) + 3
 
     # The gloss block first (its height decides how much the word may take).
@@ -227,17 +192,12 @@ def fetch_matrix(settings, canvas, i18n=None):
     def_lines = []
     if gloss:
         full = f'{pos} {gloss}'.strip()
-        def_lines = _cv_wrap(df, full, W - 2 * pad, 2 if H >= 48 else 1)
-        if sum(len(ln.split()) for ln in def_lines) < len(full.split()):
-            if W < 100:
-                # No honest room for the gloss — drop the block entirely; an
-                # orphaned "n." under the word explains nothing.
-                def_lines = []
-            else:
-                last = def_lines[-1]
-                while last and df.getlength(last + '…') > W - 2 * pad:
-                    last = last[:-1]
-                def_lines[-1] = last + '…'
+        # canvas.wrap already ellipsizes a gloss the line budget cuts short.
+        def_lines = canvas.wrap(df, full, W - 2 * pad, 2 if H >= 48 else 1)
+        if W < 100 and sum(len(ln.split()) for ln in def_lines) < len(full.split()):
+            # No honest room for the gloss — drop the block entirely; an
+            # orphaned "n." under the word explains nothing.
+            def_lines = []
 
     # The gloss sits ON the panel floor: its last line's own ink ends at H-1.
     floor = H                                   # the first row past the word's room
@@ -247,7 +207,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         floor = def_top - 2
 
     # The word, as large as what's left allows.
-    wf = _cv_fit(canvas, word, W - 2 * pad, floor - top)
+    wf = canvas.fit_font(word, W - 2 * pad, floor - top)
     wh = wf.getbbox(word)[3] - wf.getbbox(word)[1]
     if not def_lines:
         wy = top + max(0, (H - 1 - top - wh) // 2)  # nothing beneath: center the word
@@ -255,7 +215,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         wy = top + max(0, (floor - top - wh) // 2)
     else:
         wy = top                                # short panel: the word pins the top edge
-    _cv_text(draw, (W - wf.getlength(word)) / 2.0, wy, word, wf, _CV_WORD)
+    canvas.text_top(draw, (W - wf.getlength(word)) / 2.0, wy, word, wf, _CV_WORD)
 
     # part of speech + gloss, the pos picked out in the accent.
     if def_lines:
@@ -263,10 +223,10 @@ def fetch_matrix(settings, canvas, i18n=None):
         for i, ln in enumerate(def_lines):
             x = (W - df.getlength(ln)) / 2.0
             if i == 0 and pos and ln.startswith(pos):
-                _cv_text(draw, x, y, pos, df, _CV_POS)
-                _cv_text(draw, x + df.getlength(pos + ' '), y, ln[len(pos):].strip(), df, _CV_DEF)
+                canvas.text_top(draw, x, y, pos, df, _CV_POS)
+                canvas.text_top(draw, x + df.getlength(pos + ' '), y, ln[len(pos):].strip(), df, _CV_DEF)
             else:
-                _cv_text(draw, x, y, ln, df, _CV_DEF)
+                canvas.text_top(draw, x, y, ln, df, _CV_DEF)
             y += dlh + 1
 
     canvas.frame(img)

@@ -188,19 +188,6 @@ _SOON = (255, 180, 60)                      # <= 5 min: go now
 _LATER = (100, 220, 120)                    # time to spare
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _cv_ellipsis(font, text, max_w):
     """``text`` cut with an ellipsis to fit ``max_w`` at this font (full text if it fits)."""
     if font.getlength(text) <= max_w:
@@ -208,26 +195,6 @@ def _cv_ellipsis(font, text, max_w):
     while text and font.getlength(text + '…') > max_w:
         text = text[:-1].rstrip()
     return (text + '…') if text else ''
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (API unreachable / bad config)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_WHITE)
-    if line2:
-        y += h1 + gap
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_GRAY)
-    return img
 
 
 def _cv_line_color(route):
@@ -258,7 +225,7 @@ def fetch_matrix(settings, canvas):
         mins = _next_arrivals(stop, route)
         dests = _destinations(route)
     except Exception:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'METRO', 'CHECK CONFIG'))
+        canvas.frame(canvas.message('METRO', 'CHECK CONFIG', color=_WHITE))
         return 60.0
 
     W, H = canvas.width, canvas.height
@@ -271,7 +238,7 @@ def fetch_matrix(settings, canvas):
     title = f'{route} LINE'.replace('-', ' ').upper() if W >= 96 else str(route).upper()
     bar_h = max(9, int(H * 0.24))
     draw.rectangle([0, 0, W - 1, bar_h - 1], fill=color)
-    tf = _cv_fit(canvas, title, W - 8, bar_h - 3)
+    tf = canvas.fit_font(title, W - 8, bar_h - 3)
     tb = tf.getbbox(title)
     draw.text(((W - tf.getlength(title)) / 2.0, (bar_h - 1 - (tb[3] - tb[1])) / 2.0 - tb[1]),
               title, font=tf, fill=_WHITE)
@@ -292,7 +259,7 @@ def fetch_matrix(settings, canvas):
         ry, rb_ = (area_top, mid - 1) if i == 0 else (mid + 1, H - 1)
         row_h = rb_ - ry + 1
         mm = mtxt if (mtxt in ('DUE', '--') or not unit) else f'{mtxt}{unit}'
-        mf = _cv_fit(canvas, mm, int(W * 0.4), row_h - 2)
+        mf = canvas.fit_font(mm, int(W * 0.4), row_h - 2)
         mb = mf.getbbox(mm)
         mw = mf.getlength(mm)
         # Centered in the band, but the last band's ink is pulled down to the
@@ -304,10 +271,10 @@ def fetch_matrix(settings, canvas):
         # The whole destination at the largest size that fits the row; only when even
         # that would drop below readable, hold a readable size and ellipsise instead.
         avail = W - 8 - mw
-        df = _cv_fit(canvas, dest, avail, row_h - 2)
+        df = canvas.fit_font(dest, avail, row_h - 2)
         dtext = dest
         if (df.getbbox(dest)[3] - df.getbbox(dest)[1]) < 6 or df.getlength(dest) > avail:
-            df = _cv_fit(canvas, '0', avail, 7)              # readable floor; ellipsise, never overflow
+            df = canvas.fit_font('0', avail, 7)              # readable floor; ellipsise, never overflow
             dtext = _cv_ellipsis(df, dest, avail)
         db = df.getbbox(dtext or '0')
         dy = ry + (row_h - (db[3] - db[1])) / 2.0

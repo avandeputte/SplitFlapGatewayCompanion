@@ -254,56 +254,12 @@ _CV_UP, _CV_DOWN = (70, 215, 115), (245, 85, 70)         # change, as text
 _CV_UP_CHIP, _CV_DOWN_CHIP = (18, 112, 58), (152, 40, 32)  # change, as a chip
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
-    smaller sizes render wrong-reading glyphs on the panel)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_ink(font, text):
-    """Ink height of ``text`` in ``font``."""
-    b = font.getbbox(text or '0')
-    return b[3] - b[1]
-
-
-def _cv_text(draw, x, y, text, font, fill):
-    """Draw with the ink's TOP at ``y`` (bbox-corrected), left edge at ``x``."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill, anchor='la')
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message on black (offline / not configured) — never a crash,
-    never a blank panel."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    h1 = _cv_ink(f1, line1)
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = _cv_ink(f2, line2) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    _cv_text(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_TEXT)
-    if line2:
-        _cv_text(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + gap, line2, f2, _CV_DIM)
-    return img
-
-
 def _cv_common_font(canvas, texts, max_w, max_h):
     """ONE font that fits every ``texts`` entry in ``max_w`` x ``max_h`` — a column
     set per-row would ripple through sizes and read as a ransom note."""
     size = None
     for text in texts:
-        f = _cv_fit(canvas, text, max_w, max_h)
+        f = canvas.fit_font(text, max_w, max_h)
         size = f.size if size is None else min(size, f.size)
     return canvas.font(size or 8)
 
@@ -328,22 +284,22 @@ def _cv_quote_rows(canvas, ImageDraw, rows_data):
         # price sitting on the bottom row, the chip riding top-right.
         sym, price, chg = rows_data[0]
         up = chg is not None and chg >= 0
-        sf = _cv_fit(canvas, sym, int(W * 0.62), int(H * 0.55))
-        _cv_text(draw, 3, 1, sym, sf, _CV_TEXT)
+        sf = canvas.fit_font(sym, int(W * 0.62), int(H * 0.55))
+        canvas.text_top(draw, 3, 1, sym, sf, _CV_TEXT)
         if chips and chg is not None:
             pct = f'{"+" if chg >= 0 else ""}{chg:.1f}%'
-            cf = _cv_fit(canvas, pct, int(W * 0.28), max(7, int(H * 0.30)))
-            ch = _cv_ink(cf, pct) + 4
+            cf = canvas.fit_font(pct, int(W * 0.28), max(7, int(H * 0.30)))
+            ch = canvas.ink(cf, pct) + 4
             chip_w = int(cf.getlength(pct)) + 6
             draw.rounded_rectangle([W - 3 - chip_w, 1, W - 3, 1 + ch], radius=2,
                                    fill=_CV_UP_CHIP if up else _CV_DOWN_CHIP)
-            _cv_text(draw, W - 3 - chip_w + (chip_w - cf.getlength(pct)) / 2.0,
-                     3, pct, cf, (255, 255, 255))
-        pf = _cv_fit(canvas, price, W - 6, max(7, int(H * 0.42)))
+            canvas.text_top(draw, W - 3 - chip_w + (chip_w - cf.getlength(pct)) / 2.0,
+                            3, pct, cf, (255, 255, 255))
+        pf = canvas.fit_font(price, W - 6, max(7, int(H * 0.42)))
         pcol = _CV_DIM if chg is None else \
             (_CV_TEXT if chips else (_CV_UP if up else _CV_DOWN))
-        _cv_text(draw, W - 3 - pf.getlength(price), H - _cv_ink(pf, price),
-                 price, pf, pcol)
+        canvas.text_top(draw, W - 3 - pf.getlength(price), H - canvas.ink(pf, price),
+                        price, pf, pcol)
         return img
     rh = H // n
     fh = max(7, min(rh - 3, int(rh * 0.80)))
@@ -367,8 +323,8 @@ def _cv_quote_rows(canvas, ImageDraw, rows_data):
     # Uniform rows: every row gets the SAME ink-box height and the SAME gap between
     # boxes — even spacing beats touching the bottom edge (a spare row under the
     # table reads better than one lopsided gap).
-    row_ink = max(max(_cv_ink(sf, s), _cv_ink(pf, p),
-                      (_cv_ink(cf, f'{"+" if (c or 0) >= 0 else ""}{c:.1f}%') + 5)
+    row_ink = max(max(canvas.ink(sf, s), canvas.ink(pf, p),
+                      (canvas.ink(cf, f'{"+" if (c or 0) >= 0 else ""}{c:.1f}%') + 5)
                       if (cf and c is not None) else 0)
                   for s, p, c in rows_data)
     gap = max(1, (H - 2 - n * row_ink) // (n - 1)) if n > 1 else 0
@@ -377,19 +333,19 @@ def _cv_quote_rows(canvas, ImageDraw, rows_data):
         up = chg is not None and chg >= 0
         if cf and chg is not None:
             pct = f'{"+" if chg >= 0 else ""}{chg:.1f}%'
-            ch = _cv_ink(cf, pct) + 4
+            ch = canvas.ink(cf, pct) + 4
             cy = ry + (row_ink - ch) // 2
             draw.rounded_rectangle([W - 3 - chip_w, cy, W - 3, cy + ch], radius=2,
                                    fill=_CV_UP_CHIP if up else _CV_DOWN_CHIP)
-            _cv_text(draw, W - 3 - chip_w + (chip_w - cf.getlength(pct)) / 2.0,
-                     cy + 2, pct, cf, (255, 255, 255))
-        _cv_text(draw, 3, ry + (row_ink - _cv_ink(sf, sym)) // 2, sym, sf, _CV_TEXT)
+            canvas.text_top(draw, W - 3 - chip_w + (chip_w - cf.getlength(pct)) / 2.0,
+                            cy + 2, pct, cf, (255, 255, 255))
+        canvas.text_top(draw, 3, ry + (row_ink - canvas.ink(sf, sym)) // 2, sym, sf, _CV_TEXT)
         if chg is None:
             pcol = _CV_DIM
         else:                              # no chip (narrow panel, or dropped): color the price
             pcol = _CV_TEXT if cf is not None else (_CV_UP if up else _CV_DOWN)
-        _cv_text(draw, right - pf.getlength(price),
-                 ry + (row_ink - _cv_ink(pf, price)) // 2, price, pf, pcol)
+        canvas.text_top(draw, right - pf.getlength(price),
+                        ry + (row_ink - canvas.ink(pf, price)) // 2, price, pf, pcol)
     return img
 
 
@@ -403,7 +359,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
 
     coins = [s.strip() for s in settings.get('crypto_list', '').split(',') if s.strip()]
     if not coins:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'CRYPTO', 'NO COINS'))
+        canvas.frame(canvas.message('CRYPTO', 'NO COINS'))
         return 60.0
 
     ccy, cur_sym, sep = _display_currency(i18n, get_location)
@@ -440,7 +396,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
         st['ts'] = now                     # even after a failure: no hammering
     r = st['r']
     if not r:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'CRYPTO', 'OFFLINE'))
+        canvas.frame(canvas.message('CRYPTO', 'OFFLINE'))
         return 60.0
 
     rows_data = []

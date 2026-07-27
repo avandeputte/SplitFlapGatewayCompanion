@@ -104,19 +104,6 @@ _CV_DIM = (120, 126, 136)
 _CV_RULE = (55, 60, 70)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px — smaller renders wrong-reading glyphs)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _cv_wrap(font, text, max_w, max_lines):
     """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines."""
     words, lines, cur = str(text or '').split(), [], ''
@@ -161,11 +148,6 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines, min_size=8):
     return font, lines, b[3] - b[1], 1
 
 
-def _cv_text(draw, x, y, text, font, fill):
-    """Baseline-corrected text draw (y is the ink top, whatever the glyph bbox says)."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill)
-
-
 def _cv_trim(font, s, max_w):
     """``s`` trimmed with an ellipsis until it fits ``max_w`` (never past empty)."""
     if font.getlength(s) <= max_w:
@@ -176,20 +158,21 @@ def _cv_trim(font, s, max_w):
 
 
 def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (missing config / API error / no comments)."""
+    """A quiet two-line message (missing config / API error / no comments). Local:
+    this card sizes its lines at H*0.30/0.20 (canvas.message uses 0.32/0.22) and
+    keeps the app's own text colors."""
     W, H = canvas.width, canvas.height
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.30))
-    b1 = f1.getbbox(line1)
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.20)) if line2 else None
-    h1 = b1[3] - b1[1]
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
+    f1 = canvas.fit_font(line1, W - 4, int(H * 0.30))
+    f2 = canvas.fit_font(line2, W - 4, int(H * 0.20)) if line2 else None
+    h1 = canvas.ink(f1, line1)
+    h2 = canvas.ink(f2, line2) if line2 else 0
     y = (H - (h1 + (3 if line2 else 0) + h2)) / 2.0
-    _cv_text(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_TXT)
+    canvas.text_top(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_TXT)
     if line2:
-        _cv_text(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + 3, line2, f2, _CV_DIM)
+        canvas.text_top(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + 3, line2, f2, _CV_DIM)
     return img
 
 
@@ -228,13 +211,13 @@ def fetch_matrix(settings, canvas):
 
     # Author line in the accent color, a hairline rule under it.
     mark = f'{idx + 1}/{len(comments)}'
-    af = _cv_fit(canvas, 'Ag', W, max(7, int(H * 0.16)))
-    mf = _cv_fit(canvas, mark, int(W * 0.2), max(6, int(H * 0.11))) if H >= 48 else None
+    af = canvas.fit_font('Ag', W, max(7, int(H * 0.16)))
+    mf = canvas.fit_font(mark, int(W * 0.2), max(6, int(H * 0.11))) if H >= 48 else None
     mw = (mf.getlength(mark) + 4) if mf else 0
     an = _cv_trim(af, str(author), W - 2 * pad - mw)
-    _cv_text(draw, pad, 1, an, af, _CV_AUTHOR)
+    canvas.text_top(draw, pad, 1, an, af, _CV_AUTHOR)
     if mf:
-        _cv_text(draw, W - pad - mf.getlength(mark), 2, mark, mf, _CV_DIM)
+        canvas.text_top(draw, W - pad - mf.getlength(mark), 2, mark, mf, _CV_DIM)
     ah = af.getbbox('Ag')[3] - af.getbbox('Ag')[1]
     ry = 1 + ah + 2
     draw.line([(pad, ry), (W - pad - 1, ry)], fill=_CV_RULE)
@@ -259,7 +242,7 @@ def fetch_matrix(settings, canvas):
     block += (lb[3] - lb[1]) - lh                   # no descenders means less ink than 'Ag' says
     y = body_top + max(0, avail - block)
     for ln in lines:
-        _cv_text(draw, pad, y, ln, f, _CV_TXT)
+        canvas.text_top(draw, pad, y, ln, f, _CV_TXT)
         y += lh + gap
     canvas.frame(img)
 

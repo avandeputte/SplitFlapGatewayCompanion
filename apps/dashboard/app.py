@@ -171,11 +171,7 @@ _TEMP_STOPS = [(5, (60, 120, 255)), (32, (40, 170, 255)), (48, (0, 205, 220)),
                (92, (255, 130, 30)), (104, (255, 70, 40))]
 
 
-def _lerp(a, b, t):
-    return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))
-
-
-def _ramp(stops, v):
+def _cv_ramp(canvas, stops, v):
     if v <= stops[0][0]:
         return stops[0][1]
     if v >= stops[-1][0]:
@@ -184,11 +180,11 @@ def _ramp(stops, v):
         x0, c0 = stops[i]
         x1, c1 = stops[i + 1]
         if x0 <= v <= x1:
-            return _lerp(c0, c1, (v - x0) / ((x1 - x0) or 1))
+            return canvas.mix(c0, c1, (v - x0) / ((x1 - x0) or 1))
     return stops[-1][1]
 
 
-def _num(v, unit):
+def _cv_num(v, unit):
     """A Fahrenheit value -> the chosen unit, as an int (or None)."""
     if v is None:
         return None
@@ -203,7 +199,7 @@ def _num(v, unit):
     return int(round(f))
 
 
-def _wind(v, unit):
+def _cv_wind(v, unit):
     """Wind (native mph) -> (value, suffix); km/h when the unit is metric."""
     if v is None:
         return None, ''
@@ -216,8 +212,10 @@ def _wind(v, unit):
     return int(round(f)), 'mph'
 
 
-def _fit(canvas, text, max_w, want, lo=8):
-    """Largest bundled font <= `want` px whose `text` still fits `max_w`."""
+def _cv_fit_band(canvas, text, max_w, want, lo=8):
+    """Largest bundled font <= `want` px whose `text` still fits `max_w`.
+    NOT the toolkit's fit_font: the extra `want` target caps the size below the
+    band height, so it stays local."""
     size = max(lo, int(want))
     f = canvas.font(size)
     guard = 0
@@ -228,13 +226,13 @@ def _fit(canvas, text, max_w, want, lo=8):
     return f
 
 
-def _truncate(font, text, max_w):
+def _cv_truncate(font, text, max_w):
     while text and font.getlength(text) > max_w:
         text = text[:-1]
     return text
 
 
-def _line(font, segs):
+def _cv_line(font, segs):
     """A drawable line: (font, [(text,color)...], ink_height, ink_top)."""
     txt = ''.join(s for s, _ in segs) or '8'
     bb = font.getbbox(txt)
@@ -257,14 +255,14 @@ def _draw_stack(draw, x, top, region_h, lines, gap):
         y += ih + lead
 
 
-def _fit_stack(canvas, specs, max_w, budget_h, gap):
+def _cv_fit_stack(canvas, specs, max_w, budget_h, gap):
     """Build a vertical stack of lines that FITS `budget_h` — no line ever clips.
 
     `specs` is a list of (segs, want_px, lo_px). Each line uses the largest bundled
     font <= want that still fits `max_w`. If the assembled stack (sum of ink heights
     + gaps) is taller than budget_h, every want is scaled down by a shared factor and
     the stack rebuilt — so the whole column shrinks together, keeping its relative
-    sizes, until it fits (or reaches the per-line floor). Returns _line() tuples.
+    sizes, until it fits (or reaches the per-line floor). Returns _cv_line() tuples.
 
     This is what keeps a crowded weather column (temp, condition, high/low, feels,
     humidity/wind) inside a short panel instead of spilling the last line off the
@@ -274,8 +272,8 @@ def _fit_stack(canvas, specs, max_w, budget_h, gap):
     scale = 1.0
     lines = []
     for _ in range(8):
-        lines = [_line(_fit(canvas, ''.join(s for s, _ in segs) or '8', max_w,
-                            max(lo, want * scale), lo=lo), segs)
+        lines = [_cv_line(_cv_fit_band(canvas, ''.join(s for s, _ in segs) or '8', max_w,
+                                       max(lo, want * scale), lo=lo), segs)
                  for segs, want, lo in specs]
         ink = sum(ln[2] for ln in lines)
         if ink + gaps <= budget_h or scale <= 0.5:
@@ -327,11 +325,11 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
     sky = wx.get('sky')
     tf = wx.get('temp_f')
     have_wx = bool(wx) and (tf is not None or bool(sky))
-    temp = _num(tf, unit)
-    hi, lo = _num(wx.get('hi_f'), unit), _num(wx.get('lo_f'), unit)
-    feels = _num(wx.get('feels_like_f'), unit)
+    temp = _cv_num(tf, unit)
+    hi, lo = _cv_num(wx.get('hi_f'), unit), _cv_num(wx.get('lo_f'), unit)
+    feels = _cv_num(wx.get('feels_like_f'), unit)
     hum = wx.get('humidity')
-    wind_v, wind_u = _wind(wx.get('wind_mph'), unit)
+    wind_v, wind_u = _cv_wind(wx.get('wind_mph'), unit)
 
     # --- panel + regions -------------------------------------------------------
     W, H = canvas.width, canvas.height
@@ -356,7 +354,7 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
 
     # --- LEFT column: the big clock, the date beneath it -----------------------
     clock_cap = int(H * (0.58 if H >= 48 else 0.54))
-    cfont = _fit(canvas, clock, Lw, clock_cap / 0.72, lo=8)
+    cfont = _cv_fit_band(canvas, clock, Lw, clock_cap / 0.72, lo=8)
 
     # Localized short weekday/month where an i18n is present (the flap view is localized
     # too); the bundled English lists cover a bare host.
@@ -373,16 +371,17 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
     dfloor = max(8, int(dsize * 0.6))
     date_str, dfont = None, None
     for c in date_cands:                         # richest that fits, shrinking to a floor
-        f = _fit(canvas, c, Lw, dsize, lo=dfloor)
+        f = _cv_fit_band(canvas, c, Lw, dsize, lo=dfloor)
         if f.getlength(c) <= Lw:
             date_str, dfont = c, f
             break
     if date_str is None:
         dfont = canvas.font(dfloor)
-        date_str = _truncate(dfont, date_cands[-1], Lw)
+        date_str = _cv_truncate(dfont, date_cands[-1], Lw)
 
     _draw_stack(draw, pad, 0, region_h,
-                [_line(cfont, [(clock, _C_CLOCK)]), _line(dfont, [(date_str, _C_DATE)])], gap_l)
+                [_cv_line(cfont, [(clock, _C_CLOCK)]),
+                 _cv_line(dfont, [(date_str, _C_DATE)])], gap_l)
 
     # --- RIGHT column: the weather -------------------------------------------
     if two_col:
@@ -407,7 +406,7 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
         specs = []
         # the temperature — big, the focus of the column, colored by how warm
         temp_s = f'{temp}{deg}' if temp is not None else '--'
-        temp_col = _ramp(_TEMP_STOPS, float(tf)) if tf is not None else (232, 238, 246)
+        temp_col = _cv_ramp(canvas, _TEMP_STOPS, float(tf)) if tf is not None else (232, 238, 246)
         specs.append(([(temp_s, temp_col)], int(H * (0.42 if rich_v else 0.46)), 9))
 
         # the condition word (full where wide, short where narrow)
@@ -416,8 +415,8 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
             if i18n is not None:
                 word = i18n.t(word, 'weather')
             wwant = int(H * (0.18 if rich_v else 0.26))
-            wf0 = _fit(canvas, word, wxw, wwant, lo=8)     # trim only if it won't fit at all
-            specs.append(([(_truncate(wf0, word, wxw), _C_WORD)], wwant, 8))
+            wf0 = _cv_fit_band(canvas, word, wxw, wwant, lo=8)   # trim only if it won't fit at all
+            specs.append(([(_cv_truncate(wf0, word, wxw), _C_WORD)], wwant, 8))
 
         # today's high / low — warm high, cool low
         if (rich_v or wxw >= 52) and (hi is not None or lo is not None):
@@ -452,7 +451,7 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
 
         # Fit the whole column to the region so the last line never clips off the
         # bottom edge — shrinks the stack together when the day's numbers make it tall.
-        lines = _fit_stack(canvas, specs, wxw, region_h - 2, gap_r)
+        lines = _cv_fit_stack(canvas, specs, wxw, region_h - 2, gap_r)
         _draw_stack(draw, wx0, 0, region_h, lines, gap_r)
 
     # --- a thin seconds bar sweeping the bottom edge --------------------------

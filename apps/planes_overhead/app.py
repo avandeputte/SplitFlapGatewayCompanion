@@ -865,39 +865,6 @@ _MX_GREEN = (110, 220, 130)                 # altitude
 _MX_RULE = (48, 52, 62)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (none nearby / provider down)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_MX_WHITE)
-    if line2:
-        y += h1 + gap
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_MX_GRAY)
-    return img
-
-
 def _mx_haversine(lat1, lon1, lat2, lon2):
     import math
     p1, p2 = math.radians(lat1), math.radians(lat2)
@@ -978,10 +945,10 @@ def fetch_matrix(settings, canvas, get_location=None):
     try:
         flights, (lat, lon), radius_km, err = _shared_flights(settings, get_location)
     except Exception:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'PLANES', 'DATA ERROR'))
+        canvas.frame(canvas.message('PLANES', 'DATA ERROR', color=_MX_WHITE))
         return 60.0
     if err and not flights:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'PLANES', 'API ERROR'))
+        canvas.frame(canvas.message('PLANES', 'API ERROR', color=_MX_WHITE))
         return 60.0
 
     now = int(time.time())
@@ -996,7 +963,7 @@ def fetch_matrix(settings, canvas, get_location=None):
             continue
         nearby.append((d, _mx_bearing(lat, lon, f['lat'], f['lon']), f))
     if not nearby:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'PLANES', 'NONE NEARBY'))
+        canvas.frame(canvas.message('PLANES', 'NONE NEARBY', color=_MX_WHITE))
         return 60.0
     nearby.sort(key=lambda x: x[0])
 
@@ -1032,7 +999,7 @@ def fetch_matrix(settings, canvas, get_location=None):
         # top curve and "OVERHEAD" reads as "UVERHEAD".
         head_h = max(12, int(H * 0.20))
         lbl = 'OVERHEAD'
-        lf = _cv_fit(canvas, lbl, int(W * 0.55), head_h - 2)
+        lf = canvas.fit_font(lbl, int(W * 0.55), head_h - 2)
         lb = lf.getbbox(lbl)
         if (lb[3] - lb[1]) >= 6:
             # The ink's top row rides y=1 — row 0 is the 1px slack a fitted font's ink
@@ -1052,11 +1019,11 @@ def fetch_matrix(settings, canvas, get_location=None):
         # Hero: callsign big, route beside it in cyan.
         hero_top = head_h + 3
         hero_h = max(12, int(H * 0.34))
-        cf = _cv_fit(canvas, callsign, int(W * 0.62), hero_h)
+        cf = canvas.fit_font(callsign, int(W * 0.62), hero_h)
         cb = cf.getbbox(callsign)
         draw.text((3, hero_top + (hero_h - (cb[3] - cb[1])) / 2.0 - cb[1]), callsign, font=cf, fill=_MX_WHITE)
         if route:
-            rf = _cv_fit(canvas, route, W - 9 - cf.getlength(callsign), max(7, int(hero_h * 0.55)))
+            rf = canvas.fit_font(route, W - 9 - cf.getlength(callsign), max(7, int(hero_h * 0.55)))
             rb = rf.getbbox(route)
             if (rb[3] - rb[1]) >= 6:
                 draw.text((W - 3 - rf.getlength(route),
@@ -1072,12 +1039,12 @@ def fetch_matrix(settings, canvas, get_location=None):
         oline = ('+ ' + '  '.join(o for o in others if o)) if any(others) else ''
         of = ob = None
         if oline and H - (info_top + info_h + 2) >= 8:
-            of = _cv_fit(canvas, oline, W - 6, min(H - info_top - info_h - 3, max(7, int(H * 0.14))))
+            of = canvas.fit_font(oline, W - 6, min(H - info_top - info_h - 3, max(7, int(H * 0.14))))
             ob = of.getbbox(oline)
             if (ob[3] - ob[1]) < 5:
                 of = None
 
-        df = _cv_fit(canvas, dist, int(W * 0.5), info_h - 1)
+        df = canvas.fit_font(dist, int(W * 0.5), info_h - 1)
         db = df.getbbox(dist)
         dh = db[3] - db[1]
         iy = info_top + (info_h - dh) / 2.0 if of else H - 1 - dh
@@ -1086,7 +1053,7 @@ def fetch_matrix(settings, canvas, get_location=None):
         _mx_arrow(draw, ax, ay, max(3, info_h // 2 - 1), bearing, _MX_AMBER)
         draw.text((ax + info_h // 2 + 3, iy - db[1]), dist, font=df, fill=_MX_AMBER)
         if alt:
-            af = _cv_fit(canvas, alt, int(W * 0.32), info_h - 1)
+            af = canvas.fit_font(alt, int(W * 0.32), info_h - 1)
             ab = af.getbbox(alt)
             if (ab[3] - ab[1]) >= 6:
                 draw.text((W - 3 - af.getlength(alt), iy + dh - (ab[3] - ab[1]) - ab[1]),
@@ -1099,7 +1066,7 @@ def fetch_matrix(settings, canvas, get_location=None):
         # data instead of a dark hole. The callsign's ink rides row 1 (row 0 is the
         # bbox-overshoot slack) and the last row's ink sinks to the panel's edge.
         cs_h = max(11, int(H * 0.48))
-        cf = _cv_fit(canvas, callsign, W - 6, cs_h)
+        cf = canvas.fit_font(callsign, W - 6, cs_h)
         cb = cf.getbbox(callsign)
         draw.text((3, 1 - cb[1]), callsign, font=cf, fill=_MX_WHITE)
         info_top = 1 + (cb[3] - cb[1]) + 2
@@ -1107,7 +1074,7 @@ def fetch_matrix(settings, canvas, get_location=None):
         alt_below = bool(alt) and W < 112
         af = ab = None
         if alt:
-            af = _cv_fit(canvas, alt, W - 6 if alt_below else int(W * 0.3),
+            af = canvas.fit_font(alt, W - 6 if alt_below else int(W * 0.3),
                          max(7, int(H * 0.28)) if alt_below else H - 1 - info_top - 1)
             ab = af.getbbox(alt)
 
@@ -1116,7 +1083,7 @@ def fetch_matrix(settings, canvas, get_location=None):
         ax = 3 + box // 2
         tx = 3 + box + 3
         avail = (W - int(W * 0.3) - 4 if (alt and not alt_below) else W - 2) - tx
-        df = _cv_fit(canvas, dist, avail, info_h - 1)
+        df = canvas.fit_font(dist, avail, info_h - 1)
         db = df.getbbox(dist)
         dh = db[3] - db[1]
         iy = info_top + (info_h - dh) / 2.0 if alt_below else H - 1 - dh

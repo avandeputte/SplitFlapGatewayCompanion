@@ -334,24 +334,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 # =============================================================================
 
 _WHITE = (240, 240, 244)
-_GRAY = (150, 150, 158)
 _TODAY = (255, 180, 60)                     # today's chip
 _TOMORROW = (90, 200, 250)                  # tomorrow's chip
 _LATER = (135, 150, 185)                    # further out
 _INK = (12, 12, 14)                         # chip text — near-black on the chip color
-
-
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
 
 
 def _cv_ellipsis(font, text, max_w):
@@ -361,26 +347,6 @@ def _cv_ellipsis(font, text, max_w):
     while text and font.getlength(text + '…') > max_w:
         text = text[:-1].rstrip()
     return (text + '…') if text else ''
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (no URL / offline / no events)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_WHITE)
-    if line2:
-        y += h1 + gap
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_GRAY)
-    return img
 
 
 def _cv_chip_color(dt, now):
@@ -412,7 +378,7 @@ def _cv_chip(canvas, draw, x, y, h, label, color, max_w):
     """A rounded time chip; returns its width. The label's ink top is clamped to
     y+2 — a fitted font's real ink can overshoot its bbox by a couple of rows, and
     a chip riding the panel's top edge must never clip its glyph tops."""
-    cf = _cv_fit(canvas, label, max_w, h - 3)
+    cf = canvas.fit_font(label, max_w, h - 3)
     cb = cf.getbbox(label)
     cw = int(cf.getlength(label)) + 7
     draw.rounded_rectangle([x, y, x + cw, y + h - 1], radius=2, fill=color)
@@ -428,11 +394,11 @@ def _cv_title(canvas, draw, summary, x, y, w, h, cap_h=None, bottom=False):
     ``cap_h`` caps the type below the box height; ``bottom`` sinks the ink to the
     box's last row instead of centering (the panel-edge row)."""
     fit_h = min(h, cap_h) if cap_h else h
-    tf = _cv_fit(canvas, summary, w, fit_h)
+    tf = canvas.fit_font(summary, w, fit_h)
     text = summary
     if tf.size < 9:
         cap = 8 if w < 80 else int(fit_h * 0.75)             # narrow panels: chars over size
-        tf = _cv_fit(canvas, '0', w, max(8, cap))
+        tf = canvas.fit_font('0', w, max(8, cap))
         text = _cv_ellipsis(tf, summary, w)
     tb = tf.getbbox(text or '0')
     ty = y + h - (tb[3] - tb[1]) if bottom else y + (h - (tb[3] - tb[1])) / 2.0
@@ -448,21 +414,21 @@ def fetch_matrix(settings, canvas, i18n=None):
 
     urls = _urls(settings.get('ical_url', ''))
     if not urls:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'CALENDAR', 'SET AN ICAL URL'))
+        canvas.frame(canvas.message('CALENDAR', 'SET AN ICAL URL', color=_WHITE))
         return 300.0
     tz = _tz(settings, pytz)
     feeds = _fetch_feeds(urls)
     if not feeds:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'CALENDAR', 'OFFLINE'))
+        canvas.frame(canvas.message('CALENDAR', 'OFFLINE', color=_WHITE))
         return 120.0
     try:
         now = datetime.now(tz)
         upcoming = _upcoming(settings, feeds, tz, pytz, now)
     except Exception:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'CALENDAR', 'ERROR'))
+        canvas.frame(canvas.message('CALENDAR', 'ERROR', color=_WHITE))
         return 120.0
     if not upcoming:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'CALENDAR', 'NO EVENTS'))
+        canvas.frame(canvas.message('CALENDAR', 'NO EVENTS', color=_WHITE))
         return 300.0
 
     W, H = canvas.width, canvas.height
@@ -474,7 +440,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         # can this label hold a readable size in this chip? (the fit floors at
         # 8px, so "still too wide at the floor" is the doesn't-fit signal)
         def ok(label):
-            f = _cv_fit(canvas, label, max_w, chip_h - 3)
+            f = canvas.fit_font(label, max_w, chip_h - 3)
             return f.size >= 8 and f.getlength(label) <= max_w
         return ok
 

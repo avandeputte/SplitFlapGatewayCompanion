@@ -121,33 +121,10 @@ def _cv_mag_color(mag):
     return _CV_SEVERITY[-1][1]
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
-    smaller sizes render wrong-reading glyphs on the panel)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_ink(font, text):
-    """Ink height of ``text`` in ``font``."""
-    b = font.getbbox(text or '0')
-    return b[3] - b[1]
-
-
-def _cv_text(draw, x, y, text, font, fill):
-    """Draw with the ink's TOP at ``y`` (bbox-corrected), left edge at ``x``."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill, anchor='la')
-
-
 def _cv_wrap(font, text, max_w, max_lines):
-    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines."""
+    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines.
+    Stays local: canvas.wrap hyphen-splits overlong words, which lets canvas.wrap_fit
+    settle on a larger font and cut the tail (place names would lose words)."""
     words, lines, cur = str(text or '').split(), [], ''
     for w in words:
         cand = f'{cur} {w}'.strip()
@@ -184,25 +161,6 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
     return font, lines, b[3] - b[1], 1
 
 
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message on black (offline / nothing recent) — never a
-    crash, never a blank panel."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    h1 = _cv_ink(f1, line1)
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = _cv_ink(f2, line2) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    _cv_text(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_TEXT)
-    if line2:
-        _cv_text(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + gap, line2, f2, _CV_DIM)
-    return img
-
-
 def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
     """One quake: the magnitude big in its severity color, the place beside it
     (wrapped), the distance/age line dim below — and a magnitude bar (0-9 scale)
@@ -235,42 +193,42 @@ def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
         # Stacked: the place gets the full width for one line it can actually
         # hold — falling back to its last comma segment (the country/state)
         # rather than a smaller alphabet. The magnitude hangs from the top edge.
-        mf = _cv_fit(canvas, ms, int(W * 0.60), int(area_h * 0.60))
-        mh = _cv_ink(mf, ms)
-        _cv_text(draw, 3, 1, ms, mf, col)
+        mf = canvas.fit_font(ms, int(W * 0.60), int(area_h * 0.60))
+        mh = canvas.ink(mf, ms)
+        canvas.text_top(draw, 3, 1, ms, mf, col)
         if ago:
             aw = W - 6 - mf.getlength(ms) - 4
-            af = _cv_fit(canvas, ago, aw, max(7, int(mh * 0.55)))
+            af = canvas.fit_font(ago, aw, max(7, int(mh * 0.55)))
             if af.getlength(ago) > aw and ' ' in ago:
                 ago = ago.split()[0]       # '2H' still answers "when?"
-                af = _cv_fit(canvas, ago, aw, max(7, int(mh * 0.55)))
+                af = canvas.fit_font(ago, aw, max(7, int(mh * 0.55)))
             if af.getlength(ago) <= aw:    # can't fit even at the 8px floor: drop it
-                _cv_text(draw, W - 3 - af.getlength(ago), 1 + (mh - _cv_ink(af, ago)) / 2.0,
-                         ago, af, _CV_DIM)
+                canvas.text_top(draw, W - 3 - af.getlength(ago), 1 + (mh - canvas.ink(af, ago)) / 2.0,
+                                ago, af, _CV_DIM)
         line_h = max(7, area_h - 1 - mh - 2)
-        lf = _cv_fit(canvas, loc, W - 6, line_h)
+        lf = canvas.fit_font(loc, W - 6, line_h)
         if lf.getlength(loc) > W - 6 and ',' in loc:
             # The full place can't fit at the 8px floor — fall back to the last
             # comma segment (the country/state), then the town, rather than a
             # smaller alphabet or a clipped line.
             for cand in (loc.rsplit(',', 1)[-1].strip(), loc.split(',', 1)[0].strip()):
-                cand_f = _cv_fit(canvas, cand, W - 6, line_h)
+                cand_f = canvas.fit_font(cand, W - 6, line_h)
                 if cand and cand_f.getlength(cand) <= W - 6:
                     loc, lf = cand, cand_f
                     break
-        _cv_text(draw, 3, 1 + mh + 2 + max(0, (line_h - _cv_ink(lf, loc)) / 2.0),
-                 loc, lf, _CV_TEXT)
+        canvas.text_top(draw, 3, 1 + mh + 2 + max(0, (line_h - canvas.ink(lf, loc)) / 2.0),
+                        loc, lf, _CV_TEXT)
         return img
 
     sub = '  '.join(x for x in (dist, ago) if x)
-    mf = _cv_fit(canvas, ms, int(W * 0.40), area_h)
-    mw, mh = mf.getlength(ms), _cv_ink(mf, ms)
-    _cv_text(draw, 3, max(1.0, (area_h - mh) / 2.0), ms, mf, col)
+    mf = canvas.fit_font(ms, int(W * 0.40), area_h)
+    mw, mh = mf.getlength(ms), canvas.ink(mf, ms)
+    canvas.text_top(draw, 3, max(1.0, (area_h - mh) / 2.0), ms, mf, col)
 
     rx = 3 + mw + 6
     rw = W - 3 - rx
     show_sub = H >= 44 and sub
-    sub_f = _cv_fit(canvas, sub, rw, max(7, int(H * 0.15))) if show_sub else None
+    sub_f = canvas.fit_font(sub, rw, max(7, int(H * 0.15))) if show_sub else None
     if sub_f is not None and sub_f.getlength(sub) > rw:
         # The full meta line can't fit at the 8px floor — the age alone still
         # answers "when?", the distance alone "where?"; failing both, drop it.
@@ -280,7 +238,7 @@ def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
                 break
         else:
             show_sub, sub_f = False, None
-    sub_h = _cv_ink(sub_f, sub) if show_sub else 0
+    sub_h = canvas.ink(sub_f, sub) if show_sub else 0
     loc_h = area_h - 1 - ((sub_h + 2) if show_sub else 0)
     lf, lines, lh, gap = _cv_wrap_fit(canvas, loc, rw, loc_h, 2)
     if ' '.join(lines) != ' '.join(str(loc or '').split()) \
@@ -297,10 +255,10 @@ def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
     # above the bar — the card spends its whole height, no centered slack.
     y = 1.0
     for ln in lines:
-        _cv_text(draw, rx, y, ln, lf, _CV_TEXT)
+        canvas.text_top(draw, rx, y, ln, lf, _CV_TEXT)
         y += lh + gap
     if show_sub:
-        _cv_text(draw, rx, by0 - 2 - sub_h, sub, sub_f, _CV_DIM)
+        canvas.text_top(draw, rx, by0 - 2 - sub_h, sub, sub_f, _CV_DIM)
     return img
 
 
@@ -329,8 +287,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         st['ts'] = now                     # even after a failure: no hammering
     feats = (st['feats'] or [])[:5]
     if not feats:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'EARTHQUAKES',
-                                 t('None recent').upper()))
+        canvas.frame(canvas.message('EARTHQUAKES', t('None recent').upper()))
         return 300.0
 
     idx = st['i'] % len(feats)

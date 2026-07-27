@@ -133,22 +133,11 @@ _PCT_COL = (255, 208, 74)       # a moonlit amber for the % lit
 _SUB_COL = (132, 136, 148)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
     """Largest font at which ``text`` word-wraps into <= ``max_lines`` lines fitting the box.
-    Returns (font, lines, line_height, gap)."""
+    Returns (font, lines, line_height, gap). Local on purpose: unlike canvas.wrap_fit
+    it never hyphen-splits an overlong word — it keeps shrinking until the word fits
+    whole, and the caller's name_fits check relies on that."""
     def wrap(font):
         words, lines, cur = str(text or '').split(), [], ''
         for w in words:
@@ -264,10 +253,10 @@ def fetch_matrix(settings, canvas, i18n=None):
             draw.text((lx, y - pf.getbbox(ln)[1]), ln, font=pf, fill=_PCT_COL)
             y += plh + pgap
     else:
-        pf = _cv_fit(canvas, pct, lw, max(7, int(H * 0.18)))
+        pf = canvas.fit_font(pct, lw, max(7, int(H * 0.18)))
         pb = pf.getbbox(pct)
         ph = pb[3] - pb[1]
-        xf = _cv_fit(canvas, nxt, lw, max(7, int(H * 0.15))) if nxt else None
+        xf = canvas.fit_font(nxt, lw, max(7, int(H * 0.15))) if nxt else None
         xh = (xf.getbbox(nxt)[3] - xf.getbbox(nxt)[1]) if nxt else 0
 
         vgap = max(2, H // 14)

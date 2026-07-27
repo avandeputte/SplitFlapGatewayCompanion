@@ -137,50 +137,6 @@ _CV_SEA_FILL = (10, 42, 84)                # the water under it
 _CV_NOW = (255, 255, 255)                  # the 'now' dot
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px —
-    smaller sizes render wrong-reading glyphs on the panel)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_ink(font, text):
-    """Ink height of ``text`` in ``font``."""
-    b = font.getbbox(text or '0')
-    return b[3] - b[1]
-
-
-def _cv_text(draw, x, y, text, font, fill):
-    """Draw with the ink's TOP at ``y`` (bbox-corrected), left edge at ``x``."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill, anchor='la')
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message on black (offline / bad station) — never a crash,
-    never a blank panel."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    h1 = _cv_ink(f1, line1)
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = _cv_ink(f2, line2) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    _cv_text(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, _CV_TEXT)
-    if line2:
-        _cv_text(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + gap, line2, f2, _CV_DIM)
-    return img
-
-
 def _cv_events(preds):
     """Today's extremes as [(minute_of_day, height_ft, is_high, 'HH:MM'), ...]."""
     out = []
@@ -271,7 +227,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         st['ts'] = now                     # even after a failure: no hammering
     events = _cv_events(st['preds'] or [])
     if not events:
-        canvas.frame(_cv_message(canvas, ImageDraw, t('Tides').upper(), t('No data').upper()))
+        canvas.frame(canvas.message(t('Tides').upper(), t('No data').upper()))
         return 300.0
 
     W, H = canvas.width, canvas.height
@@ -311,14 +267,14 @@ def fetch_matrix(settings, canvas, i18n=None):
 
     sample = '↑ 12:28PM 11.2FT'
     head_h = max(8, min(12, int(H * 0.26)))
-    head_f = _cv_fit(canvas, sample, int(W * 0.52) if W >= 128 else W - 4, head_h)
+    head_f = canvas.fit_font(sample, int(W * 0.52) if W >= 128 else W - 4, head_h)
     # Nothing below the 8px floor: what can't fit whole is dropped instead — the
     # SECOND (next-tide) group goes first, then the first group's height figure.
     two = W >= 128 and len(upcoming) > 1 and \
         tide_w(upcoming[0]) + max(8, W // 16) + tide_w(upcoming[1]) <= W - 6
     if not two:                            # one group: give it the full width
-        head_f = _cv_fit(canvas, sample, W - 4, head_h)
-    hh = _cv_ink(head_f, sample)
+        head_f = canvas.fit_font(sample, W - 4, head_h)
+    hh = canvas.ink(head_f, sample)
     end = tide_line(3, 1, upcoming[0], True,
                     with_height=tide_w(upcoming[0]) <= W - 6)
     if two:

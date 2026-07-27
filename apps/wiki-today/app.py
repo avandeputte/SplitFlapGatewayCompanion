@@ -94,98 +94,14 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 _ACCENT = (150, 175, 225)     # steel blue — the medallion and labels
 _TEXT = (238, 238, 244)       # the article titles
-_DIM = (150, 150, 158)        # the quiet second line of an offline message
 _DOT_OFF = (70, 70, 76)       # inactive page dots
-
-
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_wrap(font, text, max_w):
-    """Greedy word-wrap to pixel width ``max_w`` — hard-splitting any word wider
-    than the panel so nothing ever draws off the edge."""
-    lines, cur = [], ''
-    for word in str(text or '').split():
-        w = word
-        while font.getlength(w) > max_w and len(w) > 1:
-            cut = len(w)
-            while cut > 1 and font.getlength(w[:cut]) > max_w:
-                cut -= 1
-            if cur:
-                lines.append(cur)
-                cur = ''
-            lines.append(w[:cut])
-            w = w[cut:]
-        cand = f'{cur} {w}'.strip()
-        if not cur or font.getlength(cand) <= max_w:
-            cur = cand
-        else:
-            lines.append(cur)
-            cur = w
-    if cur:
-        lines.append(cur)
-    return lines or ['']
-
-
-def _cv_pages(canvas, text, max_w, max_h, min_size=8):
-    """The largest font (>= ``min_size``) at which the WHOLE text wraps into
-    ``max_w`` x ``max_h`` — one page. When even ``min_size`` can't hold it, wrap
-    at ``min_size`` and split the lines into pages to rotate through across
-    redraws. Returns (font, pages, line_h, gap)."""
-    size = max(min_size, int(max_h))
-    while size >= min_size:
-        font = canvas.font(size)
-        lines = _cv_wrap(font, text, max_w)
-        b = font.getbbox('Ag')
-        lh, gap = b[3] - b[1], max(1, (b[3] - b[1]) // 6)
-        if (len(lines) * lh + (len(lines) - 1) * gap <= max_h
-                and max(font.getlength(ln) for ln in lines) <= max_w):
-            return font, [lines], lh, gap
-        size -= 1
-    font = canvas.font(min_size)
-    lines = _cv_wrap(font, text, max_w)
-    b = font.getbbox('Ag')
-    lh, gap = b[3] - b[1], max(1, (b[3] - b[1]) // 6)
-    per = max(1, (max_h + gap) // (lh + gap))
-    return font, [lines[i:i + per] for i in range(0, len(lines), per)] or [['']], lh, gap
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (offline / no data) — never a crash, never a blank panel."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_TEXT)
-    if line2:
-        y += h1 + gap
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]),
-                  line2, font=f2, fill=_DIM)
-    return img
 
 
 def _cv_motif(canvas, draw, x, y, s):
     """The app's accent mark: a W medallion — the ring with a W set inside it.
     Returns the width it consumed."""
     draw.ellipse([x, y, x + s - 1, y + s - 1], outline=_ACCENT)
-    f = _cv_fit(canvas, 'W', s - 4, s - 4)
+    f = canvas.fit_font('W', s - 4, s - 4)
     b = f.getbbox('W')
     draw.text((x + (s - 1 - (b[2] - b[0])) / 2.0 - b[0],
                y + (s - 1 - (b[3] - b[1])) / 2.0 - b[1]), 'W', font=f, fill=_ACCENT)
@@ -200,7 +116,7 @@ def _cv_header(canvas, draw, label):
     x = 3
     if W >= 96 and H >= 48:
         x += _cv_motif(canvas, draw, 3, 0, hh + 3) + 4
-    f = _cv_fit(canvas, label, W - x - 3, hh)
+    f = canvas.fit_font(label, W - x - 3, hh)
     b = f.getbbox(label)
     draw.text((x, 1 - b[1]), label, font=f, fill=_ACCENT)
     ry = 1 + max(hh, b[3] - b[1]) + 2
@@ -217,10 +133,10 @@ def _cv_card(canvas, ImageDraw, label, body, page):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
     top = _cv_header(canvas, draw, label)
-    font, pages, lh, gap = _cv_pages(canvas, body, W - 6, H - top)
+    font, pages, lh, gap = canvas.card_pages(body, W - 6, H - top)
     dots = 1 < len(pages) <= 8 and H >= 44
     if dots:                                   # the dots take the bottom two rows
-        font, pages, lh, gap = _cv_pages(canvas, body, W - 6, H - top - 3)
+        font, pages, lh, gap = canvas.card_pages(body, W - 6, H - top - 3)
         dots = 1 < len(pages) <= 8
     n = len(pages)
     lines = pages[page % n]
@@ -279,8 +195,8 @@ def fetch_matrix(settings, canvas, i18n=None):
         else:
             st['ts'] = now - 3600.0 + 120.0    # keep any stale feed; retry in ~2 minutes
             if st['data'] is None:
-                canvas.frame(_cv_message(canvas, ImageDraw, 'Wikipedia',
-                                         t('Offline') if i18n is not None else 'Offline'))
+                canvas.frame(canvas.message('Wikipedia',
+                                            t('Offline') if i18n is not None else 'Offline'))
                 return 60.0
     title, mostread = st['data']
     cards = []
@@ -292,7 +208,7 @@ def fetch_matrix(settings, canvas, i18n=None):
     cards += [(f'{t("Most read").upper()} #{i + 1}' if ranked else t('Most read').upper(), art)
               for i, art in enumerate(mostread[:5])]
     if not cards:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'Wikipedia', 'No data'))
+        canvas.frame(canvas.message('Wikipedia', 'No data'))
         return 300.0
     label, body = cards[st['card'] % len(cards)]
     img, n = _cv_card(canvas, ImageDraw, label, body, st['page'])

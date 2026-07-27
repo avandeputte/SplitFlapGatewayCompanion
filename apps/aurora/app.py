@@ -114,40 +114,6 @@ def _kp_color(v):
     return (240, 70, 58)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px — smaller renders wrong-reading glyphs)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (offline / no data)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_TXT_COL)
-    if line2:
-        y += h1 + gap
-        b2 = f2.getbbox(line2)
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - b2[1]), line2, font=f2, fill=_SUB_COL)
-    return img
-
-
 def fetch_matrix(settings, canvas, i18n=None):
     import requests
     from PIL import ImageDraw
@@ -166,10 +132,12 @@ def fetch_matrix(settings, canvas, i18n=None):
     except Exception:
         got = 'offline'
     if got == 'offline':
-        canvas.frame(_cv_message(canvas, ImageDraw, t('Aurora').upper(), t('Offline').upper()))
+        canvas.frame(canvas.message(t('Aurora').upper(), t('Offline').upper(),
+                                    color=_TXT_COL, dim=_SUB_COL))
         return 120.0
     if got is None:
-        canvas.frame(_cv_message(canvas, ImageDraw, t('Aurora').upper(), t('No data').upper()))
+        canvas.frame(canvas.message(t('Aurora').upper(), t('No data').upper(),
+                                    color=_TXT_COL, dim=_SUB_COL))
         return 120.0
     kp, series = got
 
@@ -204,10 +172,10 @@ def fetch_matrix(settings, canvas, i18n=None):
     # under it — on a panel where the label would be mush it yields: the color
     # and the gauge already say how bad it is.
     head_h = gy0 - 3                    # ink rows 1..gy0-3, a breath above the gauge
-    lf = _cv_fit(canvas, label, avail - 4, max(6, int(head_h * 0.30)))
+    lf = canvas.fit_font(label, avail - 4, max(6, int(head_h * 0.30)))
     show_label = ink(lf, label) >= 5
     lh = ink(lf, label) if show_label else 0
-    kf = _cv_fit(canvas, kps, avail - 4, head_h - ((lh + 2) if show_label else 0))
+    kf = canvas.fit_font(kps, avail - 4, head_h - ((lh + 2) if show_label else 0))
     kb = kf.getbbox(kps)
     kh = ink(kf, kps)
     draw.text(((avail - kf.getlength(kps)) / 2.0, 1 - kb[1]), kps, font=kf, fill=col)

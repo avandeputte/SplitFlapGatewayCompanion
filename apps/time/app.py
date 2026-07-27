@@ -82,19 +82,6 @@ _AMPM_COL = (255, 178, 44)
 _DATE_COL = (132, 136, 148)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _split_ampm(time_str):
     """('9:41', 'PM') when the string carries a meridian tag, else (s, '')."""
     tail = time_str[-2:].upper()
@@ -128,11 +115,11 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
     # The AM/PM tag is measured FIRST: the clock then gets exactly the width
     # that's left (W - 2 - aw), so the tag can never clip the right edge.
     def _ampm_font(tag):
-        return _cv_fit(canvas, tag, int(W * 0.16), max(7, int(time_h * 0.28))) if tag else None
+        return canvas.fit_font(tag, int(W * 0.16), max(7, int(time_h * 0.28))) if tag else None
 
     af = _ampm_font(ampm)
     aw = (af.getlength(ampm) + 2) if ampm else 0
-    tf = _cv_fit(canvas, main, W - 2 - aw, time_h)
+    tf = canvas.fit_font(main, W - 2 - aw, time_h)
     if seconds and (lambda b: b[3] - b[1])(tf.getbbox('0')) < 10:
         # Seconds would drive the digits below legible — a small panel shows
         # H:MM big instead (and quietly redraws each minute).
@@ -140,7 +127,7 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
         main, ampm = _split_ampm(_clock(settings, i18n, now, False))
         af = _ampm_font(ampm)
         aw = (af.getlength(ampm) + 2) if ampm else 0
-        tf = _cv_fit(canvas, main, W - 2 - aw, time_h)
+        tf = canvas.fit_font(main, W - 2 - aw, time_h)
     tb = tf.getbbox(main)
     tw, th = tf.getlength(main), tb[3] - tb[1]
 
@@ -163,7 +150,7 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
         # so the last ink row lands on H-1 or H-2 and can't clip.
         y_bot = H - 1
         for line in (date_line.upper(), weekday.upper()):       # bottom-up
-            f = _cv_fit(canvas, line, W - 2, per)
+            f = canvas.fit_font(line, W - 2, per)
             b = f.getbbox(line)
             lh = b[3] - b[1]
             draw.text(((W - f.getlength(line)) / 2.0, y_bot - lh + 1 - b[1]),
@@ -179,7 +166,7 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
                 under = f"{now.strftime('%a %b')} {now.day}".upper()
         else:
             under = f'{weekday}  {date_line}'.upper()
-        df = _cv_fit(canvas, under, W - 2, max(6, leftover))
+        df = canvas.fit_font(under, W - 2, max(6, leftover))
         db = df.getbbox(under)
         dh = db[3] - db[1]
         draw.text(((W - df.getlength(under)) / 2.0, H - dh - db[1]),

@@ -1351,11 +1351,18 @@ class CanvasSurface:
 
     def wrap_fit(self, text, max_w, max_h, max_lines=None, min_size=MIN_READABLE):
         """The largest font at which ``text`` word-wraps inside max_w x max_h (and
-        ``max_lines``, when given). Returns ``(font, lines)``; at the floor the text
-        is wrapped at ``min_size`` (ellipsized if max_lines cuts it)."""
+        ``max_lines``, when given). A size only qualifies if every WORD fits the width
+        whole — otherwise wrap's hyphen-splitting would satisfy the width check at a
+        large size and the max_lines cut would then drop words. Returns
+        ``(font, lines)``; at the floor, hyphen-splitting (and the max_lines ellipsis)
+        is the last resort."""
+        words = str(text or "").split()
         size = max(min_size, int(max_h))
         while size >= min_size:
             font = self.font(size)
+            if words and max(font.getlength(w) for w in words) > max_w:
+                size -= 1                        # a word would need a hard split — shrink instead
+                continue
             lines = self.wrap(font, text, max_w, max_lines)
             b = font.getbbox("Ag")
             lh, gap = b[3] - b[1], max(1, (b[3] - b[1]) // 6)

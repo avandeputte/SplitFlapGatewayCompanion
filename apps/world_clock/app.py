@@ -113,15 +113,7 @@ _DAY_ACCENT = (255, 150, 40)     # the vivid warm cue on the left stripe
 _NIGHT_ACCENT = (86, 130, 226)   # the vivid cool cue on the left stripe
 
 
-def _lerp(a, b, t):
-    return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))
-
-
-def _scale(c, k):
-    return tuple(max(0, min(255, int(round(v * k)))) for v in c)
-
-
-def _day_factor(h):
+def _cv_day_factor(h):
     """0 at deep night, 1 in full day, ramped across dawn (5-8) and dusk (17-20). ``h`` in [0,24)."""
     if h < 5.0 or h >= 20.0:
         return 0.0
@@ -132,7 +124,7 @@ def _day_factor(h):
     return 1.0 - (h - 17.0) / 3.0
 
 
-def _fit_font(canvas, target_cap, max_w, sample):
+def _cv_fit_cap(canvas, target_cap, max_w, sample):
     """Largest bundled font whose cap height is about ``target_cap`` and whose ``sample`` still
     fits ``max_w``. Returns (font, cap_height, ink_top)."""
     size = max(7, int(round(target_cap / 0.72)))
@@ -146,7 +138,7 @@ def _fit_font(canvas, target_cap, max_w, sample):
     return font, (b - t), t
 
 
-def _fit_text(font, s, max_w):
+def _cv_fit_text(font, s, max_w):
     """``s`` trimmed with an ellipsis until it fits ``max_w`` (never past empty)."""
     if max_w <= 0:
         return ''
@@ -157,7 +149,7 @@ def _fit_text(font, s, max_w):
     return (s + '…') if s else ''
 
 
-def _grad(Image, w, h, top, bot):
+def _cv_row_grad(Image, w, h, top, bot):
     """A w x h vertical gradient tile (top -> bot), one column then stretched."""
     h = max(1, h)
     col = Image.new('RGB', (1, h))
@@ -171,7 +163,7 @@ def _grad(Image, w, h, top, bot):
     return col.resize((max(1, w), h))
 
 
-def _next_minute_hold():
+def _cv_next_minute_hold():
     """Seconds until the next wall-clock minute — every zone's minute rolls on the same UTC second
     (offsets are whole minutes), so redraw on the tick instead of ~60x/min."""
     from datetime import datetime
@@ -220,20 +212,20 @@ def fetch_matrix(settings, canvas):
     draw.fontmode = "1"                       # crisp 1-bit text — no anti-aliased fuzz
 
     if not resolved:
-        f, cap, top = _fit_font(canvas, H * 0.34, W - 4, 'No zones')
+        f, cap, top = _cv_fit_cap(canvas, H * 0.34, W - 4, 'No zones')
         msg = 'No zones'
         draw.text(((W - f.getlength(msg)) / 2.0, (H - cap) / 2.0 - top),
                   msg, fill=(230, 230, 235), font=f, anchor='la')
         canvas.frame(img)
-        return _next_minute_hold()
+        return _cv_next_minute_hold()
 
     n = len(resolved)
     row_h = H / n
 
     # Two sizes shared by every row. The CITY leads: it gets the bigger share of the width and a
     # generous cap so a name reads in full — the time is limited to ~a third of the width, on the right.
-    tfont, tcap, ttop = _fit_font(canvas, row_h * 0.52, W * 0.34, '88:88')
-    cfont, ccap, ctop = _fit_font(canvas, row_h * 0.46, W * 0.68, 'Los Angeles')
+    tfont, tcap, ttop = _cv_fit_cap(canvas, row_h * 0.52, W * 0.34, '88:88')
+    cfont, ccap, ctop = _cv_fit_cap(canvas, row_h * 0.46, W * 0.68, 'Los Angeles')
 
     bar_w = 2
     pad = 4
@@ -242,15 +234,15 @@ def fetch_matrix(settings, canvas):
         y1 = H if i == n - 1 else int(round((i + 1) * H / n))
         rh = y1 - y0
 
-        df = _day_factor(now.hour + now.minute / 60.0)
-        bg = _lerp(_NIGHT_BG, _DAY_BG, df)
-        txt = _lerp(_NIGHT_TXT, _DAY_TXT, df)
-        accent = _lerp(_NIGHT_ACCENT, _DAY_ACCENT, df)
-        city_c = _scale(txt, 0.9)                 # bright, just under the time
+        df = _cv_day_factor(now.hour + now.minute / 60.0)
+        bg = canvas.mix(_NIGHT_BG, _DAY_BG, df)
+        txt = canvas.mix(_NIGHT_TXT, _DAY_TXT, df)
+        accent = canvas.mix(_NIGHT_ACCENT, _DAY_ACCENT, df)
+        city_c = canvas.dim(txt, 0.9)             # bright, just under the time
 
         # A dark row: near-black, a whisper lighter at the top so stacked rows read as
         # separate shelves. Deliberately dim, so the type has contrast.
-        img.paste(_grad(Image, W, rh, _scale(bg, 1.2), _scale(bg, 0.35)), (0, y0))
+        img.paste(_cv_row_grad(Image, W, rh, canvas.dim(bg, 1.2), canvas.dim(bg, 0.35)), (0, y0))
         draw.rectangle([0, y0, bar_w - 1, y1 - 1], fill=accent)   # day/night stripe
 
         hhmm = '%02d:%02d' % (now.hour, now.minute)
@@ -259,9 +251,9 @@ def fetch_matrix(settings, canvas):
         draw.text((tx, y0 + (rh - tcap) / 2.0 - ttop), hhmm, fill=txt, font=tfont, anchor='la')
 
         cx = bar_w + pad
-        city = _fit_text(cfont, label, tx - cx - pad)
+        city = _cv_fit_text(cfont, label, tx - cx - pad)
         if city:
             draw.text((cx, y0 + (rh - ccap) / 2.0 - ctop), city, fill=city_c, font=cfont, anchor='la')
 
     canvas.frame(img)
-    return _next_minute_hold()                     # HH:MM only changes on the minute
+    return _cv_next_minute_hold()                  # HH:MM only changes on the minute

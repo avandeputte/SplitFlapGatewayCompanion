@@ -115,21 +115,10 @@ _CV_TXT = (238, 240, 244)
 _CV_DIM = (145, 150, 160)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
 def _cv_wrap(font, text, max_w, max_lines):
-    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines."""
+    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines.
+    Stays local: canvas.wrap hyphen-splits overlong words, which lets canvas.wrap_fit
+    settle on a larger font and cut the tail (channel names would lose words)."""
     words, lines, cur = str(text or '').split(), [], ''
     for w in words:
         cand = f'{cur} {w}'.strip()
@@ -166,11 +155,6 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
     return font, lines, b[3] - b[1], 1
 
 
-def _cv_text(draw, x, y, text, font, fill):
-    """Baseline-corrected text draw (y is the ink top, whatever the glyph bbox says)."""
-    draw.text((x, y - font.getbbox(text or '0')[1]), text, font=font, fill=fill)
-
-
 def _cv_trim(font, s, max_w):
     """``s`` trimmed with an ellipsis until it fits ``max_w`` (never past empty)."""
     if font.getlength(s) <= max_w:
@@ -189,36 +173,36 @@ def _cv_status_card(canvas, ImageDraw, viewers, name, time_s, i18n):
     draw.fontmode = "1"
     pad = 3                            # side margin; the header ink rides row 1
 
-    hf = _cv_fit(canvas, 'LIVE', W - 2 * pad, max(7, int(H * 0.16)))
+    hf = canvas.fit_font('LIVE', W - 2 * pad, max(7, int(H * 0.16)))
     hh = hf.getbbox('LIVE')[3] - hf.getbbox('LIVE')[1]
     r = max(2, hh // 2 - 1)
     cy = 1 + hh // 2
     draw.ellipse([pad, cy - r, pad + 2 * r, cy + r], fill=_CV_RED)
-    _cv_text(draw, pad + 2 * r + 3, 1, 'LIVE', hf, _CV_RED)
+    canvas.text_top(draw, pad + 2 * r + 3, 1, 'LIVE', hf, _CV_RED)
     live_end = pad + 2 * r + 3 + hf.getlength('LIVE')
     if time_s and live_end + 6 + hf.getlength(time_s) <= W - pad:
-        _cv_text(draw, W - pad - hf.getlength(time_s), 1, time_s, hf, _CV_DIM)
+        canvas.text_top(draw, W - pad - hf.getlength(time_s), 1, time_s, hf, _CV_DIM)
     top = 1 + hh + 2
 
     show_name_row = bool(name) and H >= 48
-    nf = _cv_fit(canvas, 'Ag', W, max(6, int(H * 0.14))) if show_name_row else None
+    nf = canvas.fit_font('Ag', W, max(6, int(H * 0.14))) if show_name_row else None
     nh = (nf.getbbox('Ag')[3] - nf.getbbox('Ag')[1] + 2) if show_name_row else 0
 
     body_h = H - top - 1 - nh
     if viewers is not None:
         count = i18n.number(int(viewers), 0) if i18n is not None else f'{int(viewers):,}'
         label = 'WATCHING NOW'
-        lf = _cv_fit(canvas, label, W - 2 * pad, max(6, int(H * 0.12))) if H >= 48 else None
+        lf = canvas.fit_font(label, W - 2 * pad, max(6, int(H * 0.12))) if H >= 48 else None
         lh2 = (lf.getbbox(label)[3] - lf.getbbox(label)[1] + 2) if lf else 0
-        cf = _cv_fit(canvas, count, W - 2 * pad, body_h - lh2)
+        cf = canvas.fit_font(count, W - 2 * pad, body_h - lh2)
         ch = cf.getbbox(count)[3] - cf.getbbox(count)[1]
         # Centered between header and channel row; with no channel row beneath, the
         # count block itself sinks to the panel's bottom edge.
         y = top + (max(0, (body_h - ch - lh2) // 2) if show_name_row
                    else max(0, body_h - ch - lh2 + 1))
-        _cv_text(draw, (W - cf.getlength(count)) / 2.0, y, count, cf, _CV_TXT)
+        canvas.text_top(draw, (W - cf.getlength(count)) / 2.0, y, count, cf, _CV_TXT)
         if lf:
-            _cv_text(draw, (W - lf.getlength(label)) / 2.0, y + ch + 2, label, lf, _CV_DIM)
+            canvas.text_top(draw, (W - lf.getlength(label)) / 2.0, y + ch + 2, label, lf, _CV_DIM)
     else:
         body_h = H - top - 1                     # no channel row beneath the hero
         big, lines, lh3, gap = _cv_wrap_fit(canvas, name or 'Livestream', W - 2 * pad,
@@ -231,14 +215,14 @@ def _cv_status_card(canvas, ImageDraw, viewers, name, time_s, i18n):
         block += (lb[3] - lb[1]) - lh3           # anchor on the last line's real ink
         y = top + max(0, body_h - block)
         for ln in lines:
-            _cv_text(draw, (W - big.getlength(ln)) / 2.0, y, ln, big, _CV_TXT)
+            canvas.text_top(draw, (W - big.getlength(ln)) / 2.0, y, ln, big, _CV_TXT)
             y += lh3 + gap
         show_name_row = False
         nh = 0
 
     if show_name_row and viewers is not None:
         ns = _cv_trim(nf, str(name), W - 2 * pad)
-        _cv_text(draw, (W - nf.getlength(ns)) / 2.0, H - 1 - (nh - 2), ns, nf, _CV_DIM)
+        canvas.text_top(draw, (W - nf.getlength(ns)) / 2.0, H - 1 - (nh - 2), ns, nf, _CV_DIM)
     return img
 
 
@@ -249,8 +233,8 @@ def _cv_comment_card(canvas, ImageDraw, lines_in):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
     pad = 3                            # side margin; the quote mark's ink rides row 1
-    qf = _cv_fit(canvas, '“', int(W * 0.2), max(8, int(H * 0.22)))
-    _cv_text(draw, pad, 1, '“', qf, _CV_RED)
+    qf = canvas.fit_font('“', int(W * 0.2), max(8, int(H * 0.22)))
+    canvas.text_top(draw, pad, 1, '“', qf, _CV_RED)
     qh = qf.getbbox('“')[3]
     text = ' '.join(lines_in)
     body_top = 1 + max(0, qh - 4)
@@ -272,7 +256,7 @@ def _cv_comment_card(canvas, ImageDraw, lines_in):
     block += (lb[3] - lb[1]) - lh                # anchor on the last line's real ink
     y = body_top + max(0, avail - block)
     for ln in lines:
-        _cv_text(draw, (W - f.getlength(ln)) / 2.0, y, ln, f, _CV_TXT)
+        canvas.text_top(draw, (W - f.getlength(ln)) / 2.0, y, ln, f, _CV_TXT)
         y += lh + gap
     return img
 

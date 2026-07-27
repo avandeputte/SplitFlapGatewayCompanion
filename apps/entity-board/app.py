@@ -175,7 +175,7 @@ def _mx_value(state, attrs, thr, cp):
         return cp(state).upper()[:6], _C_BLUE
 
 
-def _icons(s):
+def _cv_icons(s):
     """The device-icon atlas (on magenta), indexed by _DOMAIN; last tile is the generic dot."""
     from PIL import Image, ImageDraw
     W = max(1, int(s * 0.09))
@@ -289,7 +289,7 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
         use_sprites = False
 
     if use_sprites:
-        canvas.upload_atlas(_icons(tile), persist=True)
+        canvas.upload_atlas(_cv_icons(tile), persist=True)
 
     for i, eid in enumerate(ids):
         r, c = divmod(i, cols)

@@ -117,77 +117,6 @@ _HULL = (205, 210, 220)                     # the rocket's hull
 _FLAME = (255, 140, 40)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_wrap(font, text, max_w, max_lines):
-    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines."""
-    words, lines, cur = str(text or '').split(), [], ''
-    for w in words:
-        cand = f'{cur} {w}'.strip()
-        if not cur or font.getlength(cand) <= max_w:
-            cur = cand
-        else:
-            lines.append(cur)
-            cur = w
-            if len(lines) >= max_lines:
-                break
-    if cur and len(lines) < max_lines:
-        lines.append(cur)
-    return lines[:max_lines] or ['']
-
-
-def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
-    """Largest font at which ``text`` wraps into <= ``max_lines`` lines fitting the box.
-    Returns (font, lines, line_height, gap)."""
-    size = max(8, int(max_h))
-    for _ in range(80):
-        font = canvas.font(size)
-        lines = _cv_wrap(font, text, max_w, max_lines)
-        b = font.getbbox('Ag')
-        lh = b[3] - b[1]
-        gap = max(1, lh // 6)
-        total = len(lines) * lh + (len(lines) - 1) * gap
-        widest = max((font.getlength(ln) for ln in lines), default=0)
-        if size <= 8 or (total <= max_h and widest <= max_w):
-            return font, lines, lh, gap
-        size -= 1
-    font = canvas.font(8)
-    lines = _cv_wrap(font, text, max_w, max_lines)
-    b = font.getbbox('Ag')
-    return font, lines, b[3] - b[1], 1
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (offline / nothing scheduled)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_WHITE)
-    if line2:
-        y += h1 + gap
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_GRAY)
-    return img
-
-
 def _cv_tminus(dt):
     """('T-2D 14H' / 'T-38M' / 'LIFT-OFF', color, seconds-to-go or None)."""
     from datetime import datetime, timezone
@@ -236,10 +165,10 @@ def fetch_matrix(settings, canvas, i18n=None):
     try:
         r = _next_launch()
     except Exception:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'NEXT LAUNCH', 'OFFLINE'))
+        canvas.frame(canvas.message('NEXT LAUNCH', 'OFFLINE', color=_WHITE))
         return 120.0
     if r is None:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'NEXT LAUNCH', 'NONE SCHEDULED'))
+        canvas.frame(canvas.message('NEXT LAUNCH', 'NONE SCHEDULED', color=_WHITE))
         return 300.0
 
     rocket, mission = _rocket_mission(r)
@@ -273,14 +202,14 @@ def fetch_matrix(settings, canvas, i18n=None):
         ww = 0
         if when:
             wbudget = int(W * 0.42)
-            wf = _cv_fit(canvas, when, wbudget, head_h - 3)
+            wf = canvas.fit_font(when, wbudget, head_h - 3)
             if wf.getlength(when) > wbudget and when.endswith(('AM', 'PM')):
                 when = when[:-1]           # 'FRI 12:55PM' -> 'FRI 12:55P', keeps 8px legible
-                wf = _cv_fit(canvas, when, wbudget, head_h - 3)
+                wf = canvas.fit_font(when, wbudget, head_h - 3)
             wb = wf.getbbox(when)
             ww = wf.getlength(when)
             draw.text((W - 3 - ww, 1 - wb[1]), when, font=wf, fill=_WHITE)
-        lf = _cv_fit(canvas, lbl, W - 6 - ww - 8, head_h - 3)
+        lf = canvas.fit_font(lbl, W - 6 - ww - 8, head_h - 3)
         lb = lf.getbbox(lbl)
         if (lb[3] - lb[1]) >= 6:
             draw.text((3, 1 - lb[1]), lbl, font=lf, fill=_GRAY)
@@ -297,7 +226,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         foot_h = max(9, int(H * 0.22))
         fy = H - foot_h - 1
         if tmin:
-            ff = _cv_fit(canvas, tmin, tw, foot_h)
+            ff = canvas.fit_font(tmin, tw, foot_h)
             fb = ff.getbbox(tmin)
             draw.text((tx, H - 1 - (fb[3] - fb[1]) - fb[1]), tmin, font=ff, fill=tcol)
 
@@ -305,7 +234,9 @@ def fetch_matrix(settings, canvas, i18n=None):
         top = head_h + 3
         mis_h = max(7, int(H * 0.15))
         body_h = fy - top - mis_h - 3
-        nf, lines, lh, gap = _cv_wrap_fit(canvas, rocket, tw, body_h, 2)
+        nf, lines = canvas.wrap_fit(rocket, tw, body_h, 2)
+        lh = canvas.ink(nf, 'Ag')
+        gap = max(1, lh // 6)
         block = len(lines) * lh + (len(lines) - 1) * gap
         ny = top + max(0.0, (body_h - block) / 2.0)
         for ln in lines:
@@ -314,7 +245,7 @@ def fetch_matrix(settings, canvas, i18n=None):
         if mission and mission != rocket:
             # A readable size first, the full name second: keep the font at mis_h and
             # ellipsise the mission to the width rather than shrink it out of legibility.
-            mf = _cv_fit(canvas, '0', tw, mis_h)
+            mf = canvas.fit_font('0', tw, mis_h)
             mtext = mission
             while mtext and mf.getlength(mtext + '…') > tw and mtext != '…':
                 mtext = mtext[:-1].rstrip()
@@ -329,13 +260,15 @@ def fetch_matrix(settings, canvas, i18n=None):
         pad = 2
         t_h = max(8, int(H * 0.34))
         name_h = H - t_h - 4
-        nf, lines, lh, gap = _cv_wrap_fit(canvas, rocket, W - 2 * pad, name_h, 2)
+        nf, lines = canvas.wrap_fit(rocket, W - 2 * pad, name_h, 2)
+        lh = canvas.ink(nf, 'Ag')
+        gap = max(1, lh // 6)
         ny = 1
         for ln in lines:
             draw.text(((W - nf.getlength(ln)) / 2.0, ny - nf.getbbox(ln)[1]), ln, font=nf, fill=_WHITE)
             ny += lh + gap
         if tmin:
-            ff = _cv_fit(canvas, tmin, W - 2 * pad, t_h)
+            ff = canvas.fit_font(tmin, W - 2 * pad, t_h)
             fb = ff.getbbox(tmin)
             draw.text(((W - ff.getlength(tmin)) / 2.0, H - 1 - (fb[3] - fb[1]) - fb[1]),
                       tmin, font=ff, fill=tcol)

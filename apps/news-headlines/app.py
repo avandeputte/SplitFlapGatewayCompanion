@@ -167,77 +167,6 @@ _WHITE = (240, 240, 244)
 _GRAY = (150, 150, 158)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_wrap(font, text, max_w, max_lines):
-    """Greedy word-wrap of ``text`` to pixel width ``max_w``, at most ``max_lines`` lines."""
-    words, lines, cur = str(text or '').split(), [], ''
-    for w in words:
-        cand = f'{cur} {w}'.strip()
-        if not cur or font.getlength(cand) <= max_w:
-            cur = cand
-        else:
-            lines.append(cur)
-            cur = w
-            if len(lines) >= max_lines:
-                break
-    if cur and len(lines) < max_lines:
-        lines.append(cur)
-    return lines[:max_lines] or ['']
-
-
-def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines):
-    """Largest font at which ``text`` wraps into <= ``max_lines`` lines fitting the box.
-    Returns (font, lines, line_height, gap)."""
-    size = max(8, int(max_h))
-    for _ in range(80):
-        font = canvas.font(size)
-        lines = _cv_wrap(font, text, max_w, max_lines)
-        b = font.getbbox('Ag')
-        lh = b[3] - b[1]
-        gap = max(1, lh // 6)
-        total = len(lines) * lh + (len(lines) - 1) * gap
-        widest = max((font.getlength(ln) for ln in lines), default=0)
-        if size <= 8 or (total <= max_h and widest <= max_w):
-            return font, lines, lh, gap
-        size -= 1
-    font = canvas.font(8)
-    lines = _cv_wrap(font, text, max_w, max_lines)
-    b = font.getbbox('Ag')
-    return font, lines, b[3] - b[1], 1
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (feed unreachable)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_WHITE)
-    if line2:
-        y += h1 + gap
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - f2.getbbox(line2)[1]), line2, font=f2, fill=_GRAY)
-    return img
-
-
 def fetch_matrix(settings, canvas):
     """Draw one headline per hold under a red masthead, advancing each redraw. The feed itself
     is refetched at most every five minutes; each headline holds ~8s."""
@@ -258,13 +187,13 @@ def fetch_matrix(settings, canvas):
             st['url'] = feed_url
         except Exception:
             if not st['titles']:
-                canvas.frame(_cv_message(canvas, ImageDraw, 'NEWS UNAVAILABLE', 'CHECK FEED URL'))
+                canvas.frame(canvas.message('NEWS UNAVAILABLE', 'CHECK FEED URL', color=_WHITE))
                 return 60.0
             st['ts'] = now                      # keep showing the stale list; retry in 5 min
 
     titles = st['titles']
     if not titles:
-        canvas.frame(_cv_message(canvas, ImageDraw, 'NEWS', 'NO HEADLINES'))
+        canvas.frame(canvas.message('NEWS', 'NO HEADLINES', color=_WHITE))
         return 120.0
     idx = st['i'] % len(titles)
     st['i'] = (st['i'] + 1) % len(titles)
@@ -278,7 +207,7 @@ def fetch_matrix(settings, canvas):
     # Masthead: source badge on red, pagination dots on the right (this headline lit).
     src = _source_tag(feed_url)
     bar_h = max(9, int(H * 0.22))
-    sf = _cv_fit(canvas, src, int(W * 0.5), bar_h - 3)
+    sf = canvas.fit_font(src, int(W * 0.5), bar_h - 3)
     sb = sf.getbbox(src)
     chip_w = int(sf.getlength(src)) + 8
     draw.rectangle([0, 0, chip_w, bar_h - 1], fill=_MAST)
@@ -300,13 +229,10 @@ def fetch_matrix(settings, canvas):
     # The headline, as big as it wraps — mixed case is the point on this panel.
     top = bar_h + 2
     max_lines = 3 if H >= 48 else 2
-    nf, lines, lh, gap = _cv_wrap_fit(canvas, title, W - 6, H - top, max_lines)
-    # A title the wrap had to cut short gets an ellipsis on its last line.
-    if ' '.join(lines) != ' '.join(str(title).split()):
-        ln = lines[-1]
-        while ln and nf.getlength(ln + '…') > W - 6:
-            ln = ln[:-1].rstrip()
-        lines[-1] = (ln + '…') if ln else '…'
+    # canvas.wrap_fit already ellipsizes a title the line budget cuts short.
+    nf, lines = canvas.wrap_fit(title, W - 6, H - top, max_lines)
+    lh = canvas.ink(nf, 'Ag')
+    gap = max(1, lh // 6)
     # The block rides the panel floor, its leading stretched (the font is already
     # at its cap) toward the masthead — but never past lh//2 of extra air, which
     # would tear the headline into strips with a hole between the lines.

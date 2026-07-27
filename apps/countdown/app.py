@@ -347,13 +347,13 @@ _UNITS = {
 }
 
 
-def _is_on(value, default=False):
+def _cv_is_on(value, default=False):
     if value is None:
         return default
     return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
-def _active_targets(settings, caps, tz, now):
+def _cv_active_targets(settings, caps, tz, now):
     """The enabled, valid countdown slots as ``[(EVENT, target_datetime), ...]`` — the same
     enumeration the flap path does (slot 1 defaults to next New Year; a wall with no slots on still
     shows slot 1), so both views rotate over the same set."""
@@ -379,14 +379,14 @@ def _active_targets(settings, caps, tz, now):
         return tz.localize(target) if target.tzinfo is None else target
 
     slots = [{
-        'enabled': _is_on(settings.get('countdown_enabled', 'on'), default=True),
+        'enabled': _cv_is_on(settings.get('countdown_enabled', 'on'), default=True),
         'event': clean_event(settings.get('countdown_event', 'New Year'), 'New Year'),
         'target': str(settings.get('countdown_target', '') or '').strip(),
         'allow_default': True,
     }]
     for i in range(2, 6):
         slots.append({
-            'enabled': _is_on(settings.get(f'countdown_{i}_enabled', 'off')),
+            'enabled': _cv_is_on(settings.get(f'countdown_{i}_enabled', 'off')),
             'event': clean_event(settings.get(f'countdown_{i}_event', ''), 'Countdown'),
             'target': str(settings.get(f'countdown_{i}_target', '') or '').strip(),
             'allow_default': False,
@@ -404,11 +404,11 @@ def _active_targets(settings, caps, tz, now):
     return targets
 
 
-def _valstr(key, value):
+def _cv_valstr(key, value):
     return f'{value:02d}' if key in ('H', 'M', 'S') else str(value)
 
 
-def _bar_font(canvas, avail_h, sample='80'):
+def _cv_bar_font(canvas, avail_h, sample='80'):
     """Largest bundled font whose ``sample`` ink fits ``avail_h`` px tall; returns
     (font, ink_top, ink_height) so callers can center by ink."""
     size = max(8, int(avail_h * 1.5))
@@ -423,7 +423,7 @@ def _bar_font(canvas, avail_h, sample='80'):
     return font, tp, bt - tp
 
 
-def _fit_width(canvas, text, max_w, start):
+def _cv_fit_width(canvas, text, max_w, start):
     size = max(8, int(start))
     font = canvas.font(size)
     while size > 8 and font.getlength(text) > max_w:
@@ -432,9 +432,9 @@ def _fit_width(canvas, text, max_w, start):
     return font
 
 
-def _label(key, value, font, max_w):
+def _cv_label(key, value, font, max_w):
     _, plural, singular = _UNITS[key]
-    vs = _valstr(key, value)
+    vs = _cv_valstr(key, value)
     word = singular if value == 1 else plural
     cand = f'{vs} {word}'
     if font.getlength(cand) <= max_w:
@@ -445,19 +445,19 @@ def _label(key, value, font, max_w):
     return vs
 
 
-def _truncate(font, text, max_w):
+def _cv_truncate(font, text, max_w):
     while text and font.getlength(text) > max_w:
         text = text[:-1]
     return text
 
 
-def _shadow_text(draw, x, y, text, font, fill=(255, 255, 255)):
+def _cv_shadow_text(draw, x, y, text, font, fill=(255, 255, 255)):
     for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)):
         draw.text((x + dx, y + dy), text, font=font, fill=(0, 0, 0), anchor='la')
     draw.text((x, y), text, font=font, fill=fill, anchor='la')
 
 
-def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
+def _cv_render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
     W, H = canvas.width, canvas.height
     pad = 2
     img = canvas.blank((0, 0, 0))
@@ -467,22 +467,22 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
     if header_h > 0 and event:
         # The event name rides the top row and fills the header band; it only
         # shrinks (never below legible) before it resorts to truncating.
-        budget = max(1, header_h - 4)      # _bar_font floors the FONT at 8pt itself
-        hf, htop, hh = _bar_font(canvas, budget, sample=event)
+        budget = max(1, header_h - 4)      # _cv_bar_font floors the FONT at 8pt itself
+        hf, htop, hh = _cv_bar_font(canvas, budget, sample=event)
         while budget > 8 and hf.getlength(event) > W - 4:
             budget -= 1
-            hf, htop, hh = _bar_font(canvas, budget, sample=event)
-        etext = _truncate(hf, event, W - 4)
+            hf, htop, hh = _cv_bar_font(canvas, budget, sample=event)
+        etext = _cv_truncate(hf, event, W - 4)
         ex = (W - hf.getlength(etext)) / 2.0
         ey = 1.0 - htop                 # ink on row 1 (the bbox can under-report a px)
-        _shadow_text(draw, ex, ey, etext, hf, fill=(238, 238, 244))
+        _cv_shadow_text(draw, ex, ey, etext, hf, fill=(238, 238, 244))
         draw.rectangle([0, header_h - 1, W - 1, header_h - 1], fill=_UNITS[keys[0]][0])
 
     n = len(keys)
     top, area = header_h, H - header_h
     edges = [top + round(i * area / n) for i in range(n + 1)]
     min_bh = min(edges[i + 1] - edges[i] for i in range(n))
-    font, ink_top, ink_h = _bar_font(canvas, max(1, min_bh - 3))
+    font, ink_top, ink_h = _cv_bar_font(canvas, max(1, min_bh - 3))
 
     for i, key in enumerate(keys):
         color = _UNITS[key][0]
@@ -491,13 +491,13 @@ def _render_bars(canvas, ImageDraw, keys, val, frac, event, header_h):
         fw = int(round(min(1.0, max(0.0, frac[key])) * W))
         if fw > 0:
             draw.rectangle([0, y0, fw - 1, y1 - 1], fill=color)
-        vtext = _label(key, val[key], font, W - 2 * pad)
+        vtext = _cv_label(key, val[key], font, W - 2 * pad)
         ty = y0 + (bh - ink_h) / 2.0 - ink_top
-        _shadow_text(draw, pad, ty, vtext, font)
+        _cv_shadow_text(draw, pad, ty, vtext, font)
     return img
 
 
-def _render_arrived(canvas, Image, ImageDraw, event, frame):
+def _cv_render_arrived(canvas, Image, ImageDraw, event, frame):
     W, H = canvas.width, canvas.height
     base = canvas.vgrad((255, 196, 70), (28, 168, 92)).convert('RGBA')
 
@@ -513,43 +513,43 @@ def _render_arrived(canvas, Image, ImageDraw, event, frame):
     draw.fontmode = "1"
 
     hero = 'ARRIVED!'
-    hf = _fit_width(canvas, hero, W - 4, int(H * 0.52))
+    hf = _cv_fit_width(canvas, hero, W - 4, int(H * 0.52))
     hb = hf.getbbox(hero)
     hh = hb[3] - hb[1]
     eh, ef = 0, None
     if event:
-        ef = _fit_width(canvas, event, W - 4, int(H * 0.30))
+        ef = _cv_fit_width(canvas, event, W - 4, int(H * 0.30))
         eb = ef.getbbox(event)
         eh = eb[3] - eb[1]
     gap = 2 if event else 0
     y = (H - (hh + gap + eh)) / 2.0
     if event:
-        _shadow_text(draw, (W - ef.getlength(event)) / 2.0, y - ef.getbbox(event)[1],
+        _cv_shadow_text(draw, (W - ef.getlength(event)) / 2.0, y - ef.getbbox(event)[1],
                      event, ef, fill=(255, 250, 235))
         y += eh + gap
-    _shadow_text(draw, (W - hf.getlength(hero)) / 2.0, y - hb[1], hero, hf)
+    _cv_shadow_text(draw, (W - hf.getlength(hero)) / 2.0, y - hb[1], hero, hf)
     return img
 
 
-def _render_message(canvas, ImageDraw, line1, line2):
+def _cv_render_message(canvas, ImageDraw, line1, line2):
     W, H = canvas.width, canvas.height
     img = canvas.vgrad((34, 40, 52), (12, 14, 20))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
-    f1 = _fit_width(canvas, line1, W - 4, int(H * 0.40))
+    f1 = _cv_fit_width(canvas, line1, W - 4, int(H * 0.40))
     b1 = f1.getbbox(line1)
     h1 = b1[3] - b1[1]
     f2, h2 = None, 0
     if line2:
-        f2 = _fit_width(canvas, line2, W - 4, int(H * 0.30))
+        f2 = _cv_fit_width(canvas, line2, W - 4, int(H * 0.30))
         b2 = f2.getbbox(line2)
         h2 = b2[3] - b2[1]
     gap = 2 if line2 else 0
     y = (H - (h1 + gap + h2)) / 2.0
-    _shadow_text(draw, (W - f1.getlength(line1)) / 2.0, y - b1[1], line1, f1, fill=(235, 238, 245))
+    _cv_shadow_text(draw, (W - f1.getlength(line1)) / 2.0, y - b1[1], line1, f1, fill=(235, 238, 245))
     if line2:
         y += h1 + gap
-        _shadow_text(draw, (W - f2.getlength(line2)) / 2.0, y - b2[1], line2, f2, fill=(150, 170, 210))
+        _cv_shadow_text(draw, (W - f2.getlength(line2)) / 2.0, y - b2[1], line2, f2, fill=(150, 170, 210))
     return img
 
 
@@ -573,9 +573,9 @@ def fetch_matrix(settings, canvas, caps=None):
         tz = pytz.utc
     now = datetime.now(tz)
 
-    targets = _active_targets(settings, caps, tz, now)
+    targets = _cv_active_targets(settings, caps, tz, now)
     if not targets:
-        canvas.frame(_render_message(canvas, ImageDraw, 'SET A TARGET', 'DATE'))
+        canvas.frame(_cv_render_message(canvas, ImageDraw, 'SET A TARGET', 'DATE'))
         return 30.0
 
     try:
@@ -584,12 +584,12 @@ def fetch_matrix(settings, canvas, caps=None):
         span = 6
     event, target = targets[_rotation_index(now.timestamp(), span, len(targets))]
     event = event.upper()
-    show_seconds = _is_on(settings.get('show_seconds', 'no'))
+    show_seconds = _cv_is_on(settings.get('show_seconds', 'no'))
 
     W, H = canvas.width, canvas.height
     total = (target - now).total_seconds()
     if total <= 0:
-        canvas.frame(_render_arrived(canvas, Image, ImageDraw, event, frame))
+        canvas.frame(_cv_render_arrived(canvas, Image, ImageDraw, event, frame))
         return 0.2
 
     total_i = int(total)
@@ -622,5 +622,5 @@ def fetch_matrix(settings, canvas, caps=None):
         keys.append('S')
     keys = keys[:max_bars]
 
-    canvas.frame(_render_bars(canvas, ImageDraw, keys, val, frac, event, header_h))
+    canvas.frame(_cv_render_bars(canvas, ImageDraw, keys, val, frac, event, header_h))
     return 0.2 if 'S' in keys else 1.0          # fast sweep only while a seconds bar is drawn

@@ -141,40 +141,6 @@ _TXT_COL = (245, 245, 248)
 _SUB_COL = (132, 136, 148)
 
 
-def _cv_fit(canvas, text, max_w, max_h):
-    """The largest bundled font whose ``text`` fits within ``max_w`` x ``max_h`` (down to 8px — smaller renders wrong-reading glyphs)."""
-    size = max(8, int(max_h) + 2)
-    font = canvas.font(size)
-    for _ in range(80):
-        b = font.getbbox(text or '0')
-        if size <= 8 or (font.getlength(text or '0') <= max_w and (b[3] - b[1]) <= max_h):
-            return font
-        size -= 1
-        font = canvas.font(size)
-    return font
-
-
-def _cv_message(canvas, ImageDraw, line1, line2):
-    """A quiet two-line message (offline / no data)."""
-    W, H = canvas.width, canvas.height
-    img = canvas.blank((0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.fontmode = "1"
-    f1 = _cv_fit(canvas, line1, W - 4, int(H * 0.32))
-    b1 = f1.getbbox(line1)
-    h1 = b1[3] - b1[1]
-    f2 = _cv_fit(canvas, line2, W - 4, int(H * 0.22)) if line2 else None
-    h2 = (f2.getbbox(line2)[3] - f2.getbbox(line2)[1]) if line2 else 0
-    gap = 3 if line2 else 0
-    y = (H - (h1 + gap + h2)) / 2.0
-    draw.text(((W - f1.getlength(line1)) / 2.0, y - b1[1]), line1, font=f1, fill=_TXT_COL)
-    if line2:
-        y += h1 + gap
-        b2 = f2.getbbox(line2)
-        draw.text(((W - f2.getlength(line2)) / 2.0, y - b2[1]), line2, font=f2, fill=_SUB_COL)
-    return img
-
-
 def _cached_sun(settings, get_location):
     """_sun_data with a 15-minute memory, so a 2-minute redraw cadence doesn't
     become a 2-minute API cadence."""
@@ -212,7 +178,8 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
         rise = datetime.fromisoformat(str(data['sunrise']))
         sett = datetime.fromisoformat(str(data['sunset']))
     except Exception:
-        canvas.frame(_cv_message(canvas, ImageDraw, t('Sun times').upper(), t('Offline').upper()))
+        canvas.frame(canvas.message(t('Sun times').upper(), t('Offline').upper(),
+                                    color=_TXT_COL, dim=_SUB_COL))
         return 60.0
 
     # "Now" in the location's own clock — the API talks local time throughout.
@@ -256,7 +223,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
             secs = data['daylight']
             mid = f'{secs // 3600}{u("H")}{(secs % 3600) // 60:02d}{u("M")}'
             col = _SUB_COL
-        mf = _cv_fit(canvas, mid, int(W * 0.62), max(8, int(H * 0.20)))
+        mf = canvas.fit_font(mid, int(W * 0.62), max(8, int(H * 0.20)))
         mb = mf.getbbox(mid)
         draw.text(((W - mf.getlength(mid)) / 2.0, horizon_y - 4 - (mb[3] - mb[1]) - mb[1]),
                   mid, font=mf, fill=col)
@@ -298,7 +265,7 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
         for tag in ('AM', 'PM'):
             rtxt = rtxt[:-2] if rtxt.endswith(tag) else rtxt
             stxt = stxt[:-2] if stxt.endswith(tag) else stxt
-    tf = _cv_fit(canvas, rtxt if len(rtxt) >= len(stxt) else stxt, int(W * 0.44), time_h)
+    tf = canvas.fit_font(rtxt if len(rtxt) >= len(stxt) else stxt, int(W * 0.44), time_h)
     rb, sb = tf.getbbox(rtxt), tf.getbbox(stxt)
     ty = H - 1 - max(rb[3] - rb[1], sb[3] - sb[1])   # digits sit on the bottom row
     draw.text((2, ty - rb[1]), rtxt, font=tf, fill=_RISE_COL)
