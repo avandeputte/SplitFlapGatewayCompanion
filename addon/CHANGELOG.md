@@ -5,19 +5,12 @@ have to match the add-on's `version`, or the update notice comes up blank.
 
 ## 2.10.6
 
-More to play with on the Matrix panel, and richer art on newer firmware.
-
-- **New app: Tetris** 🟦 — Tetris turned on its side for a wide panel. Pieces drift in from
-  the right and pile against the left; fill a whole **column** to clear it. It plays itself
-  until you grab the controls (up/down move, right rotate, left drop) and play live, with
-  sound.
-- **Chomper: lives and a proper game over.** Lose a life and the game holds on a **READY?**
-  screen until you press a key; lose your last and the board **fades to black behind a
-  GAME OVER** overlay with your score — press any key for a new game.
-- **Richer canvas art on firmware-3.8 walls** 🎨 — apps light up the new compositing surface
-  when the panel supports it. The **Aquarium** gains additive godrays shimmering down from
-  the surface, anti-aliased weeds, and a soft glow around each bubble; **Chomper**'s power
-  pellets pick up a warm halo. Older walls draw the plain look exactly as before.
+- **New app: Tetris** 🟦 — horizontal Tetris for a wide panel; plays itself, or take the
+  controls (up/down move, right rotate, left drop).
+- **Chomper: lives and a proper game over** — a READY? hold between lives, fade-to-black
+  GAME OVER with your score, press to restart.
+- **Richer canvas art on firmware-3.8 walls** 🎨 — Aquarium godrays and glow, Chomper
+  power-pellet halo. Older walls unchanged.
 
 ## 2.10.5
 
