@@ -80,7 +80,7 @@ class RestTransport(DisplayTransport):
         self._last_repaint = 0.0
 
     async def connect(self) -> None:
-        import httpx
+        import httpx2 as httpx
 
         self._client = httpx.AsyncClient(
             base_url=self.base,

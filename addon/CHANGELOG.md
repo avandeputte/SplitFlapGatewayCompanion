@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.5
+
+- **Fix: the gateway was shown offline** (and nothing could drive the display) even when it
+  was reachable. The 2.10.4 move to httpx2 missed one file — the transport that talks to the
+  gateway — so its connection attempt failed on a missing import and was reported as the
+  wall being unreachable. Affected every display. Fixed, with a guard so it cannot recur.
+
 ## 2.10.4
 
 The interactive release — and a big pass on newer Matrix Gateway firmware, internals, and
