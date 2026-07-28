@@ -100,7 +100,7 @@ def build(deps) -> APIRouter:
         reached it yet — and the UI falls back to its built-in list. See tabs.py.
         """
         d = deps.display_for(request)
-        import httpx
+        import httpx2 as httpx
 
         tabs = list(d.gateway_tabs)
         url = d.config.transport.get("gateway_url", "").rstrip("/")

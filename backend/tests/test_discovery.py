@@ -6,7 +6,7 @@ tests must never do. mDNS is switched off the same way: mdns=False.
 """
 import asyncio
 
-import httpx
+import httpx2 as httpx
 
 from app import discovery
 

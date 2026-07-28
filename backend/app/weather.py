@@ -61,7 +61,7 @@ import logging
 import time
 from datetime import datetime, timezone
 
-import httpx
+import httpx2 as httpx
 
 from . import i18n, location
 

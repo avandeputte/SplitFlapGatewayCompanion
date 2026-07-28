@@ -35,7 +35,7 @@ from __future__ import annotations
 import logging
 import re
 
-import httpx
+import httpx2 as httpx
 from fastapi import APIRouter, Request, Response
 
 log = logging.getLogger("companion.gwproxy")

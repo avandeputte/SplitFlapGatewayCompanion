@@ -1,6 +1,6 @@
 fastapi>=0.110
 uvicorn[standard]>=0.29
-httpx>=0.27
+httpx2>=2.5             # async/sync HTTP client (the httpx successor; SSE built in)
 paho-mqtt>=2.0
 python-multipart>=0.0.9   # file uploads (app upload endpoint)
 tzlocal>=5.0              # host IANA timezone detection (honors $TZ, Docker, systemd)
@@ -29,8 +29,7 @@ python-dateutil>=2.9   # RRULE expansion for the `calendar` app. It arrives anyw
                        # on the stocks app staying installed — and RRULE (BYSETPOS, BYDAY=-1SU,
                        # an UNTIL in UTC against a local DTSTART, DST) is not a spec to
                        # reimplement by hand.
-mcp>=1.28,<2           # MCP server (app/mcp_server.py). Capped below 2.0: it dropped the
-                       # high-level mcp.server.fastmcp API this uses (a full rewrite).
+mcp>=2,<3              # MCP server (app/mcp_server.py); an LLM client can drive the display
 zeroconf>=0.132        # gateway discovery accelerator (app/discovery.py). Optional at
                        # runtime — multicast never reaches a bridged container (HA add-on,
                        # default Docker), where the HTTP sweep does the finding instead.

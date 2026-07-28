@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 
 from . import renderer, vestaboard
@@ -38,7 +38,7 @@ from .plugins import app_id_from_ref
 log = logging.getLogger("companion.mcp")
 
 
-def build(displays) -> FastMCP:
+def build(displays) -> MCPServer:
     """Wire the tools onto the live DisplayManager and return the server.
 
     Every tool takes an optional `display`. Omitted, it means the DEFAULT display — which
@@ -51,28 +51,13 @@ def build(displays) -> FastMCP:
     to re-establish. ``streamable_http_path="/"`` puts the endpoint at the mount point
     itself — mounted at ``/mcp``, that is ``/mcp``, not ``/mcp/mcp``.
     """
-    mcp = FastMCP(
+    mcp = MCPServer(
         "SplitFlap Gateway Companion",
         instructions=(
             "Controls a physical split-flap display: a grid of character modules on a "
             "wall. Showing a message takes the display over and stops any running app "
             "or playlist. Reads report what is physically on the flaps right now."
         ),
-        stateless_http=True,
-        streamable_http_path="/",
-        # FastMCP's default host is 127.0.0.1, and on that default it quietly turns on
-        # DNS-rebinding protection with allowed_hosts=[127.0.0.1, localhost, ::1]. We are
-        # a LAN service reached by whatever name the user has — homeassistant.local:8000,
-        # 192.168.1.60:8000, a reverse-proxy hostname — so that default answers every one
-        # of them with 421 Misdirected Request. There is no wildcard that allows any host,
-        # so the check has to come off.
-        #
-        # Safe here because it is not what guards this endpoint: _MCPGuard in main.py
-        # demands a bearer token BEFORE the request ever reaches this app. Rebinding
-        # protection exists to stop a browser replaying *ambient* credentials (a cookie)
-        # at a LAN address; there are none to replay — the token is not a cookie, and a
-        # hostile page cannot read it cross-origin.
-        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
     )
 
     def _res(display: str = ""):
@@ -371,3 +356,26 @@ def build(displays) -> FastMCP:
         return list(renderer.ALL_STYLES)
 
     return mcp
+
+
+def http_app(server: MCPServer):
+    """The configured streamable-HTTP ASGI app for a built server — main.py mounts this.
+
+    In mcp 2.0 the transport config lives here, not on the MCPServer constructor.
+    ``stateless_http`` keeps every call self-contained (a plain POST works; a reconnecting
+    client has nothing to re-establish). ``streamable_http_path="/"`` puts the endpoint at
+    the mount point — mounted at ``/mcp`` that is ``/mcp``, not ``/mcp/mcp``.
+
+    DNS-rebinding protection is turned OFF: its default allowed_hosts is
+    [127.0.0.1, localhost, ::1], but we are a LAN service reached by whatever name the user
+    has (homeassistant.local:8000, 192.168.1.60:8000, a reverse-proxy hostname), so the
+    default would answer every one with 421 Misdirected Request, and there is no allow-any
+    wildcard. Safe here: _MCPGuard in main.py demands a bearer token BEFORE a request
+    reaches this app, and the token is not an ambient cookie a hostile page could replay
+    cross-origin — which is the only thing rebinding protection defends against.
+    """
+    return server.streamable_http_app(
+        streamable_http_path="/",
+        stateless_http=True,
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )

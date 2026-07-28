@@ -17,7 +17,7 @@ import collections
 import logging
 from datetime import datetime
 
-import httpx
+import httpx2 as httpx
 import pytz
 
 log = logging.getLogger("companion.helpers")

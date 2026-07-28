@@ -116,15 +116,17 @@ def test_a_client_may_connect_by_any_hostname(live, host):
 def call(main, name, args=None):
     """Call a tool the way the protocol does, but without standing up a server.
 
-    FastMCP returns ``(content_blocks, structured)``; the structured half is the real
-    return value, with a bare list wrapped under "result".
+    mcp 2.0 returns a ``CallToolResult``: ``.structured_content`` is the real return value
+    (a bare list wrapped under "result"), falling back to the JSON in the text content block
+    for a tool that returns no structured output.
     """
-    out = asyncio.run(main.mcp.call_tool(name, args or {}))
-    if isinstance(out, tuple):
-        out = out[1]
+    res = asyncio.run(main.mcp.call_tool(name, args or {}))
+    out = res.structured_content
+    if out is None:
+        out = json.loads(res.content[0].text)
     if isinstance(out, dict):
         return out.get("result", out)
-    return json.loads(out[0].text)
+    return out
 
 
 def test_tools_are_all_registered(mcp_on):
@@ -142,8 +144,8 @@ def test_every_tool_takes_an_optional_display(mcp_on):
     for t in tools:
         if t.name in ("list_displays", "list_styles"):
             continue
-        props = (t.inputSchema or {}).get("properties", {})
-        required = (t.inputSchema or {}).get("required", [])
+        props = (t.input_schema or {}).get("properties", {})
+        required = (t.input_schema or {}).get("required", [])
         assert "display" in props, f"{t.name} cannot address a second wall"
         assert "display" not in required, f"{t.name} made display mandatory"
 

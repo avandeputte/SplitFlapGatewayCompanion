@@ -17,7 +17,7 @@ import logging
 import os
 import time
 
-import httpx
+import httpx2 as httpx
 
 log = logging.getLogger("companion.ha_rest")
 

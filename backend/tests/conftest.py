@@ -160,7 +160,7 @@ class _JsonResp(Resp):
 
     def raise_for_status(self):
         if self.status_code >= 400:
-            import httpx
+            import httpx2 as httpx
             raise httpx.HTTPStatusError(f"status {self.status_code}",
                                         request=None, response=self)
 

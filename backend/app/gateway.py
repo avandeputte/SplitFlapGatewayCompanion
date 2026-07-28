@@ -33,7 +33,7 @@ _clients: dict[str, object] = {}
 
 
 def _client(url: str):
-    import httpx
+    import httpx2 as httpx
 
     base = (url or "").rstrip("/")
     with _clients_lock:
@@ -179,7 +179,7 @@ async def addon_public_url(container_port: int = 8000) -> str:
     """
     import os
 
-    import httpx
+    import httpx2 as httpx
 
     token = os.environ.get("SUPERVISOR_TOKEN", "")
     if not token:

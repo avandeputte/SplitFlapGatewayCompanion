@@ -26,7 +26,7 @@ import logging
 import os
 from urllib.parse import urlparse
 
-import httpx
+import httpx2 as httpx
 
 from .gateway import HA_INTERNAL_NET, _primary_ipv4, detect_local_ip, gateway_version
 

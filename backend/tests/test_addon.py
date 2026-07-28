@@ -381,7 +381,7 @@ class _FakeSupervisor:
 
 @pytest.fixture
 def supervisor(monkeypatch):
-    import httpx
+    import httpx2 as httpx
     from app import gateway
 
     def install(**kw):

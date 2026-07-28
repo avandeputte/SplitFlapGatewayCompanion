@@ -62,7 +62,7 @@ if not isinstance(_LEVEL, int):
 logging.basicConfig(level=_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 # Keep chatty third-party libraries from flooding the log at DEBUG — we want the
 # companion's own DEBUG lines, not httpcore/asyncio wire-level noise.
-for _noisy in ("httpx", "httpcore", "asyncio", "urllib3", "paho", "python_multipart", "multipart"):
+for _noisy in ("httpx", "httpx2", "httpcore", "asyncio", "urllib3", "paho", "python_multipart", "multipart"):
     logging.getLogger(_noisy).setLevel(max(_LEVEL, logging.INFO))
 log = logging.getLogger("companion")
 log.debug("log level set to %s", logging.getLevelName(_LEVEL))
@@ -168,7 +168,7 @@ def display_for(request: Request | None = None):
 mcp = None
 if mcp_server is not None:
     try:
-        mcp = mcp_server.build(displays)
+        mcp = mcp_server.build(displays)       # the MCPServer (its ASGI app is built at the mount)
     except Exception as _mcp_err:
         log.warning("MCP server unavailable, building it failed (%s); "
                     "the display runs without it", _mcp_err)
@@ -501,7 +501,7 @@ async def _verify_reachable(companion_url: str):
     """Confirm the URL we registered is actually reachable. If the server was
     launched with `uvicorn ...` (binds 127.0.0.1) instead of `python -m app`
     (binds 0.0.0.0), the LAN URL we register won't be reachable — warn loudly."""
-    import httpx
+    import httpx2 as httpx
 
     await asyncio.sleep(4)  # let the server start accepting connections
     try:
@@ -858,7 +858,7 @@ class _MCPPathFix:
 
 # Before the SPA mount below, for the same reason /local-api/* is: "/" swallows
 # everything that hasn't already been claimed.
-app.mount("/mcp", _MCPGuard(mcp.streamable_http_app() if mcp is not None else None))
+app.mount("/mcp", _MCPGuard(mcp_server.http_app(mcp) if mcp is not None else None))
 app.add_middleware(_MCPPathFix)
 
 # The gateway's own UI, served through us at /gw/ — the only way it can appear inside
