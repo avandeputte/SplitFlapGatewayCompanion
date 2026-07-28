@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.4-beta.7
+
+- **Play Chomper live from the web UI.** While Chomper runs on a Matrix panel, an on-screen
+  D-pad appears under the Live Display (arrow keys / WASD, Space to pause, Enter to restart) —
+  grab it and steer the chomper yourself, with sound on the gateway speaker (firmware 3.6).
+  Let go and it drifts back to playing itself. Inputs stream at binary-ops latency; a wall
+  without a speaker just stays silent. A proof of concept for interactive panel games.
+
 ## 2.10.4-beta.6
 
 - **Chomper runs at game rate.** Draw batches now use the Matrix Gateway 3.5 binary ops
