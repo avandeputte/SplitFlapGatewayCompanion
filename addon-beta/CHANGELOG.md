@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.4-beta.9
+
+- **Current on httpx2 and MCP 2.0.** Moved the HTTP client to httpx2 (the httpx successor)
+  and the MCP server to the MCP SDK 2.0 API. The image now runs a single HTTP stack.
+- **More resilient startup.** A broken or incompatible optional dependency (like the MCP
+  library) can no longer stop the whole add-on from starting — the display runs, and the
+  MCP endpoint reports unavailable instead. (This is what beta.8 hotfixed reactively.)
+
 ## 2.10.4-beta.8
 
 - **Fix: the add-on could fail to start** after the `mcp` library published 2.0.0, which
