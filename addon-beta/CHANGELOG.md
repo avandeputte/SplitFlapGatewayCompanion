@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.6-beta.2
+
+- **New app: Tetris** 🟦 — Tetris turned on its side for a wide panel. Pieces drift in from
+  the right and pile against the left; fill a whole **column** to clear it. It plays itself
+  until you grab the controls (up/down move, right rotate, left drop) and play live, with
+  sound. A second interactive-game proof of concept.
+
 ## 2.10.6-beta.1
 
 - **Chomper: lives and a proper game over.** Lose a life and the game holds on a **READY?**
