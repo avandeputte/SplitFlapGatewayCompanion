@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 
-from mcp.server import FastMCP
+from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from . import renderer, vestaboard

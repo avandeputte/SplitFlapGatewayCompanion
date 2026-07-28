@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.4-beta.8
+
+- **Fix: the add-on could fail to start** after the `mcp` library published 2.0.0, which
+  removed the API the MCP server uses. Pinned `mcp` below 2.0 and moved to its canonical
+  import path. (MCP is off by default; the crash hit startup regardless.)
+
 ## 2.10.4-beta.7
 
 - **Play Chomper live from the web UI.** While Chomper runs on a Matrix panel, an on-screen
