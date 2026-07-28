@@ -380,3 +380,28 @@ def test_an_unknown_display_names_the_ones_that_exist():
     src = (Path(__file__).resolve().parents[1] / "app" / "mcp_server.py").read_text("utf-8")
     assert 'known = ", ".join(displays.ids())' in src
     assert "no such display" in src
+
+
+# --- resilience: a broken/absent MCP dependency must not brick the whole app ---
+def test_a_broken_mcp_layer_503s_when_enabled_never_crashes(monkeypatch):
+    """If the mcp library is missing/incompatible the app still starts; /mcp then 404s
+    while off and 503s while on, instead of the companion failing to boot (the mcp 2.0.0
+    regression). Exercises the guard with inner=None — the built app being absent."""
+    import asyncio
+    from app import main
+
+    guard = main._MCPGuard(None)                       # as if build() had failed
+
+    async def _status(enabled):
+        monkeypatch.setattr(main.config, "_mcp", enabled)
+        out = {}
+
+        async def send(msg):
+            if msg["type"] == "http.response.start":
+                out["status"] = msg["status"]
+
+        await guard({"type": "http", "headers": []}, None, send)
+        return out["status"]
+
+    assert asyncio.run(_status(False)) == 404          # off → gone
+    assert asyncio.run(_status(True)) == 503           # on but unbuildable → unavailable, not a crash

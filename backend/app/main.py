@@ -23,7 +23,13 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, gwproxy, mcp_server, uilang
+from . import __version__, gwproxy, uilang
+try:
+    from . import mcp_server           # optional: the MCP server layer
+except Exception as _mcp_err:          # a broken/incompatible mcp lib must not
+    mcp_server = None                  # take the whole companion down (it's off by default)
+    logging.getLogger("companion").warning(
+        "MCP server unavailable, importing it failed (%s); the display runs without it", _mcp_err)
 from .config import Config, addon_option, default_data_dir
 from .display import DisplayManager
 from .engine import DisplayController
@@ -156,8 +162,16 @@ def display_for(request: Request | None = None):
 
 # The MCP server is built unconditionally, even when the layer is off: the Dev-menu
 # switch has to be able to turn it on without a restart, and an ASGI app can't be
-# mounted after startup. _MCPGuard below is what makes the surface exist or 404.
-mcp = mcp_server.build(displays)
+# mounted after startup. _MCPGuard below is what makes the surface exist or 404. A build
+# failure (a broken mcp dependency) leaves mcp None — the surface then 503s instead of
+# crashing the app.
+mcp = None
+if mcp_server is not None:
+    try:
+        mcp = mcp_server.build(displays)
+    except Exception as _mcp_err:
+        log.warning("MCP server unavailable, building it failed (%s); "
+                    "the display runs without it", _mcp_err)
 
 
 def _redact(cfg: dict) -> dict:
@@ -801,12 +815,16 @@ class _MCPGuard:
     """
 
     def __init__(self, inner):
-        self.inner = inner
+        self.inner = inner      # the built MCP app, or None when it could not be built
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             if not config.mcp_enabled:
                 await _asgi_json(send, 404, "MCP server is off (set COMPANION_MCP=1)")
+                return
+            if self.inner is None:
+                await _asgi_json(send, 503,
+                                 "MCP server unavailable (dependency error) — see the add-on log")
                 return
             headers = dict(scope.get("headers") or [])
             auth = headers.get(b"authorization", b"").decode("latin-1")
@@ -814,7 +832,8 @@ class _MCPGuard:
             if not sent or not secrets.compare_digest(sent, mcp_token()):
                 await _asgi_json(send, 401, "invalid or missing bearer token")
                 return
-        await self.inner(scope, receive, send)
+        if self.inner is not None:
+            await self.inner(scope, receive, send)
 
 
 class _MCPPathFix:
@@ -839,7 +858,7 @@ class _MCPPathFix:
 
 # Before the SPA mount below, for the same reason /local-api/* is: "/" swallows
 # everything that hasn't already been claimed.
-app.mount("/mcp", _MCPGuard(mcp.streamable_http_app()))
+app.mount("/mcp", _MCPGuard(mcp.streamable_http_app() if mcp is not None else None))
 app.add_middleware(_MCPPathFix)
 
 # The gateway's own UI, served through us at /gw/ — the only way it can appear inside
