@@ -53,6 +53,23 @@
       </div>
       <div class="board" id="preview"></div>
       <div class="preview-src" id="previewSrc"></div>
+
+      <!-- Live-game control pad — shown only while an interactive matrix app is running
+           (see updateActiveUI). Each press POSTs to /api/game/input; arrow keys / WASD,
+           Space and Enter work too. -->
+      <div class="gamepad hidden" id="gamePad">
+        <div class="dpad">
+          <button class="gbtn up" data-act="up" aria-label="Up" data-i18n-label="Up">▲</button>
+          <button class="gbtn left" data-act="left" aria-label="Left" data-i18n-label="Left">◀</button>
+          <button class="gbtn right" data-act="right" aria-label="Right" data-i18n-label="Right">▶</button>
+          <button class="gbtn down" data-act="down" aria-label="Down" data-i18n-label="Down">▼</button>
+        </div>
+        <div class="game-actions">
+          <button class="btn ghost btn-sm" data-act="start" data-i18n="↺ Restart">↺ Restart</button>
+          <button class="btn ghost btn-sm" data-act="pause" data-i18n="⏸ Pause">⏸ Pause</button>
+          <span class="hint" data-i18n="or use the arrow keys">or use the arrow keys</span>
+        </div>
+      </div>
     </section>
 
     <!-- APPS -->

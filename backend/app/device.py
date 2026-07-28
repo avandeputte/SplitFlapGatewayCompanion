@@ -118,6 +118,7 @@ class Capabilities:
     # frame/rect/ops records back-to-back, no per-frame HTTP round trip. Advertised as canvas.stream.
     canvas_stream: bool = False
     events: bool = False                    # GET /api/events — the gateway's own SSE display stream
+    can_sound: bool = False                 # POST /api/sound — on-device tone synthesis (fw 3.6 "sound")
 
     def __bool__(self) -> bool:
         return self.indexed
@@ -298,6 +299,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_ops=canvas_ops,
         canvas_rects=bool(canvas.get("rects")),
         canvas_stream=bool(canvas.get("stream")),
+        can_sound="sound" in features,
         events="events" in features,
     )
 

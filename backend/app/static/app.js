@@ -731,6 +731,9 @@ function updateActiveUI(activeApp, activePlaylist) {
     if (html) { $("activeText").innerHTML = html; banner.classList.remove("hidden"); }
     else banner.classList.add("hidden");
   }
+  // The live-game control pad rides along with an interactive matrix app.
+  const act = activeApp ? APPS.find((x) => x.id === activeApp) : null;
+  $("gamePad").classList.toggle("hidden", !(act && act.interactive && CANVAS));
   document.querySelectorAll(".app-tile").forEach((tile) => {
     const on = tile.dataset.appId === activeApp;
     if (tile.classList.contains("running") !== on) tile.classList.toggle("running", on);
@@ -1658,6 +1661,31 @@ async function guard(fn, sink) {
   }
 }
 
+// ---- live-game control pad -------------------------------------------------
+// Each press POSTs one action to /api/game/input, read by the running app's `controls`
+// helper on its next frame. A dropped keypress must never interrupt play, so failures
+// are swallowed here (unlike guard()) — the game just misses one input.
+function wireGamePad() {
+  const pad = $("gamePad");
+  const send = (action) => post("/api/game/input", { action }).catch(() => {});
+  pad.querySelectorAll("[data-act]").forEach((b) =>
+    b.addEventListener("click", () => send(b.dataset.act)));
+  const KEYS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+                 w: "up", s: "down", a: "left", d: "right", W: "up", S: "down", A: "left",
+                 D: "right", " ": "pause", Enter: "start" };
+  document.addEventListener("keydown", (e) => {
+    if (pad.classList.contains("hidden") || e.repeat) return;
+    const tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return;
+    const action = KEYS[e.key];
+    if (!action) return;
+    e.preventDefault();
+    send(action);
+    const b = pad.querySelector(`.gbtn[data-act="${action}"]`);   // flash the matching arrow
+    if (b) { b.classList.add("held"); setTimeout(() => b.classList.remove("held"), 110); }
+  });
+}
+
 function wireOverlay() {
   $("ovShow").addEventListener("click", () => guard(async () => {
     await post("/api/panel/overlay", {
@@ -2186,6 +2214,7 @@ async function init() {
   $("plName").addEventListener("input", plSaveLabel);
   // panel (Matrix-only; the tab shows only on a canvas wall)
   wireOverlay();
+  wireGamePad();
   // triggers
   $("trigAdd").addEventListener("click", addTrigger);
   $("trigSave").addEventListener("click", saveTriggers);

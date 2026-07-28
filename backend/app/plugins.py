@@ -27,7 +27,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import appaudit, canvas, device, ha_rest, i18n, location, renderer, textlayout, weather
+from . import appaudit, canvas, device, gameinput, ha_rest, i18n, location, renderer, textlayout, weather
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -640,6 +640,16 @@ class PluginRuntime:
         # paginate(text, title="") → finished pages for a block of text, word-wrapped and balanced
         # to THIS wall — shared here so the advice/quote/fact apps don't each carry a copy.
         "paginate": lambda self, app_id, ps, settings: self._make_paginate(app_id),
+        # controls → the live player input for an interactive matrix game (the web UI POSTs to
+        # /api/game/input). Read once per frame: .dir is the held direction, .events the presses
+        # since the last frame, .active() whether a human is engaged (else run attract mode).
+        "controls": lambda self, app_id, ps, settings:
+            gameinput.snapshot(self._gateway_url(), now=time.monotonic()),
+        # play_sound(notes=[[freq,ms],…]) / (freq=,ms=) → a tone on the wall's speaker (fw 3.6),
+        # fire-and-forget so it never stalls a frame; a no-op where the wall has no speaker.
+        "play_sound": lambda self, app_id, ps, settings:
+            (lambda **kw: canvas.play_sound(self._gateway_url(), **kw)
+             if self._caps().can_sound else False),
     }
 
     @classmethod
@@ -658,6 +668,11 @@ class PluginRuntime:
         return lambda text, title="": [fmt(*page) for page in
                                        textlayout.balanced_pages(text, self.get_rows(),
                                                                  self.get_cols(), title)]
+
+    def _gateway_url(self) -> str:
+        """This runtime's wall url — the identity the canvas layer and the game-input
+        buffer both key off."""
+        return str(self.config.transport.get("gateway_url") or "").strip()
 
     def build_canvas_surface(self):
         """A CanvasSurface for this wall, or None if it has no framebuffer. The transport the
@@ -1170,6 +1185,9 @@ class PluginRuntime:
             # hides a matrix-only app where the wall has no framebuffer to run it on. Read from the
             # manifest we were handed — the per-effect catalog entries aren't in the registry.
             "surfaces": list(manifest.get("surfaces") or ["flap"]),
+            # A live game: while it runs, the UI shows the on-screen control pad and its
+            # keypresses POST to /api/game/input (read by the app's `controls` helper).
+            "interactive": bool(manifest.get("interactive")),
             "builtin": builtin,
         }
 

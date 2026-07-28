@@ -5,8 +5,11 @@ of on-device draw ops — wall cells merged into runs of ``rect``, pellets as ``
 the chomper as a firmware-3.5 filled ``arc`` whose mouth wedge opens and shuts as it
 runs (a ``circle`` with a ``triangle`` bite on older walls), ghosts as circle + rect
 with a ``poly`` skirt. The game simulates itself: the chomper chases the nearest pellet
-by breadth-first search, ghosts chase the chomper — and flee, blue, while a power
-pellet is up — side tunnels wrap arcade-style, and lives and levels turn over forever.
+by breadth-first search (attract mode), ghosts chase the chomper — and flee, blue, while
+a power pellet is up — side tunnels wrap arcade-style, and lives and levels turn over
+forever. When a player touches the web-UI control pad the chomper hands over to them (the
+`controls` helper), with tones on the gateway speaker (`play_sound`); it drifts back to
+attract mode after a few idle seconds.
 """
 
 import random
@@ -20,6 +23,24 @@ _GHOSTS = [(255, 60, 45), (255, 150, 200), (48, 200, 255), (255, 176, 0)]
 _DIRS = {'u': (0, -1), 'd': (0, 1), 'l': (-1, 0), 'r': (1, 0)}
 _DIR_DEG = {'u': 0, 'r': 90, 'd': 180, 'l': 270}   # the wall's gauge convention
 _FRIGHT_STEPS = 40
+_CTRL = {'up': 'u', 'down': 'd', 'left': 'l', 'right': 'r'}
+
+
+def _play_sfx(play_sound, events, pellets):
+    """Map game events to short tones on the wall speaker (fire-and-forget). The big
+    jingles (power/death/level) win over a plain waka when several land in one frame."""
+    ev = next((e for e in ('level', 'death', 'power', 'eat') if e in events), None) \
+        or ('waka' if 'waka' in events else None)
+    if ev == 'waka':
+        play_sound(notes=[[520 if (pellets // 3) % 2 else 660, 45]], vol=45)
+    elif ev == 'power':
+        play_sound(notes=[[523, 90], [659, 90], [784, 150]], vol=70)
+    elif ev == 'eat':
+        play_sound(notes=[[880, 70], [1175, 110]], vol=70)
+    elif ev == 'death':
+        play_sound(notes=[[440, 150], [330, 170], [220, 320]], vol=75)
+    elif ev == 'level':
+        play_sound(notes=[[659, 110], [784, 110], [988, 110], [1319, 220]], vol=75)
 
 
 def _maze(cols, rows, rng):
@@ -155,43 +176,70 @@ def _new_level(st):
     _reset_positions(st)
 
 
+def _new_game(st):
+    st.update(score=0, lives=3, level=1, step=0, want=None, paused=False,
+              pellets=0, sfx=[])
+    _new_level(st)
+
+
 def _state(cols, rows, n_ghosts):
     st = getattr(_state, '_st', None)
     if (st is None or st['cols'] != cols or st['rows'] != rows
             or st['n_ghosts'] != n_ghosts):
-        st = _state._st = {'cols': cols, 'rows': rows, 'n_ghosts': n_ghosts,
-                           'score': 0, 'lives': 3, 'level': 1, 'step': 0}
-        _new_level(st)
+        st = _state._st = {'cols': cols, 'rows': rows, 'n_ghosts': n_ghosts}
+        _new_game(st)
     return st
 
 
-def _step(st):
-    """One tick of the simulation: the chomper moves every tick, each ghost sits out
-    every fifth (so it can be caught and escaped), collisions are checked across the
-    move so entities can't pass through each other."""
+def _open(st, cell, d):
+    """The cell one step in direction ``d`` from ``cell`` if it is a corridor (x wraps
+    through the side tunnels, y through the vertical one), else None."""
+    walls = st['walls']
+    dx, dy = _DIRS[d]
+    nx, ny = (cell[0] + dx) % st['cols'], (cell[1] + dy) % st['rows']
+    return None if walls[ny][nx] else (nx, ny)
+
+
+def _step(st, want=None, auto=True):
+    """One tick: the chomper moves (BFS toward pellets in attract mode, or toward the
+    player's ``want`` direction in play mode — turning when that lane opens, else coasting
+    on its heading), ghosts chase, collisions resolve across the move. Sound-worthy events
+    accumulate in ``st['sfx']`` for the caller to play."""
     st['step'] += 1
     rng = random.Random(st['level'] * 100003 + st['step'])
     walls, pac = st['walls'], st['pac']
     px, py = pac['cell']
+    if want:
+        st['want'] = want
 
-    frightened = st['fright'] > 0
-    targets = ({g['cell'] for g in st['ghost_list']} if frightened and st['ghost_list']
-               else st['dots'] | st['power'])
-    d = _bfs_dir(walls, (px, py), targets, prefer=pac['dir'])
+    if auto:
+        frightened = st['fright'] > 0
+        targets = ({g['cell'] for g in st['ghost_list']} if frightened and st['ghost_list']
+                   else st['dots'] | st['power'])
+        d = _bfs_dir(walls, (px, py), targets, prefer=pac['dir'])
+    else:
+        # Player steering, classic Pac-Man: turn to the held direction where that lane is
+        # open, otherwise keep going on the current heading; stop dead at a wall.
+        d = next((c for c in (st.get('want'), pac['dir']) if c and _open(st, (px, py), c)),
+                 None)
+
     old_pac = pac['cell']
     if d:
-        dx, dy = _DIRS[d]
-        pac['cell'] = ((px + dx) % st['cols'], (py + dy) % st['rows'])
+        pac['cell'] = _open(st, (px, py), d)
         pac['dir'] = d
     pac['phase'] = (pac['phase'] + 1) % 4
 
     if pac['cell'] in st['dots']:
         st['dots'].discard(pac['cell'])
         st['score'] += 10
+        st['pellets'] += 1
+        if st['pellets'] % 3 == 0:
+            st['sfx'].append('waka')
     elif pac['cell'] in st['power']:
         st['power'].discard(pac['cell'])
         st['score'] += 50
         st['fright'] = _FRIGHT_STEPS
+        st['sfx'].append('power')
     if st['fright'] > 0:
         st['fright'] -= 1
 
@@ -218,17 +266,19 @@ def _step(st):
             if st['fright'] > 0:
                 st['score'] += 200                       # eaten: back to the spawn cell
                 g['cell'] = st['spawn']
+                st['sfx'].append('eat')
             else:
                 died = True
     if died:
         st['lives'] -= 1
+        st['sfx'].append('death')
         if st['lives'] <= 0:
-            st['score'], st['lives'], st['level'] = 0, 3, 1
-            _new_level(st)
+            _new_game(st)
         else:
             _reset_positions(st)
     elif not st['dots'] and not st['power']:
         st['level'] += 1
+        st['sfx'].append('level')
         _new_level(st)
 
 
@@ -257,7 +307,7 @@ def _draw_ghost(canvas, x, y, r, col, d):
     canvas.pixel(x + ex + dx, y - 1 + dy, _EYE)
 
 
-def fetch_matrix(settings, canvas):
+def fetch_matrix(settings, canvas, controls=None, play_sound=None):
     W, H = canvas.width, canvas.height
     # The grid is stretched edge-to-edge: as many ~4.5px cells as fit (odd counts, so
     # the outer wall stays one cell thick), each row/column mapped to pixel edges — no
@@ -272,7 +322,24 @@ def fetch_matrix(settings, canvas):
     except (TypeError, ValueError):
         n_ghosts = 4
     st = _state(cols, rows, n_ghosts)
-    _step(st)
+
+    # A human on the control pad takes over; after a few idle seconds it drifts back to
+    # attract-mode auto-play. start/coin drops a fresh game, pause freezes it.
+    playing = controls is not None and controls.active()
+    if controls is not None:
+        for ev in controls.events:
+            if ev in ('start', 'coin'):
+                _new_game(st)
+            elif ev == 'pause':
+                st['paused'] = not st.get('paused', False)
+    want = _CTRL.get(controls.dir) if (controls and controls.dir) else None
+
+    if not (playing and st.get('paused')):
+        _step(st, want=want, auto=not playing)
+
+    sfx, st['sfx'] = st.get('sfx', []), []             # play this frame's events
+    if play_sound and sfx:
+        _play_sfx(play_sound, sfx, st['pellets'])
 
     def cx(cell):
         return (xe[cell[0]] + xe[cell[0] + 1]) // 2
@@ -301,10 +368,16 @@ def fetch_matrix(settings, canvas):
         canvas.shadow_text(2, 0, str(st['score']), (255, 255, 255), 8)
         for i in range(st['lives']):
             canvas.circle(W - 5 - i * 7, max(2, ye[1] // 2), 2, _PAC, fill=True)
+    if playing and st.get('paused'):                   # two-bar pause glyph, centered
+        canvas.rect(W // 2 - 3, H // 2 - 4, 2, 8, (255, 255, 255), fill=True)
+        canvas.rect(W // 2 + 1, H // 2 - 4, 2, 8, (255, 255, 255), fill=True)
 
     canvas.show()
     try:
         speed = max(1, min(10, int(float(settings.get('speed', 5) or 5))))
     except (TypeError, ValueError):
         speed = 5
-    return max(0.06, 0.34 - 0.028 * speed)
+    # A live player gets the tightest tick the loop allows (input lag = one frame);
+    # attract mode idles a touch slower to spare the wall.
+    hold = max(0.06, 0.34 - 0.028 * speed)
+    return max(0.05, hold * 0.7) if playing else hold

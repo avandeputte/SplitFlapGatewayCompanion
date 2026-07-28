@@ -22,6 +22,7 @@ import logging
 import os
 import socket
 import struct
+import threading
 import time
 from urllib.parse import urlparse
 
@@ -863,9 +864,6 @@ def _rgb(color):
 # the format cannot carry (textbox, image, an atlas bind, a custom text font, text over
 # 127 UTF-8 bytes, >16 poly vertices) — the caller then sends the JSON batch instead,
 # so output stays pixel-identical either way.
-import struct
-
-
 def _bi16(v):
     return struct.pack(">h", max(-32768, min(32767, int(v))))
 
@@ -963,6 +961,33 @@ def encode_ops_bin(ops):
         else:
             return None                            # textbox / image / atlas: JSON carries those
     return bytes(out)
+
+
+def play_sound(url: str, notes=None, freq=None, ms: int = 120, vol: int = 70) -> bool:
+    """Play a tone or note sequence on the wall's speaker (POST /api/sound, fw 3.6). Fire
+    and FORGET: the POST runs on a short-lived daemon thread so a game's render tick never
+    waits on audio, and any failure (Quiet Time 409, speaker off 403) is swallowed —
+    sound is never allowed to stall or break a frame. ``notes`` is ``[[freq, ms], …]``
+    (freq 0 = rest); or pass a single ``freq``/``ms``. Returns whether a play was
+    dispatched (not whether the wall accepted it)."""
+    if _wall(url).sim:
+        return False
+    body = {"vol": max(0, min(100, int(vol)))}
+    if notes:
+        body["notes"] = [[int(f), int(d)] for f, d in notes]
+    elif freq:
+        body["freq"], body["ms"] = int(freq), max(1, min(2000, int(ms)))
+    else:
+        return False
+
+    def _fire():
+        try:
+            gateway._request("POST", url, "/api/sound", json=body, timeout=2.0)
+        except Exception as e:
+            log.debug("play_sound failed: %s", e)
+
+    threading.Thread(target=_fire, daemon=True).start()
+    return True
 
 
 def post_ops_bin(url: str, data: bytes, timeout: float = 8.0) -> bool:
