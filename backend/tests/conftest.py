@@ -257,7 +257,7 @@ def _no_outbound_network(request, monkeypatch):
 _CANVAS_FLAG_TO_FIELD = {
     "rect": "canvas_rect", "rects": "canvas_rects", "anim": "canvas_anim",
     "ticker": "canvas_ticker", "readback": "canvas_readback", "stream": "canvas_stream",
-    "ops": "canvas_ops", "ops_bin": "canvas_ops_bin", "effect_params": "effect_params",
+    "ops": "canvas_ops", "ops_bin": "canvas_ops_bin", "composite": "canvas_composite", "effect_params": "effect_params",
 }
 
 

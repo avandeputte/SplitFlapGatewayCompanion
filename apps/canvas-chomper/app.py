@@ -336,6 +336,13 @@ def _draw_board(canvas, st, xe, ye, W, H, dim=1.0):
     for cell in st['dots']:
         canvas.pixel(cx(cell), cy(cell), d(_DOT))
     if (st['step'] // 2) % 2 == 0:                     # power pellets blink
+        # On a fw-3.8 wall (and at full brightness) a power pellet blooms — an additive
+        # halo where overlapping LED light sums; binary-friendly (blend, not per-op alpha).
+        if dim >= 1.0 and getattr(canvas, 'can_composite', False):
+            canvas.blend('add')
+            for cell in st['power']:
+                canvas.circle(cx(cell), cy(cell), 3, (54, 36, 16), fill=True)
+            canvas.blend('over')
         for cell in st['power']:
             canvas.circle(cx(cell), cy(cell), 1, d(_DOT), fill=True)
     pr = 2                                             # 5px sprites, arcade-oversized for the lanes

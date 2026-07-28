@@ -851,8 +851,12 @@ def _rgb(color):
                 pass
         return [255, 255, 255]
     try:
-        r, g, b = color
-        return [max(0, min(255, int(r))), max(0, min(255, int(g))), max(0, min(255, int(b)))]
+        vals = [max(0, min(255, int(v))) for v in color]
+        if len(vals) == 4:                             # rgba — fw 3.8 per-color alpha
+            return vals
+        if len(vals) == 3:
+            return vals
+        return [255, 255, 255]
     except (TypeError, ValueError):
         return [255, 255, 255]
 
@@ -879,8 +883,12 @@ def _brgb(c):
 def encode_ops_bin(ops):
     """The batch as opsBin bytes, or None when any op is not representable."""
     out = bytearray()
+    _BLEND = {"over": 0, "add": 1, "multiply": 2, "screen": 3, "max": 4}
     for op in ops:
         k = op.get("op")
+        col = op.get("color")
+        if isinstance(col, (list, tuple)) and len(col) == 4:
+            return None                                # per-color alpha is JSON-only (fw 3.8)
         if k == "clear":
             out += b"\x01" + _brgb(op.get("color", (0, 0, 0)))
         elif k == "pixel":
@@ -956,6 +964,8 @@ def encode_ops_bin(ops):
                     + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(flags))
         elif k == "scroll":
             out += b"\x12" + _bi16(op["dx"]) + _bi16(op["dy"]) + _brgb(op.get("color", (0, 0, 0)))
+        elif k == "blend":
+            out += b"\x14" + _bu8(_BLEND.get(op.get("mode", "over"), 0))
         elif k == "show":
             out += b"\x13"
         else:
@@ -1008,6 +1018,13 @@ def _with_t(op, t):
     return op
 
 
+def _with_aa(op, aa):
+    """Attach the fw-3.8 anti-alias flag to a stroke op when asked."""
+    if aa:
+        op["aa"] = True
+    return op
+
+
 class CanvasSurface:
     """The drawing surface an app receives as its ``canvas`` helper. Draw calls
     accumulate ops; ``show()`` sends the batch and presents it. The panel is the
@@ -1044,6 +1061,7 @@ class CanvasSurface:
         self.op_names = tuple(caps.canvas_ops)
         self.can_text_styles = "textbox" in self.op_names
         self.can_ops_bin = int(caps.canvas_ops_bin or 0) >= 1
+        self.can_composite = bool(caps.canvas_composite)   # fw 3.8+: alpha, blend modes, AA
         # 1.19 / 1.25 / 2.1. `ops` is the draw-op vocabulary the wall honors (an app can consult
         # it before reaching for a shape); `can_ops` is "any ops at all". The 2.1 endpoint families
         # aren't flagged one by one, so they all gate on the firmware version (caps.canvas_2_1).
@@ -1081,14 +1099,14 @@ class CanvasSurface:
                                   "h": int(h), "color": _rgb(color), "fill": bool(fill)}, t))
         return self
 
-    def line(self, x, y, x1, y1, color=(255, 255, 255), t=1):
-        self._ops.append(_with_t({"op": "line", "x": int(x), "y": int(y), "x1": int(x1),
-                                  "y1": int(y1), "color": _rgb(color)}, t))
+    def line(self, x, y, x1, y1, color=(255, 255, 255), t=1, aa=False):
+        self._ops.append(_with_aa(_with_t({"op": "line", "x": int(x), "y": int(y), "x1": int(x1),
+                                          "y1": int(y1), "color": _rgb(color)}, t), aa))
         return self
 
-    def circle(self, x, y, r, color=(255, 255, 255), fill=False, t=1):
-        self._ops.append(_with_t({"op": "circle", "x": int(x), "y": int(y), "r": int(r),
-                                  "color": _rgb(color), "fill": bool(fill)}, t))
+    def circle(self, x, y, r, color=(255, 255, 255), fill=False, t=1, aa=False):
+        self._ops.append(_with_aa(_with_t({"op": "circle", "x": int(x), "y": int(y), "r": int(r),
+                                          "color": _rgb(color), "fill": bool(fill)}, t), aa))
         return self
 
     def ellipse(self, x, y, rx, ry, color=(255, 255, 255), fill=False, t=1):
@@ -1113,10 +1131,10 @@ class CanvasSurface:
                           "from": _rgb(frm), "to": _rgb(to), "dir": "h" if direction == "h" else "v"})
         return self
 
-    def polyline(self, points, color=(255, 255, 255), t=1):
+    def polyline(self, points, color=(255, 255, 255), t=1, aa=False):
         """Connect ``points`` — a list of (x, y) — with lines."""
-        self._ops.append(_with_t({"op": "polyline", "color": _rgb(color),
-                                  "points": [[int(px), int(py)] for px, py in points]}, t))
+        self._ops.append(_with_aa(_with_t({"op": "polyline", "color": _rgb(color),
+                                          "points": [[int(px), int(py)] for px, py in points]}, t), aa))
         return self
 
     def sprite(self, i, x, y, flip=None, rot=None, scale=1):
@@ -1131,6 +1149,14 @@ class CanvasSurface:
         if int(scale) > 1:
             op["scale"] = int(scale)
         self._ops.append(op)
+        return self
+
+    def blend(self, mode="over"):
+        """Set the batch compositing mode for the ops that follow — "over" (normal),
+        "add" (additive; the LED-glow mode where overlapping lights sum), "multiply",
+        "screen" or "max". Batch-scoped: reset to "over" when done (firmware 3.8; gate on
+        ``can_composite``). Old walls ignore it and draw normally."""
+        self._ops.append({"op": "blend", "mode": str(mode)})
         return self
 
     def scroll(self, dx, dy, color=(0, 0, 0)):
@@ -1171,14 +1197,14 @@ class CanvasSurface:
                           "t": int(t), "fill": bool(fill)})
         return self
 
-    def poly(self, points, color=(255, 255, 255), fill=True, t=1):
+    def poly(self, points, color=(255, 255, 255), fill=True, t=1, aa=False):
         """A closed polygon (≤16 vertices): even-odd filled by default, else outlined with
         thickness ``t`` (firmware 3.5; gate on ``has_op("poly")``)."""
         op = {"op": "poly", "points": [[int(px), int(py)] for px, py in points],
               "color": _rgb(color), "fill": bool(fill)}
         if not fill and int(t) != 1:
             op["t"] = int(t)
-        self._ops.append(op)
+        self._ops.append(_with_aa(op, aa))
         return self
 
     def clip(self, x=None, y=None, w=None, h=None):

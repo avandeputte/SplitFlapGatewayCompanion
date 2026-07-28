@@ -111,6 +111,7 @@ class Capabilities:
     canvas_readback: bool = False           # GET /api/canvas/frame — read the lit panel back
     canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honors
     canvas_ops_bin: int = 0                 # binary ops format version (fw 3.5 "opsBin"); 0 = JSON only
+    canvas_composite: bool = False          # fw 3.8: per-color alpha, blend modes, AA (canvas.compositing)
     # 3.1: PUT /api/canvas/rects — a frame-push app sends only the rectangles that changed since
     # its last frame instead of the whole panel. Advertised as canvas.rects.
     canvas_rects: bool = False
@@ -256,6 +257,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_ops_bin = int(canvas.get("opsBin") or 0)
     except (TypeError, ValueError):
         canvas_ops_bin = 0
+    canvas_composite = bool(canvas.get("compositing"))
     canvas_readback = bool(canvas.get("readback"))
     # `fw` is the firmware version string, e.g. "2.1.0"; take the leading major.minor. The 2.1
     # endpoint families gate on this because the capabilities document does not flag them.
@@ -294,6 +296,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         effect_params=effect_params,
         effect_defs=effect_defs,
         canvas_ops_bin=canvas_ops_bin,
+        canvas_composite=canvas_composite,
         fw_version=fw_version,
         canvas_readback=canvas_readback,
         canvas_ops=canvas_ops,

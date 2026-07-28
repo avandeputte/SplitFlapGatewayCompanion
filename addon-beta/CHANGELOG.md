@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.6-beta.3
+
+- **Richer canvas art on firmware-3.8 walls** 🎨 — apps now light up the new compositing
+  surface when the panel supports it. The **Aquarium** gains additive godrays shimmering
+  down from the surface, anti-aliased weeds, and a soft glow around each bubble; **Chomper**'s
+  power pellets pick up a warm halo. Older walls draw the plain look exactly as before — the
+  extra flourishes are gated on the wall's `compositing` capability, so nothing breaks.
+
 ## 2.10.6-beta.2
 
 - **New app: Tetris** 🟦 — Tetris turned on its side for a wide panel. Pieces drift in from

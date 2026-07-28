@@ -5,7 +5,10 @@ whole picture: a gradient water column, swaying weeds (polyline), rising bubbles
 (circle), and fish blitted from a sprite ATLAS — a few dozen draw-ops a frame, not
 a frame of pixels. The fish tiles are generated once with Pillow and uploaded to
 the panel's atlas; each frame just says "blit fish 3 at (x, y)". On a wall without
-the sprite op the fish fall back to being drawn from ops (ellipse + triangle).
+the sprite op the fish fall back to being drawn from ops (ellipse + triangle). On a
+firmware-3.8 wall (``canvas.can_composite``) it adds what the ops surface newly allows:
+additive **godrays** shimmering down from the surface, **anti-aliased** weeds, and a soft
+**glow** around the bubbles — all with per-color alpha and the additive blend mode.
 """
 
 import math
@@ -95,20 +98,36 @@ def fetch_matrix(settings, canvas):
     top, bot = water
     canvas.gradient(0, 0, W, H, top, bot, 'v')                 # the water column
 
+    glow = bool(getattr(canvas, 'can_composite', False))
+    if glow:                                                   # godrays: additive light shafts
+        canvas.blend('add')                                   # from the surface, slowly drifting
+        for i in range(3):
+            bx = int((i + 0.5) * W / 3 + math.sin(frame * 0.02 + i * 2.1) * W * 0.06)
+            wtop, wbot = max(2, W // 22), max(4, W // 9)
+            ray = [(bx - wtop, 0), (bx + wtop, 0), (bx + wbot, H), (bx - wbot, H)]
+            canvas.poly(ray, (150, 205, 255, 30), fill=True)  # low-alpha, sums to a soft shaft
+        canvas.blend('over')
+
     for x, ph in st['weeds']:                                  # swaying weeds along the floor
         sway = math.sin(frame * 0.08 + ph) * (W * 0.02)
         h = int(H * 0.32)
         pts = [(x, H), (x + sway * 0.4, H - h * 0.5), (x + sway, H - h)]
-        canvas.polyline(pts, _WEED)
+        canvas.polyline(pts, _WEED, t=1, aa=glow)             # smooth on a compositing wall
 
     # bubbles: spawn near the floor, rise, pop at the top
     if random.random() < 0.5:
         st['bubbles'].append([random.uniform(2, W - 2), float(H), random.choice((1, 1, 2))])
     keep = []
+    if glow:
+        canvas.blend('add')
+        for b in st['bubbles']:
+            if b[1] > 0:
+                canvas.circle(int(b[0]), int(b[1]), b[2] + 1, (90, 150, 210, 70), fill=True, aa=True)
+        canvas.blend('over')
     for b in st['bubbles']:
         b[1] -= 0.8 + b[2] * 0.3
         if b[1] > 0:
-            canvas.circle(int(b[0]), int(b[1]), b[2], (200, 235, 255))
+            canvas.circle(int(b[0]), int(b[1]), b[2], (200, 235, 255), aa=glow)
             keep.append(b)
     st['bubbles'] = keep[-40:]
 
