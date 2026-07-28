@@ -3,6 +3,35 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.4
+
+The interactive release — and a big pass on newer Matrix Gateway firmware, internals, and
+being current on the tools underneath.
+
+- **Play a game on the panel.** The new **Chomper** app is a Pac-Man-style maze the Matrix
+  panel plays by itself — until you grab an on-screen D-pad (arrow keys / WASD too) and
+  steer it live, with sound on the gateway speaker. Let go and it drifts back to playing
+  itself. A proof of concept for interactive panel games, running at game-rate latency.
+- **Newer firmware, used to the fullest.** Self-describing effects (firmware 3.5
+  `effectDefs`) mean every panel effect — including the audio-reactive **Spectrum** and
+  **Soundwall** — shows exactly the knobs it supports, with no companion update needed as
+  firmware adds more. Home Assistant cards gain live **arc-gauge dials** for thresholded
+  numbers, and the full 3.5 drawing vocabulary (arcs, polygons, textboxes, sprite
+  transforms) is available to apps.
+- **Lower latency to the panel.** Drawing now streams as compact **binary ops** over a
+  persistent connection where the wall supports it — much smaller frames and no per-frame
+  round trip, which is what makes live play feel immediate. Older walls keep the JSON path,
+  pixel-identical.
+- **Sharper, more readable apps.** A full code review trimmed roughly two thousand lines of
+  duplicate and dead code; every app's panel text now renders through one shared toolkit,
+  and several apps that could render text too small on short panels are fixed.
+- **Simpler UI.** The Matrix **Panel tab is retired** — its overlay ticker moves into
+  Compose, and its other controls (transitions, animation and font libraries) are left to
+  the gateway's own interface, which already manages them.
+- **Runs more reliably.** A broken or incompatible optional dependency can no longer stop
+  the whole add-on from starting. Under the hood, the companion is now current on httpx2
+  and the MCP 2.0 SDK, running a single HTTP stack.
+
 ## 2.10.3
 
 - **Weather and Weather Sky are one app.** The Weather app's Matrix-panel view is now the

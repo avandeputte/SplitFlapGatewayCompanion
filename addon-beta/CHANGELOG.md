@@ -3,83 +3,34 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
-## 2.10.4-beta.9
+## 2.10.4
 
-- **Current on httpx2 and MCP 2.0.** Moved the HTTP client to httpx2 (the httpx successor)
-  and the MCP server to the MCP SDK 2.0 API. The image now runs a single HTTP stack.
-- **More resilient startup.** A broken or incompatible optional dependency (like the MCP
-  library) can no longer stop the whole add-on from starting — the display runs, and the
-  MCP endpoint reports unavailable instead. (This is what beta.8 hotfixed reactively.)
+The interactive release — and a big pass on newer Matrix Gateway firmware, internals, and
+being current on the tools underneath.
 
-## 2.10.4-beta.8
-
-- **Fix: the add-on could fail to start** after the `mcp` library published 2.0.0, which
-  removed the API the MCP server uses. Pinned `mcp` below 2.0 and moved to its canonical
-  import path. (MCP is off by default; the crash hit startup regardless.)
-
-## 2.10.4-beta.7
-
-- **Play Chomper live from the web UI.** While Chomper runs on a Matrix panel, an on-screen
-  D-pad appears under the Live Display (arrow keys / WASD, Space to pause, Enter to restart) —
-  grab it and steer the chomper yourself, with sound on the gateway speaker (firmware 3.6).
-  Let go and it drifts back to playing itself. Inputs stream at binary-ops latency; a wall
-  without a speaker just stays silent. A proof of concept for interactive panel games.
-
-## 2.10.4-beta.6
-
-- **Chomper runs at game rate.** Draw batches now use the Matrix Gateway 3.5 binary ops
-  format (a 256×64 frame: 29 KB of JSON → 4 KB of bytes, and the panel skips JSON parsing
-  entirely), and fast binary-ops apps ride the persistent draw stream — no per-frame HTTP
-  round trip. The speed setting's top end now delivers what it promises; older walls keep
-  the JSON path, pixel-identical.
-
-## 2.10.4-beta.5
-
-- **Chomper, polished by play-testing.** Classic thin-wall mazes stretched edge-to-edge
-  (a 64px panel plays six corridor rows), all loops — no dead ends to get cornered in —
-  solid walls, one or two side tunnels on random rows plus a vertical tunnel, all
-  wrapping to the far edge, and an arcade-style bottom-center start.
-
-## 2.10.4-beta.4
-
-- **Chomper's mazes are now the classic kind** — corridors exactly one dot wide, walls
-  exactly one cell thin, randomized fresh every level with loops and the occasional
-  dead-end pocket. (Replaces beta.3's blocky wall islands.)
-
-## 2.10.4-beta.3
-
-- **New app: Chomper** 🟡 — a Pac-Man-style maze chase the Matrix panel plays by itself:
-  organic mazes with dead-end pockets and a fresh layout every level, pellets, blinking
-  power-ups, ghosts that turn blue and flee, lives and a running score. Drawn entirely
-  with on-device draw ops.
-- **Home Assistant cards grow dials.** On firmware 3.5, a thresholded numeric entity's
-  icon becomes a live arc-gauge — a dim track with the value's sweep in its band color.
-- **Matrix Gateway firmware 3.5 support.** The full new draw-ops vocabulary (arcs,
-  polygons, clip/origin, word-wrapped textboxes, stroke thickness, text styles, sprite
-  transforms) is available to apps, gated per-op on what the wall advertises — and text
-  labels on ops-drawn apps now cost half the ops they used to.
-
-## 2.10.4-beta.2
-
-- **Deep cleanup after a full code review** — about 2,000 lines of duplicate and dead code
-  removed. Every app's panel text now renders through one shared toolkit (same look, one
-  place to fix), and a latent settings-dialog crash was fixed before it could trigger.
-- **Readability:** Dog Facts, Stock Graph, and Lumina Clock no longer render text below
-  the panel's 8px readability floor.
-- UI actions that used to fail silently now report their error.
-- **Removed:** automatic rewriting of pre-2.10 app ids (canvas-date, canvas-weather, …)
-  in saved installs and playlists. If an old playlist entry stops playing, re-add the app
-  under its current name.
-
-## 2.10.4-beta.1
-
-- **Self-describing effects (Matrix Gateway firmware 3.4).** Each panel effect's settings
-  now come from the wall's own description (`effectDefs`): exactly the knobs that effect
-  consumes, with the firmware's ranges, defaults, and display names. On a 3.4 wall with
-  microphones that surfaces the new **Spectrum** and **Soundwall** effects as apps, and an
-  **Audio reactive** toggle on Plasma, Fire, and Matrix Rain. Future firmware effects and
-  options appear with no companion update; older walls keep the fixed speed/hue/density
-  knobs.
+- **Play a game on the panel.** The new **Chomper** app is a Pac-Man-style maze the Matrix
+  panel plays by itself — until you grab an on-screen D-pad (arrow keys / WASD too) and
+  steer it live, with sound on the gateway speaker. Let go and it drifts back to playing
+  itself. A proof of concept for interactive panel games, running at game-rate latency.
+- **Newer firmware, used to the fullest.** Self-describing effects (firmware 3.5
+  `effectDefs`) mean every panel effect — including the audio-reactive **Spectrum** and
+  **Soundwall** — shows exactly the knobs it supports, with no companion update needed as
+  firmware adds more. Home Assistant cards gain live **arc-gauge dials** for thresholded
+  numbers, and the full 3.5 drawing vocabulary (arcs, polygons, textboxes, sprite
+  transforms) is available to apps.
+- **Lower latency to the panel.** Drawing now streams as compact **binary ops** over a
+  persistent connection where the wall supports it — much smaller frames and no per-frame
+  round trip, which is what makes live play feel immediate. Older walls keep the JSON path,
+  pixel-identical.
+- **Sharper, more readable apps.** A full code review trimmed roughly two thousand lines of
+  duplicate and dead code; every app's panel text now renders through one shared toolkit,
+  and several apps that could render text too small on short panels are fixed.
+- **Simpler UI.** The Matrix **Panel tab is retired** — its overlay ticker moves into
+  Compose, and its other controls (transitions, animation and font libraries) are left to
+  the gateway's own interface, which already manages them.
+- **Runs more reliably.** A broken or incompatible optional dependency can no longer stop
+  the whole add-on from starting. Under the hood, the companion is now current on httpx2
+  and the MCP 2.0 SDK, running a single HTTP stack.
 
 ## 2.10.3
 
