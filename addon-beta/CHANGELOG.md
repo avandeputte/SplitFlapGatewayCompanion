@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.6-beta.1
+
+- **Chomper: lives and a proper game over.** Lose a life and the game holds on a **READY?**
+  screen until you press a key; lose your last and the board **fades to black behind a
+  GAME OVER** overlay with your score — press any key for a new game.
+
 ## 2.10.5
 
 - **Fix: the gateway was shown offline** (and nothing could drive the display) even when it
