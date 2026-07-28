@@ -23,11 +23,12 @@ _walls: dict[str, "_Pad"] = {}
 
 
 class _Pad:
-    __slots__ = ("dir", "events", "last_ts", "presses")
+    __slots__ = ("dir", "events", "taps", "last_ts", "presses")
 
     def __init__(self):
-        self.dir: str | None = None      # the latest held direction
-        self.events: list[str] = []      # discrete presses awaiting a drain
+        self.dir: str | None = None      # the latest held direction (steering games)
+        self.events: list[str] = []      # discrete non-directional presses (start/pause/coin)
+        self.taps: list[str] = []        # discrete DIRECTION presses in order (per-press games)
         self.last_ts: float = 0.0        # monotonic time of the last input
         self.presses: int = 0            # monotonic count of inputs — bumps only on an
                                          # actual press, so a HELD direction never advances
@@ -52,6 +53,8 @@ def push(url: str, action: str, *, now: float) -> bool:
     with _lock:
         if action in _DIRS:
             p.dir = action
+            p.taps.append(action)        # also a discrete tap, in order
+            del p.taps[:-24]             # bound the queue if a game isn't draining it
         elif action in _EVENTS:
             p.events.append(action)
         elif action == "release":        # the pad was let go — stop steering, coast
@@ -67,11 +70,12 @@ class Controls:
     """The per-frame view an app reads: the held direction, the events since the last
     frame (drained), and whether a human has touched the pad recently (attract vs play)."""
 
-    __slots__ = ("dir", "events", "presses", "_idle")
+    __slots__ = ("dir", "events", "taps", "presses", "_idle")
 
-    def __init__(self, dir_, events, idle, presses):
+    def __init__(self, dir_, events, taps, idle, presses):
         self.dir = dir_
         self.events = events
+        self.taps = taps                # discrete direction presses since the last frame
         self.presses = presses          # see _Pad.presses — a press-edge counter for
         self._idle = idle               # "press any key" resumes (not fooled by a held key)
 
@@ -87,8 +91,9 @@ def snapshot(url: str, *, now: float) -> Controls:
     p = _pad(url)
     with _lock:
         events, p.events = p.events, []
+        taps, p.taps = p.taps, []
         idle = now - p.last_ts if p.last_ts else 1e9
-        return Controls(p.dir, events, idle, p.presses)
+        return Controls(p.dir, events, taps, idle, p.presses)
 
 
 def reset(url: str) -> None:

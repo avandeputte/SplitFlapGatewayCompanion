@@ -1,0 +1,23 @@
+{
+  "id": "canvas-tetris",
+  "name": "Tetris",
+  "icon": "🟦",
+  "description": "Tetris laid on its side for a wide panel — pieces drift in from the right and pile against the left; fill a whole column to clear it. Plays itself until you grab the controls (up/down move, right rotate, left drop) and play live, with sound. Drawn entirely with on-device draw ops.",
+  "type": "functional",
+  "surfaces": ["matrix"],
+  "category": "fun",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "interactive": true,
+  "settings": [
+    {
+      "key": "speed",
+      "label": "Speed",
+      "type": "number",
+      "default": "5",
+      "min": "1", "max": "10", "step": "1", "stepper": true
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 15
+}

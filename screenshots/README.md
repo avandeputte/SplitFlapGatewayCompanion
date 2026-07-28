@@ -1,7 +1,7 @@
 # Screenshots
 
-Rendered views of every dual-surface app and channel, plus Chomper — 58 of the
-catalog's 74 apps (the remaining matrix-only canvas apps, on-device panel effects, and
+Rendered views of every dual-surface app and channel, plus Chomper and Tetris — 59 of the
+catalog's 75 apps (the remaining matrix-only canvas apps, on-device panel effects, and
 flap animations are not in the render harness) — generated straight from the app code
 with sample data, one section per app: its Matrix-panel (LED) view at the four common panel resolutions,
 and its split-flap view on three wall heights (15 columns each). Apps adapt to the
@@ -449,6 +449,13 @@ A few notes:
 | ![Sun Times — Matrix 128 × 32](r128x32/sun-times.png)<br>Matrix 128 × 32 | ![Sun Times — Matrix 64 × 32](r64x32/sun-times.png)<br>Matrix 64 × 32 |
 | ![Sun Times — Flap wall 3 × 15](flap-3x15/sun-times.png)<br>Flap wall 3 × 15 | ![Sun Times — Flap wall 5 × 15](flap-5x15/sun-times.png)<br>Flap wall 5 × 15 |
 | ![Sun Times — Flap wall 2 × 15](flap-2x15/sun-times.png)<br>Flap wall 2 × 15 |  |
+
+## Tetris
+
+| | |
+|---|---|
+| ![Tetris — Matrix 256 × 64](r256x64/canvas-tetris.png)<br>Matrix 256 × 64 | ![Tetris — Matrix 128 × 64](r128x64/canvas-tetris.png)<br>Matrix 128 × 64 |
+| ![Tetris — Matrix 128 × 32](r128x32/canvas-tetris.png)<br>Matrix 128 × 32 | ![Tetris — Matrix 64 × 32](r64x32/canvas-tetris.png)<br>Matrix 64 × 32 |
 
 ## The Office (channel)
 
