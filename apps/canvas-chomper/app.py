@@ -24,6 +24,7 @@ _DIRS = {'u': (0, -1), 'd': (0, 1), 'l': (-1, 0), 'r': (1, 0)}
 _DIR_DEG = {'u': 0, 'r': 90, 'd': 180, 'l': 270}   # the wall's gauge convention
 _FRIGHT_STEPS = 40
 _CTRL = {'up': 'u', 'down': 'd', 'left': 'l', 'right': 'r'}
+_FADE_STEPS = 16          # frames the game-over board takes to fade to black
 
 
 def _play_sfx(play_sound, events, pellets):
@@ -178,7 +179,7 @@ def _new_level(st):
 
 def _new_game(st):
     st.update(score=0, lives=3, level=1, step=0, want=None, paused=False,
-              pellets=0, sfx=[])
+              pellets=0, sfx=[], phase='play', fade=0, freeze_presses=None)
     _new_level(st)
 
 
@@ -273,28 +274,37 @@ def _step(st, want=None, auto=True):
         st['lives'] -= 1
         st['sfx'].append('death')
         if st['lives'] <= 0:
-            _new_game(st)
+            if auto:
+                _new_game(st)                  # attract: straight into a fresh demo
+            else:
+                st['phase'], st['fade'] = 'gameover', 0
         else:
             _reset_positions(st)
+            if not auto:
+                st['phase'] = 'ready'           # a live player waits for a key between lives
     elif not st['dots'] and not st['power']:
         st['level'] += 1
         st['sfx'].append('level')
         _new_level(st)
 
 
-def _draw_pac(canvas, x, y, r, d, phase):
+def _draw_pac(canvas, x, y, r, d, phase, dim=1.0):
+    pac = canvas.dim(_PAC, dim) if dim < 1.0 else _PAC
     open_deg = (10, 34, 58, 34)[phase]
     if canvas.has_op('arc'):
         a = _DIR_DEG[d]
-        canvas.arc(x, y, r, a + open_deg, a + 360 - open_deg, _PAC, fill=True)
+        canvas.arc(x, y, r, a + open_deg, a + 360 - open_deg, pac, fill=True)
         return
-    canvas.circle(x, y, r, _PAC, fill=True)
+    canvas.circle(x, y, r, pac, fill=True)
     dx, dy = _DIRS[d]
     canvas.triangle(x, y, x + dx * r + dy * r, y + dy * r + dx * r,
                     x + dx * r - dy * r, y + dy * r - dx * r, (0, 0, 0), fill=True)
 
 
-def _draw_ghost(canvas, x, y, r, col, d):
+def _draw_ghost(canvas, x, y, r, col, d, dim=1.0):
+    eye = _EYE
+    if dim < 1.0:
+        col, eye = canvas.dim(col, dim), canvas.dim(_EYE, dim)
     canvas.circle(x, y - 1, r, col, fill=True)
     canvas.rect(x - r, y - 1, 2 * r + 1, r, col, fill=True)
     if r >= 3 and canvas.has_op('poly'):
@@ -303,8 +313,60 @@ def _draw_ghost(canvas, x, y, r, col, d):
                      (x + r // 2, b - 1), (x + r, b + 1), (x + r, b - 1)], col)
     dx, dy = _DIRS[d]
     ex = max(1, r // 2)
-    canvas.pixel(x - ex + dx, y - 1 + dy, _EYE)
-    canvas.pixel(x + ex + dx, y - 1 + dy, _EYE)
+    canvas.pixel(x - ex + dx, y - 1 + dy, eye)
+    canvas.pixel(x + ex + dx, y - 1 + dy, eye)
+
+
+def _draw_board(canvas, st, xe, ye, W, H, dim=1.0):
+    """The whole playfield — maze, pellets, ghosts, chomper, score/lives — every color
+    scaled by ``dim`` (1.0 full; lower fades toward black for the game-over screen)."""
+    def d(c):
+        return canvas.dim(c, dim) if dim < 1.0 else c
+
+    def cx(cell):
+        return (xe[cell[0]] + xe[cell[0] + 1]) // 2
+
+    def cy(cell):
+        return (ye[cell[1]] + ye[cell[1] + 1]) // 2
+
+    canvas.clear((0, 0, 0))
+    for x0, r0, w0, h0 in st['wall_rects']:            # the maze in a handful of rects
+        canvas.rect(xe[x0], ye[r0], xe[x0 + w0] - xe[x0], ye[r0 + h0] - ye[r0],
+                    d(_WALL), fill=True)
+    for cell in st['dots']:
+        canvas.pixel(cx(cell), cy(cell), d(_DOT))
+    if (st['step'] // 2) % 2 == 0:                     # power pellets blink
+        for cell in st['power']:
+            canvas.circle(cx(cell), cy(cell), 1, d(_DOT), fill=True)
+    pr = 2                                             # 5px sprites, arcade-oversized for the lanes
+    for g in st['ghost_list']:
+        col = _FRIGHT if st['fright'] > 0 else g['col']
+        _draw_ghost(canvas, cx(g['cell']), cy(g['cell']), pr, col, g['dir'], dim)
+    pac = st['pac']
+    _draw_pac(canvas, cx(pac['cell']), cy(pac['cell']), pr, pac['dir'], pac['phase'], dim)
+    if W >= 128:                                       # score rides the top wall band
+        canvas.shadow_text(2, 0, str(st['score']), d((255, 255, 255)), 8)
+        for i in range(st['lives']):
+            canvas.circle(W - 5 - i * 7, max(2, ye[1] // 2), 2, d(_PAC), fill=True)
+
+
+def _draw_ready(canvas, W, H):
+    """The get-set pause after a life is lost — press any key to go."""
+    face = canvas.fit("READY?", W - 4, max(8, H // 3))
+    canvas.shadow_text(W // 2, (H - face) // 2, "READY?", (255, 240, 60), face, align="center")
+
+
+def _draw_gameover(canvas, W, H, score, appear):
+    """The end screen: GAME OVER and the score fading in (``appear`` 0..1) as the board
+    fades out behind them. Press any key for a new game."""
+    a = max(0.0, min(1.0, appear))
+    go, sc = canvas.dim((255, 240, 60), a), canvas.dim((235, 235, 245), a)
+    f1 = canvas.fit("GAME OVER", W - 4, max(8, H // 3))
+    txt = "SCORE " + str(score)
+    f2 = canvas.fit(txt, W - 4, max(8, H // 4))
+    y0 = (H - (f1 + 2 + f2)) // 2
+    canvas.shadow_text(W // 2, y0, "GAME OVER", go, f1, align="center")
+    canvas.shadow_text(W // 2, y0 + f1 + 2, txt, sc, f2, align="center")
 
 
 def fetch_matrix(settings, canvas, controls=None, play_sound=None):
@@ -324,15 +386,44 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
     st = _state(cols, rows, n_ghosts)
 
     # A human on the control pad takes over; after a few idle seconds it drifts back to
-    # attract-mode auto-play. start/coin drops a fresh game, pause freezes it.
+    # attract-mode auto-play, which resets any frozen / finished game to a clean demo.
     playing = controls is not None and controls.active()
-    if controls is not None:
-        for ev in controls.events:
-            if ev in ('start', 'coin'):
-                _new_game(st)
-            elif ev == 'pause':
-                st['paused'] = not st.get('paused', False)
+    events = list(controls.events) if controls is not None else []
     want = _CTRL.get(controls.dir) if (controls and controls.dir) else None
+    presses = controls.presses if controls is not None else 0
+
+    if not playing and st.get('phase', 'play') != 'play':
+        _new_game(st)
+    if playing and ('start' in events or 'coin' in events):
+        _new_game(st)                                  # explicit restart from anywhere
+
+    phase = st.get('phase', 'play')
+
+    # The between-lives 'ready' pause and the 'game over' end screen — a live player only.
+    # Both wait for a fresh key PRESS (the press-edge counter, so a held direction can't
+    # skip them); game over fades the board to black behind the overlay while it waits.
+    if playing and phase in ('ready', 'gameover'):
+        if st.get('freeze_presses') is None:
+            st['freeze_presses'] = presses
+        if phase == 'gameover':
+            st['fade'] = min(st.get('fade', 0) + 1, _FADE_STEPS)
+        if presses > st['freeze_presses']:             # any key → go
+            if phase == 'gameover':
+                _new_game(st)
+            else:
+                st['phase'], st['freeze_presses'] = 'play', None
+        else:
+            if phase == 'gameover':
+                _draw_board(canvas, st, xe, ye, W, H, dim=max(0.0, 1 - st['fade'] / _FADE_STEPS))
+                _draw_gameover(canvas, W, H, st['score'], st['fade'] / (_FADE_STEPS * 0.5))
+            else:
+                _draw_board(canvas, st, xe, ye, W, H)
+                _draw_ready(canvas, W, H)
+            canvas.show()
+            return 0.08
+
+    if playing and 'pause' in events:
+        st['paused'] = not st.get('paused', False)
 
     if not (playing and st.get('paused')):
         _step(st, want=want, auto=not playing)
@@ -341,33 +432,7 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
     if play_sound and sfx:
         _play_sfx(play_sound, sfx, st['pellets'])
 
-    def cx(cell):
-        return (xe[cell[0]] + xe[cell[0] + 1]) // 2
-
-    def cy(cell):
-        return (ye[cell[1]] + ye[cell[1] + 1]) // 2
-
-    canvas.clear((0, 0, 0))
-    for x0, r0, w0, h0 in st['wall_rects']:            # the maze in a handful of rects
-        canvas.rect(xe[x0], ye[r0], xe[x0 + w0] - xe[x0], ye[r0 + h0] - ye[r0],
-                    _WALL, fill=True)
-    for cell in st['dots']:
-        canvas.pixel(cx(cell), cy(cell), _DOT)
-    if (st['step'] // 2) % 2 == 0:                     # power pellets blink
-        for cell in st['power']:
-            canvas.circle(cx(cell), cy(cell), 1, _DOT, fill=True)
-
-    pr = 2                                             # 5px sprites, arcade-oversized for the lanes
-    for g in st['ghost_list']:
-        col = _FRIGHT if st['fright'] > 0 else g['col']
-        _draw_ghost(canvas, cx(g['cell']), cy(g['cell']), pr, col, g['dir'])
-    pac = st['pac']
-    _draw_pac(canvas, cx(pac['cell']), cy(pac['cell']), pr, pac['dir'], pac['phase'])
-
-    if W >= 128:                                       # score rides the top wall band
-        canvas.shadow_text(2, 0, str(st['score']), (255, 255, 255), 8)
-        for i in range(st['lives']):
-            canvas.circle(W - 5 - i * 7, max(2, ye[1] // 2), 2, _PAC, fill=True)
+    _draw_board(canvas, st, xe, ye, W, H)
     if playing and st.get('paused'):                   # two-bar pause glyph, centered
         canvas.rect(W // 2 - 3, H // 2 - 4, 2, 8, (255, 255, 255), fill=True)
         canvas.rect(W // 2 + 1, H // 2 - 4, 2, 8, (255, 255, 255), fill=True)

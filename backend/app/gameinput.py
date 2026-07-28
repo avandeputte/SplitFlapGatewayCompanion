@@ -23,12 +23,15 @@ _walls: dict[str, "_Pad"] = {}
 
 
 class _Pad:
-    __slots__ = ("dir", "events", "last_ts")
+    __slots__ = ("dir", "events", "last_ts", "presses")
 
     def __init__(self):
         self.dir: str | None = None      # the latest held direction
         self.events: list[str] = []      # discrete presses awaiting a drain
         self.last_ts: float = 0.0        # monotonic time of the last input
+        self.presses: int = 0            # monotonic count of inputs — bumps only on an
+                                         # actual press, so a HELD direction never advances
+                                         # it (how a game detects "a key was pressed")
 
 
 def _pad(url: str) -> _Pad:
@@ -56,6 +59,7 @@ def push(url: str, action: str, *, now: float) -> bool:
         else:
             return False
         p.last_ts = now
+        p.presses += 1
         return True
 
 
@@ -63,12 +67,13 @@ class Controls:
     """The per-frame view an app reads: the held direction, the events since the last
     frame (drained), and whether a human has touched the pad recently (attract vs play)."""
 
-    __slots__ = ("dir", "events", "_idle")
+    __slots__ = ("dir", "events", "presses", "_idle")
 
-    def __init__(self, dir_, events, idle):
+    def __init__(self, dir_, events, idle, presses):
         self.dir = dir_
         self.events = events
-        self._idle = idle
+        self.presses = presses          # see _Pad.presses — a press-edge counter for
+        self._idle = idle               # "press any key" resumes (not fooled by a held key)
 
     def active(self, within: float = 6.0) -> bool:
         """True while the player is engaged — the last input was under ``within`` seconds
@@ -83,7 +88,7 @@ def snapshot(url: str, *, now: float) -> Controls:
     with _lock:
         events, p.events = p.events, []
         idle = now - p.last_ts if p.last_ts else 1e9
-        return Controls(p.dir, events, idle)
+        return Controls(p.dir, events, idle, p.presses)
 
 
 def reset(url: str) -> None:
