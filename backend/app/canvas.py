@@ -52,13 +52,14 @@ class _Wall:
                                     # image read it (they otherwise show the bypassed flap grid).
         self.delta_n = 0            # frames since the last base reset; a full keyframe every
                                     # _KEYFRAME_EVERY pushes self-heals a gateway reboot or drift
-        self.readback = {}          # (scale, fmt) -> (monotonic, png|None), briefly cached so the
-                                    # browser can poll an on-device effect preview freely
+        self.readback = {}          # (url, scale, fmt) -> (monotonic, png|None), briefly cached so
+                                    # the browser can poll an on-device effect preview freely
         self.sim = False            # sim mode: frames are cached for the preview, nothing is sent
         self.atlas = None           # {"at": monotonic, "rows": {name: library_row}} — see the
                                     # sprite-sheet notes below
         self.stream = None          # the live CanvasStream (3.2 persistent draw channel), if open
-        self.last_kind = None       # "frame" | "ops" — what the app last pushed (stream heuristic)
+        self.last_kind = None       # "frame" | "ops" | "opsb" — what the app last pushed
+                                    # (the engine's stream-adoption heuristic)
 
     def forget_frame(self):
         self.last_frame = None
@@ -104,7 +105,7 @@ _ATLAS_VERIFY_S = 60.0
 _ATLAS_NAME_MAX = 32            # firmware: [a-z0-9._-]{1,32}
 
 
-def atlas_name_for(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str = "rgb888") -> str:
+def atlas_name_for(tiles: bytes, tile_w: int, tile_h: int, fmt: str = "rgb888") -> str:
     """A wall-legal sheet name that IS the content fingerprint, so presence in the wall's library
     means exactly these tiles are loaded. Charset/length match the firmware's rule."""
     digest = hashlib.blake2b(bytes(tiles), digest_size=9).hexdigest()
@@ -473,8 +474,10 @@ def last_push_was_opsb(url: str) -> bool:
 
 
 def last_push_was_frame(url: str) -> bool:
-    """Whether the app's most recent push was a full/delta frame (vs an ops batch) — the engine only
-    adopts the stream for frame-push apps (ops/sprite apps are a later phase)."""
+    """Whether the app's most recent push was a full/delta frame (vs an ops batch). The engine
+    adopts the draw stream for frame-push apps — and, via ``last_push_was_opsb``, for apps whose
+    ops batches ride the binary encoding; JSON-ops apps stay on HTTP (an open stream would 409
+    their atlas uploads)."""
     return _wall(url).last_kind == "frame"
 
 
@@ -821,8 +824,9 @@ def release(url: str, timeout: float = 5.0) -> bool:
     return stopped or active_off
 
 
-# The named colors the firmware's color flaps use, so a canvas app can say
-# `canvas.rect(..., color="red")` and match the rest of the ecosystem's palette.
+# Named colors a canvas app can pass as strings (`canvas.rect(..., color="red")`).
+# The first seven match the flap-side color palette (renderer.COLOR_NAMES); the rest
+# are RGB conveniences for canvas drawing only — flaps have no cyan/magenta/pink/gray.
 _NAMED = {
     "red": (255, 0, 0), "orange": (255, 96, 0), "yellow": (255, 200, 0),
     "green": (0, 200, 0), "blue": (0, 80, 255), "purple": (150, 0, 255),
@@ -866,8 +870,8 @@ def _rgb(color):
 # parsing entirely (measured 1.5-1.9x the frame rate on op-heavy scenes). Big-endian,
 # coordinates signed int16. encode_ops_bin returns None when a batch contains anything
 # the format cannot carry (textbox, image, an atlas bind, a custom text font, text over
-# 127 UTF-8 bytes, >16 poly vertices) — the caller then sends the JSON batch instead,
-# so output stays pixel-identical either way.
+# 127 UTF-8 bytes, >16 poly vertices, a 4-component rgba color, aa on a non-text op) —
+# the caller then sends the JSON batch instead, so output stays pixel-identical either way.
 def _bi16(v):
     return struct.pack(">h", max(-32768, min(32767, int(v))))
 
@@ -1070,11 +1074,10 @@ class CanvasSurface:
         self.can_text_styles = "textbox" in self.op_names
         self.can_ops_bin = int(caps.canvas_ops_bin or 0) >= 1
         self.can_composite = bool(caps.canvas_composite)   # fw 3.8+: alpha, blend modes, AA
-        # 1.19 / 1.25 / 2.1. `ops` is the draw-op vocabulary the wall honors (an app can consult
-        # it before reaching for a shape); `can_ops` is "any ops at all". The 2.1 endpoint families
-        # aren't flagged one by one, so they all gate on the firmware version (caps.canvas_2_1).
-        self.ops = tuple(caps.canvas_ops)
-        self.can_ops = bool(self.ops)
+        # 1.19 / 1.25 / 2.1. `can_ops` is "any draw ops at all" (the vocabulary itself is
+        # op_names above, consulted via has_op()). The 2.1 endpoint families aren't flagged
+        # one by one, so they all gate on the firmware version (caps.canvas_2_1).
+        self.can_ops = bool(self.op_names)
         self.can_readback = bool(caps.canvas_readback)
         two_one = bool(caps.canvas_2_1)
         self.can_overlay = two_one
@@ -1524,7 +1527,7 @@ class CanvasSurface:
             for im in imgs:
                 buf += (im if (im.width, im.height) == (tw, th) else im.resize((tw, th))).tobytes()
             tiles = bytes(buf)
-            name = atlas_name_for(tiles, tw, th, len(imgs), fmt)
+            name = atlas_name_for(tiles, tw, th, fmt)
             row = _atlas_row(self.url, name)                   # what the wall's library says about it
             if row is None:
                 if not put_atlas_named(self.url, name, tiles, tw, th, len(imgs), fmt):

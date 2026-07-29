@@ -32,13 +32,9 @@ except Exception as _mcp_err:          # a broken/incompatible mcp lib must not
         "MCP server unavailable, importing it failed (%s); the display runs without it", _mcp_err)
 from .config import Config, addon_option, default_data_dir
 from .display import DisplayManager
-from .engine import DisplayController
 from .gateway import (addon_public_url, build_sync_patch, detect_local_ip,
                       fetch_gateway_config, fetch_gateway_settings,
                       post_companion, push_gateway_settings, supports_settings)
-from .homeassistant import HomeAssistant
-from .plugin_settings import PluginSettings
-from .plugins import PluginRuntime
 from .registry import DisplayRegistry
 from .routes import apps as routes_apps
 from .routes import canvas_api as routes_canvas_api
@@ -49,8 +45,6 @@ from .routes import helpers_api as routes_helpers_api
 from .routes import local_api as routes_local_api
 from .routes import message as routes_message
 from .routes import playlists as routes_playlists
-from .scheduler import Scheduler
-from .state import DisplayState
 
 # Log level from COMPANION_LOG_LEVEL (DEBUG/INFO/WARNING/ERROR/CRITICAL); default INFO.
 # Configured at import, before Config exists, so the add-on's own `log_level` option
@@ -83,7 +77,7 @@ logging.getLogger("uvicorn.access").addFilter(_SuppressStatePolling())
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 APPS_DIR = Path(__file__).resolve().parents[2] / "apps"
 
-# One companion, N displays (docs/MULTI_DISPLAY_PLAN.md). Each Display owns its geometry, settings
+# One companion, N displays. Each Display owns its geometry, settings
 # store, app loop and HA device; the SET of them has an identity on disk:
 #
 #   data/displays.json                    which walls exist; which one is the default
@@ -685,9 +679,9 @@ app = FastAPI(title="SplitFlapGatewayCompanion", version=__version__, lifespan=l
 
 
 # ---------------------------------------------------------------------------
-# API — the routes live in app/routes/, split along the seams the backend audit
-# named (E1): displays / dev / apps / playlists+triggers / message / vestaboard
-# local-api / the root app-data helpers. Each build() below is handed THIS
+# API — the routes live in app/routes/, split by feature seam: displays / dev /
+# apps / playlists+triggers / message / vestaboard local-api / canvas panel /
+# game input / the root app-data helpers. Each build() below is handed THIS
 # MODULE as its deps: the routers resolve every shared name (displays,
 # display_for, do_gateway_sync, vestaboard_key, _companion_url …) through it at
 # request time — the same late binding they had as module-level routes here, so

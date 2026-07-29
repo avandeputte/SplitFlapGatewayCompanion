@@ -1,11 +1,12 @@
 """
 homeassistant.py — Home Assistant MQTT auto-discovery for the companion.
 
-When the gateway has Home Assistant enabled (or COMPANION_HA forces it), the
-companion publishes a small HA device over the same MQTT broker the gateway uses.
-It exposes only what is *unique to the companion* — apps and playlists — since
-the gateway's own HA device already covers flashing a message and reporting the
-display content, and we don't duplicate those:
+When an MQTT broker is configured (or COMPANION_HA forces it — see the startup
+gate in main.py), the companion publishes a small HA device over that broker.
+The broker is companion-owned: firmware 3.0 dropped MQTT from the gateway, so
+there is no gateway-side HA device anymore. The companion exposes the app- and
+playlist-level controls; message-flashing and display readback are covered by
+the REST-based custom integration (custom_components/splitflap), not here:
 
   * select  "App"       — run an installed app (or "Off" to stop); its state
                           shows the running app
@@ -92,9 +93,10 @@ class HomeAssistant:
 
     # -- discovery + state --------------------------------------------------
     def _discovery(self) -> list[tuple[str, str, dict]]:
-        # Only companion-unique controls. The gateway's own HA device already
-        # covers "flash a message" and "what's on the display", so we don't
-        # duplicate those; the select states show the active app/playlist.
+        # Only app/playlist-level controls. "Flash a message" and "what's on the
+        # display" belong to the REST custom integration (custom_components/
+        # splitflap), so we don't duplicate those; the select states show the
+        # active app/playlist.
         d, av = self._device(), self._avail()
         apps = [a["name"] for a in self.plugins.app_list()]
         pls = list(self.settings.get("saved_app_playlists", {}).keys())

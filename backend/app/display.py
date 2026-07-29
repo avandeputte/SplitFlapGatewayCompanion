@@ -109,6 +109,11 @@ class Display:
     def gateway_url(self) -> str:
         return (self.config.transport.get("gateway_url") or "").strip()
 
+    def grid_size(self) -> tuple[int, int]:
+        """(rows, cols) as ints — the config stores them as whatever the source gave."""
+        g = self.config.grid
+        return int(g["rows"]), int(g["cols"])
+
     def live_snapshot(self) -> dict:
         """The live-preview state — what's on the wall, plus whether a canvas is drawing
         (which sends the preview to the panel image instead of the stale flap grid). The

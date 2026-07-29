@@ -10,7 +10,9 @@ available; there's no per-frame legacy fallback.
 
 from __future__ import annotations
 
+import json
 import logging
+import time
 from dataclasses import replace
 
 from .. import device, renderer
@@ -35,6 +37,10 @@ log = logging.getLogger("companion.transport.rest")
 # string values carry the high bytes.
 _JSON_1252_HEADERS = {"Content-Type": "application/json; charset=windows-1252"}
 
+# Batched sends can block the gateway for the page's whole cascade duration, so they use a
+# much longer timeout than the single-frame/status default (self.timeout, 5 s).
+_BATCH_TIMEOUT = 30.0
+
 # How often (seconds) to resend the whole page instead of just the changed cells, to heal a
 # shown-cell cache that has drifted from the actual wall (see RestTransport._shown). A repaint is
 # invisible where the cache is right (an unchanged module does not re-flip) and corrects it where
@@ -45,7 +51,6 @@ _REPAINT_SECONDS = 15.0
 
 
 def _win1252_body(payload: dict) -> bytes:
-    import json
     return json.dumps(payload, ensure_ascii=False).encode("cp1252", "replace")
 
 
@@ -57,9 +62,8 @@ class RestTransport(DisplayTransport):
         if not gateway_url:
             raise ValueError("REST transport requires a gateway_url")
         self.base = gateway_url.rstrip("/")
-        # Batching can block the gateway for the page's cascade duration, so use
-        # a longer timeout than the single-frame path.
-        self.timeout = timeout
+        self.timeout = timeout          # single-frame / status-probe timeout (batches
+                                        # use the longer _BATCH_TIMEOUT above)
         self._client = None
         self._connected = False
         self._last_error: str | None = None
@@ -82,11 +86,9 @@ class RestTransport(DisplayTransport):
     async def connect(self) -> None:
         import httpx2 as httpx
 
-        self._client = httpx.AsyncClient(
-            base_url=self.base,
-            timeout=self.timeout,
-            headers={"Content-Type": "application/json"},
-        )
+        # No client-level Content-Type default: every body-bearing request sets its own
+        # (cp1252 for frames/batches, utf-8 for cells), and the GET probes need none.
+        self._client = httpx.AsyncClient(base_url=self.base, timeout=self.timeout)
         # We do not know what is on the wall until we have put it there.
         self._shown.clear()
         # Probe the gateway so the UI can show a truthful status pill.
@@ -229,12 +231,11 @@ class RestTransport(DisplayTransport):
         if not sent:
             return                                       # the wall already says this
         payload = {"start": base, "step_ms": int(step_ms), "cells": cells}
-        import json
         r = await self._client.post(
             "/api/display/cells",
             content=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
             headers={"Content-Type": "application/json; charset=utf-8"},
-            timeout=30.0)
+            timeout=_BATCH_TIMEOUT)
         r.raise_for_status()
         self._shown.update(by_id)
 
@@ -254,7 +255,6 @@ class RestTransport(DisplayTransport):
             raise RuntimeError("REST transport not connected")
         # Every _REPAINT_SECONDS, forget the diff so this page goes out whole — self-heals a
         # shown-cell cache that drifted from the wall (an unchanged module no-ops, so it's unseen).
-        import time
         now = time.monotonic()
         if now - self._last_repaint >= _REPAINT_SECONDS:
             self._last_repaint = now
@@ -310,7 +310,7 @@ class RestTransport(DisplayTransport):
             # allow the gateway to pace a long page without a client timeout
             r = await self._client.post("/api/rs485/batch",
                                         content=_win1252_body(payload),
-                                        headers=_JSON_1252_HEADERS, timeout=30.0)
+                                        headers=_JSON_1252_HEADERS, timeout=_BATCH_TIMEOUT)
             r.raise_for_status()
             self._connected = True
             self._last_error = None

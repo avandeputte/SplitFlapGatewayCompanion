@@ -56,6 +56,8 @@ _EFFECT_META = {
 
 
 def _effect_name_icon(token: str):
+    # Effect names get a friendlier label; anything the firmware adds later is
+    # title-cased automatically (new_effect -> "New Effect").
     return _EFFECT_META.get(token, (token.replace("_", " ").title(), "🎆"))
 
 
@@ -82,7 +84,7 @@ def app_id_from_ref(ref: str) -> str:
 # description is read as a plain string). Two layers:
 #   backend/app/app_i18n/<lang>.json   central catalog for the vendored library
 #   apps/<id>/i18n/<lang>.json         per-app sidecar; travels in uploaded zips
-# The sidecar wins. See docs/UI_I18N_PLAN.md.
+# The sidecar wins (the design is exercised end-to-end in tests/test_ui_i18n.py).
 I18N_META_FILE = re.compile(r"^([A-Za-z]{2}(?:-[A-Za-z]{2})?)\.json$")
 APP_I18N_DIR = Path(__file__).parent / "app_i18n"
 _META_STR_KEYS = ("name", "flap_name", "description")
@@ -910,7 +912,7 @@ class PluginRuntime:
         return msg
 
     # -- pages (faithful get_plugin_pages) --------------------------------
-    def get_pages(self, app_id: str, overrides: dict | None = None) -> list[str]:
+    def get_pages(self, app_id: str, overrides: dict | None = None) -> list[str | dict]:
         cols = self.get_cols()
         manifest = self._registry.get(app_id)
         if not manifest:
@@ -1309,9 +1311,6 @@ class PluginRuntime:
         # The catalog is the single source of truth for what is global; every other setting is
         # per-app, namespaced under the app id.
         return raw_key if raw_key in GLOBAL_STORAGE_KEYS else f"plugin_{app_id}_{raw_key}"
-
-    # Effect names get a friendlier label; anything the firmware adds later is
-    # title-cased automatically (new_effect -> "New Effect").
 
     def _dynamic_options(self, setting: dict):
         """Options a setting draws from the LIVE wall instead of the manifest.

@@ -19,7 +19,7 @@ main, which would be a cycle — main imports this.
 Two house rules carried over from the rest of the codebase:
 
 1. A message **takes the display over**, exactly like a Compose push or a Vestaboard
-   write: ``send_text_bg`` cancels whatever app or playlist was running. That is what
+   write: ``send_text`` stops whatever app or playlist was running. That is what
    "show this" means on a wall with a single surface.
 2. Reads report **what is actually on the flaps** — a running app's output included —
    not the last thing someone sent.
@@ -175,15 +175,12 @@ def build(displays) -> MCPServer:
                 f"unknown style {style!r} — one of: {', '.join(renderer.ALL_STYLES)}")
         d = _res(display)
         rows, cols = _grid(d)
-        # The same two steps a Vestaboard text write makes, and for the same reasons:
-        # The wall folds the case, last, for everyone (engine._normalize) — a physical board
-        # has no lowercase flaps; a Matrix Portal has them and keeps the text as written. We
-        # only fold the lines we REPORT, so what we tell the caller matches what it will see.
-        # and layout_text is the shared "center it on the wall" layout. The result is
-        # final characters, so it must go out raw — otherwise a color flap (lowercase
-        # r/o/y/g/b/p/w) would be uppercased into a letter.
-        # NOT folded here: the wall does that, last, for everyone (engine._normalize). The
-        # `lines` we report back are folded to match what the wall will actually show.
+        # The same steps a Vestaboard text write makes, for the same reasons.
+        # layout_text is the shared "center it on the wall" layout; its result is final
+        # characters, sent raw — uppercasing here would turn a color flap (lowercase
+        # r/o/y/g/b/p/w) into a letter. Case folding happens on the wall, last, for
+        # everyone (engine._normalize); we fold only the `lines` we REPORT back, so what
+        # we tell the caller matches what the wall will actually show.
         page = vestaboard.layout_text(text, rows, cols, d.controller.caps)
         shown = page if d.controller.shows_lowercase else renderer.fold(page)
         lines = [shown[r * cols:(r + 1) * cols] for r in range(rows)]

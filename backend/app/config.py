@@ -73,8 +73,8 @@ DEFAULTS: dict = {
     # gateway can show a "Companion" tab linking back here. Blank = auto-detect
     # this host's LAN IP + port. Set via COMPANION_PUBLIC_URL to override.
     "companion_url": "",
-    # Bind address + port (also used to build the auto-detected companion URL).
-    "host": "0.0.0.0",
+    # Port the companion serves on (also used to build the auto-detected companion URL).
+    # The bind ADDRESS is not config: __main__.py reads COMPANION_HOST directly at launch.
     "port": 8000,
     # Vestaboard-compatible Local API (see vestaboard.py). OFF by default: it is an
     # extra, key-authenticated HTTP surface, so it only exists when asked for. The
@@ -163,7 +163,8 @@ _ENV_VARS = (
     ("COMPANION_SYNC_FROM_GATEWAY", ("sync_from_gateway",), _env_bool),
     ("COMPANION_SETTINGS_STORE", ("settings_store",), _env_store),
     ("COMPANION_PUBLIC_URL", ("companion_url",), _env_str),
-    ("COMPANION_HOST", ("host",), _env_str),
+    # COMPANION_HOST is deliberately absent: the bind address is read straight from the
+    # environment in __main__.py and never lives in config.
     ("COMPANION_PORT", ("port",), _env_int),
     ("COMPANION_VESTABOARD", ("vestaboard", "enabled"), _env_bool),
     ("COMPANION_VESTABOARD_KEY", ("vestaboard", "api_key"), _env_stripped),

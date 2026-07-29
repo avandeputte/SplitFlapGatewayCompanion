@@ -79,7 +79,7 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
  * from fixed pixels. A 15-wide grid of 46px flaps is ~760px, which overflowed any phone
  * — and the wall can be 22 wide. So one --flap variable drives width, height, glyph and
  * radius together: it shrinks to whatever the viewport allows, and is capped well below
- * the old size so the preview is compact on a desktop too. Below the 14px floor the
+ * the old size so the preview is compact on a desktop too. Below the 12px floor the
  * glyphs stop being legible, so the board scrolls instead (overflow-x). */
 .board {
   --gap: 4px;
@@ -100,7 +100,7 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
    muted, directly under the board, so it never competes with the display itself. */
 .preview-src {
   margin: 6px auto 0; text-align: center;
-  font-size: 11px; letter-spacing: .04em; color: var(--muted, #888); opacity: .8;
+  font-size: 11px; letter-spacing: .04em; color: var(--dim); opacity: .8;
 }
 /* A canvas app's live frame (a Matrix panel), shown in place of the flap board.
    Native res is tiny (e.g. 128×32) — upscale it crisp and frame it like the board. */
@@ -173,7 +173,7 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 .dpad .up { grid-area: 1 / 2; } .dpad .left { grid-area: 2 / 1; }
 .dpad .right { grid-area: 2 / 3; } .dpad .down { grid-area: 3 / 2; }
 .gbtn { font-size: 15px; line-height: 1; border: 1px solid var(--acc); border-radius: 7px;
-  background: var(--input); color: var(--fg); cursor: pointer; touch-action: manipulation;
+  background: var(--input); color: var(--txt); cursor: pointer; touch-action: manipulation;
   user-select: none; transition: background .08s, border-color .08s; }
 .gbtn:hover { border-color: var(--brand); }
 .gbtn:active, .gbtn.held { background: var(--brand); border-color: var(--brand); color: #08121f; }
@@ -372,7 +372,8 @@ a.btn { text-decoration: none; display: inline-block; }
 .modal-foot { display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 12px 16px; border-top: 1px solid var(--acc); }
 
 @media (max-width: 620px) {
-  /* Flaps keep the gateway's fixed size; the board scrolls horizontally instead. */
+  /* Narrow screens: pack the app cards tighter. (Flap sizing needs no media query —
+     the .board --flap clamp() above is responsive on its own.) */
   .apps-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 }
 
@@ -472,8 +473,7 @@ a.btn { text-decoration: none; display: inline-block; }
   --grn: #43a047;             /* success-color           */
   --ylw: #ffa600;             /* warning-color           */
   --qt: #03a9f4;
-  --input: #ffffff;
-  --ha-accent: #ff9800;       /* accent-color */
+  --input: #ffffff;       /* accent-color */
   --ha-radius: 12px;          /* ha-card-border-radius */
   --ha-hover: rgba(3, 169, 244, .08);
 }
@@ -655,7 +655,7 @@ input[type=checkbox] { accent-color: var(--brand); }
   white-space: nowrap;
 }
 
-/* Panel — Matrix LED-panel controls (overlay ticker, transitions, libraries) */
+/* Compose overlay-ticker card (canvas walls) + the playlists "editing" pill */
 .panel-card { background: var(--input); border: 1px solid var(--acc); border-radius: 8px;
   padding: 12px 14px; margin-top: 12px; }
 .panel-card > h3 { margin: 0 0 4px; font-size: .95rem; }

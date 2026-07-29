@@ -5,12 +5,9 @@
 
 from __future__ import annotations
 
-import logging
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-
-log = logging.getLogger("companion")
 
 
 class PlaylistSave(BaseModel):
@@ -33,9 +30,7 @@ class TriggersPatch(BaseModel):
 
 
 def build(deps) -> APIRouter:
-    # dependency_overrides_provider is what @app.<method> bakes into an APIRoute;
-    # these routes join app.routes FLAT (see main._include_flat), so they carry it
-    # themselves. deps.app exists by the time main calls build().
+    # Flat-mounted (see main._include_flat and routes/__init__.py for why).
     router = APIRouter(dependency_overrides_provider=deps.app)
 
     # -----------------------------------------------------------------------

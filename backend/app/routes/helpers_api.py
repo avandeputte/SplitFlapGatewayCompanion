@@ -1,8 +1,9 @@
 """App-data helper endpoints — served at the fixed root paths that dropped-in app
 manifests' searchUrl / resultKey point at, so they work unchanged.
 
-``deps`` is the app.main module (see routes/__init__.py) — unused here, because
-these routes are display-less by design: they delegate straight to helpers.py.
+``deps`` is the app.main module (see routes/__init__.py) — unused by the handlers
+(only ``build`` reads it), because these routes are display-less by design: they
+delegate straight to helpers.py.
 """
 
 from __future__ import annotations
@@ -13,9 +14,7 @@ from .. import ha_rest, helpers
 
 
 def build(deps) -> APIRouter:
-    # dependency_overrides_provider is what @app.<method> bakes into an APIRoute;
-    # these routes join app.routes FLAT (see main._include_flat), so they carry it
-    # themselves. deps.app exists by the time main calls build().
+    # Flat-mounted (see main._include_flat and routes/__init__.py for why).
     router = APIRouter(dependency_overrides_provider=deps.app)
 
     @router.get("/location_search")

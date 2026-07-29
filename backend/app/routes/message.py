@@ -1,19 +1,16 @@
 """The message surface: compose/send, the plain-text message endpoint, clear,
-physical home, and the gateway status probe the Display tab reads.
+and physical home.
 
 ``deps`` is the app.main module — see routes/__init__.py.
 """
 
 from __future__ import annotations
 
-import logging
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from .. import renderer, vestaboard
-
-log = logging.getLogger("companion")
 
 
 class ComposeRequest(BaseModel):
@@ -30,9 +27,7 @@ class MessageRequest(BaseModel):
 
 
 def build(deps) -> APIRouter:
-    # dependency_overrides_provider is what @app.<method> bakes into an APIRoute;
-    # these routes join app.routes FLAT (see main._include_flat), so they carry it
-    # themselves. deps.app exists by the time main calls build().
+    # Flat-mounted (see main._include_flat and routes/__init__.py for why).
     router = APIRouter(dependency_overrides_provider=deps.app)
 
     @router.post("/api/compose/send")
@@ -61,8 +56,7 @@ def build(deps) -> APIRouter:
         d = deps.display_for(request)
         if req.style and req.style not in renderer.ALL_STYLES:
             raise HTTPException(400, f"unknown style: {req.style}")
-        g = d.config.grid
-        rows, cols = int(g["rows"]), int(g["cols"])
+        rows, cols = d.grid_size()
         page = vestaboard.layout_text(req.text, rows, cols, d.controller.caps)
         if req.seconds and req.seconds > 0:
             running = d.controller.show_temporary(page, req.seconds, style=req.style or "ltr")
@@ -90,28 +84,5 @@ def build(deps) -> APIRouter:
             return {"ok": ok, "error": None if ok else "gateway rejected the home command"}
         except Exception as e:
             return {"ok": False, "error": str(e)}
-
-    @router.get("/api/gateway/status")
-    async def gateway_status(request: Request):
-        """Probe the gateway's /api/status and return its URL (for the Display tab).
-
-        ``tabs`` is the gateway's own tab list as it advertised it when we registered
-        (Gateway 3.4+); empty means it never did — an older firmware, or we haven't
-        reached it yet — and the UI falls back to its built-in list. See tabs.py.
-        """
-        d = deps.display_for(request)
-        import httpx2 as httpx
-
-        tabs = list(d.gateway_tabs)
-        url = d.config.transport.get("gateway_url", "").rstrip("/")
-        if not url:
-            return {"ok": False, "url": "", "tabs": tabs, "error": "no gateway_url configured"}
-        try:
-            async with httpx.AsyncClient(timeout=4.0) as client:
-                r = await client.get(f"{url}/api/status")
-                return {"ok": r.status_code < 400, "url": url, "tabs": tabs,
-                        "status_code": r.status_code, "data": r.json()}
-        except Exception as e:
-            return {"ok": False, "url": url, "tabs": tabs, "error": str(e)}
 
     return router

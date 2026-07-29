@@ -20,6 +20,12 @@ from .transport import DisplayTransport, SimTransport, build_transport
 
 log = logging.getLogger("companion.engine")
 
+
+class NeedsCanvasError(KeyError):
+    """run_app was asked to start a Matrix-panel app on a wall with no framebuffer.
+    A KeyError subclass so a caller that only knows "app not runnable" still catches it;
+    the apps route catches this type specifically to answer 409 instead of 404."""
+
 # Re-assert the current page at least this often (seconds) even when it has not changed, so a
 # drifted flap heals on a wall-clock bound during a static hold. Kept in step with the transport's
 # own _REPAINT_SECONDS (which drops the cell-diff), so the re-emit actually goes out whole.
@@ -497,7 +503,7 @@ class DisplayController:
         surface = self._surface_for(app_id)
         if surface is None:
             # A matrix-only app on a wall with no framebuffer has nothing to draw on.
-            raise KeyError(f"{app_id} needs a Matrix panel this wall does not have")
+            raise NeedsCanvasError(f"{app_id} needs a Matrix panel this wall does not have")
         await self._cancel_task()
         self._clear_driver_flags()
         self.active_app = app_id
@@ -860,7 +866,7 @@ class DisplayController:
                                       speed=int(self.config.display.get("transition_speed", 15)))
                 return
 
-    # -- trigger interrupts + quiet hours -----------------------------------
+    # -- trigger interrupts --------------------------------------------------
     @property
     def _interrupting(self) -> bool:
         return not self._interrupt_over.is_set()

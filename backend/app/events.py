@@ -34,6 +34,7 @@ _KEEPALIVE_S = 15.0
 # of streams (a reconnect storm, a wedged client) should still be impossible. A refused
 # stream degrades to client-side polling, so the cap is safe to hit.
 _MAX_SUBSCRIBERS = 16
+_QUEUE_DEPTH = 8       # per-subscriber backlog before the pump drops it as too slow
 
 
 class TooManyStreams(RuntimeError):
@@ -41,8 +42,13 @@ class TooManyStreams(RuntimeError):
     into a 503 — the same refusal the firmware gives a surplus stream."""
 
 
+def _frame_str(payload: str) -> str:
+    """Wrap an already-serialized snapshot as one SSE display record."""
+    return "event: display\ndata: " + payload + "\n\n"
+
+
 def _frame(snap: dict) -> str:
-    return "event: display\ndata: " + json.dumps(snap, separators=(",", ":"), ensure_ascii=False) + "\n\n"
+    return _frame_str(json.dumps(snap, separators=(",", ":"), ensure_ascii=False))
 
 
 class StateHub:
@@ -71,7 +77,7 @@ class StateHub:
         route can answer 503 before it commits to a streaming response."""
         if len(self._subs) >= _MAX_SUBSCRIBERS:
             raise TooManyStreams("too many event streams")
-        q: asyncio.Queue = asyncio.Queue(maxsize=8)
+        q: asyncio.Queue = asyncio.Queue(maxsize=_QUEUE_DEPTH)
         self._subs.add(q)
         self._ensure_pump()
         return q
@@ -121,7 +127,7 @@ class StateHub:
             if payload != self._last_json:
                 self._last_json = payload
                 since_ka = 0.0
-                self._broadcast("event: display\ndata: " + payload + "\n\n")
+                self._broadcast(_frame_str(payload))
             else:
                 since_ka += _TICK_S
                 if since_ka >= _KEEPALIVE_S:

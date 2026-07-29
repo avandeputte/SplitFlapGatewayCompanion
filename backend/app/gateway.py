@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import gzip
+import json
 import logging
 import re
 import threading
@@ -32,10 +34,15 @@ _clients_lock = threading.Lock()
 _clients: dict[str, object] = {}
 
 
+def _base(url: str) -> str:
+    """The normalized gateway key — every per-gateway dict here is keyed on this."""
+    return (url or "").rstrip("/")
+
+
 def _client(url: str):
     import httpx2 as httpx
 
-    base = (url or "").rstrip("/")
+    base = _base(url)
     with _clients_lock:
         c = _clients.get(base)
         # A cached client survives for the life of the process (the test suite clears
@@ -74,7 +81,7 @@ _transfers: dict[str, int] = {}          # gateway base url -> transfers in flig
 
 @contextmanager
 def _settings_transfer(url: str):
-    key = (url or "").rstrip("/")
+    key = _base(url)
     with _transfer_cond:
         _transfers[key] = _transfers.get(key, 0) + 1
     try:
@@ -95,14 +102,14 @@ def settings_active(url: str | None = None) -> bool:
     with _transfer_cond:
         if url is None:
             return bool(_transfers)
-        return _transfers.get((url or "").rstrip("/"), 0) > 0
+        return _transfers.get(_base(url), 0) > 0
 
 
 def wait_settings_idle(url: str, timeout: float = 5.0) -> float:
     """Block until no transfer is in flight for this gateway (or ``timeout``), and
     return the seconds waited. Runs in a worker thread on the engine's behalf, so the
     engine awaits a condition instead of busy-polling a flag."""
-    key = (url or "").rstrip("/")
+    key = _base(url)
     start = time.monotonic()
     with _transfer_cond:
         _transfer_cond.wait_for(lambda: _transfers.get(key, 0) == 0, timeout)
@@ -340,8 +347,6 @@ def supports_settings(gw: dict) -> bool:
 
 def fetch_gateway_settings(url: str, timeout: float = 8.0) -> dict | None:
     """Fetch + decompress the stored settings doc, or None (nothing stored / error)."""
-    import gzip
-    import json
 
     with _settings_transfer(url):     # pause THIS display's send loop for the transfer
         try:
@@ -363,8 +368,6 @@ def fetch_gateway_settings(url: str, timeout: float = 8.0) -> dict | None:
 
 def push_gateway_settings(url: str, doc: dict, timeout: float = 8.0) -> bool:
     """Compress + PUT the settings doc to the gateway. Best-effort (returns success)."""
-    import gzip
-    import json
 
     with _settings_transfer(url):     # pause THIS display's send loop for the transfer
         try:

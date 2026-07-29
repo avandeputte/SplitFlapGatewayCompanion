@@ -1,5 +1,5 @@
 """Routes for the SET of displays (the registry) and the per-display
-basics every surface reads — live state, grid geometry, config.
+basics every surface reads — live state, grid geometry, the gateway status probe.
 
 ``deps`` is the app.main module — see routes/__init__.py.
 """
@@ -9,9 +9,10 @@ from __future__ import annotations
 import asyncio
 import logging
 
+import httpx2 as httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from .. import discovery, renderer
 from ..catalog import GLOBAL_STORAGE_KEYS
@@ -19,20 +20,6 @@ from ..events import TooManyStreams
 from ..gateway import fetch_gateway_settings
 
 log = logging.getLogger("companion")
-
-
-class GridPatch(BaseModel):
-    rows: int = Field(ge=1, le=64)
-    cols: int = Field(ge=1, le=128)
-
-
-class ConfigPatch(BaseModel):
-    # grid is typed: a non-numeric rows/cols would slip straight into the
-    # in-memory config and 500 /api/grid until restart.
-    grid: GridPatch | None = None
-    transport: dict | None = None
-    display: dict | None = None
-    sync_from_gateway: bool | None = None
 
 
 class DisplayCreate(BaseModel):
@@ -55,9 +42,7 @@ class DisplayPatch(BaseModel):
 
 
 def build(deps) -> APIRouter:
-    # dependency_overrides_provider is what @app.<method> bakes into an APIRoute;
-    # these routes join app.routes FLAT (see main._include_flat), so they carry it
-    # themselves. deps.app exists by the time main calls build().
+    # Flat-mounted (see main._include_flat and routes/__init__.py for why).
     router = APIRouter(dependency_overrides_provider=deps.app)
 
     # -----------------------------------------------------------------------
@@ -254,27 +239,26 @@ def build(deps) -> APIRouter:
             "display": d.config.display,
         }
 
-    @router.get("/api/config")
-    async def get_config(request: Request):
-        d = deps.display_for(request)
-        return deps._redact(d.config.effective)
+    @router.get("/api/gateway/status")
+    async def gateway_status(request: Request):
+        """Probe the gateway's /api/status and return its URL (the UI builds its
+        gateway-nav links from this).
 
-    @router.post("/api/config")
-    async def update_config(request: Request, patch: ConfigPatch):
+        ``tabs`` is the gateway's own tab list as it advertised it when we registered
+        (Gateway 3.4+); empty means it never did — an older firmware, or we haven't
+        reached it yet — and the UI falls back to its built-in list. See tabs.py.
+        """
         d = deps.display_for(request)
-        body = {k: v for k, v in patch.model_dump().items() if v is not None}
-        if not body:
-            raise HTTPException(400, "empty config patch")
-        old_url = d.config.transport.get("gateway_url")
-        d.config.update(body)
-        if "grid" in body:
-            d.grid_changed()   # cached/channel pages were sized for the old grid
-        if "transport" in body:
-            await d.controller.reload_transport()
-        # If the gateway URL just changed and auto-sync is on, pull its config now.
-        new_url = d.config.transport.get("gateway_url")
-        if new_url and new_url != old_url and d.config.effective.get("sync_from_gateway"):
-            await deps.do_gateway_sync(d)
-        return deps._redact(d.config.effective)
+        tabs = list(d.gateway_tabs)
+        url = d.config.transport.get("gateway_url", "").rstrip("/")
+        if not url:
+            return {"ok": False, "url": "", "tabs": tabs, "error": "no gateway_url configured"}
+        try:
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                r = await client.get(f"{url}/api/status")
+                return {"ok": r.status_code < 400, "url": url, "tabs": tabs,
+                        "status_code": r.status_code, "data": r.json()}
+        except Exception as e:
+            return {"ok": False, "url": url, "tabs": tabs, "error": str(e)}
 
     return router

@@ -53,9 +53,7 @@ async def _gateway_settings_ready(d) -> tuple[str, dict] | dict:
 
 
 def build(deps) -> APIRouter:
-    # dependency_overrides_provider is what @app.<method> bakes into an APIRoute;
-    # these routes join app.routes FLAT (see main._include_flat), so they carry it
-    # themselves. deps.app exists by the time main calls build().
+    # Flat-mounted (see main._include_flat and routes/__init__.py for why).
     router = APIRouter(dependency_overrides_provider=deps.app)
 
     def _require_dev():
@@ -64,7 +62,9 @@ def build(deps) -> APIRouter:
         that is unauthenticated on the LAN anyway, so hiding them behind an env var never
         added protection, just friction. Simulation stays dev-gated: silently not driving
         the wall is a developer's tool, and a trap for anyone else."""
-        if not deps.config.dev_mode:
+        # Live default config (not the deps.config alias, which binds the ORIGINAL
+        # default at import and would go stale if the default display ever changes).
+        if not deps.displays.default.config.dev_mode:
             raise HTTPException(404, "developer mode is off (set COMPANION_DEV_MODE=1)")
 
     async def _external_url(path: str) -> str:

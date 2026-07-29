@@ -35,17 +35,16 @@ VB_INVALID_KEY = "Invalid API key"
 
 
 def build(deps) -> APIRouter:
-    # dependency_overrides_provider is what @app.<method> bakes into an APIRoute;
-    # these routes join app.routes FLAT (see main._include_flat), so they carry it
-    # themselves. deps.app exists by the time main calls build().
+    # Flat-mounted (see main._include_flat and routes/__init__.py for why).
     router = APIRouter(dependency_overrides_provider=deps.app)
 
     def _require_vestaboard() -> dict:
         """The Vestaboard config, or 404 when the layer is off — so the whole surface
         genuinely vanishes rather than answering 401s nobody can satisfy."""
-        if not deps.config.vestaboard_enabled:
+        # Live default config — same object the dev-menu toggle writes (see dev.py).
+        if not deps.displays.default.config.vestaboard_enabled:
             raise HTTPException(404, "Vestaboard API is off (set COMPANION_VESTABOARD=1)")
-        return deps.config.vestaboard
+        return deps.displays.default.config.vestaboard
 
     def _key_error(request: Request) -> PlainTextResponse | None:
         """The 401 to return if the Vestaboard key is missing/wrong, else None. Returns the
@@ -92,8 +91,7 @@ def build(deps) -> APIRouter:
         d = deps.display_by_id(display_id) if display_id else deps.display_for(request)
         if err := _key_error(request):
             return err
-        g = d.config.grid
-        rows, cols = int(g["rows"]), int(g["cols"])
+        rows, cols = d.grid_size()
         return {"message": vestaboard.encode(d.state.current_chars, rows, cols)}
 
     @router.post("/local-api/{display_id}/message")
@@ -121,8 +119,7 @@ def build(deps) -> APIRouter:
         except Exception:
             raise HTTPException(400, "body must be JSON")
 
-        g = d.config.grid
-        rows, cols = int(g["rows"]), int(g["cols"])
+        rows, cols = d.grid_size()
         try:
             page, strategy = vestaboard.decode_request(body, rows, cols, d.controller.caps)
         except vestaboard.VestaboardError as e:

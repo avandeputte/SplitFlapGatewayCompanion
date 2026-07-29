@@ -32,6 +32,7 @@ What has to be rewritten on the way through, and why:
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 
@@ -211,10 +212,8 @@ def build(displays) -> APIRouter:
 
 
 def _js(s: str) -> str:
-    import json
     return json.dumps(s)
 
 
 def _json(doc) -> str:
-    import json
     return json.dumps(doc)

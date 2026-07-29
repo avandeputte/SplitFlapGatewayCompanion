@@ -110,7 +110,7 @@ def test_a_named_sheet_uploads_once_then_only_binds(wall):
     binds = [o for o in ops if o.get("op") == "atlas"]
     assert len(binds) == 5                              # every batch binds, so none relies on stickiness
     assert binds[0]["name"] == canvas.atlas_name_for(
-        b"".join(im.tobytes() for im in tiles), 8, 8, 2, "rgb888")
+        b"".join(im.tobytes() for im in tiles), 8, 8, "rgb888")
 
 
 def test_the_bind_precedes_the_sprites_in_the_batch(wall):
@@ -225,11 +225,11 @@ def test_the_sheet_name_is_wall_legal():
     import re
     for tiles, w, h, n in ((b"\x01" * 192, 8, 8, 1), (b"\x02" * 49152, 128, 64, 2)):
         for fmt in ("rgb888", "rgb565"):
-            name = canvas.atlas_name_for(tiles, w, h, n, fmt)
+            name = canvas.atlas_name_for(tiles, w, h, fmt)
             assert re.fullmatch(r"[a-z0-9._-]{1,32}", name), name
-    a = canvas.atlas_name_for(b"\x01" * 192, 8, 8, 1)
-    assert a != canvas.atlas_name_for(b"\x02" * 192, 8, 8, 1)      # content decides the name
-    assert a != canvas.atlas_name_for(b"\x01" * 192, 8, 8, 1, "rgb565")   # so does the format
+    a = canvas.atlas_name_for(b"\x01" * 192, 8, 8)
+    assert a != canvas.atlas_name_for(b"\x02" * 192, 8, 8)      # content decides the name
+    assert a != canvas.atlas_name_for(b"\x01" * 192, 8, 8, "rgb565")   # so does the format
 
 
 def test_a_canvas_app_honors_per_entry_overrides(monkeypatch, tmp_path):

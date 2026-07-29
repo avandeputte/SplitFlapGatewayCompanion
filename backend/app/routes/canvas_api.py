@@ -2,7 +2,9 @@
 that have no place on the flap grid: the overlay ticker, frame transitions, the on-device
 animation and font libraries, GIF import and the boot splash (Matrix Portal firmware
 1.19 / 1.25 / 2.1). Everything here is a thin, gated proxy to the gateway's ``/api/canvas/*``
-family — the companion adds the UI, the panel does the work.
+family — the panel does the work. The companion's UI surfaces only the overlay ticker
+(the Compose card) and the library list; the rest (transitions, anim/GIF/font/boot
+management) stays API-only for scripts and tests, since the gateway's own UI covers it.
 
 Namespaced ``/api/panel/*`` so it never collides with the gateway's own ``/api/canvas/*`` (which
 the companion also reaches, through the display driver and the ``/gw`` proxy). Every route is
@@ -57,7 +59,7 @@ def build(deps) -> APIRouter:
     @router.get("/api/panel/caps")
     async def panel_caps(request: Request):
         """What the panel can do, for the UI to gate its controls on. 404 (via _wall) on a
-        non-canvas wall, so the whole Panel tab simply never appears there."""
+        non-canvas wall, so the Compose overlay card simply never appears there."""
         _d, _url, caps = _wall(request)
         return {
             "width": caps.canvas_w, "height": caps.canvas_h,

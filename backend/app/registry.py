@@ -1,6 +1,6 @@
 """The display registry — which walls exist, and which one is *the* one.
 
-Gives the set of displays an identity and somewhere to live (docs/MULTI_DISPLAY_PLAN.md):
+Gives the set of displays an identity and somewhere to live:
 
     data/displays.json              the registry (below)
     data/displays/<id>/app_settings.json    one settings store per display, ENTIRELY its own

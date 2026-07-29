@@ -713,7 +713,7 @@ async function loadApps() {
   updateActiveUI(data.active_app, data.active_playlist);
 }
 
-let ACTIVE_BANNER = null;   // last-painted banner markup — this runs every 300 ms poll
+let ACTIVE_BANNER = null;   // last-painted banner markup — this runs on every state paint
 function updateActiveUI(activeApp, activePlaylist) {
   const banner = $("activeBanner");
   let label = "";
@@ -726,7 +726,7 @@ function updateActiveUI(activeApp, activePlaylist) {
   // Word order differs per language ("X is running" / "X läuft"), so the whole
   // sentence is one catalog key with the app name spliced in bold.
   const html = label ? t("▶ %s is running").replace("%s", `<b>${esc(label)}</b>`) : "";
-  if (html !== ACTIVE_BANNER) {         // diff: don't rebuild identical DOM 3×/second
+  if (html !== ACTIVE_BANNER) {         // diff: don't rebuild identical DOM twice a second
     ACTIVE_BANNER = html;
     if (html) { $("activeText").innerHTML = html; banner.classList.remove("hidden"); }
     else banner.classList.add("hidden");
@@ -2214,7 +2214,7 @@ async function init() {
   $("plSave").addEventListener("click", savePlaylist);
   $("plNew").addEventListener("click", plNew);
   $("plName").addEventListener("input", plSaveLabel);
-  // panel (Matrix-only; the tab shows only on a canvas wall)
+  // overlay ticker (the Compose card, canvas walls only) + the game control pad
   wireOverlay();
   wireGamePad();
   // triggers

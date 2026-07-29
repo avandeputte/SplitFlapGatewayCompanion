@@ -1,6 +1,7 @@
 """The companion API, split into routers along its real seams:
-displays / dev / apps / playlists+triggers / message / vestaboard local-api / the
-root app-data helpers.
+displays / dev / apps / playlists+triggers / message / vestaboard local-api /
+canvas panel (``canvas_api``) / game input (``game_api``) / the root app-data
+helpers.
 
 Each module exposes ``build(deps) -> APIRouter`` — gwproxy.py's pattern. ``deps`` is
 the ``app.main`` module itself: the routers resolve every shared name (``displays``,

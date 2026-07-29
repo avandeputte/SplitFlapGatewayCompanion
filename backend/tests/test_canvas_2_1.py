@@ -97,7 +97,7 @@ def test_surface_flags_follow_the_caps():
     s = _surface()
     assert s.can_ops and s.can_readback and s.can_overlay and s.can_transition
     assert s.can_anim_library and s.can_gif and s.can_fonts and s.can_sprite
-    assert s.ops and "gradient" in s.ops
+    assert s.op_names and s.has_op("gradient")
 
 
 # --- the full draw-op set ---------------------------------------------------
