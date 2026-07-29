@@ -247,10 +247,21 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_w = canvas_h = 0
     canvas_formats = tuple(str(f) for f in (canvas.get("formats") or []) if isinstance(f, str))
     effects = tuple(str(e) for e in (doc.get("effects") or []) if isinstance(e, str))
-    effect_params = tuple(str(p) for p in (doc.get("effectParams") or []) if isinstance(p, str))
     effect_defs = tuple(d for d in (doc.get("effectDefs") or [])
                         if isinstance(d, dict) and isinstance(d.get("id"), str)
                         and isinstance(d.get("params"), list))
+    # The flat knob union (canvas.effect_params, read by the effects app's legacy knob
+    # path). fw 3.12 dropped the capabilities "effectParams" key; effectDefs (3.4+) is
+    # the sole source now, and the union of its param keys minus "speed" reproduces the
+    # old list exactly. Pre-3.4 firmware has no defs, so its literal key still counts.
+    seen: list[str] = []
+    for d in effect_defs:
+        for p in d.get("params") or []:
+            k = str(p.get("key") or "")
+            if k and k != "speed" and k not in seen:
+                seen.append(k)
+    effect_params = tuple(seen) or tuple(
+        str(p) for p in (doc.get("effectParams") or []) if isinstance(p, str))
     # The draw-op vocabulary (1.25) and the panel readback flag (1.19), advertised directly. The
     # ops list is what gates a specific op the app is about to send — an unknown op is skipped by
     # the firmware, but knowing up front lets an app choose the frame path instead.

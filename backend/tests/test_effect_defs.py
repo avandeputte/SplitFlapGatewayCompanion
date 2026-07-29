@@ -13,8 +13,7 @@ from conftest import CANVAS_DOC
 
 DEFS_DOC = dict(CANVAS_DOC) | {
     "features": CANVAS_DOC["features"] + ["audio", "effectDefs"],
-    "effects": ["plasma", "fire", "life"],
-    "effectParams": ["hue", "density", "audio"],
+    "effects": ["plasma", "fire", "life"],   # fw 3.12: no flat effectParams key — defs only
     "effectDefs": [
         {"id": "plasma", "name": "Plasma", "params": [
             {"key": "speed", "type": "int", "min": 1, "max": 10, "default": 5, "label": "Speed"},

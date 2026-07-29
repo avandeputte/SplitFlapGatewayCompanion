@@ -1714,10 +1714,12 @@ function wireOverlay() {
 }
 
 // ---- gateway link-tabs (unified nav) ---------------------------------------
-// What a gateway that doesn't advertise its tabs (pre-3.4 firmware) has. Those
-// gateways still carry a Backup tab — 3.4 is what folded backup/restore into
-// Settings — so the fallback keeps it, and a 3.4+ gateway simply advertises a
-// list without it. See backend/app/tabs.py.
+// What a PHYSICAL gateway that doesn't advertise its tabs (pre-3.4 firmware) has.
+// Those gateways still carry a Backup tab — 3.4 is what folded backup/restore into
+// Settings — so the fallback keeps it, and a 3.4+ gateway simply advertises a list
+// without it. A Matrix wall never gets this list (st.matrix below): Provision and
+// Calibration are physical-only pages it does not serve, and 3.4+ Matrix firmware
+// always advertises its own tabs anyway. See backend/app/tabs.py.
 const GW_TABS_FALLBACK = [
   { id: "modules", label: "Modules" },
   { id: "display", label: "Display" },
@@ -1736,14 +1738,17 @@ async function setupGatewayTabs() {
   // NB: named neither `url` nor `gwUrl` — both are global helpers used below, and a local
   // string of the same name would shadow them: the gwUrl() call below would throw
   // "gwUrl is not a function" and abort the whole tab render, leaving no tabs.
-  let gwAddr = "", tabs = [];
+  let gwAddr = "", tabs = [], isMatrix = false;
   try {
     const st = await api("/api/gateway/status");
     gwAddr = st.url || "";
+    isMatrix = !!st.matrix;
     if (Array.isArray(st.tabs)) tabs = st.tabs;
   } catch {}
   const base = gwAddr.replace(/\/$/, "");
-  const shown = tabs.length ? tabs : GW_TABS_FALLBACK;
+  // No advertised tabs yet: a physical wall gets the classic list; a Matrix wall gets
+  // none (its firmware advertises tabs itself — better briefly bare than wrong links).
+  const shown = tabs.length ? tabs : (isMatrix ? [] : GW_TABS_FALLBACK);
 
   const sig = base + "|" + JSON.stringify(shown);
   if (sig !== GW_SIG) {

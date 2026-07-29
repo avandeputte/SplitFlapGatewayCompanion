@@ -551,14 +551,22 @@ def test_gateway_sync_patch_tolerant_of_types():
 
 
 def test_gateway_settings_version_gate():
-    """Settings-on-gateway needs Gateway 3.1+; older/unknown versions are rejected."""
+    """Settings-on-gateway: every Matrix product has it (fw 3.12 reports its REAL
+    version in /api/config, so a bare number is a cross-product comparison); a
+    physical gateway needs 3.1+. The firmwareVersion alias is gone — no firmware
+    ever shipped it."""
     from app import gateway
     assert gateway.gateway_version({"version": "3.1.0"}) == (3, 1)
-    assert gateway.gateway_version({"firmwareVersion": "3.0.9"}) == (3, 0)
+    assert gateway.gateway_version({"firmwareVersion": "3.0.9"}) is None   # legacy alias dropped
     assert gateway.gateway_version({}) is None
     assert gateway.supports_settings({"version": "3.1.4"}) is True
     assert gateway.supports_settings({"version": "3.0.9"}) is False   # backward compat: no 3.0 mirror
     assert gateway.supports_settings({}) is False
+    # the Matrix product line: always True, version notwithstanding
+    assert gateway.is_matrix_product({"product": "Matrix Portal Gateway"})
+    assert not gateway.is_matrix_product({"product": "SplitFlap Gateway"})
+    assert gateway.supports_settings({"product": "Matrix Portal Gateway", "version": "3.12.0"})
+    assert gateway.supports_settings({"product": "Matrix Portal Gateway", "version": "1.19.0"})
 
 
 def test_settings_mirror_push_and_restore(tmp_path):

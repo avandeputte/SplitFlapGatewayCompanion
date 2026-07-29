@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.8-beta.2
+
+- **Firmware 3.12 lockstep** — effect knobs now derive from the per-effect defs (the
+  flat `effectParams` list is gone from 3.12 capabilities), and gateway feature gates
+  are keyed on the product line, so the Matrix Gateway's real version number can't
+  trip physical-only features (Calibration/Provision never appear for a Matrix wall).
+
 ## 2.10.8-beta.1
 
 - **opsBin v2 (firmware 3.12)** ⚡ — anti-aliasing, the transform stack, offscreen

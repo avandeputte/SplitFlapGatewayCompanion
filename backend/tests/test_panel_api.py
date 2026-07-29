@@ -17,7 +17,9 @@ DOC_2_1 = {
     "canvas": {"formats": ["rgb888", "rgb565", "qoi"], "width": 128, "height": 64,
                "rect": True, "anim": True, "ticker": True, "readback": True,
                "ops": ["clear", "rect", "text", "sprite", "show"]},
-    "effects": ["plasma", "fire"], "effectParams": ["hue", "density"], "motion": {"kind": "drawn"},
+    "effects": ["plasma", "fire"], "motion": {"kind": "drawn"},   # fw 3.12: no effectParams key
+    "effectDefs": [{"id": "plasma", "params": [{"key": "hue", "type": "int"},
+                                               {"key": "density", "type": "int"}]}],
 }
 
 

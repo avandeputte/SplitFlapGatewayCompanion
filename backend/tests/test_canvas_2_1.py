@@ -19,7 +19,9 @@ DOC_2_1 = {
                "ops": ["clear", "pixel", "hline", "vline", "line", "rect", "circle", "ellipse",
                        "triangle", "roundrect", "gradient", "polyline", "text", "image",
                        "sprite", "scroll", "show"]},
-    "effects": ["plasma", "fire"], "effectParams": ["hue", "density"], "motion": {"kind": "drawn"},
+    "effects": ["plasma", "fire"], "motion": {"kind": "drawn"},   # fw 3.12: no effectParams key
+    "effectDefs": [{"id": "plasma", "params": [{"key": "hue", "type": "int"},
+                                               {"key": "density", "type": "int"}]}],
 }
 
 

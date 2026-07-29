@@ -661,10 +661,18 @@ def test_capabilities_parse_the_canvas_extras():
     doc = dict(CANVAS_DOC,
                canvas={"formats": ["rgb888", "rgb565", "qoi"], "width": 256, "height": 64,
                        "rect": True, "anim": True, "ticker": True},
-               effects=["plasma", "clock", "life"], effectParams=["hue", "density"])
+               effects=["plasma", "clock", "life"],
+               effectDefs=[{"id": "plasma", "params": [
+                               {"key": "speed", "type": "int"}, {"key": "hue", "type": "int"}]},
+                           {"id": "life", "params": [{"key": "density", "type": "int"}]}])
     caps = device.from_capabilities(doc)
     assert caps.canvas_rect and caps.canvas_anim and caps.canvas_ticker
+    # fw 3.12 dropped the flat effectParams key: the union of the defs' param keys
+    # minus "speed" IS the knob list now
     assert caps.effect_params == ("hue", "density")
+    # …and a pre-3.4 wall (no defs) still counts its literal key
+    legacy = dict(CANVAS_DOC, effects=["plasma"], effectParams=["hue"])
+    assert device.from_capabilities(legacy).effect_params == ("hue",)
 
 
 def test_qoi_encode_round_trips_to_the_exact_pixels():

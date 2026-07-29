@@ -250,15 +250,20 @@ def build(deps) -> APIRouter:
         """
         d = deps.display_for(request)
         tabs = list(d.gateway_tabs)
+        # Which PRODUCT the wall is, so the UI's fallback nav (used only until the
+        # gateway advertises its tabs) never offers physical-only pages — Calibration,
+        # Provision — against a Matrix panel, which has no such endpoints.
+        matrix = bool(d.controller.caps.has_canvas)
         url = d.config.transport.get("gateway_url", "").rstrip("/")
         if not url:
-            return {"ok": False, "url": "", "tabs": tabs, "error": "no gateway_url configured"}
+            return {"ok": False, "url": "", "tabs": tabs, "matrix": matrix,
+                    "error": "no gateway_url configured"}
         try:
             async with httpx.AsyncClient(timeout=4.0) as client:
                 r = await client.get(f"{url}/api/status")
                 return {"ok": r.status_code < 400, "url": url, "tabs": tabs,
-                        "status_code": r.status_code, "data": r.json()}
+                        "matrix": matrix, "status_code": r.status_code, "data": r.json()}
         except Exception as e:
-            return {"ok": False, "url": url, "tabs": tabs, "error": str(e)}
+            return {"ok": False, "url": url, "tabs": tabs, "matrix": matrix, "error": str(e)}
 
     return router
