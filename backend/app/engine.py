@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from . import canvas, channel_art, device, gateway, renderer
+from . import canvas, channel_art, device, gameinput, gateway, renderer
 from .plugins import app_id_from_ref
 from .config import Config
 from .state import DisplayState
@@ -583,6 +583,9 @@ class DisplayController:
         runs over the draw stream, ~28 fps vs the ~8 fps HTTP ceiling)."""
         url = await self._take_panel()
         caps = self._caps()
+        if (self.plugins.manifest(app_id) or {}).get("interactive"):
+            gameinput.reset(url)                        # fresh pad — no stale steering/presses
+                                                       # left over from a prior game on this wall
         rt_loop = asyncio.get_running_loop()
         while keep_going():
             try:

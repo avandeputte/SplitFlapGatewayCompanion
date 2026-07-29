@@ -114,22 +114,23 @@ def fetch_matrix(settings, canvas):
         pts = [(x, H), (x + sway * 0.4, H - h * 0.5), (x + sway, H - h)]
         canvas.polyline(pts, _WEED, t=1, aa=glow)             # smooth on a compositing wall
 
-    # bubbles: spawn near the floor, rise, pop at the top
+    # bubbles: spawn near the floor, rise, pop at the top. Advance first, then draw, so the
+    # additive halo and the crisp bubble land at the same position (no 1px glow offset).
     if random.random() < 0.5:
         st['bubbles'].append([random.uniform(2, W - 2), float(H), random.choice((1, 1, 2))])
     keep = []
-    if glow:
-        canvas.blend('add')
-        for b in st['bubbles']:
-            if b[1] > 0:
-                canvas.circle(int(b[0]), int(b[1]), b[2] + 1, (90, 150, 210, 70), fill=True, aa=True)
-        canvas.blend('over')
     for b in st['bubbles']:
         b[1] -= 0.8 + b[2] * 0.3
         if b[1] > 0:
-            canvas.circle(int(b[0]), int(b[1]), b[2], (200, 235, 255), aa=glow)
             keep.append(b)
     st['bubbles'] = keep[-40:]
+    if glow:
+        canvas.blend('add')
+        for b in st['bubbles']:
+            canvas.circle(int(b[0]), int(b[1]), b[2] + 1, (90, 150, 210, 70), fill=True, aa=True)
+        canvas.blend('over')
+    for b in st['bubbles']:
+        canvas.circle(int(b[0]), int(b[1]), b[2], (200, 235, 255), aa=glow)
 
     for f in st['fish']:                                       # drift the fish, wrap at the edges
         f['x'] += f['d'] * f['sp']

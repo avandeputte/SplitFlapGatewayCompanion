@@ -221,6 +221,10 @@ class Cap:
         return True
 
     def sprite(self, i, x, y):
+        # Fidelity note: this gallery shim ignores the real op's flip/rot/scale transforms
+        # (and has no compositing/alpha), so sprite-transform and glow visuals render plain
+        # here. It never touches encode_ops_bin or the transport, so it can't surface
+        # encoding/routing bugs — it's a parallel render path for the static gallery only.
         if not (0 <= int(i) < len(self._atlas)):
             return self
         tile = self._atlas[int(i)]

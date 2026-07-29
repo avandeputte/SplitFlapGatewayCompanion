@@ -192,8 +192,9 @@ def _cv_gauge(canvas, x, y, size, state, thr, col):
     r = max(4, size // 2 - 1)
     th = max(2, size // 5)
     canvas.arc(cx, cy, r, -135, 135, (56, 60, 72), t=th)      # the dim track
-    if frac > 0:
-        canvas.arc(cx, cy, r, -135, int(round(-135 + 270 * frac)), col, t=th)
+    end = int(round(-135 + 270 * frac))
+    if end > -135:                                            # skip a zero-length sweep at the floor
+        canvas.arc(cx, cy, r, -135, end, col, t=th)
     return True
 
 

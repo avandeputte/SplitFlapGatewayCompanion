@@ -229,7 +229,9 @@ def _block(canvas, x, y, cell, col):
     edge for a tiled look on the bigger cells."""
     canvas.rect(x, y, cell - 1, cell - 1, col, fill=True)
     if cell >= 5:
-        hi = tuple(min(255, int(v * 1.3) + 24) for v in col)
+        # keep every channel >= the ~32 LED floor (below it the 3-bitplane crush renders wrong);
+        # a zero channel would otherwise sit at a steady 24.
+        hi = tuple(min(255, max(40, int(v * 1.3) + 24)) for v in col)
         canvas.rect(x, y, cell - 1, 1, hi, fill=True)
         canvas.rect(x, y, 1, cell - 1, hi, fill=True)
 
@@ -284,7 +286,9 @@ def _grav_period(st, settings):
 
 def fetch_matrix(settings, canvas, controls=None, play_sound=None):
     W, H = canvas.width, canvas.height
-    cell = max(4, H // 8)                               # ~8 rows tall on any panel
+    cell = max(4, min(H // 8, W // 12))                # ~8 rows tall, but keep >=12 columns on
+                                                       # the width so a near-square panel doesn't
+                                                       # overflow (pieces spawning off the edge)
     cols = max(12, W // cell)
     rows = max(6, H // cell)
     gx, gy = (W - cols * cell) // 2, (H - rows * cell) // 2

@@ -14,7 +14,6 @@ the pad, then fall back after a few idle seconds.
 from __future__ import annotations
 
 import threading
-import time
 
 _DIRS = ("up", "down", "left", "right")
 _EVENTS = ("start", "pause", "coin")
@@ -30,9 +29,13 @@ class _Pad:
         self.events: list[str] = []      # discrete non-directional presses (start/pause/coin)
         self.taps: list[str] = []        # discrete DIRECTION presses in order (per-press games)
         self.last_ts: float = 0.0        # monotonic time of the last input
-        self.presses: int = 0            # monotonic count of inputs — bumps only on an
-                                         # actual press, so a HELD direction never advances
-                                         # it (how a game detects "a key was pressed")
+        self.presses: int = 0            # monotonic count of press-edges (directions + events,
+                                         # NOT "release") — how a game detects "a key was pressed"
+                                         # for a resume gate. A physically HELD key must not
+                                         # advance it: that relies on the frontend suppressing
+                                         # auto-repeat (app.js gates keydown on !e.repeat), since
+                                         # the backend sees only discrete POSTs and cannot tell a
+                                         # repeat from a fresh press.
 
 
 def _pad(url: str) -> _Pad:
@@ -55,14 +58,16 @@ def push(url: str, action: str, *, now: float) -> bool:
             p.dir = action
             p.taps.append(action)        # also a discrete tap, in order
             del p.taps[:-24]             # bound the queue if a game isn't draining it
+            p.presses += 1
         elif action in _EVENTS:
             p.events.append(action)
-        elif action == "release":        # the pad was let go — stop steering, coast
-            p.dir = None
+            p.presses += 1
+        elif action == "release":        # the pad was let go — stop steering, coast. NOT a
+            p.dir = None                 # press: leave presses unchanged so a keyup can never
+                                         # satisfy a "press any key to resume" gate.
         else:
             return False
         p.last_ts = now
-        p.presses += 1
         return True
 
 

@@ -3,7 +3,8 @@
 
 Sources, in one pass:
   - every t("...") / t('...') literal in app.js
-  - every data-i18n / data-i18n-title / data-i18n-label attribute in index.html
+  - every data-i18n / data-i18n-title / data-i18n-label / data-i18n-placeholder attribute
+    in index.html (all four are applied at runtime by app.js applyI18n)
   - dynamic-source keys the UI passes through t() at runtime: the settings
     catalog's labels/notes/placeholders/options, the schema-injected override
     fields, gateway fallback tab labels, app types and store categories.
@@ -32,7 +33,7 @@ for pat in (r'(?<![A-Za-z0-9_$.])t\(\s*"((?:[^"\\]|\\.)+?)"',
         keys.add(m.group(1).replace('\\"', '"').replace("\\'", "'"))
 
 html = (STATIC / "index.html").read_text("utf-8")
-for m in re.finditer(r'data-i18n(?:-title|-label)?="([^"]+)"', html):
+for m in re.finditer(r'data-i18n(?:-title|-label|-placeholder)?="([^"]+)"', html):
     keys.add(m.group(1))
 
 # Dynamic sources: what reaches t() as a variable.

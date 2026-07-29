@@ -150,9 +150,14 @@ def build(deps) -> APIRouter:
         """The MCP connection details for the dev menu: the endpoint an LLM client
         points at and the bearer token it must send. (Not gated — same reasoning as the
         Vestaboard key above.) Process-wide, like the toggle."""
+        from .. import main as _main
         on = deps.displays.default.config.mcp_enabled
         return {
             "enabled": on,
+            # False when the optional MCP layer failed to build (e.g. a missing/broken
+            # dependency): the toggle is on but /mcp 503s, so the menu can say so instead
+            # of showing a working-looking endpoint.
+            "available": _main.mcp is not None,
             "token": deps.mcp_token() if on else "",
             "path": "/mcp",
             "url": await _external_url("/mcp"),

@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.7-beta.2
+
+- **Tetris fits a near-square panel** — it no longer overflows the edges (pieces could spawn
+  off-screen) on panels that aren't wide.
+- **Returning to a game starts clean** — no more brief drift in the last-held direction.
+- Code-review hardening: binary-ops compositing fallbacks, LED-color floors, a stronger
+  httpx import guard, and clearer MCP status when the optional layer can't load.
+
 ## 2.10.7-beta.1
 
 - **Games stay quiet until you play** — Chomper and Tetris only make sound while you're at

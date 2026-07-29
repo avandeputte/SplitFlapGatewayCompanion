@@ -82,15 +82,22 @@ def test_play_sound_posts_a_tone_and_is_gated(monkeypatch):
 
     monkeypatch.setattr(gateway, "_request",
                         lambda m, u, p, *, timeout, **kw: (calls.append((p, kw.get("json"))) or _R()))
-    assert canvas.play_sound("http://gw", notes=[[523, 90], [0, 40], [784, 120]], vol=70)
     import time as _t
-    _t.sleep(0.05)                                    # the POST fires on a daemon thread
-    assert calls and calls[-1][0] == "/api/sound"
+
+    def _wait_calls(n):                               # the POST fires on a daemon thread; poll for
+        for _ in range(200):                          # it rather than sleeping a fixed 50ms (flaky
+            if len(calls) >= n:                       # under load) — exits the instant it lands.
+                return True
+            _t.sleep(0.005)
+        return False
+
+    assert canvas.play_sound("http://gw", notes=[[523, 90], [0, 40], [784, 120]], vol=70)
+    assert _wait_calls(1) and calls[-1][0] == "/api/sound"
     assert calls[-1][1] == {"vol": 70, "notes": [[523, 90], [0, 40], [784, 120]]}
     # a single freq/ms works too, and an empty call is a no-op
     calls.clear()
     canvas.play_sound("http://gw", freq=440, ms=100)
-    _t.sleep(0.05)
+    assert _wait_calls(1)
     assert calls[-1][1] == {"vol": 70, "freq": 440, "ms": 100}
     assert not canvas.play_sound("http://gw")         # nothing to play
 
@@ -120,7 +127,6 @@ def _cv():
 
 def test_chomper_attract_mode_auto_plays_without_controls():
     app = load_app("canvas-chomper")
-    app._new_game(app._state._st) if hasattr(app._state, "_st") else None
     cv = _cv()
     cells = set()
     for _ in range(12):
@@ -174,6 +180,10 @@ def test_chomper_takeover_setting_extends_the_idle_window():
     seen.clear()
     app.fetch_matrix({"speed": "8"}, cv, controls=_Rec())
     assert seen[-1] == 30                               # generous default (was a hardcoded 6s)
+    for raw, want in (("99999", 120), ("1", 5), ("abc", 30), ("", 30), (None, 30)):
+        seen.clear()
+        app.fetch_matrix({"speed": "8", "takeover": raw}, cv, controls=_Rec())
+        assert seen[-1] == want                         # clamped to [5, 120]; junk → default 30
 
 
 def test_chomper_pause_freezes_and_start_resets():

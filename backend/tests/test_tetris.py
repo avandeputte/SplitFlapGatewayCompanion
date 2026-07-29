@@ -143,6 +143,10 @@ def test_tetris_takeover_setting_extends_the_idle_window():
     seen.clear()
     app.fetch_matrix({"speed": "8"}, cv, controls=_Rec())
     assert seen[-1] == 30                               # default (was a hardcoded 6s)
+    for raw, want in (("99999", 120), ("1", 5), ("abc", 30), ("", 30), (None, 30)):
+        seen.clear()
+        app.fetch_matrix({"speed": "8", "takeover": raw}, cv, controls=_Rec())
+        assert seen[-1] == want                         # clamped to [5, 120]; junk → default 30
 
 
 def test_tetris_is_marked_interactive():

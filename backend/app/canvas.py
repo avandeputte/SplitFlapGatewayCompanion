@@ -886,9 +886,17 @@ def encode_ops_bin(ops):
     _BLEND = {"over": 0, "add": 1, "multiply": 2, "screen": 3, "max": 4}
     for op in ops:
         k = op.get("op")
-        col = op.get("color")
-        if isinstance(col, (list, tuple)) and len(col) == 4:
-            return None                                # per-color alpha is JSON-only (fw 3.8)
+        # Per-color alpha is JSON-only (fw 3.8): a 4-component color on ANY color-bearing field
+        # (color, and gradient's from/to, and text's outline/shadow) forces the whole batch to
+        # the JSON path, so the alpha is never silently truncated to opaque in binary.
+        for _ck in ("color", "from", "to", "outline", "shadow"):
+            _cv = op.get(_ck)
+            if isinstance(_cv, (list, tuple)) and len(_cv) == 4:
+                return None
+        # Anti-aliasing has a binary form only for text; a smooth stroke (line/circle/poly/
+        # polyline) must fall back to JSON rather than encode byte-identically to a jagged one.
+        if op.get("aa") and k != "text":
+            return None
         if k == "clear":
             out += b"\x01" + _brgb(op.get("color", (0, 0, 0)))
         elif k == "pixel":
@@ -1154,9 +1162,13 @@ class CanvasSurface:
     def blend(self, mode="over"):
         """Set the batch compositing mode for the ops that follow — "over" (normal),
         "add" (additive; the LED-glow mode where overlapping lights sum), "multiply",
-        "screen" or "max". Batch-scoped: reset to "over" when done (firmware 3.8; gate on
-        ``can_composite``). Old walls ignore it and draw normally."""
-        self._ops.append({"op": "blend", "mode": str(mode)})
+        "screen" or "max". Batch-scoped: reset to "over" when done (firmware 3.8).
+
+        No-op on a wall without ``can_composite``: a pre-3.8 opsBin wall (3.5-3.7) cannot
+        length-skip the unknown blend opcode over the binary stream, so emitting it there
+        would desync the batch. Callers can therefore use blend() unconditionally."""
+        if self.can_composite:
+            self._ops.append({"op": "blend", "mode": str(mode)})
         return self
 
     def scroll(self, dx, dy, color=(0, 0, 0)):

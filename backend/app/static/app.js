@@ -1907,9 +1907,11 @@ async function openDevMenu() {
       lines: (d) => [
         d.url || `${location.origin}${d.path}`,
         `Authorization: Bearer ${d.token}`,
-        d.env_token
-          ? t("Token pinned by COMPANION_MCP_TOKEN.")
-          : t("Token generated and stored with your settings. Pin your own with COMPANION_MCP_TOKEN."),
+        d.available === false
+          ? t("Enabled, but the MCP server failed to load (dependency error) — /mcp returns 503. Check the add-on log.")
+          : d.env_token
+            ? t("Token pinned by COMPANION_MCP_TOKEN.")
+            : t("Token generated and stored with your settings. Pin your own with COMPANION_MCP_TOKEN."),
       ],
     }));
 

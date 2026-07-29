@@ -3,8 +3,8 @@
 A matrix-only canvas app, and the ops-surface showcase: every frame is one small batch
 of on-device draw ops — wall cells merged into runs of ``rect``, pellets as ``pixel``,
 the chomper as a firmware-3.5 filled ``arc`` whose mouth wedge opens and shuts as it
-runs (a ``circle`` with a ``triangle`` bite on older walls), ghosts as circle + rect
-with a ``poly`` skirt. The game simulates itself: the chomper chases the nearest pellet
+runs (a ``circle`` with a ``triangle`` bite on older walls), ghosts as circle + rect.
+The game simulates itself: the chomper chases the nearest pellet
 by breadth-first search (attract mode), ghosts chase the chomper — and flee, blue, while
 a power pellet is up — side tunnels wrap arcade-style, and lives and levels turn over
 forever. When a player touches the web-UI control pad the chomper hands over to them (the
@@ -308,10 +308,6 @@ def _draw_ghost(canvas, x, y, r, col, d, dim=1.0):
         col, eye = canvas.dim(col, dim), canvas.dim(_EYE, dim)
     canvas.circle(x, y - 1, r, col, fill=True)
     canvas.rect(x - r, y - 1, 2 * r + 1, r, col, fill=True)
-    if r >= 3 and canvas.has_op('poly'):
-        b = y + r - 1
-        canvas.poly([(x - r, b - 1), (x - r, b + 1), (x - r // 2, b - 1), (x, b + 1),
-                     (x + r // 2, b - 1), (x + r, b + 1), (x + r, b - 1)], col)
     dx, dy = _DIRS[d]
     ex = max(1, r // 2)
     canvas.pixel(x - ex + dx, y - 1 + dy, eye)
@@ -342,7 +338,8 @@ def _draw_board(canvas, st, xe, ye, W, H, dim=1.0):
         if dim >= 1.0 and getattr(canvas, 'can_composite', False):
             canvas.blend('add')
             for cell in st['power']:
-                canvas.circle(cx(cell), cy(cell), 3, (54, 36, 16), fill=True)
+                canvas.circle(cx(cell), cy(cell), 3, (54, 36, 0), fill=True)   # warm amber; no
+                #                    sub-32 blue channel (the 3-bitplane crush renders it wrong)
             canvas.blend('over')
         for cell in st['power']:
             canvas.circle(cx(cell), cy(cell), 1, d(_DOT), fill=True)
