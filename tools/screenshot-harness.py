@@ -140,6 +140,7 @@ class Cap:
 
     # -- microSD (fw 3.10): a fake card with two synthetic sample photos ------
     can_sd = True
+    aa_ok = False
     _SD_PHOTOS = {}
 
     @classmethod
@@ -203,7 +204,7 @@ class Cap:
             d.rectangle(box, outline=_rgb(color), width=max(1, int(t)))
         return self
 
-    def circle(self, x, y, r, color=(255, 255, 255), fill=False, t=1):
+    def circle(self, x, y, r, color=(255, 255, 255), fill=False, t=1, aa=False):
         d = self._draw()
         box = [int(x - r), int(y - r), int(x + r), int(y + r)]
         if fill:

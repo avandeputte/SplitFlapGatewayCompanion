@@ -8,8 +8,9 @@ the panel's atlas; each frame just says "blit fish 3 at (x, y)". On a wall witho
 the sprite op the fish fall back to being drawn from ops (ellipse + triangle). On a
 firmware-3.8 wall (``canvas.can_composite``) it adds what the ops surface newly allows:
 additive **godrays** shimmering down from the surface and a soft **glow** around the
-bubbles — per-color alpha + the additive blend mode, all encoded as binary batch alpha
-(0x15) so the whole frame streams at game rate (no per-frame HTTP).
+bubbles — per-color alpha + the additive blend mode ride the binary stream as batch
+alpha (0x15), and on an opsBin-v2 wall (fw 3.12) the weeds and bubbles are anti-aliased
+too, still at game rate (no per-frame HTTP).
 """
 
 import math
@@ -97,6 +98,7 @@ def fetch_matrix(settings, canvas):
     canvas.gradient(0, 0, W, H, top, bot, 'v')                 # the water column
 
     glow = bool(getattr(canvas, 'can_composite', False))
+    aa = bool(getattr(canvas, 'aa_ok', False))     # smooth strokes only where they stay binary
     if glow:                                                   # godrays: additive light shafts
         canvas.blend('add')                                   # from the surface, slowly drifting
         for i in range(3):
@@ -110,7 +112,7 @@ def fetch_matrix(settings, canvas):
         sway = math.sin(frame * 0.08 + ph) * (W * 0.02)
         h = int(H * 0.32)
         pts = [(x, H), (x + sway * 0.4, H - h * 0.5), (x + sway, H - h)]
-        canvas.polyline(pts, _WEED, t=1)
+        canvas.polyline(pts, _WEED, t=1, aa=aa)
 
     # bubbles: spawn near the floor, rise, pop at the top. Advance first, then draw, so the
     # additive halo and the crisp bubble land at the same position (no 1px glow offset).
@@ -128,7 +130,7 @@ def fetch_matrix(settings, canvas):
             canvas.circle(int(b[0]), int(b[1]), b[2] + 1, (90, 150, 210, 70), fill=True)
         canvas.blend('over')
     for b in st['bubbles']:
-        canvas.circle(int(b[0]), int(b[1]), b[2], (200, 235, 255))
+        canvas.circle(int(b[0]), int(b[1]), b[2], (200, 235, 255), aa=aa)
 
     for f in st['fish']:                                       # drift the fish, wrap at the edges
         f['x'] += f['d'] * f['sp']

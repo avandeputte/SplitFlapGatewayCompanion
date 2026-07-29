@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.8-beta.1
+
+- **opsBin v2 (firmware 3.12)** ⚡ — anti-aliasing, the transform stack, offscreen
+  layers, macros and beziers now ride the binary draw stream instead of forcing JSON.
+  The aquarium gets its smooth weeds and bubbles back at full frame rate, and apps gain
+  `save/translate/scale/rotate`, `layer/composite`, `define/call` and `bezier` wrappers.
+
 ## 2.10.7
 
 - **New app: Photo Frame** 🖼️ — a slideshow of the photos on the gateway's microSD card
@@ -15,46 +22,6 @@ have to match the add-on's `version`, or the update notice comes up blank.
   `/redoc`, `/.well-known/api-catalog`.
 - Internal: comprehensive code review applied (correctness fixes, module splits, dead
   code removed); Tetris fits near-square panels.
-
-## 2.10.7-beta.6
-
-- **OpenAPI at the standard locations** 📜 — the companion's API is now discoverable at
-  `/openapi.json`, `/openapi.yaml`, `/docs`, `/redoc` and `/.well-known/api-catalog`,
-  the same conventions the gateway follows.
-
-## 2.10.7-beta.5
-
-- **New app: Photo Frame** 🖼️ — a slideshow of the photos on the gateway's microSD card
-  (firmware 3.10+). Drop images on the card from the gateway's Files tab; fill or
-  letterbox, optional shuffle.
-- **New effects surfaced** — Oscilloscope 📈, Beat Ripples 🌊 and Maze get their icons
-  (firmware 3.10 adds the effects; their knobs appear automatically).
-
-## 2.10.7-beta.4
-
-- **Smooth aquarium** 🐠 — the Aquarium (and any sprite/compositing app) now streams
-  binary frames like the games do, instead of one HTTP request per frame. Steadier
-  pacing, ~10 fps.
-
-## 2.10.7-beta.3
-
-- **Internal spring-clean** 🧹 — comment/doc accuracy pass, dead code removed, and the
-  big backend modules split into focused ones. No behavior or visual changes.
-
-## 2.10.7-beta.2
-
-- **Tetris fits a near-square panel** — it no longer overflows the edges (pieces could spawn
-  off-screen) on panels that aren't wide.
-- **Returning to a game starts clean** — no more brief drift in the last-held direction.
-- Code-review hardening: binary-ops compositing fallbacks, LED-color floors, a stronger
-  httpx import guard, and clearer MCP status when the optional layer can't load.
-
-## 2.10.7-beta.1
-
-- **Games stay quiet until you play** — Chomper and Tetris only make sound while you're at
-  the controls, not during self-play.
-- **Auto-play delay is now a setting** — how long a game waits with no input before it takes
-  over (5–120s, default 30). It was a fixed ~6 seconds.
 
 ## 2.10.6
 

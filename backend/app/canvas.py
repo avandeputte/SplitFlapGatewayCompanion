@@ -894,9 +894,15 @@ class CanvasSurface(paneltext.PanelText):
         # generation marker the text helpers key off.
         self.op_names = tuple(caps.canvas_ops)
         self.can_text_styles = "textbox" in self.op_names
-        self.can_ops_bin = int(caps.canvas_ops_bin or 0) >= 1
+        self.ops_bin_v = int(caps.canvas_ops_bin or 0)   # 0 = JSON only; 2 adds aa/transform/…
+        self.can_ops_bin = self.ops_bin_v >= 1
         self.can_composite = bool(caps.canvas_composite)   # fw 3.8+: alpha, blend modes, AA
         self.can_sd = bool(caps.can_sd)                    # fw 3.10+: a microSD card is mounted
+        # aa without falling off the fast path: the wall composites AND either has no
+        # binary format at all (JSON was its path anyway) or speaks opsBin v2 (fw 3.12),
+        # which carries aa natively. On a v1-binary wall, aa would force every frame to
+        # JSON-over-HTTP — the choppiness the aquarium had — so apps gate on this.
+        self.aa_ok = bool(caps.canvas_composite) and (self.ops_bin_v == 0 or self.ops_bin_v >= 2)
         # 1.19 / 1.25 / 2.1. `can_ops` is "any draw ops at all" (the vocabulary itself is
         # op_names above, consulted via has_op()). The 2.1 endpoint families aren't flagged
         # one by one, so they all gate on the firmware version (caps.canvas_2_1).
@@ -995,6 +1001,84 @@ class CanvasSurface(paneltext.PanelText):
         would desync the batch. Callers can therefore use blend() unconditionally."""
         if self.can_composite:
             self._ops.append({"op": "blend", "mode": str(mode)})
+        return self
+
+    # -- transform stack / layers / macros / bezier (fw 3.9 JSON; binary with opsBin v2,
+    # fw 3.12 — on a v1-binary wall these force the JSON fallback for the frame, so an
+    # animating app should gate on ``ops_bin_v >= 2`` or ``has_op("save")``) -------------
+
+    def save(self):
+        """Push the current transform (translate/scale/rotate) — pair with restore()."""
+        self._ops.append({"op": "save"})
+        return self
+
+    def restore(self):
+        """Pop the transform save() pushed."""
+        self._ops.append({"op": "restore"})
+        return self
+
+    def translate(self, x, y):
+        """Shift the origin of the ops that follow by (x, y) pixels."""
+        self._ops.append({"op": "translate", "x": int(x), "y": int(y)})
+        return self
+
+    def scale(self, sx, sy=None):
+        """Scale the ops that follow (about the current origin); one factor = uniform."""
+        op = {"op": "scale", "x": float(sx)}
+        if sy is not None:
+            op["y"] = float(sy)
+        self._ops.append(op)
+        return self
+
+    def rotate(self, deg):
+        """Rotate the ops that follow by ``deg`` degrees clockwise (about the origin)."""
+        self._ops.append({"op": "rotate", "deg": int(deg)})
+        return self
+
+    def layer(self):
+        """Begin an offscreen group: draws accumulate in a shadow buffer until
+        composite() flattens them back with one group blend + opacity."""
+        self._ops.append({"op": "layer"})
+        return self
+
+    def composite(self, x=0, y=0, mode="over", alpha=255):
+        """Flatten the open layer() back onto the canvas at (x, y) with ``mode``
+        (over/add/multiply/screen/max) and group ``alpha`` (0-255)."""
+        self._ops.append({"op": "composite", "x": int(x), "y": int(y),
+                          "mode": str(mode), "alpha": max(0, min(255, int(alpha)))})
+        return self
+
+    def bezier(self, points, color=(255, 255, 255), t=1, aa=False):
+        """A quadratic (3 points) or cubic (4 points) bezier stroke."""
+        op = {"op": "bezier", "points": [[int(px), int(py)] for px, py in points],
+              "color": _rgb(color), "t": int(t)}
+        if aa:
+            op["aa"] = True
+        self._ops.append(op)
+        return self
+
+    class _MacroCapture:
+        def __init__(self, surface, name):
+            self._s, self._name = surface, name
+
+        def __enter__(self):
+            self._saved, self._s._ops = self._s._ops, []
+            return self._s
+
+        def __exit__(self, exc_type, exc, tb):
+            body, self._s._ops = self._s._ops, self._saved
+            if exc_type is None:
+                self._s._ops.append({"op": "define", "name": self._name, "ops": body})
+            return False
+
+    def define(self, name):
+        """Capture a reusable op sequence: ``with canvas.define("star"): canvas.circle(…)``
+        then replay it with ``call("star", x, y)`` — the batch sends the body once."""
+        return self._MacroCapture(self, str(name))
+
+    def call(self, name, x=0, y=0):
+        """Replay a define()d macro translated to (x, y)."""
+        self._ops.append({"op": "call", "name": str(name), "x": int(x), "y": int(y)})
         return self
 
     def scroll(self, dx, dy, color=(0, 0, 0)):
@@ -1175,7 +1259,8 @@ class CanvasSurface(paneltext.PanelText):
             for op in ops:
                 if op.get("op") == "atlas":
                     if run:
-                        enc = encode_ops_bin(run, composite=self.can_composite)
+                        enc = encode_ops_bin(run, composite=self.can_composite,
+                                             version=self.ops_bin_v)
                         if enc is None:
                             ok = False
                             break
@@ -1185,7 +1270,8 @@ class CanvasSurface(paneltext.PanelText):
                 else:
                     run.append(op)
             if ok and (run or pending_bind is not None):
-                enc = encode_ops_bin(run, composite=self.can_composite)
+                enc = encode_ops_bin(run, composite=self.can_composite,
+                                     version=self.ops_bin_v)
                 if enc is None:
                     ok = False
                 else:

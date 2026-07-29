@@ -150,6 +150,10 @@ _OPCODE = {
     "gradient": 0x0b, "arc": 0x0c, "poly": 0x0d, "polyline": 0x0d, "clip": 0x0e,
     "origin": 0x0f, "text": 0x10, "sprite": 0x11, "scroll": 0x12, "show": 0x13,
     "blend": 0x14, "alpha": 0x15,
+    # opsBin v2 (fw 3.12): the transform/layer/macro/bezier surface, at parity with JSON.
+    "save": 0x16, "restore": 0x17, "translate": 0x18, "scale": 0x19, "rotate": 0x1a,
+    "layer": 0x1b, "composite": 0x1c, "define": 0x1d, "call": 0x1e, "bezier": 0x1f,
+    "aaline": 0x20,
 }
 
 
@@ -157,7 +161,7 @@ def _opc(k):
     return bytes((_OPCODE[k],))
 
 
-def encode_ops_bin(ops, *, composite=False):
+def encode_ops_bin(ops, *, composite=False, version=1):
     """The batch as opsBin bytes, or None when any op is not representable.
 
     ``composite=True`` (a fw-3.8 wall) unlocks the batch-alpha opcode 0x15: a
@@ -165,10 +169,18 @@ def encode_ops_bin(ops, *, composite=False):
     alpha is restored for the next opaque op), which renders identically to the
     JSON path's per-color alpha — the runner applies batch alpha per op. Without
     it (a 3.5-3.7 wall that couldn't length-skip 0x15) an rgba color still forces
-    the JSON fallback."""
+    the JSON fallback.
+
+    ``version=2`` (fw 3.12, capabilities ``canvas.opsBin: 2``) closes the v1 gaps:
+    anti-aliased strokes (line → 0x20; circle/poly grow an aa flag bit), the
+    transform stack (save/restore/translate/scale/rotate), offscreen layers
+    (layer/composite), batch macros (define/call — JSON's names map to the binary
+    slot ids 0-7 in first-seen order) and bezier. On a v1 wall those still force
+    the JSON fallback, byte-for-byte as before."""
     out = bytearray()
     _BLEND = {"over": 0, "add": 1, "multiply": 2, "screen": 3, "max": 4}
     cur_alpha = 255                                    # the runner's binAlpha starts opaque
+    macro_ids: dict = {}                               # v2: JSON macro name -> slot id 0-7
     for op in ops:
         k = op.get("op")
         # Per-color alpha ([r,g,b,a] on color / gradient from+to / text outline+shadow).
@@ -187,10 +199,19 @@ def encode_ops_bin(ops, *, composite=False):
         if op_alpha != cur_alpha and k not in ("blend", "show"):
             out += _opc("alpha") + _bu8(op_alpha)      # 0x15: batch alpha for the ops below
             cur_alpha = op_alpha
-        # Anti-aliasing has a binary form only for text; a smooth stroke (line/circle/poly/
-        # polyline) must fall back to JSON rather than encode byte-identically to a jagged one.
-        if op.get("aa") and k != "text":
-            return None
+        # Anti-aliasing: v1 has a binary form only for text — a smooth stroke falls back
+        # to JSON rather than encode byte-identically to a jagged one. v2 carries it:
+        # line becomes the 0x20 AALINE (t is ignored, exactly like the JSON path),
+        # circle/poly/polyline grow an aa flag bit in their existing layouts.
+        if op.get("aa") and k not in ("text", "bezier"):
+            if version < 2:
+                return None
+            if k == "line":
+                out += _opc("aaline") + _bi16(op["x"]) + _bi16(op["y"]) \
+                    + _bi16(op["x1"]) + _bi16(op["y1"]) + _brgb(op["color"])
+                continue
+            if k not in ("circle", "poly", "polyline"):
+                return None
         if k == "clear":
             out += _opc(k) + _brgb(op.get("color", (0, 0, 0)))
         elif k == "pixel":
@@ -206,8 +227,9 @@ def encode_ops_bin(ops, *, composite=False):
             out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
                     + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
         elif k == "circle":
+            cfl = (1 if op.get("fill") else 0) | (2 if op.get("aa") else 0)   # bit1: aa (v2)
             out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["r"])
-                    + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
+                    + _bu8(cfl) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
         elif k == "ellipse":
             out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["rx"]) + _bi16(op["ry"])
                     + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
@@ -230,7 +252,7 @@ def encode_ops_bin(ops, *, composite=False):
             pts = op.get("points") or []
             if len(pts) > 16:
                 return None
-            flags = (1 if (k == "poly" and op.get("fill", True)) else 0)                 | (2 if (k == "poly" and not op.get("fill", True)) else 0)
+            flags = (1 if (k == "poly" and op.get("fill", True)) else 0)                 | (2 if (k == "poly" and not op.get("fill", True)) else 0)                 | (4 if op.get("aa") else 0)
             out += (_opc(k) + _bu8(len(pts)) + _bu8(flags) + _bu8(op.get("t", 1))
                     + _brgb(op["color"]))
             for px, py in pts:
@@ -270,6 +292,44 @@ def encode_ops_bin(ops, *, composite=False):
             out += _opc(k) + _bu8(_BLEND.get(op.get("mode", "over"), 0))
         elif k == "show":
             out += _opc(k)
+        elif k in ("save", "restore", "layer") and version >= 2:
+            out += _opc(k)                                             # no payload
+        elif k == "translate" and version >= 2:
+            out += _opc(k) + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
+        elif k == "scale" and version >= 2:
+            # u16 8.8 fixed; y absent -> 0 on the wire = uniform (the decoder's rule)
+            sx = max(0, min(65535, int(round(float(op.get("x", 1)) * 256))))
+            sy = op.get("y")
+            syw = 0 if sy is None else max(0, min(65535, int(round(float(sy) * 256))))
+            out += _opc(k) + struct.pack(">HH", sx, syw)
+        elif k == "rotate" and version >= 2:
+            out += _opc(k) + _bi16(op.get("deg", 0))
+        elif k == "composite" and version >= 2:
+            out += (_opc(k) + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
+                    + _bu8(_BLEND.get(op.get("mode", "over"), 0))
+                    + _bu8(op.get("alpha", 255)))
+        elif k == "define" and version >= 2:
+            name = str(op.get("name", ""))
+            if not name or name in macro_ids or len(macro_ids) >= 8:
+                return None                        # slots are 0-7; a redefinition is JSON's
+            blob = encode_ops_bin(op.get("ops") or [], composite=composite, version=version)
+            if blob is None or len(blob) > 65535:
+                return None                        # an unencodable body sinks the batch
+            macro_ids[name] = len(macro_ids)
+            out += _opc(k) + _bu8(macro_ids[name]) + struct.pack(">H", len(blob)) + blob
+        elif k == "call" and version >= 2:
+            mid = macro_ids.get(str(op.get("name", "")))
+            if mid is None:
+                return None                        # calling a macro this batch never defined
+            out += _opc(k) + _bu8(mid) + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
+        elif k == "bezier" and version >= 2:
+            pts = op.get("points") or []
+            if len(pts) not in (3, 4):
+                return None
+            out += (_opc(k) + _bu8(len(pts)) + _bu8(op.get("t", 1))
+                    + _bu8(1 if op.get("aa") else 0) + _brgb(op["color"]))
+            for px, py in pts:
+                out += _bi16(px) + _bi16(py)
         else:
             return None                            # textbox / image / atlas: JSON carries those
     return bytes(out)
