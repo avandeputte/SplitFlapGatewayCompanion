@@ -8,8 +8,9 @@ with a ``poly`` skirt. The game simulates itself: the chomper chases the nearest
 by breadth-first search (attract mode), ghosts chase the chomper — and flee, blue, while
 a power pellet is up — side tunnels wrap arcade-style, and lives and levels turn over
 forever. When a player touches the web-UI control pad the chomper hands over to them (the
-`controls` helper), with tones on the gateway speaker (`play_sound`); it drifts back to
-attract mode after a few idle seconds.
+`controls` helper), with tones on the gateway speaker (`play_sound`) — sound plays only
+while a human is at the controls, never during self-play; it drifts back to attract mode
+after the idle 'takeover' timeout (a setting).
 """
 
 import random
@@ -392,9 +393,13 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
         n_ghosts = 4
     st = _state(cols, rows, n_ghosts)
 
-    # A human on the control pad takes over; after a few idle seconds it drifts back to
-    # attract-mode auto-play, which resets any frozen / finished game to a clean demo.
-    playing = controls is not None and controls.active()
+    # A human on the control pad takes over; after 'takeover' idle seconds it drifts back
+    # to attract-mode auto-play, which resets any frozen / finished game to a clean demo.
+    try:
+        takeover = max(5, min(120, int(float(settings.get('takeover', 30) or 30))))
+    except (TypeError, ValueError):
+        takeover = 30
+    playing = controls is not None and controls.active(within=takeover)
     events = list(controls.events) if controls is not None else []
     want = _CTRL.get(controls.dir) if (controls and controls.dir) else None
     presses = controls.presses if controls is not None else 0
@@ -436,7 +441,7 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
         _step(st, want=want, auto=not playing)
 
     sfx, st['sfx'] = st.get('sfx', []), []             # play this frame's events
-    if play_sound and sfx:
+    if playing and play_sound and sfx:                 # sound only while a human plays
         _play_sfx(play_sound, sfx, st['pellets'])
 
     _draw_board(canvas, st, xe, ye, W, H)

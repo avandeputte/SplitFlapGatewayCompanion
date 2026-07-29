@@ -146,6 +146,36 @@ def test_chomper_player_steers_and_sounds():
     assert st["score"] > 0 and sounds                 # ate pellets, played waka
 
 
+def test_chomper_is_silent_in_attract_mode():
+    # The panel plays itself unattended (engaged=False → attract): it eats pellets, but the
+    # speaker stays quiet. Sound is for a human at the controls only.
+    app = load_app("canvas-chomper")
+    cv = _cv()
+    sounds = []
+    for _ in range(30):
+        app.fetch_matrix({"speed": "8"}, cv, controls=_Controls(engaged=False),
+                         play_sound=lambda **kw: sounds.append(kw))
+    assert app._state._st["score"] > 0                 # it ate pellets (would have waka'd)...
+    assert not sounds                                  # ...yet made no sound while unattended
+
+
+def test_chomper_takeover_setting_extends_the_idle_window():
+    app = load_app("canvas-chomper")
+    cv = _cv()
+    seen = []
+
+    class _Rec(_Controls):
+        def active(self, within=6.0):
+            seen.append(within)
+            return self._engaged
+
+    app.fetch_matrix({"speed": "8", "takeover": "90"}, cv, controls=_Rec())
+    assert seen[-1] == 90                               # the setting drives the auto-play delay
+    seen.clear()
+    app.fetch_matrix({"speed": "8"}, cv, controls=_Rec())
+    assert seen[-1] == 30                               # generous default (was a hardcoded 6s)
+
+
 def test_chomper_pause_freezes_and_start_resets():
     app = load_app("canvas-chomper")
     cv = _cv()

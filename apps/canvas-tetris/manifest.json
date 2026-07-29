@@ -16,6 +16,13 @@
       "type": "number",
       "default": "5",
       "min": "1", "max": "10", "step": "1", "stepper": true
+    },
+    {
+      "key": "takeover",
+      "label": "Auto-play after (s)",
+      "type": "number",
+      "default": "30",
+      "min": "5", "max": "120", "step": "5", "stepper": true
     }
   ],
   "min_rows": 1,

@@ -111,6 +111,40 @@ def test_a_frame_streams_as_binary_ops(gw_calls):
     assert "/api/canvas/opsb" in [c[1] for c in gw_calls]
 
 
+def test_tetris_sounds_only_when_a_human_plays():
+    app = load_app("canvas-tetris")
+    cv = _cv()
+    # Unattended attract play locks pieces (and clears columns) but stays silent.
+    quiet = []
+    for _ in range(200):
+        app.fetch_matrix({"speed": "8"}, cv, controls=_Ctl(engaged=False),
+                         play_sound=lambda **kw: quiet.append(kw))
+    assert not quiet
+    # A live player who drives a piece into a lock hears it.
+    app.fetch_matrix({"speed": "8"}, cv, controls=_Ctl(events=["start"], presses=1))
+    loud = []
+    app.fetch_matrix({"speed": "8"}, cv, controls=_Ctl(taps=["left"] * 40, presses=2),
+                     play_sound=lambda **kw: loud.append(kw))
+    assert loud                                        # the lock tone played for the player
+
+
+def test_tetris_takeover_setting_extends_the_idle_window():
+    app = load_app("canvas-tetris")
+    cv = _cv()
+    seen = []
+
+    class _Rec(_Ctl):
+        def active(self, within=6.0):
+            seen.append(within)
+            return self._engaged
+
+    app.fetch_matrix({"speed": "8", "takeover": "75"}, cv, controls=_Rec())
+    assert seen[-1] == 75
+    seen.clear()
+    app.fetch_matrix({"speed": "8"}, cv, controls=_Rec())
+    assert seen[-1] == 30                               # default (was a hardcoded 6s)
+
+
 def test_tetris_is_marked_interactive():
     from conftest import make_runtime
     rt = make_runtime(installed=["canvas-tetris"])

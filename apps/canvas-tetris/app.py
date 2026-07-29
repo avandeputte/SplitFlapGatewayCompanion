@@ -4,7 +4,8 @@ Classic Tetris turned on its side: gravity pulls LEFT, pieces enter from the rig
 pile against the left wall, and a full COLUMN (every row filled) clears and pulls the rest
 leftward. It plays itself in attract mode and hands over to a player on the web-UI control
 pad — up/down move the piece, right rotates, left is a soft drop — with tones on the
-gateway speaker. Every frame is one small batch of on-device draw ops, streamed as binary
+gateway speaker (only while a human plays, never during self-play; the idle 'takeover'
+timeout is a setting). Every frame is one small batch of on-device draw ops, streamed as binary
 ops for game-rate latency; game over fades the well to black behind a GAME OVER + score
 overlay, and any key starts a new game.
 """
@@ -289,7 +290,13 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
     gx, gy = (W - cols * cell) // 2, (H - rows * cell) // 2
     st = _state(cols, rows)
 
-    playing = controls is not None and controls.active()
+    # A human on the pad takes over; after 'takeover' idle seconds it drifts back to
+    # attract-mode auto-play.
+    try:
+        takeover = max(5, min(120, int(float(settings.get('takeover', 30) or 30))))
+    except (TypeError, ValueError):
+        takeover = 30
+    playing = controls is not None and controls.active(within=takeover)
     events = list(controls.events) if controls is not None else []
     taps = list(controls.taps) if controls is not None else []
     presses = controls.presses if controls is not None else 0
@@ -334,7 +341,7 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
         _attract(st)
 
     sfx, st['sfx'] = st.get('sfx', []), []
-    if play_sound and sfx:
+    if playing and play_sound and sfx:                 # sound only while a human plays
         _play_sfx(play_sound, sfx)
 
     _draw_board(canvas, st, gx, gy, cell)
