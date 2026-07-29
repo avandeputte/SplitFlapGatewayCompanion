@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.7-beta.4
+
+- **Smooth aquarium** 🐠 — the Aquarium (and any sprite/compositing app) now streams
+  binary frames like the games do, instead of one HTTP request per frame. Steadier
+  pacing, ~10 fps.
+
 ## 2.10.7-beta.3
 
 - **Internal spring-clean** 🧹 — comment/doc accuracy pass, dead code removed, and the

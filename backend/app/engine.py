@@ -627,9 +627,11 @@ class DisplayController:
         """Adopt the v3.2 draw stream for a FAST app once we've seen it draw: a wall that
         advertises canvas.stream, a short hold (so it never trips the stream's 30 s idle
         timeout), and a push kind the stream carries whole — a frame, or a BINARY ops
-        batch (fw 3.5 record 0x06; a game like Chomper). JSON-ops apps stay on the
-        per-batch HTTP path: their batches can carry what only REST accepts (an atlas
-        upload) which would 409 against an open stream."""
+        batch (fw 3.5 record 0x06; a game like Chomper — atlas binds ride the stream's
+        own 0x04 record, so a sprite app like the aquarium qualifies too). Apps whose
+        batches only JSON can carry stay on the per-batch HTTP path; a mid-stream atlas
+        re-upload closes the stream itself (see canvas.put_atlas_named) and we simply
+        re-adopt here on the next tick."""
         if (url and getattr(caps, "canvas_stream", False) and not canvas.has_stream(url)
                 and (canvas.last_push_was_frame(url) or canvas.last_push_was_opsb(url))
                 and isinstance(hold, (int, float)) and hold <= _CANVAS_STREAM_MAX_HOLD):

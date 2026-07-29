@@ -113,8 +113,9 @@ def test_a_chomper_frame_is_fully_representable(gw_calls):
 
 def test_show_rides_an_open_stream_with_the_binary_record():
     """Once the engine has opened the draw stream, every batch goes over it: a
-    representable batch as record 0x06, a JSON-only batch as record 0x03 — never
-    REST, which answers 409 while a stream is open."""
+    representable batch as record 0x06, an atlas bind as the stream's own 0x04
+    record (with the rest of its batch as 0x06), and a genuinely JSON-only batch
+    as record 0x03 — never REST, which answers 409 while a stream is open."""
     from test_canvas_stream import FakeSock
     from app import canvas as canvas_mod
     cv = _cv()
@@ -131,6 +132,11 @@ def test_show_rides_an_open_stream_with_the_binary_record():
         assert canvas_mod.last_push_was_opsb(cv.url)
         cv._ops.append({"op": "atlas", "name": "icons"})
         cv.sprite(1, 0, 0)
+        assert cv.show()
+        assert fs.writes[-2][0] == 0x04            # the bind rides its own record...
+        assert b"icons" in fs.writes[-2]
+        assert fs.writes[-1][0] == 0x06            # ...and the sprites stay binary
+        cv.textbox(0, 0, 10, 10, "hi")             # textbox has no binary form at all
         assert cv.show()
         assert fs.writes[-1][0] == 0x03            # JSON ops record — still the stream
     finally:

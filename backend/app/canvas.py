@@ -689,6 +689,13 @@ def put_atlas_named(url: str, name: str, tiles: bytes, tile_w: int, tile_h: int,
     firmware 3.1). Same MPTA body as the unnamed route; the name is the address a later
     ``{"op":"atlas"}`` binds."""
     try:
+        # The upload is one of the REST drawing endpoints the firmware 409s while a draw
+        # stream is open. A sprite app CAN be streaming (binds ride record 0x04) — so if it
+        # suddenly needs a re-upload (its sheet was evicted), close the stream first; the
+        # engine re-adopts on its next tick and the stream picks back up.
+        if has_stream(url):
+            log.info("canvas %s: closing draw stream for atlas '%s' upload", url, name)
+            stream_end(url)
         body = _atlas_body(tiles, tile_w, tile_h, count, fmt)
         ok = _ok(gateway._request("PUT", url, f"/api/canvas/atlas/{name}",
                                   content=body,
@@ -728,6 +735,8 @@ def atlas_list(url: str, timeout: float = 8.0) -> list:
 def atlas_save(url: str, name: str, timeout: float = 15.0) -> bool:
     """Persist a sheet to the wall's filesystem so it survives a reboot AND an LRU eviction
     (lazy-loaded on the next bind)."""
+    if has_stream(url):                    # same REST-vs-stream 409 as the upload above
+        stream_end(url)
     ok = _ok(gateway._request("POST", url, f"/api/canvas/atlas/{name}/save", timeout=timeout))
     if ok:
         row = ((_wall(url).atlas or {}).get("rows") or {}).get(name)
@@ -1119,25 +1128,59 @@ class CanvasSurface(paneltext.PanelText):
             wall.last_kind = "ops"
             log.info("canvas %s: [sim] %d op(s) not sent", self.url, len(ops))
             return True                                 # cannot preview here; just don't drive the panel
-        payload = encode_ops_bin(ops) if self.can_ops_bin else None
-        # A binary-representable batch marks the wall "opsb" — the engine's stream
-        # heuristic adopts the draw stream for such apps, and every later batch rides
-        # a 0x06 record. While a stream is OPEN nothing may go over REST (409), so a
-        # JSON-only batch is carried as the stream's 0x03 record instead.
-        wall.last_kind = "opsb" if payload is not None else "ops"
+        # Split the batch at atlas binds: binary has no bind opcode, but the draw stream
+        # carries one natively (record 0x04), so a sprite app's batch is still stream+binary
+        # material — [bind, ops...] becomes 0x04 + 0x06 records. Each segment is
+        # (name | None, encoded-draw-run); encoding failure of any run voids the lot.
+        segments = None
+        if self.can_ops_bin:
+            segments = []
+            run = []
+            pending_bind = None
+            ok = True
+            for op in ops:
+                if op.get("op") == "atlas":
+                    if run:
+                        enc = encode_ops_bin(run, composite=self.can_composite)
+                        if enc is None:
+                            ok = False
+                            break
+                        segments.append((pending_bind, enc))
+                        run, pending_bind = [], None
+                    pending_bind = str(op.get("name", ""))
+                else:
+                    run.append(op)
+            if ok and (run or pending_bind is not None):
+                enc = encode_ops_bin(run, composite=self.can_composite)
+                if enc is None:
+                    ok = False
+                else:
+                    segments.append((pending_bind, enc))
+            if not ok:
+                segments = None
+        # A binary-representable batch (binds included) marks the wall "opsb" — the
+        # engine's stream heuristic adopts the draw stream for such apps, and every later
+        # batch rides 0x04/0x06 records. While a stream is OPEN nothing may go over REST
+        # (409), so a JSON-only batch is carried as the stream's 0x03 record instead.
+        wall.last_kind = "opsb" if segments is not None else "ops"
         st = wall.stream
         if st is not None and st.alive:
-            if payload is not None:
-                if st.opsb(payload):
+            if segments is not None:
+                if all((seg_name is None or st.bind(seg_name)) and st.opsb(enc)
+                       for seg_name, enc in segments):
                     return True
             else:
                 import json
                 if st.ops(json.dumps(ops).encode()):
                     return True
             # the stream died mid-send: fall through to the per-batch HTTP path
-        if payload is not None:
+        if segments is not None and len(segments) == 1 and segments[0][0] is None:
+            payload = segments[0][1]
             log.info("canvas %s: opsb %d op(s) %d B", self.url, len(ops), len(payload))
             return post_ops_bin(self.url, payload)
+        # Binds (or anything else binary can't carry) over HTTP: the JSON batch, which
+        # accepts the bind op inline. The opsb last_kind above still lets the engine
+        # adopt the stream, where the binds switch to 0x04 records.
         if log.isEnabledFor(logging.INFO):
             import json
             log.info("canvas %s: ops %d op(s) %d B", self.url, len(ops), len(json.dumps(ops).encode()))

@@ -124,8 +124,11 @@ def _rgb565_to_888(data: bytes, w: int, h: int) -> bytes:
 # parsing entirely (measured 1.5-1.9x the frame rate on op-heavy scenes). Big-endian,
 # coordinates signed int16. encode_ops_bin returns None when a batch contains anything
 # the format cannot carry (textbox, image, an atlas bind, a custom text font, text over
-# 127 UTF-8 bytes, >16 poly vertices, a 4-component rgba color, aa on a non-text op) —
-# the caller then sends the JSON batch instead, so output stays pixel-identical either way.
+# 127 UTF-8 bytes, >16 poly vertices, aa on a non-text op, mixed per-field alphas, or —
+# on a pre-3.8 wall — any rgba color) — the caller then sends the JSON batch instead, so
+# output stays pixel-identical either way. On a fw-3.8 wall (composite=True) an rgba
+# color rides binary as batch alpha 0x15; atlas binds ride the draw stream's own 0x04
+# record (see CanvasSurface.show), so a sprite+compositing app can stream too.
 def _bi16(v):
     return struct.pack(">h", max(-32768, min(32767, int(v))))
 
@@ -146,7 +149,7 @@ _OPCODE = {
     "rect": 0x06, "circle": 0x07, "ellipse": 0x08, "triangle": 0x09, "roundrect": 0x0a,
     "gradient": 0x0b, "arc": 0x0c, "poly": 0x0d, "polyline": 0x0d, "clip": 0x0e,
     "origin": 0x0f, "text": 0x10, "sprite": 0x11, "scroll": 0x12, "show": 0x13,
-    "blend": 0x14,
+    "blend": 0x14, "alpha": 0x15,
 }
 
 
@@ -154,19 +157,36 @@ def _opc(k):
     return bytes((_OPCODE[k],))
 
 
-def encode_ops_bin(ops):
-    """The batch as opsBin bytes, or None when any op is not representable."""
+def encode_ops_bin(ops, *, composite=False):
+    """The batch as opsBin bytes, or None when any op is not representable.
+
+    ``composite=True`` (a fw-3.8 wall) unlocks the batch-alpha opcode 0x15: a
+    4-component ``[r,g,b,a]`` color encodes as ``0x15 a`` before the op (and the
+    alpha is restored for the next opaque op), which renders identically to the
+    JSON path's per-color alpha — the runner applies batch alpha per op. Without
+    it (a 3.5-3.7 wall that couldn't length-skip 0x15) an rgba color still forces
+    the JSON fallback."""
     out = bytearray()
     _BLEND = {"over": 0, "add": 1, "multiply": 2, "screen": 3, "max": 4}
+    cur_alpha = 255                                    # the runner's binAlpha starts opaque
     for op in ops:
         k = op.get("op")
-        # Per-color alpha is JSON-only (fw 3.8): a 4-component color on ANY color-bearing field
-        # (color, and gradient's from/to, and text's outline/shadow) forces the whole batch to
-        # the JSON path, so the alpha is never silently truncated to opaque in binary.
+        # Per-color alpha ([r,g,b,a] on color / gradient from+to / text outline+shadow).
+        # On a compositing wall it maps onto batch alpha 0x15 — but only when every color
+        # in THIS op agrees on one alpha (0x15 is per op, not per field). Otherwise, and
+        # on any pre-3.8 wall, the whole batch falls back to JSON so the alpha is never
+        # silently truncated to opaque.
+        alphas = set()
         for _ck in ("color", "from", "to", "outline", "shadow"):
             _cv = op.get(_ck)
-            if isinstance(_cv, (list, tuple)) and len(_cv) == 4:
-                return None
+            if isinstance(_cv, (list, tuple)):
+                alphas.add(int(_cv[3]) if len(_cv) == 4 else 255)
+        op_alpha = alphas.pop() if len(alphas) == 1 else (255 if not alphas else None)
+        if op_alpha is None or (op_alpha != 255 and not composite):
+            return None
+        if op_alpha != cur_alpha and k not in ("blend", "show"):
+            out += _opc("alpha") + _bu8(op_alpha)      # 0x15: batch alpha for the ops below
+            cur_alpha = op_alpha
         # Anti-aliasing has a binary form only for text; a smooth stroke (line/circle/poly/
         # polyline) must fall back to JSON rather than encode byte-identically to a jagged one.
         if op.get("aa") and k != "text":

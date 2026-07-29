@@ -7,8 +7,9 @@ a frame of pixels. The fish tiles are generated once with Pillow and uploaded to
 the panel's atlas; each frame just says "blit fish 3 at (x, y)". On a wall without
 the sprite op the fish fall back to being drawn from ops (ellipse + triangle). On a
 firmware-3.8 wall (``canvas.can_composite``) it adds what the ops surface newly allows:
-additive **godrays** shimmering down from the surface, **anti-aliased** weeds, and a soft
-**glow** around the bubbles — all with per-color alpha and the additive blend mode.
+additive **godrays** shimmering down from the surface and a soft **glow** around the
+bubbles — per-color alpha + the additive blend mode, all encoded as binary batch alpha
+(0x15) so the whole frame streams at game rate (no per-frame HTTP).
 """
 
 import math
@@ -109,7 +110,7 @@ def fetch_matrix(settings, canvas):
         sway = math.sin(frame * 0.08 + ph) * (W * 0.02)
         h = int(H * 0.32)
         pts = [(x, H), (x + sway * 0.4, H - h * 0.5), (x + sway, H - h)]
-        canvas.polyline(pts, _WEED, t=1, aa=glow)             # smooth on a compositing wall
+        canvas.polyline(pts, _WEED, t=1)
 
     # bubbles: spawn near the floor, rise, pop at the top. Advance first, then draw, so the
     # additive halo and the crisp bubble land at the same position (no 1px glow offset).
@@ -124,10 +125,10 @@ def fetch_matrix(settings, canvas):
     if glow:
         canvas.blend('add')
         for b in st['bubbles']:
-            canvas.circle(int(b[0]), int(b[1]), b[2] + 1, (90, 150, 210, 70), fill=True, aa=True)
+            canvas.circle(int(b[0]), int(b[1]), b[2] + 1, (90, 150, 210, 70), fill=True)
         canvas.blend('over')
     for b in st['bubbles']:
-        canvas.circle(int(b[0]), int(b[1]), b[2], (200, 235, 255), aa=glow)
+        canvas.circle(int(b[0]), int(b[1]), b[2], (200, 235, 255))
 
     for f in st['fish']:                                       # drift the fish, wrap at the edges
         f['x'] += f['d'] * f['sp']
@@ -148,4 +149,4 @@ def fetch_matrix(settings, canvas):
                             tx - f['d'] * tile // 3, cy + tile // 4, fin, fill=True)
 
     canvas.show()
-    return 0.12                                                # ~8 fps
+    return 0.10                                                # ~10 fps; binary over the draw stream
