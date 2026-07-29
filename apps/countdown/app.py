@@ -3,6 +3,9 @@
 # rotate by the same rule), plus the milestone trigger (surface-independent).
 # =============================================================================
 
+from datetime import datetime
+
+
 def _rotation_index(now_ts, span, count):
     """Which countdown shows now: epoch // span gives stable, aligned blocks, so
     each fetch (once a second) lands in one block and the shown countdown holds
@@ -84,23 +87,8 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     def u(k):                       # localized D/H/M/S suffix (French J for jour, etc.)
         return i18n.unit(k) if i18n is not None else k
 
-    def is_enabled(value, default=False):
-        if value is None:
-            return default
-        return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
 
-    def clean_event(value, fallback='Countdown'):
-        text = str(value or '').strip()
-        # caps.can_show is the wall's own answer to "can you show this?" — the
-        # public contract, not host internals. Without caps (a bare host)
-        # nothing is filtered: the renderer degrades what it must.
-        can = getattr(caps, 'can_show', None)
-        if callable(can):
-            text = ''.join(ch if can(ch) else ' ' for ch in text)
-        return text.strip() or fallback
 
-    def clean_target(value):
-        return str(value or '').strip()
 
     def build_compact_countdown(total_seconds, cols):
         days, rem = divmod(total_seconds, 86400)
@@ -230,29 +218,6 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
             return [format_lines(event, countdown_text)]
         return [format_lines(event, countdown_text, build_remaining_text(cols))]
 
-    def parse_target(target_str, tz, now, *, allow_default=False):
-        if not target_str:
-            if not allow_default:
-                return None
-            # Slot 1 defaults to the next New Year when no target is set.
-            return now.replace(
-                year=now.year + 1,
-                month=1,
-                day=1,
-                hour=0,
-                minute=0,
-                second=0,
-                microsecond=0,
-            )
-
-        try:
-            target = datetime.fromisoformat(target_str)
-        except (TypeError, ValueError):
-            return None
-
-        if target.tzinfo is None:
-            target = tz.localize(target)
-        return target
 
     try:
         tz = pytz.timezone(settings.get('timezone') or 'UTC')
@@ -263,55 +228,17 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
     rows = get_rows()
     cols = get_cols()
 
-    slots = [
-        {
-            'enabled': is_enabled(settings.get('countdown_enabled', 'on'), default=True),
-            'event': clean_event(
-                settings.get('countdown_event', 'New Year'),
-                fallback='New Year',
-            ),
-            'target': clean_target(settings.get('countdown_target', '')),
-            'allow_default_target': True,
-        }
-    ]
-
-    for index in range(2, 6):
-        slots.append(
-            {
-                'enabled': is_enabled(settings.get(f'countdown_{index}_enabled', 'off')),
-                'event': clean_event(settings.get(f'countdown_{index}_event', '')),
-                'target': clean_target(settings.get(f'countdown_{index}_target', '')),
-                'allow_default_target': False,
-            }
-        )
-
-    # If every slot is toggled off, still show slot 1 rather than a blank app.
-    if not any(slot['enabled'] for slot in slots):
-        slots[0]['enabled'] = True
-
-    # One page-group per active countdown. We show ONE group per fetch and rotate
-    # which by wall-clock time — not by returning every countdown as its own page.
-    # That is what lets the seconds tick: the app is re-fetched every second (like
-    # the clock app), so the shown countdown re-renders each second, while the
-    # switch to the NEXT countdown happens only every `transition_seconds`. Returning
-    # them all as pages instead would couple the rotation to the 1-second page
-    # dwell and flip past each countdown once a second.
-    groups = []
-    for slot in slots:
-        if not slot['enabled']:
-            continue
-        if not slot['event'] and not slot['target']:
-            continue
-        target = parse_target(
-            slot['target'],
-            tz,
-            now,
-            allow_default=slot['allow_default_target'],
-        )
-        if target is None:
-            continue
-        event = slot['event'] or 'Countdown'
-        groups.append(build_slot_pages(event, target, now, rows, cols))
+    # One page-group per active countdown — the SAME slot enumeration the panel
+    # view uses (_active_targets), so a wall and a panel rotate over the same set.
+    # We show ONE group per fetch and rotate which by wall-clock time — not by
+    # returning every countdown as its own page. That is what lets the seconds
+    # tick: the app is re-fetched every second (like the clock app), so the shown
+    # countdown re-renders each second, while the switch to the NEXT countdown
+    # happens only every `transition_seconds`. Returning them all as pages instead
+    # would couple the rotation to the 1-second page dwell and flip past each
+    # countdown once a second.
+    groups = [build_slot_pages(event, target, now, rows, cols)
+              for event, target in _active_targets(settings, caps, tz, now)]
 
     if not groups:
         if rows == 2:
@@ -347,47 +274,63 @@ _UNITS = {
 }
 
 
-def _cv_is_on(value, default=False):
+def _is_on(value, default=False):
     if value is None:
         return default
     return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
-def _cv_active_targets(settings, caps, tz, now):
-    """The enabled, valid countdown slots as ``[(EVENT, target_datetime), ...]`` — the same
-    enumeration the flap path does (slot 1 defaults to next New Year; a wall with no slots on still
-    shows slot 1), so both views rotate over the same set."""
-    from datetime import datetime
+def _clean_event(caps, value, fallback='Countdown'):
+    text = str(value or '').strip()
+    # caps.can_show is the wall's own answer to "can you show this?" — the
+    # public contract, not host internals. Without caps (a bare host)
+    # nothing is filtered: the renderer degrades what it must.
+    can = getattr(caps, 'can_show', None)
+    if callable(can):
+        text = ''.join(ch if can(ch) else ' ' for ch in text)
+    return text.strip() or fallback
 
-    def clean_event(value, fallback):
-        text = str(value or '').strip()
-        can = getattr(caps, 'can_show', None)
-        if callable(can):
-            text = ''.join(ch if can(ch) else ' ' for ch in text)
-        return text.strip() or fallback
 
-    def parse_target(target_str, allow_default):
-        if not target_str:
-            if not allow_default:
-                return None
-            return now.replace(year=now.year + 1, month=1, day=1,
-                               hour=0, minute=0, second=0, microsecond=0)
-        try:
-            target = datetime.fromisoformat(target_str)
-        except (TypeError, ValueError):
+def _parse_target(target_str, tz, now, *, allow_default=False):
+    if not target_str:
+        if not allow_default:
             return None
-        return tz.localize(target) if target.tzinfo is None else target
+        # Slot 1 defaults to the next New Year when no target is set.
+        return now.replace(
+            year=now.year + 1,
+            month=1,
+            day=1,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
 
+    try:
+        target = datetime.fromisoformat(target_str)
+    except (TypeError, ValueError):
+        return None
+
+    if target.tzinfo is None:
+        target = tz.localize(target)
+    return target
+
+
+
+def _active_targets(settings, caps, tz, now):
+    """The enabled, valid countdown slots as ``[(EVENT, target_datetime), ...]`` — ONE
+    enumeration shared by the flap and panel views (slot 1 defaults to next New Year; a
+    wall with no slots on still shows slot 1), so both rotate over the same set."""
     slots = [{
-        'enabled': _cv_is_on(settings.get('countdown_enabled', 'on'), default=True),
-        'event': clean_event(settings.get('countdown_event', 'New Year'), 'New Year'),
+        'enabled': _is_on(settings.get('countdown_enabled', 'on'), default=True),
+        'event': _clean_event(caps, settings.get('countdown_event', 'New Year'), 'New Year'),
         'target': str(settings.get('countdown_target', '') or '').strip(),
         'allow_default': True,
     }]
     for i in range(2, 6):
         slots.append({
-            'enabled': _cv_is_on(settings.get(f'countdown_{i}_enabled', 'off')),
-            'event': clean_event(settings.get(f'countdown_{i}_event', ''), 'Countdown'),
+            'enabled': _is_on(settings.get(f'countdown_{i}_enabled', 'off')),
+            'event': _clean_event(caps, settings.get(f'countdown_{i}_event', '')),
             'target': str(settings.get(f'countdown_{i}_target', '') or '').strip(),
             'allow_default': False,
         })
@@ -398,7 +341,7 @@ def _cv_active_targets(settings, caps, tz, now):
     for s in slots:
         if not s['enabled'] or (not s['target'] and not s['allow_default']):
             continue
-        target = parse_target(s['target'], s['allow_default'])
+        target = _parse_target(s['target'], tz, now, allow_default=s['allow_default'])
         if target is not None:
             targets.append((s['event'], target))
     return targets
@@ -573,7 +516,7 @@ def fetch_matrix(settings, canvas, caps=None):
         tz = pytz.utc
     now = datetime.now(tz)
 
-    targets = _cv_active_targets(settings, caps, tz, now)
+    targets = _active_targets(settings, caps, tz, now)
     if not targets:
         canvas.frame(_cv_render_message(canvas, ImageDraw, 'SET A TARGET', 'DATE'))
         return 30.0
@@ -584,7 +527,7 @@ def fetch_matrix(settings, canvas, caps=None):
         span = 6
     event, target = targets[_rotation_index(now.timestamp(), span, len(targets))]
     event = event.upper()
-    show_seconds = _cv_is_on(settings.get('show_seconds', 'no'))
+    show_seconds = _is_on(settings.get('show_seconds', 'no'))
 
     W, H = canvas.width, canvas.height
     total = (target - now).total_seconds()

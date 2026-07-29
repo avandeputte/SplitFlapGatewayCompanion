@@ -5,6 +5,14 @@
 # a wall and a panel always see the same aircraft from the same poll.
 # =============================================================================
 
+import math
+import re
+import time
+from datetime import datetime, timezone
+
+import requests
+
+
 def _center(settings, get_location):
     """Where to look — the same order fetch() uses: the global precise location,
     then the per-app "lat,lon" override, then the default."""
@@ -52,14 +60,496 @@ def _shared_flights(settings, get_location):
 # SPLIT-FLAP — fetch() (the provider stack + column pages) and the trigger.
 # =============================================================================
 
+# =============================================================================
+# PROVIDER STACK + FLIGHT MATH — module level, one definition each. The poll
+# cache/token state stays on fetch._state and is passed in where needed, so a
+# settings change can still force an immediate refresh.
+# =============================================================================
+
+def _to_float(value, default):
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+
+def _to_int(value, default):
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+def _parse_lat_lon(raw):
+    if not raw:
+        return None
+    text = str(raw).strip()
+    match = re.match(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$", text)
+    if not match:
+        return None
+    lat = float(match.group(1))
+    lon = float(match.group(2))
+    if -90 <= lat <= 90 and -180 <= lon <= 180:
+        return lat, lon
+    return None
+
+
+def _resolve_location(location):
+    return _parse_lat_lon(location)
+
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    radius = 6371.0
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return radius * c
+
+
+def _bearing_deg(lat1, lon1, lat2, lon2):
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dl = math.radians(lon2 - lon1)
+    y = math.sin(dl) * math.cos(p2)
+    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return (math.degrees(math.atan2(y, x)) + 360) % 360
+
+
+def _cardinal(deg):
+    directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    index = int((deg + 22.5) // 45) % 8
+    return directions[index]
+
+
+def _sanitize_callsign(value):
+    if not value:
+        return "Unknown"
+    # A callsign IS a code — this .upper() normalizes one, it does not shout.
+    clean = str(value).strip().upper()
+    return clean if clean else "Unknown"
+
+
+def _parse_timestamp(value):
+    if value is None or value == "":
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return int(float(text))
+    except Exception:
+        pass
+    try:
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        return int(datetime.fromisoformat(text).astimezone(timezone.utc).timestamp())
+    except Exception:
+        return None
+
+
+def _format_altitude(altitude_m, unit):
+    if altitude_m is None:
+        return "A?"
+    if unit == "m":
+        altitude = int(round(altitude_m))
+        if altitude >= 10000:
+            return f"A{int(round(altitude / 1000.0))}KM"
+        return f"A{altitude}M"
+    altitude_ft = int(round(altitude_m * 3.28084))
+    if unit == "fl":
+        return f"FL{int(round(altitude_ft / 100.0))}"
+    if altitude_ft >= 10000:
+        return f"A{int(round(altitude_ft / 1000.0))}K"
+    return f"A{altitude_ft}"
+
+
+def _format_speed(speed_ms, unit):
+    if speed_ms is None:
+        return "?"
+    if unit == "mph":
+        return f"{int(round(speed_ms * 2.23694))}MPH"
+    if unit == "kmh":
+        return f"{int(round(speed_ms * 3.6))}KPH"
+    return f"{int(round(speed_ms * 1.94384))}KT"
+
+
+def _clean_code(value):
+    """An airport code (IATA/ICAO) uppercased and trimmed, or '' — the route feed's
+    codes; only the keyed providers carry these (OpenSky's free feed has no route)."""
+    code = str(value or "").strip().upper()
+    return code if code and code.isalnum() and len(code) <= 4 else ""
+
+
+def _normalize_flight(callsign, latitude, longitude, *, altitude_m=None, speed_ms=None,
+                      heading=None, on_ground=False, last_seen=None,
+                      origin=None, destination=None):
+    if latitude is None or longitude is None:
+        return None
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+    except Exception:
+        return None
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return None
+    normalized = {
+        "callsign": _sanitize_callsign(callsign),
+        "lat": latitude,
+        "lon": longitude,
+        "altitude_m": None,
+        "speed_ms": None,
+        "heading": None,
+        "on_ground": bool(on_ground),
+        "last_seen": _parse_timestamp(last_seen),
+        "origin": _clean_code(origin),
+        "destination": _clean_code(destination),
+    }
+    try:
+        if altitude_m is not None:
+            normalized["altitude_m"] = float(altitude_m)
+    except Exception:
+        pass
+    try:
+        if speed_ms is not None:
+            normalized["speed_ms"] = float(speed_ms)
+    except Exception:
+        pass
+    try:
+        if heading is not None:
+            normalized["heading"] = float(heading)
+    except Exception:
+        pass
+    return normalized
+
+
+def _get_opensky_token(state, client_id, client_secret):
+    now = time.time()
+    if state.get("opensky_token") and now < float(state.get("opensky_token_exp", 0.0)):
+        return state.get("opensky_token")
+
+    response = requests.post(
+        "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+        },
+        timeout=12,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    token = payload.get("access_token")
+    if not token:
+        raise ValueError("OpenSky token response missing access_token")
+    expires_in = int(payload.get("expires_in", 1800))
+    state["opensky_token"] = token
+    state["opensky_token_exp"] = now + max(60, expires_in - 30)
+    return token
+
+
+def _fetch_opensky(state, lamin, lomin, lamax, lomax, client_id, client_secret):
+    headers = None
+    if client_id and client_secret:
+        token = _get_opensky_token(state, client_id, client_secret)
+        headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(
+        "https://opensky-network.org/api/states/all",
+        params={
+            "lamin": round(lamin, 5),
+            "lomin": round(lomin, 5),
+            "lamax": round(lamax, 5),
+            "lomax": round(lomax, 5),
+        },
+        headers=headers,
+        timeout=12,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    flights = []
+    for state in payload.get("states", []) or []:
+        if len(state) < 17:
+            continue
+        altitude_m = state[13] if len(state) > 13 and state[13] is not None else None
+        if altitude_m is None:
+            altitude_m = state[7] if len(state) > 7 and state[7] is not None else None
+        flight = _normalize_flight(
+            state[1],
+            state[6],
+            state[5],
+            altitude_m=altitude_m,
+            speed_ms=state[9] if len(state) > 9 else None,
+            heading=state[10] if len(state) > 10 else None,
+            on_ground=state[8] if len(state) > 8 else False,
+            last_seen=state[4] if len(state) > 4 else None,
+        )
+        if flight:
+            flights.append(flight)
+    return flights
+
+
+def _fetch_flightaware(lamin, lomin, lamax, lomax, api_key):
+    query = f'-latlong "{lamin:.5f} {lomin:.5f} {lamax:.5f} {lomax:.5f}"'
+    response = requests.get(
+        "https://aeroapi.flightaware.com/aeroapi/flights/search",
+        params={"query": query, "max_pages": 1},
+        headers={"x-apikey": api_key},
+        timeout=15,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    flights = []
+    for item in payload.get("flights", []) or []:
+        pos = item.get("last_position") or {}
+        altitude_ft = pos.get("altitude")
+        speed_kt = pos.get("groundspeed")
+        org, dst = item.get("origin") or {}, item.get("destination") or {}
+        flight = _normalize_flight(
+            item.get("ident_icao") or item.get("ident_iata") or item.get("ident") or item.get("registration"),
+            pos.get("latitude"),
+            pos.get("longitude"),
+            altitude_m=(altitude_ft * 0.3048) if altitude_ft is not None else None,
+            speed_ms=(speed_kt / 1.94384) if speed_kt is not None else None,
+            heading=pos.get("heading"),
+            on_ground=False,
+            last_seen=pos.get("timestamp") or item.get("last_position_time"),
+            origin=org.get("code_iata") or org.get("code"),
+            destination=dst.get("code_iata") or dst.get("code"),
+        )
+        if flight:
+            flights.append(flight)
+    return flights
+
+
+def _fetch_airlabs(lamin, lomin, lamax, lomax, api_key):
+    response = requests.get(
+        "https://airlabs.co/api/v9/flights",
+        params={
+            "api_key": api_key,
+            "bbox": f"{lamin:.5f},{lomin:.5f},{lamax:.5f},{lomax:.5f}",
+            "_fields": "lat,lng,alt,dir,speed,updated,flight_iata,flight_icao,flight_number,reg_number,status,dep_iata,arr_iata",
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    items = payload.get("response") or payload.get("data") or []
+    flights = []
+    for item in items:
+        speed_kmh = item.get("speed")
+        flight = _normalize_flight(
+            item.get("flight_iata") or item.get("flight_icao") or item.get("flight_number") or item.get("reg_number"),
+            item.get("lat"),
+            item.get("lng"),
+            altitude_m=item.get("alt"),
+            speed_ms=(speed_kmh / 3.6) if speed_kmh is not None else None,
+            heading=item.get("dir"),
+            on_ground=str(item.get("status", "")).lower() in ("landed", "scheduled", "ground"),
+            last_seen=item.get("updated"),
+            origin=item.get("dep_iata"),
+            destination=item.get("arr_iata"),
+        )
+        if flight:
+            flights.append(flight)
+    return flights
+
+
+def _fetch_aviationstack(api_key):
+    response = requests.get(
+        "https://api.aviationstack.com/v1/flights",
+        params={
+            "access_key": api_key,
+            "flight_status": "active",
+            "limit": 100,
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    flights = []
+    for item in payload.get("data", []) or []:
+        live = item.get("live") or {}
+        flight_info = item.get("flight") or {}
+        aircraft = item.get("aircraft") or {}
+        dep = item.get("departure") or {}
+        arr = item.get("arrival") or {}
+        speed_kmh = live.get("speed_horizontal")
+        flight = _normalize_flight(
+            flight_info.get("iata") or flight_info.get("icao") or flight_info.get("number") or aircraft.get("registration"),
+            live.get("latitude"),
+            live.get("longitude"),
+            altitude_m=live.get("altitude"),
+            speed_ms=(speed_kmh / 3.6) if speed_kmh is not None else None,
+            heading=live.get("direction"),
+            on_ground=live.get("is_ground", False),
+            last_seen=live.get("updated"),
+            origin=dep.get("iata"),
+            destination=arr.get("iata"),
+        )
+        if flight:
+            flights.append(flight)
+    return flights
+
+
+def _extract_fr24_items(payload):
+    if isinstance(payload, list):
+        return payload
+    if not isinstance(payload, dict):
+        return []
+    for key in ("data", "aircraft", "flights", "results"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return value
+        if isinstance(value, dict):
+            return [v for v in value.values() if isinstance(v, dict)]
+    return [
+        value
+        for value in payload.values()
+        if isinstance(value, dict) and any(k in value for k in ("lat", "lng", "lon", "latitude", "longitude"))
+    ]
+
+
+def _fetch_flightradar24(lamin, lomin, lamax, lomax, api_key, api_host):
+    host = (api_host or "flightradar24-com.p.rapidapi.com").strip()
+    response = requests.get(
+        f"https://{host}/flights/list-in-boundary",
+        params={
+            "bl_lat": f"{lamin:.5f}",
+            "bl_lng": f"{lomin:.5f}",
+            "tr_lat": f"{lamax:.5f}",
+            "tr_lng": f"{lomax:.5f}",
+        },
+        headers={
+            "X-RapidAPI-Key": api_key,
+            "X-RapidAPI-Host": host,
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    flights = []
+    for item in _extract_fr24_items(payload):
+        speed_kt = item.get("speed") or item.get("ground_speed") or item.get("groundSpeed")
+        altitude_ft = item.get("alt") or item.get("altitude")
+        flight = _normalize_flight(
+            item.get("callsign") or item.get("flight") or item.get("flight_number") or item.get("icao") or item.get("iata") or item.get("registration"),
+            item.get("lat") or item.get("latitude"),
+            item.get("lng") or item.get("lon") or item.get("longitude"),
+            altitude_m=(altitude_ft * 0.3048) if altitude_ft is not None else None,
+            speed_ms=(speed_kt / 1.94384) if speed_kt is not None else None,
+            heading=item.get("track") or item.get("heading"),
+            on_ground=str(item.get("status", "")).lower() in ("landed", "scheduled", "ground"),
+            last_seen=item.get("timestamp") or item.get("last_seen") or item.get("time"),
+            origin=item.get("origin") or item.get("orig") or item.get("from"),
+            destination=item.get("destination") or item.get("dest") or item.get("to"),
+        )
+        if flight:
+            flights.append(flight)
+    return flights
+
+
+def _provider_requirements(provider):
+    return {
+        "opensky": [],
+        "flightaware": [("flightaware_api_key", "FLIGHTAWARE")],
+        "flightradar24": [("flightradar24_api_key", "FR24 key")],
+        "airlabs": [("airlabs_api_key", "AIRLABS key")],
+        "aviationstack": [("aviationstack_api_key", "AVSTACK key")],
+    }.get(provider, [])
+
+
+def _provider_tag(provider):
+    return {
+        "opensky": "OPENSKY",
+        "flightaware": "FLTAWARE",
+        "flightradar24": "FR24",
+        "airlabs": "AIRLABS",
+        "aviationstack": "AVSTACK",
+    }.get(provider, "API")
+
+
+def _extract_error_text(response):
+    if not response:
+        return ""
+    try:
+        payload = response.json()
+        if isinstance(payload, dict):
+            for key in ("error", "message", "reason", "detail"):
+                if key in payload and payload[key]:
+                    return str(payload[key])
+        return str(payload)
+    except Exception:
+        return (response.text or "").strip()
+
+
+def _error_pages(format_lines, provider, err, dwell_repeat):
+    tag = _provider_tag(provider)
+    if isinstance(err, requests.Timeout):
+        return [format_lines("Planes", "API timeout", tag)] * dwell_repeat
+    if isinstance(err, requests.ConnectionError):
+        return [format_lines("Planes", "Connection err", tag)] * dwell_repeat
+
+    status = None
+    body_text = ""
+    if isinstance(err, requests.HTTPError):
+        response = getattr(err, "response", None)
+        if response is not None:
+            status = response.status_code
+            body_text = _extract_error_text(response).lower()
+
+    if status in (401, 403):
+        return [format_lines("Planes", "Auth error", f"{tag} key")] * dwell_repeat
+
+    if status == 429 or any(token in body_text for token in ("rate", "limit", "quota", "usage", "too many")):
+        return [format_lines("Planes", "Rate limited", tag)] * dwell_repeat
+
+    if status == 402:
+        return [format_lines("Planes", "Plan limit", tag)] * dwell_repeat
+
+    if status in (500, 502, 503, 504):
+        return [format_lines("Planes", "API offline", tag)] * dwell_repeat
+
+    if status is not None:
+        return [format_lines("Planes", f"API err {status}", tag)] * dwell_repeat
+
+    return [format_lines("Planes", "Data error", "Try again")] * dwell_repeat
+
+
+def _fetch_provider_flights(settings, state, provider, lamin, lomin, lamax, lomax):
+    if provider == "opensky":
+        return _fetch_opensky(
+            state,
+            lamin,
+            lomin,
+            lamax,
+            lomax,
+            str(settings.get("opensky_client_id", "")).strip(),
+            str(settings.get("opensky_client_secret", "")).strip(),
+        )
+    if provider == "flightaware":
+        return _fetch_flightaware(lamin, lomin, lamax, lomax, str(settings.get("flightaware_api_key", "")).strip())
+    if provider == "flightradar24":
+        return _fetch_flightradar24(
+            lamin,
+            lomin,
+            lamax,
+            lomax,
+            str(settings.get("flightradar24_api_key", "")).strip(),
+            str(settings.get("flightradar24_api_host", "")).strip(),
+        )
+    if provider == "airlabs":
+        return _fetch_airlabs(lamin, lomin, lamax, lomax, str(settings.get("airlabs_api_key", "")).strip())
+    if provider == "aviationstack":
+        return _fetch_aviationstack(str(settings.get("aviationstack_api_key", "")).strip())
+    raise ValueError(f"Unsupported source: {provider}")
+
+
+
 def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
-    import math
-    import re
-    import time
-    from datetime import datetime, timezone
-
-    import requests
-
     # Keep provider polling state inside this plugin so settings changes
     # can force an immediate refresh without server-side cache hooks.
     state = getattr(fetch, "_state", None)
@@ -75,461 +565,30 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
         }
         setattr(fetch, "_state", state)
 
-    def _to_float(value, default):
-        try:
-            return float(value)
-        except Exception:
-            return default
 
-    def _to_int(value, default):
-        try:
-            return int(value)
-        except Exception:
-            return default
 
-    def _parse_lat_lon(raw):
-        if not raw:
-            return None
-        text = str(raw).strip()
-        match = re.match(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$", text)
-        if not match:
-            return None
-        lat = float(match.group(1))
-        lon = float(match.group(2))
-        if -90 <= lat <= 90 and -180 <= lon <= 180:
-            return lat, lon
-        return None
 
-    def _resolve_location(location):
-        return _parse_lat_lon(location)
 
-    def _haversine_km(lat1, lon1, lat2, lon2):
-        radius = 6371.0
-        p1 = math.radians(lat1)
-        p2 = math.radians(lat2)
-        dp = math.radians(lat2 - lat1)
-        dl = math.radians(lon2 - lon1)
-        a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        return radius * c
 
-    def _bearing_deg(lat1, lon1, lat2, lon2):
-        p1 = math.radians(lat1)
-        p2 = math.radians(lat2)
-        dl = math.radians(lon2 - lon1)
-        y = math.sin(dl) * math.cos(p2)
-        x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
-        return (math.degrees(math.atan2(y, x)) + 360) % 360
 
-    def _cardinal(deg):
-        directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-        index = int((deg + 22.5) // 45) % 8
-        return directions[index]
 
-    def _sanitize_callsign(value):
-        if not value:
-            return "Unknown"
-        # A callsign IS a code — this .upper() normalizes one, it does not shout.
-        clean = str(value).strip().upper()
-        return clean if clean else "Unknown"
 
-    def _parse_timestamp(value):
-        if value is None or value == "":
-            return None
-        if isinstance(value, (int, float)):
-            return int(value)
-        text = str(value).strip()
-        if not text:
-            return None
-        try:
-            return int(float(text))
-        except Exception:
-            pass
-        try:
-            if text.endswith("Z"):
-                text = text[:-1] + "+00:00"
-            return int(datetime.fromisoformat(text).astimezone(timezone.utc).timestamp())
-        except Exception:
-            return None
 
-    def _format_altitude(altitude_m, unit):
-        if altitude_m is None:
-            return "A?"
-        if unit == "m":
-            altitude = int(round(altitude_m))
-            if altitude >= 10000:
-                return f"A{int(round(altitude / 1000.0))}KM"
-            return f"A{altitude}M"
-        altitude_ft = int(round(altitude_m * 3.28084))
-        if unit == "fl":
-            return f"FL{int(round(altitude_ft / 100.0))}"
-        if altitude_ft >= 10000:
-            return f"A{int(round(altitude_ft / 1000.0))}K"
-        return f"A{altitude_ft}"
 
-    def _format_speed(speed_ms, unit):
-        if speed_ms is None:
-            return "?"
-        if unit == "mph":
-            return f"{int(round(speed_ms * 2.23694))}MPH"
-        if unit == "kmh":
-            return f"{int(round(speed_ms * 3.6))}KPH"
-        return f"{int(round(speed_ms * 1.94384))}KT"
 
-    def _clean_code(value):
-        """An airport code (IATA/ICAO) uppercased and trimmed, or '' — the route feed's
-        codes; only the keyed providers carry these (OpenSky's free feed has no route)."""
-        code = str(value or "").strip().upper()
-        return code if code and code.isalnum() and len(code) <= 4 else ""
 
-    def _normalize_flight(callsign, latitude, longitude, *, altitude_m=None, speed_ms=None,
-                          heading=None, on_ground=False, last_seen=None,
-                          origin=None, destination=None):
-        if latitude is None or longitude is None:
-            return None
-        try:
-            latitude = float(latitude)
-            longitude = float(longitude)
-        except Exception:
-            return None
-        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
-            return None
-        normalized = {
-            "callsign": _sanitize_callsign(callsign),
-            "lat": latitude,
-            "lon": longitude,
-            "altitude_m": None,
-            "speed_ms": None,
-            "heading": None,
-            "on_ground": bool(on_ground),
-            "last_seen": _parse_timestamp(last_seen),
-            "origin": _clean_code(origin),
-            "destination": _clean_code(destination),
-        }
-        try:
-            if altitude_m is not None:
-                normalized["altitude_m"] = float(altitude_m)
-        except Exception:
-            pass
-        try:
-            if speed_ms is not None:
-                normalized["speed_ms"] = float(speed_ms)
-        except Exception:
-            pass
-        try:
-            if heading is not None:
-                normalized["heading"] = float(heading)
-        except Exception:
-            pass
-        return normalized
 
-    def _get_opensky_token(client_id, client_secret):
-        now = time.time()
-        if state.get("opensky_token") and now < float(state.get("opensky_token_exp", 0.0)):
-            return state.get("opensky_token")
 
-        response = requests.post(
-            "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token",
-            data={
-                "grant_type": "client_credentials",
-                "client_id": client_id,
-                "client_secret": client_secret,
-            },
-            timeout=12,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        token = payload.get("access_token")
-        if not token:
-            raise ValueError("OpenSky token response missing access_token")
-        expires_in = int(payload.get("expires_in", 1800))
-        state["opensky_token"] = token
-        state["opensky_token_exp"] = now + max(60, expires_in - 30)
-        return token
 
-    def _fetch_opensky(lamin, lomin, lamax, lomax, client_id, client_secret):
-        headers = None
-        if client_id and client_secret:
-            token = _get_opensky_token(client_id, client_secret)
-            headers = {"Authorization": f"Bearer {token}"}
-        response = requests.get(
-            "https://opensky-network.org/api/states/all",
-            params={
-                "lamin": round(lamin, 5),
-                "lomin": round(lomin, 5),
-                "lamax": round(lamax, 5),
-                "lomax": round(lomax, 5),
-            },
-            headers=headers,
-            timeout=12,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        flights = []
-        for state in payload.get("states", []) or []:
-            if len(state) < 17:
-                continue
-            altitude_m = state[13] if len(state) > 13 and state[13] is not None else None
-            if altitude_m is None:
-                altitude_m = state[7] if len(state) > 7 and state[7] is not None else None
-            flight = _normalize_flight(
-                state[1],
-                state[6],
-                state[5],
-                altitude_m=altitude_m,
-                speed_ms=state[9] if len(state) > 9 else None,
-                heading=state[10] if len(state) > 10 else None,
-                on_ground=state[8] if len(state) > 8 else False,
-                last_seen=state[4] if len(state) > 4 else None,
-            )
-            if flight:
-                flights.append(flight)
-        return flights
 
-    def _fetch_flightaware(lamin, lomin, lamax, lomax, api_key):
-        query = f'-latlong "{lamin:.5f} {lomin:.5f} {lamax:.5f} {lomax:.5f}"'
-        response = requests.get(
-            "https://aeroapi.flightaware.com/aeroapi/flights/search",
-            params={"query": query, "max_pages": 1},
-            headers={"x-apikey": api_key},
-            timeout=15,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        flights = []
-        for item in payload.get("flights", []) or []:
-            pos = item.get("last_position") or {}
-            altitude_ft = pos.get("altitude")
-            speed_kt = pos.get("groundspeed")
-            org, dst = item.get("origin") or {}, item.get("destination") or {}
-            flight = _normalize_flight(
-                item.get("ident_icao") or item.get("ident_iata") or item.get("ident") or item.get("registration"),
-                pos.get("latitude"),
-                pos.get("longitude"),
-                altitude_m=(altitude_ft * 0.3048) if altitude_ft is not None else None,
-                speed_ms=(speed_kt / 1.94384) if speed_kt is not None else None,
-                heading=pos.get("heading"),
-                on_ground=False,
-                last_seen=pos.get("timestamp") or item.get("last_position_time"),
-                origin=org.get("code_iata") or org.get("code"),
-                destination=dst.get("code_iata") or dst.get("code"),
-            )
-            if flight:
-                flights.append(flight)
-        return flights
 
-    def _fetch_airlabs(lamin, lomin, lamax, lomax, api_key):
-        response = requests.get(
-            "https://airlabs.co/api/v9/flights",
-            params={
-                "api_key": api_key,
-                "bbox": f"{lamin:.5f},{lomin:.5f},{lamax:.5f},{lomax:.5f}",
-                "_fields": "lat,lng,alt,dir,speed,updated,flight_iata,flight_icao,flight_number,reg_number,status,dep_iata,arr_iata",
-            },
-            timeout=15,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        items = payload.get("response") or payload.get("data") or []
-        flights = []
-        for item in items:
-            speed_kmh = item.get("speed")
-            flight = _normalize_flight(
-                item.get("flight_iata") or item.get("flight_icao") or item.get("flight_number") or item.get("reg_number"),
-                item.get("lat"),
-                item.get("lng"),
-                altitude_m=item.get("alt"),
-                speed_ms=(speed_kmh / 3.6) if speed_kmh is not None else None,
-                heading=item.get("dir"),
-                on_ground=str(item.get("status", "")).lower() in ("landed", "scheduled", "ground"),
-                last_seen=item.get("updated"),
-                origin=item.get("dep_iata"),
-                destination=item.get("arr_iata"),
-            )
-            if flight:
-                flights.append(flight)
-        return flights
 
-    def _fetch_aviationstack(api_key):
-        response = requests.get(
-            "https://api.aviationstack.com/v1/flights",
-            params={
-                "access_key": api_key,
-                "flight_status": "active",
-                "limit": 100,
-            },
-            timeout=20,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        flights = []
-        for item in payload.get("data", []) or []:
-            live = item.get("live") or {}
-            flight_info = item.get("flight") or {}
-            aircraft = item.get("aircraft") or {}
-            dep = item.get("departure") or {}
-            arr = item.get("arrival") or {}
-            speed_kmh = live.get("speed_horizontal")
-            flight = _normalize_flight(
-                flight_info.get("iata") or flight_info.get("icao") or flight_info.get("number") or aircraft.get("registration"),
-                live.get("latitude"),
-                live.get("longitude"),
-                altitude_m=live.get("altitude"),
-                speed_ms=(speed_kmh / 3.6) if speed_kmh is not None else None,
-                heading=live.get("direction"),
-                on_ground=live.get("is_ground", False),
-                last_seen=live.get("updated"),
-                origin=dep.get("iata"),
-                destination=arr.get("iata"),
-            )
-            if flight:
-                flights.append(flight)
-        return flights
 
-    def _extract_fr24_items(payload):
-        if isinstance(payload, list):
-            return payload
-        if not isinstance(payload, dict):
-            return []
-        for key in ("data", "aircraft", "flights", "results"):
-            value = payload.get(key)
-            if isinstance(value, list):
-                return value
-            if isinstance(value, dict):
-                return [v for v in value.values() if isinstance(v, dict)]
-        return [
-            value
-            for value in payload.values()
-            if isinstance(value, dict) and any(k in value for k in ("lat", "lng", "lon", "latitude", "longitude"))
-        ]
 
-    def _fetch_flightradar24(lamin, lomin, lamax, lomax, api_key, api_host):
-        host = (api_host or "flightradar24-com.p.rapidapi.com").strip()
-        response = requests.get(
-            f"https://{host}/flights/list-in-boundary",
-            params={
-                "bl_lat": f"{lamin:.5f}",
-                "bl_lng": f"{lomin:.5f}",
-                "tr_lat": f"{lamax:.5f}",
-                "tr_lng": f"{lomax:.5f}",
-            },
-            headers={
-                "X-RapidAPI-Key": api_key,
-                "X-RapidAPI-Host": host,
-            },
-            timeout=20,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        flights = []
-        for item in _extract_fr24_items(payload):
-            speed_kt = item.get("speed") or item.get("ground_speed") or item.get("groundSpeed")
-            altitude_ft = item.get("alt") or item.get("altitude")
-            flight = _normalize_flight(
-                item.get("callsign") or item.get("flight") or item.get("flight_number") or item.get("icao") or item.get("iata") or item.get("registration"),
-                item.get("lat") or item.get("latitude"),
-                item.get("lng") or item.get("lon") or item.get("longitude"),
-                altitude_m=(altitude_ft * 0.3048) if altitude_ft is not None else None,
-                speed_ms=(speed_kt / 1.94384) if speed_kt is not None else None,
-                heading=item.get("track") or item.get("heading"),
-                on_ground=str(item.get("status", "")).lower() in ("landed", "scheduled", "ground"),
-                last_seen=item.get("timestamp") or item.get("last_seen") or item.get("time"),
-                origin=item.get("origin") or item.get("orig") or item.get("from"),
-                destination=item.get("destination") or item.get("dest") or item.get("to"),
-            )
-            if flight:
-                flights.append(flight)
-        return flights
 
-    def _provider_requirements(provider):
-        return {
-            "opensky": [],
-            "flightaware": [("flightaware_api_key", "FLIGHTAWARE")],
-            "flightradar24": [("flightradar24_api_key", "FR24 key")],
-            "airlabs": [("airlabs_api_key", "AIRLABS key")],
-            "aviationstack": [("aviationstack_api_key", "AVSTACK key")],
-        }.get(provider, [])
 
-    def _provider_tag(provider):
-        return {
-            "opensky": "OPENSKY",
-            "flightaware": "FLTAWARE",
-            "flightradar24": "FR24",
-            "airlabs": "AIRLABS",
-            "aviationstack": "AVSTACK",
-        }.get(provider, "API")
 
-    def _extract_error_text(response):
-        if not response:
-            return ""
-        try:
-            payload = response.json()
-            if isinstance(payload, dict):
-                for key in ("error", "message", "reason", "detail"):
-                    if key in payload and payload[key]:
-                        return str(payload[key])
-            return str(payload)
-        except Exception:
-            return (response.text or "").strip()
 
-    def _error_pages(provider, err, dwell_repeat):
-        tag = _provider_tag(provider)
-        if isinstance(err, requests.Timeout):
-            return [format_lines("Planes", "API timeout", tag)] * dwell_repeat
-        if isinstance(err, requests.ConnectionError):
-            return [format_lines("Planes", "Connection err", tag)] * dwell_repeat
-
-        status = None
-        body_text = ""
-        if isinstance(err, requests.HTTPError):
-            response = getattr(err, "response", None)
-            if response is not None:
-                status = response.status_code
-                body_text = _extract_error_text(response).lower()
-
-        if status in (401, 403):
-            return [format_lines("Planes", "Auth error", f"{tag} key")] * dwell_repeat
-
-        if status == 429 or any(token in body_text for token in ("rate", "limit", "quota", "usage", "too many")):
-            return [format_lines("Planes", "Rate limited", tag)] * dwell_repeat
-
-        if status == 402:
-            return [format_lines("Planes", "Plan limit", tag)] * dwell_repeat
-
-        if status in (500, 502, 503, 504):
-            return [format_lines("Planes", "API offline", tag)] * dwell_repeat
-
-        if status is not None:
-            return [format_lines("Planes", f"API err {status}", tag)] * dwell_repeat
-
-        return [format_lines("Planes", "Data error", "Try again")] * dwell_repeat
-
-    def _fetch_provider_flights(provider, lamin, lomin, lamax, lomax):
-        if provider == "opensky":
-            return _fetch_opensky(
-                lamin,
-                lomin,
-                lamax,
-                lomax,
-                str(settings.get("opensky_client_id", "")).strip(),
-                str(settings.get("opensky_client_secret", "")).strip(),
-            )
-        if provider == "flightaware":
-            return _fetch_flightaware(lamin, lomin, lamax, lomax, str(settings.get("flightaware_api_key", "")).strip())
-        if provider == "flightradar24":
-            return _fetch_flightradar24(
-                lamin,
-                lomin,
-                lamax,
-                lomax,
-                str(settings.get("flightradar24_api_key", "")).strip(),
-                str(settings.get("flightradar24_api_host", "")).strip(),
-            )
-        if provider == "airlabs":
-            return _fetch_airlabs(lamin, lomin, lamax, lomax, str(settings.get("airlabs_api_key", "")).strip())
-        if provider == "aviationstack":
-            return _fetch_aviationstack(str(settings.get("aviationstack_api_key", "")).strip())
-        raise ValueError(f"Unsupported source: {provider}")
 
     base_loop_seconds = 4.0
 
@@ -637,7 +696,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
 
     if need_poll:
         try:
-            state["flights"] = _fetch_provider_flights(data_source, lamin, lomin, lamax, lomax)
+            state["flights"] = _fetch_provider_flights(settings, state, data_source, lamin, lomin, lamax, lomax)
             state["last_error_provider"] = None
             state["last_error"] = None
             state["last_polled_at"] = now_ts
@@ -649,7 +708,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_location=None):
             state["last_sig"] = settings_sig
 
     if state["last_error"] and not state["flights"]:
-        return _error_pages(state["last_error_provider"] or data_source, state["last_error"], dwell_repeat)
+        return _error_pages(format_lines, state["last_error_provider"] or data_source, state["last_error"], dwell_repeat)
 
     flights = state["flights"]
 
@@ -865,26 +924,6 @@ _MX_GREEN = (110, 220, 130)                 # altitude
 _MX_RULE = (48, 52, 62)
 
 
-def _mx_haversine(lat1, lon1, lat2, lon2):
-    import math
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
-    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 6371.0 * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-
-def _mx_bearing(lat1, lon1, lat2, lon2):
-    import math
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dl = math.radians(lon2 - lon1)
-    y = math.sin(dl) * math.cos(p2)
-    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
-    return (math.degrees(math.atan2(y, x)) + 360) % 360
-
-
-def _mx_cardinal(deg):
-    return ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][int((deg + 22.5) // 45) % 8]
-
 
 def _mx_units(settings):
     """(distance_unit, altitude_unit), resolved the way fetch() resolves them."""
@@ -958,10 +997,10 @@ def fetch_matrix(settings, canvas, get_location=None):
             continue
         if f.get('last_seen') and (now - int(f['last_seen']) > 300):
             continue
-        d = _mx_haversine(lat, lon, f['lat'], f['lon'])
+        d = _haversine_km(lat, lon, f['lat'], f['lon'])
         if d > radius_km:
             continue
-        nearby.append((d, _mx_bearing(lat, lon, f['lat'], f['lon']), f))
+        nearby.append((d, _bearing_deg(lat, lon, f['lat'], f['lon']), f))
     if not nearby:
         canvas.frame(canvas.message('PLANES', 'NONE NEARBY', color=_MX_WHITE))
         return 60.0
@@ -985,7 +1024,7 @@ def fetch_matrix(settings, canvas, get_location=None):
     callsign = str(f.get('callsign') or 'UNKNOWN')
     o, dst = f.get('origin', ''), f.get('destination', '')
     route = f'{o}→{dst}' if (o and dst) else (f'{o}→' if o else (f'→{dst}' if dst else ''))
-    dist = f'{_mx_dist(dist_km, du)} {_mx_cardinal(bearing)}'
+    dist = f'{_mx_dist(dist_km, du)} {_cardinal(bearing)}'
     alt = _mx_alt(f.get('altitude_m'), au)
 
     W, H = canvas.width, canvas.height
