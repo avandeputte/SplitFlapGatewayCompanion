@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.7-beta.6
+
+- **OpenAPI at the standard locations** 📜 — the companion's API is now discoverable at
+  `/openapi.json`, `/openapi.yaml`, `/docs`, `/redoc` and `/.well-known/api-catalog`,
+  the same conventions the gateway follows.
+
 ## 2.10.7-beta.5
 
 - **New app: Photo Frame** 🖼️ — a slideshow of the photos on the gateway's microSD card

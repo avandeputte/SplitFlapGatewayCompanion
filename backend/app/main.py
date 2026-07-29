@@ -657,7 +657,36 @@ async def lifespan(app: FastAPI):
         await stop_display(d, _display_tasks.get(d.id, []))
 
 
-app = FastAPI(title="SplitFlapGatewayCompanion", version=__version__, lifespan=lifespan)
+app = FastAPI(
+    title="SplitFlap Gateway Companion",
+    version=__version__,
+    description="Drives split-flap walls and Matrix LED panels through the SplitFlap "
+                "Gateway: compose/send, the app runtime, playlists and triggers, live "
+                "state, and the per-display settings store.",
+    lifespan=lifespan,
+)
+
+
+# -- the OpenAPI document at its standard discovery locations ----------------
+# FastAPI serves /openapi.json (and /docs, /redoc) natively; mirror the gateway's
+# conventions with the YAML flavor and the RFC 9727 catalog pointer, so the same
+# discovery a client uses against the wall works against the companion.
+@app.get("/openapi.yaml", include_in_schema=False)
+async def openapi_yaml():
+    import yaml
+    from fastapi.responses import Response as _Resp
+    return _Resp(yaml.safe_dump(app.openapi(), sort_keys=False, allow_unicode=True),
+                 media_type="application/yaml")
+
+
+@app.get("/.well-known/api-catalog", include_in_schema=False)
+async def api_catalog():
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        {"linkset": [{"anchor": "/",
+                      "service-desc": [{"href": "/openapi.json", "type": "application/openapi+json"},
+                                       {"href": "/openapi.yaml", "type": "application/yaml"}]}]},
+        media_type="application/linkset+json")
 
 
 # ---------------------------------------------------------------------------

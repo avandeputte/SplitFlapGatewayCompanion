@@ -520,6 +520,15 @@ so one playlist can show Paris in French and Tokyo in Japanese back to back.
 Building an app that localizes? **[Writing Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Apps)**
 documents the injected `i18n`, `get_weather` and `get_location` helpers.
 
+## API reference
+
+The companion's whole HTTP surface is self-documented as OpenAPI, at the standard
+locations: **[/openapi.json](http://homeassistant.local:8000/openapi.json)** and
+`/openapi.yaml`, with interactive docs at **`/docs`** (Swagger UI) and **`/redoc`**,
+and an [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) discovery pointer at
+`/.well-known/api-catalog` — the same conventions the gateway itself follows, so one
+discovery flow works against both.
+
 ## Contributing / repo tooling
 
 Two small directories a contributor should know about:

@@ -136,9 +136,13 @@ def build(displays) -> APIRouter:
         html = _ABS_URL.sub(rf'\1=\2{base}/', html)
         return html.replace("</head>", head + "</head>", 1)
 
-    @router.api_route(PREFIX, methods=["GET"])
+    # include_in_schema=False: this is a passthrough to the GATEWAY's own UI/API —
+    # documenting it as companion surface would be wrong, and one handler serving
+    # two path shapes would emit duplicate operation ids into the schema.
+    @router.api_route(PREFIX, methods=["GET"], include_in_schema=False)
     @router.api_route(PREFIX + "/{path:path}",
-                      methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+                      methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+                      include_in_schema=False)
     async def proxy(request: Request, path: str = ""):
         display, path, display_id = _resolve(path)
         gw = display.gateway_url.rstrip("/")

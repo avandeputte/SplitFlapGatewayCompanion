@@ -34,3 +34,4 @@ zeroconf>=0.132        # gateway discovery accelerator (app/discovery.py). Optio
                        # runtime — multicast never reaches a bridged container (HA add-on,
                        # default Docker), where the HTTP sweep does the finding instead.
 pillow>=10.0       # canvas apps (image → raw frame) and the HACS board-image entity
+pyyaml>=6
