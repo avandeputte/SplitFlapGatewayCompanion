@@ -30,11 +30,17 @@ from . import gateway
 
 log = logging.getLogger("companion.canvas")
 
+# The byte encoders live in canvas_codec; re-exported here so canvas stays the
+# one import apps/tests use. paneltext supplies the PIL text toolkit mixin.
+from . import paneltext  # noqa: E402
+from .paneltext import _FONT_DIR  # noqa: F401,E402  (tests + channel art import it from here)
+from .canvas_codec import (_OPCODE, _bi16, _brgb, _bu8, _opc, _rgb,  # noqa: F401,E402
+                           _rgb565_be, _rgb565_to_888, _s8, encode_ops_bin,
+                           qoi_encode)
+
 # A real anti-aliased font, bundled once in the backend so every canvas app can
 # draw smooth text (via canvas.font) without carrying its own copy. Ships with
 # the image through `COPY backend/` (see Dockerfile).
-_FONT_DIR = os.path.join(os.path.dirname(__file__), "fonts")
-_FONT_CACHE: dict = {}
 
 _KEYFRAME_EVERY = 20
 _READBACK_TTL = 1.0
@@ -237,49 +243,7 @@ def put_frame(url: str, data: bytes, timeout: float = 15.0) -> bool:
 # same picture crosses far less WiFi (the board's panel DMA and radio share one bus). The
 # firmware decodes it straight to the panel. Pure Python, no dependency: the standard
 # run/index/diff coder, one pass over the pixels. ------------------------------------------
-def _s8(v: int) -> int:
-    """A byte difference as a signed 8-bit value (the wraparound QOI diffs use)."""
-    v &= 0xFF
-    return v - 256 if v >= 128 else v
-
-
-def qoi_encode(rgb: bytes, w: int, h: int) -> bytes:
-    """Encode a row-major rgb888 buffer (``w*h*3`` bytes) as a QOI image (3 channels, sRGB)."""
-    out = bytearray(b"qoif")
-    out += w.to_bytes(4, "big") + h.to_bytes(4, "big") + bytes((3, 0))
-    index = [0] * 64                       # seen-pixel table, keyed r<<24|g<<16|b<<8|a
-    pr = pg = pb = 0                       # previous pixel; alpha is a constant 255
-    run = 0
-    mv = memoryview(rgb)
-    n = w * h
-    app = out.append
-    for i in range(n):
-        j = i * 3
-        r, g, b = mv[j], mv[j + 1], mv[j + 2]
-        if r == pr and g == pg and b == pb:
-            run += 1
-            if run == 62 or i == n - 1:
-                app(0xC0 | (run - 1)); run = 0
-            continue
-        if run:
-            app(0xC0 | (run - 1)); run = 0
-        ih = (r * 3 + g * 5 + b * 7 + 255 * 11) & 63
-        key = (r << 24) | (g << 16) | (b << 8) | 255
-        if index[ih] == key:
-            app(ih)                                                    # QOI_OP_INDEX
-        else:
-            index[ih] = key
-            vr, vg, vb = _s8(r - pr), _s8(g - pg), _s8(b - pb)
-            vgr, vgb = _s8(vr - vg), _s8(vb - vg)
-            if -2 <= vr <= 1 and -2 <= vg <= 1 and -2 <= vb <= 1:
-                app(0x40 | ((vr + 2) << 4) | ((vg + 2) << 2) | (vb + 2))  # QOI_OP_DIFF
-            elif -32 <= vg <= 31 and -8 <= vgr <= 7 and -8 <= vgb <= 7:
-                app(0x80 | (vg + 32)); app(((vgr + 8) << 4) | (vgb + 8))  # QOI_OP_LUMA
-            else:
-                app(0xFE); app(r); app(g); app(b)                        # QOI_OP_RGB
-        pr, pg, pb = r, g, b
-    out += bytes((0, 0, 0, 0, 0, 0, 0, 1))                              # end marker
-    return bytes(out)
+# Frame/ops byte encoding lives in canvas_codec (re-exported above).
 
 
 def put_qoi(url: str, data: bytes, timeout: float = 15.0) -> bool:
@@ -306,6 +270,7 @@ def put_rect(url: str, x: int, y: int, w: int, h: int, rgb: bytes, timeout: floa
     except Exception as e:
         log.debug("canvas put_rect failed: %s", e)
         return False
+
 
 
 def _rects_body(rects: list, fmt: int = 2) -> bytes:
@@ -498,16 +463,6 @@ def put_rects(url: str, rects: list, fmt: int = 2, timeout: float = 10.0):
         return False
 
 
-def _rgb565_be(arr):
-    """A numpy (h, w, 3) uint8 array -> rgb565 big-endian bytes, row-major."""
-    import numpy as np
-    r = arr[:, :, 0].astype(np.uint16)
-    g = arr[:, :, 1].astype(np.uint16)
-    b = arr[:, :, 2].astype(np.uint16)
-    v = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
-    return v.astype(">u2").tobytes()
-
-
 def diff_rects(old_rgb: bytes, new_rgb: bytes, w: int, h: int, max_frac: float = 0.5):
     """Coarse dirty-row bands between two rgb888 frames: group the changed rows into a few bands,
     each one rect spanning the columns that differ across it. Returns ``[]`` when the frames are
@@ -608,21 +563,6 @@ def get_frame(url: str, fmt: str = "rgb888", timeout: float = 8.0):
     except Exception as e:
         log.debug("canvas get_frame failed: %s", e)
         return None
-
-
-def _rgb565_to_888(data: bytes, w: int, h: int) -> bytes:
-    """Big-endian rgb565 → rgb888, expanding each channel to 8 bits (the panel's own quantization
-    is already baked in; this only widens the container)."""
-    out = bytearray(w * h * 3)
-    n = min(len(data) // 2, w * h)
-    for i in range(n):
-        v = (data[2 * i] << 8) | data[2 * i + 1]
-        r5, g6, b5 = (v >> 11) & 0x1F, (v >> 5) & 0x3F, v & 0x1F
-        j = i * 3
-        out[j] = (r5 << 3) | (r5 >> 2)
-        out[j + 1] = (g6 << 2) | (g6 >> 4)
-        out[j + 2] = (b5 << 3) | (b5 >> 2)
-    return bytes(out)
 
 
 def set_transition(url: str, kind: str = "crossfade", ms: int = 400, timeout: float = 5.0) -> bool:
@@ -824,181 +764,12 @@ def release(url: str, timeout: float = 5.0) -> bool:
     return stopped or active_off
 
 
-# Named colors a canvas app can pass as strings (`canvas.rect(..., color="red")`).
-# The first seven match the flap-side color palette (renderer.COLOR_NAMES); the rest
-# are RGB conveniences for canvas drawing only — flaps have no cyan/magenta/pink/gray.
-_NAMED = {
-    "red": (255, 0, 0), "orange": (255, 96, 0), "yellow": (255, 200, 0),
-    "green": (0, 200, 0), "blue": (0, 80, 255), "purple": (150, 0, 255),
-    "white": (255, 255, 255), "black": (0, 0, 0), "cyan": (0, 200, 200),
-    "magenta": (255, 0, 160), "pink": (255, 100, 160), "gray": (128, 128, 128),
-}
 
 
 # The panel's bundled text faces and their fixed glyph widths. A `text` op with a `size`
 # outside this set falls back to a small 6x10 face on-device, so apps snap to these.
 _FACES = (8, 9, 10, 13, 18, 20)
 _FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}
-
-
-def _rgb(color):
-    """A color → an [r,g,b] list. Accepts a name, an (r,g,b)/[r,g,b], or a
-    #RRGGBB string. Defaults to white for anything unrecognized."""
-    if isinstance(color, str):
-        s = color.strip().lower()
-        if s in _NAMED:
-            return list(_NAMED[s])
-        if s.startswith("#") and len(s) == 7:
-            try:
-                return [int(s[i:i + 2], 16) for i in (1, 3, 5)]
-            except ValueError:
-                pass
-        return [255, 255, 255]
-    try:
-        vals = [max(0, min(255, int(v))) for v in color]
-        if len(vals) == 4:                             # rgba — fw 3.8 per-color alpha
-            return vals
-        if len(vals) == 3:
-            return vals
-        return [255, 255, 255]
-    except (TypeError, ValueError):
-        return [255, 255, 255]
-
-
-# -- binary ops (fw 3.5 "opsBin" format 1) ------------------------------------
-# The fixed-layout twin of the JSON ops batch: ~6x smaller and the wall skips JSON
-# parsing entirely (measured 1.5-1.9x the frame rate on op-heavy scenes). Big-endian,
-# coordinates signed int16. encode_ops_bin returns None when a batch contains anything
-# the format cannot carry (textbox, image, an atlas bind, a custom text font, text over
-# 127 UTF-8 bytes, >16 poly vertices, a 4-component rgba color, aa on a non-text op) —
-# the caller then sends the JSON batch instead, so output stays pixel-identical either way.
-def _bi16(v):
-    return struct.pack(">h", max(-32768, min(32767, int(v))))
-
-
-def _bu8(v):
-    return bytes((max(0, min(255, int(v))),))
-
-
-def _brgb(c):
-    return bytes((int(c[0]) & 255, int(c[1]) & 255, int(c[2]) & 255))
-
-
-# The opsBin opcode table — the one place the wire numbers live. MUST stay in lockstep
-# with the firmware's binary decoder (web.cpp); "polyline" shares poly's opcode (a flag
-# bit distinguishes them), and streaming wraps a whole batch in draw-channel record 0x06.
-_OPCODE = {
-    "clear": 0x01, "pixel": 0x02, "hline": 0x03, "vline": 0x04, "line": 0x05,
-    "rect": 0x06, "circle": 0x07, "ellipse": 0x08, "triangle": 0x09, "roundrect": 0x0a,
-    "gradient": 0x0b, "arc": 0x0c, "poly": 0x0d, "polyline": 0x0d, "clip": 0x0e,
-    "origin": 0x0f, "text": 0x10, "sprite": 0x11, "scroll": 0x12, "show": 0x13,
-    "blend": 0x14,
-}
-
-
-def _opc(k):
-    return bytes((_OPCODE[k],))
-
-
-def encode_ops_bin(ops):
-    """The batch as opsBin bytes, or None when any op is not representable."""
-    out = bytearray()
-    _BLEND = {"over": 0, "add": 1, "multiply": 2, "screen": 3, "max": 4}
-    for op in ops:
-        k = op.get("op")
-        # Per-color alpha is JSON-only (fw 3.8): a 4-component color on ANY color-bearing field
-        # (color, and gradient's from/to, and text's outline/shadow) forces the whole batch to
-        # the JSON path, so the alpha is never silently truncated to opaque in binary.
-        for _ck in ("color", "from", "to", "outline", "shadow"):
-            _cv = op.get(_ck)
-            if isinstance(_cv, (list, tuple)) and len(_cv) == 4:
-                return None
-        # Anti-aliasing has a binary form only for text; a smooth stroke (line/circle/poly/
-        # polyline) must fall back to JSON rather than encode byte-identically to a jagged one.
-        if op.get("aa") and k != "text":
-            return None
-        if k == "clear":
-            out += _opc(k) + _brgb(op.get("color", (0, 0, 0)))
-        elif k == "pixel":
-            out += _opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _brgb(op["color"])
-        elif k == "hline":
-            out += _opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _brgb(op["color"])
-        elif k == "vline":
-            out += _opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["h"]) + _brgb(op["color"])
-        elif k == "line":
-            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["x1"])
-                    + _bi16(op["y1"]) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
-        elif k == "rect":
-            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
-                    + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
-        elif k == "circle":
-            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["r"])
-                    + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
-        elif k == "ellipse":
-            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["rx"]) + _bi16(op["ry"])
-                    + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
-        elif k == "triangle":
-            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["x1"]) + _bi16(op["y1"])
-                    + _bi16(op["x2"]) + _bi16(op["y2"])
-                    + _bu8(1 if op.get("fill") else 0) + _brgb(op["color"]))
-        elif k == "roundrect":
-            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
-                    + _bi16(op["r"]) + _bu8(1 if op.get("fill") else 0) + _brgb(op["color"]))
-        elif k == "gradient":
-            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
-                    + _brgb(op["from"]) + _brgb(op["to"])
-                    + _bu8(0 if op.get("dir", "v") == "v" else 1))
-        elif k == "arc":
-            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["r"])
-                    + _bu8(op.get("t", 2)) + _bi16(op.get("start", 0)) + _bi16(op.get("end", 360))
-                    + _bu8(1 if op.get("fill") else 0) + _brgb(op["color"]))
-        elif k in ("poly", "polyline"):
-            pts = op.get("points") or []
-            if len(pts) > 16:
-                return None
-            flags = (1 if (k == "poly" and op.get("fill", True)) else 0)                 | (2 if (k == "poly" and not op.get("fill", True)) else 0)
-            out += (_opc(k) + _bu8(len(pts)) + _bu8(flags) + _bu8(op.get("t", 1))
-                    + _brgb(op["color"]))
-            for px, py in pts:
-                out += _bi16(px) + _bi16(py)
-        elif k == "clip":
-            out += (_opc(k) + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
-                    + _bi16(op.get("w", 0)) + _bi16(op.get("h", 0)))
-        elif k == "origin":
-            out += _opc(k) + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
-        elif k == "text":
-            if op.get("font"):
-                return None                        # named faces have no binary form
-            raw = str(op.get("s", "")).encode("utf-8")
-            if len(raw) > 127:
-                return None
-            flags = {"center": 1, "right": 2}.get(op.get("align"), 0)
-            if op.get("aa"):
-                flags |= 0x04
-            if op.get("outline") is not None:
-                flags |= 0x08
-            if op.get("shadow") is not None:
-                flags |= 0x10
-            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(op.get("size", 10))
-                    + _bu8(flags) + _brgb(op["color"]))
-            if op.get("outline") is not None:
-                out += _brgb(op["outline"])
-            if op.get("shadow") is not None:
-                out += _brgb(op["shadow"])
-            out += _bu8(len(raw)) + raw
-        elif k == "sprite":
-            flags = (1 if "h" in str(op.get("flip", "")) else 0)                 | (2 if "v" in str(op.get("flip", "")) else 0)                 | ((int(op.get("rot", 0)) // 90 & 3) << 2)                 | ((max(1, int(op.get("scale", 1))) - 1 & 3) << 4)
-            out += (_opc(k) + struct.pack(">H", int(op["i"]) & 0xFFFF)
-                    + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(flags))
-        elif k == "scroll":
-            out += _opc(k) + _bi16(op["dx"]) + _bi16(op["dy"]) + _brgb(op.get("color", (0, 0, 0)))
-        elif k == "blend":
-            out += _opc(k) + _bu8(_BLEND.get(op.get("mode", "over"), 0))
-        elif k == "show":
-            out += _opc(k)
-        else:
-            return None                            # textbox / image / atlas: JSON carries those
-    return bytes(out)
 
 
 def play_sound(url: str, notes=None, freq=None, ms: int = 120, vol: int = 70) -> bool:
@@ -1039,6 +810,7 @@ def post_ops_bin(url: str, data: bytes, timeout: float = 8.0) -> bool:
         return False
 
 
+
 def _with_t(op, t):
     """Attach fw-3.5 stroke thickness to a drawing op when the caller asks for one."""
     if int(t) > 1:
@@ -1053,7 +825,7 @@ def _with_aa(op, aa):
     return op
 
 
-class CanvasSurface:
+class CanvasSurface(paneltext.PanelText):
     """The drawing surface an app receives as its ``canvas`` helper. Draw calls
     accumulate ops; ``show()`` sends the batch and presents it. The panel is the
     real size — ``canvas.width`` × ``canvas.height`` pixels — not the flap grid,
@@ -1605,260 +1377,4 @@ class CanvasSurface:
             log.debug("canvas.paste failed: %s", e)
             return False
 
-    # -- rich rendering helpers (Pillow) -------------------------------------
-    # A canvas app that wants smooth type / gradients renders a whole PIL image
-    # and pushes it with frame(). These three cover the common needs so each app
-    # doesn't reinvent them: the bundled font, a blank panel-sized image, and a
-    # vertical gradient (a sky, a backdrop). Pillow is imported lazily so the
-    # module still loads where it isn't installed.
-    def font(self, size, name: str = "DejaVuSans-Bold.ttf"):
-        """A cached PIL ImageFont at ``size`` px from the bundled face."""
-        from PIL import ImageFont
-        key = (name, max(5, int(size)))
-        f = _FONT_CACHE.get(key)
-        if f is None:
-            f = ImageFont.truetype(os.path.join(_FONT_DIR, name), key[1])
-            _FONT_CACHE[key] = f
-        return f
-
-    # -- PIL text toolkit ------------------------------------------------------
-    # The panel-app text vocabulary, hoisted from the (previously per-app) _cv_*
-    # helpers so a fix lands once. Every fitter floors at 8 px: smaller sizes
-    # render wrong-reading glyphs on the panel (a 6px "2" reads as a "7").
-    MIN_READABLE = 8
-
-    def fit_font(self, text, max_w, max_h, min_size=MIN_READABLE):
-        """The largest bundled font whose ``text`` fits within max_w x max_h."""
-        size = max(min_size, int(max_h) + 2)
-        font = self.font(size)
-        for _ in range(96):
-            b = font.getbbox(text or "0")
-            if size <= min_size or (font.getlength(text or "0") <= max_w
-                                    and (b[3] - b[1]) <= max_h):
-                return font
-            size -= 1
-            font = self.font(size)
-        return font
-
-    @staticmethod
-    def mix(a, b, t):
-        """Linear blend of two RGB colors at ``t`` in [0,1]."""
-        return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
-
-    @staticmethod
-    def dim(c, k):
-        """An RGB color scaled by ``k`` (truncating — the panel's crush direction)."""
-        return tuple(int(v * k) for v in c)
-
-    @staticmethod
-    def ink(font, text):
-        """Ink height of ``text`` in ``font`` (bbox height, not line height)."""
-        b = font.getbbox(text or "0")
-        return b[3] - b[1]
-
-    @staticmethod
-    def wrap(font, text, max_w, max_lines=None):
-        """Greedy word-wrap to pixel width ``max_w``. A word wider than the panel is
-        hard-split with a visible hyphen — nothing ever draws off the edge. With
-        ``max_lines``, the surplus is cut and the last line ellipsized."""
-        lines, cur = [], ""
-        for word in str(text or "").split():
-            w = word
-            while font.getlength(w) > max_w and len(w) > 1:
-                cut = len(w)
-                while cut > 1 and font.getlength(w[:cut] + "-") > max_w:
-                    cut -= 1
-                if cur:
-                    lines.append(cur)
-                    cur = ""
-                piece = w[:cut]
-                lines.append(piece if piece.endswith("-") else piece + "-")
-                w = w[cut:]
-            cand = f"{cur} {w}".strip()
-            if not cur or font.getlength(cand) <= max_w:
-                cur = cand
-            else:
-                lines.append(cur)
-                cur = w
-        if cur:
-            lines.append(cur)
-        lines = lines or [""]
-        if max_lines is not None and len(lines) > max_lines:
-            lines = lines[:max_lines]
-            last = lines[-1]
-            while last and font.getlength(last + "…") > max_w:
-                last = last[:-1]
-            lines[-1] = (last + "…") if last else "…"
-        return lines
-
-    def wrap_fit(self, text, max_w, max_h, max_lines=None, min_size=MIN_READABLE):
-        """The largest font at which ``text`` word-wraps inside max_w x max_h (and
-        ``max_lines``, when given). A size only qualifies if every WORD fits the width
-        whole — otherwise wrap's hyphen-splitting would satisfy the width check at a
-        large size and the max_lines cut would then drop words. Returns
-        ``(font, lines)``; at the floor, hyphen-splitting (and the max_lines ellipsis)
-        is the last resort."""
-        words = str(text or "").split()
-        size = max(min_size, int(max_h))
-        while size >= min_size:
-            font = self.font(size)
-            if words and max(font.getlength(w) for w in words) > max_w:
-                size -= 1                        # a word would need a hard split — shrink instead
-                continue
-            lines = self.wrap(font, text, max_w, max_lines)
-            b = font.getbbox("Ag")
-            lh, gap = b[3] - b[1], max(1, (b[3] - b[1]) // 6)
-            if (len(lines) * lh + (len(lines) - 1) * gap <= max_h
-                    and max(font.getlength(ln) for ln in lines) <= max_w):
-                return font, lines
-            size -= 1
-        font = self.font(min_size)
-        return font, self.wrap(font, text, max_w, max_lines)
-
-    @staticmethod
-    def text_top(draw, x, y, text, font, fill):
-        """Draw with the ink's TOP at ``y`` (bbox-corrected), left edge at ``x``."""
-        draw.text((x, y - font.getbbox(text or "0")[1]), text, font=font, fill=fill,
-                  anchor="la")
-
-    def message(self, line1, line2="", color=(238, 238, 244), dim=(150, 150, 158)):
-        """A quiet two-line message card on black (offline / no data) — never a
-        crash, never a blank panel. Returns the PIL image; push it with frame()."""
-        from PIL import ImageDraw
-        W, H = self.width, self.height
-        img = self.blank((0, 0, 0))
-        draw = ImageDraw.Draw(img)
-        draw.fontmode = "1"
-        f1 = self.fit_font(line1, W - 4, int(H * 0.32))
-        h1 = self.ink(f1, line1)
-        f2 = self.fit_font(line2, W - 4, int(H * 0.22)) if line2 else None
-        h2 = self.ink(f2, line2) if line2 else 0
-        gap = 3 if line2 else 0
-        y = (H - (h1 + gap + h2)) / 2.0
-        self.text_top(draw, (W - f1.getlength(line1)) / 2.0, y, line1, f1, color)
-        if line2:
-            self.text_top(draw, (W - f2.getlength(line2)) / 2.0, y + h1 + gap,
-                          line2, f2, dim)
-        return img
-
-    def card_pages(self, text, max_w, max_h, min_size=MIN_READABLE):
-        """``(font, pages, line_h, gap)`` — ``text`` word-wrapped at the largest font
-        that holds it on one page, or wrapped at the floor and split into pages to
-        rotate through across redraws. The card-family paginator."""
-        size = max(min_size, int(max_h))
-        while size >= min_size:
-            font = self.font(size)
-            lines = self.wrap(font, text, max_w)
-            b = font.getbbox("Ag")
-            lh, gap = b[3] - b[1], max(1, (b[3] - b[1]) // 6)
-            if (len(lines) * lh + (len(lines) - 1) * gap <= max_h
-                    and max(font.getlength(ln) for ln in lines) <= max_w):
-                return font, [lines], lh, gap
-            size -= 1
-        font = self.font(min_size)
-        lines = self.wrap(font, text, max_w)
-        b = font.getbbox("Ag")
-        lh, gap = b[3] - b[1], max(1, (b[3] - b[1]) // 6)
-        per = max(1, (max_h + gap) // (lh + gap))
-        return font, [lines[i:i + per] for i in range(0, len(lines), per)] or [[""]], lh, gap
-
-    def _card_header(self, draw, label, accent, motif):
-        """Motif + label over a thin accent rule; returns the y where the body starts.
-        The motif drops away on small panels, the label never does — an overflowing
-        label loses whole words rather than clipping at the edge."""
-        W, H = self.width, self.height
-        hh = max(7, int(H * 0.19))
-        x = 3
-        if motif is not None and W >= 96 and H >= 48:
-            x += motif(draw, 3, 0, hh + 2) + 4
-        f = self.fit_font(label, W - x - 3, hh)
-        if f.getlength(label) > W - x - 3:
-            f = self.fit_font(label, 10 ** 6, hh)
-            words = str(label).split()
-            while len(words) > 1 and f.getlength(" ".join(words)) > W - x - 3:
-                words.pop()
-            label = " ".join(words)
-            if f.getlength(label) > W - x - 3:
-                f = self.fit_font(label, W - x - 3, hh)
-        b = f.getbbox(label)
-        draw.text((x, 1 - b[1]), label, font=f, fill=accent)
-        ry = 1 + max(hh, b[3] - b[1]) + 2
-        draw.line([(3, ry), (W - 4, ry)], fill=tuple(c // 3 for c in accent))
-        return ry + 2
-
-    def text_card(self, label, body, page=0, *, accent=(255, 165, 70), motif=None,
-                  sub=None, color=(238, 238, 244), dim=(150, 150, 158),
-                  dot_off=(70, 70, 76)):
-        """One frame of a label+body card — the shared renderer behind the fact/quote
-        apps. Header (accent label + rule, ``motif(draw, x, y, s)->width`` drawn where
-        the panel is big enough), page ``page`` of the body at the largest fitting
-        font (leading-stretched to fill the region, floor-anchored), an optional
-        ``sub`` attribution owning the floor, and page dots where there is room. On a
-        panel 32 px or shorter the label row is dropped — it would pin the body at
-        the 8 px floor. Returns ``(img, page_count)``."""
-        from PIL import ImageDraw
-        W, H = self.width, self.height
-        img = self.blank((0, 0, 0))
-        draw = ImageDraw.Draw(img)
-        draw.fontmode = "1"
-        top = self._card_header(draw, label, accent, motif) if H > 32 else 1
-        if sub and H < 44:
-            body = f"{body}  {sub}"       # tiny panel: the author flows with the text
-            sub = None
-        sf = sb = None
-        limit = H                         # the first row past the body's region
-        if sub:
-            sf = self.fit_font(sub, int(W * 0.72), max(7, int(H * 0.15)))
-            sb = sf.getbbox(sub)
-            limit = H - (sb[3] - sb[1]) - 2          # the author line owns the floor
-        font, pages, lh, gap = self.card_pages(body, W - 6, limit - top)
-        dots = 1 < len(pages) <= 8 and H >= 44
-        if dots and not sub:              # dots take the bottom rows when no author does
-            font, pages, lh, gap = self.card_pages(body, W - 6, limit - top - 3)
-            dots = 1 < len(pages) <= 8
-        n = len(pages)
-        lines = pages[page % n]
-        base = font.getbbox("Ag")[1]
-        bottom = limit - 4 if (dots and not sub) else limit - 1   # last body ink row
-        fb = font.getbbox(lines[0] or "0")
-        lb = font.getbbox(lines[-1] or "0")
-        step = lh + gap
-        if len(lines) > 1:
-            # The font is already at its cap, so fill by leading: stretch the line
-            # gaps (up to one line-height) until the block spans the whole region.
-            span = (len(lines) - 1) * step + (lb[3] - base) - (fb[1] - base)
-            step += max(0, min(lh, (bottom + 1 - top - span) // (len(lines) - 1)))
-        # Anchor the block to the floor; any leftover rides under the header rule.
-        y = bottom + 1 - (lb[3] - base) - step * (len(lines) - 1)
-        for ln in lines:
-            draw.text(((W - font.getlength(ln)) / 2.0, y - base), ln, font=font, fill=color)
-            y += step
-        if sub:
-            draw.text((W - 3 - sf.getlength(sub), H - (sb[3] - sb[1]) - sb[1]),
-                      sub, font=sf, fill=accent)
-        if dots:
-            for i in range(n):
-                c = accent if i == (page % n) else dot_off
-                draw.rectangle([3 + i * 5, H - 2, 4 + i * 5, H - 1], fill=c)
-        return img, n
-
-    def blank(self, color=(0, 0, 0)):
-        """A fresh RGB image the exact size of the panel."""
-        from PIL import Image
-        return Image.new("RGB", (self.width, self.height), tuple(_rgb(color)))
-
-    def vgrad(self, top, bottom):
-        """A panel-sized image with a vertical gradient from ``top`` to ``bottom``
-        (each a color name / (r,g,b) / #hex). Built one column then stretched, so
-        it's cheap enough to redraw every frame."""
-        from PIL import Image
-        t, b = _rgb(top), _rgb(bottom)
-        col = Image.new("RGB", (1, self.height))
-        px = col.load()
-        h = max(1, self.height - 1)
-        for y in range(self.height):
-            r = y / h
-            px[0, y] = (int(t[0] + (b[0] - t[0]) * r),
-                        int(t[1] + (b[1] - t[1]) * r),
-                        int(t[2] + (b[2] - t[2]) * r))
-        return col.resize((self.width, self.height))
+    # -- PIL text toolkit: inherited from paneltext.PanelText ----------------

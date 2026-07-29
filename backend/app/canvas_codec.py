@@ -1,0 +1,257 @@
+"""canvas_codec.py — the pure byte encoders for the Matrix panel wire formats.
+
+No HTTP, no state: every function here turns pixels/ops into the exact bytes the
+firmware decodes — QOI frames, rgb565 conversion, and the fw-3.5 opsBin batch
+format (with its opcode table). canvas.py re-exports these names, so callers and
+tests import them from either module; the firmware lockstep lives here.
+"""
+
+from __future__ import annotations
+
+import struct
+
+
+# Named colors a canvas app can pass as strings (`canvas.rect(..., color="red")`).
+# The first seven match the flap-side color palette (renderer.COLOR_NAMES); the rest
+# are RGB conveniences for canvas drawing only — flaps have no cyan/magenta/pink/gray.
+_NAMED = {
+    "red": (255, 0, 0), "orange": (255, 96, 0), "yellow": (255, 200, 0),
+    "green": (0, 200, 0), "blue": (0, 80, 255), "purple": (150, 0, 255),
+    "white": (255, 255, 255), "black": (0, 0, 0), "cyan": (0, 200, 200),
+    "magenta": (255, 0, 160), "pink": (255, 100, 160), "gray": (128, 128, 128),
+}
+
+
+def _rgb(color):
+    """A color → an [r,g,b] list. Accepts a name, an (r,g,b)/[r,g,b], or a
+    #RRGGBB string. Defaults to white for anything unrecognized."""
+    if isinstance(color, str):
+        s = color.strip().lower()
+        if s in _NAMED:
+            return list(_NAMED[s])
+        if s.startswith("#") and len(s) == 7:
+            try:
+                return [int(s[i:i + 2], 16) for i in (1, 3, 5)]
+            except ValueError:
+                pass
+        return [255, 255, 255]
+    try:
+        vals = [max(0, min(255, int(v))) for v in color]
+        if len(vals) == 4:                             # rgba — fw 3.8 per-color alpha
+            return vals
+        if len(vals) == 3:
+            return vals
+        return [255, 255, 255]
+    except (TypeError, ValueError):
+        return [255, 255, 255]
+
+
+
+def _s8(v: int) -> int:
+    """A byte difference as a signed 8-bit value (the wraparound QOI diffs use)."""
+    v &= 0xFF
+    return v - 256 if v >= 128 else v
+
+
+def qoi_encode(rgb: bytes, w: int, h: int) -> bytes:
+    """Encode a row-major rgb888 buffer (``w*h*3`` bytes) as a QOI image (3 channels, sRGB)."""
+    out = bytearray(b"qoif")
+    out += w.to_bytes(4, "big") + h.to_bytes(4, "big") + bytes((3, 0))
+    index = [0] * 64                       # seen-pixel table, keyed r<<24|g<<16|b<<8|a
+    pr = pg = pb = 0                       # previous pixel; alpha is a constant 255
+    run = 0
+    mv = memoryview(rgb)
+    n = w * h
+    app = out.append
+    for i in range(n):
+        j = i * 3
+        r, g, b = mv[j], mv[j + 1], mv[j + 2]
+        if r == pr and g == pg and b == pb:
+            run += 1
+            if run == 62 or i == n - 1:
+                app(0xC0 | (run - 1)); run = 0
+            continue
+        if run:
+            app(0xC0 | (run - 1)); run = 0
+        ih = (r * 3 + g * 5 + b * 7 + 255 * 11) & 63
+        key = (r << 24) | (g << 16) | (b << 8) | 255
+        if index[ih] == key:
+            app(ih)                                                    # QOI_OP_INDEX
+        else:
+            index[ih] = key
+            vr, vg, vb = _s8(r - pr), _s8(g - pg), _s8(b - pb)
+            vgr, vgb = _s8(vr - vg), _s8(vb - vg)
+            if -2 <= vr <= 1 and -2 <= vg <= 1 and -2 <= vb <= 1:
+                app(0x40 | ((vr + 2) << 4) | ((vg + 2) << 2) | (vb + 2))  # QOI_OP_DIFF
+            elif -32 <= vg <= 31 and -8 <= vgr <= 7 and -8 <= vgb <= 7:
+                app(0x80 | (vg + 32)); app(((vgr + 8) << 4) | (vgb + 8))  # QOI_OP_LUMA
+            else:
+                app(0xFE); app(r); app(g); app(b)                        # QOI_OP_RGB
+        pr, pg, pb = r, g, b
+    out += bytes((0, 0, 0, 0, 0, 0, 0, 1))                              # end marker
+    return bytes(out)
+
+
+def _rgb565_be(arr):
+    """A numpy (h, w, 3) uint8 array -> rgb565 big-endian bytes, row-major."""
+    import numpy as np
+    r = arr[:, :, 0].astype(np.uint16)
+    g = arr[:, :, 1].astype(np.uint16)
+    b = arr[:, :, 2].astype(np.uint16)
+    v = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+    return v.astype(">u2").tobytes()
+
+
+
+def _rgb565_to_888(data: bytes, w: int, h: int) -> bytes:
+    """Big-endian rgb565 → rgb888, expanding each channel to 8 bits (the panel's own quantization
+    is already baked in; this only widens the container)."""
+    out = bytearray(w * h * 3)
+    n = min(len(data) // 2, w * h)
+    for i in range(n):
+        v = (data[2 * i] << 8) | data[2 * i + 1]
+        r5, g6, b5 = (v >> 11) & 0x1F, (v >> 5) & 0x3F, v & 0x1F
+        j = i * 3
+        out[j] = (r5 << 3) | (r5 >> 2)
+        out[j + 1] = (g6 << 2) | (g6 >> 4)
+        out[j + 2] = (b5 << 3) | (b5 >> 2)
+    return bytes(out)
+
+
+
+# -- binary ops (fw 3.5 "opsBin" format 1) ------------------------------------
+# The fixed-layout twin of the JSON ops batch: ~6x smaller and the wall skips JSON
+# parsing entirely (measured 1.5-1.9x the frame rate on op-heavy scenes). Big-endian,
+# coordinates signed int16. encode_ops_bin returns None when a batch contains anything
+# the format cannot carry (textbox, image, an atlas bind, a custom text font, text over
+# 127 UTF-8 bytes, >16 poly vertices, a 4-component rgba color, aa on a non-text op) —
+# the caller then sends the JSON batch instead, so output stays pixel-identical either way.
+def _bi16(v):
+    return struct.pack(">h", max(-32768, min(32767, int(v))))
+
+
+def _bu8(v):
+    return bytes((max(0, min(255, int(v))),))
+
+
+def _brgb(c):
+    return bytes((int(c[0]) & 255, int(c[1]) & 255, int(c[2]) & 255))
+
+
+# The opsBin opcode table — the one place the wire numbers live. MUST stay in lockstep
+# with the firmware's binary decoder (web.cpp); "polyline" shares poly's opcode (a flag
+# bit distinguishes them), and streaming wraps a whole batch in draw-channel record 0x06.
+_OPCODE = {
+    "clear": 0x01, "pixel": 0x02, "hline": 0x03, "vline": 0x04, "line": 0x05,
+    "rect": 0x06, "circle": 0x07, "ellipse": 0x08, "triangle": 0x09, "roundrect": 0x0a,
+    "gradient": 0x0b, "arc": 0x0c, "poly": 0x0d, "polyline": 0x0d, "clip": 0x0e,
+    "origin": 0x0f, "text": 0x10, "sprite": 0x11, "scroll": 0x12, "show": 0x13,
+    "blend": 0x14,
+}
+
+
+def _opc(k):
+    return bytes((_OPCODE[k],))
+
+
+def encode_ops_bin(ops):
+    """The batch as opsBin bytes, or None when any op is not representable."""
+    out = bytearray()
+    _BLEND = {"over": 0, "add": 1, "multiply": 2, "screen": 3, "max": 4}
+    for op in ops:
+        k = op.get("op")
+        # Per-color alpha is JSON-only (fw 3.8): a 4-component color on ANY color-bearing field
+        # (color, and gradient's from/to, and text's outline/shadow) forces the whole batch to
+        # the JSON path, so the alpha is never silently truncated to opaque in binary.
+        for _ck in ("color", "from", "to", "outline", "shadow"):
+            _cv = op.get(_ck)
+            if isinstance(_cv, (list, tuple)) and len(_cv) == 4:
+                return None
+        # Anti-aliasing has a binary form only for text; a smooth stroke (line/circle/poly/
+        # polyline) must fall back to JSON rather than encode byte-identically to a jagged one.
+        if op.get("aa") and k != "text":
+            return None
+        if k == "clear":
+            out += _opc(k) + _brgb(op.get("color", (0, 0, 0)))
+        elif k == "pixel":
+            out += _opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _brgb(op["color"])
+        elif k == "hline":
+            out += _opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _brgb(op["color"])
+        elif k == "vline":
+            out += _opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["h"]) + _brgb(op["color"])
+        elif k == "line":
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["x1"])
+                    + _bi16(op["y1"]) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
+        elif k == "rect":
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
+                    + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
+        elif k == "circle":
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["r"])
+                    + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
+        elif k == "ellipse":
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["rx"]) + _bi16(op["ry"])
+                    + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
+        elif k == "triangle":
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["x1"]) + _bi16(op["y1"])
+                    + _bi16(op["x2"]) + _bi16(op["y2"])
+                    + _bu8(1 if op.get("fill") else 0) + _brgb(op["color"]))
+        elif k == "roundrect":
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
+                    + _bi16(op["r"]) + _bu8(1 if op.get("fill") else 0) + _brgb(op["color"]))
+        elif k == "gradient":
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
+                    + _brgb(op["from"]) + _brgb(op["to"])
+                    + _bu8(0 if op.get("dir", "v") == "v" else 1))
+        elif k == "arc":
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["r"])
+                    + _bu8(op.get("t", 2)) + _bi16(op.get("start", 0)) + _bi16(op.get("end", 360))
+                    + _bu8(1 if op.get("fill") else 0) + _brgb(op["color"]))
+        elif k in ("poly", "polyline"):
+            pts = op.get("points") or []
+            if len(pts) > 16:
+                return None
+            flags = (1 if (k == "poly" and op.get("fill", True)) else 0)                 | (2 if (k == "poly" and not op.get("fill", True)) else 0)
+            out += (_opc(k) + _bu8(len(pts)) + _bu8(flags) + _bu8(op.get("t", 1))
+                    + _brgb(op["color"]))
+            for px, py in pts:
+                out += _bi16(px) + _bi16(py)
+        elif k == "clip":
+            out += (_opc(k) + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
+                    + _bi16(op.get("w", 0)) + _bi16(op.get("h", 0)))
+        elif k == "origin":
+            out += _opc(k) + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
+        elif k == "text":
+            if op.get("font"):
+                return None                        # named faces have no binary form
+            raw = str(op.get("s", "")).encode("utf-8")
+            if len(raw) > 127:
+                return None
+            flags = {"center": 1, "right": 2}.get(op.get("align"), 0)
+            if op.get("aa"):
+                flags |= 0x04
+            if op.get("outline") is not None:
+                flags |= 0x08
+            if op.get("shadow") is not None:
+                flags |= 0x10
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(op.get("size", 10))
+                    + _bu8(flags) + _brgb(op["color"]))
+            if op.get("outline") is not None:
+                out += _brgb(op["outline"])
+            if op.get("shadow") is not None:
+                out += _brgb(op["shadow"])
+            out += _bu8(len(raw)) + raw
+        elif k == "sprite":
+            flags = (1 if "h" in str(op.get("flip", "")) else 0)                 | (2 if "v" in str(op.get("flip", "")) else 0)                 | ((int(op.get("rot", 0)) // 90 & 3) << 2)                 | ((max(1, int(op.get("scale", 1))) - 1 & 3) << 4)
+            out += (_opc(k) + struct.pack(">H", int(op["i"]) & 0xFFFF)
+                    + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(flags))
+        elif k == "scroll":
+            out += _opc(k) + _bi16(op["dx"]) + _bi16(op["dy"]) + _brgb(op.get("color", (0, 0, 0)))
+        elif k == "blend":
+            out += _opc(k) + _bu8(_BLEND.get(op.get("mode", "over"), 0))
+        elif k == "show":
+            out += _opc(k)
+        else:
+            return None                            # textbox / image / atlas: JSON carries those
+    return bytes(out)
+
+

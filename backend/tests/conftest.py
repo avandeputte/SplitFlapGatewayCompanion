@@ -294,11 +294,14 @@ def gw_calls(monkeypatch):
 
 def _borrow_toolkit(cls):
     """Give a Surface fake the real PIL text toolkit (descriptor copy), so apps that
-    call canvas.fit_font/wrap/message/text_card/mix/dim run the production code."""
+    call canvas.fit_font/wrap/message/text_card/mix/dim run the production code.
+    MRO-aware: the toolkit lives on the paneltext.PanelText mixin, num on the
+    surface itself — copy the raw descriptor from whichever class defines it."""
     from app.canvas import CanvasSurface as _CS
     for name in ("MIN_READABLE", "fit_font", "ink", "wrap", "wrap_fit", "text_top",
                  "message", "card_pages", "_card_header", "text_card", "mix", "dim", "num"):
-        setattr(cls, name, _CS.__dict__[name])
+        desc = next(k.__dict__[name] for k in _CS.__mro__ if name in k.__dict__)
+        setattr(cls, name, desc)
     return cls
 
 
