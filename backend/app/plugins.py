@@ -27,7 +27,8 @@ import threading
 import time
 from pathlib import Path
 
-from . import appaudit, canvas, device, gameinput, ha_rest, i18n, location, renderer, textlayout, weather
+from . import (appaudit, canvas, device, gameinput, ha_rest, i18n, location,
+               plugin_effects, plugin_install, plugin_schema, renderer, textlayout, weather)
 from .catalog import CATALOG, CATALOG_BY_KEY, CATALOG_KEYS, GLOBAL_STORAGE_KEYS
 from .config import Config
 from .plugin_settings import PluginSettings
@@ -44,22 +45,6 @@ _PASSTHROUGH = (
     # from GET /api/panel/library, so the field must carry the source to the client.
     "options_source",
 )
-
-# Friendly name + icon per on-device effect, for the one-app-per-effect split. An effect a
-# future firmware adds still gets an app, named from its own token.
-_EFFECT_META = {
-    "plasma": ("Plasma", "🌀"), "fire": ("Fire", "🔥"), "matrix": ("Matrix Rain", "💚"),
-    "fliporama": ("Flip-o-rama", "🎞️"), "clock": ("Panel Clock", "🕛"),
-    "life": ("Game of Life", "🦠"), "rainbow": ("Rainbow", "🌈"),
-    "spectrum": ("Spectrum", "🎚️"), "soundwall": ("Soundwall", "🔊"),
-}
-
-
-def _effect_name_icon(token: str):
-    # Effect names get a friendlier label; anything the firmware adds later is
-    # title-cased automatically (new_effect -> "New Effect").
-    return _EFFECT_META.get(token, (token.replace("_", " ").title(), "🎆"))
-
 
 # A channel app's translated page set: data_fr.json, data_pt-BR.json. The default
 # (untranslated) pages stay in data.json, which is also the fallback.
@@ -1204,85 +1189,14 @@ class PluginRuntime:
         out.sort(key=lambda a: a["name"].lower())
         return out
 
-    def _effect_defs(self) -> list[tuple[str, str]]:
-        """``(effect_id, token)`` for each on-device effect THIS wall advertises — one app
-        each. Empty on a wall with no effects (a physical wall, or caps not yet known) or
-        when the ``effects`` template app isn't on disk."""
-        if "effects" not in self._scan():
-            return []
-        try:
-            effects = list(self._caps().effects)
-        except Exception:
-            effects = []
-        return [(f"effect_{e}", e) for e in effects if e]
-
-    # The knob fields the effects template declares; replaced wholesale when the wall
-    # describes its own (effectDefs).
-    _EFFECT_KNOB_KEYS = ("effect", "speed", "hue", "density")
-
-    def _effect_def_for(self, token: str) -> dict | None:
-        """This wall's self-description of one effect (fw 3.4 ``effectDefs``), or None on
-        older firmware — callers fall back to the template's fixed knobs."""
-        try:
-            for d in self._caps().effect_defs:
-                if d.get("id") == token:
-                    return d
-        except Exception:
-            pass
-        return None
-
-    @staticmethod
-    def _effect_def_fields(d: dict) -> list[dict]:
-        """Settings fields straight from an effect's def: an int param becomes a number
-        field with the declared range, a bool a toggle; labels shown verbatim. A param of
-        an unknown type gets no field (and the app skips it on the wire) — a future
-        firmware type degrades to the effect's on-device default, never an error."""
-        fields = []
-        for pd in d.get("params") or []:
-            key, typ = str(pd.get("key") or ""), str(pd.get("type") or "")
-            if not key:
-                continue
-            label = str(pd.get("label") or key.replace("_", " ").title())
-            if typ == "int":
-                f = {"key": key, "label": label, "type": "number", "step": "1",
-                     "default": "" if pd.get("default") is None else str(pd["default"])}
-                if pd.get("min") is not None:
-                    f["min"] = str(pd["min"])
-                if pd.get("max") is not None:
-                    f["max"] = str(pd["max"])
-                fields.append(f)
-            elif typ == "bool":
-                fields.append({"key": key, "label": label, "type": "toggle",
-                               "default": "yes" if pd.get("default") else "no",
-                               "options": [{"value": "yes", "label": "On"},
-                                           {"value": "no", "label": "Off"}]})
-        return fields
+    # -- the one-app-per-effect split (synthesis lives in plugin_effects) --
+    def _effect_defs(self):
+        """(effect_id, token) per advertised effect — plugin_effects.effect_defs."""
+        return plugin_effects.effect_defs(self)
 
     def _effect_manifest(self, effect_id: str, token: str) -> dict:
-        """A per-effect app's manifest, derived from the shared ``effects`` manifest: the
-        effect PICKER is dropped (the app IS one effect, pinned via ``pinned_effect``).
-        On a wall that describes its effects (fw 3.4 ``effectDefs``) the knob fields come
-        from the effect's own def — exactly the params it consumes, named by the firmware;
-        on older firmware the template's speed/hue/density stay."""
-        d = self._scan().get("effects")
-        tmpl = dict(_read_json_cached(d / "manifest.json")) if d else {}
-        name, icon = _effect_name_icon(token)
-        m = dict(tmpl)
-        m["id"] = effect_id
-        edef = self._effect_def_for(token)
-        if edef and edef.get("name"):
-            name = str(edef["name"])                     # the firmware owns effect naming
-        m["name"] = name
-        m["icon"] = icon
-        m["description"] = f"The {name} effect, rendered on the panel itself"
-        m["pinned_effect"] = token
-        if edef is not None:
-            others = [s for s in tmpl.get("settings", [])
-                      if s.get("key") not in self._EFFECT_KNOB_KEYS]
-            m["settings"] = self._effect_def_fields(edef) + others
-        else:
-            m["settings"] = [s for s in tmpl.get("settings", []) if s.get("key") != "effect"]
-        return m
+        """One synthetic per-effect manifest — plugin_effects.effect_manifest."""
+        return plugin_effects.effect_manifest(self, effect_id, token)
 
     def available_list(self, lang=None) -> list[dict]:
         """Every app on disk, with an ``installed`` flag (for the library). The generic
@@ -1312,189 +1226,9 @@ class PluginRuntime:
         # per-app, namespaced under the app id.
         return raw_key if raw_key in GLOBAL_STORAGE_KEYS else f"plugin_{app_id}_{raw_key}"
 
-    def _dynamic_options(self, setting: dict):
-        """Options a setting draws from the LIVE wall instead of the manifest.
-
-        With ``"options_source": "effects"`` the picker offers exactly the effects
-        THIS Matrix panel advertises in GET /api/capabilities — so it tracks the
-        firmware instead of a hard-coded three. Returns None to fall back to the
-        manifest's own options (a wall that advertises none, or a physical wall)."""
-        if setting.get("options_source") != "effects":
-            return None
-        try:
-            effects = list(self._caps().effects)
-        except Exception:
-            effects = []
-        if not effects:
-            return None
-
-        def label(e):
-            d = self._effect_def_for(e)
-            if d and d.get("name"):
-                return str(d["name"])
-            return _effect_name_icon(e)[0]
-        return [{"value": e, "label": label(e)} for e in effects]
-
-    def _field(self, app_id: str, setting: dict, resolved: dict) -> dict:
-        raw = setting["key"]
-        key = resolved[raw]
-        ftype = setting.get("type", "text")
-
-        def map_key(rk):
-            return resolved.get(rk) or self._resolve_key(app_id, rk)
-
-        # A notice is a block of prose whose content is `text`; it has no label. Using
-        # the key as a stand-in when the manifest declares none would print
-        # "weatherapi_attribution_notice" at the user (the weather form). Fall back
-        # to the key ONLY where a label is actually rendered as a label.
-        label = setting.get("label") or ("" if ftype == "notice" else raw)
-        field = {"key": key, "label": label, "type": ftype}
-        if "options" in setting:
-            # options_source (e.g. "effects") overrides the manifest list with what
-            # the live wall advertises; falls back to the manifest's own options.
-            field["options"] = self._dynamic_options(setting) or setting["options"]
-        for pk in _PASSTHROUGH:
-            if pk in setting:
-                field[pk] = setting[pk]
-        if "visible_when" in setting:
-            field["visible_when"] = {map_key(k): v for k, v in setting["visible_when"].items()}
-        if "inline_toggle" in setting:
-            it = dict(setting["inline_toggle"])
-            if it.get("key"):
-                it["key"] = self._resolve_key(app_id, it["key"])
-            field["inline_toggle"] = it
-        return field
-
     def settings_schema(self, app_id: str, lang=None) -> dict:
-        manifest = self._registry.get(app_id)
-        if not manifest:
-            raise KeyError(app_id)
-        # Manifest-declared labels can carry translations via the app's i18n
-        # sidecar / the central catalog ({"settings": {key: label}}). Catalog
-        # (global) labels are chrome strings, translated client-side by t().
-        _tr_settings = (self.app_meta_i18n(app_id, self._scan().get(app_id), lang)
-                        .get("settings") or {}) if lang else {}
-        raw_settings = [s for s in manifest.get("settings", []) if s.get("key")]
-        resolved = {
-            s["key"]: self._resolve_key(app_id, s["key"])
-            for s in raw_settings
-        }
-        declared_keys = {s["key"] for s in raw_settings}
-        # An inline_toggle declares its own key too (rendered beside its parent),
-        # so it must count as declared or it gets double-surfaced by inference.
-        for s in raw_settings:
-            it = s.get("inline_toggle")
-            if it and it.get("key"):
-                declared_keys.add(it["key"])
-
-        # App-specific settings only. Catalog/global keys live in the Global
-        # editor, so they're excluded here (a hint points to them below).
-        fields = []
-
-        # Any app that adapts to language gets a per-app Language override, stored
-        # under its own plugin_<id>_language key so it never touches the global one.
-        # Blank = follow the global Language.
-        if manifest.get("i18n") and not any(s["key"] == "language" for s in raw_settings):
-            lang_options = [{"value": "", "label": "Follow global"}]
-            lang_options += [dict(o) for o in CATALOG_BY_KEY["language"]["options"]]
-            fields.append({
-                "key": f"plugin_{app_id}_language",
-                "label": "Language",
-                "type": "select",
-                "options": lang_options,
-                "default": "",
-                "note": "Override the global Language for this app only.",
-            })
-
-        # Any location-tied app gets a per-app Location override (a place search),
-        # blank = follow the global Location. Weather owns its own 'location' field.
-        if self._uses_location(app_id) and not any(s["key"] == "location" for s in raw_settings):
-            fields.append({
-                "key": f"plugin_{app_id}_location",
-                "label": "Location",
-                "type": "search_chips",
-                "searchUrl": "/location_search",
-                "resultKey": "results",
-                "maxItems": 1,
-                "default": "",
-                "note": "Override the global Location for this app only (place search).",
-            })
-
-        for s in raw_settings:
-            if s["key"] in GLOBAL_STORAGE_KEYS:
-                continue
-            f = self._field(app_id, s, resolved)
-            f["label"] = f["label"].replace(" (override global)", "")
-            tr = _tr_settings.get(s["key"])
-            if isinstance(tr, str) and tr.strip():
-                f["label"] = tr
-            elif isinstance(tr, dict):
-                if tr.get("label"):
-                    f["label"] = tr["label"]
-                if tr.get("note"):
-                    f["note"] = tr["note"]
-            fields.append(f)
-
-        # Settings the app READS but never declares are per-app too — surface them
-        # (inferred from the default they're read with) so nothing stays hidden.
-        for key, default in self._reads.get(app_id, {}).items():
-            if key in declared_keys or key in GLOBAL_STORAGE_KEYS or key == "currency_symbol":
-                continue
-            fields.append(self._infer_field(self._resolve_key(app_id, key), key, default))
-
-        # Point to the reusable globals this app uses (edited under Global settings).
-        used_global = set()
-        for k in declared_keys | set(self._reads.get(app_id, {})):
-            if k in CATALOG_KEYS:
-                used_global.add(k)
-            for c in CATALOG:
-                if k in c.get("_composite", []):
-                    used_global.add(c["key"])
-        wants = self._wants.get(app_id, frozenset())
-        if "get_weather" in wants:
-            used_global |= set(weather.GLOBAL_KEYS)   # used via the shared weather helper
-        if "get_location" in wants:
-            used_global |= set(location.GLOBAL_KEYS)  # used via the shared location helper
-        if used_global:
-            names = ", ".join(CATALOG_BY_KEY[k]["label"]
-                              for k in sorted(used_global, key=lambda x: CATALOG_BY_KEY[x]["label"]))
-            from . import uilang
-            fields.append({"key": f"_globals_note_{app_id}", "type": "notice",
-                           "label": uilang.ui_t(lang, "Also uses global settings: %s — set these under Global settings.")
-                                    .replace("%s", names)})
-
-        # A DUAL-SURFACE app (surfaces has both flap and matrix) can render on a Matrix panel instead
-        # of the plain firmware text of its flap view. One toggle governs it — a functional app draws
-        # its own rich view, a channel/quiz its text with a themed icon. It's meaningless without a
-        # framebuffer, so it appears ONLY on a Matrix-panel display, and leads the form (it changes
-        # what the rest of the settings even apply to).
-        if self.is_dual_surface(app_id) and self._caps().has_canvas:
-            rich = "art + text" if manifest.get("type") in _CHANNELISH else "rich view"
-            fields.insert(0, {
-                "key": f"plugin_{app_id}_matrix",
-                "label": f"Show on Matrix panel ({rich})",
-                "type": "toggle",
-                "default": "yes",
-                "options": [{"value": "yes", "label": "On"}, {"value": "no", "label": "Off"}],
-            })
-
-        values = {}
-        for s in raw_settings:
-            rk = resolved[s["key"]]
-            values[rk] = self.settings.get(rk, s.get("default", ""))
-            it = s.get("inline_toggle")
-            if it and it.get("key"):
-                ik = self._resolve_key(app_id, it["key"])
-                values[ik] = self.settings.get(ik, it.get("default", ""))
-        for f in fields:
-            values.setdefault(f["key"], self.settings.get(f["key"], f.get("default", "")))
-        return {
-            "id": app_id,
-            "name": manifest.get("name", app_id),
-            "icon": manifest.get("icon", "🧩"),
-            "fields": fields,
-            "values": values,
-        }
+        """The app's settings-dialog schema + current values — plugin_schema.settings_schema."""
+        return plugin_schema.settings_schema(self, app_id, lang)
 
     def _drop_caches(self, app_id: str) -> None:
         """Forget every cached render of this app — the bare key AND the
@@ -1518,118 +1252,13 @@ class PluginRuntime:
             self.settings.update(clean)
             self._drop_caches(app_id)       # settings changed -> drop cache
 
-    # -- global (shared) settings editor ----------------------------------
-    def _global_usage(self, keys) -> dict[str, set[str]]:
-        """App IDS that USE each given global key — whether they declare it OR
-        just read it in their code (settings.get). For the Global editor's
-        'Used by' note. Ids, not names: the caller renders the name, which is
-        itself translated (Weather -> Météo)."""
-        keys = set(keys)
-        usage: dict[str, set[str]] = collections.defaultdict(set)
-        for app_id, manifest in self._registry.items():
-            name = app_id
-            for st in manifest.get("settings", []):
-                if st.get("key") in keys:
-                    usage[st["key"]].add(name)
-            for k in self._reads.get(app_id, {}):
-                if k in keys:
-                    usage[k].add(name)
-            if "get_weather" in self._wants.get(app_id, frozenset()):   # via get_weather
-                for wk in weather.GLOBAL_KEYS:
-                    if wk in keys:
-                        usage[wk].add(name)
-        return usage
-
-    def _infer_field(self, key: str, raw_key: str, default) -> dict:
-        """A best-effort field for a per-app setting the manifest never declared,
-        inferred from the default value the code reads it with. ``key`` is the
-        resolved (per-app) storage key; ``raw_key`` names it."""
-        f = {"key": key, "label": raw_key.replace("_", " ").title(),
-             "note": "Used by this app (auto-detected — not in the app's manifest)"}
-        if isinstance(default, bool):
-            f.update(type="toggle", default=("true" if default else "false"),
-                     options=[{"value": "true", "label": "On"},
-                              {"value": "false", "label": "Off"}])
-        elif isinstance(default, (int, float)):
-            f.update(type="number", default=default)
-        elif isinstance(default, str) and default.lower() in ("yes", "no"):
-            f.update(type="toggle", default=default.lower(),
-                     options=[{"value": "yes", "label": "Yes"},
-                              {"value": "no", "label": "No"}])
-        else:
-            f.update(type="text", default=(default if isinstance(default, str) else ""))
-        return f
-
+    # -- global (shared) settings editor (schema lives in plugin_schema) ---
     def global_settings_schema(self, lang=None) -> dict:
-        """The built-in catalog of well-known reusable global settings — the ONLY
-        settings shown in the Global editor. They render from the catalog (so a
-        key looks right even if the declaring app isn't installed); a 'Used by'
-        note lists the installed apps that declare or read each one.
+        """The Global editor's schema — plugin_schema.global_settings_schema."""
+        return plugin_schema.global_settings_schema(self, lang)
 
-        The note is ASSEMBLED here (catalog text + the app list), so it cannot be
-        translated by the client the way a plain label is — the composed string is
-        no catalog key. Both halves are therefore translated here, app names
-        included."""
-        from . import uilang
-
-        comp_keys = {k for c in CATALOG for k in c.get("_composite", [])}
-        usage = self._global_usage(CATALOG_KEYS | comp_keys)
-        resolved = {c["key"]: c["key"] for c in CATALOG}
-        scan = self._scan()
-        fields, values = [], {}
-
-        def app_name(app_id: str) -> str:
-            meta = self.app_meta_i18n(app_id, scan.get(app_id), lang) if lang else {}
-            return meta.get("name") or \
-                (self._registry.get(app_id) or {}).get("name", app_id)
-
-        for c in CATALOG:
-            f = self._field("", c, resolved)
-            f["label"] = uilang.ui_t(lang, f["label"])
-            used_apps = set()
-            for k in [c["key"], *c.get("_composite", [])]:
-                used_apps |= usage.get(k, set())
-            base = uilang.ui_t(lang, c.get("note", "")) if c.get("note") else ""
-            used = (uilang.ui_t(lang, "Used by %s")
-                    .replace("%s", ", ".join(sorted(app_name(a) for a in used_apps)))
-                    if used_apps else "")
-            f["note"] = "  ·  ".join(x for x in (base, used) if x)
-            for o in f.get("options") or []:
-                if isinstance(o, dict) and o.get("label"):
-                    o["label"] = uilang.ui_t(lang, o["label"])
-            if f.get("ph"):
-                f["ph"] = uilang.ui_t(lang, f["ph"])
-            fields.append(f)
-            if c.get("_composite"):
-                values[c["key"]] = self._composite_value(c["_composite"])
-            else:
-                values[c["key"]] = self.settings.get(c["key"], c.get("default", ""))
-        # The localization trio are the settings people reach for first, so pin them to
-        # the top in this order — Language, then Location, then Timezone — ahead of the
-        # weather/provider fields. A stable sort keeps the catalog order for everything
-        # else (which all shares priority 99).
-        _TOP = {"language": 0, "zip_code": 1, "location_precise": 2, "timezone": 3}
-        fields.sort(key=lambda f: _TOP.get(f.get("key"), 99))
-        return {"fields": fields, "values": values}
-
-    def _composite_value(self, comp: list) -> str:
-        """Rebuild a location search chip value (``lat,lon|name``) from its stored
-        component keys, or '' when no coordinates are set."""
-        lat = self.settings.get(comp[0], "")
-        lon = self.settings.get(comp[1], "")
-        name = self.settings.get(comp[2], "") if len(comp) > 2 else ""
-        return f"{lat},{lon}|{name}" if (lat and lon) else ""
-
-    @staticmethod
-    def _parse_composite(comp: list, value) -> dict:
-        """Split a ``lat,lon|name`` chip value into its component keys (empty
-        value clears them)."""
-        coords, _, name = str(value or "").partition("|")
-        lat, _, lon = coords.partition(",")
-        out = {comp[0]: lat.strip(), comp[1]: lon.strip()}
-        if len(comp) > 2:
-            out[comp[2]] = name.strip()
-        return out
+    # The location-chip codec (used by the fetch-settings assembly above too).
+    _parse_composite = staticmethod(plugin_schema.parse_composite)
 
     def save_global_settings(self, values: dict) -> None:
         """Persist edited global settings. Only catalog keys are accepted (a
@@ -1662,225 +1291,14 @@ class PluginRuntime:
         self.settings.set_installed(ordered)
         self.load()
 
-    # -- upload / delete user apps ----------------------------------------
+    # -- upload / delete user apps (the pipeline lives in plugin_install) --
     def install_zip(self, data: bytes, *, enable: bool = True) -> dict:
-        """Validate + install an uploaded app .zip into the user apps dir.
-
-        The zip must contain exactly one ``manifest.json`` (the app folder). The
-        app id is the containing folder's name (or the manifest ``id``). Returns
-        {id, name, type}; raises ValueError with a human message on any problem.
-
-        The upload is vetted before install: the manifest is structurally checked,
-        a functional app's ``app.py`` is statically audited for disallowed /
-        malicious operations (rejected with reasons if unsafe), its fetch()
-        signature is verified, and every setting the code reads that isn't a global
-        is declared as an app-level setting in the manifest (rewritten if needed).
-        Only after the audit passes is the app imported to surface import errors.
-
-        SECURITY: the static audit is defense-in-depth, not a sandbox; a vetted app
-        still runs in-process. Only upload apps you trust.
-        """
-        import io
-        import re
-        import shutil
-        import tempfile
-        import zipfile
-
-        with tempfile.TemporaryDirectory() as td:
-            tdp = Path(td)
-            try:
-                with zipfile.ZipFile(io.BytesIO(data)) as z:
-                    # The route caps the COMPRESSED size; a zip bomb is judged by
-                    # what it inflates to. In Docker the tempdir is tmpfs — RAM —
-                    # so an unchecked extractall is an OOM, not just a full disk.
-                    infos = z.infolist()
-                    if len(infos) > 512:
-                        raise ValueError("zip has too many files (max 512)")
-                    total = sum(i.file_size for i in infos)
-                    if total > 64 * 1024 * 1024:
-                        raise ValueError("zip expands too large (max 64 MB uncompressed)")
-                    for i in infos:
-                        n = i.filename
-                        if n.startswith("/") or ".." in Path(n).parts:
-                            raise ValueError("unsafe path in zip")
-                    z.extractall(tdp)
-            except zipfile.BadZipFile:
-                raise ValueError("not a valid .zip file")
-
-            manifests = [m for m in tdp.rglob("manifest.json") if "__MACOSX" not in m.parts]
-            if len(manifests) != 1:
-                raise ValueError("the zip must contain exactly one manifest.json (the app folder)")
-            mpath = manifests[0]
-            root = mpath.parent
-            try:
-                manifest = json.loads(mpath.read_text("utf-8"))
-            except Exception as e:
-                raise ValueError(f"invalid manifest.json: {e}")
-
-            raw_id = root.name if root != tdp else (manifest.get("id") or manifest.get("name") or "app")
-            app_id = re.sub(r"[^A-Za-z0-9_-]", "", str(raw_id)) or "app"
-
-            self._validate_manifest(manifest)
-            kind = manifest.get("type")
-            if kind == "functional":
-                app_py = root / "app.py"
-                if not app_py.is_file():
-                    raise ValueError("functional app is missing app.py")
-                src = app_py.read_text("utf-8", errors="replace")
-                # 1) Static safety audit — BEFORE the module is ever executed.
-                violations = appaudit.audit_python(src)
-                if violations:
-                    raise ValueError(
-                        "app rejected — app.py contains operations that are not allowed:\n  - "
-                        + "\n  - ".join(violations))
-                # 2) fetch() must exist with the right arity (checked statically).
-                fn = appaudit.find_fetch(src)
-                if fn is None:
-                    raise ValueError(
-                        "app.py must define a fetch(settings, format_lines, get_rows, get_cols) function")
-                if len(fn.args.args) < 4:
-                    raise ValueError(
-                        "fetch() must accept (settings, format_lines, get_rows, get_cols)")
-                # 3) Scope settings: declare every non-global setting the code reads
-                #    as an app-level setting, rewriting the manifest if needed.
-                if self._scope_manifest_settings(manifest, src):
-                    mpath.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), "utf-8")
-                # 4) Only now import it — the audit has cleared it — to surface
-                #    import/syntax errors (missing deps, etc.).
-                self._validate_fetch(app_py)
-            elif kind in _CHANNELISH:
-                self._validate_channel(root, quiz=(kind == "quiz"))
-            self._validate_i18n_sidecars(root)
-
-            self.user_apps_dir.mkdir(parents=True, exist_ok=True)
-            dest = self.user_apps_dir / app_id
-            if dest.exists():
-                shutil.rmtree(dest)
-            shutil.copytree(root, dest)
-
-        if enable:
-            self.set_installed(app_id, True)   # also reloads
-        else:
-            self.load()
-        return {"id": app_id, "name": manifest.get("name"), "type": kind}
-
-    @staticmethod
-    def _validate_manifest(manifest) -> None:
-        """Structural manifest checks with human-readable errors."""
-        if not isinstance(manifest, dict):
-            raise ValueError("manifest.json must be a JSON object")
-        name = manifest.get("name")
-        if not name or not isinstance(name, str):
-            raise ValueError("manifest.json is missing a 'name'")
-        if manifest.get("type") not in ("functional", "channel", "quiz"):
-            raise ValueError("manifest 'type' must be 'functional', 'channel' or 'quiz'")
-        settings = manifest.get("settings")
-        if settings is not None:
-            if not isinstance(settings, list):
-                raise ValueError("manifest 'settings' must be a list")
-            for i, st in enumerate(settings):
-                if not isinstance(st, dict) or not st.get("key"):
-                    raise ValueError(f"manifest setting #{i + 1} must be an object with a 'key'")
-
-    @staticmethod
-    def _validate_i18n_sidecars(root: Path) -> None:
-        """Reject a broken i18n/<lang>.json at upload rather than at render.
-        Optional; only files matching the language pattern are held to shape."""
-        i18n_dir = root / "i18n"
-        if not i18n_dir.is_dir():
-            return
-        for f in sorted(i18n_dir.glob("*.json")):
-            if not I18N_META_FILE.match(f.name):
-                continue
-            try:
-                d = json.loads(f.read_text("utf-8"))
-            except Exception as e:
-                raise ValueError(f"invalid i18n/{f.name}: {e}")
-            if not isinstance(d, dict):
-                raise ValueError(f"i18n/{f.name} must be a JSON object")
-            for k in _META_STR_KEYS:
-                if k in d and not isinstance(d[k], str):
-                    raise ValueError(f"i18n/{f.name}: '{k}' must be a string")
-            if "settings" in d and not isinstance(d["settings"], dict):
-                raise ValueError(f"i18n/{f.name}: 'settings' must be an object")
-
-    @staticmethod
-    def _validate_channel(root: Path, quiz: bool = False) -> None:
-        dp = root / "data.json"
-        if not dp.is_file():
-            raise ValueError("channel app is missing data.json")
-        # data.json is required (it is the fallback for any language that has no
-        # translation); data_<lang>.json sidecars are optional and held to the same
-        # shape, so a broken translation is rejected at upload rather than at render.
-        files = [dp] + sorted(f for f in root.glob("data_*.json") if LANG_DATA_FILE.match(f.name))
-        for f in files:
-            try:
-                data = json.loads(f.read_text("utf-8"))
-            except Exception as e:
-                raise ValueError(f"invalid {f.name}: {e}")
-            if not isinstance(data, dict) or not (data.get("pages") or data.get("groups")):
-                raise ValueError(
-                    f"channel app's {f.name} must have a non-empty 'pages' or 'groups' list")
-            if quiz:
-                # A quiz's every group is a [question, answer] pair — shown as a two-screen reveal.
-                for g in data.get("groups") or []:
-                    if not (isinstance(g, list) and len(g) == 2
-                            and all(isinstance(s, str) and s.strip() for s in g)):
-                        raise ValueError(
-                            f"quiz app's {f.name}: every group must be a [question, answer] pair")
-
-    def _scope_manifest_settings(self, manifest: dict, src: str) -> bool:
-        """Ensure every non-global setting the app reads is declared as an app-level
-        setting in the manifest. Adds inferred fields for settings the code reads
-        but never declares, and drops a misleading ``global_key`` flag from any
-        non-catalog (i.e. genuinely app-level) setting. Returns True if changed."""
-        settings = manifest.setdefault("settings", [])
-        if not isinstance(settings, list):
-            return False
-        declared, changed = set(), False
-        for st in settings:
-            if not isinstance(st, dict):
-                continue
-            k = st.get("key")
-            if k:
-                declared.add(k)
-            it = st.get("inline_toggle")
-            if isinstance(it, dict) and it.get("key"):
-                declared.add(it["key"])
-            # A non-catalog setting is app-level regardless of any global_key flag;
-            # drop the misleading flag so the manifest is honest about its scope.
-            if k and k not in CATALOG_KEYS and st.pop("global_key", None) is not None:
-                changed = True
-        for key, dflt in self._scan_reads(src).items():
-            if key in declared or key in GLOBAL_STORAGE_KEYS or key == "currency_symbol":
-                continue
-            field = self._infer_field(key, key, dflt)   # manifest uses the raw key
-            field["note"] = "Auto-declared on upload — the app reads this setting."
-            settings.append(field)
-            declared.add(key)
-            changed = True
-        return changed
-
-    @staticmethod
-    def _validate_fetch(app_py: Path) -> None:
-        spec = importlib.util.spec_from_file_location(f"_upload_check_{app_py.parent.name}", str(app_py))
-        mod = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(mod)
-        except Exception as e:
-            raise ValueError(f"app.py failed to import: {e}")
-        if not (hasattr(mod, "fetch") and callable(mod.fetch)):
-            raise ValueError("app.py has no fetch() function")
+        """Vet + install an uploaded app .zip — plugin_install.install_zip."""
+        return plugin_install.install_zip(self, data, enable=enable)
 
     def delete_app(self, app_id: str) -> None:
-        """Remove a user-uploaded app entirely (built-ins can't be deleted)."""
-        import shutil
+        """Remove a user-uploaded app — plugin_install.delete_app."""
+        plugin_install.delete_app(self, app_id)
 
-        app_dir = self._app_dir(app_id)
-        if app_dir is None:
-            raise KeyError(app_id)
-        if self.is_builtin(app_id):
-            raise ValueError("built-in apps cannot be deleted")
-        self.settings.set_installed([a for a in self.settings.installed_apps if a != app_id])
-        shutil.rmtree(app_dir, ignore_errors=True)
-        self.load()
+    _validate_channel = staticmethod(plugin_install.validate_channel)
+    _validate_i18n_sidecars = staticmethod(plugin_install.validate_i18n_sidecars)
