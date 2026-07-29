@@ -290,10 +290,7 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
         states = {}
 
     n = len(ids)
-    try:
-        cols = int(float(settings.get('columns', 0) or 0))
-    except (TypeError, ValueError):
-        cols = 0
+    cols = canvas.num(settings, 'columns', 0)
     if cols < 1:
         cols = 1 if n == 1 else 2 if n <= 4 else 3 if n <= 9 else 4
     cols = max(1, min(6, cols))

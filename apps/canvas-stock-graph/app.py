@@ -167,14 +167,8 @@ def fetch_matrix(settings, canvas):
     if rng not in _RANGE:
         rng = '1D'
     period, interval, base_mode = _RANGE[rng]
-    try:
-        poll = max(30, int(float(settings.get('polling_rate', 60) or 60)))
-    except (TypeError, ValueError):
-        poll = 60
-    try:
-        dwell = max(3, int(float(settings.get('rotate_seconds', 8) or 8)))
-    except (TypeError, ValueError):
-        dwell = 8
+    poll = canvas.num(settings, 'polling_rate', 60, 30)
+    dwell = canvas.num(settings, 'rotate_seconds', 8, 3)
     market_only = str(settings.get('market_hours_only', 'yes')).strip().lower() in ('yes', 'on', '1', 'true')
 
     # -- state: a per-symbol price cache plus a rotation cursor. One symbol is drawn per call and

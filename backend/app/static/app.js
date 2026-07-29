@@ -132,6 +132,28 @@ const patch = (path, body) =>
   api(path, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
 const del = (path) => api(path, { method: "DELETE" });
 
+// ---- core DOM helpers ------------------------------------------------------
+// Used by every page below (apps, settings forms, playlists, triggers, dev menu).
+const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+
+function btn(label, onClick, cls) {
+  const b = el("button", cls);
+  b.textContent = label;
+  b.onclick = onClick;
+  return b;
+}
+
+// Run a fire-and-forget action; route failure to `sink` (a hint element) or an
+// alert. The one place action errors surface, so none get swallowed.
+async function guard(fn, sink) {
+  try { return await fn(); }
+  catch (e) {
+    const msg = t("Failed: %s", e.message);
+    if (sink) sink.textContent = msg; else alert(msg);
+    return undefined;
+  }
+}
+
 // ---- rendering helpers -----------------------------------------------------
 function classForChar(ch) {
   const c = COLOR_PUA[ch];
@@ -549,7 +571,6 @@ function wireTabs() {
 }
 
 // ---- apps ------------------------------------------------------------------
-const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
 let APPS = [];
 
 function appFits(a) {
@@ -945,52 +966,9 @@ function buildForm(schema, initial, { skip } = {}) {
     }
   };
 
-  function mkField(f, values) {
-  const wrap = el("div", "field"); wrap._field = f; wrap._getValue = () => undefined;
-  const val = values[f.key];
-  if (f.type === "notice") { const n = el("div", "notice"); n.textContent = t(f.label || f.text || ""); wrap.appendChild(n); return wrap; }
-  if (f.type === "computed") {
-    if (f.label) { const l = el("span"); l.textContent = t(f.label); wrap.appendChild(l); }
-    const n = el("div", "notice"); wrap.appendChild(n); wrap._computeEl = n; return wrap;
-  }
-  // textContent, not innerHTML: labels arrive from the app's manifest (settings
-  // schema), which an uploaded zip controls. No chrome label carries markup.
-  const label = el("span"); label.textContent = t(f.label || f.key); wrap.appendChild(label);
-  if (f.shared) { const b = el("span", "shared-badge"); b.textContent = t("shared"); b.title = t("Global setting — shared across apps"); label.appendChild(b); }
-  if (f.note) { const nt = el("small", "field-note"); nt.textContent = t(f.note); wrap.appendChild(nt); }
-
-  if (f.type === "toggle" || f.type === "select") {
-    const opts = normOpts(f.options);
-    if (f.type === "toggle") {
-      const seg = el("div", "seg");
-      const setOn = (v) => [...seg.children].forEach((c) => c.classList.toggle("on", c.dataset.value === String(v)));
-      opts.forEach((o) => {
-        const b = el("button"); b.type = "button"; b.textContent = t(o.label); b.dataset.value = o.value;
-        b.addEventListener("click", () => { seg.dataset.value = o.value; setOn(o.value); applySync(f, o.value); onFormChange(); });
-        seg.appendChild(b);
-      });
-      seg.dataset.value = val != null ? val : (opts[0]?.value ?? ""); setOn(seg.dataset.value);
-      wrap.appendChild(seg);
-      wrap._getValue = () => seg.dataset.value;
-      wrap._setValue = (v) => { seg.dataset.value = v; setOn(v); };
-    } else {
-      const sel = el("select");
-      opts.forEach((o) => { const op = el("option"); op.value = o.value; op.textContent = t(o.label); sel.appendChild(op); });
-      sel.value = val != null ? val : (opts[0]?.value ?? "");
-      sel.addEventListener("change", () => { applySync(f, sel.value); onFormChange(); });
-      wrap.appendChild(sel);
-      wrap._getValue = () => sel.value;
-      wrap._setValue = (v) => { sel.value = v; };
-      // A select fed by the LIVE wall: append the animations stored on the gateway
-      // (GET /api/panel/library). The manifest options stay as the leading fallback,
-      // so an empty/older/non-Matrix wall still has its "none" choice.
-      if (f.options_source === "anim_library") fillAnimLibrary(sel, val);
-    }
-  } else if (f.type === "textarea") {
-    const ta = el("textarea"); ta.rows = 3; ta.value = val ?? "";
-    ta.addEventListener("input", onFormChange); wrap.appendChild(ta);
-    wrap._getValue = () => ta.value; wrap._setValue = (v) => { ta.value = v; };
-  } else if (f.type === "entity_table") {
+  // The two heavyweight field types, out of mkField's dispatch so it stays scannable.
+  // Same closure scope: both use onFormChange from buildForm.
+  function buildEntityTable(f, val, wrap) {
     // A table of entities: reorder, rename, and set numeric thresholds in one place.
     // Serializes to the app's `entity_id | Name | low,high` config (one line per row, in order).
     let rows = parseEntityRows(val);
@@ -1087,7 +1065,9 @@ function buildForm(schema, initial, { skip } = {}) {
     wrap.appendChild(box); draw();
     wrap._getValue = () => serializeEntityRows(rows);
     wrap._setValue = (v) => { rows = parseEntityRows(v); draw(); };
-  } else if (f.type === "search_chips") {
+  }
+
+  function buildSearchChips(f, val, wrap) {
     const box = el("div", "chip-search");
     const chipsDiv = el("div", "chips");
     let chips = val ? String(val).split(",").filter(Boolean).map((v) => ({ value: v, label: chipLabel(v) })) : [];
@@ -1157,6 +1137,57 @@ function buildForm(schema, initial, { skip } = {}) {
     box.appendChild(results); wrap.appendChild(box); draw();
     wrap._getValue = () => chips.map((c) => c.value).join(",");
     wrap._setValue = (v) => { chips = v ? String(v).split(",").filter(Boolean).map((x) => ({ value: x, label: chipLabel(x) })) : []; draw(); };
+  }
+
+  function mkField(f, values) {
+  const wrap = el("div", "field"); wrap._field = f; wrap._getValue = () => undefined;
+  const val = values[f.key];
+  if (f.type === "notice") { const n = el("div", "notice"); n.textContent = t(f.label || f.text || ""); wrap.appendChild(n); return wrap; }
+  if (f.type === "computed") {
+    if (f.label) { const l = el("span"); l.textContent = t(f.label); wrap.appendChild(l); }
+    const n = el("div", "notice"); wrap.appendChild(n); wrap._computeEl = n; return wrap;
+  }
+  // textContent, not innerHTML: labels arrive from the app's manifest (settings
+  // schema), which an uploaded zip controls. No chrome label carries markup.
+  const label = el("span"); label.textContent = t(f.label || f.key); wrap.appendChild(label);
+  if (f.shared) { const b = el("span", "shared-badge"); b.textContent = t("shared"); b.title = t("Global setting — shared across apps"); label.appendChild(b); }
+  if (f.note) { const nt = el("small", "field-note"); nt.textContent = t(f.note); wrap.appendChild(nt); }
+
+  if (f.type === "toggle" || f.type === "select") {
+    const opts = normOpts(f.options);
+    if (f.type === "toggle") {
+      const seg = el("div", "seg");
+      const setOn = (v) => [...seg.children].forEach((c) => c.classList.toggle("on", c.dataset.value === String(v)));
+      opts.forEach((o) => {
+        const b = el("button"); b.type = "button"; b.textContent = t(o.label); b.dataset.value = o.value;
+        b.addEventListener("click", () => { seg.dataset.value = o.value; setOn(o.value); applySync(f, o.value); onFormChange(); });
+        seg.appendChild(b);
+      });
+      seg.dataset.value = val != null ? val : (opts[0]?.value ?? ""); setOn(seg.dataset.value);
+      wrap.appendChild(seg);
+      wrap._getValue = () => seg.dataset.value;
+      wrap._setValue = (v) => { seg.dataset.value = v; setOn(v); };
+    } else {
+      const sel = el("select");
+      opts.forEach((o) => { const op = el("option"); op.value = o.value; op.textContent = t(o.label); sel.appendChild(op); });
+      sel.value = val != null ? val : (opts[0]?.value ?? "");
+      sel.addEventListener("change", () => { applySync(f, sel.value); onFormChange(); });
+      wrap.appendChild(sel);
+      wrap._getValue = () => sel.value;
+      wrap._setValue = (v) => { sel.value = v; };
+      // A select fed by the LIVE wall: append the animations stored on the gateway
+      // (GET /api/panel/library). The manifest options stay as the leading fallback,
+      // so an empty/older/non-Matrix wall still has its "none" choice.
+      if (f.options_source === "anim_library") fillAnimLibrary(sel, val);
+    }
+  } else if (f.type === "textarea") {
+    const ta = el("textarea"); ta.rows = 3; ta.value = val ?? "";
+    ta.addEventListener("input", onFormChange); wrap.appendChild(ta);
+    wrap._getValue = () => ta.value; wrap._setValue = (v) => { ta.value = v; };
+  } else if (f.type === "entity_table") {
+    buildEntityTable(f, val, wrap);
+  } else if (f.type === "search_chips") {
+    buildSearchChips(f, val, wrap);
   } else {
     // text / number / password / date-time (+ optional stepper). The date types
     // pass straight through to the browser's native pickers — datetime-local
@@ -1643,24 +1674,6 @@ function _hex2rgb(h) {
 
 // A row-action button: label, click handler, optional classes. Returns the
 // element so a caller can still set .title / .disabled / styles on it.
-function btn(label, onClick, cls) {
-  const b = el("button", cls);
-  b.textContent = label;
-  b.onclick = onClick;
-  return b;
-}
-
-// Run a fire-and-forget action; route failure to `sink` (a hint element) or an
-// alert. The one place action errors surface, so none get swallowed.
-async function guard(fn, sink) {
-  try { return await fn(); }
-  catch (e) {
-    const msg = t("Failed: %s", e.message);
-    if (sink) sink.textContent = msg; else alert(msg);
-    return undefined;
-  }
-}
-
 // ---- live-game control pad -------------------------------------------------
 // Each press POSTs one action to /api/game/input, read by the running app's `controls`
 // helper on its next frame. A dropped keypress must never interrupt play, so failures

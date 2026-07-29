@@ -139,6 +139,19 @@ class Cap:
     def has_op(self, name):
         return name in self._OPS35
 
+    @staticmethod
+    def num(settings, key, default, lo=None, hi=None):
+        # Mirrors CanvasSurface.num — the raw-string-tolerant clamped settings read.
+        try:
+            v = float(settings.get(key, default) or default)
+        except (TypeError, ValueError, AttributeError):
+            v = float(default)
+        if lo is not None:
+            v = max(float(lo), v)
+        if hi is not None:
+            v = min(float(hi), v)
+        return int(v) if isinstance(default, int) else v
+
     def pixel(self, x, y, color=(255, 255, 255)):
         self._draw().point((int(x), int(y)), fill=_rgb(color))
         return self

@@ -297,7 +297,7 @@ def _borrow_toolkit(cls):
     call canvas.fit_font/wrap/message/text_card/mix/dim run the production code."""
     from app.canvas import CanvasSurface as _CS
     for name in ("MIN_READABLE", "fit_font", "ink", "wrap", "wrap_fit", "text_top",
-                 "message", "card_pages", "_card_header", "text_card", "mix", "dim"):
+                 "message", "card_pages", "_card_header", "text_card", "mix", "dim", "num"):
         setattr(cls, name, _CS.__dict__[name])
     return cls
 

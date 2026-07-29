@@ -276,11 +276,7 @@ def _play_sfx(play_sound, sfx):
         play_sound(notes=[[300, 35]], vol=32)
 
 
-def _grav_period(st, settings):
-    try:
-        speed = max(1, min(10, int(float(settings.get('speed', 5) or 5))))
-    except (TypeError, ValueError):
-        speed = 5
+def _grav_period(st, speed):
     return max(2, 13 - st['level'] - speed)            # frames per left-step; faster each level
 
 
@@ -293,14 +289,11 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
     rows = max(6, H // cell)
     gx, gy = (W - cols * cell) // 2, (H - rows * cell) // 2
     st = _state(cols, rows)
+    speed = canvas.num(settings, 'speed', 5, 1, 10)
 
     # A human on the pad takes over; after 'takeover' idle seconds it drifts back to
     # attract-mode auto-play.
-    try:
-        takeover = max(5, min(120, int(float(settings.get('takeover', 30) or 30))))
-    except (TypeError, ValueError):
-        takeover = 30
-    playing = controls is not None and controls.active(within=takeover)
+    playing = controls is not None and controls.active(within=canvas.num(settings, 'takeover', 30, 5, 120))
     events = list(controls.events) if controls is not None else []
     taps = list(controls.taps) if controls is not None else []
     presses = controls.presses if controls is not None else 0
@@ -337,7 +330,7 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
                 if not _move(st, 0, -1):               # soft drop; lock if it can't go left
                     _lock(st)
         st['grav'] += 1
-        if st['grav'] >= _grav_period(st, settings):
+        if st['grav'] >= _grav_period(st, speed):
             st['grav'] = 0
             if not _move(st, 0, -1):
                 _lock(st)
@@ -354,9 +347,5 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
         canvas.rect(W // 2 + 1, H // 2 - 4, 2, 8, (255, 255, 255), fill=True)
 
     canvas.show()
-    try:
-        speed = max(1, min(10, int(float(settings.get('speed', 5) or 5))))
-    except (TypeError, ValueError):
-        speed = 5
     hold = max(0.06, 0.30 - 0.02 * speed)
     return max(0.05, hold * 0.7) if playing else hold

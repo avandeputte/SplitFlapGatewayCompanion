@@ -313,8 +313,4 @@ def fetch_matrix(settings, canvas, i18n=None):
     else:
         canvas.frame(_cv_comment_card(canvas, ImageDraw, slide[1]))
 
-    try:
-        dwell = float(settings.get('loop_delay', 5) or 5)
-    except (TypeError, ValueError):
-        dwell = 5.0
-    return max(3.0, min(30.0, dwell))
+    return canvas.num(settings, 'loop_delay', 5.0, 3.0, 30.0)

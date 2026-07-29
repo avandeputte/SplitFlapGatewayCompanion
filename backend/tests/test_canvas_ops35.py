@@ -136,3 +136,19 @@ def test_chomper_plays_itself_through_ops(gw_calls):
              if p == "/api/canvas/ops" and isinstance(b, list)][-1]
     assert not [o for o in batch if o["op"] in ("arc", "poly")]
     assert any(o["op"] == "triangle" for o in batch)                   # the mouth bite
+
+
+def test_canvas_num_reads_raw_string_settings():
+    """canvas.num — the shared clamped settings read for matrix apps: raw strings and
+    junk degrade to the default, bounds clamp, and int-ness follows the default."""
+    from app.canvas import CanvasSurface
+    num = CanvasSurface.num
+    assert num({"speed": "7"}, "speed", 5, 1, 10) == 7
+    assert num({"speed": ""}, "speed", 5, 1, 10) == 5          # blank -> default
+    assert num({"speed": "abc"}, "speed", 5, 1, 10) == 5       # junk -> default
+    assert num({}, "speed", 5, 1, 10) == 5                     # missing -> default
+    assert num({"speed": "99"}, "speed", 5, 1, 10) == 10       # clamped high
+    assert num({"speed": "-3"}, "speed", 5, 1, 10) == 1        # clamped low
+    assert num({"speed": "7.9"}, "speed", 5, 1, 10) == 7       # int default truncates
+    assert num({"d": "4.5"}, "d", 5.0, 3.0, 30.0) == 4.5       # float default stays float
+    assert num(None, "speed", 5, 1, 10) == 5                   # no settings at all

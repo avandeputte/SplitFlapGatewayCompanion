@@ -39,8 +39,13 @@ def _rt(doc):
                         caps=device.from_capabilities(doc))
 
 
+from app.canvas import CanvasSurface as _CS
+
+
 class _Cap:
     """The two attributes the effects app reads, plus a capture of the effect() call."""
+
+    num = staticmethod(_CS.num)    # the real clamped settings read
 
     def __init__(self, defs):
         self.effects = tuple(d["id"] for d in defs) or ("plasma",)

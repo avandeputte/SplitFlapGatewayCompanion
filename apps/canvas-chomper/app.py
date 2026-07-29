@@ -384,19 +384,11 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
     rows -= 1 - (rows % 2)
     xe = [round(i * W / cols) for i in range(cols + 1)]
     ye = [round(r * H / rows) for r in range(rows + 1)]
-    try:
-        n_ghosts = max(1, min(4, int(float(settings.get('ghosts', 4) or 4))))
-    except (TypeError, ValueError):
-        n_ghosts = 4
-    st = _state(cols, rows, n_ghosts)
+    st = _state(cols, rows, canvas.num(settings, 'ghosts', 4, 1, 4))
 
     # A human on the control pad takes over; after 'takeover' idle seconds it drifts back
     # to attract-mode auto-play, which resets any frozen / finished game to a clean demo.
-    try:
-        takeover = max(5, min(120, int(float(settings.get('takeover', 30) or 30))))
-    except (TypeError, ValueError):
-        takeover = 30
-    playing = controls is not None and controls.active(within=takeover)
+    playing = controls is not None and controls.active(within=canvas.num(settings, 'takeover', 30, 5, 120))
     events = list(controls.events) if controls is not None else []
     want = _CTRL.get(controls.dir) if (controls and controls.dir) else None
     presses = controls.presses if controls is not None else 0
@@ -447,10 +439,7 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
         canvas.rect(W // 2 + 1, H // 2 - 4, 2, 8, (255, 255, 255), fill=True)
 
     canvas.show()
-    try:
-        speed = max(1, min(10, int(float(settings.get('speed', 5) or 5))))
-    except (TypeError, ValueError):
-        speed = 5
+    speed = canvas.num(settings, 'speed', 5, 1, 10)
     # A live player gets the tightest tick the loop allows (input lag = one frame);
     # attract mode idles a touch slower to spare the wall.
     hold = max(0.06, 0.34 - 0.028 * speed)

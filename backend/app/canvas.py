@@ -884,6 +884,22 @@ def _brgb(c):
     return bytes((int(c[0]) & 255, int(c[1]) & 255, int(c[2]) & 255))
 
 
+# The opsBin opcode table — the one place the wire numbers live. MUST stay in lockstep
+# with the firmware's binary decoder (web.cpp); "polyline" shares poly's opcode (a flag
+# bit distinguishes them), and streaming wraps a whole batch in draw-channel record 0x06.
+_OPCODE = {
+    "clear": 0x01, "pixel": 0x02, "hline": 0x03, "vline": 0x04, "line": 0x05,
+    "rect": 0x06, "circle": 0x07, "ellipse": 0x08, "triangle": 0x09, "roundrect": 0x0a,
+    "gradient": 0x0b, "arc": 0x0c, "poly": 0x0d, "polyline": 0x0d, "clip": 0x0e,
+    "origin": 0x0f, "text": 0x10, "sprite": 0x11, "scroll": 0x12, "show": 0x13,
+    "blend": 0x14,
+}
+
+
+def _opc(k):
+    return bytes((_OPCODE[k],))
+
+
 def encode_ops_bin(ops):
     """The batch as opsBin bytes, or None when any op is not representable."""
     out = bytearray()
@@ -902,38 +918,38 @@ def encode_ops_bin(ops):
         if op.get("aa") and k != "text":
             return None
         if k == "clear":
-            out += b"\x01" + _brgb(op.get("color", (0, 0, 0)))
+            out += _opc(k) + _brgb(op.get("color", (0, 0, 0)))
         elif k == "pixel":
-            out += b"\x02" + _bi16(op["x"]) + _bi16(op["y"]) + _brgb(op["color"])
+            out += _opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _brgb(op["color"])
         elif k == "hline":
-            out += b"\x03" + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _brgb(op["color"])
+            out += _opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _brgb(op["color"])
         elif k == "vline":
-            out += b"\x04" + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["h"]) + _brgb(op["color"])
+            out += _opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["h"]) + _brgb(op["color"])
         elif k == "line":
-            out += (b"\x05" + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["x1"])
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["x1"])
                     + _bi16(op["y1"]) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
         elif k == "rect":
-            out += (b"\x06" + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
                     + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
         elif k == "circle":
-            out += (b"\x07" + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["r"])
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["r"])
                     + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
         elif k == "ellipse":
-            out += (b"\x08" + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["rx"]) + _bi16(op["ry"])
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["rx"]) + _bi16(op["ry"])
                     + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
         elif k == "triangle":
-            out += (b"\x09" + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["x1"]) + _bi16(op["y1"])
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["x1"]) + _bi16(op["y1"])
                     + _bi16(op["x2"]) + _bi16(op["y2"])
                     + _bu8(1 if op.get("fill") else 0) + _brgb(op["color"]))
         elif k == "roundrect":
-            out += (b"\x0a" + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
                     + _bi16(op["r"]) + _bu8(1 if op.get("fill") else 0) + _brgb(op["color"]))
         elif k == "gradient":
-            out += (b"\x0b" + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
                     + _brgb(op["from"]) + _brgb(op["to"])
                     + _bu8(0 if op.get("dir", "v") == "v" else 1))
         elif k == "arc":
-            out += (b"\x0c" + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["r"])
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["r"])
                     + _bu8(op.get("t", 2)) + _bi16(op.get("start", 0)) + _bi16(op.get("end", 360))
                     + _bu8(1 if op.get("fill") else 0) + _brgb(op["color"]))
         elif k in ("poly", "polyline"):
@@ -941,15 +957,15 @@ def encode_ops_bin(ops):
             if len(pts) > 16:
                 return None
             flags = (1 if (k == "poly" and op.get("fill", True)) else 0)                 | (2 if (k == "poly" and not op.get("fill", True)) else 0)
-            out += (b"\x0d" + _bu8(len(pts)) + _bu8(flags) + _bu8(op.get("t", 1))
+            out += (_opc(k) + _bu8(len(pts)) + _bu8(flags) + _bu8(op.get("t", 1))
                     + _brgb(op["color"]))
             for px, py in pts:
                 out += _bi16(px) + _bi16(py)
         elif k == "clip":
-            out += (b"\x0e" + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
+            out += (_opc(k) + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
                     + _bi16(op.get("w", 0)) + _bi16(op.get("h", 0)))
         elif k == "origin":
-            out += b"\x0f" + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
+            out += _opc(k) + _bi16(op.get("x", 0)) + _bi16(op.get("y", 0))
         elif k == "text":
             if op.get("font"):
                 return None                        # named faces have no binary form
@@ -963,7 +979,7 @@ def encode_ops_bin(ops):
                 flags |= 0x08
             if op.get("shadow") is not None:
                 flags |= 0x10
-            out += (b"\x10" + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(op.get("size", 10))
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(op.get("size", 10))
                     + _bu8(flags) + _brgb(op["color"]))
             if op.get("outline") is not None:
                 out += _brgb(op["outline"])
@@ -972,14 +988,14 @@ def encode_ops_bin(ops):
             out += _bu8(len(raw)) + raw
         elif k == "sprite":
             flags = (1 if "h" in str(op.get("flip", "")) else 0)                 | (2 if "v" in str(op.get("flip", "")) else 0)                 | ((int(op.get("rot", 0)) // 90 & 3) << 2)                 | ((max(1, int(op.get("scale", 1))) - 1 & 3) << 4)
-            out += (b"\x11" + struct.pack(">H", int(op["i"]) & 0xFFFF)
+            out += (_opc(k) + struct.pack(">H", int(op["i"]) & 0xFFFF)
                     + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(flags))
         elif k == "scroll":
-            out += b"\x12" + _bi16(op["dx"]) + _bi16(op["dy"]) + _brgb(op.get("color", (0, 0, 0)))
+            out += _opc(k) + _bi16(op["dx"]) + _bi16(op["dy"]) + _brgb(op.get("color", (0, 0, 0)))
         elif k == "blend":
-            out += b"\x14" + _bu8(_BLEND.get(op.get("mode", "over"), 0))
+            out += _opc(k) + _bu8(_BLEND.get(op.get("mode", "over"), 0))
         elif k == "show":
-            out += b"\x13"
+            out += _opc(k)
         else:
             return None                            # textbox / image / atlas: JSON carries those
     return bytes(out)
@@ -1258,6 +1274,27 @@ class CanvasSurface:
     def has_op(self, name) -> bool:
         """Whether this wall's ops vocabulary includes ``name`` (capabilities canvas.ops)."""
         return str(name) in self.op_names
+
+    @staticmethod
+    def num(settings, key, default, lo=None, hi=None):
+        """Read ``settings[key]`` as a number, tolerant of the raw-string settings contract
+        ("" / junk → ``default``), clamped to [lo, hi]. Returns an int when ``default`` is an
+        int (truncating, like the ``int(float(...))`` idiom it replaces), else a float.
+
+        Matrix apps use this instead of hand-rolling the try/except clamp — it lives on the
+        canvas surface (not an injected parameter) so a test or the screenshot harness can
+        call ``fetch_matrix(settings, canvas)`` directly and it is simply there. The flap-side
+        ``fetch()`` keeps the hand-rolled idiom: it has no canvas, and its signature is the
+        portable upstream ABI (apps/README.md)."""
+        try:
+            v = float(settings.get(key, default) or default)
+        except (TypeError, ValueError, AttributeError):
+            v = float(default)
+        if lo is not None:
+            v = max(float(lo), v)
+        if hi is not None:
+            v = min(float(hi), v)
+        return int(v) if isinstance(default, int) else v
 
     # -- text helpers (the bundled faces are fixed-width per size) ------------
     @property

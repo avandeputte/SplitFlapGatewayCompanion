@@ -44,10 +44,7 @@ def fetch_matrix(settings, canvas):
     # Older firmware: the flat knob list. speed always; hue (0-255) and density (1-100)
     # only where the wall advertises them (caps.effect_params) and only when actually set —
     # blank means "keep the effect's own default look".
-    try:
-        speed = int(float(settings.get('speed', 5) or 5))
-    except (TypeError, ValueError):
-        speed = 5
+    speed = canvas.num(settings, 'speed', 5)
     knob_names = getattr(canvas, 'effect_params', ())
 
     def _opt(key, lo, hi):

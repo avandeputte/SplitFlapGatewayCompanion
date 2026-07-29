@@ -68,10 +68,7 @@ def fetch_matrix(settings, canvas):
     W, H = canvas.width, canvas.height
     tile = max(8, min(22, H // 3)) & ~1                        # even, ~a third of the panel
 
-    try:
-        n = max(1, min(16, int(float(settings.get('fish', 6) or 6))))
-    except (TypeError, ValueError):
-        n = 6
+    n = canvas.num(settings, 'fish', 6, 1, 16)
     water = _WATER.get(str(settings.get('water', 'reef') or 'reef').lower(), _WATER['reef'])
 
     st = getattr(fetch_matrix, '_state', None)

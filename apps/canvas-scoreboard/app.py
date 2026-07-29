@@ -173,10 +173,7 @@ def fetch_matrix(settings, canvas):
               'sheet_for': 0, 'key': None}
         setattr(fetch_matrix, '_state', st)
 
-    try:
-        rotate = max(3, min(60, int(float(settings.get('rotate', 8) or 8))))
-    except (TypeError, ValueError):
-        rotate = 8
+    rotate = canvas.num(settings, 'rotate', 8, 3, 60)
 
     # Refresh the game list when the selection CHANGES (so a per-playlist team override takes
     # effect at once, not after a 120 s cache), and otherwise every couple of minutes.

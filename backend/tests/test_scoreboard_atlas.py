@@ -13,8 +13,12 @@ def _load():
     return load_app("canvas-scoreboard")
 
 
+from app.canvas import CanvasSurface as _CS
+
+
 class _Cv:
     width, height, can_sprite = 128, 64, True
+    num = staticmethod(_CS.num)    # the real clamped settings read
 
     def __init__(self):
         self.uploads = []          # tiles-per-upload, one entry per upload_atlas call
