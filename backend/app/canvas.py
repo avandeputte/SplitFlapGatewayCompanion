@@ -808,6 +808,31 @@ def play_sound(url: str, notes=None, freq=None, ms: int = 120, vol: int = 70) ->
     return True
 
 
+def sd_list(url: str, path: str = "/", timeout: float = 8.0) -> list:
+    """One directory level of the wall's microSD card (fw 3.10 ``sd`` feature):
+    ``[{"name", "dir", "size"}, ...]``, or ``[]`` on any failure (no card, bad path,
+    unreachable). Read-only and safe to poll gently — the card is the gateway's."""
+    try:
+        r = gateway._request("GET", url, "/api/sd/list", params={"path": path or "/"},
+                             timeout=timeout)
+        return r.json() if r.status_code == 200 else []
+    except Exception as e:
+        log.debug("canvas sd_list(%s) failed: %s", path, e)
+        return []
+
+
+def sd_get(url: str, path: str, timeout: float = 20.0) -> bytes | None:
+    """A file's raw bytes off the wall's microSD card, or None. The generous timeout is
+    for multi-MB photos over the ESP32's HTTP server."""
+    try:
+        r = gateway._request("GET", url, "/api/sd/get", params={"path": path},
+                             timeout=timeout)
+        return r.content if r.status_code == 200 else None
+    except Exception as e:
+        log.debug("canvas sd_get(%s) failed: %s", path, e)
+        return None
+
+
 def post_ops_bin(url: str, data: bytes, timeout: float = 8.0) -> bool:
     """Apply a binary op batch (POST /api/canvas/opsb, fw 3.5)."""
     try:
@@ -871,6 +896,7 @@ class CanvasSurface(paneltext.PanelText):
         self.can_text_styles = "textbox" in self.op_names
         self.can_ops_bin = int(caps.canvas_ops_bin or 0) >= 1
         self.can_composite = bool(caps.canvas_composite)   # fw 3.8+: alpha, blend modes, AA
+        self.can_sd = bool(caps.can_sd)                    # fw 3.10+: a microSD card is mounted
         # 1.19 / 1.25 / 2.1. `can_ops` is "any draw ops at all" (the vocabulary itself is
         # op_names above, consulted via has_op()). The 2.1 endpoint families aren't flagged
         # one by one, so they all gate on the firmware version (caps.canvas_2_1).
@@ -1055,6 +1081,14 @@ class CanvasSurface(paneltext.PanelText):
     def has_op(self, name) -> bool:
         """Whether this wall's ops vocabulary includes ``name`` (capabilities canvas.ops)."""
         return str(name) in self.op_names
+
+    def sd_list(self, path: str = "/") -> list:
+        """This wall's microSD directory listing (``[]`` without a card) — see module sd_list."""
+        return sd_list(self.url, path) if self.can_sd else []
+
+    def sd_get(self, path: str) -> bytes | None:
+        """A file's bytes off this wall's microSD card (None without a card)."""
+        return sd_get(self.url, path) if self.can_sd else None
 
     @staticmethod
     def num(settings, key, default, lo=None, hi=None):

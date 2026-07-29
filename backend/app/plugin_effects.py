@@ -20,6 +20,7 @@ EFFECT_META = {
     "fliporama": ("Flip-o-rama", "🎞️"), "clock": ("Panel Clock", "🕛"),
     "life": ("Game of Life", "🦠"), "rainbow": ("Rainbow", "🌈"),
     "spectrum": ("Spectrum", "🎚️"), "soundwall": ("Soundwall", "🔊"),
+    "maze": ("Maze", "🌀"), "ripple": ("Beat Ripples", "🌊"), "scope": ("Oscilloscope", "📈"),
 }
 
 # The knob fields the effects template declares; replaced wholesale when the wall

@@ -1,0 +1,49 @@
+{
+  "id": "sd-photos",
+  "name": "Photo Frame",
+  "icon": "🖼️",
+  "description": "A slideshow of the photos on the gateway's microSD card (firmware 3.10+). Drop images onto the card from the gateway's Files tab — the panel rotates through them.",
+  "type": "functional",
+  "surfaces": ["matrix"],
+  "category": "fun",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "settings": [
+    {
+      "key": "folder",
+      "label": "Folder",
+      "type": "text",
+      "default": "/photos",
+      "note": "Card folder to show (also reads / if it doesn't exist). JPG/PNG/GIF/BMP/WEBP."
+    },
+    {
+      "key": "dwell",
+      "label": "Seconds per photo",
+      "type": "number",
+      "default": "10",
+      "min": "3", "max": "300", "step": "1", "stepper": true
+    },
+    {
+      "key": "fit",
+      "label": "Fit",
+      "type": "toggle",
+      "default": "cover",
+      "options": [
+        {"value": "cover", "label": "Fill"},
+        {"value": "contain", "label": "Letterbox"}
+      ]
+    },
+    {
+      "key": "shuffle",
+      "label": "Shuffle",
+      "type": "toggle",
+      "default": "no",
+      "options": [
+        {"value": "yes", "label": "On"},
+        {"value": "no", "label": "Off"}
+      ]
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 15
+}

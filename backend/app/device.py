@@ -121,6 +121,7 @@ class Capabilities:
     events: bool = False                    # GET /api/events — the gateway's own SSE display stream
                                             # (parsed for completeness; no companion consumer yet)
     can_sound: bool = False                 # POST /api/sound — on-device tone synthesis (fw 3.6 "sound")
+    can_sd: bool = False                    # /api/sd/* — a microSD card is mounted (fw 3.10 "sd")
 
     def __bool__(self) -> bool:
         return self.indexed
@@ -304,6 +305,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_rects=bool(canvas.get("rects")),
         canvas_stream=bool(canvas.get("stream")),
         can_sound="sound" in features,
+        can_sd="sd" in features,
         events="events" in features,
     )
 

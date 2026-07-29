@@ -47,6 +47,7 @@ APP_IDS = [
     'useless-fact', 'weather', 'wiki-today', 'word-clock', 'word-of-the-day',
     'world_clock', 'youtube', 'yt_comments',
     'canvas-chomper',                    # matrix-only: the ops-surface arcade
+    'sd-photos',                         # matrix-only: the microSD slideshow
 ]
 
 # Channels/quizzes render generically on the panel (big text + themed art) via
@@ -135,6 +136,43 @@ class Cap:
     _OPS35 = ('clear', 'pixel', 'hline', 'vline', 'line', 'rect', 'circle', 'ellipse',
               'triangle', 'roundrect', 'gradient', 'polyline', 'poly', 'arc', 'clip',
               'origin', 'text', 'textbox', 'image', 'sprite', 'scroll', 'show')
+
+
+    # -- microSD (fw 3.10): a fake card with two synthetic sample photos ------
+    can_sd = True
+    _SD_PHOTOS = {}
+
+    @classmethod
+    def _sd_photo(cls, name):
+        if name not in cls._SD_PHOTOS:
+            import io as _io
+            import math as _math
+            w, h = 320, 200
+            img = Image.new('RGB', (w, h))
+            px = img.load()
+            warm = 'sunset' in name
+            for y in range(h):
+                t = y / h
+                sky = ((int(30 + 200 * t), int(60 + 90 * t), int(120 - 60 * t)) if warm
+                       else (int(20 + 60 * t), int(90 + 120 * t), int(150 + 80 * t)))
+                for x in range(w):
+                    px[x, y] = sky
+            d = ImageDraw.Draw(img)
+            if warm:
+                d.ellipse([w * 0.58, h * 0.38, w * 0.58 + 52, h * 0.38 + 52], fill=(255, 214, 120))
+            ridge = [(x, h * 0.60 + 16 * _math.sin(x * 0.02 + (0 if warm else 2)))
+                     for x in range(0, w + 8, 8)]
+            d.polygon(ridge + [(w, h), (0, h)], fill=(24, 30, 22) if warm else (16, 24, 34))
+            buf = _io.BytesIO()
+            img.save(buf, 'JPEG', quality=88)
+            cls._SD_PHOTOS[name] = buf.getvalue()
+        return cls._SD_PHOTOS[name]
+
+    def sd_list(self, path='/'):
+        return [{'name': n, 'dir': False, 'size': 1} for n in ('01-sunset.jpg', '02-lake.jpg')]
+
+    def sd_get(self, path):
+        return self._sd_photo(path.rsplit('/', 1)[-1])
 
     def has_op(self, name):
         return name in self._OPS35
