@@ -806,3 +806,17 @@ def test_global_settings_lead_with_language_location_timezone(tmp_path):
     order = [f["key"] for f in rt.global_settings_schema()["fields"]]
     assert order[:4] == ["language", "zip_code", "location_precise", "timezone"], \
         f"localization trio not pinned to the top: {order[:4]}"
+
+
+def test_saving_settings_drops_override_keyed_caches(tmp_path):
+    """A playlist entry renders under a cache key of app_id + overrides; editing
+    the app's settings must forget THOSE pages too, not only the bare key."""
+    rt = make_runtime(tmp_path)
+    rt._registry["demo"] = {"id": "demo", "name": "Demo", "type": "functional"}
+    rt._caches["demo"] = {"pages": ["OLD"], "fetched_at": 9e18}
+    rt._caches["demo\x00style=x"] = {"pages": ["OLD-OVR"], "fetched_at": 9e18}
+    rt._caches["other"] = {"pages": ["KEEP"], "fetched_at": 9e18}
+    rt.save_settings("demo", {"plugin_demo_thing": "1"})
+    assert "demo" not in rt._caches
+    assert "demo\x00style=x" not in rt._caches
+    assert "other" in rt._caches

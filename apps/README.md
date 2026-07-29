@@ -84,3 +84,30 @@ With `top` you can emit blank lines wherever you want them and they will be resp
 Without it, an app that centers its own block gets centered **twice** and drifts below the
 middle.
 
+
+## The Matrix-panel surface (`fetch_matrix`)
+
+Most apps here define a second entry point alongside `fetch()`:
+
+```python
+def fetch_matrix(settings, canvas, controls=None, play_sound=None):
+    canvas.text(2, 2, "HELLO", (255, 200, 0), size=10)
+    canvas.show()
+    return 5           # seconds to hold before the next redraw
+```
+
+It draws the app's **rich view on a Matrix LED panel** and is a **companion-only
+extension** — a bare upstream host never calls it, so it may rely on the injected
+`canvas` surface freely. Two styles: *ops-drawing* (call `canvas.rect/circle/text/...`
+then `canvas.show()`; the batch renders on-device, streamed as binary ops where the
+firmware supports it) and *frame-push* (build a PIL image with `canvas.blank()`/
+`canvas.vgrad()`/`canvas.font()` and hand it to `canvas.frame(img)`). Read settings with
+`canvas.num(settings, key, default, lo, hi)` — the shared clamped raw-string parser —
+and gate newer draw ops on `canvas.has_op(...)` / the `canvas.can_*` capability flags.
+Interactive games additionally declare `"interactive": true` and take the `controls` /
+`play_sound` helpers.
+
+The full surface reference (draw ops, the PIL text toolkit, capabilities, compositing)
+lives on the wiki: [Writing Matrix Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Matrix-Apps).
+A dual-surface app keeps `fetch()` as its flap view; the manifest's `surfaces` list and
+the per-app "Show on Matrix panel" toggle decide which view a given wall runs.

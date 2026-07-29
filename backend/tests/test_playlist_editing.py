@@ -14,6 +14,8 @@ So the editor now has an identity (PL_NAME), and the name field is it.
 # on dead code; treat failures here as "the source moved", not "the feature broke".
 from pathlib import Path
 
+import pytest
+
 APP_JS = (Path(__file__).resolve().parents[1] / "app" / "static" / "app.js").read_text("utf-8")
 INDEX = (Path(__file__).resolve().parents[1] / "app" / "static" / "index.html").read_text("utf-8")
 
@@ -80,3 +82,14 @@ def test_running_the_editor_reports_the_playlist_by_name():
     gateway and Home Assistant showed the wrong thing."""
     body = _fn("runPlaylistNow")
     assert 'PL_NAME || "(unsaved)"' in body
+
+
+def test_playlist_rejects_non_dict_entries():
+    """A string entry used to 500 deep in the engine — and PERSIST. Now the model
+    rejects it at the door."""
+    from pydantic import ValidationError
+
+    from app.main import PlaylistSave
+    with pytest.raises(ValidationError):
+        PlaylistSave(name="x", entries=["clock"])
+    PlaylistSave(name="x", entries=[{"app": "clock", "seconds": 10}])   # fine

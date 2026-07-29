@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.7-beta.3
+
+- **Internal spring-clean** 🧹 — comment/doc accuracy pass, dead code removed, and the
+  big backend modules split into focused ones. No behavior or visual changes.
+
 ## 2.10.7-beta.2
 
 - **Tetris fits a near-square panel** — it no longer overflows the edges (pieces could spawn

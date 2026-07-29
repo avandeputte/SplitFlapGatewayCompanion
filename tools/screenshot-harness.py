@@ -350,7 +350,9 @@ def _borrow_surface_toolkit():
     from app.canvas import CanvasSurface as _CS
     for name in ('MIN_READABLE', 'fit_font', 'ink', 'wrap', 'wrap_fit', 'text_top',
                  'message', 'card_pages', '_card_header', 'text_card', 'mix', 'dim'):
-        setattr(Cap, name, _CS.__dict__[name])
+        # MRO-aware: the PIL toolkit lives on the paneltext.PanelText mixin now.
+        _desc = next(k.__dict__[name] for k in _CS.__mro__ if name in k.__dict__)
+        setattr(Cap, name, _desc)
 
 
 _borrow_surface_toolkit()
@@ -691,7 +693,9 @@ def load_app(app_id):
 
 def clear_states(mod):
     for v in vars(mod).values():
-        if callable(v) and hasattr(v, '__dict__'):
+        # functions only: a CLASS at module level (e.g. an imported datetime) has a
+        # read-only mappingproxy __dict__ that .pop() would explode on.
+        if callable(v) and isinstance(getattr(v, '__dict__', None), dict):
             v.__dict__.pop('_state', None)
             v.__dict__.pop('_st', None)
 

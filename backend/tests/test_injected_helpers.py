@@ -111,3 +111,18 @@ def test_legacy_two_arg_trigger_still_works(tmp_path):
     """The bare two-positional-arg trigger signature is a hard contract — no kwargs for it."""
     rt = _runtime_with_app(tmp_path, LEGACY_TRIGGER_APP)
     assert rt.call_trigger("trigdemo", {}) is True
+
+
+def test_wanted_helpers_precomputed_for_fetch_and_trigger(tmp_path):
+    d = tmp_path / "user_apps" / "wdemo"
+    d.mkdir(parents=True)
+    (d / "manifest.json").write_text(json.dumps(
+        {"id": "wdemo", "name": "W", "type": "functional"}), "utf-8")
+    (d / "app.py").write_text(
+        "def fetch(settings, format_lines, get_rows, get_cols, i18n=None):\n"
+        "    return ['X']\n"
+        "def trigger(settings, conditions, caps=None):\n"
+        "    return False\n", "utf-8")
+    rt = make_runtime(tmp_path, ["wdemo"])
+    assert rt._wants["wdemo"] == frozenset({"i18n"})
+    assert rt._trigger_wants["wdemo"] == frozenset({"caps"})

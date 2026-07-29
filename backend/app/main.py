@@ -9,7 +9,6 @@ endpoints, the gateway reverse-proxy, and a best-effort gateway status probe.
 from __future__ import annotations
 
 import asyncio
-import copy
 import hashlib
 import json
 import logging
@@ -166,23 +165,6 @@ if mcp_server is not None:
     except Exception as _mcp_err:
         log.warning("MCP server unavailable, building it failed (%s); "
                     "the display runs without it", _mcp_err)
-
-
-def _redact(cfg: dict) -> dict:
-    """Every credential the config can carry, not just the MQTT password —
-    /api/config is readable by anything that can reach the UI, and an
-    unredacted Vestaboard enablement token would leak here without appearing
-    anywhere else in the product."""
-    cfg = copy.deepcopy(cfg)
-    mqtt = cfg.get("transport", {}).get("mqtt", {})
-    if mqtt.get("password"):
-        mqtt["password"] = "********"
-    for section, key in (("vestaboard", "api_key"), ("vestaboard", "enablement_token"),
-                         ("mcp", "token")):
-        sec = cfg.get(section, {})
-        if isinstance(sec, dict) and sec.get(key):
-            sec[key] = "********"
-    return cfg
 
 
 async def do_gateway_sync(d=None) -> dict:

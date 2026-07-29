@@ -519,3 +519,19 @@ so one playlist can show Paris in French and Tokyo in Japanese back to back.
 
 Building an app that localizes? **[Writing Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Apps)**
 documents the injected `i18n`, `get_weather` and `get_location` helpers.
+
+## Contributing / repo tooling
+
+Two small directories a contributor should know about:
+
+* **`scripts/`** — maintenance scripts run after certain edits: `extract_ui_strings.py`
+  rebuilds the UI translation catalog (run it after touching any user-visible string —
+  a test fails until you do), `extract_holidays.py` refreshes the bundled holiday
+  dataset, and `publish-image.sh` is the manual image-publish fallback.
+* **`tools/screenshot-harness.py`** — regenerates the committed [screenshots/](screenshots/)
+  gallery (every app at four panel resolutions, plus flap-wall mockups) with all network
+  stubbed. Run it after any visual change and commit the changed PNGs; the gallery must
+  always mirror the shipped app code.
+
+The backend test suite lives in `backend/tests` (`python -m pytest` from `backend/`); it
+blocks outbound network at the socket layer, so it can never touch a real wall.

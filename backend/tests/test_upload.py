@@ -147,3 +147,30 @@ def test_user_app_overrides_builtin(tmp_path):
     }))
     assert rt.manifest("dup")["name"] == "User Dup"
     assert rt.get_pages("dup") == ["NEW"]
+
+
+def _zip_bytes(entries):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, data in entries:
+            z.writestr(name, data)
+    return buf.getvalue()
+
+
+
+def test_zip_bomb_is_rejected_before_extraction(tmp_path):
+    """64 MB+ of zeros compresses to almost nothing — the judge must be the
+    UNCOMPRESSED size, because the tempdir is RAM (tmpfs) in Docker."""
+    rt = make_runtime(tmp_path)
+    bomb = _zip_bytes([("app/manifest.json", b'{"name":"x","type":"channel"}'),
+                       ("app/data.json", b"\0" * (65 * 1024 * 1024))])
+    assert len(bomb) < 1024 * 1024          # compressed: sails under the route cap
+    with pytest.raises(ValueError, match="expands too large"):
+        rt.install_zip(bomb)
+
+def test_zip_with_too_many_files_is_rejected(tmp_path):
+    rt = make_runtime(tmp_path)
+    many = _zip_bytes([("app/manifest.json", b'{"name":"x","type":"channel"}')]
+                      + [(f"app/f{i}.txt", b"x") for i in range(600)])
+    with pytest.raises(ValueError, match="too many files"):
+        rt.install_zip(many)
