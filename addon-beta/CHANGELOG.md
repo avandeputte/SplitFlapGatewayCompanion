@@ -3,6 +3,19 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.7
+
+- **New app: Photo Frame** 🖼️ — a slideshow of the photos on the gateway's microSD card
+  (firmware 3.10+); fill or letterbox, optional shuffle.
+- **Smooth aquarium** 🐠 — sprite/compositing apps stream binary frames like the games do;
+  steadier pacing, ~10 fps.
+- **Games stay quiet until you play**, and the auto-play delay is a setting (5–120 s).
+- **New effects surfaced** — Oscilloscope 📈, Beat Ripples 🌊 and Maze.
+- **OpenAPI at the standard locations** 📜 — `/openapi.json`, `/openapi.yaml`, `/docs`,
+  `/redoc`, `/.well-known/api-catalog`.
+- Internal: comprehensive code review applied (correctness fixes, module splits, dead
+  code removed); Tetris fits near-square panels.
+
 ## 2.10.7-beta.6
 
 - **OpenAPI at the standard locations** 📜 — the companion's API is now discoverable at
