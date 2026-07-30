@@ -11,11 +11,12 @@ only while a human plays. Sky, pipes and bird are a small ops batch, streamed bi
 
 import random
 
-_SKY_TOP = (36, 78, 140)
-_SKY_BOT = (96, 150, 200)
+_SKY_TOP = (36, 62, 118)
+_SKY_BOT = (66, 108, 164)
 _PIPE = (64, 184, 88)
 _PIPE_LIP = (96, 216, 120)
 _BIRD = (255, 210, 64)
+_EDGE = (40, 44, 60)                                   # dark outline so the bird pops on the sky
 _WING = (240, 180, 40)
 _GROUND = (150, 120, 70)
 _FADE_STEPS = 16
@@ -118,8 +119,9 @@ def _draw(canvas, st, dim=1.0):
         canvas.rect(x - 1, gy + gap, w + 2, 2, d(_PIPE_LIP), fill=True)
     canvas.rect(0, ground, W, H - ground, d(_GROUND), fill=True)
     bx, by = int(W * 0.25), int(st['y'])
+    canvas.circle(bx, by, 3, d(_EDGE), fill=True)                       # the outline ring
     canvas.circle(bx, by, 2, d(_BIRD), fill=True)
-    canvas.pixel(bx + 1, by - 1, d((40, 44, 60)))                       # the eye
+    canvas.pixel(bx + 1, by - 1, d(_EDGE))                              # the eye
     wing_up = st['vy'] < 0
     canvas.rect(bx - 2, by + (-2 if wing_up else 1), 2, 1, d(_WING), fill=True)
     canvas.text(W // 2, 1, str(st['score']), d((240, 240, 244)), size=8, align='center')

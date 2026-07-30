@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.8
+
+- **Flappy visibility** — the bird wears a dark outline and the sky runs deeper, so
+  yellow no longer melts into light blue.
+
 ## 2.10.9-beta.7
 
 - **New games 🕹️** — Snake, Flappy and Breakout join Chomper and Tetris: playable from
