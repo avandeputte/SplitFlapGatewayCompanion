@@ -48,6 +48,7 @@ APP_IDS = [
     'world_clock', 'youtube', 'yt_comments',
     'canvas-chomper',                    # matrix-only: the ops-surface arcade
     'sd-photos',                         # matrix-only: the microSD slideshow
+    'canvas-snake', 'canvas-flappy', 'canvas-breakout',   # the arcade
 ]
 
 # Channels/quizzes render generically on the panel (big text + themed art) via
@@ -190,6 +191,19 @@ class Cap:
         if hi is not None:
             v = min(float(hi), v)
         return int(v) if isinstance(default, int) else v
+
+    def gradient(self, x, y, w, h, frm, to, direction='v'):
+        d = self._draw()
+        f, t = _rgb(frm), _rgb(to)
+        n = max(1, (h if direction == 'v' else w) - 1)
+        for i in range(h if direction == 'v' else w):
+            r = i / n
+            col = tuple(int(f[k] + (t[k] - f[k]) * r) for k in range(3))
+            if direction == 'v':
+                d.line([(int(x), int(y + i)), (int(x + w - 1), int(y + i))], fill=col)
+            else:
+                d.line([(int(x + i), int(y)), (int(x + i), int(y + h - 1))], fill=col)
+        return self
 
     def pixel(self, x, y, color=(255, 255, 255)):
         self._draw().point((int(x), int(y)), fill=_rgb(color))
@@ -611,6 +625,49 @@ def stub_chomper(m):
     m._state = warmed
 
 
+def stub_snake(m):
+    # Warm the sim so the shot shows a grown snake mid-chase, not a 3-cell hatchling.
+    orig = m._state
+
+    def warmed(cols, rows):
+        st = orig(cols, rows)
+        if st['step'] == 0:
+            # run until the demo has a real tail on screen (deaths reset the score,
+            # so keep going past them), bounded so a pathological grid can't spin
+            for _ in range(900):
+                m._step(st, auto=True)
+                if st['score'] >= 60 and len(st['snake']) >= 12:
+                    break
+        return st
+    m._state = warmed
+
+
+def stub_flappy(m):
+    # A few pipes on screen and the bird mid-flap.
+    orig = m._state
+
+    def warmed(W, H):
+        st = orig(W, H)
+        if st['dist'] == 0:
+            for _ in range(60):
+                m._step(st, False, auto=True)
+        return st
+    m._state = warmed
+
+
+def stub_breakout(m):
+    # A dented brick wall and the ball in flight.
+    orig = m._state
+
+    def warmed(W, H):
+        st = orig(W, H)
+        if st['score'] == 0 and st['held']:
+            for _ in range(160):
+                m._step(st, None, auto=True)
+        return st
+    m._state = warmed
+
+
 def stub_sports(m):
     raw = [
         ('MLB', 'BOT 7', 'in', ('NYY', '4'), ('BOS', '5'), 'NYY 4  BOS 5'),
@@ -709,6 +766,9 @@ STUBS = {
     'quote': stub_quote,
     'rocket-launch': stub_rocket,
     'canvas-chomper': stub_chomper,
+    'canvas-snake': stub_snake,
+    'canvas-flappy': stub_flappy,
+    'canvas-breakout': stub_breakout,
     'sports': stub_sports,
     'stocks': stub_stocks,
     'sun-times': stub_sun_times,

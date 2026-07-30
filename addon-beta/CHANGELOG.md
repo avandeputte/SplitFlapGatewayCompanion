@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.7
+
+- **New games 🕹️** — Snake, Flappy and Breakout join Chomper and Tetris: playable from
+  the web-UI pad, self-playing attract mode otherwise.
+
 ## 2.10.9-beta.6
 
 - **Matrix Rain gets a real icon** — falling green code, not a green heart; the Maze
