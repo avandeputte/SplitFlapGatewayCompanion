@@ -1152,10 +1152,16 @@ class PluginRuntime:
     def _entry(self, app_id: str, manifest: dict, installed: bool, builtin: bool,
                lang=None, app_dir: Path | None = None) -> dict:
         meta = self.app_meta_i18n(app_id, app_dir, lang) if lang else {}
+        icon_svg = str(manifest.get("icon_svg") or "")
         return {
             "id": app_id,
             "name": meta.get("name") or manifest.get("name", app_id),
             "icon": manifest.get("icon", "🧩"),
+            # A drawn icon for the catalog surfaces (the emoji stays the compact identity
+            # everywhere text-shaped). data:image/ ONLY: the manifest is upload-controlled,
+            # and this string lands in an <img src> — the prefix gate keeps javascript:
+            # URIs and raw markup out.
+            "icon_svg": icon_svg if icon_svg.startswith("data:image/") else "",
             "description": meta.get("description") or manifest.get("description", ""),
             "category": manifest.get("category", "other"),
             "type": manifest.get("type", "functional"),

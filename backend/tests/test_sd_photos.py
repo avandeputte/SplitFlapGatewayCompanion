@@ -222,3 +222,16 @@ def test_an_unplayable_movie_skips_to_the_next_item(monkeypatch, gw_calls):
     monkeypatch.setattr(cv._cv, "play_anim_path", lambda p: {})   # {} = non-2xx refusal
     hold = app.fetch_matrix({"dwell": "6"}, cv)
     assert hold == 6 and len(cv.frames) == 1                # landed on the photo instead
+
+
+def test_icon_svg_passes_only_data_image_uris():
+    """The drawn-icon field is upload-controlled and lands in an <img src> — only a
+    data:image/ URI may survive into the catalog."""
+    from conftest import make_runtime
+    rt = make_runtime(installed=["canvas-chomper", "canvas-tetris"])
+    cards = {a["id"]: a for a in rt.app_list()}
+    assert cards["canvas-chomper"]["icon_svg"].startswith("data:image/svg+xml,")
+    assert cards["canvas-tetris"]["icon_svg"].startswith("data:image/svg+xml,")
+    rt._registry["canvas-chomper"]["icon_svg"] = "javascript:alert(1)"
+    evil = next(a for a in rt.app_list() if a["id"] == "canvas-chomper")
+    assert evil["icon_svg"] == ""                      # dropped at the boundary

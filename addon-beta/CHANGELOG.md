@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.2
+
+- **Drawn app icons** 🎨 — the catalog can now show real vector icons: Chomper gets an
+  actual Pac-Man (mouth, eye, pellet), Tetris an L- and T-piece. Apps can ship their own
+  via a new `icon_svg` manifest field; the emoji stays for text surfaces.
+
 ## 2.10.9-beta.1
 
 - **Photo Frame plays movies** 🎞️ — MPGA files on the microSD card join the rotation

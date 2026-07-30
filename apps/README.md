@@ -111,3 +111,11 @@ The full surface reference (draw ops, the PIL text toolkit, capabilities, compos
 lives on the wiki: [Writing Matrix Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Matrix-Apps).
 A dual-surface app keeps `fetch()` as its flap view; the manifest's `surfaces` list and
 the per-app "Show on Matrix panel" toggle decide which view a given wall runs.
+
+## App icons
+
+`"icon"` is an emoji — the app's identity everywhere text-shaped (modal titles, MCP
+tools, this list). An app may also carry `"icon_svg"`: a `data:image/svg+xml,...` URI
+the web UI's catalog card and library row prefer, for icons an emoji can't draw (see
+Chomper's Pac-Man or Tetris's tetrominoes). It must be a `data:image/` URI — anything
+else is dropped at the catalog boundary, since manifests arrive in uploaded zips.

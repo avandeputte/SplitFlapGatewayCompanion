@@ -191,6 +191,7 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 .app-tile.disabled { opacity: .4; cursor: not-allowed; }
 .app-tile.disabled:hover { border-color: var(--acc); }
 .app-tile .app-icon { font-size: 26px; line-height: 1; }
+.app-icon-img { width: 28px; height: 28px; display: inline-block; vertical-align: middle; }
 /* Leave room for the gear (top-right) so a long name never slides under it. */
 .app-tile .app-name { font-weight: 700; margin-top: 6px; padding-right: 20px; }
 .app-tile .app-desc { color: var(--dim); font-size: .78rem; margin-top: 3px; min-height: 2.2em;

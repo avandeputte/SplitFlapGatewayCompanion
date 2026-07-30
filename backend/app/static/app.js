@@ -708,7 +708,8 @@ async function loadApps() {
     // name/description/icon come from the app's MANIFEST — an uploaded zip, i.e.
     // attacker-controlled. Everything of it that lands in markup goes through esc().
     tile.innerHTML =
-      `<div class="app-icon">${esc(a.icon || "🧩")}</div>` +
+      `<div class="app-icon">${a.icon_svg ? `<img class="app-icon-img" src="${esc(a.icon_svg)}" alt="">`
+                                          : esc(a.icon || "🧩")}</div>` +
       `<div class="app-name">${esc(a.name)}</div>` +
       `<div class="app-desc">${esc(a.description || "")}</div>` +
       (a.has_settings ? `<button class="app-gear" title="${esc(t("Settings"))}">⚙</button>` : "") +
@@ -1340,7 +1341,13 @@ let LIB_CANVAS = false;   // library "Matrix panel apps only" toggle (independen
 function libRow(a, reopen) {
   const row = el("div", "lib-row");
 
-  const icon = el("span", "app-icon"); icon.style.fontSize = "20px"; icon.textContent = a.icon || "🧩";
+  const icon = el("span", "app-icon"); icon.style.fontSize = "20px";
+  if (a.icon_svg) {
+    const im = el("img", "app-icon-img"); im.src = a.icon_svg; im.alt = ""; im.style.width = im.style.height = "20px";
+    icon.appendChild(im);
+  } else {
+    icon.textContent = a.icon || "🧩";
+  }
 
   const meta = el("div", "lib-meta");
   const name = el("div", "lib-name"); name.textContent = a.name;
