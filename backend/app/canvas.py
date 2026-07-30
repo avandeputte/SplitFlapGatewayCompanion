@@ -593,15 +593,18 @@ def put_gif(url: str, data: bytes, timeout: float = 30.0):
         return {}
 
 
-def _anim_op(url: str, op: str, name: str, timeout: float = 15.0):
-    """POST /api/canvas/anim/<op> {name} — save/play/delete a library animation. Returns the JSON
-    reply (``play`` reports ``frames``) or ``{}``."""
+def _anim_op(url: str, op: str, name: str | None = None, timeout: float = 15.0, *,
+             path: str | None = None):
+    """POST /api/canvas/anim/<op> — save/play/delete a library animation by ``name``, or
+    (fw 3.13) stream one straight off the microSD card by ``path``. Returns the JSON reply
+    (``play`` reports ``frames``) or ``{}``."""
     try:
+        body = {"path": str(path)} if path else {"name": str(name)}
         r = gateway._request("POST", url, f"/api/canvas/anim/{op}",
-                             json={"name": str(name)}, timeout=timeout)
+                             json=body, timeout=timeout)
         return r.json() if _ok(r) else {}
     except Exception as e:
-        log.debug("canvas anim/%s(%s) failed: %s", op, name, e)
+        log.debug("canvas anim/%s(%s) failed: %s", op, path or name, e)
         return {}
 
 
@@ -610,9 +613,10 @@ def anim_save(url: str, name: str) -> bool:
     return bool(_anim_op(url, "save", name).get("ok"))
 
 
-def anim_play(url: str, name: str):
-    """Load and play a saved library animation (firmware 2.1). Returns ``{ok, frames}`` or ``{}``."""
-    return _anim_op(url, "play", name)
+def anim_play(url: str, name: str | None = None, *, path: str | None = None):
+    """Load and play a saved library animation (firmware 2.1) — or, with ``path=``, stream
+    an MPGA off the microSD card (fw 3.13). Returns ``{ok, frames}`` or ``{}``."""
+    return _anim_op(url, "play", name, path=path)
 
 
 def anim_delete(url: str, name: str) -> bool:
@@ -781,17 +785,21 @@ _FACES = (8, 9, 10, 13, 18, 20)
 _FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}
 
 
-def play_sound(url: str, notes=None, freq=None, ms: int = 120, vol: int = 70) -> bool:
-    """Play a tone or note sequence on the wall's speaker (POST /api/sound, fw 3.6). Fire
-    and FORGET: the POST runs on a short-lived daemon thread so a game's render tick never
-    waits on audio, and any failure (Quiet Time 409, speaker off 403) is swallowed —
-    sound is never allowed to stall or break a frame. ``notes`` is ``[[freq, ms], …]``
-    (freq 0 = rest); or pass a single ``freq``/``ms``. Returns whether a play was
-    dispatched (not whether the wall accepted it)."""
+def play_sound(url: str, notes=None, freq=None, ms: int = 120, vol: int = 70,
+               wav: str | None = None) -> bool:
+    """Play a tone or note sequence on the wall's speaker (POST /api/sound, fw 3.6) — or,
+    with ``wav=``, stream a WAV file off the wall's microSD card (fw 3.13; strict 16-bit
+    16 kHz PCM). Fire and FORGET: the POST runs on a short-lived daemon thread so a game's
+    render tick never waits on audio, and any failure (Quiet Time 409, speaker off 403, no
+    card 503) is swallowed — sound is never allowed to stall or break a frame. ``notes``
+    is ``[[freq, ms], …]`` (freq 0 = rest); or pass a single ``freq``/``ms``. Returns
+    whether a play was dispatched (not whether the wall accepted it)."""
     if _wall(url).sim:
         return False
     body = {"vol": max(0, min(100, int(vol)))}
-    if notes:
+    if wav:
+        body["wav"] = str(wav)
+    elif notes:
         body["notes"] = [[int(f), int(d)] for f, d in notes]
     elif freq:
         body["freq"], body["ms"] = int(freq), max(1, min(2000, int(ms)))
@@ -898,6 +906,10 @@ class CanvasSurface(paneltext.PanelText):
         self.can_ops_bin = self.ops_bin_v >= 1
         self.can_composite = bool(caps.canvas_composite)   # fw 3.8+: alpha, blend modes, AA
         self.can_sd = bool(caps.can_sd)                    # fw 3.10+: a microSD card is mounted
+        # fw 3.13+: MPGA animations stream straight off the card (no PSRAM cap) and
+        # /api/sound streams card WAVs — both need the card AND the streaming firmware.
+        self.can_sd_anim = (self.can_sd and bool(caps.canvas_anim)
+                            and tuple(caps.fw_version) >= (3, 13))
         # aa without falling off the fast path: the wall composites AND either has no
         # binary format at all (JSON was its path anyway) or speaks opsBin v2 (fw 3.12),
         # which carries aa natively. On a v1-binary wall, aa would force every frame to
@@ -1471,6 +1483,13 @@ class CanvasSurface(paneltext.PanelText):
         """Load and play a saved library animation (firmware 2.1). Returns ``{ok, frames}``."""
         forget_frame(self.url)
         return anim_play(self.url, name)
+
+    def play_anim_path(self, path) -> dict:
+        """Stream an MPGA animation straight off the microSD card (fw 3.13, gate on
+        ``can_sd_anim``): one frame in memory at a time, so length is bounded only by
+        the card. Returns ``{ok, frames}``; the movie loops on-device until replaced."""
+        forget_frame(self.url)
+        return anim_play(self.url, path=str(path))
 
     def delete_anim(self, name) -> bool:
         """Delete a saved library animation (firmware 2.1)."""

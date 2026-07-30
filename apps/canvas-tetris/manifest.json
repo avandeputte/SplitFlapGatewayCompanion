@@ -1,7 +1,7 @@
 {
   "id": "canvas-tetris",
   "name": "Tetris",
-  "icon": "🟦",
+  "icon": "🧱",
   "description": "Tetris laid on its side for a wide panel — pieces drift in from the right and pile against the left; fill a whole column to clear it. Plays itself until you grab the controls (up/down move, right rotate, left drop) and play live, with sound. Drawn entirely with on-device draw ops.",
   "type": "functional",
   "surfaces": ["matrix"],

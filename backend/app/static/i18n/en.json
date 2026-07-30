@@ -67,7 +67,7 @@
   "Bus Monitor",
   "C",
   "Calibration",
-  "Card folder to show (also reads / if it doesn't exist). JPG/PNG/GIF/BMP/WEBP.",
+  "Card folder to show (also reads / if it doesn't exist). JPG/PNG/GIF/BMP/WEBP, and MPG/MPGA movies on firmware 3.13+.",
   "Català (Catalan)",
   "Center",
   "Channel ID",

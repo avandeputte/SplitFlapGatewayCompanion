@@ -137,3 +137,88 @@ def test_photo_frame_is_matrix_only_in_the_catalog():
     rt = make_runtime(installed=["sd-photos"])
     card = next(a for a in rt.app_list() if a["id"] == "sd-photos")
     assert card["surfaces"] == ["matrix"]
+
+
+# --- fw 3.13: card movies + WAV sound ----------------------------------------
+
+def _cv313(sd=True):
+    from app import device
+    caps = device.Capabilities(lowercase=True, pictographs=True, named_colors=True,
+                               indexed=True, canvas_w=128, canvas_h=64,
+                               canvas_formats=("rgb888",), canvas_ops=OPS35,
+                               canvas_anim=True, can_sd=sd, fw_version=(3, 13))
+    from app.canvas import CanvasSurface
+    return CanvasSurface("http://gw", caps)
+
+
+def test_can_sd_anim_needs_card_anim_and_313():
+    assert _cv313().can_sd_anim
+    assert not _cv313(sd=False).can_sd_anim                # no card
+    from app import device
+    old = device.Capabilities(lowercase=True, pictographs=True, named_colors=True,
+                              indexed=True, canvas_w=128, canvas_h=64,
+                              canvas_formats=("rgb888",), canvas_ops=OPS35,
+                              canvas_anim=True, can_sd=True, fw_version=(3, 12))
+    from app.canvas import CanvasSurface
+    assert not CanvasSurface("http://gw", old).can_sd_anim  # pre-3.13 firmware
+
+
+def test_play_anim_path_posts_the_card_path(gw_calls):
+    r = _cv313().play_anim_path("/movies/clip.mpg")
+    assert isinstance(r, dict)
+    m, path, body, _ = gw_calls[-1]
+    assert (m, path) == ("POST", "/api/canvas/anim/play")
+    assert body == {"path": "/movies/clip.mpg"}
+
+
+def test_play_sound_wav_streams_from_the_card(monkeypatch):
+    import time as _t
+
+    from app import canvas as canvas_mod
+    import app.gateway as gateway
+
+    calls = []
+
+    class _R:
+        status_code = 200
+
+    monkeypatch.setattr(gateway, "_request",
+                        lambda m, u, p, **kw: (calls.append((p, kw.get("json"))) or _R()))
+    assert canvas_mod.play_sound("http://gw", wav="/sounds/chime.wav", vol=80)
+    for _ in range(200):                                    # daemon-thread POST
+        if calls:
+            break
+        _t.sleep(0.005)
+    assert calls and calls[-1] == ("/api/sound", {"vol": 80, "wav": "/sounds/chime.wav"})
+
+
+def test_photo_frame_plays_a_movie_in_the_rotation(gw_calls):
+    app = load_app("sd-photos")
+    files = {"a.jpg": _jpeg(), "clip.mpg": b"MPGA...."}
+    cv = _Frames(_sd_stub(_cv313(), files))
+    hold = app.fetch_matrix({"dwell": "8"}, cv)             # a.jpg first (sorted)
+    assert hold == 8 and len(cv.frames) == 1
+    hold = app.fetch_matrix({"dwell": "8"}, cv)             # then the movie
+    assert hold == 8 and len(cv.frames) == 1                # no frame pushed for a movie
+    m, path, body, _ = gw_calls[-1]
+    assert path == "/api/canvas/anim/play" and body == {"path": "/photos/clip.mpg"}
+    app.fetch_matrix({"dwell": "8"}, cv)                    # and back to the photo
+    assert len(cv.frames) == 2
+
+
+def test_movies_stay_out_of_the_rotation_before_313():
+    app = load_app("sd-photos")
+    files = {"a.jpg": _jpeg(), "clip.mpg": b"MPGA...."}
+    cv = _Frames(_sd_stub(_cv(), files))                    # the 3.10 wall from above
+    app.fetch_matrix({}, cv)
+    st = app.fetch_matrix.__globals__["fetch_matrix"]._state
+    assert st["paths"] == ["/photos/a.jpg"]                 # the movie is not listed
+
+
+def test_an_unplayable_movie_skips_to_the_next_item(monkeypatch, gw_calls):
+    app = load_app("sd-photos")
+    files = {"bad.mpg": b"x", "z.jpg": _jpeg()}
+    cv = _Frames(_sd_stub(_cv313(), files))
+    monkeypatch.setattr(cv._cv, "play_anim_path", lambda p: {})   # {} = non-2xx refusal
+    hold = app.fetch_matrix({"dwell": "6"}, cv)
+    assert hold == 6 and len(cv.frames) == 1                # landed on the photo instead

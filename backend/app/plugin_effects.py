@@ -21,6 +21,7 @@ EFFECT_META = {
     "life": ("Game of Life", "🦠"), "rainbow": ("Rainbow", "🌈"),
     "spectrum": ("Spectrum", "🎚️"), "soundwall": ("Soundwall", "🔊"),
     "maze": ("Maze", "🌀"), "ripple": ("Beat Ripples", "🌊"), "scope": ("Oscilloscope", "📈"),
+    "spectro": ("Spectrogram", "📊"),
 }
 
 # The knob fields the effects template declares; replaced wholesale when the wall

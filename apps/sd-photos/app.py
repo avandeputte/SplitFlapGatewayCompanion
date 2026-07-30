@@ -1,35 +1,39 @@
-"""Photo Frame — a slideshow of the microSD card's photos on the Matrix panel.
+"""Photo Frame — a slideshow of the microSD card's photos (and movies) on the panel.
 
 The first app built on the gateway's fw-3.10 microSD support: the gateway's own Files
 tab manages the card; this gives it a *display* use. Each dwell the app advances to the
-next image in the configured folder (``canvas.sd_list``), pulls its bytes off the card
-(``canvas.sd_get``), and frame-pushes it — EXIF-rotated, resized to fill (center-crop)
-or letterbox onto a dim blurred backdrop. Decoded frames are LRU-cached so a small
-carousel re-downloads nothing; the folder listing refreshes about once a minute so
-newly dropped photos join the rotation without a restart. Without a card (or with an
-empty folder) it shows a friendly hint card instead. Matrix-only — flaps can't show a
-photo.
+next item in the configured folder (``canvas.sd_list``). A photo is pulled off the card
+(``canvas.sd_get``) and frame-pushed — EXIF-rotated, resized to fill (center-crop) or
+letterbox onto a dim blurred backdrop, LRU-cached so a small carousel re-downloads
+nothing. An MPGA movie (fw 3.13, ``canvas.can_sd_anim``) is not fetched at all: the wall
+streams it straight off the card (``canvas.play_anim_path``), looping on-device until
+the rotation moves on. The folder listing refreshes about once a minute so newly dropped
+files join the rotation without a restart. Without a card (or with an empty folder) it
+shows a friendly hint card instead. Matrix-only — flaps can't show a photo.
 """
 
 import io
 import random
 
-_EXTS = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
+_IMG_EXTS = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
+_MOV_EXTS = ('.mpg', '.mpga')            # the wall's own animation format, streamed from card
 _LIST_TTL = 12          # frames between folder re-lists (~2 min at the 10 s default dwell)
 _CACHE_MAX = 8          # decoded frames kept, LRU
 
 
-def _images_in(canvas, folder):
-    """The image files in ``folder`` (falling back to the card root), sorted by name."""
+def _media_in(canvas, folder):
+    """The image (and, on a fw-3.13 wall, movie) files in ``folder`` (falling back to
+    the card root), sorted by name."""
+    exts = _IMG_EXTS + (_MOV_EXTS if getattr(canvas, 'can_sd_anim', False) else ())
     for path in (folder, '/'):
         rows = canvas.sd_list(path)
         names = sorted(str(r.get('name', '')) for r in rows
-                       if not r.get('dir') and str(r.get('name', '')).lower().endswith(_EXTS))
+                       if not r.get('dir') and str(r.get('name', '')).lower().endswith(exts))
         if names:
             base = path.rstrip('/')
             return [f"{base}/{n}" for n in names]
         if path == folder and any(True for _ in rows):
-            return []                          # the folder exists but holds no images
+            return []                          # the folder exists but holds no media
     return []
 
 
@@ -70,7 +74,7 @@ def fetch_matrix(settings, canvas):
     st['age'] += 1
     if st['age'] >= _LIST_TTL:                 # refresh the listing; keep our place on no change
         st['age'] = 0
-        paths = _images_in(canvas, folder)
+        paths = _media_in(canvas, folder)
         if shuffle:
             random.Random(len(paths) * 1009 + sum(map(len, paths))).shuffle(paths)
         if paths != st['paths']:
@@ -80,10 +84,16 @@ def fetch_matrix(settings, canvas):
                                                    ' gateway Files tab to add some'))
         return 30
 
-    # Advance; skip anything that vanished or won't decode (up to one full lap).
+    # Advance; skip anything that vanished or won't decode/play (up to one full lap).
     for _ in range(len(st['paths'])):
         st['i'] = (st['i'] + 1) % len(st['paths'])
         path = st['paths'][st['i']]
+        if path.lower().endswith(_MOV_EXTS):
+            # A movie never crosses the wire: the wall streams it off its own card and
+            # loops until the next item (a photo frame or another movie) replaces it.
+            if canvas.play_anim_path(path):     # {} = the wall refused (non-2xx)
+                return dwell
+            continue                           # unplayable (deleted, bad file) — next item
         key = (path, fit)
         img = st['cache'].pop(key, None)       # pop+reinsert = LRU touch
         if img is None:

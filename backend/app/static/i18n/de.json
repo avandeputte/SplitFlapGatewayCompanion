@@ -58,7 +58,7 @@
   "Buddhist": "Buddhistisch",
   "Bus Monitor": "Bus-Monitor",
   "Calibration": "Kalibrierung",
-  "Card folder to show (also reads / if it doesn't exist). JPG/PNG/GIF/BMP/WEBP.": "Kartenordner zum Anzeigen (liest /, wenn er fehlt). JPG/PNG/GIF/BMP/WEBP.",
+  "Card folder to show (also reads / if it doesn't exist). JPG/PNG/GIF/BMP/WEBP, and MPG/MPGA movies on firmware 3.13+.": "Kartenordner zum Anzeigen (liest /, wenn er fehlt). JPG/PNG/GIF/BMP/WEBP, und MPG/MPGA-Filme ab Firmware 3.13.",
   "Center": "Zentrieren",
   "Channel ID": "Kanal-ID",
   "Choose a .zip first.": "Wähle zuerst eine .zip-Datei.",

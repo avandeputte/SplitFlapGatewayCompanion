@@ -2,7 +2,7 @@
   "id": "sd-photos",
   "name": "Photo Frame",
   "icon": "🖼️",
-  "description": "A slideshow of the photos on the gateway's microSD card (firmware 3.10+). Drop images onto the card from the gateway's Files tab — the panel rotates through them.",
+  "description": "A slideshow of the photos — and, on firmware 3.13+, MPGA movies — on the gateway's microSD card. Drop files onto the card from the gateway's Files tab; the panel rotates through them.",
   "type": "functional",
   "surfaces": ["matrix"],
   "category": "fun",
@@ -14,7 +14,7 @@
       "label": "Folder",
       "type": "text",
       "default": "/photos",
-      "note": "Card folder to show (also reads / if it doesn't exist). JPG/PNG/GIF/BMP/WEBP."
+      "note": "Card folder to show (also reads / if it doesn't exist). JPG/PNG/GIF/BMP/WEBP, and MPG/MPGA movies on firmware 3.13+."
     },
     {
       "key": "dwell",

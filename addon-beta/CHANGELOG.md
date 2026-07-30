@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.1
+
+- **Photo Frame plays movies** 🎞️ — MPGA files on the microSD card join the rotation
+  (firmware 3.13+); the wall streams them straight off the card, no size limit.
+- **WAV sound effects** — apps' `play_sound` can stream a card WAV through the speaker
+  (firmware 3.13+); the new Spectrogram effect gets its icon.
+- **Better game icons** — Chomper 👻 and Tetris 🧱.
+
 ## 2.10.8
 
 - **Firmware 3.12 support** ⚡ — binary draw parity (opsBin v2): anti-aliasing, transforms,

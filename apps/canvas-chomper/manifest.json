@@ -1,7 +1,7 @@
 {
   "id": "canvas-chomper",
   "name": "Chomper",
-  "icon": "🟡",
+  "icon": "👻",
   "description": "A Pac-Man-style maze the panel plays by itself — until you grab the on-screen controls and play it live, with sound, at streaming-binary-ops latency.",
   "type": "functional",
   "surfaces": [
