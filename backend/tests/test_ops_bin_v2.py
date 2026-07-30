@@ -1,4 +1,5 @@
-"""opsBin v2 (fw 3.12, capabilities ``canvas.opsBin: 2``) — the format that closes the
+"""The full binary-ops format (capabilities ``canvas.opsBin: true`` on modern firmware;
+fw 3.12 briefly numbered it 2) — the format that closes the
 v1→JSON gaps: anti-aliased strokes, the transform stack, offscreen layers, batch macros
 and bezier all ride binary now. Golden bytes here mirror the firmware decoder's layouts
 (web.cpp canvasOpsRunBin); a v1 wall must keep getting the old bytes / JSON fallbacks.
@@ -136,3 +137,28 @@ def test_aquarium_keeps_streaming_with_aa_on_a_v2_wall(monkeypatch):
     for _ in range(6):                                        # bubbles spawn over a few frames
         app.fetch_matrix({"fish": "4"}, cv)
     assert canvas_mod._wall("http://gw").last_kind == "opsb"  # aa'd frame, still binary
+
+
+def test_opsbin_capability_parses_bool_and_legacy_ints():
+    """canvas.opsBin is a plain boolean now — True = the FULL format. bool is an int
+    subclass in Python, so the parse must check it before int(): int(True) == 1 would
+    silently downgrade a modern wall to the legacy subset (aa/transform batches would
+    fall back to JSON-over-HTTP). Legacy integers survive for old walls."""
+    from app import device
+    base = {"features": ["canvas"], "charset": {"common": "A"}}
+
+    def parse(raw):
+        return device.from_capabilities(
+            dict(base, canvas={"width": 64, "height": 32, "opsBin": raw})).canvas_ops_bin
+
+    assert parse(True) == 2                    # the modern boolean: full format
+    assert parse(False) == 0
+    assert parse(1) == 1                       # fw 3.5-3.11
+    assert parse(2) == 2                       # fw 3.12's transitional number
+    assert parse("junk") == 0
+    # and the surface follows: a boolean-advertising compositing wall keeps aa on binary
+    doc = dict(base, canvas={"width": 64, "height": 32, "opsBin": True, "compositing": True,
+                             "ops": ["line", "circle", "show"]})
+    from app.canvas import CanvasSurface
+    cv = CanvasSurface("http://gw", device.from_capabilities(doc))
+    assert cv.ops_bin_v == 2 and cv.can_ops_bin and cv.aa_ok

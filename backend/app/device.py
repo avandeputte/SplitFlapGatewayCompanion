@@ -110,7 +110,10 @@ class Capabilities:
     fw_version: tuple[int, int] = (0, 0)
     canvas_readback: bool = False           # GET /api/canvas/frame — read the lit panel back
     canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honors
-    canvas_ops_bin: int = 0                 # binary ops format version (fw 3.5 "opsBin"); 0 = JSON only
+    canvas_ops_bin: int = 0                 # binary-ops support level: 0 = JSON only, 1 = the
+                                            # legacy 3.5-3.11 subset, 2 = the full format.
+                                            # Modern firmware advertises a plain boolean (full
+                                            # support); the integers only survive for old walls.
     canvas_composite: bool = False          # fw 3.8: per-color alpha, blend modes, AA (canvas.compositing)
     # 3.1: PUT /api/canvas/rects — a frame-push app sends only the rectangles that changed since
     # its last frame instead of the whole panel. Advertised as canvas.rects.
@@ -267,7 +270,18 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     # the firmware, but knowing up front lets an app choose the frame path instead.
     canvas_ops = tuple(str(o) for o in (canvas.get("ops") or []) if isinstance(o, str))
     try:
-        canvas_ops_bin = int(canvas.get("opsBin") or 0)
+        raw_opsbin = canvas.get("opsBin")
+        if raw_opsbin is True:
+            # The modern contract: a plain boolean, meaning THE binary format — everything
+            # the current encoder can emit. (Must be checked before int(): bool is an int
+            # subclass in Python, and int(True) == 1 would silently downgrade a full-format
+            # wall to the legacy subset, knocking its aa/transform batches back to JSON.)
+            canvas_ops_bin = 2
+        elif raw_opsbin in (False, None):
+            canvas_ops_bin = 0
+        else:
+            # Legacy integer firmware: 1 (fw 3.5-3.11) or 2 (fw 3.12's transitional number).
+            canvas_ops_bin = int(raw_opsbin)
     except (TypeError, ValueError):
         canvas_ops_bin = 0
     canvas_composite = bool(canvas.get("compositing"))

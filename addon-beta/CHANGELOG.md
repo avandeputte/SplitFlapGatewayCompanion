@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.3
+
+- **Fix: full binary drawing on current firmware** — the gateway now advertises binary
+  ops as a plain boolean, which the companion misread as the legacy subset; smooth
+  strokes and transforms would silently fall back to slower JSON. Correctly detected now.
+
 ## 2.10.9-beta.2
 
 - **Drawn app icons** 🎨 — the catalog can now show real vector icons: Chomper gets an

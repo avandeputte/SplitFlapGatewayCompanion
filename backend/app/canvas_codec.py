@@ -171,7 +171,8 @@ def encode_ops_bin(ops, *, composite=False, version=1):
     it (a 3.5-3.7 wall that couldn't length-skip 0x15) an rgba color still forces
     the JSON fallback.
 
-    ``version=2`` (fw 3.12, capabilities ``canvas.opsBin: 2``) closes the v1 gaps:
+    ``version=2`` — the full format (modern firmware advertises it as the plain
+    boolean ``canvas.opsBin: true``; 3.12 briefly numbered it 2) — closes the v1 gaps:
     anti-aliased strokes (line → 0x20; circle/poly grow an aa flag bit), the
     transform stack (save/restore/translate/scale/rotate), offscreen layers
     (layer/composite), batch macros (define/call — JSON's names map to the binary
