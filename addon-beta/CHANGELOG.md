@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.10
+
+- **Sensor Graph fix** — the entity search box now actually searches Home Assistant
+  (the manifest was missing the picker's search endpoint wiring).
+
 ## 2.10.9-beta.9
 
 - **Four new panel apps 🕹️** — Pong and Invaders join the arcade; Falling Sand pours

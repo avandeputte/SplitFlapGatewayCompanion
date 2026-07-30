@@ -396,6 +396,7 @@
   "Search a place for exact coordinates; overrides the ZIP/city above.",
   "Search a team or league…",
   "Search apps…",
+  "Search to add entities (numeric sensors graph; others show as text until numbers arrive). Low/High pin the graph's scale and color the value — green inside the band, red outside. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.",
   "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value gets a green flap below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.",
   "Search…",
   "Seconds Per Symbol",

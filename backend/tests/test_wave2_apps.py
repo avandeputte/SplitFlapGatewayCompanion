@@ -258,6 +258,20 @@ def test_sensor_graph_waits_out_non_numeric_states(gw_calls):
     assert any("/api/canvas/frame" in c[1] for c in gw_calls)   # the text card still shows
 
 
+def test_sensor_graph_entity_picker_searches_like_the_entity_board():
+    # The entity_table widget only searches when the field carries searchUrl/resultKey
+    # (the frontend wires the box to f.searchUrl) — dropping them leaves a dead search
+    # input, which is exactly how it shipped in 2.10.9-beta.9.
+    import json
+    from conftest import APPS_DIR
+    board = json.loads((APPS_DIR / "entity-board" / "manifest.json").read_text("utf-8"))
+    graph = json.loads((APPS_DIR / "canvas-sensor-graph" / "manifest.json").read_text("utf-8"))
+    pick = {s["key"]: s for s in board["settings"]}["config"]
+    mine = {s["key"]: s for s in graph["settings"]}["config"]
+    assert mine["searchUrl"] == pick["searchUrl"] == "/ha_entities"
+    assert mine["resultKey"] == pick["resultKey"] == "results"
+
+
 def test_sensor_graph_without_ha_shows_notice(gw_calls):
     app = load_app("canvas-sensor-graph")
     cv = _cv()

@@ -14,6 +14,9 @@
       "key": "config",
       "label": "Entities",
       "type": "entity_table",
+      "searchUrl": "/ha_entities",
+      "resultKey": "results",
+      "note": "Search to add entities (numeric sensors graph; others show as text until numbers arrive). Low/High pin the graph's scale and color the value — green inside the band, red outside. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.",
       "default": ""
     },
     {

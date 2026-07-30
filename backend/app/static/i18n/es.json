@@ -336,6 +336,7 @@
   "Search a place for exact coordinates; overrides the ZIP/city above.": "Busca un lugar para coordenadas exactas; sustituye al código postal/ciudad de arriba.",
   "Search a team or league…": "Busca un equipo o una liga…",
   "Search apps…": "Buscar apps…",
+  "Search to add entities (numeric sensors graph; others show as text until numbers arrive). Low/High pin the graph's scale and color the value — green inside the band, red outside. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.": "Busca para añadir entidades (los sensores numéricos se grafican; el resto se muestra como texto hasta que lleguen números). Low/High fijan la escala del gráfico y colorean el valor — verde dentro de la banda, rojo fuera. En el add-on funciona automáticamente; Docker independiente necesita COMPANION_HA_URL + COMPANION_HA_TOKEN.",
   "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value gets a green flap below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set.": "Busca para añadir entidades. Reordena con las flechas, renombra y define umbrales numéricos — un valor recibe una tarjeta verde por debajo de bajo, ámbar entre medias, roja por encima de alto. En el complemento funciona automáticamente; en Docker autónomo hay que definir COMPANION_HA_URL + COMPANION_HA_TOKEN.",
   "Search…": "Buscar…",
   "Seconds Per Symbol": "Segundos por símbolo",
