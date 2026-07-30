@@ -570,10 +570,13 @@ class DisplayController:
 
     async def _take_panel(self) -> str:
         """Take the Matrix panel over from the reel wall (once), and return the gateway url — the
-        opening move every panel-rendering loop shares."""
+        opening move every panel-rendering loop shares. ``take_over`` (not bare ``set_active``)
+        so the firmware clears the whole panel AND any device-side renderer the previous app
+        left running — effect, looping anim, ticker — is stood down instead of painting over
+        the new app's frames."""
         url = str(self.config.transport.get("gateway_url") or "").strip()
         if url and not self._canvas_active:
-            await asyncio.to_thread(canvas.set_active, url, True)
+            await asyncio.to_thread(canvas.take_over, url)
             self._canvas_active = True
         return url
 

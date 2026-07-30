@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.11
+
+- **Clean app switches** — taking the panel now stands down whatever the previous app
+  left running on-device (effect, looping animation, ticker) and gets the firmware's
+  full-screen clear, so no pixels linger when you change apps.
+
 ## 2.10.9-beta.10
 
 - **Sensor Graph fix** — the entity search box now actually searches Home Assistant

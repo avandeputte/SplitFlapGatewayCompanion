@@ -188,6 +188,36 @@ def set_active(url: str, active: bool, timeout: float = 5.0) -> bool:
         return False
 
 
+def take_over(url: str, timeout: float = 5.0) -> bool:
+    """Take the panel for a NEW app run — ``set_active(True)`` (the firmware clears the
+    whole panel on that takeover) with one twist: a device-side renderer left by the
+    PREVIOUS app must be stood down first, or it keeps painting over the newcomer. A
+    looping animation or exclusive ticker re-claims the panel every frame it renders,
+    so the raw takeover alone loses the fight; an effect survives ``canvasEnter``'s
+    stand-down whenever canvas mode never dropped between apps.
+
+    The stand-down (``{active: false}`` = the firmware's ``dispReturnToWall``: effect +
+    anim + exclusive ticker; an empty ticker text for the overlay ticker that outlives
+    even that) repaints the flap wall for a round-trip — a visible blink — so it runs
+    ONLY when the state poll says a layer is actually live. The everyday app switch
+    stays on the flash-free path and still gets the takeover's full clear."""
+    if _wall(url).sim:
+        return True
+    st = {}
+    try:
+        r = gateway._request("GET", url, "/api/canvas", timeout=timeout)
+        if _ok(r):
+            st = r.json() if isinstance(r.json(), dict) else {}
+    except Exception as e:
+        log.debug("canvas state poll failed: %s", e)
+    if str(st.get("effect", "none")) != "none" or st.get("anim") or st.get("ticker"):
+        set_active(url, False, timeout=timeout)
+        if st.get("ticker"):
+            put_ticker(url, "", timeout=timeout)
+        forget_frame(url)
+    return set_active(url, True, timeout=timeout)
+
+
 def play_effect(url: str, effect: str, speed: int = 5, hue=None, density=None,
                 params=None, timeout: float = 5.0) -> bool:
     """Start an on-device effect (plasma/fire/matrix/…), or "none" to return to the
