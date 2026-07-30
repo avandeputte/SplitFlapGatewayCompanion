@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.9
+
+- **Four new panel apps 🕹️** — Pong and Invaders join the arcade; Falling Sand pours
+  layered technicolor dunes you can steer; Sensor Graph charts any HA sensor's rolling
+  history under its live value.
+
 ## 2.10.9-beta.8
 
 - **Flappy visibility** — the bird wears a dark outline and the sky runs deeper, so

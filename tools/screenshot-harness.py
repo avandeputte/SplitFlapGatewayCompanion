@@ -47,8 +47,12 @@ APP_IDS = [
     'useless-fact', 'weather', 'wiki-today', 'word-clock', 'word-of-the-day',
     'world_clock', 'youtube', 'yt_comments',
     'canvas-chomper',                    # matrix-only: the ops-surface arcade
+    'canvas-tetris',                     # matrix-only: horizontal tetris
     'sd-photos',                         # matrix-only: the microSD slideshow
     'canvas-snake', 'canvas-flappy', 'canvas-breakout',   # the arcade
+    'canvas-pong', 'canvas-invaders',    # the arcade, wave two
+    'canvas-sand',                       # the frame-push sand toy
+    'canvas-sensor-graph',               # the HA sensor sampler
 ]
 
 # Channels/quizzes render generically on the panel (big text + themed art) via
@@ -429,6 +433,7 @@ OVERRIDES = {
         'binary_sensor.front_door | Front Door\n'
         'sensor.office_co2 | Office CO2 | 500,1000\n'
         'switch.espresso | Espresso')},
+    'canvas-sensor-graph': {'config': 'sensor.living_room_temp | Living Room | 60,78'},
     'exchange-rates': {'base': 'USD'},
     'livestream': {
         'yt_channel_id': 'UCdemo123', 'yt_api_key': 'demo', 'yt_video_id': 'demo',
@@ -668,6 +673,104 @@ def stub_breakout(m):
     m._state = warmed
 
 
+def stub_tetris(m):
+    # Warm the attract AI so the gallery shows a game in progress (a pile against the left,
+    # a piece in flight) instead of an empty well. Deterministic (the AI's rng is seeded
+    # from the score/line counters).
+    orig = m._state
+
+    def warmed(cols, rows):
+        st = orig(cols, rows)
+        if not st.get('_warm'):
+            st['_warm'] = True
+            target = int(cols * rows * 0.22)          # stop at a nicely-built pile
+            for _ in range(400):
+                m._attract(st)
+                if st.get('phase') != 'play':
+                    m._new_game(st)
+                filled = sum(1 for row in st['grid'] for cell in row if cell)
+                if filled >= target and st['piece']['c'] > cols * 0.4:
+                    break                              # a full-ish well, a piece still in flight
+        return st
+    m._state = warmed
+
+
+def stub_pong(m):
+    # A mid-match rally: both AIs trade points until the score reads like a game.
+    orig = m._state
+
+    def warmed(W, H):
+        st = orig(W, H)
+        if st['sl'] + st['sr'] == 0:
+            for _ in range(350):                       # a live rally...
+                m._step(st, auto=True)
+                if W * 0.3 < st['ball']['x'] < W * 0.7 and st['rally'] >= 1:
+                    break
+            st['sl'], st['sr'] = 3, 2                  # ...over a seeded mid-match score                              # a lived-in score, the ball mid-court
+        return st
+    m._state = warmed
+
+
+def stub_invaders(m):
+    # A dented fleet with the cannon's shot in the air.
+    orig = m._state
+
+    def warmed(W, H):
+        st = orig(W, H)
+        if st['score'] == 0:
+            total = st['ncols'] * st['nrows']
+            for _ in range(600):
+                m._step(st, None, False, auto=True)
+                if total - len(st['alive']) >= 6 and st['bolt'] is not None:
+                    break
+        return st
+    m._state = warmed
+
+
+def stub_sand(m):
+    # Pour until the dunes carry a few color bands, then let the air settle so the
+    # capture shows a fresh stream over finished sediment.
+    import math
+    orig = m._state
+
+    def warmed(W, H):
+        st = orig(W, H)
+        if st['tick'] == 0:
+            target = 0.55 * W * (H - 1)
+            rate = max(1, (6 * W) // 128)
+            for _ in range(2500):
+                st['tick'] += 1
+                st['hue'] += 0.12                     # fetch's per-tick wheel turn
+                st['pour_x'] = W * (0.5 + 0.38 * math.sin(st['tick'] * 0.045))
+                m._spawn(st, rate)
+                m._sim(st)
+                if st['settled'] >= target:
+                    break
+            for _ in range(H):                        # land what's still falling
+                st['tick'] += 1
+                m._sim(st)
+            for _ in range(10):                       # then a fresh stream, mid-air
+                st['tick'] += 1
+                st['hue'] += 0.12
+                m._spawn(st, max(2, rate // 2))
+                m._sim(st)
+        return st
+    m._state = warmed
+
+
+def stub_sensor_graph(m):
+    # Seed an hour of gently-breathing living-room temperature so the line has a
+    # story; the live sample from stub_get_ha_states lands as its newest point.
+    # ONE entity (no rotation), so every resolution captures the same card.
+    import math
+    import time
+    now = time.time()
+    hist = {'sensor.living_room_temp': [
+        (now - (48 - i) * 75.0, round(71.0 + 3.1 * math.sin(i / 7.5) + 0.6 * math.sin(i / 2.1), 1))
+        for i in range(48)]}
+    m.fetch_matrix._state = {'sig': ('sensor.living_room_temp',), 'idx': 0, 'hist': hist}
+
+
 def stub_sports(m):
     raw = [
         ('MLB', 'BOT 7', 'in', ('NYY', '4'), ('BOS', '5'), 'NYY 4  BOS 5'),
@@ -766,9 +869,14 @@ STUBS = {
     'quote': stub_quote,
     'rocket-launch': stub_rocket,
     'canvas-chomper': stub_chomper,
+    'canvas-tetris': stub_tetris,
     'canvas-snake': stub_snake,
     'canvas-flappy': stub_flappy,
     'canvas-breakout': stub_breakout,
+    'canvas-pong': stub_pong,
+    'canvas-invaders': stub_invaders,
+    'canvas-sand': stub_sand,
+    'canvas-sensor-graph': stub_sensor_graph,
     'sports': stub_sports,
     'stocks': stub_stocks,
     'sun-times': stub_sun_times,

@@ -1,0 +1,43 @@
+{
+  "id": "canvas-sensor-graph",
+  "name": "Sensor Graph",
+  "icon": "📉",
+  "icon_svg": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 19 L7 13 L11 15.5 L16 7 L22 10 L22 22 L2 22 Z' fill='%2336d278' fill-opacity='0.25'/%3E%3Cpath d='M2 19 L7 13 L11 15.5 L16 7 L22 10' fill='none' stroke='%2336d278' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='22' cy='10' r='2.2' fill='%23f0f4fc'/%3E%3Crect x='2' y='2' width='7' height='2.4' rx='1.2' fill='%23969fb6'/%3E%3C/svg%3E",
+  "description": "Any Home Assistant sensor as big type over its own rolling history line — temperature, power, CO₂. Several entities rotate like a board; an optional lo,hi band pins the scale and colors the value.",
+  "type": "functional",
+  "surfaces": ["matrix"],
+  "category": "other",
+  "refresh_interval": 30,
+  "loop_delay": 1,
+  "settings": [
+    {
+      "key": "config",
+      "label": "Entities",
+      "type": "entity_table",
+      "default": ""
+    },
+    {
+      "key": "window",
+      "label": "History window (minutes)",
+      "type": "number",
+      "default": "60",
+      "min": "5", "max": "1440", "step": "5", "stepper": true
+    },
+    {
+      "key": "rotate_seconds",
+      "label": "Seconds per entity",
+      "type": "number",
+      "default": "8",
+      "min": "3", "max": "60", "step": "1", "stepper": true
+    },
+    {
+      "key": "polling_rate",
+      "label": "Refresh Frequency (seconds)",
+      "type": "number",
+      "default": "30",
+      "min": "5", "max": "600", "step": "5", "stepper": true
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 15
+}

@@ -1,0 +1,31 @@
+{
+  "id": "canvas-sand",
+  "name": "Falling Sand",
+  "icon": "⏳",
+  "icon_svg": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='11' y='1' width='2' height='2' fill='%23ffd23f'/%3E%3Crect x='12' y='5' width='2' height='2' fill='%23ffb03c'/%3E%3Crect x='10' y='8' width='2' height='2' fill='%23ff8a4c'/%3E%3Crect x='12' y='11' width='2' height='2' fill='%23ff6a5e'/%3E%3Cpath d='M12 22 L2 22 L2 21 Q7 19 9 17.5 L12 15 L15 17.5 Q17 19 22 21 L22 22 Z' fill='%23e85c9a'/%3E%3Cpath d='M12 22 L4.5 22 Q9 20.5 12 18 Q15 20.5 19.5 22 Z' fill='%23b44ce8'/%3E%3C/svg%3E",
+  "description": "A pour-and-pile sand toy: grains tumble into layered dunes whose colors drift around the hue wheel. Steer the pour with the pad; any key dumps a burst. Wanders by itself otherwise.",
+  "type": "functional",
+  "surfaces": ["matrix"],
+  "category": "fun",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "interactive": true,
+  "settings": [
+    {
+      "key": "speed",
+      "label": "Speed",
+      "type": "number",
+      "default": "5",
+      "min": "1", "max": "10", "step": "1", "stepper": true
+    },
+    {
+      "key": "takeover",
+      "label": "Auto-play after (s)",
+      "type": "number",
+      "default": "30",
+      "min": "5", "max": "120", "step": "5", "stepper": true
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 15
+}

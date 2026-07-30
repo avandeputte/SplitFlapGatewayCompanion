@@ -1,0 +1,31 @@
+{
+  "id": "canvas-pong",
+  "name": "Pong",
+  "icon": "🏓",
+  "icon_svg": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='11.2' y='1' width='1.6' height='3.4' rx='0.8' fill='%23565e74'/%3E%3Crect x='11.2' y='7' width='1.6' height='3.4' rx='0.8' fill='%23565e74'/%3E%3Crect x='11.2' y='13' width='1.6' height='3.4' rx='0.8' fill='%23565e74'/%3E%3Crect x='11.2' y='19' width='1.6' height='3.4' rx='0.8' fill='%23565e74'/%3E%3Crect x='1.5' y='8' width='2.6' height='9' rx='1.2' fill='%23f0f4fc'/%3E%3Crect x='19.9' y='4' width='2.6' height='9' rx='1.2' fill='%23f0f4fc'/%3E%3Ccircle cx='15.5' cy='15' r='2' fill='%23ffd23f'/%3E%3C/svg%3E",
+  "description": "The first arcade game: you take the left paddle, the machine takes the right; angled returns beat it. First to 7. Plays itself until you touch the pad.",
+  "type": "functional",
+  "surfaces": ["matrix"],
+  "category": "fun",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "interactive": true,
+  "settings": [
+    {
+      "key": "speed",
+      "label": "Speed",
+      "type": "number",
+      "default": "5",
+      "min": "1", "max": "10", "step": "1", "stepper": true
+    },
+    {
+      "key": "takeover",
+      "label": "Auto-play after (s)",
+      "type": "number",
+      "default": "30",
+      "min": "5", "max": "120", "step": "5", "stepper": true
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 15
+}
