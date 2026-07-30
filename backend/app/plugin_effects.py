@@ -16,12 +16,20 @@ from __future__ import annotations
 # Friendly name + icon per on-device effect, for the one-app-per-effect split. An effect a
 # future firmware adds still gets an app, named from its own token.
 EFFECT_META = {
-    "plasma": ("Plasma", "🌀"), "fire": ("Fire", "🔥"), "matrix": ("Matrix Rain", "💚"),
+    "plasma": ("Plasma", "🌀"), "fire": ("Fire", "🔥"), "matrix": ("Matrix Rain", "🟩"),
     "fliporama": ("Flip-o-rama", "🎞️"), "clock": ("Panel Clock", "🕛"),
     "life": ("Game of Life", "🦠"), "rainbow": ("Rainbow", "🌈"),
     "spectrum": ("Spectrum", "🎚️"), "soundwall": ("Soundwall", "🔊"),
     "maze": ("Maze", "🌀"), "ripple": ("Beat Ripples", "🌊"), "scope": ("Oscilloscope", "📈"),
     "spectro": ("Spectrogram", "📊"),
+}
+
+# Drawn icons for effects an emoji can't depict (the catalog card prefers these; the
+# emoji above stays the identity on text surfaces). data:image/svg+xml URIs, forwarded
+# through the same data:image/ gate every manifest icon_svg passes.
+EFFECT_ICON_SVG = {
+    "matrix": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='19' width='2.6' height='3' rx='0.6' fill='%23c8ffd0' opacity='1'/%3E%3Crect x='2' y='15' width='2.6' height='3' rx='0.6' fill='%2339d353' opacity='1'/%3E%3Crect x='2' y='11' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.56'/%3E%3Crect x='2' y='7' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.33999999999999997'/%3E%3Crect x='2' y='3' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.25'/%3E%3Crect x='7' y='12' width='2.6' height='3' rx='0.6' fill='%23c8ffd0' opacity='1'/%3E%3Crect x='7' y='8' width='2.6' height='3' rx='0.6' fill='%2339d353' opacity='1'/%3E%3Crect x='7' y='4' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.56'/%3E%3Crect x='7' y='0' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.33999999999999997'/%3E%3Crect x='12' y='22' width='2.6' height='3' rx='0.6' fill='%23c8ffd0' opacity='1'/%3E%3Crect x='12' y='18' width='2.6' height='3' rx='0.6' fill='%2339d353' opacity='1'/%3E%3Crect x='12' y='14' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.56'/%3E%3Crect x='12' y='10' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.33999999999999997'/%3E%3Crect x='12' y='6' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.25'/%3E%3Crect x='12' y='2' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.25'/%3E%3Crect x='17' y='9' width='2.6' height='3' rx='0.6' fill='%23c8ffd0' opacity='1'/%3E%3Crect x='17' y='5' width='2.6' height='3' rx='0.6' fill='%2339d353' opacity='1'/%3E%3Crect x='17' y='1' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.56'/%3E%3Crect x='21' y='16' width='2.6' height='3' rx='0.6' fill='%23c8ffd0' opacity='1'/%3E%3Crect x='21' y='12' width='2.6' height='3' rx='0.6' fill='%2339d353' opacity='1'/%3E%3Crect x='21' y='8' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.56'/%3E%3Crect x='21' y='4' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.33999999999999997'/%3E%3Crect x='21' y='0' width='2.6' height='3' rx='0.6' fill='%231f8a34' opacity='0.25'/%3E%3C/svg%3E",
+    "maze": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e0a63c' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M3 3h18v18H3V7'/%3E%3Cpath d='M7 21v-6h5'/%3E%3Cpath d='M7 7h10v5'/%3E%3Cpath d='M12 7v4'/%3E%3Cpath d='M17 16h4'/%3E%3Ccircle cx='12' cy='16.5' r='1.6' fill='%23c8ffd0' stroke='none'/%3E%3C/svg%3E",
 }
 
 # The knob fields the effects template declares; replaced wholesale when the wall
@@ -104,6 +112,9 @@ def effect_manifest(rt, effect_id: str, token: str) -> dict:
         name = str(edef["name"])                     # the firmware owns effect naming
     m["name"] = name
     m["icon"] = icon
+    svg = EFFECT_ICON_SVG.get(token)
+    if svg:
+        m["icon_svg"] = svg
     m["description"] = f"The {name} effect, rendered on the panel itself"
     m["pinned_effect"] = token
     if edef is not None:

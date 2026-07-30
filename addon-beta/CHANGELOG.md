@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.6
+
+- **Matrix Rain gets a real icon** — falling green code, not a green heart; the Maze
+  effect gets a drawn labyrinth too (it was sharing Plasma's swirl).
+
 ## 2.10.9-beta.5
 
 - **It's the Matrix Gateway** — every mention of the old "Matrix Portal" hardware name

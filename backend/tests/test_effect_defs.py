@@ -124,3 +124,26 @@ def test_def_driven_wire_body_has_no_implicit_speed(gw_calls):
     assert cv.effect("fire", params={"audio": True})
     method, path, body, _content = gw_calls[-1]
     assert path == "/api/canvas/effect" and body == {"type": "fire", "audio": True}
+
+
+def test_matrix_rain_and_maze_get_drawn_icons():
+    """Effects an emoji can't depict carry an icon_svg in their synthetic manifests —
+    the catalog card renders the drawing, text surfaces keep the emoji."""
+    from app import plugin_effects
+
+    class _Rt:
+        def _caps(self):
+            from app import device
+            return device.Capabilities(effects=("matrix", "maze", "fire"),
+                                       charset=frozenset("A"))
+
+        def _scan(self):
+            from pathlib import Path
+            return {"effects": Path("../apps/effects")}
+
+    rt = _Rt()
+    m = plugin_effects.effect_manifest(rt, "effect_matrix", "matrix")
+    assert m["icon_svg"].startswith("data:image/svg+xml,")
+    assert m["icon"] == "🟩"                              # the text-surface fallback
+    assert plugin_effects.effect_manifest(rt, "effect_maze", "maze")["icon_svg"]
+    assert "icon_svg" not in plugin_effects.effect_manifest(rt, "effect_fire", "fire")
