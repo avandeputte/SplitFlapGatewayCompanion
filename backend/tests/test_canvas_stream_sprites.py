@@ -20,20 +20,20 @@ def _cv(composite=True, **kw):
 
 # --- the codec: rgba -> batch alpha 0x15 ------------------------------------
 
-def test_rgba_encodes_as_batch_alpha_on_a_compositing_wall():
+def test_rgba_encodes_as_batch_alpha():
     glow = {"op": "circle", "x": 3, "y": 3, "r": 2, "color": [90, 150, 210, 70], "fill": True}
     crisp = {"op": "circle", "x": 3, "y": 3, "r": 1, "color": [200, 235, 255], "fill": True}
-    b = encode_ops_bin([glow, glow, crisp], composite=True)
+    b = encode_ops_bin([glow, glow, crisp])
     assert b.count(b"\x15\x46") == 1          # one 0x15 covers the run of alpha-70 ops
     assert b"\x15\xff" in b                   # ...and the opaque op restores alpha first
     # order: alpha set -> glows -> alpha reset -> crisp
     assert b.index(b"\x15\x46") < b.index(b"\x15\xff")
 
 
-def test_rgba_still_falls_back_to_json_without_compositing():
+def test_rgba_is_binary_on_every_wall():
+    # one firmware generation: per-color alpha always has its 0x15 encoding
     op = {"op": "circle", "x": 0, "y": 0, "r": 2, "color": [1, 2, 3, 4], "fill": True}
-    assert encode_ops_bin([op]) is None                       # pre-3.8 wall: no 0x15
-    assert encode_ops_bin([op], composite=False) is None
+    assert encode_ops_bin([op])[:2] == b"\x15\x04"
 
 
 def test_sprite_after_an_rgba_op_draws_opaque():
@@ -42,15 +42,14 @@ def test_sprite_after_an_rgba_op_draws_opaque():
     b = encode_ops_bin([
         {"op": "circle", "x": 0, "y": 0, "r": 2, "color": [9, 9, 9, 70], "fill": True},
         {"op": "sprite", "i": 1, "x": 3, "y": 3},
-    ], composite=True)
+    ])
     assert b.index(b"\x15\x46") < b.index(b"\x15\xff") < b.index(b"\x11")
 
 
 def test_mixed_alphas_in_one_op_still_fall_back():
     # 0x15 is per op; two fields with different alphas can't both be honored.
     assert encode_ops_bin([{"op": "text", "x": 0, "y": 0, "s": "HI",
-                            "color": [255, 255, 255], "outline": [0, 0, 0, 128]}],
-                          composite=True) is None
+                            "color": [255, 255, 255], "outline": [0, 0, 0, 128]}]) is None
 
 
 # --- show(): atlas binds ride the stream ------------------------------------

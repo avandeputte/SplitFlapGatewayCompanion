@@ -36,15 +36,17 @@ from app.transport.rest import RestTransport
 # ---------------------------------------------------------------------------
 # (gateway.supports_cells is gone — it was dead code whose only caller was its own
 # test; device.of() is the real fallback inference and answers the same question.)
-@pytest.mark.parametrize("gw,expected", [
-    ({"product": "Matrix Portal Gateway", "fwVersion": "1.7.0"}, True),
-    ({"product": "Matrix Portal Gateway", "fwVersion": "1.6.0"}, True),
-    ({"product": "Matrix Portal Gateway", "fwVersion": "1.5.9"}, False),   # predates it
-    ({"product": "SplitFlap Gateway", "fwVersion": "3.4.0"}, False),       # a real wall
-    ({}, False),
+@pytest.mark.parametrize("gw", [
+    {"product": "Matrix Portal Gateway", "fwVersion": "1.19.0"},
+    {"product": "Matrix Portal Gateway", "fwVersion": "3.13.0"},
+    {"product": "SplitFlap Gateway", "fwVersion": "3.1.0"},
+    {},
 ])
-def test_only_a_matrix_portal_has_the_index_api(gw, expected):
-    assert bool(device.of(gw)) is expected
+def test_the_config_fallback_never_claims_the_index_api(gw):
+    """of() is the no-capabilities fallback — and every current Matrix firmware answers
+    the capabilities probe, so a config-only gateway is an old physical wall. The index
+    API (a Matrix capability) is never inferred from a config document anymore."""
+    assert bool(device.of(gw)) is False
 
 
 def test_the_api_level_is_not_the_capability():

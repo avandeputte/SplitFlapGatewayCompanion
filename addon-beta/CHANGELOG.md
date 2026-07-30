@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.4
+
+- **One firmware, no ladders** 🪜 — all Matrix-firmware version compatibility removed:
+  binary ops, compositing, anti-aliasing, transforms and the canvas endpoint families
+  are simply assumed present (they are). Physical-gateway support is untouched.
+
 ## 2.10.9-beta.3
 
 - **Fix: full binary drawing on current firmware** — the gateway now advertises binary

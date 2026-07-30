@@ -28,13 +28,13 @@ def test_capability_and_wrappers():
     assert not canvas_surface("http://gw", 128, 64, ("rgb888",), (), ops=OPS35).can_composite
 
 
-def test_blend_encodes_binary_and_rgba_falls_back_to_json():
+def test_blend_and_rgba_encode_binary():
     assert encode_ops_bin([{"op": "blend", "mode": "over"}]) == b"\x14\x00"
     assert encode_ops_bin([{"op": "blend", "mode": "add"}]) == b"\x14\x01"
     assert encode_ops_bin([{"op": "blend", "mode": "screen"}]) == b"\x14\x03"
-    # a 4-component color can't be binary-encoded (batch alpha only) → the whole batch is JSON
+    # a 4-component color rides as batch alpha 0x15 + the plain rgb op
     assert encode_ops_bin([{"op": "circle", "x": 0, "y": 0, "r": 2,
-                            "color": [1, 2, 3, 4], "fill": True}]) is None
+                            "color": [1, 2, 3, 4], "fill": True}])[:2] == b"\x15\x04"
 
 
 def test_aquarium_adds_glow_only_on_a_compositing_wall(monkeypatch):

@@ -151,16 +151,9 @@ def _cv313(sd=True):
     return CanvasSurface("http://gw", caps)
 
 
-def test_can_sd_anim_needs_card_anim_and_313():
+def test_can_sd_anim_needs_the_card():
     assert _cv313().can_sd_anim
-    assert not _cv313(sd=False).can_sd_anim                # no card
-    from app import device
-    old = device.Capabilities(lowercase=True, pictographs=True, named_colors=True,
-                              indexed=True, canvas_w=128, canvas_h=64,
-                              canvas_formats=("rgb888",), canvas_ops=OPS35,
-                              canvas_anim=True, can_sd=True, fw_version=(3, 12))
-    from app.canvas import CanvasSurface
-    assert not CanvasSurface("http://gw", old).can_sd_anim  # pre-3.13 firmware
+    assert not _cv313(sd=False).can_sd_anim                # no card mounted
 
 
 def test_play_anim_path_posts_the_card_path(gw_calls):

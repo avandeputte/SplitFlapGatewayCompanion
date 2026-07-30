@@ -902,30 +902,23 @@ class CanvasSurface(paneltext.PanelText):
         # generation marker the text helpers key off.
         self.op_names = tuple(caps.canvas_ops)
         self.can_text_styles = "textbox" in self.op_names
-        self.ops_bin_v = int(caps.canvas_ops_bin or 0)   # 0 = JSON only; 2 adds aa/transform/…
-        self.can_ops_bin = self.ops_bin_v >= 1
+        self.can_ops_bin = bool(caps.canvas_ops_bin)     # the binary ops encoding, whole
         self.can_composite = bool(caps.canvas_composite)   # fw 3.8+: alpha, blend modes, AA
         self.can_sd = bool(caps.can_sd)                    # fw 3.10+: a microSD card is mounted
-        # fw 3.13+: MPGA animations stream straight off the card (no PSRAM cap) and
-        # /api/sound streams card WAVs — both need the card AND the streaming firmware.
-        self.can_sd_anim = (self.can_sd and bool(caps.canvas_anim)
-                            and tuple(caps.fw_version) >= (3, 13))
-        # aa without falling off the fast path: the wall composites AND either has no
-        # binary format at all (JSON was its path anyway) or speaks opsBin v2 (fw 3.12),
-        # which carries aa natively. On a v1-binary wall, aa would force every frame to
-        # JSON-over-HTTP — the choppiness the aquarium had — so apps gate on this.
-        self.aa_ok = bool(caps.canvas_composite) and (self.ops_bin_v == 0 or self.ops_bin_v >= 2)
+        # MPGA animations stream straight off the card (no PSRAM cap) — needs the card.
+        self.can_sd_anim = self.can_sd and bool(caps.canvas_anim)
+        # aa renders wherever the wall composites; the binary format carries it natively,
+        # so it never costs the fast path. (Kept as an attribute — it is the app ABI.)
+        self.aa_ok = bool(caps.canvas_composite)
         # 1.19 / 1.25 / 2.1. `can_ops` is "any draw ops at all" (the vocabulary itself is
         # op_names above, consulted via has_op()). The 2.1 endpoint families aren't flagged
-        # one by one, so they all gate on the firmware version (caps.canvas_2_1).
         self.can_ops = bool(self.op_names)
         self.can_readback = bool(caps.canvas_readback)
-        two_one = bool(caps.canvas_2_1)
-        self.can_overlay = two_one
-        self.can_transition = two_one
-        self.can_anim_library = two_one
-        self.can_gif = two_one
-        self.can_fonts = two_one
+        # The overlay/transition/anim-library/GIF/font endpoint families: every current
+        # Matrix firmware has them, so they simply come with the framebuffer. (Kept as
+        # attributes — they are the app ABI.)
+        self.can_overlay = self.can_transition = True
+        self.can_anim_library = self.can_gif = self.can_fonts = True
         self.can_sprite = bool(caps.canvas_sprite)
         self._ops: list = []
 
@@ -1017,7 +1010,7 @@ class CanvasSurface(paneltext.PanelText):
 
     # -- transform stack / layers / macros / bezier (fw 3.9 JSON; binary with opsBin v2,
     # fw 3.12 — on a v1-binary wall these force the JSON fallback for the frame, so an
-    # animating app should gate on ``ops_bin_v >= 2`` or ``has_op("save")``) -------------
+    # bare host can gate on ``has_op("save")``) ------------------------------------------
 
     def save(self):
         """Push the current transform (translate/scale/rotate) — pair with restore()."""
@@ -1271,8 +1264,7 @@ class CanvasSurface(paneltext.PanelText):
             for op in ops:
                 if op.get("op") == "atlas":
                     if run:
-                        enc = encode_ops_bin(run, composite=self.can_composite,
-                                             version=self.ops_bin_v)
+                        enc = encode_ops_bin(run)
                         if enc is None:
                             ok = False
                             break
@@ -1282,8 +1274,7 @@ class CanvasSurface(paneltext.PanelText):
                 else:
                     run.append(op)
             if ok and (run or pending_bind is not None):
-                enc = encode_ops_bin(run, composite=self.can_composite,
-                                     version=self.ops_bin_v)
+                enc = encode_ops_bin(run)
                 if enc is None:
                     ok = False
                 else:

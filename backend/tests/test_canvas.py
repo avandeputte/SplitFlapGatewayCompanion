@@ -667,12 +667,9 @@ def test_capabilities_parse_the_canvas_extras():
                            {"id": "life", "params": [{"key": "density", "type": "int"}]}])
     caps = device.from_capabilities(doc)
     assert caps.canvas_rect and caps.canvas_anim and caps.canvas_ticker
-    # fw 3.12 dropped the flat effectParams key: the union of the defs' param keys
-    # minus "speed" IS the knob list now
+    # the union of the defs' param keys minus "speed" IS the knob list — effectDefs is
+    # the sole source (the flat effectParams key is gone from the firmware)
     assert caps.effect_params == ("hue", "density")
-    # …and a pre-3.4 wall (no defs) still counts its literal key
-    legacy = dict(CANVAS_DOC, effects=["plasma"], effectParams=["hue"])
-    assert device.from_capabilities(legacy).effect_params == ("hue",)
 
 
 def test_qoi_encode_round_trips_to_the_exact_pixels():

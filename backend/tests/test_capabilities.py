@@ -64,17 +64,17 @@ def test_a_mixed_wall_reports_the_INTERSECTION():
     assert caps.can_show("A") and not caps.can_show("D")
 
 
-def test_a_gateway_too_old_to_answer_falls_back_to_the_guess():
-    """No /api/capabilities -> None, so the caller uses the old product-name inference and
-    keeps working exactly as it did."""
+def test_a_gateway_too_old_to_answer_falls_back_to_the_split_flap():
+    """No /api/capabilities -> None, so the caller falls back — and with every current
+    Matrix firmware answering the probe, a capabilities-less gateway is by definition an
+    old PHYSICAL wall: of() assumes the split-flap, never a Matrix panel."""
     assert device.from_capabilities(None) is None
     assert device.from_capabilities({"nothing": "useful"}) is None
     assert device.from_capabilities("<html>404</html>") is None      # a proxy error page
 
-    # …and the old inference still works.
-    assert device.of({"product": "Matrix Portal Gateway", "fwVersion": "1.7.0"}).indexed
-    assert not device.of({"product": "SplitFlap Gateway", "fwVersion": "3.1"}).indexed
-
+    assert not device.of({"product": "Matrix Portal Gateway", "fwVersion": "1.7.0"}).indexed
+    assert not device.of({"product": "SplitFlap Gateway", "fwVersion": "3.1.0"}).indexed
+    assert not device.of({}).indexed
 
 def test_an_unknown_charset_means_send_it_and_hope():
     """Exactly the old behavior. An empty charset must NOT read as "shows nothing"."""

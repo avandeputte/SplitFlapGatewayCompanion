@@ -67,9 +67,9 @@ def build(deps) -> APIRouter:
             "readback": caps.canvas_readback,
             "ops": list(caps.canvas_ops),
             "effects": list(caps.effects), "effect_params": list(caps.effect_params),
-            "overlay": caps.canvas_2_1, "transition": caps.canvas_2_1,
-            "anim_library": caps.canvas_2_1, "gif": caps.canvas_2_1,
-            "fonts": caps.canvas_2_1, "sprite": caps.canvas_sprite,
+            "overlay": caps.canvas_endpoints, "transition": caps.canvas_endpoints,
+            "anim_library": caps.canvas_endpoints, "gif": caps.canvas_endpoints,
+            "fonts": caps.canvas_endpoints, "sprite": caps.canvas_sprite,
         }
 
     @router.post("/api/panel/overlay")
@@ -77,7 +77,7 @@ def build(deps) -> APIRouter:
         """Set (or, with empty text, clear) a lower-third ticker that composites OVER whatever the
         wall is showing and survives page/mode changes. `overlay` needs firmware 2.1."""
         _d, url, caps = _wall(request)
-        _need(caps.canvas_2_1, "the overlay ticker")
+        _need(caps.canvas_endpoints, "the overlay ticker")
         ok = await asyncio.to_thread(canvas.put_ticker, url, req.text, tuple(req.color),
                                      req.speed, True, req.band, req.font)
         if not ok:
@@ -89,7 +89,7 @@ def build(deps) -> APIRouter:
         """How subsequent canvas frames present on this wall — none/crossfade/wipe/slide. Sticky
         on the gateway until changed. Needs firmware 2.1."""
         _d, url, caps = _wall(request)
-        _need(caps.canvas_2_1, "frame transitions")
+        _need(caps.canvas_endpoints, "frame transitions")
         ok = await asyncio.to_thread(canvas.set_transition, url, req.type, req.ms)
         if not ok:
             raise HTTPException(502, "the gateway refused the transition")
@@ -100,7 +100,7 @@ def build(deps) -> APIRouter:
         """The on-device animation and font libraries, plus the current boot splash. Needs
         firmware 2.1; an older wall returns empty lists so the UI can hide the section."""
         _d, url, caps = _wall(request)
-        if not caps.canvas_2_1:
+        if not caps.canvas_endpoints:
             return {"anims": [], "fonts": [], "boot": ""}
         anims, fonts, cfg = await asyncio.gather(
             asyncio.to_thread(canvas.anim_list, url),
@@ -113,7 +113,7 @@ def build(deps) -> APIRouter:
     @router.post("/api/panel/anim/play")
     async def panel_anim_play(request: Request, req: Named):
         _d, url, caps = _wall(request)
-        _need(caps.canvas_2_1, "the animation library")
+        _need(caps.canvas_endpoints, "the animation library")
         out = await asyncio.to_thread(canvas.anim_play, url, req.name)
         if not out.get("ok"):
             raise HTTPException(502, "could not play that animation")
@@ -122,7 +122,7 @@ def build(deps) -> APIRouter:
     @router.post("/api/panel/anim/delete")
     async def panel_anim_delete(request: Request, req: Named):
         _d, url, caps = _wall(request)
-        _need(caps.canvas_2_1, "the animation library")
+        _need(caps.canvas_endpoints, "the animation library")
         if not await asyncio.to_thread(canvas.anim_delete, url, req.name):
             raise HTTPException(502, "could not delete that animation")
         return {"ok": True}
@@ -132,7 +132,7 @@ def build(deps) -> APIRouter:
         """Persist whatever the panel is currently looping to the library under `name` — the way
         a GIF you just uploaded becomes a keepable, named entry."""
         _d, url, caps = _wall(request)
-        _need(caps.canvas_2_1, "the animation library")
+        _need(caps.canvas_endpoints, "the animation library")
         if not await asyncio.to_thread(canvas.anim_save, url, req.name):
             raise HTTPException(502, "nothing loaded to save, or the write failed")
         return {"ok": True}
@@ -142,7 +142,7 @@ def build(deps) -> APIRouter:
         """Upload an animated GIF; the gateway decodes it on-device and plays it at once. Persist
         it afterwards with /api/panel/anim/save. Needs firmware 2.1."""
         _d, url, caps = _wall(request)
-        _need(caps.canvas_2_1, "GIF import")
+        _need(caps.canvas_endpoints, "GIF import")
         data = await request.body()
         if not data:
             raise HTTPException(400, "empty upload")
@@ -156,7 +156,7 @@ def build(deps) -> APIRouter:
         """Set (or clear, with an empty name) the boot splash — a library animation the panel
         autoplays at power-on before WiFi. Stored on the gateway (POST /api/config/settings)."""
         _d, url, caps = _wall(request)
-        _need(caps.canvas_2_1, "the boot splash")
+        _need(caps.canvas_endpoints, "the boot splash")
         r = await asyncio.to_thread(gateway._request, "POST", url, "/api/config/settings",
                                     json={"bootAnim": req.name}, timeout=8.0)
         if getattr(r, "status_code", 500) >= 400:
@@ -168,7 +168,7 @@ def build(deps) -> APIRouter:
         """Upload a packed MPFT font into the wall's custom slot. Save it to the library
         afterwards with /api/panel/font/save. Needs firmware 2.1."""
         _d, url, caps = _wall(request)
-        _need(caps.canvas_2_1, "custom fonts")
+        _need(caps.canvas_endpoints, "custom fonts")
         data = await request.body()
         if not data:
             raise HTTPException(400, "empty upload")
@@ -180,7 +180,7 @@ def build(deps) -> APIRouter:
     @router.post("/api/panel/font/save")
     async def panel_font_save(request: Request, req: Named):
         _d, url, caps = _wall(request)
-        _need(caps.canvas_2_1, "custom fonts")
+        _need(caps.canvas_endpoints, "custom fonts")
         if not await asyncio.to_thread(canvas.font_save, url, req.name):
             raise HTTPException(502, "no font loaded to save, or the write failed")
         return {"ok": True}
@@ -188,7 +188,7 @@ def build(deps) -> APIRouter:
     @router.post("/api/panel/font/delete")
     async def panel_font_delete(request: Request, req: Named):
         _d, url, caps = _wall(request)
-        _need(caps.canvas_2_1, "custom fonts")
+        _need(caps.canvas_endpoints, "custom fonts")
         if not await asyncio.to_thread(canvas.font_delete, url, req.name):
             raise HTTPException(502, "could not delete that font")
         return {"ok": True}

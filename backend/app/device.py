@@ -101,19 +101,13 @@ class Capabilities:
     # effects/effect_params pair.
     effect_defs: tuple = ()
 
-    # Newer still (Matrix Portal 1.19 / 1.25 / 2.1). `fw_version` is the wall's firmware,
-    # parsed from the capabilities document's `fw` field ((0, 0) = not stated). `canvas_readback`
-    # (1.19) and `canvas_ops` (1.25 — the draw-op vocabulary) are advertised directly. The 2.1
-    # endpoint families — the overlay ticker, frame transitions, the on-device animation and font
-    # LIBRARIES, GIF import and the boot splash — are NOT separately flagged, so they gate on the
-    # firmware version (`canvas_2_1`); `sprite` is the exception, carried in `canvas_ops`.
+    # `fw_version` is the wall's firmware, parsed from the capabilities document's `fw`
+    # field ((0, 0) = not stated) — informational (the panel-caps display), never a gate:
+    # the companion supports exactly the current Matrix firmware.
     fw_version: tuple[int, int] = (0, 0)
     canvas_readback: bool = False           # GET /api/canvas/frame — read the lit panel back
     canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honors
-    canvas_ops_bin: int = 0                 # binary-ops support level: 0 = JSON only, 1 = the
-                                            # legacy 3.5-3.11 subset, 2 = the full format.
-                                            # Modern firmware advertises a plain boolean (full
-                                            # support); the integers only survive for old walls.
+    canvas_ops_bin: bool = False            # the binary ops encoding ("opsBin"), whole
     canvas_composite: bool = False          # fw 3.8: per-color alpha, blend modes, AA (canvas.compositing)
     # 3.1: PUT /api/canvas/rects — a frame-push app sends only the rectangles that changed since
     # its last frame instead of the whole panel. Advertised as canvas.rects.
@@ -136,12 +130,11 @@ class Capabilities:
         return "sprite" in self.canvas_ops
 
     @property
-    def canvas_2_1(self) -> bool:
-        """Whether the wall runs Matrix Portal firmware 2.1+, which added the endpoint families
-        that are not separately advertised: the overlay ticker, frame transitions, the persistent
-        animation/font libraries, GIF import and the boot splash. Gated on the firmware version
-        because /api/capabilities does not flag them one by one."""
-        return self.fw_version >= (2, 1)
+    def canvas_endpoints(self) -> bool:
+        """The canvas endpoint families that are not separately advertised — the overlay
+        ticker, frame transitions, the animation/font libraries, GIF import, the boot
+        splash. Every current Matrix firmware has them: they come with the framebuffer."""
+        return self.has_canvas
 
     @property
     def has_canvas(self) -> bool:
@@ -189,18 +182,13 @@ MATRIX_PORTAL = Capabilities(lowercase=True, pictographs=True, named_colors=True
 def of(gateway_config: dict | None) -> Capabilities:
     """THE FALLBACK. What the gateway probably is, from its ``GET /api/config``.
 
-    Only for a gateway too old to answer /api/capabilities. Keyed on the product and its
-    firmware version, NOT on the gateway API level: that stays 3.1 for both (it is the API's
-    level, not the firmware's), so keying off it would claim the capability for every 3.1
-    gateway — including every physical wall.
+    Only for a gateway too old to answer /api/capabilities — which, with every current
+    Matrix firmware answering it, means an old PHYSICAL gateway: assume the split-flap.
+    (A Matrix wall that fails the capabilities probe is a transient, and the probe retries
+    on resync — inferring Matrix powers from a config document is legacy support the
+    companion no longer carries.)
     """
-    gw = gateway_config or {}
-    if "matrix portal" not in str(gw.get("product") or "").lower():
-        return SPLIT_FLAP
-    m = re.search(r"(\d+)\.(\d+)", str(gw.get("fwVersion") or ""))
-    if not m or (int(m.group(1)), int(m.group(2))) < (1, 6):
-        return SPLIT_FLAP        # the index-addressed API arrived in firmware 1.6
-    return MATRIX_PORTAL
+    return SPLIT_FLAP
 
 
 def from_capabilities(doc: dict | None) -> Capabilities | None:
@@ -253,37 +241,23 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     effect_defs = tuple(d for d in (doc.get("effectDefs") or [])
                         if isinstance(d, dict) and isinstance(d.get("id"), str)
                         and isinstance(d.get("params"), list))
-    # The flat knob union (canvas.effect_params, read by the effects app's legacy knob
-    # path). fw 3.12 dropped the capabilities "effectParams" key; effectDefs (3.4+) is
-    # the sole source now, and the union of its param keys minus "speed" reproduces the
-    # old list exactly. Pre-3.4 firmware has no defs, so its literal key still counts.
+    # The flat knob union (canvas.effect_params): derived from effectDefs — the sole
+    # source — as the union of the defs' param keys minus "speed".
     seen: list[str] = []
     for d in effect_defs:
         for p in d.get("params") or []:
             k = str(p.get("key") or "")
             if k and k != "speed" and k not in seen:
                 seen.append(k)
-    effect_params = tuple(seen) or tuple(
-        str(p) for p in (doc.get("effectParams") or []) if isinstance(p, str))
+    effect_params = tuple(seen)
     # The draw-op vocabulary (1.25) and the panel readback flag (1.19), advertised directly. The
     # ops list is what gates a specific op the app is about to send — an unknown op is skipped by
     # the firmware, but knowing up front lets an app choose the frame path instead.
     canvas_ops = tuple(str(o) for o in (canvas.get("ops") or []) if isinstance(o, str))
     try:
-        raw_opsbin = canvas.get("opsBin")
-        if raw_opsbin is True:
-            # The modern contract: a plain boolean, meaning THE binary format — everything
-            # the current encoder can emit. (Must be checked before int(): bool is an int
-            # subclass in Python, and int(True) == 1 would silently downgrade a full-format
-            # wall to the legacy subset, knocking its aa/transform batches back to JSON.)
-            canvas_ops_bin = 2
-        elif raw_opsbin in (False, None):
-            canvas_ops_bin = 0
-        else:
-            # Legacy integer firmware: 1 (fw 3.5-3.11) or 2 (fw 3.12's transitional number).
-            canvas_ops_bin = int(raw_opsbin)
+        canvas_ops_bin = bool(canvas.get("opsBin"))
     except (TypeError, ValueError):
-        canvas_ops_bin = 0
+        canvas_ops_bin = False
     canvas_composite = bool(canvas.get("compositing"))
     canvas_readback = bool(canvas.get("readback"))
     # `fw` is the firmware version string, e.g. "2.1.0"; take the leading major.minor. The 2.1

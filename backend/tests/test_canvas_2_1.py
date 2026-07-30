@@ -1,17 +1,18 @@
-"""Firmware 1.19 / 1.25 / 2.1 canvas additions: panel readback, the full draw-op
-vocabulary, the overlay ticker, frame transitions, the on-device animation/font
-libraries, GIF import and the sprite atlas. These pin that the capability document
-is parsed into the right gates, and that each ``CanvasSurface`` helper speaks the
-gateway endpoint it should — request shape and response parsing both.
+"""The canvas endpoint families: panel readback, the draw-op vocabulary, the overlay
+ticker, frame transitions, the on-device animation/font libraries, GIF import and the
+sprite atlas. These pin that the capability document is parsed into the right gates
+(the families come with the framebuffer — one firmware generation), and that each
+``CanvasSurface`` helper speaks the gateway endpoint it should — request shape and
+response parsing both.
 """
 
 import pytest
 
 from app import canvas, device
 
-# A 2.1 Matrix wall as /api/capabilities describes it.
+# A Matrix wall as /api/capabilities describes it.
 DOC_2_1 = {
-    "product": "Matrix Portal Gateway", "fw": "2.1.0", "api": "3.1.0",
+    "product": "Matrix Portal Gateway", "fw": "3.13.0",
     "features": ["cells", "colors", "canvas", "effects", "ticker"],
     "colors": ["red", "green"], "charset": {"uniform": True, "common": "ABC"},
     "canvas": {"formats": ["rgb888", "rgb565", "qoi"], "width": 128, "height": 32,
@@ -27,23 +28,13 @@ DOC_2_1 = {
 
 # --- capability parsing -----------------------------------------------------
 
-def test_2_1_capabilities_are_parsed():
+def test_canvas_capabilities_are_parsed():
     c = device.from_capabilities(DOC_2_1)
-    assert c.fw_version == (2, 1) and c.canvas_2_1
+    assert c.fw_version == (3, 13)            # informational (the panel-caps display)
+    assert c.canvas_endpoints                 # the families come with the framebuffer
     assert c.canvas_readback
     assert "sprite" in c.canvas_ops and c.canvas_sprite
     assert len(c.canvas_ops) == 17
-
-
-def test_a_1_18_wall_has_none_of_the_new_features():
-    doc = dict(DOC_2_1, fw="1.18.0")
-    doc["canvas"] = {"formats": ["rgb888", "qoi"], "width": 128, "height": 32,
-                     "rect": True, "anim": True, "ticker": True}      # no readback / ops
-    c = device.from_capabilities(doc)
-    assert c.fw_version == (1, 18) and not c.canvas_2_1
-    assert not c.canvas_readback and not c.canvas_sprite and c.canvas_ops == ()
-    # but the 1.18 gates it DOES have still read true
-    assert c.canvas_rect and c.canvas_anim and c.canvas_ticker
 
 
 def test_firmware_parsing_is_forgiving():
