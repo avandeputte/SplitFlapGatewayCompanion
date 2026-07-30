@@ -32,7 +32,7 @@ from .entity import SplitFlapEntity
 _COLOURS = ("#e23b3b", "#ff9f0a", "#ffd60a", "#2fb84a", "#3b82f6", "#a855f7", "#e8e8e8")
 _PUA_COLOUR = {chr(0xE000 + i): c for i, c in enumerate(_COLOURS)}
 
-# Pictographs that bring their own ink, exactly as the Matrix Portal draws them
+# Pictographs that bring their own ink, exactly as the Matrix Gateway draws them
 # (its FONT_EXTRA_COLOUR table): a heart is the red flap's red — a white heart is
 # not a heart. Everything else stays the normal glyph ink.
 _PICTO_INK = {

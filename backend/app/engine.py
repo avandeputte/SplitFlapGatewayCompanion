@@ -31,7 +31,7 @@ class NeedsCanvasError(KeyError):
 # own _REPAINT_SECONDS (which drops the cell-diff), so the re-emit actually goes out whole.
 _PAGE_HEARTBEAT_S = 15.0
 
-# Only adopt the v3.2 canvas draw stream for an app redrawing at least this often — comfortably
+# Only adopt the canvas draw stream for an app redrawing at least this often — comfortably
 # inside the stream's 30 s idle timeout, so a slow app never opens (and then loses) one.
 _CANVAS_STREAM_MAX_HOLD = 2.0
 
@@ -208,7 +208,7 @@ class DisplayController:
         if not self._canvas_active:
             return
         self._canvas_active = False
-        # Close any 3.2 draw stream first: while it's open the drawing REST endpoints answer 409, so
+        # Close any open draw stream first: while it's open the drawing REST endpoints answer 409, so
         # whatever takes the panel next (a flap page, another canvas app) must find it unlocked.
         _url = str(self.config.transport.get("gateway_url") or "").strip()
         if _url:
@@ -318,7 +318,7 @@ class DisplayController:
           shows_lowercase  — what it WILL do. The hardware, AND the user's preference.
 
         Only the second one decides the fold. The first still decides the WIRE protocol: a
-        Matrix Portal asked to shout is still driven by the index-addressed API, and still
+        Matrix Gateway asked to shout is still driven by the index-addressed API, and still
         shows its pictographs and named colors. It is just in capitals.
         """
         return self.caps.lowercase and not self._forced_uppercase()
@@ -337,7 +337,7 @@ class DisplayController:
         combination silently destroys an animation's colors.
 
         Folding is not the caller's business. A wall with no lowercase flaps gets uppercase;
-        a Matrix Portal does not. That decision belongs to the wall, it is made here, once,
+        a Matrix Gateway does not. That decision belongs to the wall, it is made here, once,
         and it is made LAST — after the colors are explicit, so folding can never eat one.
 
         Then DEGRADE, which is later still, and has to be: it asks "can this wall show this
@@ -403,8 +403,8 @@ class DisplayController:
             ok = True
             try:
                 # Batch path (REST): draw the whole page in one request per uniformly
-                # paced run of steps; the gateway (3.0+) paces the cascade. Sim/MQTT
-                # send per frame.
+                # paced run of steps; the gateway (3.0+) paces the cascade. Sim sends
+                # per frame.
                 if getattr(self.transport, "batch_capable", False):
                     await self._send_plan_batched(plan, base, speed)
                 else:
@@ -546,7 +546,7 @@ class DisplayController:
     def has_canvas_preview(self) -> bool:
         """True when the live preview / HA image should show the LED panel instead of the
         (bypassed, stale) flap grid: a canvas app is drawing here and either its last frame is
-        cached OR the wall can be read back. Readback (firmware 1.19) is what covers an on-device
+        cached OR the wall can be read back. Readback is what covers an on-device
         effect, ticker or animation — content the companion never rendered a frame for."""
         if not self._canvas_active:
             return False
@@ -585,7 +585,7 @@ class DisplayController:
 
         The app draws through the ``canvas`` surface; its return value, if a number, is the seconds
         to hold before the next redraw — an effect sets once and holds, a clock redraws each tick. A
-        low floor lets an animating app pick its own frame rate (on a 3.2 wall a fast frame-push app
+        low floor lets an animating app pick its own frame rate (a fast frame-push app
         runs over the draw stream, ~28 fps vs the ~8 fps HTTP ceiling)."""
         url = await self._take_panel()
         caps = self._caps()
@@ -624,10 +624,10 @@ class DisplayController:
                 canvas.stream_end(url)
 
     async def _maybe_stream(self, url: str, caps, app_id: str, hold) -> None:
-        """Adopt the v3.2 draw stream for a FAST app once we've seen it draw: a wall that
+        """Adopt the draw stream for a FAST app once we've seen it draw: a wall that
         advertises canvas.stream, a short hold (so it never trips the stream's 30 s idle
         timeout), and a push kind the stream carries whole — a frame, or a BINARY ops
-        batch (fw 3.5 record 0x06; a game like Chomper — atlas binds ride the stream's
+        batch (record 0x06; a game like Chomper — atlas binds ride the stream's
         own 0x04 record, so a sprite app like the aquarium qualifies too). Apps whose
         batches only JSON can carry stay on the per-batch HTTP path; a mid-stream atlas
         re-upload closes the stream itself (see canvas.put_atlas_named) and we simply

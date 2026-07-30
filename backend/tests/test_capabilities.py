@@ -27,7 +27,7 @@ FR_WALL = {
     "charset": {"uniform": True, "common": FR_REEL, "union": FR_REEL},
 }
 
-# A Matrix Portal, as the real one answers: everything, 237 flaps.
+# A Matrix Gateway, as the real one answers: everything, 237 flaps.
 MATRIX = {
     "product": "Matrix Portal Gateway",
     "features": ["cells", "colors", "index", "lowercase", "pictographs"],
@@ -208,7 +208,7 @@ def test_a_reel_that_has_the_character_is_left_alone(de):
 # --- the feature list is a list, not a taxonomy -------------------------------
 #
 # These two are the REAL feature lists, copied verbatim from a physical Split-Flap Gateway
-# (fw 3.7.4) and a Matrix Portal (fw 1.10.1). They are here because reading them wrong took a
+# (fw 3.7.4) and a Matrix Gateway (fw 1.10.1). They are here because reading them wrong took a
 # working wall down: the physical gateway advertises "index", the companion read that as "has
 # the index-addressed page API", and posted every page to /api/display/cells — which that
 # gateway does not have. 404 on every write, display shown as offline, while the gateway

@@ -37,7 +37,7 @@ def _rgb(color):
         return [255, 255, 255]
     try:
         vals = [max(0, min(255, int(v))) for v in color]
-        if len(vals) == 4:                             # rgba — fw 3.8 per-color alpha
+        if len(vals) == 4:                             # rgba — per-color alpha (compositing)
             return vals
         if len(vals) == 3:
             return vals
@@ -148,7 +148,7 @@ _OPCODE = {
     "gradient": 0x0b, "arc": 0x0c, "poly": 0x0d, "polyline": 0x0d, "clip": 0x0e,
     "origin": 0x0f, "text": 0x10, "sprite": 0x11, "scroll": 0x12, "show": 0x13,
     "blend": 0x14, "alpha": 0x15,
-    # opsBin v2 (fw 3.12): the transform/layer/macro/bezier surface, at parity with JSON.
+    # The transform/layer/macro/bezier opcodes, at parity with JSON.
     "save": 0x16, "restore": 0x17, "translate": 0x18, "scale": 0x19, "rotate": 0x1a,
     "layer": 0x1b, "composite": 0x1c, "define": 0x1d, "call": 0x1e, "bezier": 0x1f,
     "aaline": 0x20,
@@ -174,14 +174,13 @@ def encode_ops_bin(ops):
     out = bytearray()
     _BLEND = {"over": 0, "add": 1, "multiply": 2, "screen": 3, "max": 4}
     cur_alpha = 255                                    # the runner's binAlpha starts opaque
-    macro_ids: dict = {}                               # v2: JSON macro name -> slot id 0-7
+    macro_ids: dict = {}                               # JSON macro name -> slot id 0-7
     for op in ops:
         k = op.get("op")
-        # Per-color alpha ([r,g,b,a] on color / gradient from+to / text outline+shadow).
-        # On a compositing wall it maps onto batch alpha 0x15 — but only when every color
-        # in THIS op agrees on one alpha (0x15 is per op, not per field). Otherwise, and
-        # on any pre-3.8 wall, the whole batch falls back to JSON so the alpha is never
-        # silently truncated to opaque.
+        # Per-color alpha ([r,g,b,a] on color / gradient from+to / text outline+shadow)
+        # maps onto batch alpha 0x15 — but only when every color in THIS op agrees on one
+        # alpha (0x15 is per op, not per field). Mixed per-field alphas send the whole
+        # batch as JSON so the alpha is never silently truncated to opaque.
         alphas = set()
         for _ck in ("color", "from", "to", "outline", "shadow"):
             _cv = op.get(_ck)
@@ -193,10 +192,10 @@ def encode_ops_bin(ops):
         if op_alpha != cur_alpha and k not in ("blend", "show"):
             out += _opc("alpha") + _bu8(op_alpha)      # 0x15: batch alpha for the ops below
             cur_alpha = op_alpha
-        # Anti-aliasing: v1 has a binary form only for text — a smooth stroke falls back
-        # to JSON rather than encode byte-identically to a jagged one. v2 carries it:
-        # line becomes the 0x20 AALINE (t is ignored, exactly like the JSON path),
-        # circle/poly/polyline grow an aa flag bit in their existing layouts.
+        # Anti-aliasing: line becomes the 0x20 AALINE (t is ignored, exactly like the
+        # JSON path); circle/poly/polyline carry an aa flag bit in their layouts; text
+        # and bezier carry aa themselves. Any other op asking for aa has no binary
+        # form -> JSON fallback.
         if op.get("aa") and k not in ("text", "bezier"):
             if k == "line":
                 out += _opc("aaline") + _bi16(op["x"]) + _bi16(op["y"]) \
@@ -219,7 +218,7 @@ def encode_ops_bin(ops):
             out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["w"]) + _bi16(op["h"])
                     + _bu8(1 if op.get("fill") else 0) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
         elif k == "circle":
-            cfl = (1 if op.get("fill") else 0) | (2 if op.get("aa") else 0)   # bit1: aa (v2)
+            cfl = (1 if op.get("fill") else 0) | (2 if op.get("aa") else 0)   # bit1: aa
             out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op["r"])
                     + _bu8(cfl) + _bu8(op.get("t", 1)) + _brgb(op["color"]))
         elif k == "ellipse":
@@ -244,6 +243,8 @@ def encode_ops_bin(ops):
             pts = op.get("points") or []
             if len(pts) > 16:
                 return None
+            # bit0 fill (poly), bit1 outline (poly), bit2 aa; a polyline leaves bits
+            # 0-1 clear — how the shared 0x0d opcode distinguishes the two.
             flags = (1 if (k == "poly" and op.get("fill", True)) else 0)                 | (2 if (k == "poly" and not op.get("fill", True)) else 0)                 | (4 if op.get("aa") else 0)
             out += (_opc(k) + _bu8(len(pts)) + _bu8(flags) + _bu8(op.get("t", 1))
                     + _brgb(op["color"]))

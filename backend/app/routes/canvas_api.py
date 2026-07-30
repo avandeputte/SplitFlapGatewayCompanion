@@ -1,7 +1,6 @@
 """canvas_api.py — the companion's own controls for a Matrix wall's LED panel, the ones
 that have no place on the flap grid: the overlay ticker, frame transitions, the on-device
-animation and font libraries, GIF import and the boot splash (Matrix Portal firmware
-1.19 / 1.25 / 2.1). Everything here is a thin, gated proxy to the gateway's ``/api/canvas/*``
+animation and font libraries, GIF import and the boot splash. Everything here is a thin, gated proxy to the gateway's ``/api/canvas/*``
 family — the panel does the work. The companion's UI surfaces only the overlay ticker
 (the Compose card) and the library list; the rest (transitions, anim/GIF/font/boot
 management) stays API-only for scripts and tests, since the gateway's own UI covers it.
@@ -75,7 +74,7 @@ def build(deps) -> APIRouter:
     @router.post("/api/panel/overlay")
     async def panel_overlay(request: Request, req: Overlay):
         """Set (or, with empty text, clear) a lower-third ticker that composites OVER whatever the
-        wall is showing and survives page/mode changes. `overlay` needs firmware 2.1."""
+        wall is showing and survives page/mode changes."""
         _d, url, caps = _wall(request)
         _need(caps.canvas_endpoints, "the overlay ticker")
         ok = await asyncio.to_thread(canvas.put_ticker, url, req.text, tuple(req.color),
@@ -87,7 +86,7 @@ def build(deps) -> APIRouter:
     @router.post("/api/panel/transition")
     async def panel_transition(request: Request, req: Transition):
         """How subsequent canvas frames present on this wall — none/crossfade/wipe/slide. Sticky
-        on the gateway until changed. Needs firmware 2.1."""
+        on the gateway until changed."""
         _d, url, caps = _wall(request)
         _need(caps.canvas_endpoints, "frame transitions")
         ok = await asyncio.to_thread(canvas.set_transition, url, req.type, req.ms)
@@ -97,8 +96,7 @@ def build(deps) -> APIRouter:
 
     @router.get("/api/panel/library")
     async def panel_library(request: Request):
-        """The on-device animation and font libraries, plus the current boot splash. Needs
-        firmware 2.1; an older wall returns empty lists so the UI can hide the section."""
+        """The on-device animation and font libraries, plus the current boot splash."""
         _d, url, caps = _wall(request)
         if not caps.canvas_endpoints:
             return {"anims": [], "fonts": [], "boot": ""}
@@ -140,7 +138,7 @@ def build(deps) -> APIRouter:
     @router.put("/api/panel/gif")
     async def panel_gif(request: Request):
         """Upload an animated GIF; the gateway decodes it on-device and plays it at once. Persist
-        it afterwards with /api/panel/anim/save. Needs firmware 2.1."""
+        it afterwards with /api/panel/anim/save."""
         _d, url, caps = _wall(request)
         _need(caps.canvas_endpoints, "GIF import")
         data = await request.body()
@@ -166,7 +164,7 @@ def build(deps) -> APIRouter:
     @router.put("/api/panel/font")
     async def panel_font(request: Request):
         """Upload a packed MPFT font into the wall's custom slot. Save it to the library
-        afterwards with /api/panel/font/save. Needs firmware 2.1."""
+        afterwards with /api/panel/font/save."""
         _d, url, caps = _wall(request)
         _need(caps.canvas_endpoints, "custom fonts")
         data = await request.body()

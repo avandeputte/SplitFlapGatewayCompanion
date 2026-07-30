@@ -41,6 +41,8 @@ def trigger(settings, conditions):
         if total_secs <= 0:
             return False
 
+        # (upper, lower) seconds-remaining window per milestone — each wide enough
+        # that the trigger poll interval cannot step over it
         windows = {
             '30d': (30 * 86400, 29 * 86400),
             '7d':  (7 * 86400,  6 * 86400),

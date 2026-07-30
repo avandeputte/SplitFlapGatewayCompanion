@@ -158,7 +158,7 @@ say ""
 say "${B}MQTT broker (optional — only for Home Assistant)${N}"
 say "${DIM}  The companion drives the display over REST; it does NOT need MQTT to work."
 say "  MQTT is used solely to expose Home Assistant controls (App / Playlist / Stop"
-say "  entities). Matrix Portal Gateway firmware 3.0 no longer supplies a broker, so"
+say "  entities). The gateway does not supply an MQTT broker, so"
 say "  either deploy one here or point the companion at your existing broker.${N}"
 askyn DEPLOY_MQTT "  Deploy a Mosquitto MQTT broker container here?" n
 

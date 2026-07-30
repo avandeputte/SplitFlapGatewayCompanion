@@ -6,11 +6,11 @@ whole picture: a gradient water column, swaying weeds (polyline), rising bubbles
 a frame of pixels. The fish tiles are generated once with Pillow and uploaded to
 the panel's atlas; each frame just says "blit fish 3 at (x, y)". On a wall without
 the sprite op the fish fall back to being drawn from ops (ellipse + triangle). On a
-firmware-3.8 wall (``canvas.can_composite``) it adds what the ops surface newly allows:
+compositing wall (``canvas.can_composite``) it adds what the ops surface newly allows:
 additive **godrays** shimmering down from the surface and a soft **glow** around the
 bubbles — per-color alpha + the additive blend mode ride the binary stream as batch
-alpha (0x15), and on an opsBin-v2 wall (fw 3.12) the weeds and bubbles are anti-aliased
-too, still at game rate (no per-frame HTTP).
+alpha (0x15), and (``aa_ok``) the weeds and bubbles are anti-aliased too, still at
+game rate (no per-frame HTTP).
 """
 
 import math

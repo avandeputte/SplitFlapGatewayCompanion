@@ -35,7 +35,7 @@ configuration:
   companion_public_url:
     name: Companion URL
     description: >-
-      This add-on's own URL, registered with the gateway (3.0+) so the gateway shows a
+      This add-on's own URL, registered with the gateway so the gateway shows a
       "Companion" tab linking back here. Leave blank to auto-detect.
   home_assistant:
     name: Home Assistant integration

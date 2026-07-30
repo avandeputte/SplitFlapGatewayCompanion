@@ -16,7 +16,7 @@ from app import discovery
 # ---------------------------------------------------------------------------
 def test_looks_like_gateway_fingerprints():
     assert discovery.looks_like_gateway({"gridRows": 3, "gridCols": 15})
-    # the Matrix Portal serializes numbers as numbers, but be tolerant of strings
+    # the Matrix Gateway serializes numbers as numbers, but be tolerant of strings
     assert discovery.looks_like_gateway({"gridRows": "3", "gridCols": "15"})
     assert not discovery.looks_like_gateway({"gridRows": 0, "gridCols": 15})
     assert not discovery.looks_like_gateway({"rows": 3, "cols": 15})

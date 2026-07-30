@@ -632,7 +632,7 @@ class PluginRuntime:
         # since the last frame, .active() whether a human is engaged (else run attract mode).
         "controls": lambda self, app_id, ps, settings:
             gameinput.snapshot(self._gateway_url(), now=time.monotonic()),
-        # play_sound(notes=[[freq,ms],…]) / (freq=,ms=) → a tone on the wall's speaker (fw 3.6),
+        # play_sound(notes=[[freq,ms],…]) / (freq=,ms=) → a tone on the wall's speaker,
         # fire-and-forget so it never stalls a frame; a no-op where the wall has no speaker.
         "play_sound": lambda self, app_id, ps, settings:
             (lambda **kw: canvas.play_sound(self._gateway_url(), **kw)

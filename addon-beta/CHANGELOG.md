@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.5
+
+- **It's the Matrix Gateway** — every mention of the old "Matrix Portal" hardware name
+  updated across the UI, docs and wiki (product detection accepts both spellings).
+- **Better icons** — Binary Clock shows an actual BCD dot-clock face (binary is 0 and 1!).
+- **Documentation review** — in-repo docs and the whole wiki brought to the current
+  firmware state: version archaeology removed, every recent feature documented, stale
+  claims fixed, comments corrected.
+
 ## 2.10.9-beta.4
 
 - **One firmware, no ladders** 🪜 — all Matrix-firmware version compatibility removed:

@@ -12,7 +12,7 @@ def fetch_matrix(settings, canvas):
     if canvas.effects and effect not in canvas.effects:
         effect = canvas.effects[0]        # this panel doesn't have that one — use its first
 
-    # Self-describing wall (fw 3.4 effectDefs): the wall names exactly the params THIS
+    # Self-describing wall (effectDefs): the wall names exactly the params THIS
     # effect consumes, with types and ranges — serialize those and nothing else. A blank
     # int keeps the effect's own default (the key is omitted); a bool goes explicitly
     # true/false so a def with default:true can still be turned off.

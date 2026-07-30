@@ -26,7 +26,7 @@ const BASE = window.__BASE__ || "";
 // addresses a display by PATH (/gw/<id>/), because it rewrites the proxied page's own
 // links and a query param would be lost on the first click inside it.
 let DISPLAY = "";                 // active display id ("" until we've loaded them)
-let RICH = false;                 // can THIS wall show lowercase? (a Matrix Portal can)
+let RICH = false;                 // can THIS wall show lowercase? (a Matrix Gateway can)
 let CANVAS = false;               // does THIS wall have a framebuffer? (a Matrix panel does)
 let DISPLAYS = [];                // [{id, name, grid, module_count, ...}]
 let DEFAULT_DISPLAY = "default";
@@ -354,7 +354,7 @@ const isEmoji = (v) => Object.prototype.hasOwnProperty.call(EMOJI2CODE, v);
 // Uppercase the way the server will (renderer.fold / cp1252_upper): never let a glyph
 // expand, so "ß" stays "ß" instead of becoming "SS" and silently eating a cell.
 //
-// …and ONLY when the wall would. A Matrix Portal has lowercase flaps, so shouting the
+// …and ONLY when the wall would. A Matrix Gateway has lowercase flaps, so shouting the
 // editor back at someone who typed "Hello" made the preview lie about what the wall is
 // about to show. RICH is the active display's capability (see loadDisplays).
 function cmpUpper(ch) {
@@ -585,7 +585,7 @@ function appReq(a) {
   return `${a.min_rows || 1}×${a.min_cols || 1}`;
 }
 
-// A tiny amber dot-matrix that echoes the Matrix Portal's LEDs (amber dots on black), so a
+// A tiny amber dot-matrix that echoes the Matrix Gateway's LEDs (amber dots on black), so a
 // canvas app reads as "draws on the panel" at a glance. Inline SVG — shown in the app library,
 // the app cards, and the rich app pickers (which is why those are custom dropdowns, not native
 // <select>s: an <option> can hold only plain text, never markup).
@@ -868,7 +868,7 @@ function wireRemoteSearch(search, { searchUrl, resultKey, render, hide }) {
 function normOpts(options) {
   return (options || []).map((o) => (typeof o === "object" ? o : { value: o, label: String(o) }));
 }
-// Append this wall's stored animations (firmware 2.1 library, GET /api/panel/library) to a
+// Append this wall's stored animations (GET /api/panel/library) to a
 // select. Best-effort: a non-Matrix or older wall returns none and the field keeps just its
 // manifest options. Re-selects the saved value once its option exists.
 async function fillAnimLibrary(sel, current) {
@@ -1725,7 +1725,7 @@ function wireOverlay() {
 // Those gateways still carry a Backup tab — 3.4 is what folded backup/restore into
 // Settings — so the fallback keeps it, and a 3.4+ gateway simply advertises a list
 // without it. A Matrix wall never gets this list (st.matrix below): Provision and
-// Calibration are physical-only pages it does not serve, and 3.4+ Matrix firmware
+// Calibration are physical-only pages it does not serve, and current Matrix firmware
 // always advertises its own tabs anyway. See backend/app/tabs.py.
 const GW_TABS_FALLBACK = [
   { id: "modules", label: "Modules" },

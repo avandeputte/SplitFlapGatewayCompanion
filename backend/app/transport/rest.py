@@ -75,7 +75,7 @@ class RestTransport(DisplayTransport):
         # the wall does not need, and flaps that should not be moving.
         self._shown: dict[int, str] = {}
         # ...but the cache is only our BELIEF about the wall, and anything that changed the panel
-        # without going through here — another client (MQTT / the MCP server / a second companion),
+        # without going through here — another client (the MCP server, a second companion),
         # the gateway's own compose page, a reboot's re-home — leaves it stale, and a cell we
         # wrongly believe is right gets skipped, so an old flap lingers "until it finally changes".
         # So every _REPAINT_SECONDS we resend the WHOLE page: a module already showing the value it
@@ -138,7 +138,7 @@ class RestTransport(DisplayTransport):
             cfg = (await self._client.get("/api/config")).json()
             self.caps = device.of(cfg)
             log.info("gateway %s has no /api/capabilities; assuming %s from its product name",
-                     self.base, "a Matrix Portal" if self.caps.indexed else "a split-flap")
+                     self.base, "a Matrix Gateway" if self.caps.indexed else "a split-flap")
         except Exception:
             self.caps = device.SPLIT_FLAP
 
@@ -180,7 +180,7 @@ class RestTransport(DisplayTransport):
             self._last_error = str(e)
             raise
 
-    # -- the index-addressed path (Matrix Portal) -----------------------------
+    # -- the index-addressed path (Matrix Gateway) -----------------------------
     def _cell(self, ch: str):
         """One character as a cell for POST /api/display/cells.
 
@@ -242,7 +242,7 @@ class RestTransport(DisplayTransport):
     async def send_batch(self, frames: list[tuple[int, str]], step_ms: int) -> None:
         """Draw a whole page in one request.
 
-        On a Matrix Portal this goes to /api/display/cells, which addresses flaps by INDEX:
+        On a Matrix Gateway this goes to /api/display/cells, which addresses flaps by INDEX:
         lowercase and accents survive, pictographs are reachable at all, colors are named
         rather than stealing seven letters — and unchanged cells are skipped, so moving one
         digit of a clock does not repaint seventy-five modules.

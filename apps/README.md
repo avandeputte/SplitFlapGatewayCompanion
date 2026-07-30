@@ -13,7 +13,7 @@ See [Compatibility](https://github.com/avandeputte/SplitFlapGateway/wiki/Compati
 
 Return the text **as written**. The companion folds it to uppercase on a wall that needs it
 — a physical split-flap has no lowercase flaps, and its one-byte protocol has no lowercase
-byte to send (the byte for `r` already means RED). A Matrix Portal has both, and shows your
+byte to send (the byte for `r` already means RED). A Matrix Gateway has both, and shows your
 text as you wrote it.
 
 Calling `.upper()` yourself was always redundant, because a non-raw page is folded anyway.
@@ -35,7 +35,7 @@ Two exceptions, both real:
 
 ## Asking what the wall can show
 
-Some walls are drawn rather than mechanical (a Matrix Portal), and those have fourteen
+Some walls are drawn rather than mechanical (a Matrix Gateway), and those have fourteen
 pictographs the reel has no flap for. Declare `caps` and the runtime hands you the answer:
 
 ```python
@@ -103,7 +103,9 @@ then `canvas.show()`; the batch renders on-device, streamed as binary ops where 
 firmware supports it) and *frame-push* (build a PIL image with `canvas.blank()`/
 `canvas.vgrad()`/`canvas.font()` and hand it to `canvas.frame(img)`). Read settings with
 `canvas.num(settings, key, default, lo, hi)` — the shared clamped raw-string parser —
-and gate newer draw ops on `canvas.has_op(...)` / the `canvas.can_*` capability flags.
+and gate newer draw ops on `canvas.has_op(...)` / the `canvas.can_*` capability flags. A wall
+with a microSD card (`canvas.can_sd`) adds `canvas.sd_list()` / `canvas.sd_get()`,
+`canvas.play_anim_path()` (MPGA movies streamed off the card) and `play_sound(wav=…)`.
 Interactive games additionally declare `"interactive": true` and take the `controls` /
 `play_sound` helpers.
 

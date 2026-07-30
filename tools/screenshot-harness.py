@@ -1,6 +1,6 @@
 """The screenshot harness — regenerates the whole screenshots/ gallery from app code.
 
-Renders every dual-surface app, channel, and Chomper at the four Matrix panel
+Renders every dual-surface app, channel, and the matrix-only apps (Chomper, SD Photos) at the four Matrix panel
 resolutions, plus the split-flap wall mockups at three heights, then rebuilds every
 contact sheet. All network fetchers are stubbed with sample data; the socket layer is
 hard-blocked so nothing can leak out. Run from anywhere:
@@ -133,12 +133,12 @@ class Cap:
         self.frames.append(image.convert('RGB').resize((self.width, self.height)))
         return True
 
-    _OPS35 = ('clear', 'pixel', 'hline', 'vline', 'line', 'rect', 'circle', 'ellipse',
+    _OPS = ('clear', 'pixel', 'hline', 'vline', 'line', 'rect', 'circle', 'ellipse',
               'triangle', 'roundrect', 'gradient', 'polyline', 'poly', 'arc', 'clip',
               'origin', 'text', 'textbox', 'image', 'sprite', 'scroll', 'show')
 
 
-    # -- microSD (fw 3.10): a fake card with two synthetic sample photos ------
+    # -- microSD: a fake card with two synthetic sample photos ------
     can_sd = True
     aa_ok = False
     _SD_PHOTOS = {}
@@ -176,7 +176,7 @@ class Cap:
         return self._sd_photo(path.rsplit('/', 1)[-1])
 
     def has_op(self, name):
-        return name in self._OPS35
+        return name in self._OPS
 
     @staticmethod
     def num(settings, key, default, lo=None, hi=None):

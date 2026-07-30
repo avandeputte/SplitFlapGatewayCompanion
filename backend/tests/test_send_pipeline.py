@@ -73,7 +73,7 @@ class _FakeClient:
 def _cells_transport():
     t = RestTransport("http://gw")
     t._client = _FakeClient()
-    t.caps = device.MATRIX_PORTAL
+    t.caps = device.MATRIX_GATEWAY
     return t
 
 

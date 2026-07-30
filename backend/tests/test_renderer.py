@@ -18,7 +18,7 @@ from app.state import DisplayState
 def test_normalize_basics():
     """normalize() sizes the page and makes its colors explicit. It does NOT fold the case:
     whether to uppercase is a property of the WALL, not of the text, so the engine does it
-    last, once, for everyone (renderer.fold). A Matrix Portal shows "hello"."""
+    last, once, for everyone (renderer.fold). A Matrix Gateway shows "hello"."""
     out = renderer.normalize("hello", 15)
     assert out == "hello".ljust(15)
     assert len(out) == 15

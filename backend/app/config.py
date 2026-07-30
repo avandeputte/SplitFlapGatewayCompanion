@@ -100,8 +100,8 @@ DEFAULTS: dict = {
     # The companion's own Home Assistant MQTT integration (publishes app/playlist
     # controls). "auto" enables it when a broker is configured (transport.mqtt.broker),
     # off when none is; true/false force it. The broker must be set locally
-    # (COMPANION_MQTT_* / add-on options) — a Matrix gateway on firmware 3.0+
-    # has no MQTT and supplies no broker.
+    # (COMPANION_MQTT_* / add-on options) — no Matrix Gateway has MQTT or
+    # supplies a broker.
     "ha": {
         "enabled": "auto",
         "discovery_prefix": "homeassistant",

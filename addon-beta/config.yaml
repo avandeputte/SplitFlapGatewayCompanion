@@ -20,7 +20,7 @@
 # is no run script to do it. The app reads /data/options.json itself — see
 # config._addon_overrides() — which is what lets one image serve both worlds.
 name: SplitFlap Gateway Companion (Beta)
-version: "2.10.9-beta.4"
+version: "2.10.9-beta.5"
 slug: splitflap_companion_beta
 description: >-
   Prerelease. Drive a SplitFlap wall from Home Assistant — apps, playlists, schedules
@@ -84,8 +84,8 @@ schema:
   # display (the one Home Assistant, the Vestaboard API and anything else that names no
   # display drives); later entries each become a display of their own.
   gateway_url: str
-  # The Home Assistant integration's MQTT broker. The gateway no longer supplies one
-  # (firmware 3.0 dropped MQTT), so set your broker's host here — e.g. `core-mosquitto`
+  # The Home Assistant integration's MQTT broker. The gateway supplies no broker of
+  # its own, so set your broker's host here — e.g. `core-mosquitto`
   # for the HA Mosquitto add-on. Leave blank to keep the HA device off.
   mqtt_broker: str?
   mqtt_port: int?

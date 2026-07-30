@@ -2,7 +2,7 @@
 events.py — Server-Sent Events for the live preview.
 
 The backend PUSHES the display state over an SSE stream (``GET /api/events``) the
-instant it changes, mirroring the Matrix gateway's own ``/api/events`` (firmware 3.0).
+instant it changes, mirroring the Matrix Gateway's own ``/api/events``.
 One pump task per display diffs the snapshot on a short cadence and broadcasts it to
 every connected browser; the browser's ``EventSource`` applies each frame exactly as it
 applies a ``/api/current_state`` poll result, and falls back to polling if the stream

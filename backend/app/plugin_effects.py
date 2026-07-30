@@ -3,7 +3,7 @@
 The single ``effects`` template app on disk is presented as ONE installable app per
 on-device effect the wall advertises (Plasma, Fire, Matrix Rain…). This module derives
 those synthetic apps: their ids, names/icons, and manifests — including the knob fields,
-which come from the wall's own effect self-description (fw 3.4 ``effectDefs``) when it
+which come from the wall's own effect self-description (``effectDefs``) when it
 has one. The loader side (registering the synthetic entries against the shared module)
 stays in plugins.PluginRuntime._load_effects; everything here is pure derivation.
 
@@ -49,8 +49,8 @@ def effect_defs(rt) -> list[tuple[str, str]]:
 
 
 def effect_def_for(rt, token: str) -> dict | None:
-    """This wall's self-description of one effect (fw 3.4 ``effectDefs``), or None on
-    older firmware — callers fall back to the template's fixed knobs."""
+    """This wall's self-description of one effect (``effectDefs``), or None when the wall
+    doesn't describe that effect — callers fall back to the template's fixed knobs."""
     try:
         for d in rt._caps().effect_defs:
             if d.get("id") == token:
@@ -90,9 +90,8 @@ def effect_def_fields(d: dict) -> list[dict]:
 def effect_manifest(rt, effect_id: str, token: str) -> dict:
     """A per-effect app's manifest, derived from the shared ``effects`` manifest: the
     effect PICKER is dropped (the app IS one effect, pinned via ``pinned_effect``).
-    On a wall that describes its effects (fw 3.4 ``effectDefs``) the knob fields come
-    from the effect's own def — exactly the params it consumes, named by the firmware;
-    on older firmware the template's speed/hue/density stay."""
+    The knob fields come from the effect's own def — exactly the params it consumes,
+    named by the firmware; without a def the template's speed/hue/density stay."""
     from .plugins import _read_json_cached
 
     d = rt._scan().get("effects")

@@ -3,7 +3,7 @@
 The sky is a color rather than a picture because a color is the only weather icon that
 works on EVERY wall. The flap reel has no cloud and no raindrop — but it has had seven
 colors since the beginning, and a split-flap shows them natively. (A pictograph would work
-on a Matrix Portal and degrade to an asterisk on a real wall.)
+on a Matrix Gateway and degrade to an asterisk on a real wall.)
 
 Three of the four providers already called a forecast endpoint and simply asked for one day;
 OpenWeather has no daily endpoint on the free plan at all, so its days are built from the

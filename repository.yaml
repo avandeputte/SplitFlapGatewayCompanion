@@ -1,5 +1,5 @@
 # Makes this repo a Home Assistant add-on repository. Add its GitHub URL under
-# Settings -> Add-ons -> Add-on Store -> ⋮ -> Repositories, and the add-on in
+# Settings → Add-ons → Add-on Store -> ⋮ -> Repositories, and the add-on in
 # addon/ shows up in the store.
 name: SplitFlap
 url: https://github.com/avandeputte/SplitFlapGatewayCompanion

@@ -2,7 +2,7 @@
 
 Two mechanisms run together; nothing here ever runs in the background:
 
-* **An HTTP sweep.** Every SplitFlap-family gateway — ESP32 and Matrix Portal
+* **An HTTP sweep.** Every SplitFlap-family gateway — ESP32 and Matrix Gateway
   alike — answers ``GET /api/config`` with its grid (``gridRows``/``gridCols``),
   and that is the fingerprint. We probe the /24s the companion can honestly
   claim to be near: the subnets of gateways it already drives, the host's real

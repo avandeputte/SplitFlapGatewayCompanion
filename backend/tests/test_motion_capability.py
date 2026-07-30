@@ -47,4 +47,4 @@ def test_junk_motion_counts_as_not_reported():
 def test_the_builtin_guesses_carry_motion():
     assert device.SPLIT_FLAP.instant is False
     assert device.SPLIT_FLAP.settle_ms == 4000
-    assert device.MATRIX_PORTAL.instant is True
+    assert device.MATRIX_GATEWAY.instant is True

@@ -86,5 +86,5 @@ async def test_a_500_is_a_real_fault_and_is_not_downgraded():
     with pytest.raises(Exception):
         await t.send_batch([(0, "A")], step_ms=10)
 
-    assert t.caps.indexed is True, "still a Matrix Portal; the fault is not a missing endpoint"
+    assert t.caps.indexed is True, "still a Matrix Gateway; the fault is not a missing endpoint"
     assert not t.connected

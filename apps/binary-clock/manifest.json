@@ -1,10 +1,14 @@
 {
   "id": "binary-clock",
   "name": "Binary Clock",
-  "icon": "🔢",
+  "icon": "🔟",
+  "icon_svg": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 38 36'%3E%3Crect x='3' y='27' width='6' height='6' rx='3' fill='%23ffb428'/%3E%3Crect x='3' y='19' width='6' height='6' rx='3' fill='%233a3f4c'/%3E%3Crect x='3' y='11' width='6' height='6' rx='3' fill='%233a3f4c'/%3E%3Crect x='3' y='3' width='6' height='6' rx='3' fill='%233a3f4c'/%3E%3Crect x='11' y='27' width='6' height='6' rx='3' fill='%233a3f4c'/%3E%3Crect x='11' y='19' width='6' height='6' rx='3' fill='%23ffb428'/%3E%3Crect x='11' y='11' width='6' height='6' rx='3' fill='%233a3f4c'/%3E%3Crect x='11' y='3' width='6' height='6' rx='3' fill='%23ffb428'/%3E%3Crect x='21' y='27' width='6' height='6' rx='3' fill='%23ffb428'/%3E%3Crect x='21' y='19' width='6' height='6' rx='3' fill='%23ffb428'/%3E%3Crect x='21' y='11' width='6' height='6' rx='3' fill='%233a3f4c'/%3E%3Crect x='21' y='3' width='6' height='6' rx='3' fill='%233a3f4c'/%3E%3Crect x='29' y='27' width='6' height='6' rx='3' fill='%23ffb428'/%3E%3Crect x='29' y='19' width='6' height='6' rx='3' fill='%233a3f4c'/%3E%3Crect x='29' y='11' width='6' height='6' rx='3' fill='%23ffb428'/%3E%3Crect x='29' y='3' width='6' height='6' rx='3' fill='%233a3f4c'/%3E%3C/svg%3E",
   "description": "Time as a BCD binary clock in color flaps",
   "type": "functional",
-  "surfaces": ["flap", "matrix"],
+  "surfaces": [
+    "flap",
+    "matrix"
+  ],
   "refresh_interval": 1,
   "loop_delay": 1,
   "category": "time",

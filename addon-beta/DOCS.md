@@ -9,13 +9,13 @@ pre-wired for HA, with the UI restyled to match and served in the sidebar.
 
 ## Before you start
 
-You need a **SplitFlapGateway** (the ESP32 board that talks RS-485 to the modules)
-reachable on your network. The gateway is the source of truth for grid size, read
-from it, so its URL is normally the only thing you have to enter.
+You need a **SplitFlapGateway** (the ESP32 board that talks RS-485 to the modules) or a
+**Matrix Gateway** (its LED-panel sibling) reachable on your network. The gateway is the
+source of truth for grid size, read from it, so its URL is normally the only thing you
+have to enter.
 
-Driving a **Matrix Portal Gateway** panel needs **firmware 3.0+** (live preview streams
-over SSE, and the panel no longer supplies an MQTT broker — set the broker below for the
-Home Assistant integration).
+The gateway supplies no MQTT broker of its own — for the Home Assistant MQTT integration,
+set the broker below.
 
 ## Installation
 
@@ -86,6 +86,7 @@ and the display becomes a set of tools:
 | `list_playlists` / `run_playlist` | The saved playlists, and run one |
 | `stop` | Stop the running app or playlist |
 | `list_styles` | The flap transition styles `show_message` accepts |
+| `list_displays` | The displays this companion drives — every tool also takes a `display` argument |
 
 There is also a native **HACS integration** (App/Playlist selects, sensors, buttons, a
 `splitflap.message` service) — see the project README. It needs no MQTT and surfaces the
@@ -111,7 +112,8 @@ gateway_url: http://192.168.1.218,http://192.168.1.50
 
 …or add one in the app (**⚙ Tools → Displays**), where it comes up immediately without a
 restart. The first entry is the **default display** — the one Home Assistant, the
-Vestaboard API and anything else that does not name a display will drive.
+Vestaboard API and anything else that does not name a display will drive (change it
+later with **⚙ Tools → Displays → Make default**).
 
 Each wall has its own geometry, apps, playlists, triggers and settings, and **its own Home
 Assistant device**, so its App/Playlist controls drive that wall and not another. The
@@ -123,9 +125,15 @@ hidden entirely and nothing about the app changes.
 ## Matrix Gateway displays
 
 A Matrix Gateway's modules are drawn rather than mechanical, so it has flaps a real reel does
-not: every **lowercase** letter, fourteen **pictographs** (`♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`), and
+not: every **lowercase** letter, fourteen **pictographs** (`♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`), and
 colors addressed by name. The companion uses them automatically — the message you type
 arrives as you wrote it rather than SHOUTED BACK AT YOU.
+
+Most apps also draw a **rich, full-panel graphic view** on the LED panel — gauges,
+charts, artwork rather than flap text — and some are **playable games** with on-screen
+controls and sound; a per-app "Show on Matrix panel" toggle picks the flap-style or
+panel view. **Photo Frame** slideshows the photos and MPGA movies on the gateway's
+microSD card.
 
 Prefer the classic look? **Always uppercase** in Global settings folds it anyway, per
 display, and costs nothing else: the wall keeps its pictographs and its colors.

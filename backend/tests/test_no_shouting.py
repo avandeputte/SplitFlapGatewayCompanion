@@ -1,7 +1,7 @@
 """The apps must not SHOUT.
 
 A split-flap has no lowercase flaps, so for years every app wrote its text in capitals. That
-is no longer the app's job. A Matrix Portal renders full mixed case, and the companion folds
+is no longer the app's job. A Matrix Gateway renders full mixed case, and the companion folds
 to uppercase itself — last, once, and only for the walls that need it (``renderer.fold()``,
 called from ``engine._normalize``). An app that shouts takes that choice away from the display,
 and its shouting survives onto the one wall that could have shown the words as they are
@@ -9,7 +9,7 @@ actually written.
 
 The failure is INVISIBLE on a physical split-flap — the companion uppercases anyway — which is
 exactly why it needs a test. It went unnoticed through a whole release: the apps' JSON data was
-de-shouted, the app CODE was not, and so every app still shouted on a Matrix Portal.
+de-shouted, the app CODE was not, and so every app still shouted on a Matrix Gateway.
 
 THE ONE EXCEPTION: an animation app (``"animation": true``) has its page sent RAW, and on that
 path a lowercase letter is not a letter at all — it is a COLOR FLAP (``r`` red, ``o`` orange,
@@ -138,7 +138,7 @@ def test_app_does_not_shout(name, path):
     assert not shouted, (
         f"{name} still SHOUTS: {sorted(shouted)}\n"
         f"Write the words as a person writes them — the companion uppercases for a split-flap "
-        f"by itself (renderer.fold), and a Matrix Portal shows them as written. If one of "
+        f"by itself (renderer.fold), and a Matrix Gateway shows them as written. If one of "
         f"these is a genuine acronym, add it to ACRONYMS. If it is a code matched against an "
         f"API rather than display text, add it to CODES[{name!r}] — and say why."
     )

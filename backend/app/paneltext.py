@@ -23,9 +23,7 @@ _FONT_CACHE: dict = {}
 
 class PanelText:
     # A canvas app that wants smooth type / gradients renders a whole PIL image
-    # and pushes it with frame(). These three cover the common needs so each app
-    # doesn't reinvent them: the bundled font, a blank panel-sized image, and a
-    # vertical gradient (a sky, a backdrop). Pillow is imported lazily so the
+    # and pushes it with frame(). It covers the common needs so each app doesn't reinvent them. Pillow is imported lazily so the
     # module still loads where it isn't installed.
     def font(self, size, name: str = "DejaVuSans-Bold.ttf"):
         """A cached PIL ImageFont at ``size`` px from the bundled face."""
@@ -47,6 +45,7 @@ class PanelText:
         """The largest bundled font whose ``text`` fits within max_w x max_h."""
         size = max(min_size, int(max_h) + 2)
         font = self.font(size)
+        # bounded shrink loop — 96 covers any panel-height start size
         for _ in range(96):
             b = font.getbbox(text or "0")
             if size <= min_size or (font.getlength(text or "0") <= max_w

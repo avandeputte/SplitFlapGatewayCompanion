@@ -563,7 +563,8 @@ def test_gateway_settings_version_gate():
     assert gateway.supports_settings({"version": "3.0.9"}) is False   # backward compat: no 3.0 mirror
     assert gateway.supports_settings({}) is False
     # the Matrix product line: always True, version notwithstanding
-    assert gateway.is_matrix_product({"product": "Matrix Portal Gateway"})
+    assert gateway.is_matrix_product({"product": "Matrix Portal Gateway"})   # today's wire string
+    assert gateway.is_matrix_product({"product": "Matrix Gateway"})           # the product's name
     assert not gateway.is_matrix_product({"product": "SplitFlap Gateway"})
     assert gateway.supports_settings({"product": "Matrix Portal Gateway", "version": "3.12.0"})
     assert gateway.supports_settings({"product": "Matrix Portal Gateway", "version": "1.19.0"})

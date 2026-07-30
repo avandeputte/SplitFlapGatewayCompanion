@@ -63,7 +63,7 @@ class _Wall:
         self.sim = False            # sim mode: frames are cached for the preview, nothing is sent
         self.atlas = None           # {"at": monotonic, "rows": {name: library_row}} — see the
                                     # sprite-sheet notes below
-        self.stream = None          # the live CanvasStream (3.2 persistent draw channel), if open
+        self.stream = None          # the live CanvasStream (persistent draw channel), if open
         self.last_kind = None       # "frame" | "ops" | "opsb" — what the app last pushed
                                     # (the engine's stream-adoption heuristic)
 
@@ -152,7 +152,7 @@ def last_frame_png(url: str, scale: int = 1):
 
 
 def readback_png(url: str, scale: int = 1, fmt: str = "rgb565"):
-    """Read the lit panel back (firmware 1.19) and return it as PNG bytes, or None. This is what
+    """Read the lit panel back and return it as PNG bytes, or None. This is what
     lets the live preview show on-device content — an effect, a ticker, an animation — that the
     companion never rendered a frame for, so :func:`last_frame_png` has nothing cached.
 
@@ -295,7 +295,7 @@ def _tlv(rtype: int, payload: bytes = b"") -> bytes:
 
 
 class CanvasStream:
-    """A persistent TLV draw channel to a firmware-3.2 wall (``PUT /api/canvas/stream``): one
+    """A persistent TLV draw channel to the wall (``PUT /api/canvas/stream``): one
     long-lived socket carrying draw records back-to-back, with no per-frame HTTP round trip. The
     caller opens it, sends frames/rects/ops/present as the app draws, and closes it (end record) on
     hand-back — one stream at a time per wall, so drawing REST endpoints answer 409 while it is open.
@@ -361,7 +361,7 @@ class CanvasStream:
     def ops(self, ops_json: bytes) -> bool:                      # 0x03 ops JSON (presents via its show op)
         return self._send(_tlv(0x03, ops_json))
 
-    def opsb(self, payload: bytes) -> bool:                      # 0x06 binary ops (fw 3.5; presents via SHOW)
+    def opsb(self, payload: bytes) -> bool:                      # 0x06 binary ops (presents via SHOW)
         return self._send(_tlv(0x06, bytes(payload)))
 
     def bind(self, name: str) -> bool:                           # 0x04 bind a named atlas sheet
@@ -403,7 +403,7 @@ class CanvasStream:
 
 def stream_begin(url: str) -> bool:
     """Open (or reuse) the persistent draw stream for this wall; True if a live stream now exists.
-    The caller (engine) opens it for a fast frame-push app on a 3.2 wall; every ``_push_rgb`` then
+    The caller (engine) opens it for a fast frame-push app on a wall advertising canvas.stream; every ``_push_rgb`` then
     routes through it until ``stream_end``."""
     st = _wall(url).stream
     if st is not None and st.alive:
@@ -447,8 +447,8 @@ def last_push_was_frame(url: str) -> bool:
 
 
 def put_rects(url: str, rects: list, fmt: int = 2, timeout: float = 10.0):
-    """Draw several changed rectangles over the live frame in one request (PUT /api/canvas/rects,
-    firmware 3.1). ``rects`` is ``[(x, y, w, h, pixel_bytes)]`` with pixels in ``fmt`` (2 = rgb565
+    """Draw several changed rectangles over the live frame in one request (PUT
+    /api/canvas/rects). ``rects`` is ``[(x, y, w, h, pixel_bytes)]`` with pixels in ``fmt`` (2 = rgb565
     big-endian, 3 = rgb888), row-major. Header (big-endian): u16 count, u8 fmt, u8 0; then per
     rect u16 x,y,w,h and the pixels. Returns True (drawn), "toobig" on 413 (send a full frame
     instead), or False on any other error."""
@@ -498,7 +498,7 @@ def put_ticker(url: str, text: str, color=(255, 255, 255), speed: int = 2,
     """Scroll one line of text across the panel ON-DEVICE (POST /api/canvas/ticker) — smooth,
     nothing streamed. Empty text hands the panel back. Speed 1–20.
 
-    ``overlay`` (firmware 2.1) composites the ticker as a lower-third band OVER whatever else is
+    ``overlay`` composites the ticker as a lower-third band OVER whatever else is
     presenting — the flap wall, an effect, an animation, a pushed frame — and it survives page
     and mode changes until an empty text stops it. ``band=False`` drops the black bar and scrolls
     the glyphs straight over the content. ``font`` names an uploaded/library face (``"custom"`` or
@@ -539,7 +539,7 @@ def put_anim(url: str, frames: list, w: int, h: int, fps: int = 12, loop: bool =
 
 
 def get_frame(url: str, fmt: str = "rgb888", timeout: float = 8.0):
-    """Read the lit panel back (GET /api/canvas/frame, firmware 1.19) — a screenshot of whatever
+    """Read the lit panel back (GET /api/canvas/frame) — a screenshot of whatever
     is on screen: the flap wall, an effect, an animation, a ticker or a pushed frame. Returns
     ``(width, height, rgb888 bytes)`` or ``None``. In sim, there is no panel to read. Read-only,
     so a live preview can poll it. The panel's real bit depth is baked in (it is what is
@@ -566,9 +566,9 @@ def get_frame(url: str, fmt: str = "rgb888", timeout: float = 8.0):
 
 
 def set_transition(url: str, kind: str = "crossfade", ms: int = 400, timeout: float = 5.0) -> bool:
-    """Set how subsequent full-frame PUTs present (POST /api/canvas/transition, firmware 2.1):
+    """Set how subsequent full-frame PUTs present (POST /api/canvas/transition):
     ``none`` (hard cut), ``crossfade``, ``wipe`` or ``slide``, tweened on-device over ``ms``
-    (100–2000). Sticky and runtime-only — a reboot returns to hard cuts. rect/qoi/anim are
+    (100–2000). Sticky and persisted on the gateway (restored at boot). rect/qoi/anim are
     unaffected."""
     try:
         k = kind if kind in ("none", "crossfade", "wipe", "slide") else "crossfade"
@@ -580,7 +580,7 @@ def set_transition(url: str, kind: str = "crossfade", ms: int = 400, timeout: fl
 
 
 def put_gif(url: str, data: bytes, timeout: float = 30.0):
-    """Import an animated GIF (PUT /api/canvas/gif, firmware 2.1) — decoded ON-DEVICE into the
+    """Import an animated GIF (PUT /api/canvas/gif) — decoded ON-DEVICE into the
     animation store and played at once, so the companion never unpacks frames itself. Returns the
     reply ``{ok, frames, fps}`` (or ``{}`` on failure). A GIF larger than the panel is a 400; the
     upload is capped at 4 MB. Persist what's playing with :func:`anim_save`."""
@@ -596,7 +596,7 @@ def put_gif(url: str, data: bytes, timeout: float = 30.0):
 def _anim_op(url: str, op: str, name: str | None = None, timeout: float = 15.0, *,
              path: str | None = None):
     """POST /api/canvas/anim/<op> — save/play/delete a library animation by ``name``, or
-    (fw 3.13) stream one straight off the microSD card by ``path``. Returns the JSON reply
+    stream one straight off the microSD card by ``path``. Returns the JSON reply
     (``play`` reports ``frames``) or ``{}``."""
     try:
         body = {"path": str(path)} if path else {"name": str(name)}
@@ -609,23 +609,23 @@ def _anim_op(url: str, op: str, name: str | None = None, timeout: float = 15.0, 
 
 
 def anim_save(url: str, name: str) -> bool:
-    """Persist whatever animation is loaded to the on-device library as ``name`` (firmware 2.1)."""
+    """Persist whatever animation is loaded to the on-device library as ``name``."""
     return bool(_anim_op(url, "save", name).get("ok"))
 
 
 def anim_play(url: str, name: str | None = None, *, path: str | None = None):
-    """Load and play a saved library animation (firmware 2.1) — or, with ``path=``, stream
-    an MPGA off the microSD card (fw 3.13). Returns ``{ok, frames}`` or ``{}``."""
+    """Load and play a saved library animation — or, with ``path=``, stream
+    an MPGA off the microSD card. Returns ``{ok, frames}`` or ``{}``."""
     return _anim_op(url, "play", name, path=path)
 
 
 def anim_delete(url: str, name: str) -> bool:
-    """Delete a library animation (firmware 2.1)."""
+    """Delete a library animation."""
     return bool(_anim_op(url, "delete", name).get("ok"))
 
 
 def anim_list(url: str, timeout: float = 8.0) -> list:
-    """The on-device animation library (GET /api/canvas/anims, firmware 2.1): a list of
+    """The on-device animation library (GET /api/canvas/anims): a list of
     ``{name, bytes, frames, w, h, fps, loop}``. ``[]`` on any wall that lacks it."""
     try:
         r = gateway._request("GET", url, "/api/canvas/anims", timeout=timeout)
@@ -637,7 +637,7 @@ def anim_list(url: str, timeout: float = 8.0) -> list:
 
 def put_font(url: str, data: bytes, timeout: float = 10.0):
     """Install a packed ``MPFT`` font into the wall's ``custom`` slot (PUT /api/canvas/font,
-    firmware 2.1). Returns ``{ok, font, w, h, ascent}`` or ``{}``. Persist it with
+    ). Returns ``{ok, font, w, h, ascent}`` or ``{}``. Persist it with
     :func:`font_save`; then name it in a ticker or the ``text`` op's ``font`` field."""
     try:
         r = gateway._request("PUT", url, "/api/canvas/font", content=bytes(data),
@@ -649,7 +649,7 @@ def put_font(url: str, data: bytes, timeout: float = 10.0):
 
 
 def font_save(url: str, name: str) -> bool:
-    """Persist the loaded custom font to the library as ``name`` (firmware 2.1)."""
+    """Persist the loaded custom font to the library as ``name``."""
     try:
         r = gateway._request("POST", url, "/api/canvas/font/save", json={"name": str(name)}, timeout=8.0)
         return _ok(r)
@@ -659,7 +659,7 @@ def font_save(url: str, name: str) -> bool:
 
 
 def font_delete(url: str, name: str) -> bool:
-    """Delete a library font (firmware 2.1)."""
+    """Delete a library font."""
     try:
         r = gateway._request("POST", url, "/api/canvas/font/delete", json={"name": str(name)}, timeout=8.0)
         return _ok(r)
@@ -669,7 +669,7 @@ def font_delete(url: str, name: str) -> bool:
 
 
 def font_list(url: str, timeout: float = 8.0) -> list:
-    """The on-device font library (GET /api/canvas/fonts, firmware 2.1): ``{name, bytes, w, h,
+    """The on-device font library (GET /api/canvas/fonts): ``{name, bytes, w, h,
     ascent}`` each. ``[]`` on a wall that lacks it."""
     try:
         r = gateway._request("GET", url, "/api/canvas/fonts", timeout=timeout)
@@ -689,8 +689,7 @@ def _atlas_body(tiles: bytes, tile_w: int, tile_h: int, count: int, fmt: str) ->
 
 def put_atlas_named(url: str, name: str, tiles: bytes, tile_w: int, tile_h: int, count: int,
                     fmt: str = "rgb888", timeout: float = 15.0) -> bool:
-    """Upload one NAMED sheet into the wall's atlas library (PUT /api/canvas/atlas/<name>,
-    firmware 3.1). Same MPTA body as the unnamed route; the name is the address a later
+    """Upload one NAMED sheet into the wall's atlas library (PUT /api/canvas/atlas/<name>). Same MPTA body as the unnamed route; the name is the address a later
     ``{"op":"atlas"}`` binds."""
     try:
         # The upload is one of the REST drawing endpoints the firmware 409s while a draw
@@ -787,8 +786,8 @@ _FACE_W = {8: 5, 9: 6, 10: 6, 13: 8, 18: 9, 20: 10}
 
 def play_sound(url: str, notes=None, freq=None, ms: int = 120, vol: int = 70,
                wav: str | None = None) -> bool:
-    """Play a tone or note sequence on the wall's speaker (POST /api/sound, fw 3.6) — or,
-    with ``wav=``, stream a WAV file off the wall's microSD card (fw 3.13; strict 16-bit
+    """Play a tone or note sequence on the wall's speaker (POST /api/sound) — or,
+    with ``wav=``, stream a WAV file off the wall's microSD card (strict 16-bit
     16 kHz PCM). Fire and FORGET: the POST runs on a short-lived daemon thread so a game's
     render tick never waits on audio, and any failure (Quiet Time 409, speaker off 403, no
     card 503) is swallowed — sound is never allowed to stall or break a frame. ``notes``
@@ -817,7 +816,7 @@ def play_sound(url: str, notes=None, freq=None, ms: int = 120, vol: int = 70,
 
 
 def sd_list(url: str, path: str = "/", timeout: float = 8.0) -> list:
-    """One directory level of the wall's microSD card (fw 3.10 ``sd`` feature):
+    """One directory level of the wall's microSD card (the wall's ``sd`` feature):
     ``[{"name", "dir", "size"}, ...]``, or ``[]`` on any failure (no card, bad path,
     unreachable). Read-only and safe to poll gently — the card is the gateway's."""
     try:
@@ -842,7 +841,7 @@ def sd_get(url: str, path: str, timeout: float = 20.0) -> bytes | None:
 
 
 def post_ops_bin(url: str, data: bytes, timeout: float = 8.0) -> bool:
-    """Apply a binary op batch (POST /api/canvas/opsb, fw 3.5)."""
+    """Apply a binary op batch (POST /api/canvas/opsb)."""
     try:
         return _ok(gateway._request("POST", url, "/api/canvas/opsb", content=bytes(data),
                                     headers={"Content-Type": "application/octet-stream"},
@@ -854,14 +853,14 @@ def post_ops_bin(url: str, data: bytes, timeout: float = 8.0) -> bool:
 
 
 def _with_t(op, t):
-    """Attach fw-3.5 stroke thickness to a drawing op when the caller asks for one."""
+    """Attach stroke thickness to a drawing op when the caller asks for one."""
     if int(t) > 1:
         op["t"] = int(t)
     return op
 
 
 def _with_aa(op, aa):
-    """Attach the fw-3.8 anti-alias flag to a stroke op when asked."""
+    """Attach the anti-alias flag to a stroke op when asked."""
     if aa:
         op["aa"] = True
     return op
@@ -897,14 +896,13 @@ class CanvasSurface(paneltext.PanelText):
         self.effect_params = tuple(caps.effect_params)
         self.effect_defs = tuple(caps.effect_defs or ())
         # The wall's draw-op vocabulary, verbatim (capabilities canvas.ops). has_op() is
-        # the per-op gate; fw 3.5's additions (arc/poly/clip/origin/textbox, text styles,
-        # sprite transforms, stroke thickness) all landed together, and ``textbox`` is the
-        # generation marker the text helpers key off.
+        # the per-op gate; can_text_styles keys off ``textbox`` in the vocabulary
+        # (the styled-text ops travel with it).
         self.op_names = tuple(caps.canvas_ops)
         self.can_text_styles = "textbox" in self.op_names
         self.can_ops_bin = bool(caps.canvas_ops_bin)     # the binary ops encoding, whole
-        self.can_composite = bool(caps.canvas_composite)   # fw 3.8+: alpha, blend modes, AA
-        self.can_sd = bool(caps.can_sd)                    # fw 3.10+: a microSD card is mounted
+        self.can_composite = bool(caps.canvas_composite)   # canvas.compositing: alpha, blend, AA
+        self.can_sd = bool(caps.can_sd)                    # "sd" feature: a microSD card is mounted
         # MPGA animations stream straight off the card (no PSRAM cap) — needs the card.
         self.can_sd_anim = self.can_sd and bool(caps.canvas_anim)
         # aa renders wherever the wall composites; the binary format carries it natively,
@@ -984,7 +982,7 @@ class CanvasSurface(paneltext.PanelText):
 
     def sprite(self, i, x, y, flip=None, rot=None, scale=1):
         """Blit tile ``i`` of the uploaded atlas (see :meth:`upload_atlas`) at (x, y). Magenta is
-        transparent. Needs ``canvas.can_sprite``. Firmware 3.5 transforms: ``flip`` "h"/"v"/"hv",
+        transparent. Needs ``canvas.can_sprite``. Transforms: ``flip`` "h"/"v"/"hv",
         ``rot`` 90/180/270, ``scale`` 1–4 — one sheet serves every orientation."""
         op = {"op": "sprite", "i": int(i), "x": int(x), "y": int(y)}
         if flip in ("h", "v", "hv"):
@@ -999,18 +997,17 @@ class CanvasSurface(paneltext.PanelText):
     def blend(self, mode="over"):
         """Set the batch compositing mode for the ops that follow — "over" (normal),
         "add" (additive; the LED-glow mode where overlapping lights sum), "multiply",
-        "screen" or "max". Batch-scoped: reset to "over" when done (firmware 3.8).
+        "screen" or "max". Batch-scoped: reset to "over" when done.
 
-        No-op on a wall without ``can_composite``: a pre-3.8 opsBin wall (3.5-3.7) cannot
-        length-skip the unknown blend opcode over the binary stream, so emitting it there
-        would desync the batch. Callers can therefore use blend() unconditionally."""
+        No-op on a wall without ``can_composite``: its binary decoder has no blend opcode
+        and cannot length-skip an unknown one, so emitting it would desync the batch.
+        Callers can therefore use blend() unconditionally."""
         if self.can_composite:
             self._ops.append({"op": "blend", "mode": str(mode)})
         return self
 
-    # -- transform stack / layers / macros / bezier (fw 3.9 JSON; binary with opsBin v2,
-    # fw 3.12 — on a v1-binary wall these force the JSON fallback for the frame, so an
-    # bare host can gate on ``has_op("save")``) ------------------------------------------
+    # -- transform stack / layers / macros / bezier (a bare host can gate on
+    # ``has_op("save")``) ----------------------------------------------------------
 
     def save(self):
         """Push the current transform (translate/scale/rotate) — pair with restore()."""
@@ -1095,9 +1092,9 @@ class CanvasSurface(paneltext.PanelText):
     def text(self, x, y, s, color=(255, 255, 255), size=10, align="left", font=None,
              aa=False, outline=None, shadow=None):
         """Draw a text label. ``size`` selects a bundled CP1252 face (8–20); ``align`` is "left"
-        (default) / "center" / "right" about (x, y); ``font`` (firmware 2.1) names an uploaded or
+        (default) / "center" / "right" about (x, y); ``font`` names an uploaded or
         library face — "custom" or a saved name — falling back to the built-in face if unknown.
-        Firmware 3.5 styles (see ``can_text_styles``): ``aa=True`` renders the smooth Orbitron
+        Styled text (see ``can_text_styles``): ``aa=True`` renders the smooth Orbitron
         faces (34/24/13 px, A–Z 0–9 ``:.-+%/`` only, folded to uppercase); ``outline``/``shadow``
         layer a 1px ring / +1,+1 drop in the given color under the bitmap-font path."""
         op = {"op": "text", "x": int(x), "y": int(y), "s": str(s),
@@ -1118,7 +1115,7 @@ class CanvasSurface(paneltext.PanelText):
     def arc(self, x, y, r, start, end, color=(255, 255, 255), t=2, fill=False):
         """An arc/annulus segment — or a pie slice with ``fill`` — from ``start`` to ``end``
         degrees, 0° at 12 o'clock, clockwise; ``t`` is the ring thickness. The gauge/meter
-        primitive (firmware 3.5; gate on ``has_op("arc")``)."""
+        primitive (gate on ``has_op("arc")``)."""
         self._ops.append({"op": "arc", "x": int(x), "y": int(y), "r": int(r),
                           "start": int(start), "end": int(end), "color": _rgb(color),
                           "t": int(t), "fill": bool(fill)})
@@ -1126,7 +1123,7 @@ class CanvasSurface(paneltext.PanelText):
 
     def poly(self, points, color=(255, 255, 255), fill=True, t=1, aa=False):
         """A closed polygon (≤16 vertices): even-odd filled by default, else outlined with
-        thickness ``t`` (firmware 3.5; gate on ``has_op("poly")``)."""
+        thickness ``t`` (gate on ``has_op("poly")``)."""
         op = {"op": "poly", "points": [[int(px), int(py)] for px, py in points],
               "color": _rgb(color), "fill": bool(fill)}
         if not fill and int(t) != 1:
@@ -1136,7 +1133,7 @@ class CanvasSurface(paneltext.PanelText):
 
     def clip(self, x=None, y=None, w=None, h=None):
         """Clip all later ops in this batch to the window; call with no args to clear.
-        Batch-scoped on the wall (firmware 3.5; gate on ``has_op("clip")``)."""
+        Batch-scoped on the wall (gate on ``has_op("clip")``)."""
         if x is None:
             self._ops.append({"op": "clip"})
         else:
@@ -1145,7 +1142,7 @@ class CanvasSurface(paneltext.PanelText):
 
     def origin(self, x=None, y=None):
         """Translate every later coordinate in this batch by (x, y) — placeable components;
-        no args resets. Batch-scoped on the wall (firmware 3.5; gate on ``has_op("origin")``)."""
+        no args resets. Batch-scoped on the wall (gate on ``has_op("origin")``)."""
         if x is None:
             self._ops.append({"op": "origin"})
         else:
@@ -1155,7 +1152,7 @@ class CanvasSurface(paneltext.PanelText):
     def textbox(self, x, y, w, h, s, color=(255, 255, 255), size=10,
                 align="left", valign="top", font=None):
         """Word-wrapped text inside a box, aligned on both axes, clipped to the box;
-        explicit newlines honored (firmware 3.5; gate on ``has_op("textbox")``)."""
+        explicit newlines honored (gate on ``has_op("textbox")``)."""
         op = {"op": "textbox", "x": int(x), "y": int(y), "w": int(w), "h": int(h),
               "s": str(s), "color": _rgb(color), "size": int(size)}
         if align in ("center", "right"):
@@ -1235,7 +1232,7 @@ class CanvasSurface(paneltext.PanelText):
         s = self.cp(s)
         if not s:
             return self
-        if self.can_text_styles:                 # fw 3.5: the shadow is one op, not two
+        if self.can_text_styles:                 # text styles: the shadow is one op, not two
             return self.text(x, y, s, color, size=size, align=align, shadow=shadow)
         self.text(x + 1, y + 1, s, shadow, size=size, align=align)
         self.text(x, y, s, color, size=size, align=align)
@@ -1442,13 +1439,13 @@ class CanvasSurface(paneltext.PanelText):
         return put_ticker(self.url, text, color, speed, overlay=overlay, band=band, font=font)
 
     def transition(self, kind: str = "crossfade", ms: int = 400) -> bool:
-        """Set how subsequent ``frame()`` pushes present (firmware 2.1): "none" (hard cut),
+        """Set how subsequent ``frame()`` pushes present: "none" (hard cut),
         "crossfade", "wipe" or "slide", tweened on-device over ``ms`` (100–2000). Sticky until
         changed. Needs ``canvas.can_transition``."""
         return set_transition(self.url, kind, ms)
 
     def readback(self, fmt: str = "rgb888"):
-        """Read the lit panel back (firmware 1.19) as a PIL image, or ``None`` — a screenshot of
+        """Read the lit panel back as a PIL image, or ``None`` — a screenshot of
         whatever is on screen, including on-device effects/tickers this side never rendered.
         Read-only. Needs ``canvas.can_readback``."""
         f = get_frame(self.url, fmt)
@@ -1460,30 +1457,30 @@ class CanvasSurface(paneltext.PanelText):
 
     def gif(self, data) -> dict:
         """Import an animated GIF, decoded ON-DEVICE into the animation store and played at once
-        (firmware 2.1) — no client-side unpacking, no frame cap beyond the panel's PSRAM. ``data``
+        — no client-side unpacking, no frame cap beyond the panel's PSRAM. ``data``
         is the raw GIF bytes. Returns ``{ok, frames, fps}`` (or ``{}``). Needs ``canvas.can_gif``."""
         forget_frame(self.url)
         return put_gif(self.url, bytes(data))
 
     def save_anim(self, name) -> bool:
         """Persist whatever animation is loaded to the on-device library as ``name`` — it survives
-        the reboot and replays by name (firmware 2.1). Needs ``canvas.can_anim_library``."""
+        the reboot and replays by name. Needs ``canvas.can_anim_library``."""
         return anim_save(self.url, name)
 
     def play_anim(self, name) -> dict:
-        """Load and play a saved library animation (firmware 2.1). Returns ``{ok, frames}``."""
+        """Load and play a saved library animation. Returns ``{ok, frames}``."""
         forget_frame(self.url)
         return anim_play(self.url, name)
 
     def play_anim_path(self, path) -> dict:
-        """Stream an MPGA animation straight off the microSD card (fw 3.13, gate on
+        """Stream an MPGA animation straight off the microSD card (gate on
         ``can_sd_anim``): one frame in memory at a time, so length is bounded only by
         the card. Returns ``{ok, frames}``; the movie loops on-device until replaced."""
         forget_frame(self.url)
         return anim_play(self.url, path=str(path))
 
     def delete_anim(self, name) -> bool:
-        """Delete a saved library animation (firmware 2.1)."""
+        """Delete a saved library animation."""
         return anim_delete(self.url, name)
 
     def upload_atlas(self, images, fmt: str = "rgb888", persist: bool = False) -> bool:

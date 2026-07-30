@@ -1,14 +1,14 @@
 """Photo Frame — a slideshow of the microSD card's photos (and movies) on the panel.
 
-The first app built on the gateway's fw-3.10 microSD support: the gateway's own Files
+Built on the gateway's microSD support (``canvas.can_sd``): the gateway's own Files
 tab manages the card; this gives it a *display* use. Each dwell the app advances to the
 next item in the configured folder (``canvas.sd_list``). A photo is pulled off the card
 (``canvas.sd_get``) and frame-pushed — EXIF-rotated, resized to fill (center-crop) or
 letterbox onto a dim blurred backdrop, LRU-cached so a small carousel re-downloads
-nothing. An MPGA movie (fw 3.13, ``canvas.can_sd_anim``) is not fetched at all: the wall
+nothing. An MPGA movie (``canvas.can_sd_anim``) is not fetched at all: the wall
 streams it straight off the card (``canvas.play_anim_path``), looping on-device until
-the rotation moves on. The folder listing refreshes about once a minute so newly dropped
-files join the rotation without a restart. Without a card (or with an empty folder) it
+the rotation moves on. The folder listing refreshes every couple of minutes so newly
+dropped files join the rotation without a restart. Without a card (or with an empty folder) it
 shows a friendly hint card instead. Matrix-only — flaps can't show a photo.
 """
 
@@ -22,7 +22,7 @@ _CACHE_MAX = 8          # decoded frames kept, LRU
 
 
 def _media_in(canvas, folder):
-    """The image (and, on a fw-3.13 wall, movie) files in ``folder`` (falling back to
+    """The image (and, where ``can_sd_anim``, movie) files in ``folder`` (falling back to
     the card root), sorted by name."""
     exts = _IMG_EXTS + (_MOV_EXTS if getattr(canvas, 'can_sd_anim', False) else ())
     for path in (folder, '/'):

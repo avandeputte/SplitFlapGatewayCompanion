@@ -1,6 +1,6 @@
 """An app can ask what the wall can SHOW, and must, before it uses a pictograph.
 
-A Matrix Portal has fourteen flaps a real reel does not (♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀). A wall
+A Matrix Gateway has fourteen flaps a real reel does not (♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀). A wall
 without them substitutes the nearest character it has — and only some of those still MEAN
 anything:
 
@@ -41,13 +41,13 @@ def tide_api(monkeypatch):
 
 def test_the_runtime_only_injects_caps_when_an_app_asks(tide_api):
     """Additive: an app that never heard of it is called exactly as before."""
-    rt = _runtime(device.MATRIX_PORTAL, "tides")
+    rt = _runtime(device.MATRIX_GATEWAY, "tides")
     assert "caps" in rt._wants["tides"]
     assert "caps" not in rt._wants.get("time", frozenset())     # not loaded here
 
 
 def test_a_matrix_portal_gets_arrows(tide_api):
-    page = _runtime(device.MATRIX_PORTAL, "tides").get_pages("tides")[0]
+    page = _runtime(device.MATRIX_GATEWAY, "tides").get_pages("tides")[0]
     assert "↑" in page and "↓" in page
 
 

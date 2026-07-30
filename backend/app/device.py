@@ -1,9 +1,9 @@
 """device.py — what a wall CAN DO, asked rather than assumed.
 
-There are several kinds of wall — a physical split-flap, a Matrix Portal drawing the same
+There are several kinds of wall — a physical split-flap, a Matrix Gateway drawing the same
 modules on an LED panel, and anything in between, including a MIXED wall whose modules do not
 all carry the same reel. They do not have the same alphabet, and the difference is not
-cosmetic. From the Matrix Portal firmware's own reel.h:
+cosmetic. From the Matrix Gateway firmware's own reel.h:
 
     The legacy wire carries ONE BYTE per character, and it has a problem it can never
     solve: the byte for lowercase 'r' already means RED. So on that path lowercase must
@@ -12,9 +12,8 @@ cosmetic. From the Matrix Portal firmware's own reel.h:
 
 ASKED, NOT INFERRED
 -------------------
-Inferring from ``GET /api/config`` — "matrix portal" in the product name plus a firmware
-number of at least 1.6 ⇒ lowercase, pictographs and named colors — is wrong in every
-direction that matters:
+Inferring capabilities from ``GET /api/config`` — the product name implying lowercase,
+pictographs and named colors — is wrong in every direction that matters:
 
   * it cannot see a PHYSICAL wall's reel at all, so the companion has no idea which
     characters that wall can actually show. It sends the character and hopes. A module asked
@@ -42,7 +41,7 @@ The inference exists as ``of()`` and is used only when a gateway is too old to a
 must keep working, and on that path we are guessing and confined to ASCII.
 
 It is a property of the GATEWAY ON THE OTHER END, not a setting: with several displays a
-companion can drive a Matrix Portal and a split-flap side by side, so it belongs to the
+companion can drive a Matrix Gateway and a split-flap side by side, so it belongs to the
 display, and every display answers for itself.
 """
 
@@ -61,8 +60,8 @@ class Capabilities:
     named_colors: bool  # colors are named, rather than spelled with r/o/y/g/b/p/w
     indexed: bool = False  # it takes POST /api/display/cells (address a flap by INDEX)
 
-    # How the wall MOVES — from the capabilities document's `motion` key (Gateway 3.10+ /
-    # Matrix Portal 1.12+). "drawn": a cell is a repaint, interruptible, nothing queues —
+    # How the wall MOVES — from the capabilities document's `motion` key (physical
+    # Gateway 3.10+; every current Matrix firmware states it). "drawn": a cell is a repaint, interruptible, nothing queues —
     # sub-second updates are honest. "mechanical": motion must physically complete; commands
     # queue behind it. "" means the gateway predates the key and motion must be inferred.
     motion: str = ""              # "drawn" | "mechanical" | "" (not reported)
@@ -89,16 +88,15 @@ class Capabilities:
     canvas_h: int = 0
     canvas_formats: tuple[str, ...] = ()    # raw-frame pixel formats, e.g. ("rgb888", "rgb565", "qoi")
     effects: tuple[str, ...] = ()           # on-device effect names, e.g. ("plasma", "fire", "matrix")
-    # The canvas extras a newer Matrix Portal (1.18+) advertises. A gateway too old to state
-    # them leaves each False/empty, and the companion falls back to the raw-frame path.
+    # The canvas extras, from the capabilities canvas object; a key the document omits
+    # parses False/empty, and the companion falls back to the raw-frame path.
     canvas_rect: bool = False               # PUT /api/canvas/rect — update one rectangle only
     canvas_anim: bool = False               # PUT /api/canvas/anim — upload a loop, plays on-device
     canvas_ticker: bool = False             # POST /api/canvas/ticker — on-device scrolling text
     effect_params: tuple[str, ...] = ()     # effect knobs, e.g. ("hue", "density")
-    # Self-describing effects (fw 3.4 "effectDefs"): one entry per effect declaring exactly
+    # Self-describing effects ("effectDefs"): one entry per effect declaring exactly
     # the params it consumes (key/type/min/max/default/label), so effect UIs are built from
-    # the wall's own description. Empty on older firmware — clients fall back to the flat
-    # effects/effect_params pair.
+    # the wall's own description. The flat effect_params union is derived from these (the sole source).
     effect_defs: tuple = ()
 
     # `fw_version` is the wall's firmware, parsed from the capabilities document's `fw`
@@ -108,17 +106,17 @@ class Capabilities:
     canvas_readback: bool = False           # GET /api/canvas/frame — read the lit panel back
     canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honors
     canvas_ops_bin: bool = False            # the binary ops encoding ("opsBin"), whole
-    canvas_composite: bool = False          # fw 3.8: per-color alpha, blend modes, AA (canvas.compositing)
-    # 3.1: PUT /api/canvas/rects — a frame-push app sends only the rectangles that changed since
+    canvas_composite: bool = False          # canvas.compositing: per-color alpha, blend modes, AA
+    # PUT /api/canvas/rects — a frame-push app sends only the rectangles that changed since
     # its last frame instead of the whole panel. Advertised as canvas.rects.
     canvas_rects: bool = False
-    # 3.2: PUT /api/canvas/stream — a persistent TLV draw channel. One long-lived connection carries
+    # PUT /api/canvas/stream — a persistent TLV draw channel. One long-lived connection carries
     # frame/rect/ops records back-to-back, no per-frame HTTP round trip. Advertised as canvas.stream.
     canvas_stream: bool = False
     events: bool = False                    # GET /api/events — the gateway's own SSE display stream
                                             # (parsed for completeness; no companion consumer yet)
-    can_sound: bool = False                 # POST /api/sound — on-device tone synthesis (fw 3.6 "sound")
-    can_sd: bool = False                    # /api/sd/* — a microSD card is mounted (fw 3.10 "sd")
+    can_sound: bool = False                 # POST /api/sound — on-device tone synthesis (the "sound" feature)
+    can_sd: bool = False                    # /api/sd/* — a microSD card is mounted (the "sd" feature)
 
     def __bool__(self) -> bool:
         return self.indexed
@@ -173,9 +171,9 @@ class Capabilities:
 SPLIT_FLAP = Capabilities(lowercase=False, pictographs=False, named_colors=False, indexed=False,
                           motion="mechanical", settle_ms=4000)
 
-# Drawn modules: nothing to ration. Used only as the fallback guess for a Matrix Portal too old
-# to answer /api/capabilities.
-MATRIX_PORTAL = Capabilities(lowercase=True, pictographs=True, named_colors=True, indexed=True,
+# Drawn modules: nothing to ration. No production consumer — of() never infers Matrix;
+# kept as the canonical Matrix baseline the test suite builds walls from.
+MATRIX_GATEWAY = Capabilities(lowercase=True, pictographs=True, named_colors=True, indexed=True,
                              motion="drawn")
 
 
@@ -217,7 +215,8 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
 
     colors = tuple(str(c) for c in (doc.get("colors") or []) if isinstance(c, str))
 
-    # The wall's own statement about how it moves (Gateway 3.10+ / Matrix Portal 1.12+). Only
+    # The wall's own statement about how it moves (physical Gateway 3.10+; every current
+    # Matrix firmware states it). Only
     # the two known kinds are accepted; anything else counts as "not reported", so `instant`
     # falls back to inference rather than trusting a typo.
     motion = doc.get("motion") if isinstance(doc.get("motion"), dict) else {}
@@ -227,7 +226,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     except (KeyError, TypeError, ValueError):
         settle = None
 
-    # The canvas framebuffer and the on-device effect set (Matrix Portal 1.x+). Both are
+    # The canvas framebuffer and the on-device effect set. Both are
     # objects/lists the gateway only emits when it HAS them; a physical wall omits them and
     # every canvas gate stays False. The feature flags "canvas"/"effects" corroborate but the
     # canvas dimensions are what actually decide can-it-draw.
@@ -250,7 +249,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
             if k and k != "speed" and k not in seen:
                 seen.append(k)
     effect_params = tuple(seen)
-    # The draw-op vocabulary (1.25) and the panel readback flag (1.19), advertised directly. The
+    # The draw-op vocabulary and the panel readback flag, advertised directly. The
     # ops list is what gates a specific op the app is about to send — an unknown op is skipped by
     # the firmware, but knowing up front lets an app choose the frame path instead.
     canvas_ops = tuple(str(o) for o in (canvas.get("ops") or []) if isinstance(o, str))
@@ -260,8 +259,8 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_ops_bin = False
     canvas_composite = bool(canvas.get("compositing"))
     canvas_readback = bool(canvas.get("readback"))
-    # `fw` is the firmware version string, e.g. "2.1.0"; take the leading major.minor. The 2.1
-    # endpoint families gate on this because the capabilities document does not flag them.
+    # `fw` is the firmware version string; take the leading major.minor. Informational
+    # only (surfaced by /api/panel/caps) — never a gate.
     fw_version = _parse_fw(doc.get("fw"))
 
     return Capabilities(
@@ -270,7 +269,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         named_colors="colors" in features or bool(colors),
         # ONLY "cells". This is the one flag that picks the WIRE FORMAT, and it names an
         # endpoint: POST /api/display/cells, the bulk index-addressed page API, which only a
-        # Matrix Portal has.
+        # Matrix Gateway has.
         #
         # It is emphatically NOT "index". A physical Split-Flap Gateway advertises `index`
         # too, and means something else by it — POST /api/flap/index {"id":5,"index":3}, which

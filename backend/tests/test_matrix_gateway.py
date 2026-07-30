@@ -1,4 +1,4 @@
-"""The Matrix Portal's index-addressed display API (POST /api/display/cells).
+"""The Matrix Gateway's index-addressed display API (POST /api/display/cells).
 
 WHY IT EXISTS — from the firmware's own reel.h, and it is the crux of everything here:
 
@@ -20,7 +20,7 @@ Three things follow, and each is a way to get this wrong:
   * **A page with an unrenderable character is a 400** — deliberately: "a half-written wall
     is worse than a rejected request". Right for the firmware; a trap for us, because one
     stray glyph from an app would blank the whole wall. We sanitise before sending.
-  * **It is a per-DISPLAY capability.** One companion now drives a Matrix Portal and a
+  * **It is a per-DISPLAY capability.** One companion now drives a Matrix Gateway and a
     physical wall side by side, and they do not have the same alphabet.
 """
 import json
@@ -98,7 +98,7 @@ class _FakeClient:
 def _rich_transport():
     t = RestTransport("http://gw")
     t._client = _FakeClient()
-    t.caps = device.MATRIX_PORTAL
+    t.caps = device.MATRIX_GATEWAY
     return t
 
 
@@ -206,7 +206,7 @@ async def test_hello_does_not_come_out_as_hell_orange():
 @pytest.mark.anyio
 async def test_a_legacy_page_still_gets_its_color_flaps():
     """The other half: weather's 🟩 and stocks' 🟥 are COLORS, and they must stay colors
-    on a Matrix Portal — the fix for the letters must not cost us the colors."""
+    on a Matrix Gateway — the fix for the letters must not cost us the colors."""
     t = _rich_transport()
     page = (renderer.normalize("AQI 🟩", 5))
     await t.send_batch(list(enumerate(page)), 0)
@@ -295,7 +295,7 @@ def _controller(rich: bool):
     c = DisplayController(cfg, DisplayState(16))
 
     class T:
-        caps = device.MATRIX_PORTAL if rich else device.SPLIT_FLAP
+        caps = device.MATRIX_GATEWAY if rich else device.SPLIT_FLAP
     c.transport = T()
     return c
 
@@ -376,7 +376,7 @@ def test_there_is_exactly_one_place_that_folds():
 # "Always uppercase": what the wall CAN do vs what it WILL do
 # ---------------------------------------------------------------------------
 # A capability is a fact about the hardware; whether to use it is a preference. Keeping the
-# two apart is what lets a Matrix Portal shout WITHOUT giving up anything else it can do:
+# two apart is what lets a Matrix Gateway shout WITHOUT giving up anything else it can do:
 # it is still driven by the index-addressed API, still shows its pictographs, still gets its
 # colors by name. It is simply in capitals.
 def _with_setting(value):
@@ -391,7 +391,7 @@ def _with_setting(value):
     c.attach_plugins(plugins)
 
     class T:
-        caps = device.MATRIX_PORTAL
+        caps = device.MATRIX_GATEWAY
     c.transport = T()
     return c
 

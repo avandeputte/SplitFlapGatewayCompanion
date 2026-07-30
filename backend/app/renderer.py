@@ -40,7 +40,7 @@ COLOR_MAP = {
 # uppercased on the way out — which it was, so a lowercase letter could never occur and
 # `r` was unambiguous.
 #
-# The Matrix Portal's index-addressed API (POST /api/display/cells) breaks that deal open:
+# The Matrix Gateway's index-addressed API (POST /api/display/cells) breaks that deal open:
 # it can show lowercase, so `r` has to be allowed to mean the LETTER r, and colors are
 # NAMED instead. Which means a page must now say which one it meant — and a bare `r` in a
 # string cannot.
@@ -61,7 +61,7 @@ def is_color(ch: str) -> bool:
     return ch in PUA_TO_CODE
 
 
-# The fourteen pictographs the Matrix Portal's reel carries beyond Windows-1252 (they have
+# The fourteen pictographs the Matrix Gateway's reel carries beyond Windows-1252 (they have
 # no CP1252 byte, so they are reachable only by index — see the firmware's reel.h). A wall
 # that cannot show them gets the fallback instead, rather than a rejected page.
 PICTOGRAPHS = {
@@ -148,7 +148,7 @@ def normalize(text: str, n: int, *, frame: bool = False) -> str:
 
     NOTE what is NOT decided here: whether to UPPERCASE. That is not a property of the
     text, it is a property of the WALL — a reel with no lowercase flaps gets uppercase, a
-    Matrix Portal does not — so the engine does it last, once, for everyone. ``frame`` is
+    Matrix Gateway does not — so the engine does it last, once, for everyone. ``frame`` is
     one flag, not two: a ``raw``/``keep_case`` pair would encode the same axis
     inverted, and its fourth combination silently destroys an animation's colors.
     """
@@ -166,7 +166,7 @@ def fold(page: str) -> str:
     """A wall with no lowercase flaps gets uppercase — every cell that is not a color.
 
     The wall has the LAST word on case, and it is the only one that has any word on it. A
-    caller that folds early discards the one thing a Matrix Portal is for, and a
+    caller that folds early discards the one thing a Matrix Gateway is for, and a
     caller that forgets to fold sends lowercase to a reel that has none.
     """
     return "".join(c if is_color(c) else cp1252_upper(c) for c in page)

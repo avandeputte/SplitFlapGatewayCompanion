@@ -153,8 +153,8 @@ def build(displays) -> APIRouter:
         target = f"{gw}/{path.lstrip('/')}"
         body = await request.body()
         # Forward only the few short headers an ESP32 web server actually needs, as a
-        # WHITELIST — not a blacklist. The gateway's HTTP server (ESP-IDF esp_http_server,
-        # firmware 3.0) has small per-request header buffers and answers 431 "Header fields
+        # WHITELIST — not a blacklist. The gateway's HTTP server (ESP-IDF
+        # esp_http_server) has small per-request header buffers and answers 431 "Header fields
         # are too long" to anything larger; a browser request — especially through Home
         # Assistant ingress — carries a big Cookie and a long Referer that blow straight
         # past that. So we pass the body's content type, content negotiation, and byte

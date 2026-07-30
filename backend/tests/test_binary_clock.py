@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from conftest import load_app
 
-DRAWN = SimpleNamespace(instant=True)      # a Matrix Portal-ish wall
+DRAWN = SimpleNamespace(instant=True)      # a Matrix Gateway-ish wall
 
 
 def _mod():

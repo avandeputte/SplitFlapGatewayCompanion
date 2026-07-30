@@ -301,7 +301,7 @@ async def post_companion(gateway_url: str, *, url: str | None = None,
             try:
                 tabs = clean_tabs(r.json().get("gwTabs"))
             except Exception:
-                tabs = []          # not JSON, or no gwTabs: a pre-3.4 gateway
+                tabs = []          # not JSON, or no gwTabs: a pre-3.4 physical gateway
             if tabs and display is not None and tabs != display.gateway_tabs:
                 log.info("gateway advertises %d tabs: %s", len(tabs),
                          ", ".join(x["id"] for x in tabs))
@@ -330,8 +330,8 @@ def gateway_version(gw: dict) -> tuple[int, int] | None:
     """(major, minor) parsed from a gateway /api/config document, or None.
 
     CAUTION — what this number MEANS depends on the product. A physical SplitFlap
-    Gateway reports its API level here; the Matrix Portal Gateway reports its real
-    firmware version since fw 3.12 (it used to answer a fixed "3.1.0"). So a bare
+    Gateway reports its API level here; the Matrix Gateway reports its own
+    firmware version. So a bare
     ``>= (major, minor)`` gate keyed on a PHYSICAL-gateway feature would wrongly
     open for a Matrix wall — check ``is_matrix_product`` (or a capability token)
     alongside the version for anything one product lacks."""
@@ -341,16 +341,17 @@ def gateway_version(gw: dict) -> tuple[int, int] | None:
 
 
 def is_matrix_product(gw: dict) -> bool:
-    """Whether a /api/config document belongs to a Matrix Portal Gateway (vs a
+    """Whether a /api/config document belongs to a Matrix Gateway (vs a
     physical split-flap gateway) — the product line, not a version threshold."""
-    return "matrix portal" in str(gw.get("product") or "").lower()
+    p = str(gw.get("product") or "").lower()
+    return "matrix" in p and "gateway" in p
 
 
 def supports_settings(gw: dict) -> bool:
     """Whether the gateway can store the companion's settings blob. Keyed on the
-    PRODUCT first: every Matrix Portal Gateway has the store (and since fw 3.12 its
-    ``version`` is the real firmware version, so a bare number comparison would be
-    comparing across product lines); a physical gateway grew it at 3.1."""
+    PRODUCT first: every Matrix Gateway has the store (and its ``version`` numbers its own product
+    line, so a bare number comparison would compare across products); a physical
+    gateway grew it at 3.1."""
     if is_matrix_product(gw):
         return True
     v = gateway_version(gw)

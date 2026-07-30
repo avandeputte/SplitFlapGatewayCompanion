@@ -176,7 +176,7 @@ def _mx_value(state, attrs, thr, cp):
 
 
 def _cv_gauge(canvas, x, y, size, state, thr, col):
-    """A banded numeric entity's dial, drawn in the icon slot with the fw 3.5 ``arc``
+    """A banded numeric entity's dial, drawn in the icon slot with the ``arc``
     op: a dim 270° track opening at the bottom, the value's sweep in the band color
     (the same green/amber/red as the value text). The gauge maps the value onto
     [lo - span/2 .. hi + span/2], so the band itself is the dial's middle half.
@@ -329,7 +329,7 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
         if use_sprites:
             iy = y + max(2, (top_h - tile) // 2)
             # A thresholded numeric entity gets a live dial where its icon would sit —
-            # the fw 3.5 arc op; walls without it (and non-numeric states) keep the icon.
+            # the arc op (has_op gate); walls without it (and non-numeric states) keep the icon.
             drew = (thr is not None and canvas.has_op('arc')
                     and _cv_gauge(canvas, x + 3, iy, tile, s.get('state'), thr, col))
             if not drew:

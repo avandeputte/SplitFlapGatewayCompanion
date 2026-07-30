@@ -2,9 +2,11 @@
   "id": "sd-photos",
   "name": "Photo Frame",
   "icon": "🖼️",
-  "description": "A slideshow of the photos — and, on firmware 3.13+, MPGA movies — on the gateway's microSD card. Drop files onto the card from the gateway's Files tab; the panel rotates through them.",
+  "description": "A slideshow of the photos and MPGA movies on the gateway's microSD card. Drop files onto the card from the gateway's Files tab; the panel rotates through them.",
   "type": "functional",
-  "surfaces": ["matrix"],
+  "surfaces": [
+    "matrix"
+  ],
   "category": "fun",
   "refresh_interval": 1,
   "loop_delay": 1,
@@ -14,14 +16,17 @@
       "label": "Folder",
       "type": "text",
       "default": "/photos",
-      "note": "Card folder to show (also reads / if it doesn't exist). JPG/PNG/GIF/BMP/WEBP, and MPG/MPGA movies on firmware 3.13+."
+      "note": "Card folder to show (also reads / if it doesn't exist). JPG/PNG/GIF/BMP/WEBP, and MPG/MPGA movies."
     },
     {
       "key": "dwell",
       "label": "Seconds per photo",
       "type": "number",
       "default": "10",
-      "min": "3", "max": "300", "step": "1", "stepper": true
+      "min": "3",
+      "max": "300",
+      "step": "1",
+      "stepper": true
     },
     {
       "key": "fit",
@@ -29,8 +34,14 @@
       "type": "toggle",
       "default": "cover",
       "options": [
-        {"value": "cover", "label": "Fill"},
-        {"value": "contain", "label": "Letterbox"}
+        {
+          "value": "cover",
+          "label": "Fill"
+        },
+        {
+          "value": "contain",
+          "label": "Letterbox"
+        }
       ]
     },
     {
@@ -39,8 +50,14 @@
       "type": "toggle",
       "default": "no",
       "options": [
-        {"value": "yes", "label": "On"},
-        {"value": "no", "label": "Off"}
+        {
+          "value": "yes",
+          "label": "On"
+        },
+        {
+          "value": "no",
+          "label": "Off"
+        }
       ]
     }
   ],

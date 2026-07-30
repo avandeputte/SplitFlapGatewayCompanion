@@ -53,7 +53,7 @@ def _load(url, w, h, mode):
 def fetch_matrix(settings, canvas):
 
     # A stored gateway animation is the first choice: it already lives on the panel (saved to
-    # its library, firmware 2.1), so we just tell it to play — nothing is fetched or uploaded.
+    # its library), so we just tell it to play — nothing is fetched or uploaded.
     lib = str(settings.get("library_anim", "") or "").strip()
     if lib and getattr(canvas, "can_anim_library", False):
         if canvas.play_anim(lib).get("ok"):
@@ -65,7 +65,7 @@ def fetch_matrix(settings, canvas):
         canvas.frame(canvas.vgrad((40, 40, 60), (10, 10, 20)))   # a backdrop until a URL is set
         return 10.0
 
-    # Fast path (firmware 2.1): the panel decodes the GIF itself. Send the raw bytes once — no
+    # Fast path: the panel decodes the GIF itself. Send the raw bytes once — no
     # client-side unpacking, no frame cap, the GIF's own timing and transparency preserved. A GIF
     # larger than the panel is refused, so we fall through to the unpack-and-fit path below.
     if getattr(canvas, "can_gif", False):

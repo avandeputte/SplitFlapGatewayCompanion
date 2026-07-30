@@ -2,8 +2,8 @@
 
 A matrix-only canvas app, and the ops-surface showcase: every frame is one small batch
 of on-device draw ops — wall cells merged into runs of ``rect``, pellets as ``pixel``,
-the chomper as a firmware-3.5 filled ``arc`` whose mouth wedge opens and shuts as it
-runs (a ``circle`` with a ``triangle`` bite on older walls), ghosts as circle + rect.
+the chomper as a filled ``arc`` whose mouth wedge opens and shuts as it
+runs (a ``circle`` with a ``triangle`` bite on a wall without the arc op), ghosts as circle + rect.
 The game simulates itself: the chomper chases the nearest pellet
 by breadth-first search (attract mode), ghosts chase the chomper — and flee, blue, while
 a power pellet is up — side tunnels wrap arcade-style, and lives and levels turn over
@@ -333,7 +333,7 @@ def _draw_board(canvas, st, xe, ye, W, H, dim=1.0):
     for cell in st['dots']:
         canvas.pixel(cx(cell), cy(cell), d(_DOT))
     if (st['step'] // 2) % 2 == 0:                     # power pellets blink
-        # On a fw-3.8 wall (and at full brightness) a power pellet blooms — an additive
+        # On a compositing wall (and at full brightness) a power pellet blooms — an additive
         # halo where overlapping LED light sums; binary-friendly (blend, not per-op alpha).
         if dim >= 1.0 and getattr(canvas, 'can_composite', False):
             canvas.blend('add')

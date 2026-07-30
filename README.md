@@ -60,7 +60,13 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
   loop. **Per-entry settings** let the same app appear more than once configured
   differently (e.g. weather for two cities in two languages).
 - **Schedules** — time-of-day windows that run an app or playlist, or turn the
-  display off, per weekday, plus **quiet hours**.
+  display off, per weekday, plus **quiet hours** — these live on the gateway, whose
+  pages open right inside the companion's nav.
+- **Rich Matrix panel views** — on a Matrix Gateway's LED panel most apps draw a
+  full-panel graphic view (gauges, charts, artwork — not just flap text), with a per-app
+  "Show on Matrix panel" toggle; some are **playable games** with on-screen controls and
+  sound, and **Photo Frame** slideshows the photos and MPGA movies on the gateway's
+  microSD card. See the [screenshots gallery](screenshots/).
 - **Triggers** — apps that watch for events (the ISS overhead, a game, weather) and
   briefly **interrupt** the display, with a per-trigger cooldown.
 - **Localization** — a global **Language** plus **Location** and **Timezone**, all at
@@ -80,8 +86,8 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
 The gateway is the **source of truth** for the grid size, read from it on startup. The
 companion drives the display over **REST** — a whole page in one request, no broker — so
 animations are smooth. MQTT is optional and used only for the Home Assistant MQTT device
-(the App / Playlist / Stop entities); since Matrix Portal Gateway **firmware 3.0** dropped
-MQTT from the gateway, the broker is configured in the companion, not read from the gateway.
+(the App / Playlist / Stop entities); the gateway supplies no MQTT broker of its own,
+so the broker is configured in the companion, not read from the gateway.
 
 ---
 
@@ -177,8 +183,7 @@ seed, migrate or back up.
   Assistant MQTT device, `COMPANION_MQTT_BROKER` (plus `_USER`/`_PASSWORD` if it needs auth).
   Env always wins.
 - **Gateway (source of truth)** — the grid size is read from the gateway's `/api/config` on
-  startup and on **Sync**. (Firmware 3.0 dropped MQTT from the gateway, so the broker is no
-  longer read from it — set it in the companion.)
+  startup and on **Sync**. (The gateway supplies no MQTT broker — set it in the companion.)
 - **Defaults** — sensible fallbacks used until the gateway answers.
 
 As a Home Assistant app there are no environment variables — the same settings come
@@ -189,15 +194,15 @@ uploaded apps** — not any companion config, which is never persisted.
 
 | Env var | Meaning | Default |
 |---|---|---|
-| `GATEWAY_URL` | Gateway base URL (REST + config sync + status). **Required** | *(none; required)* |
+| `GATEWAY_URL` | **Required.** Gateway base URL (REST + config sync + status). Takes a **comma-separated list** to drive [several displays](#multiple-displays) | *(none; required)* |
 | `COMPANION_PUBLIC_URL` | This companion's own URL, registered with the gateway for its "Companion" tab | *(auto-detected)* |
 | `COMPANION_SYNC_FROM_GATEWAY` | Pull the grid size from the gateway on startup | `true` |
+| `COMPANION_UI_LANGUAGE` | Pin the web UI's own (chrome) language; `auto` follows the browser | `auto` |
 | `COMPANION_MQTT_PASSWORD` | MQTT password for the **Home Assistant** device | — |
 | `COMPANION_HA` | Home Assistant MQTT device: `auto` (on when a broker is set) \| `true` \| `false` | `auto` |
 | `COMPANION_HA_URL` / `_TOKEN` | Home Assistant base URL + long-lived token so apps (**HA Dashboard**, **Home Assistant**) can read entity states in standalone Docker — the add-on uses the Supervisor proxy instead | — |
 | `COMPANION_VESTABOARD` / `_KEY` | Enable the [Vestaboard API](#vestaboard-compatible-api) and pin its key | `off` |
 | `COMPANION_MCP` / `_TOKEN` | Enable the [MCP server](#mcp-server) and pin its token | `off` |
-| `GATEWAY_URL` | **Required.** Your gateway. Takes a **comma-separated list** to drive [several displays](#multiple-displays) | — |
 | `COMPANION_MODULE_ID_BASE` | Module id of grid index 0 | `0` |
 | `COMPANION_GRID_ROWS` / `_COLS` | Manual panel-size override | *(from gateway)* |
 | `COMPANION_MQTT_BROKER` / `_PORT` / `_USER` | MQTT broker/port/user for the Home Assistant device (e.g. broker `core-mosquitto`) | *(unset — HA off)* |
@@ -387,8 +392,8 @@ The integration lives in [custom_components/splitflap/](custom_components/splitf
 ### Home Assistant (MQTT)
 
 With `COMPANION_HA=auto` (the default) the companion enables HA when an **MQTT broker is
-configured** (`COMPANION_MQTT_BROKER`, or the broker option in the add-on — firmware 3.0
-dropped MQTT from the gateway, so the broker is set in the companion). It publishes one
+configured** (`COMPANION_MQTT_BROKER`, or the broker option in the add-on — the gateway
+has no broker of its own, so it is set in the companion). It publishes one
 auto-discovery device, **SplitFlap Companion**, with the controls unique to the companion:
 
 | Entity | Type | Does |
@@ -523,7 +528,7 @@ documents the injected `i18n`, `get_weather` and `get_location` helpers.
 ## API reference
 
 The companion's whole HTTP surface is self-documented as OpenAPI, at the standard
-locations: **[/openapi.json](http://homeassistant.local:8000/openapi.json)** and
+locations: **`/openapi.json`** and
 `/openapi.yaml`, with interactive docs at **`/docs`** (Swagger UI) and **`/redoc`**,
 and an [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) discovery pointer at
 `/.well-known/api-catalog` — the same conventions the gateway itself follows, so one
