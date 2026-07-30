@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.8
+
+- **Firmware 3.12 support** ⚡ — binary draw parity (opsBin v2): anti-aliasing, transforms,
+  layers, macros and beziers stream binary now; the aquarium's smooth strokes are back at
+  full frame rate. Apps gain `save/translate/scale/rotate`, `layer/composite`, `define/call`
+  and `bezier`.
+- **3.12 lockstep** — effect knobs derive from the per-effect defs, and feature gates are
+  keyed on the product line, so physical-only pages (Calibration, Provision) can never
+  appear for a Matrix wall.
+
 ## 2.10.7
 
 - **New app: Photo Frame** 🖼️ — a slideshow of the photos on the gateway's microSD card
