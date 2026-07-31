@@ -300,6 +300,19 @@ def test_sensor_graph_survives_history_failure_and_reseeds_grown_windows(gw_call
     assert calls == [("sensor.office_temp", 120)]        # ...re-seeds for the grown window
 
 
+def test_sensor_graph_long_labels_ellipsize_instead_of_shrinking_to_blobs():
+    # Below ~10px the bold face's counters close (A/X/Y render solid), so a long
+    # friendly name must ellipsize at the legibility floor, never shrink past it.
+    app = load_app("canvas-sensor-graph")
+    cv = _cv()
+    budget = int(cv.width * 0.72)
+    t, m = app._fit_label(cv, "OFFICE AIR QUALITY MONITOR CARBON DIOXIDE",
+                          cv.height * 0.18, budget)
+    assert t.endswith("…") and m["font"].size >= 10 and m["w"] <= budget
+    t2, _ = app._fit_label(cv, "OFFICE", cv.height * 0.18, budget)
+    assert t2 == "OFFICE"                                # short labels pass through
+
+
 def test_sensor_graph_entity_picker_searches_like_the_entity_board():
     # The entity_table widget only searches when the field carries searchUrl/resultKey
     # (the frontend wires the box to f.searchUrl) — dropping them leaves a dead search

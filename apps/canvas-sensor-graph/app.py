@@ -68,6 +68,23 @@ def _fit_ink(canvas, text, max_cap, max_w):
     return {"font": font, "w": r - l, "h": b - t, "l": l, "t": t}
 
 
+def _fit_label(canvas, text, max_cap, max_w, floor=10):
+    """``_fit_ink`` with a legibility floor: below ~10px the bold face's counters close
+    up (A/X/Y render as solid blobs on a panel), so a label too long for the width is
+    ELLIPSIZED at the floor size instead of shrunk past it. Returns (text, metrics)."""
+    m = _fit_ink(canvas, text, max_cap, max_w)
+    if m["font"].size >= floor or len(text) <= 1:
+        return text, m
+    t = text
+    while len(t) > 1:
+        t = t[:-1]
+        cand = t.rstrip() + '…'
+        m = _fit_ink(canvas, cand, max_cap, max_w)
+        if m["font"].size >= floor:
+            return cand, m
+    return text[:1], m
+
+
 def _shadow(draw, x, y, text, m, fill):
     """Text with a 1px dark outline so it carries over the graph behind it."""
     ox, oy = x - m["l"], y - m["t"]
@@ -81,7 +98,7 @@ def _notice(canvas, ImageDraw, title, sub):
     d = ImageDraw.Draw(img)
     d.fontmode = "1"
     W, H = canvas.width, canvas.height
-    T = _fit_ink(canvas, title, H * 0.34, W - 4)
+    title, T = _fit_label(canvas, title, H * 0.34, W - 4)
     S = _fit_ink(canvas, sub, H * 0.22, W - 4)
     y = (H - (T["h"] + 2 + S["h"])) / 2.0
     _shadow(d, (W - T["w"]) / 2.0, y, title, T, _MUTE)
@@ -215,7 +232,7 @@ def fetch_matrix(settings, canvas, get_ha_states=None, get_ha_history=None):
         P = _fit_ink(canvas, delta_str, H * 0.34, int(W * 0.60))
         rows = [(value_str, V, _INK), (delta_str, P, col)]
     else:
-        L = _fit_ink(canvas, name, H * 0.18, int(W * 0.72))
+        name, L = _fit_label(canvas, name, H * 0.18, int(W * 0.72))
         V = _fit_ink(canvas, value_str, H * 0.40, int(W * 0.78))
         P = _fit_ink(canvas, delta_str, H * 0.24, int(W * 0.60))
         rows = [(name, L, _MUTE), (value_str, V, _INK), (delta_str, P, col)]

@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.10-beta.2
+
+- **Sensor Graph label legibility** — long entity names ellipsize at a readable size
+  instead of shrinking until the letters fill in (A/X/Y turned to blobs below 10px).
+
 ## 2.10.10-beta.1
 
 - **Sensor Graph preloads history** — the window seeds from the Home Assistant history
