@@ -36,10 +36,14 @@ def test_world_clock_holds_until_the_next_minute(surface):
 
 def test_date_card_holds_until_around_midnight(surface):
     """The card only changes when the day rolls, so it sleeps toward midnight (capped at an hour),
-    not the old 2s repaint."""
+    not the old 2s repaint. Midnight is the CARD's midnight: expected is computed in the same
+    timezone the app is told to use — measuring it in the runner's local clock made this fail
+    on any UTC runner between 03:00 and 04:00 (when US-Eastern midnight is under the cap)."""
+    import pytz
     m = _load("date")           # dual-surface: the Date Card is date's matrix branch
-    hold = m.fetch_matrix({}, surface)
-    now = datetime.now()
+    zone = "America/New_York"
+    hold = m.fetch_matrix({"timezone": zone}, surface)
+    now = datetime.now(pytz.timezone(zone))
     secs_to_midnight = ((24 - now.hour) * 3600 - now.minute * 60 - now.second)
     assert 1.0 <= hold <= 3600.0
     assert hold == pytest.approx(min(3600.0, secs_to_midnight), abs=2.0)
