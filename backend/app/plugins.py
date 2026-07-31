@@ -619,6 +619,9 @@ class PluginRuntime:
         # All Home Assistant entity states (Supervisor proxy or configured URL/token), cached; the
         # Dashboard app filters to the entities it was told to show.
         "get_ha_states": lambda self, app_id, ps, settings: (lambda: ha_rest.fetch_states()),
+        # get_ha_history(entity_id, minutes) → [(epoch, value), …] from HA's history API —
+        # how the Sensor Graph shows a full line the moment it appears (playlists!).
+        "get_ha_history": lambda self, app_id, ps, settings: ha_rest.fetch_history,
         # A per-app Language override (plugin_<id>_language) wins over the global Language.
         "i18n": lambda self, app_id, ps, settings: i18n.Localizer(self.content_lang(app_id, settings)),
         # What this wall can show, so an app offers a pictograph where the wall has one and a WORD

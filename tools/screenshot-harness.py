@@ -389,6 +389,18 @@ HA_STATES = [
 ]
 
 
+def stub_get_ha_history(entity_id, minutes=60):
+    # An hour of gently-breathing samples, so the Sensor Graph's REAL seeding path
+    # (get_ha_history) draws the same story the live card would.
+    import math
+    import time
+    now = time.time()
+    base, amp = (71.0, 3.1) if 'temp' in entity_id else (560.0, 90.0)
+    return [(now - (48 - i) * (minutes * 60.0 / 48.0),
+             round(base + amp * math.sin(i / 7.5) + 0.2 * amp * math.sin(i / 2.1), 1))
+            for i in range(48)]
+
+
 def stub_get_ha_states():
     return [dict(s) for s in HA_STATES]
 
@@ -399,6 +411,7 @@ HELPERS = {
     'get_location': stub_get_location,
     'get_weather': stub_get_weather,
     'get_ha_states': stub_get_ha_states,
+    'get_ha_history': stub_get_ha_history,
 }
 
 
@@ -759,18 +772,6 @@ def stub_sand(m):
     m._state = warmed
 
 
-def stub_sensor_graph(m):
-    # Seed an hour of gently-breathing living-room temperature so the line has a
-    # story; the live sample from stub_get_ha_states lands as its newest point.
-    # ONE entity (no rotation), so every resolution captures the same card.
-    import math
-    import time
-    now = time.time()
-    hist = {'sensor.living_room_temp': [
-        (now - (48 - i) * 75.0, round(71.0 + 3.1 * math.sin(i / 7.5) + 0.6 * math.sin(i / 2.1), 1))
-        for i in range(48)]}
-    m.fetch_matrix._state = {'sig': ('sensor.living_room_temp',), 'idx': 0, 'hist': hist}
-
 
 def stub_simon(m):
     # Mid-melody: the third step of a five-note game lit, two progress dots filled.
@@ -890,7 +891,6 @@ STUBS = {
     'canvas-pong': stub_pong,
     'canvas-invaders': stub_invaders,
     'canvas-sand': stub_sand,
-    'canvas-sensor-graph': stub_sensor_graph,
     'canvas-simon': stub_simon,
     'sports': stub_sports,
     'stocks': stub_stocks,

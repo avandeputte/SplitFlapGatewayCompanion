@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.10-beta.1
+
+- **Sensor Graph preloads history** — the window seeds from the Home Assistant history
+  API on first draw, so the card shows a full line immediately (a playlist slot no
+  longer starts empty); live sampling continues from there.
+
 ## 2.10.9
 
 - **Eight new apps 🕹️** — Snake, Flappy, Breakout, Pong, Invaders and Simon join the

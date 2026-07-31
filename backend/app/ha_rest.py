@@ -60,6 +60,45 @@ def fetch_states(force: bool = False) -> list[dict]:
     return _cache["states"]
 
 
+def fetch_history(entity_id: str, minutes: int = 60) -> list[tuple[float, float]]:
+    """One entity's NUMERIC samples over the last ``minutes`` from the HA history API
+    (GET /api/history/period/<start>), oldest first, as ``[(epoch_seconds, value), …]``.
+    ``[]`` when HA isn't configured/reachable, the entity is unknown, or nothing numeric
+    lies in the window — callers treat that as "seed later". ``minimal_response`` +
+    ``no_attributes`` keep the payload to bare {state, last_changed} rows."""
+    api, tok = endpoint()
+    if not api:
+        return []
+    from datetime import datetime, timedelta, timezone
+    start = datetime.now(timezone.utc) - timedelta(minutes=max(1, int(minutes)))
+    try:
+        r = httpx.get(
+            f"{api}/history/period/{start.isoformat().replace('+00:00', 'Z')}",
+            params={"filter_entity_id": entity_id, "minimal_response": "",
+                    "no_attributes": ""},
+            headers={"Authorization": f"Bearer {tok}"}, timeout=15.0)
+        rows = r.json() if r.status_code == 200 else []
+    except Exception as e:
+        log.debug("HA history fetch failed for %s: %s", entity_id, e)
+        return []
+    out = []
+    for s in (rows[0] if isinstance(rows, list) and rows and isinstance(rows[0], list) else []):
+        try:
+            v = float(s.get("state"))
+        except (TypeError, ValueError):
+            continue                                   # 'unavailable' / 'unknown' / text
+        t = s.get("last_changed") or s.get("last_updated")
+        if not t:
+            continue
+        try:
+            ts = datetime.fromisoformat(str(t).replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            continue
+        out.append((ts, v))
+    out.sort()
+    return out
+
+
 def search(query: str, limit: int = 30) -> list[dict]:
     """Entities whose id or friendly name matches ``query`` — for the settings picker.
     Returns ``[{value: entity_id, label: "Friendly (entity_id)"}]``."""

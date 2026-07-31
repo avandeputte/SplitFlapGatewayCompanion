@@ -2,13 +2,16 @@
 
 What the Stock Graph does for a ticker, this does for a sensor: the recent history
 as a dim filled area across the full panel, the live value (with its unit) in big
-bold letters on top, and the change over the window beneath it. There is no history
-API behind it — the app SAMPLES: every fetch reads the entity's current state via
-``get_ha_states`` (the Supervisor proxy in the add-on) and appends it to a rolling
-in-memory window, so the line grows the longer the app stays on and starts fresh
-with the process. Give it several entities (one per line) and it rotates like a
-board, one per ``rotate_seconds``, with position dots along the bottom; each keeps
-its own history.
+bold letters on top, and the change over the window beneath it. The window SEEDS
+from Home Assistant's history API (``get_ha_history``) the first time an entity
+draws — so the card shows a full, meaningful line immediately, even as a brief
+playlist slot — and every fetch afterwards appends the live state read via
+``get_ha_states`` (both ride the Supervisor proxy in the add-on). While HA has no
+history to give (restart, recorder off), it degrades to pure live sampling and
+quietly retries the seed about once a minute; a grown ``window`` setting re-seeds
+to cover it. Give it several entities (one per line) and it rotates like a board,
+one per ``rotate_seconds``, with position dots along the bottom; each keeps its
+own history.
 
 Config lines are ``entity_id | Label | lo,hi`` — label optional (falls back to the
 HA friendly name), and the optional lo,hi band pins the graph's scale AND colors
@@ -92,7 +95,7 @@ def _fmt(v):
     return s.rstrip('0').rstrip('.') if '.' in s else s
 
 
-def fetch_matrix(settings, canvas, get_ha_states=None):
+def fetch_matrix(settings, canvas, get_ha_states=None, get_ha_history=None):
     import time
     from PIL import ImageDraw
 
@@ -125,13 +128,28 @@ def fetch_matrix(settings, canvas, get_ha_states=None):
         states = {}
 
     now = time.time()
+    seeds = st.setdefault('seeded', {})    # eid -> [covered_window_seconds, last_try]
     for eid, _label, _band in entities:
+        hist = st['hist'].setdefault(eid, [])
+        # Seed (or re-seed a grown window) from HA's own history, so the card is a full
+        # line the moment it first draws — a playlist slot never starts empty. Failure
+        # is quiet: live sampling carries on and the seed retries about once a minute.
+        covered, tried = seeds.get(eid, (0.0, 0.0))
+        if get_ha_history and covered < window and now - tried >= 60.0:
+            seeds[eid] = [covered, now]
+            try:
+                got = get_ha_history(eid, int(window // 60)) or []
+            except Exception:
+                got = []
+            if got:
+                newest = got[-1][0]
+                hist[:] = list(got) + [p for p in hist if p[0] > newest]
+                seeds[eid] = [window, now]
         raw = (states.get(eid) or {}).get('state')
         try:
             v = float(raw)
         except (TypeError, ValueError):
             continue
-        hist = st['hist'].setdefault(eid, [])
         # a new point when the value moved or the poll interval passed — and prune
         if not hist or hist[-1][1] != v or now - hist[-1][0] >= poll * 0.9:
             hist.append((now, v))

@@ -258,6 +258,48 @@ def test_sensor_graph_waits_out_non_numeric_states(gw_calls):
     assert any("/api/canvas/frame" in c[1] for c in gw_calls)   # the text card still shows
 
 
+def test_sensor_graph_seeds_the_window_from_ha_history(gw_calls):
+    # In a playlist the sampled window never fills — the first draw must arrive with
+    # HA's own history already on the line, live samples appending after it.
+    import time
+    app = load_app("canvas-sensor-graph")
+    cv = _cv()
+    now = time.time()
+    seed = [(now - (20 - i) * 60.0, 20.0 + i * 0.1) for i in range(20)]
+    calls = []
+
+    def history(eid, minutes):
+        calls.append((eid, minutes))
+        return list(seed)
+
+    app.fetch_matrix({"config": "sensor.office_temp | Office", "window": "60"}, cv,
+                     get_ha_states=lambda: _states(21.9), get_ha_history=history)
+    st = app.fetch_matrix._state
+    hist = st["hist"]["sensor.office_temp"]
+    assert calls == [("sensor.office_temp", 60)]
+    assert len(hist) >= 20 and hist[-1][1] == 21.9       # seeded + the live sample on top
+    app.fetch_matrix({"config": "sensor.office_temp | Office", "window": "60"}, cv,
+                     get_ha_states=lambda: _states(21.9), get_ha_history=history)
+    assert len(calls) == 1                               # seeded once, not per fetch
+
+
+def test_sensor_graph_survives_history_failure_and_reseeds_grown_windows(gw_calls):
+    app = load_app("canvas-sensor-graph")
+    cv = _cv()
+    boom = lambda eid, minutes: (_ for _ in ()).throw(OSError("recorder down"))
+    app.fetch_matrix({"config": "sensor.office_temp"}, cv,
+                     get_ha_states=lambda: _states(21.0), get_ha_history=boom)
+    st = app.fetch_matrix._state
+    assert [p[1] for p in st["hist"]["sensor.office_temp"]] == [21.0]   # live-only fallback
+
+    calls = []
+    st["seeded"]["sensor.office_temp"] = [3600.0, 0.0]   # a seeded hour...
+    app.fetch_matrix({"config": "sensor.office_temp", "window": "120"}, cv,
+                     get_ha_states=lambda: _states(21.0),
+                     get_ha_history=lambda e, m: calls.append((e, m)) or [])
+    assert calls == [("sensor.office_temp", 120)]        # ...re-seeds for the grown window
+
+
 def test_sensor_graph_entity_picker_searches_like_the_entity_board():
     # The entity_table widget only searches when the field carries searchUrl/resultKey
     # (the frontend wires the box to f.searchUrl) — dropping them leaves a dead search

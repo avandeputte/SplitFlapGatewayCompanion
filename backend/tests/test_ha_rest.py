@@ -114,3 +114,56 @@ def test_get_ha_states_is_injected_into_a_requesting_app(monkeypatch, tmp_path):
     monkeypatch.setattr(ha_rest, "fetch_states", lambda: sample)
     kw = rt._helper_kwargs("entity-board", wants, {})
     assert kw["get_ha_states"]() == sample
+
+
+# -- history ----------------------------------------------------------------
+
+class _Resp:
+    def __init__(self, payload, status=200):
+        self._p, self.status_code = payload, status
+
+    def json(self):
+        return self._p
+
+
+def test_fetch_history_parses_numeric_rows_oldest_first(monkeypatch):
+    monkeypatch.setattr(ha_rest, "endpoint", lambda: ("http://ha/api", "tok"))
+    rows = [[
+        {"state": "21.5", "last_changed": "2026-07-31T09:00:00+00:00"},
+        {"state": "unavailable", "last_changed": "2026-07-31T09:10:00+00:00"},
+        {"state": "22.1", "last_changed": "2026-07-31T09:20:00+00:00"},
+        {"state": "22.4", "last_updated": "2026-07-31T09:30:00Z"},   # minimal rows may say Z
+    ]]
+    seen = {}
+
+    def get(url, params=None, headers=None, timeout=None):
+        seen.update(url=url, params=params, auth=headers.get("Authorization"))
+        return _Resp(rows)
+
+    monkeypatch.setattr(ha_rest.httpx, "get", get)
+    out = ha_rest.fetch_history("sensor.office_temp", minutes=90)
+    assert [v for _, v in out] == [21.5, 22.1, 22.4]            # text states dropped, sorted
+    assert out[0][0] < out[-1][0]
+    assert "/history/period/" in seen["url"]
+    assert seen["params"]["filter_entity_id"] == "sensor.office_temp"
+    assert seen["auth"] == "Bearer tok"
+
+
+def test_fetch_history_is_empty_when_ha_is_absent_or_breaks(monkeypatch):
+    monkeypatch.setattr(ha_rest, "endpoint", lambda: (None, None))
+    assert ha_rest.fetch_history("sensor.x") == []              # not configured
+    monkeypatch.setattr(ha_rest, "endpoint", lambda: ("http://ha/api", "t"))
+    monkeypatch.setattr(ha_rest.httpx, "get",
+                        lambda *a, **k: (_ for _ in ()).throw(OSError("down")))
+    assert ha_rest.fetch_history("sensor.x") == []              # unreachable -> seed later
+
+
+def test_get_ha_history_is_injected_into_the_sensor_graph(monkeypatch, tmp_path):
+    from conftest import make_runtime
+    from app import device
+    rt = make_runtime(tmp_path=tmp_path, installed=["canvas-sensor-graph"], caps=device.SPLIT_FLAP)
+    wants = rt._wants_matrix["canvas-sensor-graph"]    # matrix-only: fetch_matrix's wants
+    assert "get_ha_history" in wants
+    monkeypatch.setattr(ha_rest, "fetch_history", lambda eid, minutes=60: [(1.0, 2.0)])
+    kw = rt._helper_kwargs("canvas-sensor-graph", wants, {})
+    assert kw["get_ha_history"]("sensor.x", 30) == [(1.0, 2.0)]
