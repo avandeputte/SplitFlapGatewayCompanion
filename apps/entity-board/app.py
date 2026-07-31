@@ -1,11 +1,13 @@
 """Home Assistant — entity states as rows on the split-flap wall.
 
 A flap app: one row per entity, its name on the left and value on the right, followed by a
-color flap that reads as a status/threshold dot — green for an "on" state, and green / amber /
-red by band for a numeric sensor with thresholds. States come through the injected
+color flap that reads as a status/threshold dot — green for an "on" state, and by
+threshold for a numeric sensor: a ``lo,hi`` comfort band (green inside, red outside),
+``<warn,bad`` lower-is-better or ``>warn,good`` higher-is-better (green / amber / red,
+so a CO₂ card and a battery card can each be green on their own side). States come through the injected
 ``get_ha_states`` helper (the backend reaches HA via the Supervisor proxy in the add-on, or
 COMPANION_HA_URL/TOKEN standalone); renames and thresholds come from the same
-``entity_id | Name | low,high`` config the canvas HA Dashboard uses. Rows past a screenful
+``entity_id | Name | thresholds`` config the Sensor Graph shares. Rows past a screenful
 paginate onto the next page of the loop.
 """
 
@@ -25,7 +27,8 @@ _GREEN, _AMBER, _RED = '\U0001f7e9', '\U0001f7e8', '\U0001f7e5'   # color flaps:
 
 
 def _parse_config(text):
-    """`entity_id | Name | low,high` per line -> {eid: (name|None, (lo,hi)|None)} + ordered ids."""
+    """``entity_id | Name | thresholds`` per line -> {eid: (name|None, parsed-band|None)}
+    + ordered ids. The thresholds grammar (band / ``<`` / ``>`` polarity): ``_parse_band``."""
     cfg, order = {}, []
     for line in str(text or '').splitlines():
         line = line.strip()
@@ -36,15 +39,7 @@ def _parse_config(text):
         if not eid:
             continue
         name = parts[1] if len(parts) > 1 and parts[1] else None
-        thr = None
-        if len(parts) > 2 and parts[2]:
-            try:
-                nums = [float(x) for x in parts[2].split(',')[:2]]
-                if len(nums) == 2:
-                    thr = (min(nums), max(nums))
-            except ValueError:
-                pass
-        cfg[eid] = (name, thr)
+        cfg[eid] = (name, _parse_band(parts[2] if len(parts) > 2 else ''))
         order.append(eid)
     return cfg, order
 
@@ -59,8 +54,39 @@ def _entities(cfg_order):
     return out[:12]
 
 
+def _parse_band(txt):
+    """The threshold field, one grammar for polarity (the Sensor Graph reads the same):
+    ``lo,hi`` a comfort BAND (green inside, red outside); ``<limit`` / ``<warn,bad``
+    lower-is-better (green below, amber between, red above); ``>floor`` / ``>warn,good``
+    higher-is-better (mirrored). Returns ('band'|'low'|'high', a, b) with a <= b, or None."""
+    t = str(txt or '').strip()
+    if not t:
+        return None
+    mode = 'band'
+    if t[0] in '<>':
+        mode = 'low' if t[0] == '<' else 'high'
+        t = t[1:]
+    try:
+        nums = sorted(float(x) for x in t.split(',')[:2] if x.strip() != '')
+    except ValueError:
+        return None
+    if not nums or (mode == 'band' and len(nums) < 2):   # a band needs both edges
+        return None
+    return (mode, nums[0], nums[-1])
+
+
+def _band_color(thr, f):
+    """'' | green | amber | red for a numeric value under a parsed threshold."""
+    mode, a, b = thr
+    if mode == 'band':
+        return _GREEN if a <= f <= b else _RED
+    if mode == 'low':                                    # lower is better
+        return _GREEN if f < a else _RED if f > b or a == b else _AMBER
+    return _GREEN if f > b else _RED if f < a or a == b else _AMBER   # higher is better
+
+
 def _value(state, thr):
-    """(text, color-flap or ''). Numeric values with a threshold get a band color."""
+    """(text, color-flap or ''). Numeric values with a threshold get a polarity color."""
     st = str(state or '').lower()
     if st in _DEAD:
         return '--', ''
@@ -71,10 +97,7 @@ def _value(state, thr):
     try:
         f = float(state)
         txt = f'{round(f)}' if abs(f) >= 10 else f'{f:.1f}'
-        if thr:
-            lo, hi = thr
-            return txt, (_RED if f > hi else _GREEN if f < lo else _AMBER)
-        return txt, ''
+        return txt, (_band_color(thr, f) if thr else '')
     except (TypeError, ValueError):
         return str(state).replace('_', ' ').title()[:8], ''
 
@@ -153,8 +176,9 @@ _MX_SHORT = {'unlocked': 'OPEN', 'locked': 'LOCK', 'closed': 'SHUT', 'not_home':
 
 
 def _mx_value(state, attrs, thr, cp):
-    """(text, color). Numeric values with a threshold color green/amber/red by band.
-    ``cp`` filters units/text to the panel's charset (pass ``canvas.cp``)."""
+    """(text, color). Numeric values with a threshold color by the shared polarity
+    grammar (band / lower-is-better / higher-is-better — same classes as the flap
+    view's ``_band_color``). ``cp`` filters units/text to the panel's charset."""
     st = str(state or '').lower()
     if st in _DEAD:
         return '--', _C_GRAY
@@ -166,8 +190,7 @@ def _mx_value(state, attrs, thr, cp):
         unit = unit if len(unit) <= 2 else ''                  # keep °F/%/W; drop long units (the name says it)
         txt = f'{round(f)}{unit}' if abs(f) >= 10 else f'{f:.1f}{unit}'
         if thr:
-            lo, hi = thr
-            col = _C_RED if f > hi else _C_GREEN if f < lo else _C_AMBER
+            col = {_GREEN: _C_GREEN, _AMBER: _C_AMBER, _RED: _C_RED}[_band_color(thr, f)]
         else:
             col = _C_BLUE
         return txt, col
@@ -185,7 +208,7 @@ def _cv_gauge(canvas, x, y, size, state, thr, col):
         f = float(state)
     except (TypeError, ValueError):
         return False
-    lo, hi = float(thr[0]), float(thr[1])
+    _mode, lo, hi = thr                                       # dial spans the a..b zone
     span = (hi - lo) or max(abs(hi) * 0.5, 1.0)
     frac = max(0.0, min(1.0, (f - (lo - span * 0.5)) / (span * 2.0)))
     cx, cy = x + size // 2, y + size // 2

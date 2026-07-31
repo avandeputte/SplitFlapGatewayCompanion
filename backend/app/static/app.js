@@ -886,21 +886,30 @@ async function fillAnimLibrary(sel, current) {
 }
 function chipLabel(v) { return String(v).includes("|") ? String(v).split("|").pop() : v; }
 
-// entity_table <-> the app's `entity_id | Name | low,high` config (one line per row).
+// entity_table <-> the app's `entity_id | Name | thresholds` config (one line per row).
+// The thresholds carry POLARITY: `lo,hi` = comfort band (green inside), `<warn,bad` =
+// lower-is-better, `>warn,good` = higher-is-better; a directional mode may give ONE number.
 function parseEntityRows(val) {
   return String(val || "").split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
     const parts = line.split("|").map((p) => p.trim());
-    let low = "", high = "";
-    if (parts[2]) { const n = parts[2].split(",").map((x) => x.trim()); if (n.length === 2) { low = n[0]; high = n[1]; } }
-    return { eid: parts[0], name: parts[1] || "", low, high };
+    let low = "", high = "", mode = "";
+    if (parts[2]) {
+      let t = parts[2];
+      if (t[0] === "<" || t[0] === ">") { mode = t[0]; t = t.slice(1).trim(); }
+      const n = t.split(",").map((x) => x.trim()).filter((x) => x !== "");
+      if (n.length === 2) { low = n[0]; high = n[1]; }
+      else if (n.length === 1 && mode) { low = n[0]; }
+    }
+    return { eid: parts[0], name: parts[1] || "", mode, low, high };
   }).filter((r) => r.eid);
 }
 function serializeEntityRows(rows) {
   return rows.map((r) => {
-    const hasThr = r.low !== "" && r.high !== "";
+    const nums = [r.low, r.high].filter((x) => x !== "");
+    const hasThr = r.mode ? nums.length >= 1 : nums.length === 2;   // a band needs both edges
     let line = r.eid;
     if (r.name || hasThr) line += " | " + (r.name || "");
-    if (hasThr) line += " | " + r.low + "," + r.high;
+    if (hasThr) line += " | " + (r.mode || "") + nums.join(",");
     return line;
   }).join("\n");
 }
@@ -977,7 +986,7 @@ function buildForm(schema, initial, { skip } = {}) {
     // The header is visual scaffolding — each input below carries its own aria-label, so hide the
     // header from assistive tech rather than have it read a stray "Entity Name Low High".
     const head = el("div", "et-head"); head.setAttribute("aria-hidden", "true");
-    ["", t("Entity"), t("Name"), t("Low"), t("High"), ""].forEach((h) => { const c = el("div"); c.textContent = h; head.appendChild(c); });
+    ["", t("Entity"), t("Name"), "", t("Low"), t("High"), ""].forEach((h) => { const c = el("div"); c.textContent = h; head.appendChild(c); });
     const body = el("div", "et-rows");
     const swap = (i, j) => { [rows[i], rows[j]] = [rows[j], rows[i]]; draw(); onFormChange(); };
     const draw = () => {
@@ -997,6 +1006,24 @@ function buildForm(schema, initial, { skip } = {}) {
         const name = el("input", "et-name"); name.value = r.name; name.placeholder = t("Name");
         name.setAttribute("aria-label", `${t("Name")} — ${r.eid}`);
         name.addEventListener("input", () => { r.name = name.value; onFormChange(); });
+        // Polarity: which side of the thresholds is "good". Cycles band → < → >.
+        const MODES = [["", t("Band — green inside Low…High")],
+                       ["<", t("Lower is better — green below Low, red above High")],
+                       [">", t("Higher is better — green above High, red below Low")]];
+        const mode = el("button", "et-mode"); mode.type = "button";
+        const drawMode = () => {
+          const mi = MODES.findIndex(([v]) => v === (r.mode || ""));
+          mode.textContent = r.mode || "◦";
+          mode.title = MODES[mi < 0 ? 0 : mi][1];
+          mode.setAttribute("aria-label", `${mode.title} — ${r.eid}`);
+          mode.classList.toggle("set", !!r.mode);
+        };
+        drawMode();
+        mode.onclick = () => {
+          const order = ["", "<", ">"];
+          r.mode = order[(order.indexOf(r.mode || "") + 1) % order.length];
+          drawMode(); onFormChange();
+        };
         const low = el("input", "et-num"); low.type = "number"; low.value = r.low; low.placeholder = t("Low");
         low.setAttribute("aria-label", `${t("Low")} — ${r.eid}`);
         low.addEventListener("input", () => { r.low = low.value; onFormChange(); });
@@ -1006,7 +1033,7 @@ function buildForm(schema, initial, { skip } = {}) {
         const del = el("button", "et-del"); del.type = "button"; del.textContent = "✕"; del.title = t("Remove");
         del.setAttribute("aria-label", `${t("Remove")} — ${r.eid}`);
         del.onclick = () => { rows.splice(i, 1); draw(); onFormChange(); };
-        row.append(ord, eid, name, low, high, del);
+        row.append(ord, eid, name, mode, low, high, del);
         body.appendChild(row);
       });
     };

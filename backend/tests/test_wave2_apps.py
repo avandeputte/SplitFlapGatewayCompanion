@@ -300,6 +300,23 @@ def test_sensor_graph_survives_history_failure_and_reseeds_grown_windows(gw_call
     assert calls == [("sensor.office_temp", 120)]        # ...re-seeds for the grown window
 
 
+def test_sensor_graph_threshold_polarity_colors_the_card(gw_calls):
+    # CO2 rising to 900 under `<500,1000`: amber, not the old in-band green — and a
+    # battery at 90 under `>20,80` is green even though 90 would sit "outside a band".
+    app = load_app("canvas-sensor-graph")
+    cv = _cv()
+    assert app._parse_band("<500,1000") == ("low", 500.0, 1000.0)
+    assert app._band_color(("low", 500, 1000), 300) == app._UP
+    assert app._band_color(("low", 500, 1000), 900) == app._MID
+    assert app._band_color(("low", 500, 1000), 1200) == app._DN
+    assert app._band_color(("high", 20, 80), 90) == app._UP
+    assert app._band_color(("high", 20, 80), 10) == app._DN
+    assert app._band_color(("band", 60, 78), 72.4) == app._UP
+    app.fetch_matrix({"config": "sensor.co2 | CO2 | <500,1000"}, cv,
+                     get_ha_states=lambda: _states(900, eid="sensor.co2", unit="ppm"))
+    assert any("/api/canvas/frame" in c[1] for c in gw_calls)   # renders through the mode
+
+
 def test_sensor_graph_long_labels_ellipsize_instead_of_shrinking_to_blobs():
     # Below ~10px the bold face's counters close (A/X/Y render solid), so a long
     # friendly name must ellipsize at the legibility floor, never shrink past it.

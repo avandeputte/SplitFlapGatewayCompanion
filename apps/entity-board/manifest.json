@@ -18,7 +18,7 @@
       "type": "entity_table",
       "searchUrl": "/ha_entities",
       "resultKey": "results",
-      "note": "Search to add entities. Reorder with the arrows, rename, and set numeric thresholds — a value gets a green flap below low, amber between, red above high. In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set."
+      "note": "Search to add entities. Reorder with the arrows, rename, and set thresholds with a polarity: the ◦/</> button picks Band (green inside Low…High), Lower-is-better (green below Low, amber to High, red above) or Higher-is-better (mirrored). In the add-on this works automatically; standalone Docker needs COMPANION_HA_URL + COMPANION_HA_TOKEN set."
     },
     {
       "key": "columns",

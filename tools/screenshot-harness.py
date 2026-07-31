@@ -445,7 +445,7 @@ OVERRIDES = {
         'sensor.humidity | Humidity\n'
         'light.kitchen | Kitchen\n'
         'binary_sensor.front_door | Front Door\n'
-        'sensor.office_co2 | Office CO2 | 500,1000\n'
+        'sensor.office_co2 | Office CO2 | <500,1000\n'
         'switch.espresso | Espresso')},
     'canvas-sensor-graph': {'config': 'sensor.living_room_temp | Living Room | 60,78'},
     'exchange-rates': {'base': 'USD'},

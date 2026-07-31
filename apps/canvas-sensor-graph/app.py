@@ -13,23 +13,27 @@ to cover it. Give it several entities (one per line) and it rotates like a board
 one per ``rotate_seconds``, with position dots along the bottom; each keeps its
 own history.
 
-Config lines are ``entity_id | Label | lo,hi`` — label optional (falls back to the
-HA friendly name), and the optional lo,hi band pins the graph's scale AND colors
-the value: green inside the band, red outside. Without a band the scale hugs the
-window and the color follows the trend. Non-numeric states (on/off/unavailable)
-show as a text card until numbers arrive. Frame-push rendering (PUT
-/api/canvas/frame), one Pillow image per call.
+Config lines are ``entity_id | Label | thresholds`` — label optional (falls back to
+the HA friendly name). Thresholds pin the graph's scale AND color the value, with
+the POLARITY in the grammar (the Entity Board reads the same field): ``lo,hi`` is a
+comfort BAND (green inside, red outside — temperature), ``<limit`` / ``<warn,bad``
+means lower-is-better (green below, amber between, red above — CO₂, power),
+``>floor`` / ``>warn,good`` means higher-is-better (battery, signal). Without
+thresholds the scale hugs the window and the color follows the trend. Non-numeric
+states (on/off/unavailable) show as a text card until numbers arrive. Frame-push
+rendering (PUT /api/canvas/frame), one Pillow image per call.
 """
 
 _UP = (54, 210, 120)      # LED-legible green
+_MID = (255, 210, 64)     # amber — the warn zone of a directional threshold
 _DN = (255, 82, 82)       # LED-legible red
 _INK = (238, 242, 250)    # near-white — the big value
 _MUTE = (150, 160, 182)   # label / unit
 
 
 def _parse_config(text):
-    """``entity_id | Label | lo,hi`` per line -> ordered [(eid, label|None, (lo,hi)|None)].
-    (The same shape the Entity Board reads, so a config moves between the two apps.)"""
+    """``entity_id | Label | thresholds`` per line -> ordered [(eid, label|None, band|None)].
+    (The same lines the Entity Board reads, so a config moves between the two apps.)"""
     out = []
     for line in str(text or '').splitlines():
         line = line.strip()
@@ -39,16 +43,39 @@ def _parse_config(text):
         if not parts[0]:
             continue
         label = parts[1] if len(parts) > 1 and parts[1] else None
-        band = None
-        if len(parts) > 2 and parts[2]:
-            try:
-                nums = [float(x) for x in parts[2].split(',')[:2]]
-                if len(nums) == 2:
-                    band = (min(nums), max(nums))
-            except ValueError:
-                pass
-        out.append((parts[0], label, band))
+        out.append((parts[0], label, _parse_band(parts[2] if len(parts) > 2 else '')))
     return out
+
+
+def _parse_band(txt):
+    """The threshold field, one grammar for polarity (the Entity Board reads the same):
+    ``lo,hi`` a comfort BAND (green inside, red outside); ``<limit`` / ``<warn,bad``
+    lower-is-better (green below, amber between, red above); ``>floor`` / ``>warn,good``
+    higher-is-better (mirrored). Returns ('band'|'low'|'high', a, b) with a <= b, or None."""
+    t = str(txt or '').strip()
+    if not t:
+        return None
+    mode = 'band'
+    if t[0] in '<>':
+        mode = 'low' if t[0] == '<' else 'high'
+        t = t[1:]
+    try:
+        nums = sorted(float(x) for x in t.split(',')[:2] if x.strip() != '')
+    except ValueError:
+        return None
+    if not nums or (mode == 'band' and len(nums) < 2):   # a band needs both edges
+        return None
+    return (mode, nums[0], nums[-1])
+
+
+def _band_color(band, v):
+    """The card's accent under a parsed threshold: _UP green / _MID amber / _DN red."""
+    mode, a, b = band
+    if mode == 'band':
+        return _UP if a <= v <= b else _DN
+    if mode == 'low':                                    # lower is better
+        return _UP if v < a else _DN if v > b or a == b else _MID
+    return _UP if v > b else _DN if v < a or a == b else _MID   # higher is better
 
 
 def _fit_ink(canvas, text, max_cap, max_w):
@@ -192,7 +219,7 @@ def fetch_matrix(settings, canvas, get_ha_states=None, get_ha_history=None):
     first = series[0]
     delta = last - first
     if band:
-        col = _UP if band[0] <= last <= band[1] else _DN
+        col = _band_color(band, last)
     else:
         col = _UP if delta >= 0 else _DN
 
@@ -200,8 +227,8 @@ def fetch_matrix(settings, canvas, get_ha_states=None, get_ha_history=None):
     img = canvas.blank((0, 0, 0))
     d = ImageDraw.Draw(img)
     gy0, gy1 = 1.0, H - 2.0
-    lo = min(min(series), band[0]) if band else min(series)
-    hi = max(max(series), band[1]) if band else max(series)
+    lo = min(min(series), band[1]) if band else min(series)
+    hi = max(max(series), band[2]) if band else max(series)
     if hi <= lo:
         hi = lo + 1.0
     span = hi - lo
@@ -215,8 +242,8 @@ def fetch_matrix(settings, canvas, get_ha_states=None, get_ha_history=None):
     else:
         pts = [((W - 1) * (i / (n - 1)), yof(series[i])) for i in range(n)]
     d.polygon(pts + [(W - 1, gy1 + 1), (0, gy1 + 1)], fill=canvas.dim(col, 0.17))
-    if band:                                           # the band edges, faint dashed
-        for edge in band:
+    if band:                                           # the threshold lines, faint dashed
+        for edge in {band[1], band[2]}:                # one line when a == b (single limit)
             by = yof(edge)
             for xx in range(0, W, 4):
                 d.line([xx, by, xx + 1, by], fill=canvas.dim(_MUTE, 0.45))

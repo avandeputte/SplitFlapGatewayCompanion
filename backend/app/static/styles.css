@@ -336,7 +336,7 @@ a.btn { text-decoration: none; display: inline-block; }
 
 /* entity_table */
 .entity-table { display: flex; flex-direction: column; gap: 6px; }
-.et-head, .et-row { display: grid; grid-template-columns: 22px minmax(0,1fr) minmax(0,1.1fr) 54px 54px 20px;
+.et-head, .et-row { display: grid; grid-template-columns: 22px minmax(0,1fr) minmax(0,1.1fr) 26px 54px 54px 20px;
   gap: 6px; align-items: center; }
 .et-head { font-size: .68rem; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; padding: 0 2px; }
 .et-rows { display: flex; flex-direction: column; gap: 5px; }
@@ -347,6 +347,10 @@ a.btn { text-decoration: none; display: inline-block; }
 .et-ord button:disabled { opacity: .3; cursor: default; }
 .et-eid { font-size: .72rem; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .et-del { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 13px; padding: 0; margin: 0; }
+.et-mode { background: var(--panel2, rgba(255,255,255,.06)); border: 1px solid var(--line, #333a48);
+  border-radius: 6px; color: var(--dim); cursor: pointer; font-size: .78rem; line-height: 1;
+  padding: 4px 0; width: 100%; }
+.et-mode.set { color: var(--accent, #7ab8ff); }
 .et-empty { font-size: .8rem; color: var(--dim); padding: 6px 2px; }
 .gps-btn:hover:not(:disabled) { background: var(--acc); }
 .gps-btn:disabled { opacity: .6; cursor: default; }

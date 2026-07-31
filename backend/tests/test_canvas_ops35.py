@@ -92,7 +92,7 @@ def test_entity_board_draws_arc_gauges_for_banded_entities(gw_calls):
            "attributes": {"friendly_name": "CO2", "unit_of_measurement": "ppm"}},
           {"entity_id": "sensor.hum", "state": "47",
            "attributes": {"friendly_name": "Hum", "unit_of_measurement": "%"}}]
-    cfg = "sensor.co2 | CO2 | 500,1000\nsensor.hum | Hum"
+    cfg = "sensor.co2 | CO2 | <500,1000\nsensor.hum | Hum"
     cv = _cv(w=128, h=64)
     cv.can_sprite = True
     app.fetch_matrix({"config": cfg}, cv, get_ha_states=lambda: ha)

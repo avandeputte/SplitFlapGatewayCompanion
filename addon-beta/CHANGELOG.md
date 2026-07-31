@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.10-beta.3
+
+- **Threshold polarity for the HA apps** — Sensor Graph and Home Assistant board read
+  one grammar: `lo,hi` is a comfort band (green inside), `<warn,bad` lower-is-better
+  (CO₂), `>warn,good` higher-is-better (battery); the entity table gets a ◦/</> button
+  per row. ⚠️ Bare `lo,hi` on the board now means *band* — prefix `<` to keep the old
+  green-below-low reading.
+
 ## 2.10.10-beta.2
 
 - **Sensor Graph label legibility** — long entity names ellipsize at a readable size
