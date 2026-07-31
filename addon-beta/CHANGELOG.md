@@ -3,77 +3,27 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
-## 2.10.9-beta.12
+## 2.10.9
 
-- **Simon 🧠** — the memory game where sound is the game: echo the machine's growing
-  melody on the pad; four color strips, one wrong press ends it, idle gets a hint replay.
-
-## 2.10.9-beta.11
-
-- **Clean app switches** — taking the panel now stands down whatever the previous app
-  left running on-device (effect, looping animation, ticker) and gets the firmware's
-  full-screen clear, so no pixels linger when you change apps.
-
-## 2.10.9-beta.10
-
-- **Sensor Graph fix** — the entity search box now actually searches Home Assistant
-  (the manifest was missing the picker's search endpoint wiring).
-
-## 2.10.9-beta.9
-
-- **Four new panel apps 🕹️** — Pong and Invaders join the arcade; Falling Sand pours
-  layered technicolor dunes you can steer; Sensor Graph charts any HA sensor's rolling
-  history under its live value.
-
-## 2.10.9-beta.8
-
-- **Flappy visibility** — the bird wears a dark outline and the sky runs deeper, so
-  yellow no longer melts into light blue.
-
-## 2.10.9-beta.7
-
-- **New games 🕹️** — Snake, Flappy and Breakout join Chomper and Tetris: playable from
-  the web-UI pad, self-playing attract mode otherwise.
-
-## 2.10.9-beta.6
-
-- **Matrix Rain gets a real icon** — falling green code, not a green heart; the Maze
-  effect gets a drawn labyrinth too (it was sharing Plasma's swirl).
-
-## 2.10.9-beta.5
-
-- **It's the Matrix Gateway** — every mention of the old "Matrix Portal" hardware name
-  updated across the UI, docs and wiki (product detection accepts both spellings).
-- **Better icons** — Binary Clock shows an actual BCD dot-clock face (binary is 0 and 1!).
-- **Documentation review** — in-repo docs and the whole wiki brought to the current
-  firmware state: version archaeology removed, every recent feature documented, stale
-  claims fixed, comments corrected.
-
-## 2.10.9-beta.4
-
-- **One firmware, no ladders** 🪜 — all Matrix-firmware version compatibility removed:
-  binary ops, compositing, anti-aliasing, transforms and the canvas endpoint families
-  are simply assumed present (they are). Physical-gateway support is untouched.
-
-## 2.10.9-beta.3
-
-- **Fix: full binary drawing on current firmware** — the gateway now advertises binary
-  ops as a plain boolean, which the companion misread as the legacy subset; smooth
-  strokes and transforms would silently fall back to slower JSON. Correctly detected now.
-
-## 2.10.9-beta.2
-
-- **Drawn app icons** 🎨 — the catalog can now show real vector icons: Chomper gets an
-  actual Pac-Man (mouth, eye, pellet), Tetris an L- and T-piece. Apps can ship their own
-  via a new `icon_svg` manifest field; the emoji stays for text surfaces.
-
-## 2.10.9-beta.1
-
-- **Photo Frame plays movies** 🎞️ — MPGA files on the microSD card join the rotation
-  (firmware 3.13+); the wall streams them straight off the card, no size limit.
-- **WAV sound effects** — apps' `play_sound` can stream a card WAV through the speaker
-  (firmware 3.13+); the new Spectrogram effect gets its icon.
-- **Better game icons** — Chomper 👻 and Tetris 🧱.
+- **Eight new apps 🕹️** — Snake, Flappy, Breakout, Pong, Invaders and Simon join the
+  arcade: playable from the web-UI pad, self-playing attract mode otherwise. Falling
+  Sand pours steerable technicolor dunes, and Sensor Graph charts any Home Assistant
+  sensor's rolling history under its live value.
+- **Clean app switches** — taking the panel stands down whatever the previous app left
+  running on-device (effect, animation, ticker) and clears the whole screen, so no
+  pixels linger when apps change.
+- **Photo Frame plays movies 🎞️** — MPGA files on the microSD card join the rotation,
+  streamed straight off the card; apps' `play_sound` can stream card WAVs through the
+  speaker.
+- **Drawn app icons 🎨** — the catalog shows real vector icons (new `icon_svg` manifest
+  field): Pac-Man Chomper, L+T Tetris, a BCD Binary Clock, falling-code Matrix Rain, a
+  labyrinth Maze, and every new game.
+- **One firmware, no ladders 🪜** — all Matrix-firmware version gating removed (binary
+  ops, compositing, anti-aliasing and transforms are simply assumed present) and the
+  boolean `opsBin` flag is read correctly, so full-rate binary drawing always engages.
+  Physical-gateway support untouched.
+- **It's the Matrix Gateway** — the old "Matrix Portal" name retired across the UI,
+  docs and wiki; documentation brought fully up to the current firmware.
 
 ## 2.10.8
 

@@ -3,6 +3,28 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9
+
+- **Eight new apps 🕹️** — Snake, Flappy, Breakout, Pong, Invaders and Simon join the
+  arcade: playable from the web-UI pad, self-playing attract mode otherwise. Falling
+  Sand pours steerable technicolor dunes, and Sensor Graph charts any Home Assistant
+  sensor's rolling history under its live value.
+- **Clean app switches** — taking the panel stands down whatever the previous app left
+  running on-device (effect, animation, ticker) and clears the whole screen, so no
+  pixels linger when apps change.
+- **Photo Frame plays movies 🎞️** — MPGA files on the microSD card join the rotation,
+  streamed straight off the card; apps' `play_sound` can stream card WAVs through the
+  speaker.
+- **Drawn app icons 🎨** — the catalog shows real vector icons (new `icon_svg` manifest
+  field): Pac-Man Chomper, L+T Tetris, a BCD Binary Clock, falling-code Matrix Rain, a
+  labyrinth Maze, and every new game.
+- **One firmware, no ladders 🪜** — all Matrix-firmware version gating removed (binary
+  ops, compositing, anti-aliasing and transforms are simply assumed present) and the
+  boolean `opsBin` flag is read correctly, so full-rate binary drawing always engages.
+  Physical-gateway support untouched.
+- **It's the Matrix Gateway** — the old "Matrix Portal" name retired across the UI,
+  docs and wiki; documentation brought fully up to the current firmware.
+
 ## 2.10.8
 
 - **Firmware 3.12 support** ⚡ — binary draw parity (opsBin v2): anti-aliasing, transforms,
