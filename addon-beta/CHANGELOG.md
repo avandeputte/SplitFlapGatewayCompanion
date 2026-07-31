@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.9-beta.12
+
+- **Simon 🧠** — the memory game where sound is the game: echo the machine's growing
+  melody on the pad; four color strips, one wrong press ends it, idle gets a hint replay.
+
 ## 2.10.9-beta.11
 
 - **Clean app switches** — taking the panel now stands down whatever the previous app

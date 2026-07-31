@@ -52,6 +52,7 @@ APP_IDS = [
     'canvas-snake', 'canvas-flappy', 'canvas-breakout',   # the arcade
     'canvas-pong', 'canvas-invaders',    # the arcade, wave two
     'canvas-sand',                       # the frame-push sand toy
+    'canvas-simon',                      # the sound-led memory game
     'canvas-sensor-graph',               # the HA sensor sampler
 ]
 
@@ -771,6 +772,19 @@ def stub_sensor_graph(m):
     m.fetch_matrix._state = {'sig': ('sensor.living_room_temp',), 'idx': 0, 'hist': hist}
 
 
+def stub_simon(m):
+    # Mid-melody: the third step of a five-note game lit, two progress dots filled.
+    orig = m._state
+
+    def warmed(W, H):
+        st = orig(W, H)
+        if st.get('games', 1) == 1 and len(st['seq']) == 1:
+            st.update(seq=[0, 2, 1, 3, 2], sp=2, show_lit=False, phase='show',
+                      score=40, games=5)
+        return st
+    m._state = warmed
+
+
 def stub_sports(m):
     raw = [
         ('MLB', 'BOT 7', 'in', ('NYY', '4'), ('BOS', '5'), 'NYY 4  BOS 5'),
@@ -877,6 +891,7 @@ STUBS = {
     'canvas-invaders': stub_invaders,
     'canvas-sand': stub_sand,
     'canvas-sensor-graph': stub_sensor_graph,
+    'canvas-simon': stub_simon,
     'sports': stub_sports,
     'stocks': stub_stocks,
     'sun-times': stub_sun_times,

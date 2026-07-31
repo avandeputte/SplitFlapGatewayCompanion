@@ -1,0 +1,31 @@
+{
+  "id": "canvas-simon",
+  "name": "Simon",
+  "icon": "🧠",
+  "icon_svg": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 2 A10 10 0 0 0 2 11 L11 11 Z' fill='%2340c860'/%3E%3Cpath d='M13 2 A10 10 0 0 1 22 11 L13 11 Z' fill='%23ff5252'/%3E%3Cpath d='M2 13 A10 10 0 0 0 11 22 L11 13 Z' fill='%23ffd23f'/%3E%3Cpath d='M22 13 A10 10 0 0 1 13 22 L13 13 Z' fill='%2350a8f0'/%3E%3Ccircle cx='12' cy='12' r='3.2' fill='%230e1016'/%3E%3C/svg%3E",
+  "description": "The memory game where sound is the game: the machine plays a growing sequence of lit strips and notes, you echo it on the pad — ◄ ▲ ▼ ► map to the four colors. One wrong press ends it.",
+  "type": "functional",
+  "surfaces": ["matrix"],
+  "category": "fun",
+  "refresh_interval": 1,
+  "loop_delay": 1,
+  "interactive": true,
+  "settings": [
+    {
+      "key": "speed",
+      "label": "Speed",
+      "type": "number",
+      "default": "5",
+      "min": "1", "max": "10", "step": "1", "stepper": true
+    },
+    {
+      "key": "takeover",
+      "label": "Auto-play after (s)",
+      "type": "number",
+      "default": "30",
+      "min": "5", "max": "120", "step": "5", "stepper": true
+    }
+  ],
+  "min_rows": 1,
+  "min_cols": 15
+}
