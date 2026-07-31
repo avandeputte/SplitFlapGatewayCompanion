@@ -220,9 +220,26 @@ def _no_outbound_network(request, monkeypatch):
       * UDP connect — it sends NO packet (gateway.detect_local_ip "connects"
         a datagram socket to 8.8.8.8 purely to read the chosen local address);
       * non-INET families (AF_UNIX addresses are strings, not tuples).
+
+    DNS is guarded too, not just connect: resolving a made-up host is a hang, not a
+    failure, on some CI resolvers — an unstubbed ``http://gw`` fetch never reaches
+    ``connect`` (nothing to connect TO), so it used to crawl through getaddrinfo
+    timeouts invisibly. One such run put 3h17m on a 28s suite. Off-loopback lookups
+    now raise the same loud error immediately.
     """
     real_connect = socket.socket.connect
     real_connect_ex = socket.socket.connect_ex
+    real_getaddrinfo = socket.getaddrinfo
+
+    def getaddrinfo(host, *a, **kw):
+        if not _is_loopback(host):
+            raise RuntimeError(
+                f"{request.node.nodeid} tried to RESOLVE {host!r} — tests must never "
+                "touch the network (DNS included). Stub the HTTP layer (gw_calls / "
+                "quiet_gateway for the gateway seam, requests.get, or conftest.stub_http).")
+        return real_getaddrinfo(host, *a, **kw)
+
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
 
     def _check(sock, address):
         if not isinstance(address, tuple) or not address:
@@ -248,6 +265,18 @@ def _no_outbound_network(request, monkeypatch):
 
     monkeypatch.setattr(socket.socket, "connect", connect)
     monkeypatch.setattr(socket.socket, "connect_ex", connect_ex)
+
+
+@pytest.fixture
+def quiet_gateway(monkeypatch):
+    """Sink the pooled gateway seam: every request answers 200/{"ok","active"} and
+    nothing records. For tests that render through a real CanvasSurface but assert
+    on app STATE, not wire shape — a game's ``show()`` per frame must neither hit
+    the network nor need a call log (that's ``gw_calls``)."""
+    import app.gateway as gateway
+    monkeypatch.setattr(gateway, "_request",
+                        lambda method, url, path, *, timeout, **kw:
+                        json_response({"ok": True, "active": True}))
 
 
 # --- canvas test helper ------------------------------------------------------
