@@ -27,12 +27,13 @@ Two house rules carried over from the rest of the codebase:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from mcp.server import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 
-from . import renderer, vestaboard
+from . import gateway, renderer, vestaboard
 from .plugins import app_id_from_ref
 
 log = logging.getLogger("companion.mcp")
@@ -351,6 +352,106 @@ def build(displays) -> MCPServer:
     def list_styles() -> list[str]:
         """The flap transition styles show_message accepts."""
         return list(renderer.ALL_STYLES)
+
+    # -- the Matrix Gateway's kitchen timer + daily alarms (fw "timer"/"alarms") ------
+
+    def _timer_wall(display: str, need: str = "timer"):
+        """(display, gateway_url) for a wall whose CAPABILITIES advertise the on-device
+        feature — ``need`` is "timer" or "alarms" (device.Capabilities.can_timer /
+        can_alarms, from the gateway's feature tokens). A clear error for the physical
+        split-flap gateway, which has neither."""
+        d = _res(display)
+        caps = d.controller._caps()
+        if not getattr(caps, f"can_{need}", False):
+            raise ValueError(f"this display's gateway does not advertise the {need!r} "
+                             "capability (a Matrix Gateway feature)")
+        return d, str(d.config.transport.get("gateway_url") or "").strip()
+
+    @mcp.tool()
+    async def get_timer(display: str = "") -> dict:
+        """The Matrix Gateway's kitchen timer: whether it is running, seconds remaining,
+        and whether an alarm is FIRING right now (beeping/flashing on the panel).
+
+        `display` picks the wall (see list_displays); omit it for the default one."""
+        _d, url = _timer_wall(display)
+        st = await asyncio.to_thread(gateway.timer_get, url)
+        if not st:
+            raise ValueError("the gateway did not answer /api/timer")
+        return {"active": bool(st.get("active")), "remaining_seconds": int(st.get("remaining") or 0),
+                "alarm_firing": bool(st.get("alarmFiring"))}
+
+    @mcp.tool()
+    async def start_timer(seconds: int, display: str = "") -> dict:
+        """Start the on-device kitchen countdown (1 second .. 24 hours). The panel shows
+        it and beeps at zero; it replaces any countdown already running."""
+        if not 1 <= int(seconds) <= 86400:
+            raise ValueError("seconds must be 1 .. 86400 (24 h)")
+        _d, url = _timer_wall(display)
+        got = await asyncio.to_thread(gateway.timer_start, url, int(seconds))
+        if not got.get("ok"):
+            raise ValueError("the gateway refused the timer (1 s .. 24 h)")
+        return {"ok": True, "remaining_seconds": int(got.get("remaining") or seconds)}
+
+    @mcp.tool()
+    async def stop_timer(display: str = "") -> dict:
+        """Cancel the running countdown AND dismiss a firing alarm (one call does both —
+        the firmware couples them, so this is also 'silence the alarm')."""
+        _d, url = _timer_wall(display)
+        if not await asyncio.to_thread(gateway.timer_stop, url):
+            raise ValueError("the gateway did not answer /api/timer")
+        return {"ok": True}
+
+    @mcp.tool()
+    async def list_alarms(display: str = "") -> list[dict]:
+        """The Matrix Gateway's four daily alarm slots: time (HH:MM, gateway-local),
+        days ('daily', 'weekdays', 'weekends' or 'mon,tue,…') and whether enabled."""
+        _d, url = _timer_wall(display, "alarms")
+        slots = await asyncio.to_thread(gateway.alarms_get, url)
+        if not slots:
+            raise ValueError("the gateway did not answer /api/alarms")
+        return [{"slot": i, "time": s.get("time", "07:00"),
+                 "days": gateway.mask_to_days(int(s.get("days") or 0x7F)),
+                 "enabled": bool(s.get("enabled"))} for i, s in enumerate(slots)]
+
+    @mcp.tool()
+    async def set_alarm(slot: int, time: str, days: str = "daily", enabled: bool = True,
+                        display: str = "") -> dict:
+        """Program one alarm slot (0-3): `time` is HH:MM in the gateway's local time,
+        `days` is 'daily', 'weekdays', 'weekends' or day names like 'mon,wed,fri'.
+        The other slots are left as they are."""
+        if not 0 <= int(slot) <= 3:
+            raise ValueError("slot must be 0 .. 3")
+        import re
+        if not re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d", str(time).strip()):
+            raise ValueError("time must be HH:MM (24-hour)")
+        mask = gateway.days_to_mask(days)
+        _d, url = _timer_wall(display, "alarms")
+        slots = await asyncio.to_thread(gateway.alarms_get, url)
+        if not slots:
+            raise ValueError("the gateway did not answer /api/alarms")
+        while len(slots) < 4:
+            slots.append({"time": "07:00", "days": 0x7F, "enabled": False})
+        slots[int(slot)] = {"time": str(time).strip(), "days": mask, "enabled": bool(enabled)}
+        if not await asyncio.to_thread(gateway.alarms_set, url, slots):
+            raise ValueError("the gateway refused the alarm update")
+        return {"ok": True, "slot": int(slot), "time": str(time).strip(),
+                "days": gateway.mask_to_days(mask), "enabled": bool(enabled)}
+
+    @mcp.tool()
+    async def clear_alarm(slot: int, display: str = "") -> dict:
+        """Disable one alarm slot (0-3). The slot keeps its time and days for later."""
+        if not 0 <= int(slot) <= 3:
+            raise ValueError("slot must be 0 .. 3")
+        _d, url = _timer_wall(display, "alarms")
+        slots = await asyncio.to_thread(gateway.alarms_get, url)
+        if not slots:
+            raise ValueError("the gateway did not answer /api/alarms")
+        while len(slots) < 4:
+            slots.append({"time": "07:00", "days": 0x7F, "enabled": False})
+        slots[int(slot)]["enabled"] = False
+        if not await asyncio.to_thread(gateway.alarms_set, url, slots):
+            raise ValueError("the gateway refused the alarm update")
+        return {"ok": True, "slot": int(slot)}
 
     return mcp
 

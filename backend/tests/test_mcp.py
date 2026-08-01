@@ -131,9 +131,10 @@ def call(main, name, args=None):
 
 def test_tools_are_all_registered(mcp_on):
     names = sorted(t.name for t in asyncio.run(mcp_on.mcp.list_tools()))
-    assert names == ["clear_display", "configure_app", "get_app_settings", "get_display",
-                     "list_apps", "list_displays", "list_playlists", "list_styles",
-                     "run_app", "run_playlist", "show_message", "stop"]
+    assert names == ["clear_alarm", "clear_display", "configure_app", "get_app_settings",
+                     "get_display", "get_timer", "list_alarms", "list_apps", "list_displays",
+                     "list_playlists", "list_styles", "run_app", "run_playlist", "set_alarm",
+                     "show_message", "start_timer", "stop", "stop_timer"]
 
 
 def test_every_tool_takes_an_optional_display(mcp_on):
@@ -407,3 +408,94 @@ def test_a_broken_mcp_layer_503s_when_enabled_never_crashes(monkeypatch):
 
     assert asyncio.run(_status(False)) == 404          # off → gone
     assert asyncio.run(_status(True)) == 503           # on but unbuildable → unavailable, not a crash
+
+
+# --- the Matrix timer/alarm tools --------------------------------------------
+
+def _raw(main, name, args=None):
+    """call_tool normalized for error asserts: the in-process call_tool RAISES ToolError
+    for a tool that errored (the wire transport would wrap it as isError), so both
+    shapes come back as an object with .is_error/.content."""
+    from types import SimpleNamespace
+    try:
+        return asyncio.run(main.mcp.call_tool(name, args or {}))
+    except Exception as e:
+        return SimpleNamespace(is_error=True, content=[SimpleNamespace(text=str(e))])
+
+
+def _matrix_caps(monkeypatch, main):
+    """Make every display's wall advertise the timer/alarms capabilities. Class-level:
+    the module-scoped `live` fixture's lifespan can swap the display instances under a
+    later test, so an instance patch would silently miss the one the server resolves."""
+    from types import SimpleNamespace
+    from app.engine import DisplayController
+    monkeypatch.setattr(DisplayController, "_caps",
+                        lambda self: SimpleNamespace(can_timer=True, can_alarms=True))
+
+
+def test_timer_tools_refuse_a_wall_without_the_capability(mcp_on):
+    """The physical split-flap gateway advertises neither feature token, so the tools
+    say so instead of poking endpoints that do not exist."""
+    res = _raw(mcp_on, "get_timer")
+    assert res.is_error and "capability" in res.content[0].text
+    res = _raw(mcp_on, "set_alarm", {"slot": 0, "time": "07:30"})
+    assert res.is_error and "capability" in res.content[0].text
+
+
+def test_get_and_start_and_stop_timer(mcp_on, monkeypatch):
+    from app import gateway
+    _matrix_caps(monkeypatch, mcp_on)
+    monkeypatch.setattr(gateway, "timer_get",
+                        lambda url: {"active": True, "remaining": 95, "alarmFiring": False})
+    out = call(mcp_on, "get_timer")
+    assert out == {"active": True, "remaining_seconds": 95, "alarm_firing": False}
+
+    started = []
+    monkeypatch.setattr(gateway, "timer_start",
+                        lambda url, sec: started.append(sec) or {"ok": True, "remaining": sec})
+    out = call(mcp_on, "start_timer", {"seconds": 600})
+    assert started == [600] and out["remaining_seconds"] == 600
+    assert _raw(mcp_on, "start_timer", {"seconds": 0}).is_error          # 1 s .. 24 h
+
+    stopped = []
+    monkeypatch.setattr(gateway, "timer_stop", lambda url: stopped.append(url) or True)
+    assert call(mcp_on, "stop_timer")["ok"] is True and stopped
+
+
+def test_set_alarm_read_modify_writes_one_slot(mcp_on, monkeypatch):
+    from app import gateway
+    _matrix_caps(monkeypatch, mcp_on)
+    slots = [{"time": "06:30", "days": 0x7F, "enabled": True},
+             {"time": "07:00", "days": 0x7F, "enabled": False},
+             {"time": "07:00", "days": 0x7F, "enabled": False},
+             {"time": "07:00", "days": 0x7F, "enabled": False}]
+    written = []
+    monkeypatch.setattr(gateway, "alarms_get", lambda url: [dict(s) for s in slots])
+    monkeypatch.setattr(gateway, "alarms_set", lambda url, sl: written.append(sl) or True)
+
+    out = call(mcp_on, "set_alarm", {"slot": 2, "time": "6:45", "days": "weekdays"})
+    assert out["days"] == "weekdays"
+    assert written[-1][2] == {"time": "6:45", "days": 0x3E, "enabled": True}
+    assert written[-1][0] == slots[0]                                    # untouched neighbors
+
+    out = call(mcp_on, "clear_alarm", {"slot": 0})
+    assert written[-1][0]["enabled"] is False
+    assert written[-1][0]["time"] == "06:30"                             # keeps its schedule
+
+    assert _raw(mcp_on, "set_alarm", {"slot": 0, "time": "25:00"}).is_error
+    assert _raw(mcp_on, "set_alarm", {"slot": 9, "time": "07:00"}).is_error
+    assert _raw(mcp_on, "set_alarm", {"slot": 0, "time": "07:00",
+                                      "days": "someday"}).is_error
+
+
+def test_list_alarms_decodes_days(mcp_on, monkeypatch):
+    from app import gateway
+    _matrix_caps(monkeypatch, mcp_on)
+    monkeypatch.setattr(gateway, "alarms_get", lambda url: [
+        {"time": "06:30", "days": 0x3E, "enabled": True},
+        {"time": "09:00", "days": 0x41, "enabled": False},
+        {"time": "07:00", "days": 0x7F, "enabled": False},
+        {"time": "07:00", "days": 0x22, "enabled": False}])
+    out = call(mcp_on, "list_alarms")
+    assert [a["days"] for a in out] == ["weekdays", "weekends", "daily", "mon,fri"]
+    assert out[0] == {"slot": 0, "time": "06:30", "days": "weekdays", "enabled": True}

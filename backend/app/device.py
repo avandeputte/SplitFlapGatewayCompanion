@@ -117,6 +117,8 @@ class Capabilities:
                                             # (parsed for completeness; no companion consumer yet)
     can_sound: bool = False                 # POST /api/sound — on-device tone synthesis (the "sound" feature)
     can_sd: bool = False                    # /api/sd/* — a microSD card is mounted (the "sd" feature)
+    can_timer: bool = False                 # /api/timer — the on-device kitchen timer (the "timer" feature)
+    can_alarms: bool = False                # /api/alarms — the four daily alarm slots (the "alarms" feature)
 
     def __bool__(self) -> bool:
         return self.indexed
@@ -304,6 +306,8 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_stream=bool(canvas.get("stream")),
         can_sound="sound" in features,
         can_sd="sd" in features,
+        can_timer="timer" in features,
+        can_alarms="alarms" in features,
         events="events" in features,
     )
 

@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.10-beta.4
+
+- **Timer & alarms everywhere** ⏲️ — the Matrix Gateway's kitchen timer and four daily
+  alarms surface as Home Assistant MQTT entities (countdown timestamp, start/stop,
+  per-slot switches + time/days) and as MCP tools (`start_timer`, `set_alarm`, …),
+  gated on the gateway's `timer`/`alarms` capability tokens.
+
 ## 2.10.10-beta.3
 
 - **Threshold polarity for the HA apps** — Sensor Graph and Home Assistant board read

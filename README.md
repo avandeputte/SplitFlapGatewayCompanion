@@ -402,8 +402,24 @@ auto-discovery device, **SplitFlap Companion**, with the controls unique to the 
 | Playlist | select | Run a playlist (or `Off`); state shows the running playlist |
 | Stop | button | Stop whatever is running |
 
-Use this if you already run MQTT and don't want the HACS integration; the HACS
-integration is the richer option.
+A **Matrix Gateway** wall adds its on-device kitchen timer and daily alarms (gated on
+the gateway's `timer`/`alarms` capability tokens — a physical gateway shows none of
+these):
+
+| Entity | Type | Does |
+|---|---|---|
+| Timer ends | sensor (timestamp) | When the countdown lands — HA renders the live remaining time from it; empty when idle |
+| Timer | binary_sensor | Countdown running |
+| Alarm firing | binary_sensor | An alarm is sounding on the panel right now |
+| Start timer (min) | number | Set a value to start that many minutes on the panel |
+| Stop timer / dismiss alarm | button | Cancel the countdown — or silence a firing alarm |
+| Alarm 1–4 | switch | Enable/disable each of the four alarm slots |
+| Alarm 1–4 time | text | The slot's `HH:MM` (gateway-local) |
+| Alarm 1–4 days | text | `daily`, `weekdays`, `weekends` or `mon,tue,…` |
+
+So *"start a 10-minute timer when the oven preheats"* or *"flash the lights when the
+panel's alarm fires"* are ordinary HA automations. Use this if you already run MQTT and
+don't want the HACS integration; the HACS integration is the richer option.
 
 ### Vestaboard-compatible API
 
@@ -481,6 +497,12 @@ written before multi-display working untouched.
 | `list_playlists` / `run_playlist` | The saved playlists with their running order, and run one |
 | `stop` | Stop the running app or playlist |
 | `list_styles` | The transition styles `show_message` accepts |
+| `get_timer` / `start_timer` / `stop_timer` | The Matrix Gateway's on-device kitchen timer: state + seconds remaining, start (1 s–24 h), cancel — `stop_timer` also dismisses a firing alarm |
+| `list_alarms` / `set_alarm` / `clear_alarm` | The gateway's four daily alarm slots: HH:MM + days (`daily`, `weekdays`, `weekends`, `mon,tue,…`), one slot at a time |
+
+The timer/alarm tools follow the wall's **capabilities** (the gateway's `timer` /
+`alarms` feature tokens) — on a physical split-flap gateway they answer with a clear
+"not on this display" instead of guessing at endpoints.
 
 The token guards `/mcp` only — it's a credential for this endpoint, not a security
 boundary for the host. DNS-rebinding protection is deliberately off, because a companion

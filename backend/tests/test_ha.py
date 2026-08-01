@@ -139,3 +139,112 @@ def test_bad_reason_code_no_publish(tmp_path):
     ha._client = fc
     ha._on_connect(fc, None, None, 5)  # connection refused
     assert not fc.pubs and not fc.subs
+
+
+# --- the Matrix Gateway timer/alarms (capability-gated) -----------------------
+
+def _matrix_ha(tmp_path, can_timer=True, can_alarms=True):
+    from types import SimpleNamespace
+    ha, ctrl = _ha(tmp_path)
+    ctrl._caps = lambda: SimpleNamespace(can_timer=can_timer, can_alarms=can_alarms)
+    return ha, ctrl
+
+
+def test_physical_wall_publishes_no_timer_entities(tmp_path):
+    ha, _ = _ha(tmp_path)                                   # FakeController: no _caps at all
+    assert {obj for _c, obj, _ in ha._discovery()} == {"app", "playlist", "stop"}
+
+
+def test_matrix_wall_publishes_timer_and_alarm_entities(tmp_path):
+    ha, _ = _matrix_ha(tmp_path)
+    comps = {obj: (comp, cfg) for comp, obj, cfg in ha._discovery()}
+    assert comps["timer_ends"][0] == "sensor"
+    assert comps["timer_ends"][1]["device_class"] == "timestamp"
+    assert comps["timer_active"][0] == "binary_sensor"
+    assert comps["alarm_firing"][0] == "binary_sensor"
+    assert comps["timer_minutes"][0] == "number" and comps["timer_minutes"][1]["max"] == 1440
+    assert comps["timer_stop"][0] == "button"
+    for i in range(1, 5):
+        assert comps[f"alarm{i}"][0] == "switch"
+        assert comps[f"alarm{i}_time"][0] == "text"
+        assert comps[f"alarm{i}_days"][0] == "text"
+    # capability halves gate independently
+    ha_t, _ = _matrix_ha(tmp_path, can_alarms=False)
+    objs = {obj for _c, obj, _ in ha_t._discovery()}
+    assert "timer_ends" in objs and "alarm1" not in objs
+    ha_a, _ = _matrix_ha(tmp_path, can_timer=False)
+    objs = {obj for _c, obj, _ in ha_a._discovery()}
+    assert "alarm1" in objs and "timer_ends" not in objs
+
+
+def test_timer_minutes_command_starts_the_countdown(tmp_path, monkeypatch):
+    from app import homeassistant as ham
+    ha, _ = _matrix_ha(tmp_path)
+    started, polled = [], []
+    monkeypatch.setattr(ham.gateway, "timer_start", lambda url, sec: started.append(sec) or {"ok": True})
+    monkeypatch.setattr(ha, "_poll_gateway", lambda: polled.append(1))
+    asyncio.run(ha._command_coro(ha._cmd("timer_minutes"), "10"))
+    assert started == [600] and ha._last_timer_min == 10
+    assert ha._command_coro(ha._cmd("timer_minutes"), "junk") is None
+
+
+def test_timer_stop_command(tmp_path, monkeypatch):
+    from app import homeassistant as ham
+    ha, _ = _matrix_ha(tmp_path)
+    stopped = []
+    monkeypatch.setattr(ham.gateway, "timer_stop", lambda url: stopped.append(url) or True)
+    asyncio.run(ha._command_coro(ha._cmd("timer_stop"), "PRESS"))
+    assert stopped
+
+
+def test_alarm_switch_read_modify_writes_one_slot(tmp_path, monkeypatch):
+    from app import homeassistant as ham
+    ha, _ = _matrix_ha(tmp_path)
+    slots = [{"time": "06:30", "days": 0x3E, "enabled": False},
+             {"time": "07:00", "days": 0x7F, "enabled": True}]
+    written = []
+    monkeypatch.setattr(ham.gateway, "alarms_get", lambda url: [dict(s) for s in slots])
+    monkeypatch.setattr(ham.gateway, "alarms_set", lambda url, sl: written.append(sl) or True)
+    asyncio.run(ha._command_coro(ha._cmd("alarm1"), "ON"))
+    assert written[-1][0] == {"time": "06:30", "days": 0x3E, "enabled": True}
+    assert written[-1][1]["enabled"] is True                # neighbor untouched
+    asyncio.run(ha._command_coro(ha._cmd("alarm2_time"), "21:15"))
+    assert written[-1][1]["time"] == "21:15"
+    asyncio.run(ha._command_coro(ha._cmd("alarm1_days"), "weekends"))
+    assert written[-1][0]["days"] == 0x41
+    n = len(written)
+    asyncio.run(ha._command_coro(ha._cmd("alarm2_time"), "25:99"))   # rejected, no write
+    asyncio.run(ha._command_coro(ha._cmd("alarm1_days"), "someday"))
+    assert len(written) == n
+
+
+def test_publish_state_carries_the_timer_cache(tmp_path):
+    ha, _ = _matrix_ha(tmp_path)
+    fc = FakeClient()
+    ha._client = fc
+    ha._gw = {"polled": True, "can_timer": True,
+              "timer": {"active": True, "remaining": 90, "alarmFiring": True},
+              "alarms": [{"time": "06:30", "days": 0x3E, "enabled": True}],
+              "ends_iso": "2026-07-31T09:00:00+00:00"}
+    ha.publish_state()
+    pubs = {t: p for t, p, _r in fc.pubs}
+    assert pubs[ha._state("timer_ends")] == "2026-07-31T09:00:00+00:00"
+    assert pubs[ha._state("timer_active")] == "ON"
+    assert pubs[ha._state("alarm_firing")] == "ON"
+    assert pubs[ha._state("timer_minutes")] == "2"          # ceil(90 s / 60)
+    assert pubs[ha._state("alarm1")] == "ON"
+    assert pubs[ha._state("alarm1_time")] == "06:30"
+    assert pubs[ha._state("alarm1_days")] == "weekdays"
+
+
+def test_on_connect_subscribes_timer_topics_only_with_caps(tmp_path):
+    ha, _ = _matrix_ha(tmp_path)
+    fc = FakeClient()
+    ha._client = fc
+    ha._on_connect(fc, None, None, 0)
+    assert ha._cmd("timer_minutes") in fc.subs and ha._cmd("alarm4_days") in fc.subs
+    ha2, _ = _ha(tmp_path)
+    fc2 = FakeClient()
+    ha2._client = fc2
+    ha2._on_connect(fc2, None, None, 0)
+    assert not any("timer" in s or "alarm" in s for s in fc2.subs)

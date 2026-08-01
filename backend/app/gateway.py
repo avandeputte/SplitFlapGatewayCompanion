@@ -434,3 +434,94 @@ def build_sync_patch(gw: dict) -> dict:
     if grid:
         patch["grid"] = grid
     return patch
+
+
+# --- the kitchen timer + daily alarms (Matrix Gateway /api/timer, /api/alarms) -----
+# Thin REST clients over the pooled _request seam, {}/[]/False on any failure — the
+# HA MQTT device and the MCP tools drive these; capability gating (caps.can_timer /
+# can_alarms, from the "timer"/"alarms" feature tokens) is the caller's job.
+
+_DAY_NAMES = ("sun", "mon", "tue", "wed", "thu", "fri", "sat")   # bit0=Sunday (tm_wday)
+_DAY_WORDS = {"daily": 0x7F, "weekdays": 0x3E, "weekends": 0x41}
+
+
+def days_to_mask(days) -> int:
+    """A day spec -> the firmware bitmask (bit0=Sun … bit6=Sat). Accepts an int mask,
+    'daily'/'weekdays'/'weekends', or comma/space-separated day names ('mon,tue')."""
+    if isinstance(days, int):
+        return days & 0x7F
+    t = str(days or "").strip().lower()
+    if not t:
+        return 0x7F
+    if t in _DAY_WORDS:
+        return _DAY_WORDS[t]
+    mask = 0
+    for tok in t.replace(",", " ").split():
+        tok = tok[:3]
+        if tok not in _DAY_NAMES:
+            raise ValueError(f"unknown day {tok!r} — use {'/'.join(_DAY_NAMES)}, "
+                             "'daily', 'weekdays' or 'weekends'")
+        mask |= 1 << _DAY_NAMES.index(tok)
+    return mask or 0x7F
+
+
+def mask_to_days(mask: int) -> str:
+    """The firmware bitmask back to a readable spec ('daily', 'weekdays', 'mon,tue')."""
+    mask &= 0x7F
+    for word, m in _DAY_WORDS.items():
+        if mask == m:
+            return word
+    return ",".join(n for i, n in enumerate(_DAY_NAMES) if mask >> i & 1) or "daily"
+
+
+def timer_get(url: str, timeout: float = 5.0) -> dict:
+    """{'active', 'remaining', 'alarmFiring'} — or {} when the wall doesn't answer."""
+    try:
+        r = _request("GET", url, "/api/timer", timeout=timeout)
+        doc = r.json() if r.status_code == 200 else {}
+        return doc if isinstance(doc, dict) else {}
+    except Exception as e:
+        log.debug("timer_get failed: %s", e)
+        return {}
+
+
+def timer_start(url: str, seconds: int, timeout: float = 5.0) -> dict:
+    """Start the on-device countdown (1 s .. 24 h). Returns the reply ({'remaining'})."""
+    try:
+        r = _request("POST", url, "/api/timer", json={"sec": int(seconds)}, timeout=timeout)
+        doc = r.json() if r.status_code == 200 else {}
+        return doc if isinstance(doc, dict) else {}
+    except Exception as e:
+        log.debug("timer_start failed: %s", e)
+        return {}
+
+
+def timer_stop(url: str, timeout: float = 5.0) -> bool:
+    """Cancel a running countdown AND dismiss a firing alarm (the firmware couples them)."""
+    try:
+        r = _request("POST", url, "/api/timer", json={"stop": True}, timeout=timeout)
+        return r.status_code == 200
+    except Exception as e:
+        log.debug("timer_stop failed: %s", e)
+        return False
+
+
+def alarms_get(url: str, timeout: float = 5.0) -> list:
+    """The four alarm slots: [{'time': 'HH:MM', 'days': mask, 'enabled': bool}, …] ([] on failure)."""
+    try:
+        r = _request("GET", url, "/api/alarms", timeout=timeout)
+        doc = r.json() if r.status_code == 200 else []
+        return doc if isinstance(doc, list) else []
+    except Exception as e:
+        log.debug("alarms_get failed: %s", e)
+        return []
+
+
+def alarms_set(url: str, slots: list, timeout: float = 5.0) -> bool:
+    """Replace ALL four slots (the firmware's POST is whole-list; callers read-modify-write)."""
+    try:
+        r = _request("POST", url, "/api/alarms", json=list(slots)[:4], timeout=timeout)
+        return r.status_code == 200
+    except Exception as e:
+        log.debug("alarms_set failed: %s", e)
+        return False
