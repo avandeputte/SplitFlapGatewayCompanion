@@ -65,6 +65,10 @@ class DisplayController:
         # Set = no interrupt in progress. The app/playlist loops await it rather than
         # polling a boolean every 0.1 s.
         self._interrupt_over = asyncio.Event()
+        # Set to cut the RUNNING playlist entry short (a clap/tap gesture, or the skip
+        # API): every entry-scoped hold sleeps through _entry_sleep, which wakes on it,
+        # and the entry keep_going lambdas read it. Cleared at each entry's start.
+        self._skip_evt = asyncio.Event()
         self._interrupt_over.set()
         self._temp_task: asyncio.Task | None = None   # a timed show_temporary() message
         # The page an app loop last put on the wall, for unchanged-page suppression.
@@ -243,7 +247,26 @@ class DisplayController:
                 pass
 
     # -- manual compose -----------------------------------------------------
+    def skip_playlist_entry(self) -> bool:
+        """Advance the running playlist to its next entry NOW (gesture / API). True when
+        a playlist was driving and the skip was armed; False otherwise (nothing to skip)."""
+        if not self.active_playlist:
+            return False
+        self._skip_evt.set()
+        return True
+
+    async def _entry_sleep(self, delay: float) -> None:
+        """asyncio.sleep(delay) that wakes immediately when the running playlist entry
+        is skipped. Outside a playlist the event is never set — an ordinary sleep."""
+        if delay <= 0:
+            return
+        try:
+            await asyncio.wait_for(self._skip_evt.wait(), timeout=delay)
+        except asyncio.TimeoutError:
+            pass
+
     def _clear_driver_flags(self) -> None:
+        self._skip_evt.clear()             # a skip must not leak past the run it aimed at
         self.active_app = None
         self.active_playlist = None
         self.state.active_app = None
@@ -612,7 +635,7 @@ class DisplayController:
                 if remaining <= 0:
                     break
                 delay = min(delay, remaining)
-            await asyncio.sleep(max(0.05, delay))
+            await self._entry_sleep(max(0.05, delay))
 
     async def _matrix_loop(self, app_id: str) -> None:
         """Standalone matrix app: the shared body until the app is switched away, then ALWAYS close
@@ -681,8 +704,8 @@ class DisplayController:
                     raise
                 except Exception as e:
                     log.warning("channel %s canvas render error: %s", app_id, e)
-                await asyncio.sleep(delay if deadline is None
-                                    else min(delay, max(0.0, deadline - rt_loop.time())))
+                await self._entry_sleep(delay if deadline is None
+                                        else min(delay, max(0.0, deadline - rt_loop.time())))
 
     async def _channel_canvas_loop(self, app_id: str) -> None:
         """Standalone channel-on-panel: the shared body until the app is switched away."""
@@ -694,7 +717,8 @@ class DisplayController:
         deadline. The caller releases the panel afterwards."""
         rt_loop = asyncio.get_running_loop()
         await self._run_channel_canvas(
-            app_id, lambda: rt_loop.time() < deadline and self.active_playlist == want,
+            app_id, lambda: (rt_loop.time() < deadline and self.active_playlist == want
+                             and not self._skip_evt.is_set()),
             overrides=overrides, deadline=deadline)
 
     async def _play_matrix_entry(self, app_id: str, deadline: float, want, overrides=None) -> None:
@@ -703,7 +727,8 @@ class DisplayController:
         releases the panel — and with it any draw stream — after the slot."""
         rt_loop = asyncio.get_running_loop()
         await self._run_matrix(
-            app_id, lambda: rt_loop.time() < deadline and self.active_playlist == want,
+            app_id, lambda: (rt_loop.time() < deadline and self.active_playlist == want
+                             and not self._skip_evt.is_set()),
             overrides=overrides, deadline=deadline)
 
     async def stop_app(self) -> None:
@@ -770,7 +795,7 @@ class DisplayController:
                 await self._emit_page_from_loop(clean, style=t["style"], speed=t["speed"],
                                                 record_as=text)
                 self._last_page_emit = rt_loop.time()
-            await asyncio.sleep(max(0.0, float(t["loop_delay"])))
+            await self._entry_sleep(max(0.0, float(t["loop_delay"])))
 
     async def _emit_page_from_loop(self, clean: str, *, style: str, speed: int,
                                    record_as: str | None = None) -> bool:
@@ -824,7 +849,8 @@ class DisplayController:
         deadline = rt_loop.time() + duration
 
         def keep_going() -> bool:
-            return rt_loop.time() < deadline and self.active_playlist == want
+            return (rt_loop.time() < deadline and self.active_playlist == want
+                    and not self._skip_evt.is_set())
 
         surface = self._surface_for(app_id, ov)
         matrix_channel = surface == "matrix" and self.plugins.is_channel_app(app_id)
@@ -848,6 +874,7 @@ class DisplayController:
                 if self.active_playlist != want:
                     return
                 self.state.playlist_index = i
+                self._skip_evt.clear()                 # each entry gets a fresh skip slate
                 etype = entry.get("type", "app")
                 duration = float(entry.get("duration", entry.get("delay", 30)))
                 if etype == "compose":
@@ -855,7 +882,7 @@ class DisplayController:
                     clean = self._normalize(entry.get("text", ""))
                     await self._emit_page_from_loop(clean, style=entry.get("style", "ltr"),
                                                     speed=int(entry.get("speed", 15)))
-                    await asyncio.sleep(duration)
+                    await self._entry_sleep(duration)
                 else:  # app entry — run the app until its slot's deadline
                     await self._run_playlist_app_entry(entry, duration, want, rt_loop)
             if not loop:

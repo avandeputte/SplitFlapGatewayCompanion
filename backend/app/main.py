@@ -22,7 +22,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, gwproxy, uilang
+from . import __version__, gestures, gwproxy, uilang
 try:
     from . import mcp_server           # optional: the MCP server layer
 except Exception as _mcp_err:          # a broken/incompatible mcp lib must not
@@ -577,6 +577,10 @@ async def start_display(d, companion_url: str = "") -> list:
         tasks.append(asyncio.create_task(d.ha.start()))
     if url and companion_url:
         tasks.append(asyncio.create_task(_companion_heartbeat(url, companion_url, d)))
+    # Clap/tap gestures ride the gateway's SSE stream (the "events" capability):
+    # by default either advances a running playlist to its next entry.
+    if url and getattr(ctl.caps, "events", False) and not cfg.sim_mode:
+        tasks.append(asyncio.create_task(gestures.watch(d)))
     # Retry pending settings pushes if this gateway was briefly unreachable.
     tasks.append(asyncio.create_task(_settings_flush_loop(d)))
     return tasks

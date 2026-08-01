@@ -80,6 +80,11 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
   an **[MQTT device](#home-assistant-mqtt)**, a one-click **[app for the sidebar](#home-assistant-app-add-on)**,
   a **[Vestaboard-compatible API](#vestaboard-compatible-api)**, and an
   **[MCP server](#mcp-server)** for LLM clients.
+- **Clap & tap gestures** — a Matrix Gateway hears claps (microphones) and feels taps
+  (IMU); by default either one advances a running playlist to its next entry. Configure
+  each in **Global settings → On a clap / On a tap** (next entry, stop, or nothing). A
+  *double* clap/tap dismisses the panel's own timer/alarm before it ever reaches the
+  companion.
 - **Packaging** — a multi-arch Docker image (healthcheck + `/data` volume), a
   one-line installer, and a Home Assistant app.
 

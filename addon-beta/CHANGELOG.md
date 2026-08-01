@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.10-beta.6
+
+- **Clap & tap gestures 👏** — the companion rides the gateway's event stream: a clap
+  or a tap advances the running playlist to its next entry (configurable per gesture in
+  Global settings: next entry / stop / nothing). Doubles still dismiss the panel's own
+  timer/alarm first.
+
 ## 2.10.10-beta.5
 
 - **Timer, alarms & gateway settings in the HACS integration + MCP** — new REST proxy
