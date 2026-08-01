@@ -26,7 +26,9 @@ from .coordinator import SplitFlapCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SELECT, Platform.SENSOR, Platform.BUTTON, Platform.IMAGE]
+PLATFORMS = [Platform.SELECT, Platform.SENSOR, Platform.BINARY_SENSOR,
+             Platform.BUTTON, Platform.NUMBER, Platform.SWITCH, Platform.TEXT,
+             Platform.IMAGE]
 
 MESSAGE_SCHEMA = vol.Schema({
     vol.Required(ATTR_TEXT): cv.string,

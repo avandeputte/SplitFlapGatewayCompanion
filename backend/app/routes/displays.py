@@ -14,7 +14,9 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from .. import discovery, renderer
+import time
+
+from .. import discovery, gateway, renderer
 from ..catalog import GLOBAL_STORAGE_KEYS
 from ..events import TooManyStreams
 from ..gateway import fetch_gateway_settings
@@ -39,6 +41,20 @@ class DisplayPatch(BaseModel):
     gateway_url: str | None = None
     enabled: bool | None = None
     order: int | None = None
+
+
+class TimerCommand(BaseModel):
+    """POST /api/timer: {"seconds": N} starts, {"stop": true} cancels + dismisses."""
+    seconds: int | None = None
+    stop: bool = False
+
+
+class AlarmPatch(BaseModel):
+    """POST /api/alarms: patch ONE slot; only the fields present change."""
+    slot: int
+    time: str | None = None
+    days: str | None = None
+    enabled: bool | None = None
 
 
 def build(deps) -> APIRouter:
@@ -265,5 +281,126 @@ def build(deps) -> APIRouter:
                         "matrix": matrix, "status_code": r.status_code, "data": r.json()}
         except Exception as e:
             return {"ok": False, "url": url, "tabs": tabs, "matrix": matrix, "error": str(e)}
+
+    # -- the Matrix Gateway's kitchen timer + alarms, proxied for REST clients --------
+    # The HACS integration (no MQTT) reads ONE combined GET and sends small POSTs; both
+    # are display-scoped like everything else and follow the wall's capabilities
+    # ("timer"/"alarms" feature tokens). `ends_at` is the countdown's END as an ISO
+    # timestamp rounded to 5 s — a poller renders remaining time from a stable value.
+
+    @router.get("/api/timer")
+    async def timer_state(request: Request):
+        d = deps.display_for(request)
+        caps = d.controller._caps()
+        can_t = bool(getattr(caps, "can_timer", False))
+        can_a = bool(getattr(caps, "can_alarms", False))
+        out: dict = {"supported": {"timer": can_t, "alarms": can_a}}
+        url = str(d.config.transport.get("gateway_url") or "").strip()
+        if not url:
+            return out
+        if can_t:
+            t = await asyncio.to_thread(gateway.timer_get, url)
+            rem = int(t.get("remaining") or 0)
+            ends = None
+            if t.get("active"):
+                from datetime import datetime, timezone
+                ends = datetime.fromtimestamp(round((time.time() + rem) / 5.0) * 5.0,
+                                              tz=timezone.utc).isoformat()
+            out["timer"] = {"active": bool(t.get("active")), "remaining": rem,
+                            "alarm_firing": bool(t.get("alarmFiring")), "ends_at": ends}
+        if can_a:
+            slots = await asyncio.to_thread(gateway.alarms_get, url)
+            out["alarms"] = [{"slot": i, "time": s.get("time", "07:00"),
+                              "days": gateway.mask_to_days(int(s.get("days") or 0x7F)),
+                              "enabled": bool(s.get("enabled"))}
+                             for i, s in enumerate(slots[:4])]
+        return out
+
+    @router.post("/api/timer")
+    async def timer_command(request: Request, req: TimerCommand):
+        """{"seconds": N} starts the countdown (1 s .. 24 h); {"stop": true} cancels it
+        AND dismisses a firing alarm (the firmware couples them)."""
+        d = deps.display_for(request)
+        if not getattr(d.controller._caps(), "can_timer", False):
+            raise HTTPException(409, "this display's gateway has no on-device timer")
+        url = str(d.config.transport.get("gateway_url") or "").strip()
+        if req.stop:
+            if not await asyncio.to_thread(gateway.timer_stop, url):
+                raise HTTPException(502, "the gateway did not answer /api/timer")
+            return {"ok": True, "stopped": True}
+        if not req.seconds or not 1 <= int(req.seconds) <= 86400:
+            raise HTTPException(400, "seconds must be 1 .. 86400")
+        got = await asyncio.to_thread(gateway.timer_start, url, int(req.seconds))
+        if not got.get("ok"):
+            raise HTTPException(502, "the gateway refused the timer")
+        return {"ok": True, "remaining": int(got.get("remaining") or req.seconds)}
+
+    @router.post("/api/alarms")
+    async def alarm_patch(request: Request, req: AlarmPatch):
+        """Patch ONE alarm slot (0-3): any of time (HH:MM), days ('daily'/'weekdays'/
+        'weekends'/'mon,tue,…') and enabled. The companion read-modify-writes the
+        firmware's whole-list POST, so the other slots are untouched."""
+        d = deps.display_for(request)
+        if not getattr(d.controller._caps(), "can_alarms", False):
+            raise HTTPException(409, "this display's gateway has no on-device alarms")
+        if not 0 <= req.slot <= 3:
+            raise HTTPException(400, "slot must be 0 .. 3")
+        url = str(d.config.transport.get("gateway_url") or "").strip()
+        slots = await asyncio.to_thread(gateway.alarms_get, url)
+        if not slots:
+            raise HTTPException(502, "the gateway did not answer /api/alarms")
+        while len(slots) < 4:
+            slots.append({"time": "07:00", "days": 0x7F, "enabled": False})
+        s = slots[req.slot]
+        if req.time is not None:
+            import re
+            if not re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d", req.time.strip()):
+                raise HTTPException(400, "time must be HH:MM (24-hour)")
+            s["time"] = req.time.strip()
+        if req.days is not None:
+            try:
+                s["days"] = gateway.days_to_mask(req.days)
+            except ValueError as e:
+                raise HTTPException(400, str(e))
+        if req.enabled is not None:
+            s["enabled"] = bool(req.enabled)
+        if not await asyncio.to_thread(gateway.alarms_set, url, slots):
+            raise HTTPException(502, "the gateway refused the alarm update")
+        return {"ok": True, "slot": req.slot, "time": s["time"],
+                "days": gateway.mask_to_days(int(s["days"])), "enabled": bool(s["enabled"])}
+
+    # -- the curated gateway-settings surface (Quiet Time, speaker, brightness) -------
+    # One GET/POST pair the HACS integration and MCP share. Sections follow the wall's
+    # capability tokens: quiet -> "quiet", sound -> "sound", brightness/dim ->
+    # "brightness". POST takes a partial patch of the same shape the GET returns and
+    # fans out to the right gateway endpoint per section.
+
+    @router.get("/api/gateway/settings")
+    async def gateway_settings(request: Request):
+        d = deps.display_for(request)
+        return await asyncio.to_thread(
+            gateway.read_settings,
+            str(d.config.transport.get("gateway_url") or "").strip(),
+            d.controller._caps())
+
+    @router.post("/api/gateway/settings")
+    async def gateway_settings_patch(request: Request):
+        """Partial patch, the GET's shape: {"quiet": {"on"?, "schedule": {...}?}?,
+        "sound": {"enabled"?, "volume"?}?, "brightness"?, "dim": {...}?}. Only the
+        sections present are touched; gateway.apply_settings_patch validates."""
+        d = deps.display_for(request)
+        body = await request.json()
+        try:
+            applied = await asyncio.to_thread(
+                gateway.apply_settings_patch,
+                str(d.config.transport.get("gateway_url") or "").strip(),
+                d.controller._caps(), body)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except LookupError as e:
+            raise HTTPException(409, str(e))
+        except RuntimeError as e:
+            raise HTTPException(502, str(e))
+        return {"ok": True, "applied": applied}
 
     return router

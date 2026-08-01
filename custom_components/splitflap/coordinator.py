@@ -78,8 +78,21 @@ class SplitFlapCoordinator(DataUpdateCoordinator[dict]):
             except SplitFlapError:
                 canvas_png = None
 
+        # The Matrix Gateway's timer/alarms + device settings (Quiet Time, speaker,
+        # brightness). An older companion (or a physical wall) reports them
+        # unsupported / has no routes — either way the sections just stay empty.
+        timer: dict = {}
+        gw: dict = {}
+        try:
+            timer = await self.client.timer()
+            gw = await self.client.gateway_settings()
+        except SplitFlapError:
+            pass
+
         return {
             "state": state,
+            "timer": timer,
+            "gw": gw,
             "rows": rows,
             "cols": cols,
             "lines": lines,

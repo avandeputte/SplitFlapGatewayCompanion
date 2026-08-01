@@ -41,6 +41,9 @@
       },
       "showing": {
         "name": "En pantalla"
+      },
+      "timer_ends": {
+        "name": "Fin del temporizador"
       }
     },
     "button": {
@@ -52,11 +55,103 @@
       },
       "home": {
         "name": "Inicializar todo"
+      },
+      "timer_stop": {
+        "name": "Parar temporizador / silenciar alarma"
       }
     },
     "image": {
       "board": {
         "name": "Tablero"
+      }
+    },
+    "binary_sensor": {
+      "timer_running": {
+        "name": "Temporizador"
+      },
+      "alarm_firing": {
+        "name": "Alarma sonando"
+      }
+    },
+    "number": {
+      "timer_minutes": {
+        "name": "Iniciar temporizador"
+      },
+      "sound_volume": {
+        "name": "Volumen"
+      },
+      "panel_brightness": {
+        "name": "Brillo"
+      },
+      "dim_level": {
+        "name": "Nivel de atenuación nocturna"
+      }
+    },
+    "switch": {
+      "quiet_now": {
+        "name": "Modo silencio"
+      },
+      "quiet_schedule": {
+        "name": "Horario de silencio"
+      },
+      "sound_enabled": {
+        "name": "Altavoz"
+      },
+      "dim_enabled": {
+        "name": "Atenuación nocturna"
+      },
+      "alarm1": {
+        "name": "Alarma 1"
+      },
+      "alarm2": {
+        "name": "Alarma 2"
+      },
+      "alarm3": {
+        "name": "Alarma 3"
+      },
+      "alarm4": {
+        "name": "Alarma 4"
+      }
+    },
+    "text": {
+      "quiet_start": {
+        "name": "Inicio del silencio"
+      },
+      "quiet_end": {
+        "name": "Fin del silencio"
+      },
+      "quiet_days": {
+        "name": "Días de silencio"
+      },
+      "dim_start": {
+        "name": "Inicio de atenuación"
+      },
+      "dim_end": {
+        "name": "Fin de atenuación"
+      },
+      "alarm1_time": {
+        "name": "Alarma 1 hora"
+      },
+      "alarm2_time": {
+        "name": "Alarma 2 hora"
+      },
+      "alarm3_time": {
+        "name": "Alarma 3 hora"
+      },
+      "alarm4_time": {
+        "name": "Alarma 4 hora"
+      },
+      "alarm1_days": {
+        "name": "Alarma 1 días"
+      },
+      "alarm2_days": {
+        "name": "Alarma 2 días"
+      },
+      "alarm3_days": {
+        "name": "Alarma 3 días"
+      },
+      "alarm4_days": {
+        "name": "Alarma 4 días"
       }
     }
   },

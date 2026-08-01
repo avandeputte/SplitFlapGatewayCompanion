@@ -1,11 +1,15 @@
 {
   "domain": "splitflap",
   "name": "SplitFlap",
-  "codeowners": ["@avandeputte"],
+  "codeowners": [
+    "@avandeputte"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/avandeputte/SplitFlapGatewayCompanion",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/avandeputte/SplitFlapGatewayCompanion/issues",
-  "requirements": ["Pillow"],
-  "version": "1.3.0"
+  "requirements": [
+    "Pillow"
+  ],
+  "version": "1.4.0"
 }

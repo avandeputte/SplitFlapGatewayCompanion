@@ -41,6 +41,9 @@
       },
       "showing": {
         "name": "Showing"
+      },
+      "timer_ends": {
+        "name": "Timer ends"
       }
     },
     "button": {
@@ -52,11 +55,103 @@
       },
       "home": {
         "name": "Home all"
+      },
+      "timer_stop": {
+        "name": "Stop timer / dismiss alarm"
       }
     },
     "image": {
       "board": {
         "name": "Board"
+      }
+    },
+    "binary_sensor": {
+      "timer_running": {
+        "name": "Timer"
+      },
+      "alarm_firing": {
+        "name": "Alarm firing"
+      }
+    },
+    "number": {
+      "timer_minutes": {
+        "name": "Start timer"
+      },
+      "sound_volume": {
+        "name": "Volume"
+      },
+      "panel_brightness": {
+        "name": "Brightness"
+      },
+      "dim_level": {
+        "name": "Night dim level"
+      }
+    },
+    "switch": {
+      "quiet_now": {
+        "name": "Quiet time"
+      },
+      "quiet_schedule": {
+        "name": "Quiet schedule"
+      },
+      "sound_enabled": {
+        "name": "Speaker"
+      },
+      "dim_enabled": {
+        "name": "Night dim"
+      },
+      "alarm1": {
+        "name": "Alarm 1"
+      },
+      "alarm2": {
+        "name": "Alarm 2"
+      },
+      "alarm3": {
+        "name": "Alarm 3"
+      },
+      "alarm4": {
+        "name": "Alarm 4"
+      }
+    },
+    "text": {
+      "quiet_start": {
+        "name": "Quiet start"
+      },
+      "quiet_end": {
+        "name": "Quiet end"
+      },
+      "quiet_days": {
+        "name": "Quiet days"
+      },
+      "dim_start": {
+        "name": "Night dim start"
+      },
+      "dim_end": {
+        "name": "Night dim end"
+      },
+      "alarm1_time": {
+        "name": "Alarm 1 time"
+      },
+      "alarm2_time": {
+        "name": "Alarm 2 time"
+      },
+      "alarm3_time": {
+        "name": "Alarm 3 time"
+      },
+      "alarm4_time": {
+        "name": "Alarm 4 time"
+      },
+      "alarm1_days": {
+        "name": "Alarm 1 days"
+      },
+      "alarm2_days": {
+        "name": "Alarm 2 days"
+      },
+      "alarm3_days": {
+        "name": "Alarm 3 days"
+      },
+      "alarm4_days": {
+        "name": "Alarm 4 days"
       }
     }
   },

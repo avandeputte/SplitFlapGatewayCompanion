@@ -438,6 +438,42 @@ def build(displays) -> MCPServer:
                 "days": gateway.mask_to_days(mask), "enabled": bool(enabled)}
 
     @mcp.tool()
+    async def get_gateway_settings(display: str = "") -> dict:
+        """The wall's device settings, by capability: Quiet Time (whether it is on NOW
+        plus the daily schedule), the speaker (enabled + master volume 0-100), panel
+        brightness (1-255) and the nightly dim schedule. Sections the gateway lacks
+        are marked unsupported and omitted."""
+        d = _res(display)
+        return await asyncio.to_thread(
+            gateway.read_settings,
+            str(d.config.transport.get("gateway_url") or "").strip(),
+            d.controller._caps())
+
+    @mcp.tool()
+    async def set_gateway_settings(patch: dict, display: str = "") -> dict:
+        """Change the wall's device settings — pass ONLY what should change, in the same
+        shape get_gateway_settings returns:
+
+          {"quiet": {"on": true}}                              silence the wall now
+          {"quiet": {"schedule": {"enabled": true, "start": "22:00", "end": "07:00",
+                                  "days": "daily"}}}           the nightly window
+          {"sound": {"enabled": true, "volume": 60}}           the speaker
+          {"brightness": 180}                                  panel brightness 1-255
+          {"dim": {"enabled": true, "start": "22:00", "end": "07:00", "level": 40}}
+
+        Note: while a Quiet-Time SCHEDULE window is active the firmware refuses a manual
+        quiet OFF (the schedule wins) — the reply's applied.quiet_on says what holds."""
+        d = _res(display)
+        try:
+            applied = await asyncio.to_thread(
+                gateway.apply_settings_patch,
+                str(d.config.transport.get("gateway_url") or "").strip(),
+                d.controller._caps(), patch)
+        except (LookupError, RuntimeError) as e:
+            raise ValueError(str(e))
+        return {"ok": True, "applied": applied}
+
+    @mcp.tool()
     async def clear_alarm(slot: int, display: str = "") -> dict:
         """Disable one alarm slot (0-3). The slot keeps its time and days for later."""
         if not 0 <= int(slot) <= 3:

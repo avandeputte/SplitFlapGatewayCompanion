@@ -372,6 +372,18 @@ companion's URL, and it adds a **SplitFlap** device with:
 | **Clear / Stop / Home all** (buttons) | — |
 | `splitflap.message` (service) | Show text, with an optional style and a **timed auto-revert** |
 
+A **Matrix Gateway** wall adds its on-device extras, each entity created only when the
+gateway's capabilities carry it (a physical wall keeps a clean device page):
+
+| Entity | Does |
+|---|---|
+| **Timer ends** (timestamp sensor) + **Timer** / **Alarm firing** (binary sensors) | The kitchen countdown, HA-rendered live; whether an alarm is sounding |
+| **Start timer** (number, minutes) + **Stop timer / dismiss alarm** (button) | Start N minutes on the panel; cancel — or silence a firing alarm |
+| **Alarm 1–4** (switch + time/days texts) | The four daily alarm slots — `HH:MM` and `daily`/`weekdays`/`weekends`/`mon,tue,…` |
+| **Quiet time** / **Quiet schedule** (switches) + start/end/days (texts) | Silence the wall now, or on the nightly window (the schedule wins inside its window) |
+| **Speaker** (switch) + **Volume** (number) | The master speaker enable and volume |
+| **Brightness** / **Night dim level** (numbers) + **Night dim** (switch) + start/end (texts) | Panel brightness and the nightly dim schedule |
+
 Unlike a Vestaboard integration, this surfaces the **apps and playlists**. It needs no
 MQTT broker — it talks to the companion directly. Driving [multiple displays](#multiple-displays)?
 The config flow asks which wall each entry is for — each display is its own device, so add
@@ -499,6 +511,7 @@ written before multi-display working untouched.
 | `list_styles` | The transition styles `show_message` accepts |
 | `get_timer` / `start_timer` / `stop_timer` | The Matrix Gateway's on-device kitchen timer: state + seconds remaining, start (1 s–24 h), cancel — `stop_timer` also dismisses a firing alarm |
 | `list_alarms` / `set_alarm` / `clear_alarm` | The gateway's four daily alarm slots: HH:MM + days (`daily`, `weekdays`, `weekends`, `mon,tue,…`), one slot at a time |
+| `get_gateway_settings` / `set_gateway_settings` | The wall's device settings by capability: Quiet Time (now + the nightly schedule), speaker enable/volume, panel brightness and the dim schedule — set takes a partial patch of the same shape |
 
 The timer/alarm tools follow the wall's **capabilities** (the gateway's `timer` /
 `alarms` feature tokens) — on a physical split-flap gateway they answer with a clear

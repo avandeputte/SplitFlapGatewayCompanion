@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.10-beta.5
+
+- **Timer, alarms & gateway settings in the HACS integration + MCP** — new REST proxy
+  (`/api/timer`, `/api/alarms`, `/api/gateway/settings`); the HACS device (v1.4.0)
+  grows capability-gated entities for the countdown, the four alarm slots, Quiet Time
+  (now + schedule), speaker and brightness/dim; MCP adds `get/set_gateway_settings`.
+
 ## 2.10.10-beta.4
 
 - **Timer & alarms everywhere** ⏲️ — the Matrix Gateway's kitchen timer and four daily

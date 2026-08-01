@@ -117,3 +117,30 @@ class SplitFlapClient:
 
     async def home(self) -> None:
         await self._request("POST", "/api/display/home")
+
+    # --- the Matrix Gateway's timer, alarms and device settings ---------------
+    # Older companions have none of these routes; callers catch SplitFlapError
+    # and treat the sections as unsupported.
+
+    async def timer(self) -> dict:
+        """{"supported": {...}, "timer": {...}?, "alarms": [...]?}."""
+        return await self._request("GET", "/api/timer")
+
+    async def timer_start(self, seconds: int) -> None:
+        await self._request("POST", "/api/timer", json={"seconds": int(seconds)})
+
+    async def timer_stop(self) -> None:
+        """Cancel the countdown AND dismiss a firing alarm (the firmware couples them)."""
+        await self._request("POST", "/api/timer", json={"stop": True})
+
+    async def alarm_patch(self, slot: int, **fields: Any) -> None:
+        """Patch one alarm slot: time="HH:MM", days="daily|weekdays|…", enabled=bool."""
+        await self._request("POST", "/api/alarms", json={"slot": int(slot), **fields})
+
+    async def gateway_settings(self) -> dict:
+        """{"supported": {...}, "quiet": {...}?, "sound": {...}?, "brightness"?, "dim"?}."""
+        return await self._request("GET", "/api/gateway/settings")
+
+    async def gateway_settings_patch(self, patch: dict) -> None:
+        """Partial patch, the gateway_settings() shape — send only what changes."""
+        await self._request("POST", "/api/gateway/settings", json=patch)

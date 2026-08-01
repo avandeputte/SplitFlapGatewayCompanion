@@ -119,6 +119,8 @@ class Capabilities:
     can_sd: bool = False                    # /api/sd/* — a microSD card is mounted (the "sd" feature)
     can_timer: bool = False                 # /api/timer — the on-device kitchen timer (the "timer" feature)
     can_alarms: bool = False                # /api/alarms — the four daily alarm slots (the "alarms" feature)
+    can_quiet: bool = False                 # /api/quiet + /quiet/schedule — Quiet Time (the "quiet" feature)
+    can_brightness: bool = False            # panel brightness + dim schedule (the "brightness" feature)
 
     def __bool__(self) -> bool:
         return self.indexed
@@ -308,6 +310,8 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         can_sd="sd" in features,
         can_timer="timer" in features,
         can_alarms="alarms" in features,
+        can_quiet="quiet" in features,
+        can_brightness="brightness" in features,
         events="events" in features,
     )
 

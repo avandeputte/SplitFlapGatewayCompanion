@@ -525,3 +525,183 @@ def alarms_set(url: str, slots: list, timeout: float = 5.0) -> bool:
     except Exception as e:
         log.debug("alarms_set failed: %s", e)
         return False
+
+
+# --- Quiet Time + panel settings (the curated gateway-settings surface) ------------
+# The companion, HACS integration and MCP all patch the same few knobs: Quiet Time
+# (now + schedule), the speaker, brightness and the dim schedule. Thin sync clients,
+# {}/False on failure; section availability follows the "quiet"/"sound"/"brightness"
+# capability tokens (caps.can_quiet / can_sound / can_brightness).
+
+def quiet_get(url: str, timeout: float = 5.0) -> dict:
+    """{'on': bool} — is Quiet Time active right now."""
+    try:
+        r = _request("GET", url, "/api/quiet", timeout=timeout)
+        doc = r.json() if r.status_code == 200 else {}
+        return doc if isinstance(doc, dict) else {}
+    except Exception as e:
+        log.debug("quiet_get failed: %s", e)
+        return {}
+
+
+def quiet_set(url: str, on: bool, timeout: float = 5.0) -> dict:
+    """Toggle Quiet Time now. The firmware REFUSES a manual OFF inside a scheduled
+    window (the schedule wins) — the reply's 'on' says what actually holds."""
+    try:
+        r = _request("POST", url, "/api/quiet", json={"on": bool(on)}, timeout=timeout)
+        doc = r.json() if r.status_code == 200 else {}
+        return doc if isinstance(doc, dict) else {}
+    except Exception as e:
+        log.debug("quiet_set failed: %s", e)
+        return {}
+
+
+def quiet_schedule_get(url: str, timeout: float = 5.0) -> dict:
+    """{'enabled', 'start', 'end', 'days' (mask), 'offset'} — the daily window."""
+    try:
+        r = _request("GET", url, "/api/quiet/schedule", timeout=timeout)
+        doc = r.json() if r.status_code == 200 else {}
+        return doc if isinstance(doc, dict) else {}
+    except Exception as e:
+        log.debug("quiet_schedule_get failed: %s", e)
+        return {}
+
+
+def quiet_schedule_set(url: str, patch: dict, timeout: float = 5.0) -> bool:
+    """POST a partial schedule ({enabled/start/end/days/offset} — only what changed).
+    The tz offset is browser-owned on the gateway's own UI; callers here should send
+    it only when they mean to move the schedule's clock."""
+    try:
+        r = _request("POST", url, "/api/quiet/schedule", json=dict(patch), timeout=timeout)
+        return r.status_code == 200
+    except Exception as e:
+        log.debug("quiet_schedule_set failed: %s", e)
+        return False
+
+
+def config_settings_set(url: str, patch: dict, timeout: float = 8.0) -> bool:
+    """POST /api/config/settings — the gateway's partial settings write (panelBright,
+    dim*, soundEnabled, soundVolume, …). Send ONLY the keys being changed."""
+    try:
+        r = _request("POST", url, "/api/config/settings", json=dict(patch), timeout=timeout)
+        return r.status_code == 200
+    except Exception as e:
+        log.debug("config_settings_set failed: %s", e)
+        return False
+
+
+def config_get(url: str, timeout: float = 5.0) -> dict:
+    """GET /api/config (sync twin of fetch_gateway_config) — {} on failure."""
+    try:
+        r = _request("GET", url, "/api/config", timeout=timeout)
+        doc = r.json() if r.status_code == 200 else {}
+        return doc if isinstance(doc, dict) else {}
+    except Exception as e:
+        log.debug("config_get failed: %s", e)
+        return {}
+
+
+def read_settings(url: str, caps) -> dict:
+    """The curated settings snapshot the REST route and MCP tool both serve: sections
+    (quiet / sound / brightness+dim) keyed by the wall's capability tokens."""
+    out: dict = {"supported": {"quiet": bool(getattr(caps, "can_quiet", False)),
+                               "sound": bool(getattr(caps, "can_sound", False)),
+                               "brightness": bool(getattr(caps, "can_brightness", False))}}
+    if not url or not any(out["supported"].values()):
+        return out
+    if out["supported"]["quiet"]:
+        q = quiet_get(url)
+        sched = quiet_schedule_get(url)
+        out["quiet"] = {"on": bool(q.get("on")),
+                        "schedule": {"enabled": bool(sched.get("enabled")),
+                                     "start": sched.get("start", "22:00"),
+                                     "end": sched.get("end", "07:00"),
+                                     "days": mask_to_days(int(sched.get("days") or 0x7F))}}
+    if out["supported"]["sound"] or out["supported"]["brightness"]:
+        cfg = config_get(url)
+        if out["supported"]["sound"]:
+            out["sound"] = {"enabled": bool(cfg.get("soundEnabled")),
+                            "volume": int(cfg.get("soundVolume") or 0)}
+        if out["supported"]["brightness"]:
+            out["brightness"] = int(cfg.get("panelBright") or 0)
+            out["dim"] = {"enabled": bool(cfg.get("dimEnabled")),
+                          "start": cfg.get("dimStart", "22:00"),
+                          "end": cfg.get("dimEnd", "07:00"),
+                          "level": int(cfg.get("dimLevel") or 0)}
+    return out
+
+
+def _hhmm(v, what: str) -> str:
+    import re
+    t = str(v).strip()
+    if not re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d", t):
+        raise ValueError(f"{what} must be HH:MM (24-hour)")
+    return t
+
+
+def apply_settings_patch(url: str, caps, patch: dict) -> dict:
+    """Apply a partial settings patch (the shape ``read_settings`` returns) and say
+    what was applied. Raises ValueError for a bad patch, LookupError for a section
+    the wall's capabilities don't carry, RuntimeError when the gateway refuses —
+    callers map those to their own error surfaces (400 / 409 / 502, tool errors).
+
+    Note: while a Quiet-Time SCHEDULE window is active the firmware refuses a manual
+    quiet OFF (the schedule wins) — ``applied['quiet_on']`` reports what holds."""
+    if not isinstance(patch, dict) or not patch:
+        raise ValueError("a patch object is required")
+    unknown = set(patch) - {"quiet", "sound", "brightness", "dim"}
+    if unknown:
+        raise ValueError(f"unknown sections: {', '.join(sorted(unknown))}")
+    applied: dict = {}
+    if "quiet" in patch:
+        if not getattr(caps, "can_quiet", False):
+            raise LookupError("this gateway has no Quiet Time")
+        q = patch["quiet"] or {}
+        if "on" in q:
+            got = quiet_set(url, bool(q["on"]))
+            if not got.get("ok"):
+                raise RuntimeError("the gateway refused the quiet toggle")
+            applied["quiet_on"] = bool(got.get("on"))
+        sched = q.get("schedule")
+        if sched:
+            sp: dict = {}
+            if "enabled" in sched:
+                sp["enabled"] = bool(sched["enabled"])
+            for k in ("start", "end"):
+                if k in sched:
+                    sp[k] = _hhmm(sched[k], k)
+            if "days" in sched:
+                sp["days"] = days_to_mask(sched["days"])
+            if sp and not quiet_schedule_set(url, sp):
+                raise RuntimeError("the gateway refused the quiet schedule")
+            if sp:
+                applied["quiet_schedule"] = sp
+    cfg_patch: dict = {}
+    if "sound" in patch:
+        if not getattr(caps, "can_sound", False):
+            raise LookupError("this gateway has no speaker")
+        snd = patch["sound"] or {}
+        if "enabled" in snd:
+            cfg_patch["soundEnabled"] = bool(snd["enabled"])
+        if "volume" in snd:
+            cfg_patch["soundVolume"] = max(0, min(100, int(snd["volume"])))
+    if "brightness" in patch or "dim" in patch:
+        if not getattr(caps, "can_brightness", False):
+            raise LookupError("this gateway has no brightness control")
+        if "brightness" in patch:
+            cfg_patch["panelBright"] = max(1, min(255, int(patch["brightness"])))
+        dim = patch.get("dim") or {}
+        if "enabled" in dim:
+            cfg_patch["dimEnabled"] = bool(dim["enabled"])
+        for k, gk in (("start", "dimStart"), ("end", "dimEnd")):
+            if k in dim:
+                cfg_patch[gk] = _hhmm(dim[k], f"dim.{k}")
+        if "level" in dim:
+            cfg_patch["dimLevel"] = max(1, min(255, int(dim["level"])))
+    if cfg_patch:
+        if not config_settings_set(url, cfg_patch):
+            raise RuntimeError("the gateway refused the settings write")
+        applied["config"] = cfg_patch
+    if not applied:
+        raise ValueError("nothing to change in the patch")
+    return applied

@@ -132,9 +132,10 @@ def call(main, name, args=None):
 def test_tools_are_all_registered(mcp_on):
     names = sorted(t.name for t in asyncio.run(mcp_on.mcp.list_tools()))
     assert names == ["clear_alarm", "clear_display", "configure_app", "get_app_settings",
-                     "get_display", "get_timer", "list_alarms", "list_apps", "list_displays",
-                     "list_playlists", "list_styles", "run_app", "run_playlist", "set_alarm",
-                     "show_message", "start_timer", "stop", "stop_timer"]
+                     "get_display", "get_gateway_settings", "get_timer", "list_alarms",
+                     "list_apps", "list_displays", "list_playlists", "list_styles", "run_app",
+                     "run_playlist", "set_alarm", "set_gateway_settings", "show_message",
+                     "start_timer", "stop", "stop_timer"]
 
 
 def test_every_tool_takes_an_optional_display(mcp_on):
@@ -499,3 +500,68 @@ def test_list_alarms_decodes_days(mcp_on, monkeypatch):
     out = call(mcp_on, "list_alarms")
     assert [a["days"] for a in out] == ["weekdays", "weekends", "daily", "mon,fri"]
     assert out[0] == {"slot": 0, "time": "06:30", "days": "weekdays", "enabled": True}
+
+
+# --- the gateway-settings tools ----------------------------------------------
+
+def _settings_caps(monkeypatch, main, quiet=True, sound=True, brightness=True):
+    from types import SimpleNamespace
+    from app.engine import DisplayController
+    monkeypatch.setattr(DisplayController, "_caps",
+                        lambda self: SimpleNamespace(can_quiet=quiet, can_sound=sound,
+                                                     can_brightness=brightness))
+
+
+def test_get_gateway_settings_reads_by_capability(mcp_on, monkeypatch):
+    from app import gateway
+    _settings_caps(monkeypatch, mcp_on)
+    monkeypatch.setattr(gateway, "quiet_get", lambda url: {"on": True})
+    monkeypatch.setattr(gateway, "quiet_schedule_get",
+                        lambda url: {"enabled": True, "start": "22:00", "end": "07:00",
+                                     "days": 0x3E, "offset": -240})
+    monkeypatch.setattr(gateway, "config_get",
+                        lambda url: {"soundEnabled": True, "soundVolume": 60,
+                                     "panelBright": 180, "dimEnabled": True,
+                                     "dimStart": "23:00", "dimEnd": "06:30", "dimLevel": 40})
+    out = call(mcp_on, "get_gateway_settings")
+    assert out["quiet"] == {"on": True, "schedule": {"enabled": True, "start": "22:00",
+                                                     "end": "07:00", "days": "weekdays"}}
+    assert out["sound"] == {"enabled": True, "volume": 60}
+    assert out["brightness"] == 180 and out["dim"]["level"] == 40
+
+
+def test_set_gateway_settings_fans_out_by_section(mcp_on, monkeypatch):
+    from app import gateway
+    _settings_caps(monkeypatch, mcp_on)
+    sent = {}
+
+    def quiet_set(url, on):
+        sent["quiet"] = on
+        return {"ok": True, "on": on}
+
+    monkeypatch.setattr(gateway, "quiet_set", quiet_set)
+    monkeypatch.setattr(gateway, "quiet_schedule_set",
+                        lambda url, p: sent.__setitem__("sched", p) or True)
+    monkeypatch.setattr(gateway, "config_settings_set",
+                        lambda url, p: sent.__setitem__("cfg", p) or True)
+    out = call(mcp_on, "set_gateway_settings", {"patch": {
+        "quiet": {"on": True, "schedule": {"enabled": True, "days": "weekends"}},
+        "sound": {"volume": 45}, "brightness": 200,
+        "dim": {"enabled": True, "start": "21:30", "level": 30}}})
+    assert sent["quiet"] is True
+    assert sent["sched"] == {"enabled": True, "days": 0x41}
+    assert sent["cfg"] == {"soundVolume": 45, "panelBright": 200, "dimEnabled": True,
+                           "dimStart": "21:30", "dimLevel": 30}
+    assert out["applied"]["quiet_on"] is True
+
+
+def test_set_gateway_settings_respects_capabilities_and_validates(mcp_on, monkeypatch):
+    _settings_caps(monkeypatch, mcp_on, quiet=False)
+    res = _raw(mcp_on, "set_gateway_settings", {"patch": {"quiet": {"on": True}}})
+    assert res.is_error and "no Quiet Time" in res.content[0].text
+    _settings_caps(monkeypatch, mcp_on)
+    res = _raw(mcp_on, "set_gateway_settings",
+               {"patch": {"quiet": {"schedule": {"start": "25:00"}}}})
+    assert res.is_error and "HH:MM" in res.content[0].text
+    res = _raw(mcp_on, "set_gateway_settings", {"patch": {"nonsense": 1}})
+    assert res.is_error and "unknown sections" in res.content[0].text

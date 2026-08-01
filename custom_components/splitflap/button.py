@@ -17,11 +17,16 @@ from .entity import SplitFlapEntity
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
                             async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([
+    entities = [
         SplitFlapButton(coordinator, "clear", "mdi:eraser", lambda c: c.clear()),
         SplitFlapButton(coordinator, "stop", "mdi:stop", lambda c: c.stop_app()),
         SplitFlapButton(coordinator, "home", "mdi:home", lambda c: c.home()),
-    ])
+    ]
+    if (coordinator.data or {}).get("timer", {}).get("supported", {}).get("timer"):
+        # cancels the countdown AND dismisses a firing alarm (the firmware couples them)
+        entities.append(SplitFlapButton(coordinator, "timer_stop", "mdi:timer-off-outline",
+                                        lambda c: c.timer_stop()))
+    async_add_entities(entities)
 
 
 class SplitFlapButton(SplitFlapEntity, ButtonEntity):
