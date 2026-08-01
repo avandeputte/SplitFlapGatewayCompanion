@@ -26,11 +26,32 @@ import logging
 
 import httpx2 as httpx
 
+from . import canvas
+
 log = logging.getLogger("companion.gestures")
 
 ACTIONS = ("none", "playlist_next", "stop")
 _DEBOUNCE_S = 1.2
 _BACKOFF_MIN, _BACKOFF_MAX = 2.0, 30.0
+
+# The acknowledgment chirp: the wall says "heard you" the moment a gesture lands.
+# A rising blip for "next", a falling one for "stop" — tiny and quiet. Only when the
+# action actually happened (an idle clap stays silent), only on a wall with a speaker,
+# and Quiet Time's 409 is swallowed inside play_sound, so quiet hours stay quiet.
+_CHIRP = {"playlist_next": ([[880, 35], [1175, 55]], 35),
+          "stop": ([[660, 45], [440, 70]], 35)}
+
+
+def _chirp(d, act: str) -> None:
+    try:
+        caps = d.controller.caps
+    except Exception:
+        return
+    if not getattr(caps, "can_sound", False):
+        return
+    notes_vol = _CHIRP.get(act)
+    if notes_vol:
+        canvas.play_sound(str(d.gateway_url or ""), notes=notes_vol[0], vol=notes_vol[1])
 
 
 def action_for(settings, kind: str) -> str:
@@ -88,6 +109,7 @@ async def handle_frame(d, state: GestureState, event: str, data: str, now: float
     act = await dispatch(d, event)
     if act != "none":
         log.info("display %r: %s -> %s", d.id, event, act)
+        _chirp(d, act)
     return act
 
 

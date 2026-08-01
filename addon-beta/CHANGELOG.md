@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.10-beta.7
+
+- **Gesture chirp** — a tiny speaker blip acknowledges a clap/tap the moment it lands
+  (rising for next, falling for stop); silent when nothing was there to skip, on
+  speakerless walls, and during Quiet Time.
+
 ## 2.10.10-beta.6
 
 - **Clap & tap gestures 👏** — the companion rides the gateway's event stream: a clap

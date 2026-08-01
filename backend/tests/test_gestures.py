@@ -132,3 +132,45 @@ def test_bad_gesture_payloads_do_not_crash():
         assert await gestures.handle_frame(d, st, "clap", "not json", 1000.0) == "playlist_next"
         assert await gestures.handle_frame(d, st, "clap", "", 1002.0) == "playlist_next"
     asyncio.run(run())
+
+
+# --- the acknowledgment chirp ------------------------------------------------
+
+def test_a_landed_gesture_chirps_and_an_idle_one_stays_silent(monkeypatch):
+    from types import SimpleNamespace
+    chirps = []
+    monkeypatch.setattr(gestures.canvas, "play_sound",
+                        lambda url, **kw: chirps.append(kw))
+
+    async def run():
+        ctl = _StubCtl(playlist="Loop")
+        ctl.caps = SimpleNamespace(can_sound=True)
+        d = _FakeDisplay(ctl)
+        d.gateway_url = "http://gw"
+        st = gestures.GestureState()
+        await gestures.handle_frame(d, st, "clap", '{"seq":1}', 100.0)
+        assert len(chirps) == 1 and chirps[0]["notes"][0][0] < chirps[0]["notes"][1][0]
+
+        # nothing to skip -> no action -> no chirp
+        idle = _FakeDisplay(_StubCtl(playlist=None))
+        idle.controller.caps = SimpleNamespace(can_sound=True)
+        idle.gateway_url = "http://gw"
+        await gestures.handle_frame(idle, gestures.GestureState(), "clap", '{"seq":1}', 200.0)
+        assert len(chirps) == 1
+
+        # a wall without a speaker skips silently, but still skips
+        mute = _StubCtl(playlist="Loop")
+        mute.caps = SimpleNamespace(can_sound=False)
+        dm = _FakeDisplay(mute)
+        dm.gateway_url = "http://gw"
+        await gestures.handle_frame(dm, gestures.GestureState(), "tap", '{"seq":2}', 300.0)
+        assert mute.skipped == 1 and len(chirps) == 1
+
+        # stop gets the falling blip
+        stopper = _StubCtl(playlist="Loop")
+        stopper.caps = SimpleNamespace(can_sound=True)
+        ds = _FakeDisplay(stopper, {"gesture_clap": "stop"})
+        ds.gateway_url = "http://gw"
+        await gestures.handle_frame(ds, gestures.GestureState(), "clap", '{"seq":3}', 400.0)
+        assert len(chirps) == 2 and chirps[1]["notes"][0][0] > chirps[1]["notes"][1][0]
+    asyncio.run(run())

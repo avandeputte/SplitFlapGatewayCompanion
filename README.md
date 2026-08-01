@@ -81,7 +81,8 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
   a **[Vestaboard-compatible API](#vestaboard-compatible-api)**, and an
   **[MCP server](#mcp-server)** for LLM clients.
 - **Clap & tap gestures** — a Matrix Gateway hears claps (microphones) and feels taps
-  (IMU); by default either one advances a running playlist to its next entry. Configure
+  (IMU); by default either one advances a running playlist to its next entry (with a tiny
+  acknowledgment chirp from the speaker). Configure
   each in **Global settings → On a clap / On a tap** (next entry, stop, or nothing). A
   *double* clap/tap dismisses the panel's own timer/alarm before it ever reaches the
   companion.
