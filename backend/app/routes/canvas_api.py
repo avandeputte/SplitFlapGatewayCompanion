@@ -200,6 +200,9 @@ def build(deps) -> APIRouter:
         the preview pipeline (cached frame-push frames, or panel readback) sampled
         on a timer, so it records whatever is genuinely showing. One at a time."""
         d = deps.display_for(request)
+        if not d.config.dev_mode:
+            raise HTTPException(403, "the panel recorder is developer chrome — "
+                                     "set COMPANION_DEV_MODE=1")
         caps = d.controller._caps()
         if not getattr(caps, "has_canvas", False):
             raise HTTPException(409, "this display has no panel to record")

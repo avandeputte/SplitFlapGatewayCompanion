@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.11-beta.2
+
+- **⏺ GIF is developer chrome** — the panel recorder (button + endpoint) now appears
+  only with developer mode on (`COMPANION_DEV_MODE=1` / the add-on's dev_mode option).
+
 ## 2.10.11-beta.1
 
 - **Zones 🪟** — split the panel into 2–3 vertical strips, one app each (clock | weather

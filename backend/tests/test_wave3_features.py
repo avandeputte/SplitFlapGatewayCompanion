@@ -171,6 +171,7 @@ def test_panel_record_returns_a_gif(monkeypatch):
     from app.engine import DisplayController
 
     monkeypatch.setattr(main.config, "_sim", True)
+    monkeypatch.setattr(main.config, "dev_mode", True)     # the recorder is dev chrome
     monkeypatch.setattr(DisplayController, "_caps",
                         lambda self: SimpleNamespace(has_canvas=True))
 
@@ -203,7 +204,19 @@ def test_panel_record_refuses_a_flap_wall(monkeypatch):
     from app.engine import DisplayController
 
     monkeypatch.setattr(main.config, "_sim", True)
+    monkeypatch.setattr(main.config, "dev_mode", True)
     monkeypatch.setattr(DisplayController, "_caps",
                         lambda self: SimpleNamespace(has_canvas=False))
     c = TestClient(main.app)
     assert c.post("/api/panel/record").status_code == 409
+
+
+def test_panel_record_requires_dev_mode(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app import main
+
+    monkeypatch.setattr(main.config, "_sim", True)
+    monkeypatch.setattr(main.config, "dev_mode", False)
+    c = TestClient(main.app)
+    assert c.post("/api/panel/record").status_code == 403

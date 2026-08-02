@@ -28,6 +28,7 @@ const BASE = window.__BASE__ || "";
 let DISPLAY = "";                 // active display id ("" until we've loaded them)
 let RICH = false;                 // can THIS wall show lowercase? (a Matrix Gateway can)
 let CANVAS = false;               // does THIS wall have a framebuffer? (a Matrix panel does)
+let DEV_MODE = false;             // COMPANION_DEV_MODE — gates the dev-only chrome (⏺ GIF)
 let DISPLAYS = [];                // [{id, name, grid, module_count, ...}]
 let DEFAULT_DISPLAY = "default";
 
@@ -1869,6 +1870,10 @@ function updateDevBtn(st) {
   const b = $("devBtn");
   b.textContent = st && st.sim_mode ? "⚙ SIM" : "⚙";
   b.classList.toggle("warn", !!(st && st.sim_mode));
+  // The ⏺ GIF recorder is developer chrome: canvas wall AND dev mode only.
+  DEV_MODE = !!(st && st.enabled);
+  const g = $("gifBtn");
+  if (g) g.classList.toggle("hidden", !(CANVAS && DEV_MODE));
 }
 
 async function refreshGridUI() {
@@ -2086,7 +2091,7 @@ async function loadDisplays() {
   RICH = !!(me && me.rich);
   CANVAS = !!(me && me.canvas);
   const gifBtn = document.getElementById("gifBtn");
-  if (gifBtn) gifBtn.classList.toggle("hidden", !CANVAS);
+  if (gifBtn) gifBtn.classList.toggle("hidden", !(CANVAS && DEV_MODE));
   syncOverlayCard();
 
   const sel = $("displaySel");
@@ -2114,7 +2119,7 @@ async function switchDisplay(id) {
   RICH = !!(me && me.rich);
   CANVAS = !!(me && me.canvas);
   const gifBtn = document.getElementById("gifBtn");
-  if (gifBtn) gifBtn.classList.toggle("hidden", !CANVAS);
+  if (gifBtn) gifBtn.classList.toggle("hidden", !(CANVAS && DEV_MODE));
   syncOverlayCard();
   // Everything on screen belongs to the OLD wall — its geometry, its apps, its
   // playlists, its triggers, its gateway's tabs. Re-read the lot rather than trying to

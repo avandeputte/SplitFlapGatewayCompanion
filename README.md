@@ -52,8 +52,8 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
   exactly as before. See **[Characters](#characters)**.
 - **Compose** — a click-to-type grid with color tiles and every transition style
   (`ltr`, `rtl`, `spiral`, `slot`, `columns`, `outside_in`, …).
-- **Live preview + Home all** — the board mirrors what's on the wall (with a **⏺ GIF**
-  button on Matrix walls: record 8 seconds of the panel and download it), and **⌂ Home
+- **Live preview + Home all** — the board mirrors what's on the wall (in developer mode, a **⏺ GIF**
+  button on Matrix walls records 8 seconds of the panel for download), and **⌂ Home
   all** returns every module to its blank home position, stopping whatever is playing.
   Stopping an app or playlist blanks the wall: nothing running means nothing shown, and
   a clock frozen at 11:34 is not obviously *off*, it is obviously *wrong*.
