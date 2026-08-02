@@ -115,19 +115,38 @@ async def handle_frame(d, state: GestureState, event: str, data: str, now: float
 
 async def watch(d) -> None:
     """The per-display task: consume the gateway's SSE stream forever, dispatching
-    gestures; reconnect with backoff on any drop. Cancelled at display stop."""
+    gestures; reconnect with backoff on any drop. Cancelled at display stop.
+
+    The wall's capabilities are re-read EVERY cycle, never snapshotted: caps come
+    from a probe that fails when the wall is down/mid-flash at companion startup,
+    and a one-time check there quietly lost gestures for the whole process life.
+    While the wall advertises no "events" capability this idles and re-checks."""
     url = str(d.gateway_url or "").rstrip("/")
     if not url:
         return
     state = GestureState()
     backoff = _BACKOFF_MIN
+    announced = waiting = False
     while True:
+        caps = getattr(d.controller, "caps", None)
+        if not getattr(caps, "events", False):
+            if not waiting:
+                log.info("display %r: gesture watcher waiting for the wall's 'events' "
+                         "capability (wall down, or an older firmware)", d.id)
+                waiting, announced = True, False
+            await asyncio.sleep(60.0)
+            continue
+        waiting = False
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
                 async with client.stream("GET", f"{url}/api/events") as r:
                     if r.status_code != 200:
                         raise OSError(f"events stream answered {r.status_code}")
                     backoff = _BACKOFF_MIN
+                    if not announced:                  # visible in the add-on log once
+                        log.info("display %r: gesture watcher connected to %s/api/events",
+                                 d.id, url)
+                        announced = True
                     event = ""
                     loop = asyncio.get_running_loop()
                     async for line in r.aiter_lines():

@@ -578,8 +578,12 @@ async def start_display(d, companion_url: str = "") -> list:
     if url and companion_url:
         tasks.append(asyncio.create_task(_companion_heartbeat(url, companion_url, d)))
     # Clap/tap gestures ride the gateway's SSE stream (the "events" capability):
-    # by default either advances a running playlist to its next entry.
-    if url and getattr(ctl.caps, "events", False) and not cfg.sim_mode:
+    # by default either advances a running playlist to its next entry. Started
+    # UNCONDITIONALLY (gateway + not sim): the capability check lives inside the
+    # watch loop, re-read every cycle — a startup-time check silently lost the
+    # feature whenever the add-on booted while the wall was down or mid-flash
+    # (the caps probe failed, the task was never created, and nothing retried).
+    if url and not cfg.sim_mode:
         tasks.append(asyncio.create_task(gestures.watch(d)))
     # Retry pending settings pushes if this gateway was briefly unreachable.
     tasks.append(asyncio.create_task(_settings_flush_loop(d)))

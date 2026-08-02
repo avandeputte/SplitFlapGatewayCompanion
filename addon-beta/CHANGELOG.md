@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.10-beta.8
+
+- **Fix: gestures actually arrive** — the clap/tap watcher was gated on a one-time
+  capability check at startup, so a companion that booted while the wall was down or
+  mid-flash never subscribed to the event stream (and never retried). It now starts
+  always, re-checks the wall's capabilities every cycle, and logs when it connects.
+
 ## 2.10.10-beta.7
 
 - **Gesture chirp** — a tiny speaker blip acknowledges a clap/tap the moment it lands

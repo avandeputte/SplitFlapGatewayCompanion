@@ -174,3 +174,56 @@ def test_a_landed_gesture_chirps_and_an_idle_one_stays_silent(monkeypatch):
         await gestures.handle_frame(ds, gestures.GestureState(), "clap", '{"seq":3}', 400.0)
         assert len(chirps) == 2 and chirps[1]["notes"][0][0] > chirps[1]["notes"][1][0]
     asyncio.run(run())
+
+
+# --- the watcher's capability re-check (the "flashed the wall at boot" hole) --
+
+def test_watch_waits_for_caps_and_connects_when_they_appear(monkeypatch):
+    """The deployed regression: the wall was down/mid-flash when the companion booted,
+    the startup caps snapshot said no 'events', and gestures were silently dead for
+    the process life. The watcher must idle WITHOUT touching the network while caps
+    are absent, then connect on its own once the wall advertises them."""
+    from types import SimpleNamespace
+    attempts = []
+
+    class _NoNet:
+        def __init__(self, *a, **kw):
+            attempts.append(1)
+            raise AssertionError("must not open a client while caps lack 'events'")
+
+    async def run():
+        monkeypatch.setattr(gestures, "_BACKOFF_MIN", 0.01)
+        monkeypatch.setattr(gestures.httpx, "AsyncClient", _NoNet)
+        sleeps = []
+        real_sleep = asyncio.sleep
+
+        async def fast_sleep(s):
+            sleeps.append(s)
+            await real_sleep(0)
+
+        monkeypatch.setattr(gestures.asyncio, "sleep", fast_sleep)
+        ctl = SimpleNamespace(caps=SimpleNamespace(events=False))
+        d = SimpleNamespace(id="default", controller=ctl, settings={},
+                            gateway_url="http://gw")
+        task = asyncio.create_task(gestures.watch(d))
+        for _ in range(20):
+            await real_sleep(0)
+        assert not attempts and sleeps and all(s >= 60 for s in sleeps)
+
+        # the wall comes back with events: the next cycle tries to connect
+        class _Probe:
+            def __init__(self, *a, **kw):
+                attempts.append(1)
+                raise OSError("probe reached the network layer")
+
+        monkeypatch.setattr(gestures.httpx, "AsyncClient", _Probe)
+        ctl.caps = SimpleNamespace(events=True)
+        for _ in range(30):
+            await real_sleep(0)
+        assert attempts, "caps appeared but the watcher never tried to connect"
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    asyncio.run(run())
