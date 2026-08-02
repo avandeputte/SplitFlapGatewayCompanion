@@ -3,58 +3,26 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
-## 2.10.10-beta.8
+## 2.10.10
 
-- **Fix: gestures actually arrive** — the clap/tap watcher was gated on a one-time
-  capability check at startup, so a companion that booted while the wall was down or
-  mid-flash never subscribed to the event stream (and never retried). It now starts
-  always, re-checks the wall's capabilities every cycle, and logs when it connects.
-
-## 2.10.10-beta.7
-
-- **Gesture chirp** — a tiny speaker blip acknowledges a clap/tap the moment it lands
-  (rising for next, falling for stop); silent when nothing was there to skip, on
-  speakerless walls, and during Quiet Time.
-
-## 2.10.10-beta.6
-
-- **Clap & tap gestures 👏** — the companion rides the gateway's event stream: a clap
-  or a tap advances the running playlist to its next entry (configurable per gesture in
-  Global settings: next entry / stop / nothing). Doubles still dismiss the panel's own
-  timer/alarm first.
-
-## 2.10.10-beta.5
-
-- **Timer, alarms & gateway settings in the HACS integration + MCP** — new REST proxy
-  (`/api/timer`, `/api/alarms`, `/api/gateway/settings`); the HACS device (v1.4.0)
-  grows capability-gated entities for the countdown, the four alarm slots, Quiet Time
-  (now + schedule), speaker and brightness/dim; MCP adds `get/set_gateway_settings`.
-
-## 2.10.10-beta.4
-
-- **Timer & alarms everywhere** ⏲️ — the Matrix Gateway's kitchen timer and four daily
-  alarms surface as Home Assistant MQTT entities (countdown timestamp, start/stop,
-  per-slot switches + time/days) and as MCP tools (`start_timer`, `set_alarm`, …),
-  gated on the gateway's `timer`/`alarms` capability tokens.
-
-## 2.10.10-beta.3
-
-- **Threshold polarity for the HA apps** — Sensor Graph and Home Assistant board read
-  one grammar: `lo,hi` is a comfort band (green inside), `<warn,bad` lower-is-better
-  (CO₂), `>warn,good` higher-is-better (battery); the entity table gets a ◦/</> button
-  per row. ⚠️ Bare `lo,hi` on the board now means *band* — prefix `<` to keep the old
-  green-below-low reading.
-
-## 2.10.10-beta.2
-
-- **Sensor Graph label legibility** — long entity names ellipsize at a readable size
-  instead of shrinking until the letters fill in (A/X/Y turned to blobs below 10px).
-
-## 2.10.10-beta.1
-
+- **Clap & tap gestures 👏** — a clap (microphones) or tap (IMU) advances the running
+  playlist to its next entry, with a tiny acknowledgment chirp from the speaker;
+  per-gesture action in Global settings (next / stop / nothing). A double clap/tap
+  still dismisses the panel's own timer/alarm before it reaches the companion.
+- **Timer & alarms everywhere ⏲️** — the Matrix Gateway's kitchen timer and four daily
+  alarms surface in the HACS integration (v1.4.0), the MQTT device and as MCP tools
+  (`start_timer`, `set_alarm`, …) — all gated on the gateway's capability tokens.
+- **Gateway settings too** — Quiet Time (now + the nightly schedule), the speaker,
+  panel brightness and the dim schedule: HACS entities, `get/set_gateway_settings`
+  MCP tools, and a REST proxy (`/api/gateway/settings`, `/api/timer`, `/api/alarms`).
 - **Sensor Graph preloads history** — the window seeds from the Home Assistant history
-  API on first draw, so the card shows a full line immediately (a playlist slot no
-  longer starts empty); live sampling continues from there.
+  API on first draw, so a playlist slot shows a full line immediately; long entity
+  names ellipsize at a readable size instead of shrinking into blobs.
+- **Threshold polarity for the HA apps** — one grammar on the Sensor Graph and the
+  board: `lo,hi` is a comfort band (green inside), `<warn,bad` lower-is-better (CO₂),
+  `>warn,good` higher-is-better (battery), with a ◦/</> polarity button per entity
+  row. ⚠️ Bare `lo,hi` on the board now reads as a *band* — prefix `<` to keep the
+  old green-below-low meaning.
 
 ## 2.10.9
 
