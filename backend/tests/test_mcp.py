@@ -134,8 +134,8 @@ def test_tools_are_all_registered(mcp_on):
     assert names == ["clear_alarm", "clear_display", "configure_app", "get_app_settings",
                      "get_display", "get_gateway_settings", "get_timer", "list_alarms",
                      "list_apps", "list_displays", "list_playlists", "list_styles", "run_app",
-                     "run_playlist", "set_alarm", "set_gateway_settings", "show_message",
-                     "start_timer", "stop", "stop_timer"]
+                     "run_playlist", "run_zones", "set_alarm", "set_gateway_settings",
+                     "show_message", "start_timer", "stop", "stop_timer"]
 
 
 def test_every_tool_takes_an_optional_display(mcp_on):

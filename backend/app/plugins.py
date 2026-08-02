@@ -139,6 +139,36 @@ def _cache_key(app_id: str, overrides: dict | None) -> str:
     return app_id if not items else app_id + "\x00" + repr(items)
 
 
+class _GameStore:
+    """A game's persistent scraps — high scores, initials — as one small dict under
+    ``plugin_<app_id>_store`` in the settings store (so it survives restarts and
+    rides the gateway mirror like every setting). Injected as ``game_store``."""
+
+    def __init__(self, settings, app_id: str):
+        self._settings = settings
+        self._key = f"plugin_{app_id}_store"
+
+    def get(self, key: str, default=None):
+        doc = self._settings.get(self._key) or {}
+        return doc.get(key, default)
+
+    def set(self, key: str, value) -> None:
+        doc = dict(self._settings.get(self._key) or {})
+        doc[key] = value
+        self._settings.set(self._key, doc)
+
+    def best(self, score) -> bool:
+        """Record ``score`` if it beats the stored best. True = a NEW record."""
+        try:
+            score = int(score)
+        except (TypeError, ValueError):
+            return False
+        if score > int(self.get("high", 0) or 0):
+            self.set("high", score)
+            return True
+        return False
+
+
 class PluginRuntime:
     def __init__(self, config: Config, settings: PluginSettings, apps_dir: Path,
                  user_apps_dir: Path | None = None):
@@ -635,6 +665,10 @@ class PluginRuntime:
         # since the last frame, .active() whether a human is engaged (else run attract mode).
         "controls": lambda self, app_id, ps, settings:
             gameinput.snapshot(self._gateway_url(), now=time.monotonic()),
+        # game_store → a tiny per-app persistent KV (the settings store underneath, so it
+        # mirrors to the gateway like everything else): the arcade keeps its high scores
+        # across restarts through this. get/set plus best(score) -> bool(new record).
+        "game_store": lambda self, app_id, ps, settings: _GameStore(self.settings, app_id),
         # play_sound(notes=[[freq,ms],…]) / (freq=,ms=) → a tone on the wall's speaker,
         # fire-and-forget so it never stalls a frame; a no-op where the wall has no speaker.
         "play_sound": lambda self, app_id, ps, settings:
@@ -1020,13 +1054,19 @@ class PluginRuntime:
         ``overrides`` are per-playlist-entry setting values (e.g. a Scoreboard following its own
         teams), applied as a transient overlay exactly like a flap app's — so the same matrix app
         can appear twice in a playlist configured differently."""
+        surface = self.build_canvas_surface()
+        if surface is None:                                 # no framebuffer — nothing to draw on
+            return None
+        return self.render_matrix_on(app_id, surface, overrides)
+
+    def render_matrix_on(self, app_id: str, surface, overrides: dict | None = None):
+        """``render_matrix`` with the caller's surface — the ZONES engine renders each
+        zone's app into its own offscreen ZoneCanvas and composites, so the surface
+        cannot be the one wall-bound instance build_canvas_surface() returns."""
         mod = self._modules.get(app_id)
         manifest = self._registry.get(app_id)
         fn = getattr(mod, "fetch_matrix", None)
         if not mod or not manifest or not callable(fn):
-            return None
-        surface = self.build_canvas_surface()
-        if surface is None:                                 # no framebuffer — nothing to draw on
             return None
         src = _SettingsOverlay(self.settings, overrides) if overrides else self.settings
         ps = self._plugin_settings(app_id, manifest, src)

@@ -24,6 +24,8 @@ class MessageRequest(BaseModel):
     text: str
     style: str | None = None
     seconds: int | None = None      # >0 = temporary, then revert to what was playing
+    icon: str | None = None         # Matrix toast icon: bell/info/alert/check/cross/heart
+    accent: list | None = None      # Matrix toast accent [r,g,b]; default follows the icon
 
 
 def build(deps) -> APIRouter:
@@ -59,7 +61,8 @@ def build(deps) -> APIRouter:
         rows, cols = d.grid_size()
         page = vestaboard.layout_text(req.text, rows, cols, d.controller.caps)
         if req.seconds and req.seconds > 0:
-            running = d.controller.show_temporary(page, req.seconds, style=req.style or "ltr")
+            running = d.controller.show_temporary(page, req.seconds, style=req.style or "ltr",
+                                                  icon=req.icon or "info", accent=req.accent)
             d.ha.publish_state()
             return {"ok": True, "seconds": req.seconds,
                     "reverts_to": "app/playlist" if running else "blank"}

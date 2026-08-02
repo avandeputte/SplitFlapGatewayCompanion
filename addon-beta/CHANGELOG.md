@@ -3,6 +3,19 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.11-beta.1
+
+- **Zones 🪟** — split the panel into 2–3 vertical strips, one app each (clock | weather
+  | sensor chart): run ad-hoc, save named layouts, use as a playlist entry, or the MCP
+  `run_zones` tool. Games keep the whole panel.
+- **Panel toasts 🔔** — triggers and timed messages on a Matrix wall now arrive as a
+  drawn card (icon + accent + big text, sliding up) instead of flap-cell letters;
+  `/api/message` takes optional `icon`/`accent`.
+- **Arcade high scores 🏆** — every game keeps its best across restarts; beat it for a
+  golden NEW BEST! on the game-over card.
+- **⏺ GIF** — record 8 seconds of the panel from the Live Display header and download
+  a chunky-pixel GIF.
+
 ## 2.10.10
 
 - **Clap & tap gestures 👏** — a clap (microphones) or tap (IMU) advances the running

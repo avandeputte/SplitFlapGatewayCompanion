@@ -7,6 +7,8 @@ from __future__ import annotations
 
 
 from fastapi import APIRouter, HTTPException, Request
+
+from ..engine import NeedsCanvasError
 from pydantic import BaseModel
 
 
@@ -27,6 +29,18 @@ class RunPlaylist(BaseModel):
 class TriggersPatch(BaseModel):
     triggers: list | None = None
     triggers_enabled: bool | None = None
+
+
+class ZoneLayoutSave(BaseModel):
+    """POST /api/zones/layouts — a named 2-3 zone layout: [{app, width?, overrides?}]."""
+    name: str
+    zones: list
+
+
+class RunZones(BaseModel):
+    """POST /api/zones/run — ad-hoc zones, or a saved layout by name."""
+    zones: list | None = None
+    layout: str | None = None
 
 
 def build(deps) -> APIRouter:
@@ -70,6 +84,57 @@ def build(deps) -> APIRouter:
         await d.controller.run_playlist(req.entries, req.loop, req.name)
         d.ha.publish_state()
         return {"ok": True, "active_playlist": d.controller.active_playlist}
+
+    # -----------------------------------------------------------------------
+    # Zones — 2-3 apps side by side on the Matrix panel (saved layouts + run)
+    # -----------------------------------------------------------------------
+    @router.get("/api/zones/layouts")
+    async def zones_layouts(request: Request):
+        d = deps.display_for(request)
+        return {"layouts": d.settings.get("saved_zone_layouts", {})}
+
+    @router.post("/api/zones/layouts")
+    async def zones_layout_save(request: Request, req: ZoneLayoutSave):
+        d = deps.display_for(request)
+        name = req.name.strip()
+        if not name:
+            raise HTTPException(400, "name required")
+        try:
+            spec = d.controller.validate_zones(req.zones)
+        except (ValueError, KeyError) as e:
+            raise HTTPException(400, str(e))
+        saved = dict(d.settings.get("saved_zone_layouts", {}))
+        saved[name] = {"zones": spec}
+        d.settings.set("saved_zone_layouts", saved)
+        return {"ok": True, "name": name, "zones": spec}
+
+    @router.delete("/api/zones/layouts/{name}")
+    async def zones_layout_delete(request: Request, name: str):
+        d = deps.display_for(request)
+        saved = dict(d.settings.get("saved_zone_layouts", {}))
+        saved.pop(name, None)
+        d.settings.set("saved_zone_layouts", saved)
+        return {"ok": True}
+
+    @router.post("/api/zones/run")
+    async def zones_run(request: Request, req: RunZones):
+        d = deps.display_for(request)
+        zones, name = req.zones, ""
+        if req.layout:
+            saved = d.settings.get("saved_zone_layouts", {}).get(req.layout)
+            if not saved:
+                raise HTTPException(404, f"no such layout: {req.layout}")
+            zones, name = saved.get("zones") or [], req.layout
+        if not zones:
+            raise HTTPException(400, "zones or layout required")
+        try:
+            await d.controller.run_zones(zones, name)
+        except NeedsCanvasError as e:
+            raise HTTPException(409, str(e))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        d.ha.publish_state()
+        return {"ok": True, "active": d.controller.active_app}
 
     # -----------------------------------------------------------------------
     # Triggers

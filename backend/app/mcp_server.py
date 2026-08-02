@@ -353,6 +353,17 @@ def build(displays) -> MCPServer:
         """The flap transition styles show_message accepts."""
         return list(renderer.ALL_STYLES)
 
+    @mcp.tool()
+    async def run_zones(apps: list[str], display: str = "") -> dict:
+        """Split the Matrix panel into 2-3 vertical zones, one app each, side by side —
+        e.g. ["time", "weather", "canvas-sensor-graph"] puts a clock, the weather and a
+        sensor chart on one panel. Equal widths; interactive games are excluded (they
+        need the whole panel). Takes the display over like run_app; stop() ends it."""
+        d = _res(display)
+        await d.controller.run_zones([{"app": a} for a in (apps or [])])
+        d.ha.publish_state()
+        return {"ok": True, "active": d.controller.active_app, "display": d.id}
+
     # -- the Matrix Gateway's kitchen timer + daily alarms (fw "timer"/"alarms") ------
 
     def _timer_wall(display: str, need: str = "timer"):

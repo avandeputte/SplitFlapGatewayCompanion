@@ -538,6 +538,124 @@ class DisplayController:
                 else self._app_loop)
         self._task = asyncio.create_task(loop(app_id))
 
+    # -- zones: several apps side by side on one panel -----------------------
+    def validate_zones(self, zones: list) -> list[dict]:
+        """Normalize a zones spec (2-3 entries of {app, width?, overrides?}) or raise
+        ValueError with a human reason. Interactive apps are excluded — a zone has no
+        pad — and every app must render offscreen (any matrix-capable app does)."""
+        caps = self._caps()
+        if not getattr(caps, "has_canvas", False):
+            raise NeedsCanvasError("zones need a Matrix panel this wall does not have")
+        if not isinstance(zones, list) or not 2 <= len(zones) <= 3:
+            raise ValueError("zones takes 2 or 3 entries")
+        out = []
+        for z in zones:
+            app_id = app_id_from_ref((z or {}).get("app", ""))
+            m = self.plugins.manifest(app_id) if self.plugins else None
+            if not app_id or m is None:
+                raise ValueError(f"unknown app in zones: {app_id or '(empty)'}")
+            if m.get("interactive"):
+                raise ValueError(f"{app_id} is interactive — it needs the whole panel and the pad")
+            try:
+                w = float(z.get("width") or 0)
+            except (TypeError, ValueError):
+                w = 0.0
+            out.append({"app": app_id, "width": w if w > 0 else 1.0,
+                        "overrides": z.get("overrides") or None})
+        return out
+
+    async def run_zones(self, zones: list, name: str = "") -> None:
+        """Run 2-3 apps side by side as vertical strips of the panel — the zones
+        driver, exclusive with apps/playlists like every driver."""
+        spec = self.validate_zones(zones)
+        await self._cancel_task()
+        self._clear_driver_flags()
+        label = name or " + ".join(z["app"] for z in spec)
+        self.active_app = f"zones:{label}"
+        self.state.active_app = self.active_app
+        self.state.current_app = None
+        self._remember({"kind": "zones", "zones": spec, "name": name})
+        self._task = asyncio.create_task(self._zones_forever(spec))
+
+    async def _zones_forever(self, spec: list[dict]) -> None:
+        want = self.active_app
+        try:
+            while self.active_app == want:
+                await self._zones_pass(spec, lambda: self.active_app == want)
+        finally:
+            await self._release_canvas()
+
+    async def _play_zones_entry(self, entry: dict, duration: float, want, rt_loop) -> None:
+        """One playlist ZONES entry until its slot's deadline (skip-aware)."""
+        try:
+            spec = self.validate_zones(entry.get("zones") or [])
+        except (ValueError, NeedsCanvasError) as e:
+            log.warning("playlist zones entry skipped: %s", e)
+            await self._entry_sleep(min(duration, 5.0))
+            return
+        self.state.current_app = None
+        deadline = rt_loop.time() + duration
+        await self._zones_pass(
+            spec, lambda: (rt_loop.time() < deadline and self.active_playlist == want
+                           and not self._skip_evt.is_set()))
+        await self._release_canvas()
+
+    async def _zones_pass(self, spec: list[dict], keep_going) -> None:
+        """The zones render loop: each zone's app draws into its own offscreen
+        ZoneCanvas on its own hold cadence; any zone's fresh frame recomposites the
+        panel image, pushed as ONE frame. Runs until ``keep_going()`` says stop."""
+        from .zonecanvas import ZoneCanvas
+
+        caps = self._caps()
+        url = await self._take_panel()
+        W, H = int(caps.canvas_w or 0), int(caps.canvas_h or 0)
+        if not W or not H:
+            await self._entry_sleep(2.0)
+            return
+        n = len(spec)
+        gap = 1                                            # dark divider column
+        total_w = sum(z["width"] for z in spec)
+        xs, x = [], 0
+        for i, z in enumerate(spec):
+            w = int(round(W * z["width"] / total_w)) - (gap if i < n - 1 else 0)
+            if i == n - 1:
+                w = W - x                                  # the last zone takes the remainder
+            xs.append((x, max(8, w)))
+            x += w + gap
+        surfaces = [ZoneCanvas(w, H) for _, w in xs]
+        panel = canvas.CanvasSurface(url, caps)            # the real wall: one frame out
+        rt_loop = asyncio.get_running_loop()
+        due = [0.0] * n
+        images = [None] * n
+        while keep_going():
+            changed = False
+            now = rt_loop.time()
+            for i, z in enumerate(spec):
+                if now < due[i]:
+                    continue
+                try:
+                    hold = await asyncio.to_thread(
+                        self.plugins.render_matrix_on, z["app"], surfaces[i], z["overrides"])
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    log.warning("zone %s draw error: %s", z["app"], e)
+                    hold = None
+                img = surfaces[i].take()
+                if img is not None:
+                    images[i] = img
+                    changed = True
+                due[i] = now + max(0.5, float(hold) if hold else 5.0)
+            if changed and any(im is not None for im in images):
+                from PIL import Image
+                composite = Image.new("RGB", (W, H), (0, 0, 0))
+                for (x0, w), im in zip(xs, images):
+                    if im is not None:
+                        composite.paste(im.resize((w, H)) if im.size != (w, H) else im, (x0, 0))
+                await asyncio.to_thread(panel.frame, composite)
+            nxt = min(due) - rt_loop.time()
+            await self._entry_sleep(max(0.1, min(nxt, 1.0)))
+
     def _surface_for(self, app_id: str, overrides=None) -> str | None:
         """Which surface this app renders on RIGHT NOW: ``"matrix"`` when the wall has a panel and
         the app draws there (matrix-only, or dual-surface with its toggle on); else ``"flap"`` when
@@ -883,6 +1001,8 @@ class DisplayController:
                     await self._emit_page_from_loop(clean, style=entry.get("style", "ltr"),
                                                     speed=int(entry.get("speed", 15)))
                     await self._entry_sleep(duration)
+                elif etype == "zones":                 # 2-3 apps side by side for the slot
+                    await self._play_zones_entry(entry, duration, want, rt_loop)
                 else:  # app entry — run the app until its slot's deadline
                     await self._run_playlist_app_entry(entry, duration, want, rt_loop)
             if not loop:
@@ -906,8 +1026,37 @@ class DisplayController:
     async def _wait_if_interrupted(self) -> None:
         await self._interrupt_over.wait()
 
+    async def _emit_toast(self, text: str, icon: str, accent) -> bool:
+        """Push a drawn toast card (slide-in + hold frame) to the Matrix panel — the
+        canvas-wall face of an interrupt. True when it went out; False on any miss,
+        so the caller falls back to the flap-cell emit."""
+        from . import toast as toastmod
+        text = " ".join(str(text or "").split())   # a grid-laid page collapses to its words
+        caps = self._caps()
+        W, H = int(getattr(caps, "canvas_w", 0) or 0), int(getattr(caps, "canvas_h", 0) or 0)
+        if not W or not H:
+            return False
+        try:
+            frames = await asyncio.to_thread(toastmod.render, W, H, text, icon, accent)
+            url = await self._take_panel()
+            panel = canvas.CanvasSurface(url, caps)
+            for i, img in enumerate(frames):
+                ok = await asyncio.to_thread(panel.frame, img)
+                if not ok and i == len(frames) - 1:
+                    return False
+                if i < len(frames) - 1:
+                    await asyncio.sleep(0.05)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log.warning("toast render/push failed (%s); falling back to flap text", e)
+            return False
+        self._app_last_sent = None         # the resuming driver must repaint whole
+        return True
+
     async def fire_interrupt(self, text: str, seconds: float, *, style: str = "ltr",
-                             frame: bool = False, blank_if_idle: bool = False) -> None:
+                             frame: bool = False, blank_if_idle: bool = False,
+                             icon: str = "bell", accent=None) -> None:
         """Briefly show ``text`` over whatever is running, then let it resume.
 
         `frame` defaults to FALSE — words. A "raw" default ("a lowercase letter is a
@@ -928,9 +1077,15 @@ class DisplayController:
             takeovers = self._takeovers
             self._interrupt_over.clear()
             try:
-                clean = self._normalize(text, frame=frame)
-                await self._emit_page(clean, style=style,
-                                      speed=int(self.config.display.get("transition_speed", 15)))
+                # A wall that can draw gets a TOAST — accent bar, icon, big fitted
+                # text sliding up from the bottom — instead of flap-cell letters.
+                # Any miss (no panel, render/push failure) falls back to the cells.
+                toasted = (getattr(self._caps(), "has_canvas", False)
+                           and await self._emit_toast(text, icon, accent))
+                if not toasted:
+                    clean = self._normalize(text, frame=frame)
+                    await self._emit_page(clean, style=style,
+                                          speed=int(self.config.display.get("transition_speed", 15)))
                 await asyncio.sleep(max(0.0, seconds))
             finally:
                 self._interrupt_over.set()
@@ -941,7 +1096,7 @@ class DisplayController:
             await self.clear()
 
     def show_temporary(self, text: str, seconds: float, *, style: str = "ltr",
-                       frame: bool = False) -> bool:
+                       frame: bool = False, icon: str = "info", accent=None) -> bool:
         """Show ``text`` for ``seconds``, then revert — to whatever was running, or to
         blank if nothing was. Runs in the background (a message can last minutes; the
         caller shouldn't block on it) and returns whether something was playing to come
@@ -956,5 +1111,6 @@ class DisplayController:
             old.cancel()   # its finally re-opens the interrupt gate; we take over cleanly
         # Keep a reference: a bare create_task() can be garbage-collected mid-sleep.
         self._temp_task = asyncio.create_task(
-            self.fire_interrupt(text, seconds, style=style, frame=frame, blank_if_idle=True))
+            self.fire_interrupt(text, seconds, style=style, frame=frame, blank_if_idle=True,
+                                icon=icon, accent=accent))
         return running

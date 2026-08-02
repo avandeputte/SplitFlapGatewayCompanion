@@ -255,14 +255,17 @@ def _draw_board(canvas, st, gx, gy, cell, dim=1.0):
         canvas.shadow_text(canvas.width - 2, 0, str(st['score']), d((255, 255, 255)), 8, align="right")
 
 
-def _draw_gameover(canvas, W, H, score, appear):
+def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
     a = max(0.0, min(1.0, appear))
+    title = "NEW BEST!" if new_best else "GAME OVER"
     go, sc = canvas.dim((120, 200, 255), a), canvas.dim((235, 235, 245), a)
-    f1 = canvas.fit("GAME OVER", W - 4, max(8, H // 3))
+    f1 = canvas.fit(title, W - 4, max(8, H // 3))
     txt = "SCORE " + str(score)
+    if best and not new_best and W >= 96:
+        txt += "  BEST " + str(best)
     f2 = canvas.fit(txt, W - 4, max(8, H // 4))
     y0 = (H - (f1 + 2 + f2)) // 2
-    canvas.shadow_text(W // 2, y0, "GAME OVER", go, f1, align="center")
+    canvas.shadow_text(W // 2, y0, title, go, f1, align="center")
     canvas.shadow_text(W // 2, y0 + f1 + 2, txt, sc, f2, align="center")
 
 
@@ -280,7 +283,7 @@ def _grav_period(st, speed):
     return max(2, 13 - st['level'] - speed)            # frames per left-step; faster each level
 
 
-def fetch_matrix(settings, canvas, controls=None, play_sound=None):
+def fetch_matrix(settings, canvas, controls=None, play_sound=None, game_store=None):
     W, H = canvas.width, canvas.height
     cell = max(4, min(H // 8, W // 12))                # ~8 rows tall, but keep >=12 columns on
                                                        # the width so a near-square panel doesn't
@@ -306,12 +309,16 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
     if playing and st.get('phase') == 'gameover':
         if st.get('freeze_presses') is None:
             st['freeze_presses'] = presses
+            if st.get('phase') == 'gameover':
+                st['new_best'] = bool(game_store and game_store.best(st['score']))
+                st['best_score'] = int(game_store.get('high', 0) or 0) if game_store else 0
         st['fade'] = min(st.get('fade', 0) + 1, _FADE_STEPS)
         if presses > st['freeze_presses']:             # any key → new game
             _new_game(st)
         else:
             _draw_board(canvas, st, gx, gy, cell, dim=max(0.0, 1 - st['fade'] / _FADE_STEPS))
-            _draw_gameover(canvas, W, H, st['score'], st['fade'] / (_FADE_STEPS * 0.5))
+            _draw_gameover(canvas, W, H, st['score'], st['fade'] / (_FADE_STEPS * 0.5),
+                           best=st.get('best_score', 0), new_best=st.get('new_best', False))
             canvas.show()
             return 0.08
 

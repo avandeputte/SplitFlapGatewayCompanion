@@ -21,7 +21,7 @@ def client(monkeypatch):
         calls["send"] = {"text": text, "style": style, "frame": frame}
         return text
 
-    def fake_temp(text, seconds, *, style="ltr", frame=False):
+    def fake_temp(text, seconds, *, style="ltr", frame=False, icon="info", accent=None):
         calls["temp"] = {"text": text, "seconds": seconds, "style": style}
         return True                      # pretend something was running
 

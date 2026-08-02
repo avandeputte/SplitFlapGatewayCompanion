@@ -361,20 +361,23 @@ def _draw_ready(canvas, W, H):
     canvas.shadow_text(W // 2, (H - face) // 2, "READY?", (255, 240, 60), face, align="center")
 
 
-def _draw_gameover(canvas, W, H, score, appear):
+def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
     """The end screen: GAME OVER and the score fading in (``appear`` 0..1) as the board
     fades out behind them. Press any key for a new game."""
     a = max(0.0, min(1.0, appear))
+    title = "NEW BEST!" if new_best else "GAME OVER"
     go, sc = canvas.dim((255, 240, 60), a), canvas.dim((235, 235, 245), a)
-    f1 = canvas.fit("GAME OVER", W - 4, max(8, H // 3))
+    f1 = canvas.fit(title, W - 4, max(8, H // 3))
     txt = "SCORE " + str(score)
+    if best and not new_best and W >= 96:
+        txt += "  BEST " + str(best)
     f2 = canvas.fit(txt, W - 4, max(8, H // 4))
     y0 = (H - (f1 + 2 + f2)) // 2
-    canvas.shadow_text(W // 2, y0, "GAME OVER", go, f1, align="center")
+    canvas.shadow_text(W // 2, y0, title, go, f1, align="center")
     canvas.shadow_text(W // 2, y0 + f1 + 2, txt, sc, f2, align="center")
 
 
-def fetch_matrix(settings, canvas, controls=None, play_sound=None):
+def fetch_matrix(settings, canvas, controls=None, play_sound=None, game_store=None):
     W, H = canvas.width, canvas.height
     # The grid is stretched edge-to-edge: as many ~4.5px cells as fit (odd counts, so
     # the outer wall stays one cell thick), each row/column mapped to pixel edges — no
@@ -406,6 +409,9 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
     if playing and phase in ('ready', 'gameover'):
         if st.get('freeze_presses') is None:
             st['freeze_presses'] = presses
+            if st.get('phase') == 'gameover':
+                st['new_best'] = bool(game_store and game_store.best(st['score']))
+                st['best_score'] = int(game_store.get('high', 0) or 0) if game_store else 0
         if phase == 'gameover':
             st['fade'] = min(st.get('fade', 0) + 1, _FADE_STEPS)
         if presses > st['freeze_presses']:             # any key → go
@@ -416,7 +422,8 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
         else:
             if phase == 'gameover':
                 _draw_board(canvas, st, xe, ye, W, H, dim=max(0.0, 1 - st['fade'] / _FADE_STEPS))
-                _draw_gameover(canvas, W, H, st['score'], st['fade'] / (_FADE_STEPS * 0.5))
+                _draw_gameover(canvas, W, H, st['score'], st['fade'] / (_FADE_STEPS * 0.5),
+                               best=st.get('best_score', 0), new_best=st.get('new_best', False))
             else:
                 _draw_board(canvas, st, xe, ye, W, H)
                 _draw_ready(canvas, W, H)

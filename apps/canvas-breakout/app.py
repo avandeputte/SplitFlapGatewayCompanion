@@ -171,15 +171,16 @@ def _draw_ready(canvas, W, H):
     canvas.text(W // 2, H // 2 - 4, 'READY?', (255, 210, 63), size=10, align='center')
 
 
-def _draw_gameover(canvas, W, H, score, appear):
+def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
     a = max(0.0, min(1.0, appear))
-    canvas.text(W // 2, H // 2 - 9, 'GAME OVER', canvas.dim((255, 82, 82), a), size=10,
-                align='center')
-    canvas.text(W // 2, H // 2 + 3, f'SCORE {score}', canvas.dim((240, 240, 244), a), size=8,
-                align='center')
+    title, tc = ('NEW BEST!', (255, 210, 63)) if new_best else ('GAME OVER', (255, 82, 82))
+    canvas.text(W // 2, H // 2 - 9, title, canvas.dim(tc, a), size=10, align='center')
+    tail = f' · BEST {best}' if best and not new_best and W >= 96 else ''
+    canvas.text(W // 2, H // 2 + 3, f'SCORE {score}{tail}', canvas.dim((240, 240, 244), a),
+                size=8, align='center')
 
 
-def fetch_matrix(settings, canvas, controls=None, play_sound=None):
+def fetch_matrix(settings, canvas, controls=None, play_sound=None, game_store=None):
     W, H = canvas.width, canvas.height
     st = _state(W, H)
 
@@ -200,6 +201,8 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
     if playing and st.get('phase') in ('ready', 'gameover'):
         if st.get('freeze_presses') is None:
             st['freeze_presses'] = presses
+            st['new_best'] = bool(game_store and game_store.best(st['score']))
+            st['best_score'] = int(game_store.get('high', 0) or 0) if game_store else 0
         if st['phase'] == 'gameover':
             st['fade'] = min(st.get('fade', 0) + 1, _FADE_STEPS)
         if presses > st['freeze_presses']:
@@ -210,7 +213,8 @@ def fetch_matrix(settings, canvas, controls=None, play_sound=None):
         else:
             if st['phase'] == 'gameover':
                 _draw(canvas, st, dim=max(0.0, 1 - st['fade'] / _FADE_STEPS))
-                _draw_gameover(canvas, W, H, st['score'], st['fade'] / (_FADE_STEPS * 0.5))
+                _draw_gameover(canvas, W, H, st['score'], st['fade'] / (_FADE_STEPS * 0.5),
+                               best=st.get('best_score', 0), new_best=st.get('new_best', False))
             else:
                 _draw(canvas, st)
                 _draw_ready(canvas, W, H)

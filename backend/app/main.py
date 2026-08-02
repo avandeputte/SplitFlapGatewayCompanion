@@ -291,6 +291,9 @@ async def resume_last_run(d=None) -> None:
         if kind == "app":
             await d.controller.run_app(doc["app"])
             log.info("resumed app %s after restart [%s]", doc["app"], d.id)
+        elif kind == "zones":
+            await d.controller.run_zones(doc.get("zones") or [], doc.get("name") or "")
+            log.info("resumed zones after restart [%s]", d.id)
         elif kind == "playlist":
             entries = doc.get("entries") or []
             if not entries:

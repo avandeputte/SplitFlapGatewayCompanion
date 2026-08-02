@@ -52,7 +52,8 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
   exactly as before. See **[Characters](#characters)**.
 - **Compose** — a click-to-type grid with color tiles and every transition style
   (`ltr`, `rtl`, `spiral`, `slot`, `columns`, `outside_in`, …).
-- **Live preview + Home all** — the board mirrors what's on the wall, and **⌂ Home
+- **Live preview + Home all** — the board mirrors what's on the wall (with a **⏺ GIF**
+  button on Matrix walls: record 8 seconds of the panel and download it), and **⌂ Home
   all** returns every module to its blank home position, stopping whatever is playing.
   Stopping an app or playlist blanks the wall: nothing running means nothing shown, and
   a clock frozen at 11:34 is not obviously *off*, it is obviously *wrong*.
@@ -62,13 +63,20 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
 - **Schedules** — time-of-day windows that run an app or playlist, or turn the
   display off, per weekday, plus **quiet hours** — these live on the gateway, whose
   pages open right inside the companion's nav.
+- **Zones** — split a Matrix panel into 2–3 vertical strips and run an app in each: a
+  clock beside the weather beside a sensor chart, composited into one frame. Ad-hoc from
+  the Playlists page, saved as named layouts, runnable as a playlist entry
+  (`"type": "zones"`) or via the MCP `run_zones` tool.
 - **Rich Matrix panel views** — on a Matrix Gateway's LED panel most apps draw a
   full-panel graphic view (gauges, charts, artwork — not just flap text), with a per-app
-  "Show on Matrix panel" toggle; some are **playable games** with on-screen controls and
-  sound, and **Photo Frame** slideshows the photos and MPGA movies on the gateway's
+  "Show on Matrix panel" toggle; some are **playable games** with on-screen controls,
+  sound and **persistent high scores** (beat one for a golden NEW BEST!), and **Photo Frame** slideshows the photos and MPGA movies on the gateway's
   microSD card. See the [screenshots gallery](screenshots/).
 - **Triggers** — apps that watch for events (the ISS overhead, a game, weather) and
-  briefly **interrupt** the display, with a per-trigger cooldown.
+  briefly **interrupt** the display, with a per-trigger cooldown. On a Matrix wall the
+  interrupt (and any timed message) arrives as a drawn **toast** — accent bar, icon and
+  big fitted text sliding up over whatever runs — instead of flap-cell letters; the
+  message API takes optional `icon` (bell/info/alert/check/cross/heart) and `accent`.
 - **Localization** — a global **Language** plus **Location** and **Timezone**, all at
   the top of Global settings. Apps carrying a 🌐 badge follow them: translated words,
   locale date order, number format, 12h/24h, and currency/holidays by country. All

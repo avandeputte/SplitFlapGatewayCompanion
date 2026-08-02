@@ -1577,6 +1577,51 @@ async function loadPlaylists() {
   if (!PL_ENTRIES.length) plRender();
   plSaveLabel();
 }
+// ---- Zones: 2-3 apps side by side on the Matrix panel ----------------------
+async function loadZones() {
+  const card = $("zonesCard");
+  if (!card) return;
+  card.classList.toggle("hidden", !CANVAS);   // only a wall with a panel splits
+  if (!CANVAS) return;
+  if (!APPS.length) await loadApps();
+  // Any app that can draw on the panel, except the interactive games (they need
+  // the pad and the whole panel to themselves).
+  const opts = APPS.filter((a) => (a.surfaces || []).includes("matrix") && !a.interactive);
+  [1, 2, 3].forEach((i) => {
+    const sel = $("zoneApp" + i);
+    const keep = sel.value;
+    sel.innerHTML = "";
+    if (i === 3) { const o = el("option"); o.value = ""; o.textContent = t("(no third zone)"); sel.appendChild(o); }
+    opts.forEach((a) => {
+      const o = el("option"); o.value = a.id; o.textContent = a.name; sel.appendChild(o);
+    });
+    if (keep) sel.value = keep;
+    if (i === 2 && !keep && opts.length > 1) sel.selectedIndex = 1;
+  });
+  const saved = (await api("/api/zones/layouts")).layouts || {};
+  const box = $("zoneSaved"); box.innerHTML = "";
+  Object.keys(saved).forEach((n) => {
+    const row = el("div", "saved-row");
+    const nm = el("span", "grow");
+    nm.textContent = n + "  ·  " + (saved[n].zones || []).map((z) => z.app).join(" | ");
+    row.appendChild(nm);
+    row.appendChild(btn(t("Run"), () => guard(() => post("/api/zones/run", { layout: n })), "btn btn-sm primary"));
+    row.appendChild(btn(t("Delete"), () => guard(async () => {
+      await del("/api/zones/layouts/" + encodeURIComponent(n)); loadZones();
+    }), "btn btn-sm ghost"));
+    box.appendChild(row);
+  });
+}
+function zonesSpec() {
+  const zones = [];
+  [1, 2, 3].forEach((i) => {
+    const v = $("zoneApp" + i).value;
+    if (v) zones.push({ app: v });
+  });
+  return zones;
+}
+
+
 async function runPlaylistNow() {
   if (!PL_ENTRIES.length) return;
   await guard(() => post("/api/playlists/run", { entries: PL_ENTRIES, loop: $("plLoop").checked, name: PL_NAME || "(unsaved)" }));
@@ -2040,6 +2085,8 @@ async function loadDisplays() {
   const me = DISPLAYS.find((d) => d.id === DISPLAY);
   RICH = !!(me && me.rich);
   CANVAS = !!(me && me.canvas);
+  const gifBtn = document.getElementById("gifBtn");
+  if (gifBtn) gifBtn.classList.toggle("hidden", !CANVAS);
   syncOverlayCard();
 
   const sel = $("displaySel");
@@ -2066,6 +2113,8 @@ async function switchDisplay(id) {
   const me = DISPLAYS.find((d) => d.id === id);
   RICH = !!(me && me.rich);
   CANVAS = !!(me && me.canvas);
+  const gifBtn = document.getElementById("gifBtn");
+  if (gifBtn) gifBtn.classList.toggle("hidden", !CANVAS);
   syncOverlayCard();
   // Everything on screen belongs to the OLD wall — its geometry, its apps, its
   // playlists, its triggers, its gateway's tabs. Re-read the lot rather than trying to
@@ -2073,6 +2122,7 @@ async function switchDisplay(id) {
   await bootGrid();
   try { await loadApps(); } catch { /* the rest must still come up */ }
   await loadPlaylists();
+  await loadZones();
   await loadTriggers();
   GW_TRIES = 0;             // the NEW wall's gateway gets its own round of re-asks
   setupGatewayTabs();
@@ -2246,6 +2296,20 @@ async function init() {
   await bootGrid();
   $("stopAppBtn").addEventListener("click", stopApp);
   $("homeAllBtn").addEventListener("click", homeAll);
+  $("gifBtn").addEventListener("click", () => guard(async () => {
+    const b = $("gifBtn");
+    b.disabled = true; b.textContent = "⏺ …";
+    try {
+      const r = await fetch(url("/api/panel/record?seconds=8&fps=8"), { method: "POST" });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+      const blob = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "panel.gif";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } finally { b.disabled = false; b.textContent = t("⏺ GIF"); }
+  }));
   $("manageAppsBtn").addEventListener("click", openLibrary);
   $("globalSettingsBtn").addEventListener("click", openGlobalSettings);
   // The ⚙ tools menu is permanent; /api/dev only feeds the SIM badge on the button.
@@ -2266,6 +2330,21 @@ async function init() {
   $("plSave").addEventListener("click", savePlaylist);
   $("plNew").addEventListener("click", plNew);
   $("plName").addEventListener("input", plSaveLabel);
+  // zones
+  $("zoneRun").addEventListener("click", () => guard(async () => {
+    const zones = zonesSpec();
+    if (zones.length < 2) throw new Error(t("Pick at least two zones"));
+    await post("/api/zones/run", { zones });
+  }));
+  $("zoneSave").addEventListener("click", () => guard(async () => {
+    const zones = zonesSpec();
+    const name = $("zoneName").value.trim();
+    if (zones.length < 2) throw new Error(t("Pick at least two zones"));
+    if (!name) throw new Error(t("Layout name required"));
+    await post("/api/zones/layouts", { name, zones });
+    $("zoneName").value = "";
+    loadZones();
+  }));
   // overlay ticker (the Compose card, canvas walls only) + the game control pad
   wireOverlay();
   wireGamePad();

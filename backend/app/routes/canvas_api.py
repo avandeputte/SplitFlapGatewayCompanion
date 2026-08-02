@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from .. import canvas, gateway
@@ -190,5 +190,53 @@ def build(deps) -> APIRouter:
         if not await asyncio.to_thread(canvas.font_delete, url, req.name):
             raise HTTPException(502, "could not delete that font")
         return {"ok": True}
+
+    # -- record the panel to a GIF -------------------------------------------
+    _recording: dict = {"on": False}       # one capture at a time, per process
+
+    @router.post("/api/panel/record")
+    async def panel_record(request: Request, seconds: float = 8.0, fps: float = 8.0):
+        """Capture the live panel for up to 15 s and answer with an animated GIF —
+        the preview pipeline (cached frame-push frames, or panel readback) sampled
+        on a timer, so it records whatever is genuinely showing. One at a time."""
+        d = deps.display_for(request)
+        caps = d.controller._caps()
+        if not getattr(caps, "has_canvas", False):
+            raise HTTPException(409, "this display has no panel to record")
+        seconds = max(1.0, min(15.0, float(seconds)))
+        fps = max(2.0, min(10.0, float(fps)))
+        if _recording["on"]:
+            raise HTTPException(409, "a recording is already running")
+        _recording["on"] = True
+        try:
+            import io
+            import time as _time
+
+            from PIL import Image
+
+            frames: list = []
+            interval = 1.0 / fps
+            n = int(seconds * fps)
+            for _ in range(n):
+                t0 = _time.monotonic()
+                png = await asyncio.to_thread(d.controller.canvas_preview_png, 1)
+                if png:
+                    try:
+                        frames.append(Image.open(io.BytesIO(png)).convert("RGB"))
+                    except Exception:
+                        pass
+                await asyncio.sleep(max(0.0, interval - (_time.monotonic() - t0)))
+            if not frames:
+                raise HTTPException(503, "nothing on the panel to record")
+            buf = io.BytesIO()
+            # 2x upscale (nearest) so LED pixels stay chunky and the GIF isn't tiny
+            big = [f.resize((f.width * 2, f.height * 2), Image.NEAREST) for f in frames]
+            big[0].save(buf, "GIF", save_all=True, append_images=big[1:],
+                        duration=int(interval * 1000), loop=0, optimize=True)
+            return Response(content=buf.getvalue(), media_type="image/gif",
+                            headers={"Content-Disposition":
+                                     'attachment; filename="panel.gif"'})
+        finally:
+            _recording["on"] = False
 
     return router

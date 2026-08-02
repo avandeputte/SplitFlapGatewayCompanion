@@ -46,6 +46,7 @@
         <h2 data-i18n="Live Display">Live Display</h2>
         <div class="preview-actions">
           <span class="hint" id="previewMeta"></span>
+          <button class="btn ghost btn-sm hidden" id="gifBtn" title="Record the panel for 8 seconds and download a GIF" data-i18n-title="Record the panel for 8 seconds and download a GIF" data-i18n="⏺ GIF">⏺ GIF</button>
           <button class="btn ghost btn-sm" id="homeAllBtn" data-i18n="⌂ Home all"
                   title="Home every module — returns the whole display to its blank home position and stops anything playing"
                   data-i18n-title="Home every module — returns the whole display to its blank home position and stops anything playing">⌂ Home all</button>
@@ -156,6 +157,19 @@
       </div>
       <h3 style="margin:16px 0 8px;font-size:.95rem" data-i18n="Saved playlists">Saved playlists</h3>
       <div id="plSaved"><span class="hint" data-i18n="None yet.">None yet.</span></div>
+      <div id="zonesCard" class="hidden">
+        <h3 style="margin:16px 0 8px;font-size:.95rem" data-i18n="Zones — apps side by side">Zones — apps side by side</h3>
+        <p class="hint" data-i18n="Split the Matrix panel into 2–3 vertical zones, one app each. Games are excluded — they need the whole panel.">Split the Matrix panel into 2–3 vertical zones, one app each. Games are excluded — they need the whole panel.</p>
+        <div class="controls">
+          <select class="input" id="zoneApp1" style="max-width:170px"></select>
+          <select class="input" id="zoneApp2" style="max-width:170px"></select>
+          <select class="input" id="zoneApp3" style="max-width:170px"></select>
+          <input class="input pl-name" id="zoneName" placeholder="Layout name" data-i18n-placeholder="Layout name" aria-label="Layout name" data-i18n-label="Layout name">
+          <button class="btn ghost btn-sm" id="zoneSave" data-i18n="Save">Save</button>
+          <button class="btn primary btn-sm" id="zoneRun" data-i18n="Run ▶">Run ▶</button>
+        </div>
+        <div id="zoneSaved"></div>
+      </div>
     </section>
 
     <!-- TRIGGERS -->
