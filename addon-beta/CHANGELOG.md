@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.11-beta.3
+
+- **Fix: the Zones card actually appears** — it only rendered after a display switch;
+  now it loads with the Playlists page everywhere (boot, tab open, edits).
+
 ## 2.10.11-beta.2
 
 - **⏺ GIF is developer chrome** — the panel recorder (button + endpoint) now appears

@@ -1577,6 +1577,9 @@ async function loadPlaylists() {
   });
   if (!PL_ENTRIES.length) plRender();
   plSaveLabel();
+  // The Zones card shares this page and every path that refreshes it (tab open,
+  // boot, display switch, edits) comes through here — one seam, always current.
+  await loadZones();
 }
 // ---- Zones: 2-3 apps side by side on the Matrix panel ----------------------
 async function loadZones() {
@@ -2127,7 +2130,6 @@ async function switchDisplay(id) {
   await bootGrid();
   try { await loadApps(); } catch { /* the rest must still come up */ }
   await loadPlaylists();
-  await loadZones();
   await loadTriggers();
   GW_TRIES = 0;             // the NEW wall's gateway gets its own round of re-asks
   setupGatewayTabs();
