@@ -42,16 +42,22 @@ class PanelText:
     MIN_READABLE = 8
 
     def fit_font(self, text, max_w, max_h, min_size=MIN_READABLE):
-        """The largest bundled font whose ``text`` fits within max_w x max_h."""
+        """The largest bundled font whose ``text`` fits within max_w x max_h.
+
+        Two-phase: a RATIO jump first (measure once, scale toward the target), then
+        a -1 polish. The old -1-only loop was written for 64px panels — from an LCD's
+        800px start it could shrink by at most 96 and "fit" nothing."""
         size = max(min_size, int(max_h) + 2)
         font = self.font(size)
-        # bounded shrink loop — 96 covers any panel-height start size
         for _ in range(96):
             b = font.getbbox(text or "0")
-            if size <= min_size or (font.getlength(text or "0") <= max_w
-                                    and (b[3] - b[1]) <= max_h):
+            w, h = font.getlength(text or "0"), b[3] - b[1]
+            if size <= min_size or (w <= max_w and h <= max_h):
                 return font
-            size -= 1
+            # jump by the worst overshoot ratio while far off; polish by -1 near it
+            ratio = max(w / max_w if max_w > 0 else 1.0, h / max_h if max_h > 0 else 1.0)
+            nxt = int(size / ratio) if ratio > 1.15 else size - 1
+            size = max(min_size, min(size - 1, nxt))
             font = self.font(size)
         return font
 
@@ -118,7 +124,10 @@ class PanelText:
         while size >= min_size:
             font = self.font(size)
             if words and max(font.getlength(w) for w in words) > max_w:
-                size -= 1                        # a word would need a hard split — shrink instead
+                # a word would need a hard split — shrink instead. Ratio-jump while far
+                # off (an LCD-height start would otherwise walk down 1px at a time).
+                over = max(font.getlength(w) for w in words) / max(1.0, max_w)
+                size = max(min_size, min(size - 1, int(size / over))) if over > 1.15 else size - 1
                 continue
             lines = self.wrap(font, text, max_w, max_lines)
             b = font.getbbox("Ag")

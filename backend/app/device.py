@@ -121,6 +121,17 @@ class Capabilities:
     can_alarms: bool = False                # /api/alarms — the four daily alarm slots (the "alarms" feature)
     can_quiet: bool = False                 # /api/quiet + /quiet/schedule — Quiet Time (the "quiet" feature)
     can_brightness: bool = False            # panel brightness + dim schedule (the "brightness" feature)
+    # The wall's surface, from the capabilities' ``surface`` object: {"kind":
+    # "led-matrix" | "lcd", w, h, colorBits, refreshHz}. Empty kind = the field
+    # predates the firmware that states it (treated as an LED matrix). An "lcd"
+    # surface renders companion-side at a LOGICAL panel and pushes upscaled
+    # frames — its device text faces are the tiny bitmap set, so live ops would
+    # come out comically small (see the engine's LCD path).
+    surface_kind: str = ""
+
+    @property
+    def is_lcd(self) -> bool:
+        return self.surface_kind == "lcd"
 
     def __bool__(self) -> bool:
         return self.indexed
@@ -312,8 +323,21 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         can_alarms="alarms" in features,
         can_quiet="quiet" in features,
         can_brightness="brightness" in features,
+        surface_kind=str((doc.get("surface") or {}).get("kind") or ""),
         events="events" in features,
     )
+
+
+def lcd_logical(caps: "Capabilities") -> tuple[int, int, int]:
+    """(logical_w, logical_h, k) for an LCD wall: the panel the APPS see, and the
+    integer supersample factor the surface renders at. Chosen so every existing
+    matrix app's size heuristics (cell = H//12, tile = H//3 …) land in the range
+    they were written for: logical height ~128-200, width scaled to keep aspect."""
+    W, H = int(caps.canvas_w or 0), int(caps.canvas_h or 0)
+    if not W or not H:
+        return W, H, 1
+    k = max(1, round(H / 160))              # 800 -> 5, 720 -> 4(.5->4), 480 -> 3
+    return max(64, round(W / k)), max(32, round(H / k)), k
 
 
 def _parse_fw(fw: object) -> tuple[int, int]:

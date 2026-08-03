@@ -629,6 +629,12 @@ class DisplayController:
         caps = self._caps()
         url = await self._take_panel()
         W, H = int(caps.canvas_w or 0), int(caps.canvas_h or 0)
+        upscale = None
+        if getattr(caps, "is_lcd", False):
+            # zones lay out on the LOGICAL panel (LED-era app sizes come out right)
+            # and the composite upscales once at push
+            lw, lh, _k = device.lcd_logical(caps)
+            upscale, (W, H) = (int(caps.canvas_w), int(caps.canvas_h)), (lw, lh)
         if not W or not H:
             await self._entry_sleep(2.0)
             return
@@ -675,6 +681,8 @@ class DisplayController:
                 dr = ImageDraw.Draw(composite)
                 for x0, w in xs[:-1]:                      # the reserved gap columns
                     dr.line([(x0 + w, 0), (x0 + w, H - 1)], fill=_ZONE_DIVIDER)
+                if upscale:
+                    composite = composite.resize(upscale, Image.NEAREST)
                 await asyncio.to_thread(panel.frame, composite)
             nxt = min(due) - rt_loop.time()
             await self._entry_sleep(max(0.1, min(nxt, 1.0)))
@@ -812,7 +820,7 @@ class DisplayController:
         The dwell is the channel's loop_delay; each fresh pass re-shuffles a random-order channel.
         If the wall turns out to have no framebuffer, falls back to the flap pages."""
         await self._take_panel()
-        surface = self.plugins.build_canvas_surface()
+        surface = self.plugins.build_canvas_surface(native=True)
         if surface is None:                                    # no framebuffer after all -> flaps
             self._app_last_sent = None                         # fresh run: don't suppress page 1
             while keep_going():

@@ -698,14 +698,20 @@ class PluginRuntime:
         buffer both key off."""
         return str(self.config.transport.get("gateway_url") or "").strip()
 
-    def build_canvas_surface(self):
-        """A CanvasSurface for this wall, or None if it has no framebuffer. The transport the
-        canvas apps draw through — shared so the channel-on-canvas renderer uses the same path.
-        The surface derives everything it needs from the Capabilities itself."""
+    def build_canvas_surface(self, native: bool = False):
+        """A drawing surface for this wall, or None if it has no framebuffer — the
+        transport the canvas apps draw through (shared with the channel-on-canvas
+        renderer). An LED wall gets the live-ops CanvasSurface; an LCD wall gets the
+        offscreen LcdSurface — logical LED-style dimensions upscaled to full frames,
+        so LED-era pixel sizes come out right — with ``native=True`` (a manifest's
+        ``lcd_native``, and the proportional channel renderer) skipping the shrink."""
         caps = self._caps()
         if not caps.has_canvas:
             return None
         url = str(self.config.transport.get("gateway_url") or "").strip()
+        if getattr(caps, "is_lcd", False):
+            from .zonecanvas import LcdSurface
+            return LcdSurface(url, caps, native=native)
         return canvas.CanvasSurface(url, caps)
 
     def is_channel_app(self, app_id: str) -> bool:
@@ -1054,7 +1060,8 @@ class PluginRuntime:
         ``overrides`` are per-playlist-entry setting values (e.g. a Scoreboard following its own
         teams), applied as a transient overlay exactly like a flap app's — so the same matrix app
         can appear twice in a playlist configured differently."""
-        surface = self.build_canvas_surface()
+        surface = self.build_canvas_surface(
+            native=bool(self._registry.get(app_id, {}).get("lcd_native")))
         if surface is None:                                 # no framebuffer — nothing to draw on
             return None
         return self.render_matrix_on(app_id, surface, overrides)

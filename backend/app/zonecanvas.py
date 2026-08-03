@@ -148,6 +148,22 @@ class ZoneCanvas:
             d.polygon(pts, outline=_rgb(color))
         return self
 
+    def polyline(self, points, color=(255, 255, 255), t=1, aa=False):
+        d = self._draw()
+        pts = [(int(px), int(py)) for px, py in points]
+        if len(pts) >= 2:
+            d.line(pts, fill=_rgb(color), width=max(1, int(t)), joint="curve")
+        return self
+
+    def ellipse(self, x, y, rx, ry, color=(255, 255, 255), fill=False, t=1):
+        d = self._draw()
+        box = [int(x - rx), int(y - ry), int(x + rx), int(y + ry)]
+        if fill:
+            d.ellipse(box, fill=_rgb(color))
+        else:
+            d.ellipse(box, outline=_rgb(color), width=max(1, int(t)))
+        return self
+
     def line(self, x, y, x1, y1, color=(255, 255, 255), t=1):
         self._draw().line([(int(x), int(y)), (int(x1), int(y1))],
                           fill=_rgb(color), width=max(1, int(t)))
@@ -278,3 +294,62 @@ def _borrow_surface_toolkit():
 
 
 _borrow_surface_toolkit()
+
+
+class LcdSurface(ZoneCanvas):
+    """The LCD wall's app-facing surface. Apps written for LED panels draw absolute
+    pixels (8px faces, 22px fish) — comically small at 1280x800 — so by default this
+    REPORTS a logical LED-style panel (device.lcd_logical, e.g. 256x160) and every
+    show()/frame() upscales NEAREST xk into ONE full frame pushed through the real
+    CanvasSurface (qoi on the wire where the wall takes it). Sizes land where the
+    apps' heuristics expect and the look is coherent chunky-LED.
+
+    ``native=True`` (a manifest's ``lcd_native``) skips the shrink for proportional
+    apps — the Stock/Sensor Graph draw with fit-to-height type that comes out
+    genuinely crisp at the panel's real resolution.
+    """
+
+    def __init__(self, url: str, caps, native: bool = False):
+        from . import canvas as canvas_mod
+        from . import device as device_mod
+        if native:
+            lw, lh, k = int(caps.canvas_w), int(caps.canvas_h), 1
+        else:
+            lw, lh, k = device_mod.lcd_logical(caps)
+        super().__init__(lw, lh)
+        self._k = int(k)
+        self._native_size = (int(caps.canvas_w), int(caps.canvas_h))
+        self._panel = canvas_mod.CanvasSurface(url, caps)
+        self._url = url
+        self.can_sound = bool(caps.can_sound)
+        self.can_sd = bool(caps.can_sd)
+
+    # -- the wall side --------------------------------------------------------
+    def _push(self, img) -> bool:
+        if img is None:
+            return False
+        if img.size != self._native_size:
+            img = img.resize(self._native_size, Image.NEAREST)
+        return self._panel.frame(img)
+
+    def show(self):
+        super().show()                        # captures the ops image into .frames
+        return self._push(self.take())
+
+    def frame(self, image):
+        if isinstance(image, (bytes, bytearray)):
+            image = Image.frombytes('RGB', (self.width, self.height), bytes(image))
+        return self._push(image.convert('RGB'))
+
+    # -- gateway plumbing apps expect on a real surface -----------------------
+    def sd_list(self, path="/"):
+        from . import canvas as canvas_mod
+        return canvas_mod.sd_list(self._url, path)
+
+    def sd_get(self, path):
+        from . import canvas as canvas_mod
+        return canvas_mod.sd_get(self._url, path)
+
+    def play_anim_path(self, path):
+        from . import canvas as canvas_mod
+        return canvas_mod.anim_play(self._url, path=path)

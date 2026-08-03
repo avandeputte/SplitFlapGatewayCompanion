@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.1
+
+- **LCD Gateway support 🖥️** — the new `surface` capability picks the render path: on
+  an LCD (1280×800) apps draw on a logical LED-style panel upscaled to crisp full
+  frames (fish are fish-sized again), while Stock/Sensor Graph, channels and toasts
+  render native with type fitted to the real resolution. Zones, games, the pad,
+  preview and GIF capture all carry over.
+
 ## 2.10.11
 
 - **Multiview 🪟** — split the Matrix panel into 2–3 vertical zones, one app each, with

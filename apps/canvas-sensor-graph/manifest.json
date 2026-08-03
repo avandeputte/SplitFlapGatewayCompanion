@@ -53,5 +53,6 @@
     }
   ],
   "min_rows": 1,
-  "min_cols": 15
+  "min_cols": 15,
+  "lcd_native": true
 }

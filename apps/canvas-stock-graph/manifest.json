@@ -4,7 +4,9 @@
   "icon": "📈",
   "description": "A quote in big bold type over its own price chart (Matrix panel)",
   "type": "functional",
-  "surfaces": ["matrix"],
+  "surfaces": [
+    "matrix"
+  ],
   "refresh_interval": 60,
   "loop_delay": 60,
   "category": "finance",
@@ -23,11 +25,26 @@
       "type": "toggle",
       "default": "1D",
       "options": [
-        {"value": "1D", "label": "1D"},
-        {"value": "5D", "label": "5D"},
-        {"value": "1M", "label": "1M"},
-        {"value": "6M", "label": "6M"},
-        {"value": "1Y", "label": "1Y"}
+        {
+          "value": "1D",
+          "label": "1D"
+        },
+        {
+          "value": "5D",
+          "label": "5D"
+        },
+        {
+          "value": "1M",
+          "label": "1M"
+        },
+        {
+          "value": "6M",
+          "label": "6M"
+        },
+        {
+          "value": "1Y",
+          "label": "1Y"
+        }
       ]
     },
     {
@@ -64,9 +81,16 @@
       "type": "toggle",
       "default": "yes",
       "options": [
-        {"value": "yes", "label": "On"},
-        {"value": "no", "label": "Off"}
+        {
+          "value": "yes",
+          "label": "On"
+        },
+        {
+          "value": "no",
+          "label": "Off"
+        }
       ]
     }
-  ]
+  ],
+  "lcd_native": true
 }

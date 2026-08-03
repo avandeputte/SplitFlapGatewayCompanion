@@ -46,6 +46,12 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
 - **Several displays at once** — drive more than one gateway from one companion. Each
   wall has its own geometry, apps, playlists, triggers and settings, and a switcher in
   the header moves between them. See **[Multiple displays](#multiple-displays)**.
+- **LCD walls, sized right** — an **LCD Gateway** (the same canvas API on a 1280×800
+  panel, advertised as `surface: {kind: "lcd"}`) renders companion-side: apps draw on a
+  logical LED-style panel upscaled to crisp full frames, so LED-era sprites and fonts
+  come out properly sized instead of comically small; proportional card apps (Stock and
+  Sensor Graph, toasts, channels) render at the panel's native resolution with type
+  fitted to hundreds of pixels.
 - **Matrix Gateway walls get their full alphabet** — lowercase and accents in the text you
   type, fourteen **pictographs** (`♥ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀` …), and colors addressed by
   *name* rather than by spending seven letters on them. A physical split-flap is driven
