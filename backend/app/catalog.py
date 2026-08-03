@@ -37,6 +37,10 @@ CATALOG: list[dict] = [
      "searchUrl": "/location_search", "resultKey": "results", "maxItems": 1, "geolocate": True,
      "note": "Search a place for exact coordinates; overrides the ZIP/city above.",
      "_composite": ["location_lat", "location_lon", "location_name"]},
+    {"key": "location_label", "label": "Location display name", "type": "text",
+     "ph": "Lebo",
+     "note": "Optional: what apps call your location — e.g. show \"Lebo\" instead of "
+             "the geocoded \"Mt Lebanon\". Blank shows the real name."},
     {"key": "timezone", "label": "Timezone", "type": "search_chips",
      "searchUrl": "/timezones", "resultKey": "zones", "maxItems": 1,
      "note": "Default timezone for clocks and time-based apps."},

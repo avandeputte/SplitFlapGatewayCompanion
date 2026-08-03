@@ -220,3 +220,29 @@ def test_panel_record_requires_dev_mode(monkeypatch):
     monkeypatch.setattr(main.config, "dev_mode", False)
     c = TestClient(main.app)
     assert c.post("/api/panel/record").status_code == 403
+
+
+# --- the location display name ------------------------------------------------
+
+def test_location_label_overrides_the_place_name(monkeypatch):
+    from app import location, weather
+
+    monkeypatch.setattr(location, "coordinates",
+                        lambda s: (40.35, -80.05, "Mount Lebanon"))
+    monkeypatch.setattr(location, "_geo", lambda s: {"country": "US", "subdivision": "PA"})
+    plain = location.resolve({"zip_code": "15228"})
+    assert plain["city"] == "Mount Lebanon"
+    named = location.resolve({"zip_code": "15228", "location_label": "Lebo"})
+    assert named["city"] == "Lebo"
+
+    # the weather doc follows too, whatever the provider called the place
+    monkeypatch.setattr(weather, "_resolve_provider", lambda s: ("openmeteo", "", "en"))
+    monkeypatch.setattr(weather, "_resolve_location", lambda s: (40.35, -80.05, "Mount Lebanon"))
+    monkeypatch.setattr(weather, "_fetch_document",
+                        lambda *a: ({"city": "Mount Lebanon", "temp_f": 72}, "openmeteo"))
+    weather._cache.clear()
+    doc = weather.fetch_weather({"location_label": "Lebo"})
+    assert doc["city"] == "Lebo" and doc["ok"]
+    weather._cache.clear()
+    doc = weather.fetch_weather({})
+    assert doc["city"] == "Mount Lebanon"

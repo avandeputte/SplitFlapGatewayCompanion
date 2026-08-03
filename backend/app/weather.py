@@ -682,6 +682,12 @@ def fetch_weather(settings, days: int = 0, air: bool = False) -> dict:
         doc, provider = _fetch_document(provider, key, lat, lon, city, days, air, lang)
         doc.update(ok=True, provider=provider, lat=lat, lon=lon,
                    temp_c=_f2c(doc.get("temp_f")))
+        # The user's own name for the place beats whatever the provider calls it
+        # ("Lebo", not the geocoder's "Mount Lebanon") — one global setting, every
+        # weather surface follows.
+        label = str(settings.get("location_label") or "").strip()
+        if label:
+            doc["city"] = label
         # Cache only successful fetches — and a private copy, for the same
         # isolation reason as above.
         _cache[cache_key] = (time.time(), copy.deepcopy(doc))

@@ -144,6 +144,9 @@ def resolve(settings) -> dict:
     should test ``lat is not None`` rather than ``ok``."""
     coords = coordinates(settings)
     lat, lon, city = coords if coords else (None, None, None)
+    label = str(settings.get("location_label") or "").strip()
+    if label:
+        city = label                       # the user's own name for the place wins
     g = _geo(settings)
     cc = g.get("country")
     return {"ok": bool(cc), "country": cc, "subdivision": g.get("subdivision"),

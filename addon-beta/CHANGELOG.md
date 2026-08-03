@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.11-beta.5
+
+- **Name your place** — a new Global setting, "Location display name": apps show your
+  word for home ("Lebo") instead of the geocoder's ("Mt Lebanon"), across weather and
+  every location-aware surface.
+
 ## 2.10.11-beta.4
 
 - **Zones in playlists** — a ＋ Zones button in the playlist editor adds a saved layout
