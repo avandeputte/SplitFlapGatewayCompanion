@@ -336,6 +336,7 @@
   "Run": "Lancer",
   "Run ▶": "Lancer ▶",
   "Save": "Enregistrer",
+  "Save a zones layout below first": "Enregistrez d'abord une disposition de zones ci-dessous",
   "Save as a new playlist": "Enregistrer comme nouvelle playlist",
   "Save for this entry": "Enregistrer pour cette entrée",
   "Saved playlists": "Playlists enregistrées",
@@ -447,6 +448,7 @@
   "YouTube Channel ID (for subs)": "ID de chaîne YouTube (abonnés)",
   "YouTube Data API Key": "Clé API YouTube Data",
   "YouTube Video ID (live, for viewers)": "ID de vidéo YouTube (direct, spectateurs)",
+  "Zones": "Zones",
   "Zones — apps side by side": "Zones — apps côte à côte",
   "birdnetpi.local or 192.168.x.x": "birdnetpi.local ou 192.168.x.x",
   "blank = follow Location": "vide = suit le Lieu",
@@ -484,5 +486,6 @@
   "＋ Add trigger": "＋ Ajouter un déclencheur",
   "＋ App": "＋ Appli",
   "＋ Library": "＋ Bibliothèque",
-  "＋ Message": "＋ Message"
+  "＋ Message": "＋ Message",
+  "＋ Zones": "＋ Zones"
 }

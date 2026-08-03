@@ -167,3 +167,45 @@ def test_zones_playlist_entry_runs_and_skips(tmp_path, monkeypatch):
         await ctrl.stop_app()
 
     asyncio.run(run())
+
+
+def test_zones_playlist_entry_resolves_a_saved_layout(tmp_path, monkeypatch):
+    from app import canvas as canvas_mod
+    from app.engine import _entry_label
+    from test_engine_interrupts import FakeGateway, _until
+
+    assert _entry_label({"type": "zones", "layout": "Morning"}) == "Morning"
+    assert _entry_label({"type": "zones"}) == "(zones)"
+
+    class _Panel:
+        def __init__(self, url, caps):
+            pass
+
+        def frame(self, img):
+            return True
+
+    async def run():
+        ctrl = _controller(tmp_path)
+        ctrl.transport = FakeGateway()
+        ctrl.plugins.settings = {"saved_zone_layouts":
+                                 {"pair": {"zones": [{"app": "left"}, {"app": "right"}]}}}
+        monkeypatch.setattr(canvas_mod, "CanvasSurface", _Panel)
+
+        async def fake_take_panel():
+            return "http://gw"
+
+        async def _noop(*a, **k):
+            return None
+
+        ctrl._take_panel = fake_take_panel
+        ctrl._release_canvas = _noop
+        entries = [{"type": "zones", "layout": "pair", "duration": 3600},
+                   {"type": "compose", "text": "NEXT", "duration": 3600}]
+        await ctrl.run_playlist(entries, loop=True, name="Z")
+        await _until(lambda: ctrl.plugins.calls != [], "the layout's apps never rendered")
+        assert set(ctrl.plugins.calls) == {"left", "right"}
+        ctrl.skip_playlist_entry()
+        await _until(lambda: ctrl.state.playlist_index == 1, "zones slot outlived its skip")
+        await ctrl.stop_app()
+
+    asyncio.run(run())

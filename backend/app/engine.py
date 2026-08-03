@@ -37,10 +37,12 @@ _CANVAS_STREAM_MAX_HOLD = 2.0
 
 
 def _entry_label(entry: dict) -> str:
-    """A playlist entry as one word for the running-order view: the app id, or
-    "(message)" for a composed entry."""
+    """A playlist entry as one word for the running-order view: the app id,
+    "(message)" for a composed entry, or the zones layout's name."""
     if entry.get("type") == "compose":
         return "(message)"
+    if entry.get("type") == "zones":
+        return str(entry.get("layout") or "(zones)")
     return app_id_from_ref(entry.get("app", "") or "(unknown)")
 
 
@@ -586,9 +588,19 @@ class DisplayController:
             await self._release_canvas()
 
     async def _play_zones_entry(self, entry: dict, duration: float, want, rt_loop) -> None:
-        """One playlist ZONES entry until its slot's deadline (skip-aware)."""
+        """One playlist ZONES entry until its slot's deadline (skip-aware). The entry
+        carries its zones inline, or references a SAVED layout by name — a reference,
+        so editing the layout later changes every playlist that uses it."""
+        zones = entry.get("zones") or []
+        if not zones and entry.get("layout"):
+            saved = {}
+            try:
+                saved = (self.plugins.settings.get("saved_zone_layouts") or {})
+            except Exception:
+                pass
+            zones = (saved.get(str(entry["layout"])) or {}).get("zones") or []
         try:
-            spec = self.validate_zones(entry.get("zones") or [])
+            spec = self.validate_zones(zones)
         except (ValueError, NeedsCanvasError) as e:
             log.warning("playlist zones entry skipped: %s", e)
             await self._entry_sleep(min(duration, 5.0))

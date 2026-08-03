@@ -29,6 +29,7 @@ let DISPLAY = "";                 // active display id ("" until we've loaded th
 let RICH = false;                 // can THIS wall show lowercase? (a Matrix Gateway can)
 let CANVAS = false;               // does THIS wall have a framebuffer? (a Matrix panel does)
 let DEV_MODE = false;             // COMPANION_DEV_MODE — gates the dev-only chrome (⏺ GIF)
+let ZONE_LAYOUTS = {};            // saved zone layouts (the playlist's zones rows pick from these)
 let DISPLAYS = [];                // [{id, name, grid, module_count, ...}]
 let DEFAULT_DISPLAY = "default";
 
@@ -1511,7 +1512,8 @@ function plRender() {
     // Drag the handle to reorder. The handle is the grip (so dragging never
     // starts from the select / inputs); every row is a drop target — dropping
     // onto row i moves the dragged entry to that position.
-    const tag = el("span", "handle"); tag.textContent = "⠿ " + (e.type === "app" ? t("App") : t("Msg"));
+    const tag = el("span", "handle");
+    tag.textContent = "⠿ " + (e.type === "app" ? t("App") : e.type === "zones" ? t("Zones") : t("Msg"));
     tag.draggable = true; tag.title = t("Drag to reorder");
     tag.addEventListener("dragstart", (ev) => {
       ev.dataTransfer.setData("text/plain", String(i));
@@ -1541,6 +1543,19 @@ function plRender() {
       cfg.title = nOv ? t("%s setting(s) overridden for this entry", nOv) : t("Settings for this entry");
       if (nOv) cfg.style.color = "var(--brand)";
       row.appendChild(cfg);
+    } else if (e.type === "zones") {
+      const sel = el("select"); sel.className = "input grow";
+      const names = Object.keys(ZONE_LAYOUTS);
+      if (e.layout && !names.includes(e.layout)) names.unshift(e.layout);   // deleted layout stays visible
+      names.forEach((n) => {
+        const o = el("option"); o.value = n;
+        const apps = ((ZONE_LAYOUTS[n] || {}).zones || []).map((z) => z.app).join(" | ");
+        o.textContent = n + (apps ? "  ·  " + apps : "");
+        sel.appendChild(o);
+      });
+      if (e.layout) sel.value = e.layout; else if (names[0]) e.layout = names[0];
+      sel.onchange = () => (e.layout = sel.value);
+      row.appendChild(sel);
     } else {
       const inp = el("input"); inp.className = "grow"; inp.placeholder = t("MESSAGE"); inp.value = e.text || "";
       inp.oninput = () => (e.text = inp.value); row.appendChild(inp);
@@ -1586,6 +1601,8 @@ async function loadZones() {
   const card = $("zonesCard");
   if (!card) return;
   card.classList.toggle("hidden", !CANVAS);   // only a wall with a panel splits
+  const addZ = document.getElementById("plAddZones");
+  if (addZ) addZ.classList.toggle("hidden", !CANVAS);
   if (!CANVAS) return;
   if (!APPS.length) await loadApps();
   // Any app that can draw on the panel, except the interactive games (they need
@@ -1603,6 +1620,7 @@ async function loadZones() {
     if (i === 2 && !keep && opts.length > 1) sel.selectedIndex = 1;
   });
   const saved = (await api("/api/zones/layouts")).layouts || {};
+  ZONE_LAYOUTS = saved;
   const box = $("zoneSaved"); box.innerHTML = "";
   Object.keys(saved).forEach((n) => {
     const row = el("div", "saved-row");
@@ -2333,6 +2351,13 @@ async function init() {
   // playlists
   $("plAddApp").addEventListener("click", () => { PL_ENTRIES.push({ type: "app", app: APPS[0]?.id || "", duration: 30 }); plRender(); });
   $("plAddMsg").addEventListener("click", () => { PL_ENTRIES.push({ type: "compose", text: "", duration: 15 }); plRender(); });
+  $("plAddZones").addEventListener("click", () => guard(async () => {
+    if (!Object.keys(ZONE_LAYOUTS).length) await loadZones();
+    const names = Object.keys(ZONE_LAYOUTS);
+    if (!names.length) throw new Error(t("Save a zones layout below first"));
+    PL_ENTRIES.push({ type: "zones", layout: names[0], duration: 30 });
+    plRender();
+  }));
   $("plRun").addEventListener("click", runPlaylistNow);
   $("plSave").addEventListener("click", savePlaylist);
   $("plNew").addEventListener("click", plNew);

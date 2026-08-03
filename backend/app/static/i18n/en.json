@@ -396,6 +396,7 @@
   "Run",
   "Run ▶",
   "Save",
+  "Save a zones layout below first",
   "Save as a new playlist",
   "Save for this entry",
   "Saved playlists",
@@ -510,6 +511,7 @@
   "YouTube Channel ID (for subs)",
   "YouTube Data API Key",
   "YouTube Video ID (live, for viewers)",
+  "Zones",
   "Zones — apps side by side",
   "birdnetpi.local or 192.168.x.x",
   "blank = follow Location",
@@ -548,5 +550,6 @@
   "＋ Add trigger",
   "＋ App",
   "＋ Library",
-  "＋ Message"
+  "＋ Message",
+  "＋ Zones"
 ]
