@@ -263,3 +263,23 @@ def test_zone_overrides_reach_the_app(tmp_path, monkeypatch):
         await ctrl.stop_app()
 
     asyncio.run(run())
+
+
+def test_saved_layouts_survive_the_settings_roundtrip(tmp_path):
+    """The restart bug: saved_zone_layouts was a stray bare key, so _to_nested
+    dropped it — layouts lived in memory and vanished on every restart/update.
+    As a meta key it must ride the local file AND the gateway snapshot/restore."""
+    from app.plugin_settings import PluginSettings
+
+    st = PluginSettings(tmp_path / "settings.json")
+    st.set("saved_zone_layouts", {"Morning": {"zones": [{"app": "time", "width": 1.0}]}})
+
+    doc = st.snapshot()
+    assert doc["saved_zone_layouts"]["Morning"]["zones"][0]["app"] == "time"
+
+    fresh = PluginSettings(tmp_path / "settings2.json")
+    fresh.restore_from_doc(doc)                            # the gateway-restore path
+    assert fresh.get("saved_zone_layouts")["Morning"]["zones"][0]["app"] == "time"
+
+    reread = PluginSettings(tmp_path / "settings.json")    # the local-file path
+    assert reread.get("saved_zone_layouts")["Morning"]["zones"][0]["app"] == "time"

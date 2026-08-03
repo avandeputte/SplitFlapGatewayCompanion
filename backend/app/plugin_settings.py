@@ -40,7 +40,8 @@ log = logging.getLogger("companion.settings")
 # last_run: what was driving the display when we last shut down (see main.resume_last_run).
 # It has to persist for the same reason the keys above do — a container that updates itself
 # would otherwise come back to a dead board, having forgotten the playlist it was running.
-_META_KEYS = ("installed_apps", "saved_app_playlists", "triggers", "triggers_enabled",
+_META_KEYS = ("installed_apps", "saved_app_playlists", "saved_zone_layouts",
+              "triggers", "triggers_enabled",
               "vestaboard_api_key", "mcp_token", "last_run",
               # True once the user has actually saved the Language control; lets
               # the UI-language chain tell "chose en-US" from "never touched"
@@ -77,6 +78,10 @@ def _defaults() -> dict:
         "global_loop_delay": 8,
         # Playlists + triggers (schedules/quiet-time now live on the gateway).
         "saved_app_playlists": {},
+        # Multiview layouts (the Shows tab's zones). A meta key like the playlists —
+        # a bare key outside this list is NOT persisted, which is exactly how saved
+        # multiviews silently vanished on restart before 2.10.11-beta.8.
+        "saved_zone_layouts": {},
         "triggers": [],
         "triggers_enabled": True,
         # Generated once, when the Vestaboard-compatible API is first used (blank

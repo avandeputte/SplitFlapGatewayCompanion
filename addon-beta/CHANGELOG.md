@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.11-beta.8
+
+- **Fix: saved multiviews survive restarts** — the layout store wasn't in the persisted
+  settings set, so multiviews lived in memory only and vanished on every restart/update
+  (re-save any you lost; they now ride the local file and the gateway mirror like
+  playlists do).
+
 ## 2.10.11-beta.7
 
 - **The Shows tab** — Playlists and the split-screen feature (now called **Multiview**)
