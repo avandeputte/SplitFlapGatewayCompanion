@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.11-beta.9
+
+- **Multiview separators** — a dim vertical line now divides the zones, visible on any
+  app background.
+
 ## 2.10.11-beta.8
 
 - **Fix: saved multiviews survive restarts** — the layout store wasn't in the persisted

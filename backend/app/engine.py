@@ -35,6 +35,10 @@ _PAGE_HEARTBEAT_S = 15.0
 # inside the stream's 30 s idle timeout, so a slow app never opens (and then loses) one.
 _CANVAS_STREAM_MAX_HOLD = 2.0
 
+# The multiview separator: a dim vertical line in each divider column, visible on
+# any app background but quiet enough not to read as content (LED floor ~40/ch).
+_ZONE_DIVIDER = (64, 70, 88)
+
 
 def _entry_label(entry: dict) -> str:
     """A playlist entry as one word for the running-order view: the app id,
@@ -663,11 +667,14 @@ class DisplayController:
                     changed = True
                 due[i] = now + max(0.5, float(hold) if hold else 5.0)
             if changed and any(im is not None for im in images):
-                from PIL import Image
+                from PIL import Image, ImageDraw
                 composite = Image.new("RGB", (W, H), (0, 0, 0))
                 for (x0, w), im in zip(xs, images):
                     if im is not None:
                         composite.paste(im.resize((w, H)) if im.size != (w, H) else im, (x0, 0))
+                dr = ImageDraw.Draw(composite)
+                for x0, w in xs[:-1]:                      # the reserved gap columns
+                    dr.line([(x0 + w, 0), (x0 + w, H - 1)], fill=_ZONE_DIVIDER)
                 await asyncio.to_thread(panel.frame, composite)
             nxt = min(due) - rt_loop.time()
             await self._entry_sleep(max(0.1, min(nxt, 1.0)))

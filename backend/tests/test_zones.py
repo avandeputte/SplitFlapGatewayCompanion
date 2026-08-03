@@ -132,7 +132,8 @@ def test_zones_composites_and_pushes_one_frame(tmp_path, monkeypatch):
         assert img.size == (256, 64)
         assert img.getpixel((10, 10)) == (255, 0, 0)      # the left zone
         assert img.getpixel((250, 10)) == (0, 0, 255)     # the right zone
-        assert img.getpixel((127, 10)) == (0, 0, 0)       # the divider column
+        from app.engine import _ZONE_DIVIDER
+        assert img.getpixel((127, 10)) == _ZONE_DIVIDER   # the visible separator line
         assert ctrl.active_app == "zones:pair"
         await ctrl.stop_app()
 
