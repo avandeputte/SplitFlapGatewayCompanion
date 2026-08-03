@@ -35,7 +35,7 @@
   <nav class="tabs" id="nav">
     <button class="tab active" data-tab="apps" data-i18n="Apps">Apps</button>
     <button class="tab" data-tab="compose" data-i18n="Compose">Compose</button>
-    <button class="tab" data-tab="playlists" data-i18n="Playlists">Playlists</button>
+    <button class="tab" data-tab="playlists" data-i18n="Shows">Shows</button>
     <button class="tab" data-tab="triggers" data-i18n="Triggers">Triggers</button>
   </nav>
 
@@ -140,13 +140,20 @@
 
     <!-- PLAYLISTS -->
     <section class="panel tabpage hidden" id="page-playlists">
-      <div class="panel-head"><h2 data-i18n="Playlists">Playlists</h2></div>
+      <div class="panel-head">
+        <h2 data-i18n="Shows">Shows</h2>
+        <div class="subtabs" id="showsTabs">
+          <button class="btn ghost btn-sm active" data-pane="pl" data-i18n="Playlists">Playlists</button>
+          <button class="btn ghost btn-sm hidden" data-pane="mv" id="mvTabBtn" data-i18n="Multiview">Multiview</button>
+        </div>
+      </div>
+      <div id="plPane">
       <p class="hint" data-i18n="Sequence apps and composed messages, each shown for its own duration.">Sequence apps and composed messages, each shown for its own duration.</p>
       <div id="plEntries" class="pl-entries"></div>
       <div class="controls">
         <button class="btn ghost btn-sm" id="plAddApp" data-i18n="＋ App">＋ App</button>
         <button class="btn ghost btn-sm" id="plAddMsg" data-i18n="＋ Message">＋ Message</button>
-        <button class="btn ghost btn-sm hidden" id="plAddZones" data-i18n="＋ Zones">＋ Zones</button>
+        <button class="btn ghost btn-sm hidden" id="plAddZones" data-i18n="＋ Multiview">＋ Multiview</button>
         <!-- The editor's identity. Without it, saving an edit meant retyping the exact
              name you had just loaded, and a typo silently made a second playlist. -->
         <input class="input pl-name" id="plName" placeholder="Playlist name" data-i18n-placeholder="Playlist name" aria-label="Playlist name" data-i18n-label="Playlist name">
@@ -158,19 +165,19 @@
       </div>
       <h3 style="margin:16px 0 8px;font-size:.95rem" data-i18n="Saved playlists">Saved playlists</h3>
       <div id="plSaved"><span class="hint" data-i18n="None yet.">None yet.</span></div>
+      </div>
       <div id="zonesCard" class="hidden">
-        <h3 style="margin:16px 0 8px;font-size:.95rem" data-i18n="Zones — apps side by side">Zones — apps side by side</h3>
-        <p class="hint" data-i18n="Split the Matrix panel into 2–3 vertical zones, one app each. Games are excluded — they need the whole panel.">Split the Matrix panel into 2–3 vertical zones, one app each. Games are excluded — they need the whole panel.</p>
+        <p class="hint" data-i18n="A multiview splits the Matrix panel into 2–3 vertical zones, one app each. Games are excluded — they need the whole panel.">A multiview splits the Matrix panel into 2–3 vertical zones, one app each. Games are excluded — they need the whole panel.</p>
         <div id="zoneEntries" class="pl-entries"></div>
         <div class="controls">
           <button class="btn ghost btn-sm" id="zoneAdd" data-i18n="＋ Zone">＋ Zone</button>
-          <input class="input pl-name" id="zoneName" placeholder="Layout name" data-i18n-placeholder="Layout name" aria-label="Layout name" data-i18n-label="Layout name">
+          <input class="input pl-name" id="zoneName" placeholder="Multiview name" data-i18n-placeholder="Multiview name" aria-label="Multiview name" data-i18n-label="Multiview name">
           <button class="btn ghost btn-sm" id="zoneNew" data-i18n="New">New</button>
           <div class="spacer"></div>
           <button class="btn ghost btn-sm" id="zoneSave" data-i18n="Save…">Save…</button>
           <button class="btn primary btn-sm" id="zoneRun" data-i18n="Run ▶">Run ▶</button>
         </div>
-        <h3 style="margin:16px 0 8px;font-size:.95rem" data-i18n="Saved layouts">Saved layouts</h3>
+        <h3 style="margin:16px 0 8px;font-size:.95rem" data-i18n="Saved multiviews">Saved multiviews</h3>
         <div id="zoneSaved"><span class="hint" data-i18n="None yet.">None yet.</span></div>
       </div>
     </section>

@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.11-beta.7
+
+- **The Shows tab** — Playlists and the split-screen feature (now called **Multiview**)
+  each get their own sub-tab instead of stacking on one page; same editors, tidier home.
+
 ## 2.10.11-beta.6
 
 - **Zones editor, playlist-grade** — rows with the rich app picker, per-zone ⚙

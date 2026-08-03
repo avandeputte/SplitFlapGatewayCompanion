@@ -57,16 +57,18 @@ and [ATTRIBUTION.md](ATTRIBUTION.md).
   all** returns every module to its blank home position, stopping whatever is playing.
   Stopping an app or playlist blanks the wall: nothing running means nothing shown, and
   a clock frozen at 11:34 is not obviously *off*, it is obviously *wrong*.
-- **Playlists** — sequence apps and messages with per-entry durations; save, run,
-  loop. **Per-entry settings** let the same app appear more than once configured
+- **Playlists** — on the **Shows** tab: sequence apps, messages and multiviews with
+  per-entry durations; save, run, loop. **Per-entry settings** let the same app appear more than once configured
   differently (e.g. weather for two cities in two languages).
 - **Schedules** — time-of-day windows that run an app or playlist, or turn the
   display off, per weekday, plus **quiet hours** — these live on the gateway, whose
   pages open right inside the companion's nav.
-- **Zones** — split a Matrix panel into 2–3 vertical strips and run an app in each: a
-  clock beside the weather beside a sensor chart, composited into one frame. Ad-hoc from
-  the Playlists page, saved as named layouts, runnable as a playlist entry
-  (`"type": "zones"`) or via the MCP `run_zones` tool.
+- **Multiview** — split a Matrix panel into 2–3 vertical zones and run an app in each: a
+  clock beside the weather beside a sensor chart, composited into one frame. Built and
+  saved on the **Shows** tab (its own sub-tab, playlist-grade editor: rich app picker,
+  per-zone setting overrides, drag-to-reorder), runnable as a playlist entry
+  (`"type": "zones"`) or via the MCP `run_zones` tool. Gateway-resident apps (effects,
+  sound-reactive visuals) can't join a multiview — they render on the wall itself.
 - **Rich Matrix panel views** — on a Matrix Gateway's LED panel most apps draw a
   full-panel graphic view (gauges, charts, artwork — not just flap text), with a per-app
   "Show on Matrix panel" toggle; some are **playable games** with on-screen controls,

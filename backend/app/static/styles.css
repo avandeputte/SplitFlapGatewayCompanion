@@ -667,3 +667,7 @@ input[type=checkbox] { accent-color: var(--brand); }
 .panel-card > .hint { display: block; margin-bottom: 10px; }
 .pill { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 9px;
   font-size: .7rem; background: var(--brand); color: #fff; vertical-align: middle; }
+
+/* Shows sub-tabs (Playlists | Multiview) — a small segmented switch in the panel head */
+.subtabs { display: flex; gap: 6px; }
+.subtabs .btn.active { background: var(--brand); color: #fff; border-color: var(--brand); }

@@ -185,7 +185,7 @@ def test_zones_playlist_entry_resolves_a_saved_layout(tmp_path, monkeypatch):
     from test_engine_interrupts import FakeGateway, _until
 
     assert _entry_label({"type": "zones", "layout": "Morning"}) == "Morning"
-    assert _entry_label({"type": "zones"}) == "(zones)"
+    assert _entry_label({"type": "zones"}) == "(multiview)"
 
     class _Panel:
         def __init__(self, url, caps):

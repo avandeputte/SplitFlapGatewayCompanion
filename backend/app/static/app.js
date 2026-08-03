@@ -1514,7 +1514,7 @@ function plRender() {
     // starts from the select / inputs); every row is a drop target — dropping
     // onto row i moves the dragged entry to that position.
     const tag = el("span", "handle");
-    tag.textContent = "⠿ " + (e.type === "app" ? t("App") : e.type === "zones" ? t("Zones") : t("Msg"));
+    tag.textContent = "⠿ " + (e.type === "app" ? t("App") : e.type === "zones" ? t("Multiview") : t("Msg"));
     tag.draggable = true; tag.title = t("Drag to reorder");
     tag.addEventListener("dragstart", (ev) => {
       ev.dataTransfer.setData("text/plain", String(i));
@@ -1653,10 +1653,16 @@ function zonesRender() {
 async function loadZones() {
   const card = $("zonesCard");
   if (!card) return;
-  card.classList.toggle("hidden", !CANVAS);   // only a wall with a panel splits
+  const mvBtn = document.getElementById("mvTabBtn");
+  if (mvBtn) mvBtn.classList.toggle("hidden", !CANVAS);
   const addZ = document.getElementById("plAddZones");
   if (addZ) addZ.classList.toggle("hidden", !CANVAS);
-  if (!CANVAS) return;
+  if (!CANVAS) {
+    card.classList.add("hidden");             // and snap back to the playlists pane
+    const plBtn = document.querySelector('#showsTabs [data-pane="pl"]');
+    if (plBtn) plBtn.click();
+    return;
+  }
   if (!APPS.length) await loadApps();
   const saved = (await api("/api/zones/layouts")).layouts || {};
   ZONE_LAYOUTS = saved;
@@ -2401,7 +2407,7 @@ async function init() {
   $("plAddZones").addEventListener("click", () => guard(async () => {
     if (!Object.keys(ZONE_LAYOUTS).length) await loadZones();
     const names = Object.keys(ZONE_LAYOUTS);
-    if (!names.length) throw new Error(t("Save a zones layout below first"));
+    if (!names.length) throw new Error(t("Save a multiview first (Shows → Multiview)"));
     PL_ENTRIES.push({ type: "zones", layout: names[0], duration: 30 });
     plRender();
   }));
@@ -2409,6 +2415,15 @@ async function init() {
   $("plSave").addEventListener("click", savePlaylist);
   $("plNew").addEventListener("click", plNew);
   $("plName").addEventListener("input", plSaveLabel);
+  // Shows sub-tabs: Playlists | Multiview (the multiview pane needs a panel)
+  document.querySelectorAll("#showsTabs [data-pane]").forEach((b) => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll("#showsTabs [data-pane]").forEach((x) =>
+        x.classList.toggle("active", x === b));
+      $("plPane").classList.toggle("hidden", b.dataset.pane !== "pl");
+      $("zonesCard").classList.toggle("hidden", b.dataset.pane !== "mv" || !CANVAS);
+    });
+  });
   // zones
   $("zoneAdd").addEventListener("click", () => {
     if (ZONE_ENTRIES.length >= 3) return;

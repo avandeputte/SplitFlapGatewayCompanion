@@ -42,7 +42,7 @@ def _entry_label(entry: dict) -> str:
     if entry.get("type") == "compose":
         return "(message)"
     if entry.get("type") == "zones":
-        return str(entry.get("layout") or "(zones)")
+        return str(entry.get("layout") or "(multiview)")
     return app_id_from_ref(entry.get("app", "") or "(unknown)")
 
 

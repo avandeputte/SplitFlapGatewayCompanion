@@ -27,7 +27,7 @@ import re
 COMPANION_TABS: list[dict[str, str]] = [
     {"id": "apps", "label": "Apps"},
     {"id": "compose", "label": "Compose"},
-    {"id": "playlists", "label": "Playlists"},
+    {"id": "playlists", "label": "Shows"},
     {"id": "triggers", "label": "Triggers"},
 ]
 
