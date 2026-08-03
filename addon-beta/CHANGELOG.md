@@ -3,64 +3,23 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
-## 2.10.11-beta.9
+## 2.10.11
 
-- **Multiview separators** — a dim vertical line now divides the zones, visible on any
-  app background.
-
-## 2.10.11-beta.8
-
-- **Fix: saved multiviews survive restarts** — the layout store wasn't in the persisted
-  settings set, so multiviews lived in memory only and vanished on every restart/update
-  (re-save any you lost; they now ride the local file and the gateway mirror like
-  playlists do).
-
-## 2.10.11-beta.7
-
-- **The Shows tab** — Playlists and the split-screen feature (now called **Multiview**)
-  each get their own sub-tab instead of stacking on one page; same editors, tidier home.
-
-## 2.10.11-beta.6
-
-- **Zones editor, playlist-grade** — rows with the rich app picker, per-zone ⚙
-  setting overrides, drag-to-reorder, and Edit/New/Save for saved layouts. The picker
-  (and the validator) now excludes gateway-resident apps — effects, sound-reactive
-  visuals, the device anim/ticker — which can't share the panel as a zone.
-
-## 2.10.11-beta.5
-
-- **Name your place** — a new Global setting, "Location display name": apps show your
-  word for home ("Lebo") instead of the geocoder's ("Mt Lebanon"), across weather and
-  every location-aware surface.
-
-## 2.10.11-beta.4
-
-- **Zones in playlists** — a ＋ Zones button in the playlist editor adds a saved layout
-  as an entry (a reference: edit the layout and every playlist follows); the running
-  order shows the layout's name.
-
-## 2.10.11-beta.3
-
-- **Fix: the Zones card actually appears** — it only rendered after a display switch;
-  now it loads with the Playlists page everywhere (boot, tab open, edits).
-
-## 2.10.11-beta.2
-
-- **⏺ GIF is developer chrome** — the panel recorder (button + endpoint) now appears
-  only with developer mode on (`COMPANION_DEV_MODE=1` / the add-on's dev_mode option).
-
-## 2.10.11-beta.1
-
-- **Zones 🪟** — split the panel into 2–3 vertical strips, one app each (clock | weather
-  | sensor chart): run ad-hoc, save named layouts, use as a playlist entry, or the MCP
-  `run_zones` tool. Games keep the whole panel.
-- **Panel toasts 🔔** — triggers and timed messages on a Matrix wall now arrive as a
-  drawn card (icon + accent + big text, sliding up) instead of flap-cell letters;
-  `/api/message` takes optional `icon`/`accent`.
+- **Multiview 🪟** — split the Matrix panel into 2–3 vertical zones, one app each, with
+  a playlist-grade editor on the new **Shows** tab: rich app picker, per-zone setting
+  overrides, drag-to-reorder, saved multiviews (persisted like playlists) and a dim
+  separator line between zones. Run ad-hoc, save, drop into playlists (＋ Multiview),
+  or call the MCP `run_zones` tool. Gateway-resident apps (effects, sound-reactive
+  visuals) sit out — they render on the wall itself.
+- **Panel toasts 🔔** — triggers and timed messages on a Matrix wall arrive as a drawn
+  card (icon + accent bar + big text, sliding up) instead of flap-cell letters;
+  `/api/message` takes optional `icon` (bell/info/alert/check/cross/heart) and `accent`.
 - **Arcade high scores 🏆** — every game keeps its best across restarts; beat it for a
   golden NEW BEST! on the game-over card.
-- **⏺ GIF** — record 8 seconds of the panel from the Live Display header and download
-  a chunky-pixel GIF.
+- **Name your place** — Global settings → "Location display name": apps call home by
+  your word ("Lebo"), not the geocoder's ("Mt Lebanon").
+- **⏺ GIF (developer mode)** — record 8 seconds of the panel from the Live Display
+  header and download a chunky-pixel GIF.
 
 ## 2.10.10
 
