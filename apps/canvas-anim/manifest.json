@@ -4,7 +4,9 @@
   "icon": "🎞️",
   "description": "Play a looping GIF on-device (Matrix panel)",
   "type": "functional",
-  "surfaces": ["matrix"],
+  "surfaces": [
+    "matrix"
+  ],
   "refresh_interval": 600,
   "loop_delay": 30,
   "category": "fun",
@@ -16,7 +18,10 @@
       "options_source": "anim_library",
       "default": "",
       "options": [
-        {"value": "", "label": "— none (play a GIF below) —"}
+        {
+          "value": "",
+          "label": "— none (play a GIF below) —"
+        }
       ],
       "note": "Play an animation already stored on the Matrix gateway. Takes priority over the GIF URL."
     },
@@ -33,8 +38,14 @@
       "type": "toggle",
       "default": "cover",
       "options": [
-        {"value": "cover", "label": "Fill"},
-        {"value": "contain", "label": "Fit"}
+        {
+          "value": "cover",
+          "label": "Fill"
+        },
+        {
+          "value": "contain",
+          "label": "Fit"
+        }
       ]
     },
     {
@@ -49,5 +60,6 @@
     }
   ],
   "min_rows": 1,
-  "min_cols": 15
+  "min_cols": 15,
+  "device_render": true
 }

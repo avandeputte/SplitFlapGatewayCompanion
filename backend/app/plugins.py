@@ -1059,6 +1059,16 @@ class PluginRuntime:
             return None
         return self.render_matrix_on(app_id, surface, overrides)
 
+    def renders_offscreen(self, app_id: str) -> bool:
+        """Can this app draw into an offscreen zone? Functional, has fetch_matrix,
+        not interactive (needs the pad + whole panel), not device_render (drives the
+        gateway's own renderer — effects, the device ticker/anim library)."""
+        m = self._registry.get(app_id)
+        mod = self._modules.get(app_id)
+        return bool(m and not m.get("interactive") and not m.get("device_render")
+                    and not self.is_channel_app(app_id)
+                    and callable(getattr(mod, "fetch_matrix", None)))
+
     def render_matrix_on(self, app_id: str, surface, overrides: dict | None = None):
         """``render_matrix`` with the caller's surface — the ZONES engine renders each
         zone's app into its own offscreen ZoneCanvas and composites, so the surface
@@ -1224,6 +1234,9 @@ class PluginRuntime:
             # A live game: while it runs, the UI shows the on-screen control pad and its
             # keypresses POST to /api/game/input (read by the app's `controls` helper).
             "interactive": bool(manifest.get("interactive")),
+            # True = the app drives the GATEWAY's own renderer (an effect, the
+            # device ticker/anim library) — it can't draw into an offscreen zone.
+            "device_render": bool(manifest.get("device_render")),
             "builtin": builtin,
         }
 

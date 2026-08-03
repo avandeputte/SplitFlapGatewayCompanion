@@ -112,6 +112,9 @@ def effect_manifest(rt, effect_id: str, token: str) -> dict:
         name = str(edef["name"])                     # the firmware owns effect naming
     m["name"] = name
     m["icon"] = icon
+    # An effect runs ON the gateway (its fetch just posts /api/effect) — it cannot
+    # render into an offscreen zone, and the zones picker/validator excludes it.
+    m["device_render"] = True
     svg = EFFECT_ICON_SVG.get(token)
     if svg:
         m["icon_svg"] = svg

@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.11-beta.6
+
+- **Zones editor, playlist-grade** — rows with the rich app picker, per-zone ⚙
+  setting overrides, drag-to-reorder, and Edit/New/Save for saved layouts. The picker
+  (and the validator) now excludes gateway-resident apps — effects, sound-reactive
+  visuals, the device anim/ticker — which can't share the panel as a zone.
+
 ## 2.10.11-beta.5
 
 - **Name your place** — a new Global setting, "Location display name": apps show your

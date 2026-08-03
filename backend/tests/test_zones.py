@@ -20,18 +20,24 @@ def _matrix_caps(w=256, h=64):
 
 
 class _Plugins:
-    """Two tiny inline matrix apps: LEFT paints red, RIGHT paints blue."""
+    """Two tiny inline matrix apps: LEFT paints red, RIGHT paints blue. "game" is
+    interactive; "fx" stands in for a gateway-resident effect."""
 
     def __init__(self):
         self.settings = {}
         self.calls = []
+        self.overrides_seen = []
 
     def manifest(self, app_id):
         return {"id": app_id, "interactive": app_id == "game"} \
-            if app_id in ("left", "right", "game") else None
+            if app_id in ("left", "right", "game", "fx") else None
+
+    def renders_offscreen(self, app_id):
+        return app_id in ("left", "right")
 
     def render_matrix_on(self, app_id, surface, overrides=None):
         self.calls.append(app_id)
+        self.overrides_seen.append(overrides)
         color = (255, 0, 0) if app_id == "left" else (0, 0, 255)
         surface.clear(color)
         surface.show()
@@ -83,6 +89,10 @@ def test_validate_zones_rules(tmp_path):
         ctrl.validate_zones([{"app": "left"}, {"app": "nope"}])
     with pytest.raises(ValueError):
         ctrl.validate_zones([{"app": "left"}, {"app": "game"}])   # interactive excluded
+    with pytest.raises(ValueError):
+        ctrl.validate_zones([{"app": "left"}, {"app": "fx"}])     # gateway-resident excluded
+    spec = ctrl.validate_zones([{"app": "left", "overrides": {"units": "c"}}, {"app": "right"}])
+    assert spec[0]["overrides"] == {"units": "c"}                 # per-zone settings survive
     ctrl._caps = lambda: device.SPLIT_FLAP
     with pytest.raises(NeedsCanvasError):
         ctrl.validate_zones([{"app": "left"}, {"app": "right"}])
@@ -206,6 +216,50 @@ def test_zones_playlist_entry_resolves_a_saved_layout(tmp_path, monkeypatch):
         assert set(ctrl.plugins.calls) == {"left", "right"}
         ctrl.skip_playlist_entry()
         await _until(lambda: ctrl.state.playlist_index == 1, "zones slot outlived its skip")
+        await ctrl.stop_app()
+
+    asyncio.run(run())
+
+
+def test_renders_offscreen_against_the_real_registry(tmp_path):
+    from conftest import make_runtime
+    rt = make_runtime(tmp_path=tmp_path,
+                      installed=["canvas-sensor-graph", "canvas-snake", "canvas-anim", "dad-jokes"])
+    assert rt.renders_offscreen("canvas-sensor-graph") is True    # offscreen-rendering functional
+    assert rt.renders_offscreen("canvas-snake") is False          # interactive
+    assert rt.renders_offscreen("canvas-anim") is False           # drives the device renderer
+    assert rt.renders_offscreen("dad-jokes") is False             # a channel renders via channel_art
+
+
+def test_zone_overrides_reach_the_app(tmp_path, monkeypatch):
+    from app import canvas as canvas_mod
+
+    class _Panel:
+        def __init__(self, url, caps):
+            pass
+
+        def frame(self, img):
+            return True
+
+    async def run():
+        ctrl = _controller(tmp_path)
+        monkeypatch.setattr(canvas_mod, "CanvasSurface", _Panel)
+
+        async def fake_take_panel():
+            return "http://gw"
+
+        async def _noop(*a, **k):
+            return None
+
+        ctrl._take_panel = fake_take_panel
+        ctrl._release_canvas = _noop
+        await ctrl.run_zones([{"app": "left", "overrides": {"units": "c"}},
+                              {"app": "right"}])
+        for _ in range(100):
+            if len(ctrl.plugins.overrides_seen) >= 2:
+                break
+            await asyncio.sleep(0.02)
+        assert {"units": "c"} in ctrl.plugins.overrides_seen
         await ctrl.stop_app()
 
     asyncio.run(run())

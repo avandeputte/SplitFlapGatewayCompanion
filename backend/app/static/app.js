@@ -1291,7 +1291,8 @@ async function openAppSettings(id, name) {
 // Per-playlist-entry settings: reuse the app's own settings form, but save the
 // values into this entry's `overrides` (only what differs from the app's config),
 // so the same app can appear multiple times configured differently.
-async function openEntrySettings(entry) {
+async function openEntrySettings(entry, onDone) {
+  const done = onDone || plRender;
   const app = APPS.find((a) => a.id === entry.app);
   const schema = await api(`/api/apps/${entry.app}/settings?lang=${LANG}`);
   const base = Object.assign({}, schema.values, entry.overrides || {});   // entry values win in the form
@@ -1312,7 +1313,7 @@ async function openEntrySettings(entry) {
       if (String(v) !== String(schema.values[k] ?? "")) ov[k] = v;   // store only genuine overrides
     });
     entry.overrides = ov;
-    closeModal(); plRender();
+    closeModal(); done();
   });
   openModal(t("%s — entry settings", `${app ? app.icon + " " : ""}${app ? app.name : entry.app}`), form, [msg, clear, save]);
 }
@@ -1597,6 +1598,58 @@ async function loadPlaylists() {
   await loadZones();
 }
 // ---- Zones: 2-3 apps side by side on the Matrix panel ----------------------
+let ZONE_ENTRIES = [];    // the editor's working set: [{app, overrides?}]
+let ZONE_NAME = "";       // the layout being edited ("" = unsaved)
+
+function zoneEligibleApps() {
+  // Only apps that can DRAW into an offscreen zone: matrix-rendering functional
+  // apps, minus the games (whole panel + pad) and the gateway-resident renderers
+  // (effects / device anim / ticker — the backend validator refuses those too).
+  return APPS.filter((a) => (a.surfaces || []).includes("matrix")
+    && a.type === "functional" && !a.interactive && !a.device_render);
+}
+
+function zonesRender() {
+  const box = $("zoneEntries");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!ZONE_ENTRIES.length) box.innerHTML = `<span class="hint">${t("Add 2–3 zones.")}</span>`;
+  const opts = zoneEligibleApps();
+  ZONE_ENTRIES.forEach((z, i) => {
+    const row = el("div", "row-card");
+    const tag = el("span", "handle"); tag.textContent = "⠿ " + (i + 1);
+    tag.draggable = true; tag.title = t("Drag to reorder");
+    tag.addEventListener("dragstart", (ev) => {
+      ev.dataTransfer.setData("text/zone", String(i));
+      ev.dataTransfer.effectAllowed = "move"; row.classList.add("dragging");
+    });
+    tag.addEventListener("dragend", () => row.classList.remove("dragging"));
+    row.addEventListener("dragover", (ev) => { ev.preventDefault(); row.classList.add("drop-target"); });
+    row.addEventListener("dragleave", () => row.classList.remove("drop-target"));
+    row.addEventListener("drop", (ev) => {
+      ev.preventDefault(); row.classList.remove("drop-target");
+      const from = Number(ev.dataTransfer.getData("text/zone"));
+      if (Number.isNaN(from) || from === i) return;
+      const [moved] = ZONE_ENTRIES.splice(from, 1);
+      ZONE_ENTRIES.splice(i, 0, moved);
+      zonesRender();
+    });
+    row.appendChild(tag);
+    if (!z.app && opts[0]) z.app = opts[0].id;
+    const sel = richAppSelect(opts, z.app, (v) => { z.app = v; z.overrides = {}; zonesRender(); });
+    sel.classList.add("grow"); row.appendChild(sel);
+    const nOv = Object.keys(z.overrides || {}).length;
+    const cfg = btn(nOv ? `⚙ ${nOv}` : "⚙", () => openEntrySettings(z, zonesRender), "del");
+    cfg.title = nOv ? t("%s setting(s) overridden for this zone", nOv) : t("Settings for this zone");
+    if (nOv) cfg.style.color = "var(--brand)";
+    row.appendChild(cfg);
+    row.appendChild(btn("✕", () => { ZONE_ENTRIES.splice(i, 1); zonesRender(); }, "del"));
+    box.appendChild(row);
+  });
+  const add = $("zoneAdd");
+  if (add) add.disabled = ZONE_ENTRIES.length >= 3;
+}
+
 async function loadZones() {
   const card = $("zonesCard");
   if (!card) return;
@@ -1605,42 +1658,36 @@ async function loadZones() {
   if (addZ) addZ.classList.toggle("hidden", !CANVAS);
   if (!CANVAS) return;
   if (!APPS.length) await loadApps();
-  // Any app that can draw on the panel, except the interactive games (they need
-  // the pad and the whole panel to themselves).
-  const opts = APPS.filter((a) => (a.surfaces || []).includes("matrix") && !a.interactive);
-  [1, 2, 3].forEach((i) => {
-    const sel = $("zoneApp" + i);
-    const keep = sel.value;
-    sel.innerHTML = "";
-    if (i === 3) { const o = el("option"); o.value = ""; o.textContent = t("(no third zone)"); sel.appendChild(o); }
-    opts.forEach((a) => {
-      const o = el("option"); o.value = a.id; o.textContent = a.name; sel.appendChild(o);
-    });
-    if (keep) sel.value = keep;
-    if (i === 2 && !keep && opts.length > 1) sel.selectedIndex = 1;
-  });
   const saved = (await api("/api/zones/layouts")).layouts || {};
   ZONE_LAYOUTS = saved;
   const box = $("zoneSaved"); box.innerHTML = "";
-  Object.keys(saved).forEach((n) => {
-    const row = el("div", "saved-row");
+  const names = Object.keys(saved);
+  if (!names.length) box.innerHTML = `<span class="hint">${t("None yet.")}</span>`;
+  names.forEach((n) => {
+    const row = el("div", "saved-row" + (n === ZONE_NAME ? " editing" : ""));
     const nm = el("span", "grow");
     nm.textContent = n + "  ·  " + (saved[n].zones || []).map((z) => z.app).join(" | ");
     row.appendChild(nm);
+    if (n === ZONE_NAME) { const tg = el("span", "pill sm"); tg.textContent = t("editing"); row.appendChild(tg); }
     row.appendChild(btn(t("Run"), () => guard(() => post("/api/zones/run", { layout: n })), "btn btn-sm primary"));
+    row.appendChild(btn(t("Edit"), () => {
+      ZONE_NAME = n;
+      $("zoneName").value = n;
+      ZONE_ENTRIES = (saved[n].zones || []).map((z) => ({ app: z.app, overrides: Object.assign({}, z.overrides || {}) }));
+      zonesRender(); loadZones();
+    }, "btn btn-sm ghost"));
     row.appendChild(btn(t("Delete"), () => guard(async () => {
-      await del("/api/zones/layouts/" + encodeURIComponent(n)); loadZones();
+      await del("/api/zones/layouts/" + encodeURIComponent(n));
+      if (ZONE_NAME === n) { ZONE_NAME = ""; $("zoneName").value = ""; }
+      loadZones();
     }), "btn btn-sm ghost"));
     box.appendChild(row);
   });
+  if (!ZONE_ENTRIES.length) zonesRender();
 }
 function zonesSpec() {
-  const zones = [];
-  [1, 2, 3].forEach((i) => {
-    const v = $("zoneApp" + i).value;
-    if (v) zones.push({ app: v });
-  });
-  return zones;
+  return ZONE_ENTRIES.filter((z) => z.app)
+    .map((z) => ({ app: z.app, overrides: Object.keys(z.overrides || {}).length ? z.overrides : undefined }));
 }
 
 
@@ -2363,10 +2410,27 @@ async function init() {
   $("plNew").addEventListener("click", plNew);
   $("plName").addEventListener("input", plSaveLabel);
   // zones
+  $("zoneAdd").addEventListener("click", () => {
+    if (ZONE_ENTRIES.length >= 3) return;
+    ZONE_ENTRIES.push({ app: "", overrides: {} });
+    zonesRender();
+  });
+  $("zoneNew").addEventListener("click", () => {
+    ZONE_NAME = ""; $("zoneName").value = ""; ZONE_ENTRIES = []; zonesRender(); loadZones();
+  });
   $("zoneRun").addEventListener("click", () => guard(async () => {
     const zones = zonesSpec();
     if (zones.length < 2) throw new Error(t("Pick at least two zones"));
     await post("/api/zones/run", { zones });
+  }));
+  $("zoneSave").addEventListener("click", () => guard(async () => {
+    const zones = zonesSpec();
+    const name = $("zoneName").value.trim();
+    if (zones.length < 2) throw new Error(t("Pick at least two zones"));
+    if (!name) throw new Error(t("Layout name required"));
+    await post("/api/zones/layouts", { name, zones });
+    ZONE_NAME = name;
+    loadZones();
   }));
   $("zoneSave").addEventListener("click", () => guard(async () => {
     const zones = zonesSpec();

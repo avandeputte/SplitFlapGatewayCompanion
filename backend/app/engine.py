@@ -558,6 +558,10 @@ class DisplayController:
                 raise ValueError(f"unknown app in zones: {app_id or '(empty)'}")
             if m.get("interactive"):
                 raise ValueError(f"{app_id} is interactive — it needs the whole panel and the pad")
+            ok_off = getattr(self.plugins, "renders_offscreen", None)
+            if callable(ok_off) and not ok_off(app_id):
+                raise ValueError(f"{app_id} renders on the gateway itself (an effect / "
+                                 "device animation) — it can't share the panel as a zone")
             try:
                 w = float(z.get("width") or 0)
             except (TypeError, ValueError):
