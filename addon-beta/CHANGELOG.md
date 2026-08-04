@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.9
+
+- **17 more apps draw as on-device text on the LCD** — the clocks and counters (Date, Countdown,
+  Word Clock, Time Since), the quote/fact/trivia family (Advice, Cat/Dog Facts, Chuck Norris,
+  Quote, Trivia, Useless Fact), and the numeric cards (Crypto, Stocks, Exchange Rates, Metals,
+  BTC Fear & Greed, Moon Phase) now render their text as scalable anti-aliased `gtext` ops at the
+  real 1280×800 — crisp, and a few hundred bytes a frame over the stream — instead of an upscaled
+  pixel frame. Each keeps its LED look byte-for-byte.
+
 ## 2.10.12-beta.8
 
 - **The clock draws as on-device text now (LCD)** — on a wall with the firmware's scalable

@@ -231,6 +231,75 @@ def _cv_gauge(canvas, ImageDraw, value, label):
     return img
 
 
+def _cv_gauge_gtext(canvas, value, label):
+    """The Fear & Greed gauge drawn with the LCD's on-device ops + gtext instead of a pushed
+    pixel frame: a title strip up top, a big value + classification hero through the middle, and
+    a red->green zone bar along the bottom — lit bright to the value, dim beyond, a white needle
+    on the spot, 0/100 end labels. Mirrors the tall PIL layout; every size is a fraction of the
+    panel, so it fills the wall at native resolution and previews at 256x160."""
+    W, H = canvas.width, canvas.height
+    col = _cv_zone_color(value)
+    canvas.clear((0, 0, 0))
+    pad = max(4, int(W * 0.02))
+    title = 'BTC FEAR & GREED'
+    tsize = canvas.fit_gtext(title, W - 2 * pad, int(H * 0.12))
+    ty = max(3, int(H * 0.02))
+    canvas.gtext(W / 2, ty, title, color=_CV_DIM, size=tsize, align="center")
+    ttop = ty + int(tsize * 0.75)
+
+    bar_h = max(10, int(H * 0.17))
+    lab_h = max(9, int(H * 0.09))
+    by1 = H - 1 - lab_h - max(2, int(H * 0.02))
+    by0 = by1 - bar_h
+    x0, x1 = pad, W - 1 - pad
+    span = max(1, x1 - x0)
+    vx = x0 + round(value / 100.0 * span)
+    lo_prev = 0
+    for limit, zc in _CV_ZONES:                     # zones as bright/dim bands, not per-pixel lines
+        zx0 = x0 + round(lo_prev / 100.0 * span)
+        zx1 = x0 + round(limit / 100.0 * span)
+        b1 = min(zx1, vx)
+        if b1 > zx0:
+            canvas.rect(zx0, by0, b1 - zx0, bar_h, color=zc, fill=True)
+        d0 = max(zx0, vx)
+        if zx1 > d0:
+            canvas.rect(d0, by0, zx1 - d0, bar_h,
+                        color=tuple(int(ch * 0.22) for ch in zc), fill=True)
+        lo_prev = limit
+    nd = max(2, int(bar_h * 0.12))                  # marker / needle half-width
+    canvas.rect(vx - nd, by0 - 1, 2 * nd + 1, bar_h + 2, color=(255, 255, 255), fill=True)
+    nh = max(6, int(bar_h * 0.55))
+    canvas.poly([(vx - 2 * nd, by0 - nh), (vx + 2 * nd, by0 - nh), (vx, by0 - 1)],
+                color=(255, 255, 255), fill=True)
+    esize = max(9, lab_h)
+    ely = by1 + max(2, int(H * 0.02))
+    canvas.gtext(x0, ely, '0', color=_CV_DIM, size=esize)
+    canvas.gtext(x1, ely, '100', color=_CV_DIM, size=esize, align="right")
+
+    vs = str(value)
+    hero_top = ttop + max(4, int(H * 0.03))
+    hero_h = max(10, (by0 - nh - max(3, int(H * 0.02))) - hero_top)
+    vsize = canvas.fit_gtext(vs, int(W * 0.44), hero_h)
+    vw = canvas.text_width(vs, vsize)
+    lab_lines = label.upper().split() or [label.upper()]
+    gap = max(6, int(W * 0.03))
+    lw_max = max(20, W - 2 * pad - vw - gap)
+    line_h = int(hero_h * (0.60 if len(lab_lines) == 1 else 0.42))
+    lsize = min(canvas.fit_gtext(ln, lw_max, line_h) for ln in lab_lines)
+    lw = max(canvas.text_width(ln, lsize) for ln in lab_lines)
+    lgap = max(2, int(lsize * 0.18))
+    pitch = lsize * 0.75 + lgap
+    lblock = (len(lab_lines) - 1) * pitch + lsize * 0.75
+    gx = (W - (vw + gap + lw)) / 2.0
+    vcy = hero_top + hero_h / 2.0
+    canvas.gtext(gx, vcy - vsize * 0.56, vs, color=col, size=vsize)
+    ly = vcy - 0.20 * lsize - lblock / 2.0
+    for ln in lab_lines:
+        canvas.gtext(gx + vw + gap, ly, ln, color=_CV_TEXT, size=lsize)
+        ly += pitch
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     """Draw the index as a color gauge; the last good reading survives an outage.
     The index updates daily — five minutes between redraws is already generous."""
@@ -251,5 +320,9 @@ def fetch_canvas(settings, canvas, i18n=None):
         canvas.frame(canvas.message('FEAR & GREED', t('Offline').upper()))
         return 120.0
     value, classification = st['last']
-    canvas.frame(_cv_gauge(canvas, ImageDraw, value, t(classification)))
+    label = t(classification)
+    if getattr(canvas, "can_gtext", False) and canvas.height >= 96:
+        _cv_gauge_gtext(canvas, value, label)
+        return 300.0
+    canvas.frame(_cv_gauge(canvas, ImageDraw, value, label))
     return 300.0

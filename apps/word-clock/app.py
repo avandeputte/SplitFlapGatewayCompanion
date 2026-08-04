@@ -500,11 +500,77 @@ def fetch_canvas(settings, canvas, i18n=None):
     lang = (i18n.lang if i18n is not None else 'en')[:2].lower()
     interval = _interval(settings)
 
+    W, H = canvas.width, canvas.height
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        # LCD with scalable on-device text: draw the face with gtext ops instead of a pixel
+        # frame — crisp at native resolution, one op per word over the draw stream. The SAME
+        # two faces as the PIL tall layout, sized by the SAME _grid_font / _cv_wrap_fit: the
+        # lit QLOCKTWO grid (English), or the lit sentence (other languages / small panels).
+        canvas.clear((0, 0, 0))
+        if lang not in _BUILDERS and W >= 110 and H >= 48:
+            h, rounded = _rounded(now, max(5, interval))
+            lit = _lit_keys(h, rounded)
+            font, ih, gap, top_off = _grid_font(canvas, W, H)
+            nrows = len(_GRID_EN)
+            lead = (H - 2 - nrows * ih) / (nrows - 1)
+            for r, row in enumerate(_GRID_EN):
+                row_w = sum(font.getlength(w) for w, _, _ in row) + gap * (len(row) - 1)
+                x = (W - row_w) / 2.0
+                y = 1 + r * (ih + lead) - top_off
+                for word, role, key in row:
+                    on = (role, key) in lit
+                    col = _OFF_COL if not on else (_HOUR_COL if role == 'hr' else _LIT_COL)
+                    canvas.gtext(int(round(x)), int(round(y)), word, color=col,
+                                 size=font.size, align="left")
+                    x += font.getlength(word) + gap
+        else:
+            h, rounded = _rounded(now, interval)
+            if lang in _BUILDERS:
+                words = _BUILDERS[lang](h, rounded)
+            else:
+                words = [w for chunk in _english(h, rounded, 10 ** 6) for w in chunk.split()]
+            words = [w.upper() for w in words if w]
+            font, lines, inks, gap = _cv_wrap_fit(canvas, words, W - 4, H - 2, 3)
+            if len(lines) == 1 and len(words) >= 2 and inks[0] < 0.7 * (H - 2):
+                ref = canvas.font(20)
+                cut = min(range(1, len(words)),
+                          key=lambda c: max(ref.getlength(' '.join(words[:c])),
+                                            ref.getlength(' '.join(words[c:]))))
+                cand = [words[:cut], words[cut:]]
+                size = H - 2
+                while size > 5:
+                    f2 = canvas.font(size)
+                    inks2, gap2 = _measure_lines(f2, cand)
+                    widest = max(sum(f2.getlength(w) for w in ln)
+                                 + f2.getlength(' ') * (len(ln) - 1) for ln in cand)
+                    if widest <= W - 4 and sum(inks2) + gap2 <= H - 2:
+                        break
+                    size -= 1
+                if min(inks2) > inks[0]:
+                    font, lines, inks, gap = f2, cand, inks2, gap2
+            n = len(lines)
+            lead = ((H - 2 - sum(inks)) / (n - 1)) if n > 1 else 0.0
+            y = 1 if n > 1 else (H - inks[0]) / 2.0
+            idx = 0
+            for ln, ln_ih in zip(lines, inks):
+                line_w = sum(font.getlength(w) for w in ln) + font.getlength(' ') * (len(ln) - 1)
+                x = (W - line_w) / 2.0
+                for w in ln:
+                    dim = idx < 2 and w.casefold() in _COPULAS
+                    b = font.getbbox(w)
+                    canvas.gtext(int(round(x)), int(round(y - b[1])), w,
+                                 color=(96, 100, 112) if dim else _LIT_COL,
+                                 size=font.size, align="left")
+                    x += font.getlength(w) + font.getlength(' ')
+                    idx += 1
+                y += ln_ih + lead
+        canvas.show()
+        return max(1.0, 60.0 - now.second - now.microsecond / 1e6)
+
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
 
-    W, H = canvas.width, canvas.height
     if lang not in _BUILDERS and W >= 110 and H >= 48:
         # The full face. Its words exist at five-minute resolution — a finer
         # interval snaps to the nearest five for the grid, as every real word

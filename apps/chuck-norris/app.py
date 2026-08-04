@@ -187,6 +187,48 @@ def _cv_state():
     return st
 
 
+def _ops_motif(canvas, x, y, s):
+    """The eight-point starburst (the impact mark) as a filled polygon op — the
+    gtext card's twin of _cv_motif."""
+    import math
+    cx, cy, r = x + s / 2.0, y + s / 2.0, s / 2.0
+    pts = []
+    for i in range(16):
+        rad = r if i % 2 == 0 else r * 0.42
+        ang = math.pi * i / 8.0 - math.pi / 2.0
+        pts.append((cx + rad * math.cos(ang), cy + rad * math.sin(ang)))
+    canvas.poly(pts, color=_ACCENT, fill=True)
+
+
+def _cv_ops(canvas, label, body):
+    """The tall-panel card drawn with on-device scalable text (gtext) + geometry
+    instead of a pushed pixel frame — crisp at the LCD's native resolution, a few
+    hundred bytes a frame. Same burst+label header over a rule, then the fact as big
+    wrapped text centered in the body (mirrors the PIL _cv_card layout below)."""
+    W, H = canvas.width, canvas.height
+    canvas.clear((0, 0, 0))
+    m = max(6, int(W * 0.03))
+    lab_h = max(9, int(H * 0.12))
+    ms = int(lab_h * 1.3)
+    top = max(4, int(H * 0.06))
+    gap = max(4, int(W * 0.02))
+    _ops_motif(canvas, m, top, ms)
+    lsz = canvas.fit_gtext(label, W - m - (m + ms + gap), lab_h)
+    canvas.gtext(m + ms + gap, top + (ms - lsz) // 2 - int(lsz * 0.08), label,
+                 color=_ACCENT, size=lsz)
+    ry = top + ms + max(3, int(H * 0.028))
+    canvas.line(m, ry, W - 1 - m, ry, color=tuple(c // 3 for c in _ACCENT))
+    by0 = ry + max(4, int(H * 0.045))
+    by1 = H - max(6, int(H * 0.05))
+    size, lines = canvas.fit_wrap_gtext(body, W - 2 * m, by1 - by0, max_lines=7)
+    step = int(size * 1.18)
+    y = by0 + max(0, (by1 - by0 - step * len(lines)) // 2)
+    for ln in lines:
+        canvas.gtext(W // 2, y, ln, color=_TEXT, size=size, align="center")
+        y += step
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas):
     """Draw the fact as a typographic card, turning body pages each redraw when
     the panel can't hold it whole. A fresh fact every ~5 minutes (the manifest's
@@ -207,6 +249,11 @@ def fetch_canvas(settings, canvas):
         elif st['data'] is None:
             canvas.frame(canvas.message('Chuck Norris', 'Offline'))
             return 60.0
+    W, H = canvas.width, canvas.height
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        _cv_ops(canvas, 'CHUCK NORRIS', st['data'])
+        st['page'] = 0
+        return max(30.0, min(300.0, ttl - (now - st['ts'])))
     img, n = _cv_card(canvas, ImageDraw, 'CHUCK NORRIS', st['data'], st['page'])
     canvas.frame(img)
     st['page'] = (st['page'] + 1) % n

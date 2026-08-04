@@ -113,6 +113,52 @@ _CV_DIM = (150, 150, 158)                  # secondary text
 _CV_CODE = (92, 205, 170)                  # currency-code teal
 
 
+def _cv_rates_gtext(canvas, settings, st, base, pairs, i18n):
+    """The rate table drawn with the LCD's on-device gtext op instead of a pushed pixel frame:
+    a quiet '1 BASE =' strip (the base in teal), then a row per target — code in teal on the
+    left, the rate right-aligned in white. Sizes are a fraction of the panel, so it fills the
+    wall at native resolution and previews at 256x160; same page rotation as the pixel path."""
+    W, H = canvas.width, canvas.height
+    canvas.clear((0, 0, 0))
+    pad = max(6, int(W * 0.028))
+    head = f'1 {base} ='
+    hsize = canvas.fit_gtext(head, W - 2 * pad, int(H * 0.11))
+    hx, hy = pad, max(3, int(H * 0.02))
+    for part, col in (('1 ', _CV_DIM), (base, _CV_CODE), (' =', _CV_DIM)):
+        canvas.gtext(hx, hy, part, color=col, size=hsize)
+        hx += canvas.text_width(part, hsize)
+    top = hy + int(hsize * 0.75) + max(5, int(H * 0.05))
+    area = H - top
+    per = max(1, min(len(pairs), 6))
+    pages = [pairs[i:i + per] for i in range(0, len(pairs), per)]
+    idx = st['page'] % len(pages)
+    st['page'] = (st['page'] + 1) % len(pages)
+    page = pages[idx]
+    n = len(page)
+    band = area / n
+    row_h = int(min(band * 0.78, H * 0.24))
+    codes = [c for c, _v in page]
+    texts = [_fmt_rate(v, i18n) for _c, v in page]
+    code_size = min(canvas.fit_gtext(c, int(W * 0.36), row_h) for c in codes)
+    code_w = max(canvas.text_width(c, code_size) for c in codes)
+    gap = max(8, int(W * 0.05))
+    rate_avail = max(20, (W - pad) - (pad + code_w + gap))
+    rate_size = min(canvas.fit_gtext(s, rate_avail, row_h) for s in texts)
+    for i, ((code, _v), rate_s) in enumerate(zip(page, texts)):
+        cy = top + band * (i + 0.5)
+        canvas.gtext(pad, cy - code_size * 0.56, code, color=_CV_CODE, size=code_size)
+        canvas.gtext(W - pad, cy - rate_size * 0.56, rate_s, color=_CV_TEXT,
+                     size=rate_size, align="right")
+    canvas.show()
+    if len(pages) > 1:
+        try:
+            dwell = float(settings.get('loop_delay', 5) or 5)
+        except (TypeError, ValueError):
+            dwell = 5.0
+        return max(3.0, min(30.0, dwell))
+    return 300.0
+
+
 def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     """The same rate table as the flap pages — '1 BASE =' as a quiet strip, then a
     row per target: code in teal, rate right-aligned in white, decimals in a
@@ -144,6 +190,8 @@ def fetch_canvas(settings, canvas, i18n=None, get_location=None):
         return 300.0
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        return _cv_rates_gtext(canvas, settings, st, base, pairs, i18n)
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

@@ -102,6 +102,45 @@ def _cv_state():
     return st
 
 
+def _ops_motif(canvas, x, y, s):
+    """The paw print — the main pad and three toes — as geometry ops (the gtext
+    card's twin of _cv_motif)."""
+    canvas.ellipse(x + s * 0.50, y + s * 0.79, s * 0.34, s * 0.21, color=_ACCENT, fill=True)
+    toe = max(2.0, s * 0.26)
+    for tx, ty in ((0.00, 0.20), (0.37, 0.00), (0.74, 0.20)):
+        canvas.circle(x + tx * s + toe / 2.0, y + ty * s + toe / 2.0, toe / 2.0,
+                      color=_ACCENT, fill=True)
+
+
+def _cv_ops(canvas, label, body):
+    """The tall-panel card drawn with on-device scalable text (gtext) + geometry
+    instead of a pushed pixel frame — crisp at the LCD's native resolution, a few
+    hundred bytes a frame. Same paw+label header over a rule, then the fact as big
+    wrapped text centered in the body (mirrors the PIL text_card layout below)."""
+    W, H = canvas.width, canvas.height
+    canvas.clear((0, 0, 0))
+    m = max(6, int(W * 0.03))
+    lab_h = max(9, int(H * 0.12))
+    ms = int(lab_h * 1.3)
+    top = max(4, int(H * 0.06))
+    gap = max(4, int(W * 0.02))
+    _ops_motif(canvas, m, top, ms)
+    lsz = canvas.fit_gtext(label, W - m - (m + ms + gap), lab_h)
+    canvas.gtext(m + ms + gap, top + (ms - lsz) // 2 - int(lsz * 0.08), label,
+                 color=_ACCENT, size=lsz)
+    ry = top + ms + max(3, int(H * 0.028))
+    canvas.line(m, ry, W - 1 - m, ry, color=tuple(c // 3 for c in _ACCENT))
+    by0 = ry + max(4, int(H * 0.045))
+    by1 = H - max(6, int(H * 0.05))
+    size, lines = canvas.fit_wrap_gtext(body, W - 2 * m, by1 - by0, max_lines=7)
+    step = int(size * 1.18)
+    y = by0 + max(0, (by1 - by0 - step * len(lines)) // 2)
+    for ln in lines:
+        canvas.gtext(W // 2, y, ln, color=(238, 238, 244), size=size, align="center")
+        y += step
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas):
     """Draw the dog fact as a typographic card, turning body pages each redraw
     when the panel can't hold the whole fact. The panel renders any length, so
@@ -129,6 +168,11 @@ def fetch_canvas(settings, canvas):
             if st['data'] is None:
                 canvas.frame(canvas.message('Dog fact', 'Offline'))
                 return 60.0
+    W, H = canvas.width, canvas.height
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        _cv_ops(canvas, 'DOG FACT', st['data'])
+        st['page'] = 0
+        return max(30.0, min(300.0, ttl - (now - st['ts'])))
     img, n = canvas.text_card('DOG FACT', st['data'], st['page'],
                               accent=_ACCENT, motif=_cv_motif)
     canvas.frame(img)

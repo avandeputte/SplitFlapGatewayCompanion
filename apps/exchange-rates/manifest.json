@@ -6,6 +6,7 @@
   "description": "Live currency rates (ECB)",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "refresh_interval": 3600,
   "loop_delay": 5,
   "category": "finance",

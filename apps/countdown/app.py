@@ -567,5 +567,42 @@ def fetch_canvas(settings, canvas, caps=None):
         keys.append('S')
     keys = keys[:max_bars]
 
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        # LCD with scalable on-device text: draw the draining bars as gtext + rect ops
+        # instead of a pixel frame — crisp at native resolution, a handful of ops a frame.
+        # Same layout as _cv_render_bars: an event header over a colored rule, then a
+        # full-width color bar per unit with its value/label in white (black outlined so it
+        # reads over any bar). Sized by the SAME _cv_bar_font/_cv_label as the PIL path.
+        pad = 2
+        canvas.clear((0, 0, 0))
+        if header_h > 0 and event:
+            budget = max(1, header_h - 4)
+            hf, htop, hh = _cv_bar_font(canvas, budget, sample=event)
+            while budget > 8 and hf.getlength(event) > W - 4:
+                budget -= 1
+                hf, htop, hh = _cv_bar_font(canvas, budget, sample=event)
+            etext = _cv_truncate(hf, event, W - 4)
+            canvas.gtext(W // 2, int(round(1.0 - htop)), etext, color=(238, 238, 244),
+                         size=hf.size, align="center", outline=(0, 0, 0))
+            canvas.rect(0, header_h - 1, W, 1, color=_UNITS[keys[0]][0], fill=True)
+        n = len(keys)
+        top, area = header_h, H - header_h
+        edges = [top + round(i * area / n) for i in range(n + 1)]
+        min_bh = min(edges[i + 1] - edges[i] for i in range(n))
+        font, ink_top, ink_h = _cv_bar_font(canvas, max(1, min_bh - 3))
+        for i, key in enumerate(keys):
+            color = _UNITS[key][0]
+            y0, y1 = edges[i], edges[i + 1]
+            bh = y1 - y0
+            fw = int(round(min(1.0, max(0.0, frac[key])) * W))
+            if fw > 0:
+                canvas.rect(0, y0, fw, bh, color=color, fill=True)
+            vtext = _cv_label(key, val[key], font, W - 2 * pad)
+            ty = y0 + (bh - ink_h) / 2.0 - ink_top
+            canvas.gtext(pad, int(round(ty)), vtext, color=(255, 255, 255),
+                         size=font.size, align="left", outline=(0, 0, 0))
+        canvas.show()
+        return 0.2 if 'S' in keys else 1.0
+
     canvas.frame(_cv_render_bars(canvas, ImageDraw, keys, val, frac, event, header_h))
     return 0.2 if 'S' in keys else 1.0          # fast sweep only while a seconds bar is drawn

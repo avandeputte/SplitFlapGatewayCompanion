@@ -47,6 +47,12 @@ class ZoneCanvas:
         self.frames = []
         # ops-app surface state
         self.can_sprite = True
+        # Scalable on-device text (gtext) + box blur — simulated here with PIL DejaVu (the same
+        # face the wall rasterizes) so a converted text app's LCD layout previews offscreen.
+        self.can_gtext = True
+        self.text_max = 512
+        self.text_faces = ("sans", "mono", "custom")
+        self.can_blur = True
         self._img = None
         self._atlas = []
 
@@ -269,6 +275,68 @@ class ZoneCanvas:
             return self
         self.text(x + 1, y + 1, s, shadow, size=size, align=align)
         self.text(x, y, s, color, size=size, align=align)
+        return self
+
+    def gtext(self, x, y, s, color=(255, 255, 255), size=24, align='left', face='sans',
+              aa=True, outline=None, shadow=None, tracking=0):
+        # Simulate the wall's scalable gtext op with PIL DejaVu at the exact pixel size — (x,y)
+        # is the top-left of the ascent box (PIL anchor 'a'), align shifts about x, matching
+        # ttfDrawText. mono falls back to sans (as on the wall until a mono face is bundled).
+        s = str(s)
+        if not s:
+            return self
+        name = 'DejaVuSansMono-Bold.ttf' if face == 'mono' else 'DejaVuSans-Bold.ttf'
+        try:
+            f = self.font(int(size), name)
+        except Exception:
+            f = self.font(int(size))
+        d = self._draw()
+        anchor = {'left': 'la', 'center': 'ma', 'right': 'ra'}.get(align, 'la')
+        if shadow is not None:
+            d.text((int(x) + 1, int(y) + 1), s, font=f, fill=_rgb(shadow), anchor=anchor)
+        if outline is not None:
+            oc = _rgb(outline)
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                d.text((int(x) + dx, int(y) + dy), s, font=f, fill=oc, anchor=anchor)
+        d.text((int(x), int(y)), s, font=f, fill=_rgb(color), anchor=anchor)
+        return self
+
+    def text_width(self, s, size=24, face='sans', tracking=0):
+        from .canvas import _gtext_width
+        return _gtext_width(str(s), int(size), str(face), int(tracking))
+
+    def fit_gtext(self, s, max_w, max_h, face='sans', lo=8):
+        from .canvas import _gtext_width
+        s = str(s)
+        hi = min(int(max_h), self.text_max or 512)
+        if hi < lo or not s.strip():
+            return max(lo, hi)
+        size = hi
+        for _ in range(12):
+            w = _gtext_width(s, size, face)
+            if w <= max_w or size <= lo:
+                break
+            size = max(lo, min(size - 1, int(size * max_w / max(1.0, w))))
+        while size > lo and _gtext_width(s, size, face) > max_w:
+            size -= 1
+        return size
+
+    def wrap_gtext(self, s, max_w, size, max_lines=3, face='sans'):
+        from .canvas import _wrap_gtext
+        return _wrap_gtext(str(s), max_w, int(size), int(max_lines), face)
+
+    def fit_wrap_gtext(self, s, max_w, max_h, max_lines=3, face='sans', lo=8):
+        from .canvas import _fit_wrap_gtext
+        return _fit_wrap_gtext(str(s), max_w, max_h, int(max_lines), face, self.text_max, lo)
+
+    def blur(self, x, y, w, h, r=4):
+        from PIL import ImageFilter
+        self._draw()
+        x, y, w, h = int(x), int(y), int(w), int(h)
+        box = (max(0, x), max(0, y), min(self.width, x + w), min(self.height, y + h))
+        if box[2] > box[0] and box[3] > box[1]:
+            region = self._img.crop(box).filter(ImageFilter.GaussianBlur(max(1, int(r))))
+            self._img.paste(region, box)
         return self
 
     def show(self):

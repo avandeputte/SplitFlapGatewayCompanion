@@ -422,6 +422,63 @@ def _cv_quote_rows(canvas, ImageDraw, rows_data):
     return img
 
 
+def _cv_quote_gtext(canvas, settings, st, rows_data, poll):
+    """The quote table drawn with the LCD's on-device scalable-text op (gtext) instead of a
+    pushed pixel frame: ticker flush left, price right-aligned in a shared column, the day's
+    change as a green/red chip on the right edge — crisp at native 1280x800, a few hundred bytes
+    a frame. Every size is a fraction of the panel, so it fills the wall and previews at 256x160;
+    same page rotation as the pixel path."""
+    W, H = canvas.width, canvas.height
+    canvas.clear((0, 0, 0))
+    per = max(1, min(len(rows_data), 6))
+    pages = [rows_data[i:i + per] for i in range(0, len(rows_data), per)]
+    idx = st['page'] % len(pages)
+    st['page'] = (st['page'] + 1) % len(pages)
+    page = pages[idx]
+    n = len(page)
+    pad = max(6, int(W * 0.028))
+    gap = max(8, int(W * 0.04))
+    band = H / n
+    row_h = int(min(band * 0.80, H * 0.26))
+    syms = [s for s, _p, _c in page]
+    prices = [p for _s, p, _c in page]
+    pcts = [f'{"+" if c >= 0 else ""}{c:.1f}%' for _s, _p, c in page if c is not None]
+    # Chip column first (a common size), then the ticker column, then the price fills what is left
+    # between them — right-aligned to one shared x so the numbers read down.
+    chip_size = min((canvas.fit_gtext(p, int(W * 0.24), int(row_h * 0.62)) for p in pcts),
+                    default=0)
+    chip_px = max(4, int(chip_size * 0.45))
+    chip_w = (max(canvas.text_width(p, chip_size) for p in pcts) + 2 * chip_px) if pcts else 0
+    tick_size = min(canvas.fit_gtext(s, int(W * 0.32), row_h) for s in syms)
+    tick_w = max(canvas.text_width(s, tick_size) for s in syms)
+    price_right = W - pad - (chip_w + gap if chip_w else 0)
+    price_avail = max(20, price_right - (pad + tick_w + gap))
+    price_size = min(canvas.fit_gtext(p, price_avail, row_h) for p in prices)
+    for i, (sym, price, chg) in enumerate(page):
+        cy = band * (i + 0.5)
+        up = chg is not None and chg >= 0
+        canvas.gtext(pad, cy - tick_size * 0.56, sym, color=_CV_TEXT, size=tick_size)
+        if chip_w and chg is not None:
+            pct = f'{"+" if chg >= 0 else ""}{chg:.1f}%'
+            ch_h = chip_size + 2 * max(3, int(chip_size * 0.30))
+            cx0 = W - pad - chip_w
+            canvas.roundrect(cx0, cy - ch_h / 2, chip_w, ch_h, max(2, int(chip_size * 0.22)),
+                             color=_CV_UP_CHIP if up else _CV_DOWN_CHIP, fill=True)
+            canvas.gtext(cx0 + chip_w / 2, cy - chip_size * 0.56, pct,
+                         color=(255, 255, 255), size=chip_size, align="center")
+        pcol = _CV_DIM if chg is None else _CV_TEXT
+        canvas.gtext(price_right, cy - price_size * 0.56, price, color=pcol,
+                     size=price_size, align="right")
+    canvas.show()
+    if len(pages) > 1:
+        try:
+            dwell = float(settings.get('loop_delay', 5) or 5)
+        except (TypeError, ValueError):
+            dwell = 5.0
+        return max(3.0, min(30.0, dwell))
+    return max(30.0, min(300.0, poll))
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     """The same watchlist as the flap pages, in the same order, as quote rows —
     rotating page by page when there are more tickers than rows. Quotes are
@@ -489,6 +546,9 @@ def fetch_canvas(settings, canvas, i18n=None):
         chg = ((price - prev) / prev) * 100 if prev else None
         body = n(price, 0) if (compact and price >= 100) else n(price, 2)
         rows_data.append((s, f'{cs}{sep}{body}', chg))
+
+    if getattr(canvas, "can_gtext", False) and canvas.height >= 96:
+        return _cv_quote_gtext(canvas, settings, st, rows_data, poll)
 
     per = max(1, min(len(rows_data), canvas.height // 15))
     pages = [rows_data[i:i + per] for i in range(0, len(rows_data), per)]

@@ -81,6 +81,49 @@ def _cv_state():
     return st
 
 
+def _ops_motif(canvas, x, y, s):
+    """The opening quotation mark as a large gtext glyph — the gtext card's twin of
+    _cv_motif. Returns the width it consumed."""
+    qsz = int(s * 1.5)
+    canvas.gtext(x, y - int(qsz * 0.12), '“', color=_ACCENT, size=qsz)
+    return int(canvas.text_width('“', qsz))
+
+
+def _cv_ops(canvas, label, body, sub=None):
+    """The tall-panel quote card drawn with on-device scalable text (gtext) +
+    geometry instead of a pushed pixel frame — crisp at the LCD's native resolution.
+    The quote-mark+label header over a rule, the quote as big wrapped text centered
+    in the body, and the author bottom-right in the accent (mirrors the PIL
+    text_card layout below)."""
+    W, H = canvas.width, canvas.height
+    canvas.clear((0, 0, 0))
+    m = max(6, int(W * 0.03))
+    lab_h = max(9, int(H * 0.12))
+    ms = int(lab_h * 1.3)
+    top = max(4, int(H * 0.06))
+    gap = max(4, int(W * 0.02))
+    mw = _ops_motif(canvas, m, top, ms)
+    lsz = canvas.fit_gtext(label, W - m - (m + mw + gap), lab_h)
+    canvas.gtext(m + mw + gap, top + (ms - lsz) // 2 - int(lsz * 0.08), label,
+                 color=_ACCENT, size=lsz)
+    ry = top + ms + max(3, int(H * 0.028))
+    canvas.line(m, ry, W - 1 - m, ry, color=tuple(c // 3 for c in _ACCENT))
+    by0 = ry + max(4, int(H * 0.045))
+    by1 = H - max(6, int(H * 0.05))
+    if sub:
+        asz = max(8, int(H * 0.075))
+        ay = H - max(5, int(H * 0.04)) - asz
+        canvas.gtext(W - m, ay, sub, color=_ACCENT, size=asz, align="right")
+        by1 = ay - max(3, int(H * 0.02))
+    size, lines = canvas.fit_wrap_gtext(body, W - 2 * m, by1 - by0, max_lines=6)
+    step = int(size * 1.18)
+    y = by0 + max(0, (by1 - by0 - step * len(lines)) // 2)
+    for ln in lines:
+        canvas.gtext(W // 2, y, ln, color=(238, 238, 244), size=size, align="center")
+        y += step
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas):
     """Draw the quote as a typographic card, turning body pages each redraw when
     the panel can't hold the whole quote. The quote itself renews on the app's
@@ -106,6 +149,11 @@ def fetch_canvas(settings, canvas):
                 canvas.frame(canvas.message('Quote', 'Offline'))
                 return 60.0
     q, a = st['data']
+    W, H = canvas.width, canvas.height
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        _cv_ops(canvas, 'QUOTE', q, sub=f'— {a}' if a else None)
+        st['page'] = 0
+        return max(30.0, min(300.0, ttl - (now - st['ts'])))
     img, n = canvas.text_card('QUOTE', q, st['page'], accent=_ACCENT,
                               motif=lambda d, mx, my, ms: _cv_motif(canvas, d, mx, my, ms),
                               sub=f'— {a}' if a else None)

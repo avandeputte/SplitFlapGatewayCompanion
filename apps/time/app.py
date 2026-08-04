@@ -107,11 +107,13 @@ def fetch_canvas(settings, canvas, i18n=None, caps=None):
         # over the draw stream. Same centered clock-over-date group as the PIL tall layout.
         weekday, date_line = _day_lines(now, i18n)
         wd, dl = weekday.upper(), date_line.upper()
-        csize = canvas.fit_gtext(main, W - 12, int(H * 0.44))
-        cw = canvas.text_width(main, csize)
-        tag_gap = max(3, int(csize * 0.06))
-        asize = canvas.fit_gtext(ampm, int(W * 0.2), int(csize * 0.5)) if ampm else 0
+        # Size the AM/PM tag FIRST (by the panel, not the clock), then fit the clock to the
+        # width LEFT once the tag is reserved — else a wide clock ("10:09") + tag overflows.
+        tag_gap = max(3, int(W * 0.012))
+        asize = canvas.fit_gtext(ampm, int(W * 0.16), int(H * 0.13)) if ampm else 0
         aw = (canvas.text_width(ampm, asize) + tag_gap) if ampm else 0
+        csize = canvas.fit_gtext(main, W - 12 - aw, int(H * 0.44))
+        cw = canvas.text_width(main, csize)
         dsize = canvas.fit_gtext(wd if len(wd) >= len(dl) else dl, W - 12, int(H * 0.13))
         g1, g2 = max(4, int(H * 0.05)), max(2, int(H * 0.02))
         y = max(2, (H - (csize + g1 + dsize + g2 + dsize)) // 2)

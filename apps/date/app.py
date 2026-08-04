@@ -98,6 +98,112 @@ def fetch_canvas(settings, canvas, i18n=None):
     W, H = canvas.width, canvas.height
     accent = _WEEKDAY[now.weekday()]
 
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        # LCD with scalable on-device text: draw the Date Card as gtext + geometry ops
+        # instead of a pixel frame — crisp at native resolution, a handful of ops a frame
+        # over the draw stream. Same composition as the PIL tall layout (the big day
+        # numeral, the weekday/month/year stack, a facts column on a wide panel, the
+        # year-progress bar), sized by the SAME _cv_fit_ink so the placement matches; the
+        # numeral is a solid near-white (the PIL white->accent gradient fill isn't an op).
+        from datetime import timedelta
+
+        if W <= 72:
+            left_frac, pad_x, gap_inner = 0.48, 2, 3
+        else:
+            left_frac, pad_x, gap_inner = 0.52, 4, 6
+        pad_top = 2 if H >= 48 else 1
+        bar_h = max(3, int(H * 0.03)) if H >= 48 else 2
+        bar_gap = 2 if H >= 48 else 1
+        gap_v = 2 if H >= 48 else 1
+
+        content_top = pad_top
+        content_bottom = H - (bar_h + bar_gap)
+        content_h = max(8, content_bottom - content_top)
+
+        day_str = str(now.day)
+        day_cap = content_h * (0.94 if len(day_str) == 1 else 0.86)
+        day = _cv_fit_ink(canvas, day_str, day_cap, W * left_frac)
+        day_center_y = content_top + content_h / 2.0
+        day_top = day_center_y - day["h"] / 2.0
+
+        large = W >= 192
+        col_x = pad_x + day["w"] + gap_inner
+        if large:
+            info_x = int(W * 0.70)
+            col_w = max(10, info_x - col_x - gap_inner)
+        else:
+            col_w = max(10, W - col_x - pad_x)
+        avail = max(6, content_h - 2 * gap_v)
+        wk_cap, mo_cap, yr_cap = avail * 0.38, avail * 0.32, avail * 0.30
+
+        def choose(full, abbr, cap):
+            f = _cv_fit_ink(canvas, full, cap, col_w)
+            return full if f["h"] >= cap - 1 else abbr
+
+        if i18n is not None:
+            wk_full, wk_abbr = str(i18n.weekday(now)).upper(), str(i18n.weekday(now, short=True)).upper()
+            mo_full, mo_abbr = str(i18n.month(now)).upper(), str(i18n.month(now, short=True)).upper()
+        else:
+            wk_full, wk_abbr = now.strftime("%A").upper(), now.strftime("%a").upper()
+            mo_full, mo_abbr = now.strftime("%B").upper(), now.strftime("%b").upper()
+        wk_text = choose(wk_full, wk_abbr, wk_cap)
+        mo_text = choose(mo_full, mo_abbr, mo_cap)
+        yr_text = str(now.year)
+
+        def stack(scale=1.0):
+            return [_cv_fit_ink(canvas, txt, c * scale, col_w) for txt, c in
+                    ((wk_text, wk_cap), (mo_text, mo_cap), (yr_text, yr_cap))]
+
+        lines = stack()
+        total = sum(ln["h"] for ln in lines) + 2 * gap_v
+        if total > content_h:
+            lines = stack(content_h / total * 0.98)
+            total = sum(ln["h"] for ln in lines) + 2 * gap_v
+
+        canvas.clear((0, 0, 0))
+        canvas.gtext(int(pad_x - day["l"]), int(day_top - day["t"]), day_str,
+                     color=canvas.mix((255, 255, 255), accent, 0.10), size=day["font"].size)
+
+        colors = (accent, (232, 236, 244), (150, 166, 196))
+        y = content_top + (content_h - total) / 2.0
+        for ln, col in zip(lines, colors):
+            canvas.gtext(int(col_x - ln["l"]), int(y - ln["t"]), ln["text"],
+                         color=col, size=ln["font"].size)
+            y += ln["h"] + gap_v
+
+        if large:
+            yr2 = now.year
+            leap2 = (yr2 % 4 == 0 and yr2 % 100 != 0) or (yr2 % 400 == 0)
+            yday = now.timetuple().tm_yday
+            facts = [f"WEEK {now.isocalendar()[1]}", f"DAY {yday}",
+                     f"{(366 if leap2 else 365) - yday} LEFT"]
+            info_w = max(10, W - info_x - pad_x)
+            icap = content_h * 0.26
+            ifs = [_cv_fit_ink(canvas, s, icap, info_w) for s in facts]
+            itot = sum(f["h"] for f in ifs) + 2 * gap_v
+            iy = content_top + (content_h - itot) / 2.0
+            for f, col in zip(ifs, ((214, 224, 240), (192, 202, 224), (168, 180, 206))):
+                canvas.gtext(int(info_x - f["l"]), int(iy - f["t"]), f["text"],
+                             color=col, size=f["font"].size)
+                iy += f["h"] + gap_v
+
+        yr = now.year
+        leap = (yr % 4 == 0 and yr % 100 != 0) or (yr % 400 == 0)
+        frac = (now.timetuple().tm_yday - 1 +
+                (now.hour * 3600 + now.minute * 60 + now.second) / 86400.0) / (366 if leap else 365)
+        frac = min(1.0, max(0.0, frac))
+        bar_y = H - bar_h
+        fill_w = int(round(frac * W))
+        canvas.rect(0, bar_y, W, bar_h, color=canvas.dim(accent, 0.18), fill=True)
+        if fill_w > 0:
+            canvas.rect(0, bar_y, fill_w, bar_h, color=accent, fill=True)
+        if 0 < fill_w < W:
+            canvas.rect(fill_w, bar_y, 1, bar_h, color=(255, 255, 255), fill=True)
+
+        canvas.show()
+        midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return max(1.0, min(3600.0, (midnight - now).total_seconds()))
+
     # -- panel-adaptive geometry --------------------------------------------
     if W <= 72:                       # 64x32 — compact
         left_frac, pad_x, gap_inner = 0.48, 2, 3

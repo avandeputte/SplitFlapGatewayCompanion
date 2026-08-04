@@ -5,6 +5,7 @@
   "description": "An inspirational quote",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "refresh_interval": 1800,
   "loop_delay": 7,
   "category": "fun",

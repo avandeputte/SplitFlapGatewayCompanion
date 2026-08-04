@@ -202,6 +202,96 @@ def _draw_moon(draw, cx, cy, r, illumination, waxing):
                 draw.ellipse([cxx - cr, cyy - cr, cxx + cr, cyy + cr], fill=_CRATER)
 
 
+def _draw_moon_ops(canvas, cx, cy, r, illumination, waxing):
+    """The disc as draw ops: dark chord + lit chord per row (canvas.line), craters on the lit
+    side (canvas.circle) — the ops-surface twin of _draw_moon, for the gtext LCD path."""
+    import math
+    illumination = min(1.0, max(0.0, illumination))
+    k = 1.0 - 2.0 * illumination
+    for dy in range(-r, r + 1):
+        half = math.sqrt(max(0.0, r * r - dy * dy))
+        x0, x1 = cx - half, cx + half
+        xt = k * half
+        if waxing:
+            lit0, lit1 = cx + xt, x1
+        else:
+            lit0, lit1 = x0, cx - xt
+        y = cy + dy
+        canvas.line(int(round(x0)), y, int(round(x1)), y, color=_DARKSIDE)
+        if lit1 - lit0 >= 1.0:
+            canvas.line(int(round(lit0)), y, int(round(lit1)), y, color=_LIT)
+    if r >= 9:
+        for fx, fy, fr in ((-0.30, -0.35, 0.16), (0.25, 0.05, 0.22), (-0.15, 0.45, 0.13)):
+            cxx, cyy, cr = cx + fx * r, cy + fy * r, max(1, int(fr * r * 0.9))
+            half = math.sqrt(max(0.0, r * r - (cyy - cy) ** 2))
+            lit_edge = cx + k * half if waxing else cx - k * half
+            inside = (cxx - cr >= lit_edge) if waxing else (cxx + cr <= lit_edge)
+            if inside:
+                canvas.circle(cxx, cyy, cr, color=_CRATER, fill=True)
+
+
+def _cv_moon_gtext(canvas, moon, i18n):
+    """The moon card drawn with the LCD's on-device ops + gtext instead of a pushed pixel frame:
+    the illuminated disc (line/circle ops) riding the full height on the left, the phase name /
+    % lit / next-event stacked beside it. Sizes are a fraction of the panel, so it fills the wall
+    at native resolution and previews at 256x160 — the same composition as the pixel path."""
+    def t(s):
+        return i18n.t(s, "moon") if i18n is not None else s
+
+    def u(k):
+        return i18n.unit(k) if i18n is not None else k
+
+    W, H = canvas.width, canvas.height
+    canvas.clear((0, 0, 0))
+    r = H // 2 - 1
+    cx, cy = 1 + r, H // 2
+    _draw_moon_ops(canvas, cx, cy, r, moon['illumination'], moon['waxing'])
+
+    marg = max(5, int(W * 0.02))
+    lx = cx + r + marg
+    lw = W - lx - marg
+    name = t(moon['phase_name']).upper()
+    pct = f'{int(moon["illumination"] * 100)}% {t("Lit")}'.upper()
+    if moon['days_to_full'] <= moon['days_to_new']:
+        nxt = f'{t("Full in")} {int(moon["days_to_full"])}{u("D")}'.upper()
+    else:
+        nxt = f'{t("New in")} {int(moon["days_to_new"])}{u("D")}'.upper()
+
+    # Size the name with the width-aware wrap-fit (it shrinks until each line fits lw, never
+    # clipping an overlong word), then draw those same lines with gtext at that size — the PIL
+    # face and the gtext face are the one bundled DejaVu, so the measurement carries over.
+    name_h = int(H * 0.42)
+    nf, nlines, nlh, ngap = _cv_wrap_fit(canvas, name, lw, name_h, 2)
+    nsize = nf.size
+    name_block = len(nlines) * nlh + (len(nlines) - 1) * ngap
+    name_fits = (max((nf.getlength(ln) for ln in nlines), default=0) <= lw
+                 and name_block <= name_h and ' '.join(nlines) == name)
+
+    if not name_fits:
+        # Column too narrow to tell the name — let the disc + a big "% LIT" carry it.
+        pf, plines, plh, pgap = _cv_wrap_fit(canvas, pct, lw, H - 2 * marg, 2)
+        block = len(plines) * plh + (len(plines) - 1) * pgap
+        y = (H - block) / 2.0
+        for ln in plines:
+            canvas.gtext(lx, y, ln, color=_PCT_COL, size=pf.size)
+            y += plh + pgap
+        canvas.show()
+        return
+
+    psize = canvas.fit_gtext(pct, lw, max(8, int(H * 0.19)))
+    xsize = canvas.fit_gtext(nxt, lw, max(8, int(H * 0.15)))
+    vgap = max(4, int(H * 0.07))
+    total = name_block + vgap + psize * 0.75 + vgap + xsize * 0.75
+    yi = (H - total) / 2.0                      # ink-top of the whole stacked block
+    for j, ln in enumerate(nlines):
+        canvas.gtext(lx, yi + j * (nlh + ngap) - 0.20 * nsize, ln, color=_NAME_COL, size=nsize)
+    yi += name_block + vgap
+    canvas.gtext(lx, yi - 0.20 * psize, pct, color=_PCT_COL, size=psize)
+    yi += psize * 0.75 + vgap
+    canvas.gtext(lx, yi - 0.20 * xsize, nxt, color=_SUB_COL, size=xsize)
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     from PIL import ImageDraw
 
@@ -213,6 +303,9 @@ def fetch_canvas(settings, canvas, i18n=None):
 
     moon = _moon()
     W, H = canvas.width, canvas.height
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        _cv_moon_gtext(canvas, moon, i18n)
+        return 300.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

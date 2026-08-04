@@ -186,6 +186,46 @@ def _cv_state():
     return st
 
 
+def _ops_badge(canvas, x, y, s, char, accent):
+    """The card badge — a filled disc with the card's character punched through it
+    in black — as ops (the gtext card's twin of _cv_badge)."""
+    r = s / 2.0
+    canvas.circle(x + r, y + r, r, color=accent, fill=True)
+    csz = canvas.fit_gtext(str(char), int(s * 0.72), int(s * 0.72))
+    canvas.gtext(x + r, y + r - int(csz * 0.60), str(char), color=(0, 0, 0),
+                 size=csz, align="center")
+
+
+def _cv_ops(canvas, label, body, accent, badge):
+    """One tall-panel card drawn with on-device scalable text (gtext) + geometry
+    instead of a pushed pixel frame — crisp at the LCD's native resolution, a few
+    hundred bytes a frame. Same badge+label header over a rule, then the question
+    (or answer) as big wrapped text centered in the body (mirrors the PIL _cv_card
+    layout below)."""
+    W, H = canvas.width, canvas.height
+    canvas.clear((0, 0, 0))
+    m = max(6, int(W * 0.03))
+    lab_h = max(9, int(H * 0.12))
+    ms = int(lab_h * 1.3)
+    top = max(4, int(H * 0.06))
+    gap = max(4, int(W * 0.02))
+    _ops_badge(canvas, m, top, ms, badge, accent)
+    lsz = canvas.fit_gtext(label, W - m - (m + ms + gap), lab_h)
+    canvas.gtext(m + ms + gap, top + (ms - lsz) // 2 - int(lsz * 0.08), label,
+                 color=accent, size=lsz)
+    ry = top + ms + max(3, int(H * 0.028))
+    canvas.line(m, ry, W - 1 - m, ry, color=tuple(c // 3 for c in accent))
+    by0 = ry + max(4, int(H * 0.045))
+    by1 = H - max(6, int(H * 0.05))
+    size, lines = canvas.fit_wrap_gtext(body, W - 2 * m, by1 - by0, max_lines=7)
+    step = int(size * 1.18)
+    y = by0 + max(0, (by1 - by0 - step * len(lines)) // 2)
+    for ln in lines:
+        canvas.gtext(W // 2, y, ln, color=_TEXT, size=size, align="center")
+        y += step
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas):
     """Question card, then answer card, each redraw a step — the panel's version
     of the flap pages' quiz rhythm, paced by loop_delay. A fresh question every
@@ -209,6 +249,16 @@ def fetch_canvas(settings, canvas):
     question, answer = st['data']
     cards = [('TRIVIA', question, _VIOLET, '?'), ('ANSWER', answer, _GREEN, 'A')]
     label, body, accent, badge = cards[st['card'] % len(cards)]
+    W, H = canvas.width, canvas.height
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        _cv_ops(canvas, label, body, accent, badge)
+        st['page'] = 0
+        st['card'] = (st['card'] + 1) % len(cards)
+        try:
+            d = float(settings.get('loop_delay', 10) or 10)
+        except (TypeError, ValueError):
+            d = 10.0
+        return max(6.0, min(30.0, d))
     img, n = _cv_card(canvas, ImageDraw, label, body, accent, badge, st['page'])
     canvas.frame(img)
     st['page'] += 1

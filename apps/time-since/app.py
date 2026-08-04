@@ -182,6 +182,80 @@ def fetch_canvas(settings, canvas, i18n=None, caps=None):
     with_secs = years == 0 and W >= 96
     segs = _segments(diff, u, with_secs)
 
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        # A wall with scalable on-device text (the LCD): draw the counter as a handful of
+        # gtext ops instead of a pixel frame — crisp at native resolution, a few hundred
+        # bytes a frame over the draw stream. Same event-top / hero-counter / quiet-footer
+        # group as the PIL tall layout: values white, unit letters amber, each segment's
+        # unit sharing the value's baseline (drawn a step lower, as the smaller size).
+        mgn = max(6, int(W * 0.028))                 # side margin — keeps ink off the edge
+        pad = max(2, int(H * 0.02))
+        avail_w = W - 2 * mgn
+
+        def _clip(s, size):                          # never let a line touch the edge
+            if not s or canvas.text_width(s, size) <= avail_w:
+                return s
+            while s and canvas.text_width(s + '…', size) > avail_w:
+                s = s[:-1].rstrip()
+            return (s + '…') if s else ''
+
+        name = event.upper()
+        nsize = canvas.fit_gtext(name, avail_w, int(H * 0.22))
+        name = _clip(name, nsize)
+
+        foot = ''
+        if H >= 48:
+            since_date = i18n.date(start, year=True) if i18n is not None else start.strftime('%b %d %Y')
+            foot = f'{t("Time since")} {since_date}'.upper()
+        fsize = canvas.fit_gtext(foot, avail_w, int(H * 0.14)) if foot else 0
+        foot = _clip(foot, fsize)
+
+        gap = max(3, int(H * 0.055))
+        top = pad + nsize + gap                      # counter region, under the name
+        y_foot = (H - pad - fsize) if foot else H
+        bot = (y_foot - gap) if foot else (H - pad)  # last row the counter may take
+        box_h = max(10, bot - top)
+
+        def _rowstr(r):                              # units measured at value size — conservative
+            return ' '.join(v + s for v, s in r)
+
+        rows = [segs]
+        vsize = canvas.fit_gtext(_rowstr(segs), avail_w, box_h)
+        rgap = 0
+        if len(segs) >= 2 and vsize < int(box_h * 0.82):
+            # Width-bound on one line — two balanced lines double the digit size.
+            cut = min(range(1, len(segs)),
+                      key=lambda c: max(canvas.text_width(_rowstr(segs[:c]), 20),
+                                        canvas.text_width(_rowstr(segs[c:]), 20)))
+            rows = [segs[:cut], segs[cut:]]
+            rgap = max(2, gap // 2)
+            wide = max(rows, key=lambda r: canvas.text_width(_rowstr(r), 20))
+            vsize = canvas.fit_gtext(_rowstr(wide), avail_w, (box_h - rgap) // 2)
+        usize = max(8, int(vsize * 0.62))            # unit letters a step below the values
+
+        block = len(rows) * vsize + (len(rows) - 1) * rgap
+        y = top + (box_h - block) // 2
+
+        canvas.clear((0, 0, 0))
+        canvas.gtext(W // 2, pad, name, color=_NAME_COL, size=nsize, align="center")
+        for r in rows:
+            widths = [(canvas.text_width(v, vsize), canvas.text_width(s, usize)) for v, s in r]
+            space = max(3.0, canvas.text_width(' ', vsize) * 0.8)
+            line_w = sum(vw + uw for vw, uw in widths) + space * (len(r) - 1)
+            x = (W - line_w) / 2.0
+            for (v, s), (vw, uw) in zip(r, widths):
+                canvas.gtext(int(round(x)), y, v, color=_VAL_COL, size=vsize)
+                x += vw
+                canvas.gtext(int(round(x)), int(y + vsize - usize), s, color=_UNIT_COL, size=usize)
+                x += uw + space
+            y += vsize + rgap
+        if foot:
+            canvas.gtext(W // 2, y_foot, foot, color=_FOOT_COL, size=fsize, align="center")
+        canvas.show()
+        if with_secs:
+            return max(0.05, 1.0 - now.microsecond / 1e6)
+        return max(1.0, 60.0 - now.second - now.microsecond / 1e6)
+
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

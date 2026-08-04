@@ -61,6 +61,18 @@ def test_blur_builds_a_box_blur_op():
     assert s._ops[-1] == {"op": "blur", "x": 4, "y": 4, "w": 300, "h": 200, "r": 6}
 
 
+def test_wrap_gtext_keeps_words_and_fit_wrap_sizes_to_the_box():
+    s = _lcd_surface()
+    lines = s.wrap_gtext("A pleasant surprise is waiting for you", 300, 40, max_lines=3)
+    assert 1 <= len(lines) <= 3 and all(s.text_width(ln, 40) <= 300 for ln in lines)
+    size, lines = s.fit_wrap_gtext("Honey never spoils, edible honey has been found in tombs",
+                                   600, 300, max_lines=4)
+    assert size >= 8 and len(lines) <= 4
+    # every word survives (fit_wrap shrinks the size until the whole text fits)
+    assert sum(len(ln.split()) for ln in lines) == 10
+    assert all(s.text_width(ln, size) <= 600 for ln in lines)
+
+
 def test_fit_gtext_finds_the_largest_fitting_size():
     s = _lcd_surface()
     big = s.fit_gtext("22:35", 1000, 400)

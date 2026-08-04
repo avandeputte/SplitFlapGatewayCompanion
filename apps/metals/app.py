@@ -106,6 +106,36 @@ _CV_GOLD = (238, 196, 64)                  # the metal itself names the row's co
 _CV_SILVER = (200, 206, 218)
 
 
+def _cv_metals_gtext(canvas, head, rows):
+    """Two spot-price rows drawn with the LCD's on-device gtext op instead of a pushed pixel
+    frame: a centered 'SPOT PRICE /OZ' strip, then each metal named in its own color on the
+    left with the price right-aligned in white. Sizes are a fraction of the panel, so it fills
+    the wall at native resolution and previews at 256x160."""
+    W, H = canvas.width, canvas.height
+    canvas.clear((0, 0, 0))
+    pad = max(6, int(W * 0.035))
+    hsize = canvas.fit_gtext(head, W - 2 * pad, int(H * 0.13))
+    hy = max(4, int(H * 0.04))
+    canvas.gtext(W / 2, hy, head, color=_CV_DIM, size=hsize, align="center")
+    body_top = hy + int(hsize * 0.75) + max(6, int(H * 0.06))
+    n = len(rows)
+    band = (H - body_top) / n
+    row_h = int(min(band * 0.60, H * 0.26))
+    names = [nm for nm, _p, _c in rows]
+    prices = [p for _n, p, _c in rows]
+    name_size = min(canvas.fit_gtext(nm, int(W * 0.52), row_h) for nm in names)
+    name_w = max(canvas.text_width(nm, name_size) for nm in names)
+    gap = max(8, int(W * 0.05))
+    price_avail = max(20, (W - pad) - (pad + name_w + gap))
+    price_size = min(canvas.fit_gtext(p, price_avail, row_h) for p in prices)
+    for i, (name, prc, col) in enumerate(rows):
+        cy = body_top + band * (i + 0.5)
+        canvas.gtext(pad, cy - name_size * 0.56, name, color=col, size=name_size)
+        canvas.gtext(W - pad, cy - price_size * 0.56, prc, color=_CV_TEXT,
+                     size=price_size, align="right")
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     """Gold and silver as two spot-price rows, each metal named in its own color
     (a 'SPOT /OZ' strip on panels tall enough to afford it). Same keyless source
@@ -153,6 +183,12 @@ def fetch_canvas(settings, canvas, i18n=None, get_location=None):
         return f'{cur_sym}{sep}{body}'
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        rows = [(t('Gold').upper(), fmt(gold), _CV_GOLD),
+                (t('Silver').upper(), fmt(silver), _CV_SILVER)]
+        head = f'{t("Spot price")} /OZ'.upper()
+        _cv_metals_gtext(canvas, head, rows)
+        return 300.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

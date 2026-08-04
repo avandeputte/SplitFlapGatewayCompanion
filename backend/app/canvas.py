@@ -79,6 +79,43 @@ def _gtext_width(s: str, size: int, face: str = "sans", tracking: int = 0) -> fl
     return w
 
 
+def _wrap_gtext(s, max_w, size, max_lines=3, face="sans"):
+    """Word-wrap ``s`` to ``max_w`` at ``size`` in the gtext face, honoring explicit newlines,
+    capped at ``max_lines`` (extra words are dropped — the caller shrinks the size to fit them)."""
+    lines, cur = [], ""
+    for para in str(s).split("\n"):
+        for word in para.split():
+            cand = (cur + " " + word).strip()
+            if not cur or _gtext_width(cand, size, face) <= max_w:
+                cur = cand
+            else:
+                lines.append(cur)
+                cur = word
+                if len(lines) >= max_lines:
+                    return lines[:max_lines]
+        if cur:
+            lines.append(cur)
+            cur = ""
+            if len(lines) >= max_lines:
+                break
+    return lines[:max_lines]
+
+
+def _fit_wrap_gtext(s, max_w, max_h, max_lines, face, text_max, lo=8, lh_frac=1.18):
+    """The largest gtext ``size`` at which ``s`` wraps into ≤ ``max_lines`` that fit ``max_h``
+    tall AND carry every word — returns ``(size, lines)``. The on-device analogue of wrap_fit."""
+    total_words = len(str(s).replace("\n", " ").split())
+    size = min(int(max_h), text_max or 512)
+    while size >= lo:
+        lines = _wrap_gtext(s, max_w, size, max_lines, face)
+        fits_h = len(lines) * int(size * lh_frac) <= max_h
+        keeps_all = sum(len(ln.split()) for ln in lines) >= total_words
+        if fits_h and keeps_all:
+            return size, lines
+        size = size - 1 if size <= lo + 6 else int(size * 0.9)
+    return lo, _wrap_gtext(s, max_w, lo, max_lines, face)
+
+
 class _Wall:
     """Everything the companion believes about ONE gateway's panel, in one object — the last frame
     it pushed, the delta counter, cached readbacks, sim mode, the atlas-library belief, the live
@@ -1251,6 +1288,15 @@ class CanvasSurface(paneltext.PanelText):
         while size > lo and _gtext_width(s, size, face) > max_w:
             size -= 1
         return size
+
+    def wrap_gtext(self, s, max_w, size, max_lines=3, face="sans"):
+        """Word-wrap ``s`` to ``max_w`` at ``size`` in the gtext face (≤ ``max_lines``)."""
+        return _wrap_gtext(str(s), max_w, int(size), int(max_lines), face)
+
+    def fit_wrap_gtext(self, s, max_w, max_h, max_lines=3, face="sans", lo=8):
+        """Largest gtext size wrapping ``s`` into ≤ ``max_lines`` that fit ``max_w``×``max_h`` and
+        keep every word — the gtext analogue of ``wrap_fit``. Returns ``(size, lines)``."""
+        return _fit_wrap_gtext(str(s), max_w, max_h, int(max_lines), face, self.text_max, lo)
 
     def blur(self, x, y, w, h, r=4):
         """Box-blur a rectangle of the back buffer in place — the on-device stand-in for the
