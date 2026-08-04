@@ -116,7 +116,12 @@ def fetch_canvas(settings, canvas, i18n=None, caps=None):
         cw = canvas.text_width(main, csize)
         dsize = canvas.fit_gtext(wd if len(wd) >= len(dl) else dl, W - 12, int(H * 0.13))
         g1, g2 = max(4, int(H * 0.05)), max(2, int(H * 0.02))
-        y = max(2, (H - (csize + g1 + dsize + g2 + dsize)) // 2)
+        # gtext's y is the ascender top, so a big clock carries ~0.2*size of empty
+        # headroom above its digits while caps/digits leave almost nothing below the
+        # baseline. Center the visible INK, not the em-boxes, or the whole group sits
+        # low — a fat black band over the clock, a thin one under the date.
+        head, foot = int(csize * 0.20), int(dsize * 0.06)
+        y = max(2, (H - (csize + g1 + dsize + g2 + dsize) - head + foot) // 2)
         canvas.clear((0, 0, 0))
         gx = int((W - cw - aw) / 2)
         canvas.gtext(gx, y, main, color=_TIME_COL, size=csize)

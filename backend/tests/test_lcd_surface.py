@@ -215,3 +215,35 @@ def test_toast_proportions_scale_to_the_panel():
     assert card.getpixel((20, 400)) != toast.ACCENTS["bell"]  # …not a 3px LED sliver
     led = toast.render(128, 32, "Hi", icon="bell")[-1]
     assert led.getpixel((1, 16)) == toast.ACCENTS["bell"]     # the LED card unchanged
+
+
+def test_lcd_surface_delegates_device_render_api_to_the_panel(monkeypatch):
+    """An effect / on-device anim / ticker draws on the PANEL itself, not through the logical
+    upscale path, so the LcdSurface must expose that API — delegated to its live CanvasSurface.
+    Without it an effect app on the LCD raised `AttributeError: 'LcdSurface' object has no
+    attribute 'effects'` on the very first line of fetch_canvas and never started (the reason no
+    effect worked from the companion on the LCD)."""
+    caps = device.from_capabilities({
+        "product": "LCD Gateway", "features": ["canvas"],
+        "surface": {"kind": "lcd", "w": 1280, "h": 800},
+        "charset": {"common": "A"},
+        "effectDefs": [{"id": "fire", "params": []}, {"id": "plasma", "params": []}],
+        "effects": ["fire", "plasma"],
+        "canvas": {"width": 1280, "height": 800, "formats": ["rgb888"], "opsBin": True}})
+    s = LcdSurface("http://lcd", caps)
+    # the caps an effect app reads come through, delegated to the live panel (were AttributeError)
+    assert s.effects == ("fire", "plasma") == s._panel.effects
+    assert s.effect_defs == s._panel.effect_defs
+    assert tuple(d.get("id") for d in s.effect_defs) == ("fire", "plasma")
+
+    class _R:
+        status_code = 200
+        def json(self):
+            return {"effect": "none", "anim": False, "ticker": False}
+    calls = []
+    import app.gateway as gateway
+    monkeypatch.setattr(gateway, "_request",
+                        lambda m, u, p, **k: (calls.append((m, p, k.get("json"))), _R())[1])
+    # .effect() delegates to the live panel -> play_effect POST
+    s.effect("fire")
+    assert any(p == "/api/canvas/effect" and (b or {}).get("type") == "fire" for _, p, b in calls)

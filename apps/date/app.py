@@ -89,6 +89,29 @@ def _cv_vfill(canvas, Image, W, H, top, bot, y0, y1):
     return col.resize((W, H))
 
 
+def _cv_stack_layout(day_top, day_h, items, content_top, content_h, gap_min, gap_frac):
+    """Where to start a side column and how far to space its lines so it fills the
+    day numeral's vertical band instead of collapsing to a width-limited clump in
+    the panel's center (which reads as a marooned speck on a tall LCD).
+
+    The lines are grouped with a gap of at most ``gap_frac`` x the mean line height
+    — big enough to open the column down the panel, small enough that the weekday /
+    month / year still read as one date — then that group is centered in the band so
+    its top and bottom sit level with the big "4". A short column (small ``gap_frac``
+    x lines << band) keeps balanced margins rather than stretching to the edges; a
+    tall one (small panel, ink ~ band) keeps its normal ``gap_min`` spacing. Falls
+    back to the full content region if the stack is taller than the numeral."""
+    ink = sum(it["h"] for it in items)
+    band_top, band_h = (content_top, content_h) if ink > day_h else (day_top, day_h)
+    n = len(items)
+    if n <= 1:
+        return band_top + (band_h - ink) / 2.0, gap_min
+    ideal = (band_h - ink) / (n - 1)                     # space-between spacing
+    gap = max(gap_min, min(ideal, (ink / n) * gap_frac))  # capped so it stays a group
+    group = ink + (n - 1) * gap
+    return band_top + (band_h - group) / 2.0, gap
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     from datetime import datetime
     from PIL import Image, ImageDraw
@@ -109,6 +132,11 @@ def fetch_canvas(settings, canvas, i18n=None):
 
         if W <= 72:
             left_frac, pad_x, gap_inner = 0.48, 2, 3
+        elif W >= 192:
+            # A wide panel carries the facts grid too, so the numeral cedes width:
+            # a full-width "4" (nearly as wide as it is tall) would squeeze the text
+            # columns to a speck. Still the clear hero, just not hogging the panel.
+            left_frac, pad_x, gap_inner = 0.42, 4, 6
         else:
             left_frac, pad_x, gap_inner = 0.52, 4, 6
         pad_top = 2 if H >= 48 else 1
@@ -130,7 +158,8 @@ def fetch_canvas(settings, canvas, i18n=None):
         col_x = pad_x + day["w"] + gap_inner
         if large:
             info_x = int(W * 0.70)
-            col_w = max(10, info_x - col_x - gap_inner)
+            mid_gap = max(gap_inner, int(W * 0.03))   # real air between the two columns
+            col_w = max(10, info_x - col_x - mid_gap)
         else:
             col_w = max(10, W - col_x - pad_x)
         avail = max(6, content_h - 2 * gap_v)
@@ -165,13 +194,12 @@ def fetch_canvas(settings, canvas, i18n=None):
                      color=canvas.mix((255, 255, 255), accent, 0.10), size=day["font"].size)
 
         colors = (accent, (232, 236, 244), (150, 166, 196))
-        y = content_top + (content_h - total) / 2.0
-        for ln, col in zip(lines, colors):
-            canvas.gtext(int(col_x - ln["l"]), int(y - ln["t"]), ln["text"],
-                         color=col, size=ln["font"].size)
-            y += ln["h"] + gap_v
-
         if large:
+            # A wide panel pairs the weekday/month/year with a facts column as an
+            # aligned 2-column, 3-row grid: each row shares a baseline so the two
+            # columns read as one dashboard block (not two staggered stacks), and
+            # the rows are spread down the day numeral's band so the block spans the
+            # panel like the "4" instead of a speck floating in its center.
             yr2 = now.year
             leap2 = (yr2 % 4 == 0 and yr2 % 100 != 0) or (yr2 % 400 == 0)
             yday = now.timetuple().tm_yday
@@ -180,12 +208,28 @@ def fetch_canvas(settings, canvas, i18n=None):
             info_w = max(10, W - info_x - pad_x)
             icap = content_h * 0.26
             ifs = [_cv_fit_ink(canvas, s, icap, info_w) for s in facts]
-            itot = sum(f["h"] for f in ifs) + 2 * gap_v
-            iy = content_top + (content_h - itot) / 2.0
-            for f, col in zip(ifs, ((214, 224, 240), (192, 202, 224), (168, 180, 206))):
-                canvas.gtext(int(info_x - f["l"]), int(iy - f["t"]), f["text"],
-                             color=col, size=f["font"].size)
-                iy += f["h"] + gap_v
+            fact_colors = ((214, 224, 240), (192, 202, 224), (168, 180, 206))
+            rows_h = [max(lines[i]["h"], ifs[i]["h"]) for i in range(3)]
+            ry, gap_row = _cv_stack_layout(day_top, day["h"],
+                                           [{"h": h} for h in rows_h],
+                                           content_top, content_h, gap_v, 1.1)
+            for i in range(3):
+                ln, f, rh = lines[i], ifs[i], rows_h[i]
+                canvas.gtext(int(col_x - ln["l"]), int(ry + (rh - ln["h"]) / 2.0 - ln["t"]),
+                             ln["text"], color=colors[i], size=ln["font"].size)
+                canvas.gtext(int(info_x - f["l"]), int(ry + (rh - f["h"]) / 2.0 - f["t"]),
+                             f["text"], color=fact_colors[i], size=f["font"].size)
+                ry += rh + gap_row
+        else:
+            # Narrow panel: just the weekday/month/year stack, opened down the day
+            # numeral's band so it spans the panel like the "4"; a modest gap keeps
+            # the three lines reading as one date rather than scattered labels.
+            y, gap_stack = _cv_stack_layout(day_top, day["h"], lines,
+                                            content_top, content_h, gap_v, 0.9)
+            for ln, col in zip(lines, colors):
+                canvas.gtext(int(col_x - ln["l"]), int(y - ln["t"]), ln["text"],
+                             color=col, size=ln["font"].size)
+                y += ln["h"] + gap_stack
 
         yr = now.year
         leap = (yr % 4 == 0 and yr % 100 != 0) or (yr % 400 == 0)

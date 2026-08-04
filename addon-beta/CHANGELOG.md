@@ -3,6 +3,27 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.14
+
+- **Effects (and on-device anim/ticker) work on the LCD from the companion again** — two bugs: an
+  effect app got the logical frame-push surface, which lacked the effect API, so it raised
+  `AttributeError` and never started; and the companion took the panel over first, which parks the
+  LCD panel and the firmware does not un-park it when the effect then starts. Now a device-side
+  renderer gets the effect/anim/ticker API (delegated to the live panel) and the companion hands the
+  panel back (release) instead of taking it over — exactly what the wall's own UI does.
+- **Settings sync to the LCD** — the store is now gated on the gateway's `settingsStore` capability
+  instead of its product name / version number (an "LCD Gateway" reporting 0.1.0 was wrongly
+  excluded and kept its settings local).
+- **Local split-flap preview restored** — the flap-grid preview (rendered from state, no gateway
+  round-trip) is back for flap apps; only a canvas/panel app drops the live image — that was the
+  readback poll that pinned the gateway worker — and shows a short note in its place.
+- **LCD app layouts fixed at native 1280×800** — countdown (speck event title), date (giant clipped
+  day number), dashboard (speck date), moon-phase (8px phase name), time (off-centre), metals,
+  sensor-graph and stock-graph now scale with the panel instead of fixed small-panel caps. LED
+  rendering byte-identical.
+- **More debug logging** — the running app logs at INFO; every gateway request logs its endpoint,
+  payload size and payload type at DEBUG.
+
 ## 2.10.12-beta.13
 
 - **Removed the live wall preview from the web UI** — it refreshed a full panel readback on a

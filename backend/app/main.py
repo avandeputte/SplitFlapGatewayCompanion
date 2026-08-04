@@ -332,12 +332,20 @@ async def setup_settings_sync(d=None) -> None:
     except Exception as e:
         gw = None
         log.info("settings sync: could not reach gateway to check version: %s", e)
-    if not (gw and supports_settings(gw)):
+    # Capability first: any wall that advertises the ``settingsStore`` feature has the store, whatever
+    # its product or version number (the LCD Gateway does, and its version numbers its own product
+    # line, so a >= (3,1) comparison would wrongly exclude it). supports_settings() stays only as the
+    # backward-compat fallback for older gateways that predate the explicit capability.
+    caps = getattr(getattr(d, "controller", None), "caps", None)
+    can_store = getattr(caps, "settings_store", False) or bool(gw and supports_settings(gw))
+    if not can_store:
         if mode == "gateway":
-            log.warning("COMPANION_SETTINGS_STORE=gateway needs Gateway 3.1+; this gateway is "
-                        "older or unreachable — falling back to LOCAL settings.")
+            log.warning("COMPANION_SETTINGS_STORE=gateway needs a gateway that advertises the "
+                        "settingsStore capability; this one does not (or is unreachable) — falling "
+                        "back to LOCAL settings.")
         else:
-            log.info("settings sync: gateway is pre-3.1 (or unreachable) — settings stay local.")
+            log.info("settings sync: gateway has no settingsStore capability (or is unreachable) — "
+                     "settings stay local.")
         return
 
     def _pusher(doc: dict) -> bool:

@@ -409,14 +409,14 @@ def test_effect_in_a_playlist_is_released_when_its_slot_ends(gw_calls, tmp_path)
             "the effect slot never ran and released", timeout=3.0)
 
         bodies = [(p, b) for _, p, b, _ in gw_calls]
-        assert any(p == "/api/canvas/effect" for p, _ in bodies), "effect never started"
-        # When its slot ended the companion LET GO of the panel — _canvas_active clears — and the
-        # next (flap) entry's page auto-stops the effect on the firmware. It does NOT send an eager
-        # effect:none / active:false, which would flash the stale wall before that page lands.
+        # The effect started (a device renderer hands the panel back first — a release, which is a
+        # dispReturnToWall effect:none stand-down + un-park — so the effect actually reaches the LCD
+        # screen; a take_over would park the panel and the firmware won't un-park for the effect).
+        assert any(p == "/api/canvas/effect" and (b or {}).get("type") not in (None, "none")
+                   for p, b in bodies), "effect never started"
+        # And when its slot ended the companion LET GO of the panel (_canvas_active clears); the
+        # next (flap) entry's page then auto-stops the effect on the wall.
         assert not ctl._canvas_active, "the effect was never let go when its slot ended"
-        assert not any(p == "/api/canvas" and (b or {}).get("active") is False for p, b in bodies) \
-            and not any(p == "/api/canvas/effect" and (b or {}).get("type") == "none" for p, b in bodies), \
-            "must not eagerly release the panel; the next flap page auto-stops the effect"
         await ctl.stop()
 
     asyncio.run(run())

@@ -250,11 +250,20 @@ def fetch_canvas(settings, canvas):
         P = _cv_fit_ink(canvas, pct_str, H * 0.38, int(W * 0.72))
         rows = [(value_str, V, _INK), (pct_str, P, col)]
     else:
-        L = _cv_fit_ink(canvas, label, H * 0.18, wbudget)
         V = _cv_fit_ink(canvas, value_str, H * 0.40, wbudget)
+        # The value is the hero, but a long price fills wbudget well below its H*0.40 cap, so on a
+        # big LCD panel a short label / range tag at the raw panel-fraction caps out-grows it and
+        # flattens the hierarchy (muted grey type as big as the price). On big panels tie the
+        # secondary type to the value's own rendered height so it stays clearly subordinate; small
+        # LED panels (H < 96) keep the original panel-fraction caps byte-for-byte.
+        lab_cap, tag_cap = H * 0.18, H * 0.16
+        if H >= 96:
+            lab_cap = min(lab_cap, V["h"] * 0.70)
+            tag_cap = min(tag_cap, V["h"] * 0.60)
+        L = _cv_fit_ink(canvas, label, lab_cap, wbudget)
         P = _cv_fit_ink(canvas, pct_str, H * 0.26, wbudget)
         rows = [(label, L, _MUTE), (value_str, V, _INK), (pct_str, P, col)]
-        R = _cv_fit_ink(canvas, rng, H * 0.16, W * 0.22)   # range tag, top-right
+        R = _cv_fit_ink(canvas, rng, tag_cap, W * 0.22)   # range tag, top-right
         _cv_shadow(d, W - pad - R["w"], pad, rng, R, canvas.dim(_MUTE, 0.8))
 
     # Center the stack in the space ABOVE the reserved bottom margin, so the last line (the arrow

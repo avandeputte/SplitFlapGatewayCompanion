@@ -575,6 +575,12 @@ def fetch_canvas(settings, canvas, caps=None):
         # reads over any bar). Sized by the SAME _cv_bar_font/_cv_label as the PIL path.
         pad = 2
         canvas.clear((0, 0, 0))
+        # The shared header_h (line ~557) is capped at 18px — right for a 64-160px
+        # wall but a 2%-tall speck on an 800px LCD. Re-derive it as a true fraction
+        # of the panel here (gtext/LCD only) so the event band scales with H. Only
+        # ever grow it, so the small-panel value is preserved; keep 0 when no event.
+        if event:
+            header_h = max(header_h, int(round(H * 0.14)))
         if header_h > 0 and event:
             budget = max(1, header_h - 4)
             hf, htop, hh = _cv_bar_font(canvas, budget, sample=event)
@@ -582,7 +588,8 @@ def fetch_canvas(settings, canvas, caps=None):
                 budget -= 1
                 hf, htop, hh = _cv_bar_font(canvas, budget, sample=event)
             etext = _cv_truncate(hf, event, W - 4)
-            canvas.gtext(W // 2, int(round(1.0 - htop)), etext, color=(238, 238, 244),
+            hy = (header_h - hh) / 2.0 - htop     # center the ink in the band
+            canvas.gtext(W // 2, int(round(hy)), etext, color=(238, 238, 244),
                          size=hf.size, align="center", outline=(0, 0, 0))
             canvas.rect(0, header_h - 1, W, 1, color=_UNITS[keys[0]][0], fill=True)
         n = len(keys)

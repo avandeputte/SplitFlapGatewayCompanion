@@ -198,20 +198,29 @@ function setBadge(offline) {
   badge.textContent = offline ? t("⚠ Display offline") : "";
 }
 
-// Apply one state document (from the SSE stream or the fallback poll) to the CHROME only: the
-// offline badge, a geometry change (rebuild the compose grid + re-gate apps), and the active-app
-// / game-pad UI. The wall's live pixel preview used to live here too — a flap-grid board plus a
-// canvas <img> refreshed on a 300 ms timer off the gateway's readback — but that poll pinned the
-// gateway's single HTTP worker and read the wall "offline", so it was removed. Nothing here
-// touches the gateway now; it is all local chrome. Idempotent (a diff-render).
+// The tiny "how is the preview being fed" line under the board: the live SSE stream, the
+// fallback poll, or "local" when the wall is simulated (no gateway). Diffed — runs every frame.
+function setPreviewSrc(mode) {
+  const el = $("previewSrc");
+  if (!el) return;
+  const txt = t("Updates: %s", mode);
+  if (el.textContent !== txt) el.textContent = txt;
+}
+
+// Apply one state document (from the SSE stream or the fallback poll). For a FLAP app the board is
+// the locally-rendered split-flap grid — built from the state's characters, no gateway round-trip,
+// so it stays. For a CANVAS app (a Matrix/LCD panel drawing pixels) we do NOT show a live image:
+// that meant polling the gateway's readback on a timer, which pinned its single HTTP worker and
+// read the wall "offline" — so a canvas app shows a short note instead. Idempotent (a diff-render).
 let APPLY_BUSY = false;          // guards the rare async re-boot when the grid resizes under us
 async function applyState(st, disp) {
   if (disp !== DISPLAY) return;                             // stale: for a wall we've left
   const tr = st.transport || {};
   setBadge(!(tr.connected || tr.type === "sim"));
+  setPreviewSrc(tr.type === "sim" ? "local" : (ES_LIVE ? "SSE" : "poll"));
+  const board = $("preview"), note = $("previewCanvasNote");
   // The wall can change shape under us: the gateway may have been unreachable at boot, or its
-  // Display Layout edited since. Rebuild the compose grid + re-gate apps rather than laying out
-  // on a stale geometry.
+  // Display Layout edited since. Re-read the geometry rather than reusing a stale GRID.cols.
   if (st.module_count && st.module_count !== GRID.module_count) {
     if (APPLY_BUSY) return;
     APPLY_BUSY = true;
@@ -219,6 +228,29 @@ async function applyState(st, disp) {
     finally { APPLY_BUSY = false; }
     return;
   }
+  if (st.canvas) {
+    // A canvas app draws pixels on the panel — no meaningful flap grid, and we no longer poll its
+    // readback for an image (that was the "offline" congestion). Show the note instead of a board.
+    if (board) board.style.display = "none";
+    if (note) note.style.display = "";
+  } else {
+    if (note) note.style.display = "none";
+    if (board) {
+      board.style.display = "";
+      if (board.children.length !== st.chars.length) buildBoard(board, st.chars.length, GRID.cols);
+      st.chars.forEach((ch, i) => {
+        const cell = board.children[i];
+        if (!cell) return;
+        // Diff before writing: most frames change nothing, and rewriting every cell's class + text
+        // is layout work for identical pixels.
+        const cls = classForChar(ch), g = glyph(ch);
+        if (cell.className !== cls) cell.className = cls;
+        if (cell.textContent !== g) cell.textContent = g;
+      });
+    }
+  }
+  const meta = `${GRID.rows}×${GRID.cols} · ${st.module_count} ${t("modules")}`;
+  if ($("previewMeta").textContent !== meta) $("previewMeta").textContent = meta;
   if (APPS.length) updateActiveUI(st.active_app, st.active_playlist);
 }
 
@@ -473,7 +505,8 @@ function cmpClear() {
 // ---- boot ------------------------------------------------------------------
 async function bootGrid() {
   GRID = await api("/api/grid");
-  cmpBuild();                    // the compose grid; the live preview board was removed
+  buildBoard($("preview"), GRID.module_count, GRID.cols);   // the flap-grid preview (flap apps)
+  cmpBuild();                                               // the compose grid
 }
 
 function wireTabs() {

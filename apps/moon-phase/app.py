@@ -257,11 +257,58 @@ def _cv_moon_gtext(canvas, moon, i18n):
     else:
         nxt = f'{t("New in")} {int(moon["days_to_new"])}{u("D")}'.upper()
 
-    # Size the name with the width-aware wrap-fit (it shrinks until each line fits lw, never
-    # clipping an overlong word), then draw those same lines with gtext at that size — the PIL
-    # face and the gtext face are the one bundled DejaVu, so the measurement carries over.
+    # Size the name with a width-aware wrap-fit that CONVERGES geometrically (like
+    # canvas.fit_gtext) rather than the shared _cv_wrap_fit's decrement-by-1: on an 800px
+    # panel that helper starts at ~int(max_h) and can't step down far enough in its iteration
+    # budget to clear the narrow text column, so it collapses the name to an 8px speck. This
+    # keeps whole words (never hyphen-splits, so name_fits still means what it says) and reaches
+    # the true largest fitting size, so the name scales with the panel like the disc beside it.
+    def _fit_name(text, max_w, max_h, max_lines):
+        words = str(text or '').split()
+
+        def wrap(font):
+            lines, cur = [], ''
+            for w in words:
+                cand = f'{cur} {w}'.strip()
+                if not cur or font.getlength(cand) <= max_w:
+                    cur = cand
+                else:
+                    lines.append(cur)
+                    cur = w
+                    if len(lines) >= max_lines:
+                        break
+            if cur and len(lines) < max_lines:
+                lines.append(cur)
+            return lines[:max_lines] or ['']
+
+        def metrics(size):
+            font = canvas.font(size)
+            lines = wrap(font)
+            b = font.getbbox('Ag')
+            lh = b[3] - b[1]
+            gap = max(1, lh // 6)
+            total = len(lines) * lh + (len(lines) - 1) * gap
+            widest = max((font.getlength(ln) for ln in lines), default=1.0)
+            return font, lines, lh, gap, total, widest
+
+        size = max(8, int(max_h))
+        font, lines, lh, gap, total, widest = metrics(size)
+        for _ in range(40):                     # geometric descent to a fitting size
+            if size <= 8 or (total <= max_h and widest <= max_w):
+                break
+            scale = min(max_w / max(1.0, widest), max_h / max(1.0, total))
+            size = max(8, min(size - 1, int(size * scale)))
+            font, lines, lh, gap, total, widest = metrics(size)
+        for _ in range(16):                     # nudge back up to the true maximum fitting size
+            f2, l2, lh2, g2, tot2, wid2 = metrics(size + 1)
+            if tot2 <= max_h and wid2 <= max_w:
+                size, font, lines, lh, gap = size + 1, f2, l2, lh2, g2
+            else:
+                break
+        return font, lines, lh, gap
+
     name_h = int(H * 0.42)
-    nf, nlines, nlh, ngap = _cv_wrap_fit(canvas, name, lw, name_h, 2)
+    nf, nlines, nlh, ngap = _fit_name(name, lw, name_h, 2)
     nsize = nf.size
     name_block = len(nlines) * nlh + (len(nlines) - 1) * ngap
     name_fits = (max((nf.getlength(ln) for ln in nlines), default=0) <= lw
@@ -269,7 +316,7 @@ def _cv_moon_gtext(canvas, moon, i18n):
 
     if not name_fits:
         # Column too narrow to tell the name — let the disc + a big "% LIT" carry it.
-        pf, plines, plh, pgap = _cv_wrap_fit(canvas, pct, lw, H - 2 * marg, 2)
+        pf, plines, plh, pgap = _fit_name(pct, lw, H - 2 * marg, 2)
         block = len(plines) * plh + (len(plines) - 1) * pgap
         y = (H - block) / 2.0
         for ln in plines:

@@ -561,6 +561,8 @@ class DisplayController:
         self.active_app = app_id
         self.state.active_app = app_id
         self._remember({"kind": "app", "app": app_id})
+        log.info("app %r now running (%s surface) on %s", app_id, surface,
+                 str(self.config.transport.get("gateway_url") or "sim"))
         matrix_channel = surface == "matrix" and self.plugins.is_channel_app(app_id)
         loop = (self._channel_canvas_loop if matrix_channel
                 else self._matrix_loop if surface == "matrix"
@@ -768,24 +770,41 @@ class DisplayController:
             png = canvas.readback_png(url, scale=scale, fmt=fmt, down=down)
         return png
 
-    async def _take_panel(self) -> str:
-        """Take the Matrix panel over from the reel wall (once), and return the gateway url — the
-        opening move every panel-rendering loop shares. ``take_over`` (not bare ``set_active``)
-        so the firmware clears the whole panel AND any device-side renderer the previous app
-        left running — effect, looping anim, ticker — is stood down instead of painting over
-        the new app's frames."""
+    async def _take_panel(self, claim: bool = True) -> str:
+        """Ready the Matrix panel for a panel-rendering loop and return the gateway url — the
+        opening move every such loop shares.
+
+        ``claim`` True (a frame-push / ops app): ``take_over`` (not bare ``set_active``) so the
+        firmware clears the whole panel AND stands down any device-side renderer the previous app
+        left running — effect, looping anim, ticker — instead of painting over the new app's frames.
+
+        ``claim`` False (a DEVICE-side renderer: an effect, on-device anim or ticker): do NOT take
+        the panel over. The renderer claims the panel with its OWN POST, and a pre-emptive take_over
+        parks the panel in raw-canvas mode — which the LCD firmware does not un-park when the effect
+        then starts, so the effect renders into the framebuffer but never reaches the screen. Hand
+        the panel back to the wall instead (``release`` = the firmware's ``dispReturnToWall``): that
+        stands down any prior device renderer AND un-parks, exactly what the wall's own UI does
+        before it starts an effect."""
         url = str(self.config.transport.get("gateway_url") or "").strip()
         if url:
-            # Drop any draw stream a PREVIOUS app left open before this one takes the panel.
+            # Drop any draw stream a PREVIOUS app left open before this one claims the panel.
             # While a stream is open the drawing REST endpoints answer 409, so an un-torn-down
             # stream — a streaming ops app (the aquarium) switched away by a path that skipped
             # the release — would freeze the wall on its last frame and block every push here.
             # stream_end is a no-op when none is open, and this app opens its own later if it
             # earns one (see _maybe_stream). The universal choke point, so no switch path leaks.
             await asyncio.to_thread(canvas.stream_end, url)
-            if not self._canvas_active:
-                await asyncio.to_thread(canvas.take_over, url)
-                self._canvas_active = True
+            if claim:
+                if not self._canvas_active:
+                    await asyncio.to_thread(canvas.take_over, url)
+            else:
+                # A device renderer POSTs its own claim next (gCanvasMode stays false), so instead
+                # of taking the panel over — which parks it, and the LCD won't un-park for the
+                # effect — hand it back to the wall: release stands down any prior device renderer
+                # AND un-parks. _canvas_active still marks the panel as claimed by a canvas/device
+                # app, so the switch-away teardown (stream close + flap-cache forget) is unchanged.
+                await asyncio.to_thread(canvas.release, url)
+            self._canvas_active = True
         return url
 
     async def _run_matrix(self, app_id: str, keep_going, *, overrides=None, deadline=None) -> None:
@@ -798,7 +817,11 @@ class DisplayController:
         to hold before the next redraw — an effect sets once and holds, a clock redraws each tick. A
         low floor lets an animating app pick its own frame rate (a fast frame-push app
         runs over the draw stream, ~28 fps vs the ~8 fps HTTP ceiling)."""
-        url = await self._take_panel()
+        # A device-side renderer (effect / on-device anim / ticker) claims the panel with its own
+        # POST — do NOT take the panel over first: on the LCD firmware take_over parks the panel and
+        # the effect never reaches the screen (it renders only into the framebuffer). See _take_panel.
+        device_render = bool((self.plugins.manifest(app_id) or {}).get("device_render"))
+        url = await self._take_panel(claim=not device_render)
         caps = self._caps()
         # Adopt the draw stream UP FRONT for a frame-push / ops app, so its FIRST frame already
         # rides the stream (serviced on the gateway's second core) instead of a one-shot ~2 MB

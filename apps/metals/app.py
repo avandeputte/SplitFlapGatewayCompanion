@@ -114,25 +114,35 @@ def _cv_metals_gtext(canvas, head, rows):
     W, H = canvas.width, canvas.height
     canvas.clear((0, 0, 0))
     pad = max(6, int(W * 0.035))
-    hsize = canvas.fit_gtext(head, W - 2 * pad, int(H * 0.13))
-    hy = max(4, int(H * 0.04))
-    canvas.gtext(W / 2, hy, head, color=_CV_DIM, size=hsize, align="center")
-    body_top = hy + int(hsize * 0.75) + max(6, int(H * 0.06))
-    n = len(rows)
-    band = (H - body_top) / n
-    row_h = int(min(band * 0.60, H * 0.26))
+    hsize = canvas.fit_gtext(head, W - 2 * pad, int(H * 0.15))
+    # A metal name on the left and a right-aligned price share one line, so on a
+    # wide panel each row's height comes out WIDTH-bound; give it a generous
+    # proportional ceiling (never a fixed pixel cap) and let the width limit it.
+    cell_h = int(H * 0.34)
     names = [nm for nm, _p, _c in rows]
     prices = [p for _n, p, _c in rows]
-    name_size = min(canvas.fit_gtext(nm, int(W * 0.52), row_h) for nm in names)
+    name_size = min(canvas.fit_gtext(nm, int(W * 0.52), cell_h) for nm in names)
     name_w = max(canvas.text_width(nm, name_size) for nm in names)
     gap = max(8, int(W * 0.05))
     price_avail = max(20, (W - pad) - (pad + name_w + gap))
-    price_size = min(canvas.fit_gtext(p, price_avail, row_h) for p in prices)
-    for i, (name, prc, col) in enumerate(rows):
-        cy = body_top + band * (i + 0.5)
+    price_size = min(canvas.fit_gtext(p, price_avail, cell_h) for p in prices)
+    row_em = max(name_size, price_size)
+    # Fill the panel as ONE evenly-spaced group — the header plus the two rows —
+    # with equal gaps above, between, and below every element, so the rows don't
+    # clump into the top and bottom thirds with a dead band stranded in the
+    # middle. Each element's ink is centered on its own slot.
+    ems = [hsize] + [row_em] * len(rows)
+    vgap = max(4, (H - sum(ems)) / (len(ems) + 1))
+    y = vgap
+    canvas.gtext(W / 2, y + hsize * (0.5 - 0.56), head,
+                 color=_CV_DIM, size=hsize, align="center")
+    y += hsize + vgap
+    for name, prc, col in rows:
+        cy = y + row_em * 0.5
         canvas.gtext(pad, cy - name_size * 0.56, name, color=col, size=name_size)
         canvas.gtext(W - pad, cy - price_size * 0.56, prc, color=_CV_TEXT,
                      size=price_size, align="right")
+        y += row_em + vgap
     canvas.show()
 
 

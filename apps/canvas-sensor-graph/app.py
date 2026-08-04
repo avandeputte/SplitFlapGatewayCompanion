@@ -254,6 +254,9 @@ def fetch_canvas(settings, canvas, get_ha_states=None, get_ha_history=None):
     delta_str = f"{'▲' if delta >= 0 else '▼'}{_fmt(abs(delta))}"
     pad, x, gap = 2, 3, 1
     bot = 3 if H >= 44 else 2
+    if H >= 96:                       # large LCD: the 1–3px offsets stop scaling — give the
+        x = max(3, int(W * 0.02))     # block a real left margin (not flush to the edge) and
+        gap = max(1, int(H * 0.02))   # row spacing that breathes at full panel height
     if H < 44:
         V = _fit_ink(canvas, value_str, H * 0.50, int(W * 0.78))
         P = _fit_ink(canvas, delta_str, H * 0.34, int(W * 0.60))

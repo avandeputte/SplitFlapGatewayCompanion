@@ -128,6 +128,9 @@ class Capabilities:
     can_alarms: bool = False                # /api/alarms — the four daily alarm slots (the "alarms" feature)
     can_quiet: bool = False                 # /api/quiet + /quiet/schedule — Quiet Time (the "quiet" feature)
     can_brightness: bool = False            # panel brightness + dim schedule (the "brightness" feature)
+    settings_store: bool = False            # /api/companion/settings — the wall stores the companion's
+                                            # settings blob (the "settingsStore" feature). Explicit cap:
+                                            # any product that advertises it has the store, no version sniff.
     # The wall's surface, from the capabilities' ``surface`` object: {"kind":
     # "led-matrix" | "lcd", w, h, colorBits, refreshHz}. Empty kind = the field
     # predates the firmware that states it (treated as an LED matrix). An "lcd"
@@ -337,6 +340,7 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         canvas_stream=bool(canvas.get("stream")),
         can_sound="sound" in features,
         can_sd="sd" in features,
+        settings_store="settingsstore" in features,
         can_timer="timer" in features,
         can_alarms="alarms" in features,
         can_quiet="quiet" in features,

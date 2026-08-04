@@ -58,7 +58,32 @@ def _client(url: str):
 
 def _request(method: str, url: str, path: str, *, timeout: float, **kw):
     """The shared wrapper: base-url rstrip + the pooled per-gateway client, one place."""
+    if log.isEnabledFor(logging.DEBUG):
+        _log_send(method, url, path, kw)
     return _client(url).request(method, path, timeout=timeout, **kw)
+
+
+def _log_send(method: str, url: str, path: str, kw: dict) -> None:
+    """One DEBUG line per gateway request — endpoint, payload size, payload type. EVERY gateway
+    interaction (canvas pushes, settings, the timer/alarm/quiet poll) funnels through _request, so
+    this is the single place that sees them all. Guarded by isEnabledFor so a non-debug run pays
+    nothing."""
+    body = kw.get("content")
+    if body is not None:
+        try:
+            n = len(body)
+        except TypeError:
+            n = -1
+        ctype = (kw.get("headers") or {}).get("Content-Type", "application/octet-stream")
+    elif kw.get("json") is not None:
+        try:
+            n = len(json.dumps(kw["json"]).encode())
+        except Exception:
+            n = -1
+        ctype = "application/json"
+    else:
+        n, ctype = 0, "-"
+    log.debug("gateway -> %s %s%s  %d B  %s", method, _base(url), path.split("?", 1)[0], n, ctype)
 
 
 async def _arequest(method: str, url: str, path: str, *, timeout: float, **kw):

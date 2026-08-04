@@ -396,6 +396,17 @@ class LcdSurface(ZoneCanvas):
         self.can_sound = bool(caps.can_sound)
         self.can_sd = bool(caps.can_sd)
 
+    def __getattr__(self, name):
+        """Anything this logical frame-push surface does not define — the device-side renderers
+        (``effect`` / on-device ``anim`` / ``ticker``) and the caps they read (``effects``,
+        ``effect_defs``, ``effect_params``) — acts on the PANEL itself, not through the upscale
+        path, so delegate it to the underlying live CanvasSurface. Without this an effect app on
+        the LCD raised ``AttributeError: 'LcdSurface' object has no attribute 'effects'`` and never
+        started. Guard ``_panel`` so a miss during __init__ (before it is set) doesn't recurse."""
+        if name == "_panel":
+            raise AttributeError(name)
+        return getattr(self._panel, name)
+
     # -- the wall side --------------------------------------------------------
     def _push(self, img) -> bool:
         if img is None:

@@ -491,7 +491,8 @@ def _cv_dashboard_gtext(canvas, now, clock, night, sky, tf, temp, hi, lo, feels,
                       f'{wd} {now.day}', wd]
     else:
         date_cands = [f'{wd} {now.day} {mo}', f'{wd} {now.day}', f'{now.day} {mo}', wd]
-    date_cap = max(9, min(int(H * 0.15), 22))
+    date_cap = max(9, int(H * 0.15))          # scales with the panel — a fixed 22px cap left the
+                                              # date a speck under the huge clock on the 800px LCD
     dfloor = max(8, int(date_cap * 0.6))
     date_str, date_size = date_cands[-1], dfloor
     for cand in date_cands:                              # the richest date that fits, then a floor
