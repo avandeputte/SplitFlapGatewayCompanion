@@ -831,8 +831,10 @@ class DisplayController:
         # path an open stream 409s) and to offscreen-render apps (an on-device effect pushes
         # nothing per frame and must not hold a stream; an atlas upload closes/reopens the stream
         # on its own). A stream dropped mid-run is re-adopted by _maybe_stream on the next tick.
+        # Skipped for an app that opts out on the LCD (see _lcd_stream_opt_out).
         if (url and getattr(caps, "canvas_stream", False) and getattr(caps, "canvas_ops_bin", False)
-                and self.plugins.renders_offscreen(app_id)):
+                and self.plugins.renders_offscreen(app_id)
+                and not self._lcd_stream_opt_out(app_id, caps)):
             await asyncio.to_thread(canvas.stream_begin, url)
         if (self.plugins.manifest(app_id) or {}).get("interactive"):
             gameinput.reset(url)                        # fresh pad — no stale steering/presses
@@ -885,11 +887,23 @@ class DisplayController:
         per frame. The stream's 2 MB raw keyframe is handled at the source instead: it is no
         longer sent periodically over a stream (see canvas._try_delta) — TCP continuity means
         no drift to heal, so only deltas flow after the first full."""
+        if self._lcd_stream_opt_out(app_id, caps):
+            return
         if not (url and getattr(caps, "canvas_stream", False) and not canvas.has_stream(url)
                 and isinstance(hold, (int, float)) and hold <= _CANVAS_STREAM_MAX_HOLD):
             return
         if canvas.last_push_was_opsb(url) or canvas.last_push_was_frame(url):
             await asyncio.to_thread(canvas.stream_begin, url)
+
+    def _lcd_stream_opt_out(self, app_id: str, caps) -> bool:
+        """Whether this app must NOT use the draw stream on the LCD (manifest ``lcd_no_stream``).
+
+        The aquarium is the case: it re-asserts a sprite atlas every run, and the atlas REST PUT
+        must close any open stream (see canvas.put_atlas_named) — so streaming it churns the stream
+        open→closed for no gain AND the 0.1.0 LCD firmware crashes on that open→atlas→close sequence.
+        On the LCD it stays on HTTP ops. LCD-only: other walls (the Matrix Gateway) stream it fine."""
+        return bool(getattr(caps, "is_lcd", False)
+                    and (self.plugins.manifest(app_id) or {}).get("lcd_no_stream"))
 
     async def _run_channel_canvas(self, app_id: str, keep_going, *, overrides=None,
                                   deadline=None) -> None:

@@ -246,3 +246,34 @@ def test_no_eager_stream_without_binary_ops(monkeypatch, tmp_path):
     events = _run_first_tick(monkeypatch, tmp_path, _stream_doc(ops_bin=False))
     assert events and events[0] == "render", \
         f"a JSON-ops wall must not pre-open the stream, got {events[:3]}"
+
+
+def test_aquarium_opts_out_of_the_lcd_draw_stream(tmp_path):
+    """Regression: streaming the aquarium crashed the 0.1.0 LCD firmware. It re-asserts a sprite
+    atlas every run, and the atlas REST PUT must close any open draw stream — the open->atlas->close
+    sequence panics the wall (and streaming gains it nothing there anyway). It carries manifest
+    ``lcd_no_stream``, so the engine keeps it on HTTP ops on the LCD (is_lcd) while STILL streaming
+    it on the Matrix Gateway, where it works."""
+    import json
+    from pathlib import Path
+    from app.config import Config
+    from app.engine import DisplayController
+    from app.plugin_settings import PluginSettings
+    from app.plugins import PluginRuntime
+    from app.state import DisplayState
+    from app import device
+    APPS = Path(__file__).resolve().parents[2] / "apps"
+    assert json.loads((APPS / "canvas-aquarium" / "manifest.json").read_text()).get("lcd_no_stream") is True
+    cfg = Config(data_dir=tmp_path)
+    ctl = DisplayController(cfg, DisplayState(45))
+    ps = PluginSettings(tmp_path); ps.set_installed(["canvas-aquarium"])
+    rt = PluginRuntime(cfg, ps, APPS); rt.load(); ctl.attach_plugins(rt)
+    lcd = device.from_capabilities({"product": "LCD Gateway", "features": ["canvas"],
+        "surface": {"kind": "lcd", "w": 1280, "h": 800}, "charset": {"common": "A"},
+        "canvas": {"width": 1280, "height": 800, "stream": True, "opsBin": True}})
+    led = device.from_capabilities({"product": "Matrix Gateway", "features": ["canvas"],
+        "surface": {"kind": "led-matrix", "w": 256, "h": 64}, "charset": {"common": "A"},
+        "canvas": {"width": 256, "height": 64, "stream": True, "opsBin": True}})
+    assert ctl._lcd_stream_opt_out("canvas-aquarium", lcd) is True    # HTTP ops on the LCD
+    assert ctl._lcd_stream_opt_out("canvas-aquarium", led) is False   # streams on the Matrix Gateway
+    assert ctl._lcd_stream_opt_out("time", lcd) is False              # a normal app still streams

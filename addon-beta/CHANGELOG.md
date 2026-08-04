@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.15
+
+- **Aquarium no longer crashes the LCD** — the eager draw-stream adoption (beta.12) opened a stream
+  for the aquarium, and the 0.1.0 LCD firmware crashes on the stream + sprite-atlas-upload sequence
+  (the atlas PUT must close any open stream, and the open→atlas→close churn panics the wall). The
+  aquarium now stays on HTTP ops on the LCD (`lcd_no_stream`), where streaming gained it nothing
+  anyway; it still streams normally on the Matrix Gateway.
+
 ## 2.10.12-beta.14
 
 - **Effects (and on-device anim/ticker) work on the LCD from the companion again** — two bugs: an
