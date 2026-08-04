@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.11
+
+- **Weather sun fix (LCD)** — the sun/moon disc no longer sits partly under the info-column
+  blur (it looked smeared); the disc is placed clear of the scrim and the blur stops short of it.
+
 ## 2.10.12-beta.10
 
 - **Weather & Dashboard draw on-device now (LCD)** — both redraw their whole tall-panel scene

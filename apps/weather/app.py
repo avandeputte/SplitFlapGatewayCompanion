@@ -748,8 +748,18 @@ def _cv_weather_gtext(canvas, wx, unit, show_city, night, sky, frame):
         r = max(0.0, min(1.0, y / max(1, H - 1)))
         return tuple(int(top_sky[k] + (bot_sky[k] - top_sky[k]) * r) for k in range(3))
 
+    # The info-column scrim geometry, computed up front so the celestial disc can be kept clear
+    # of it — a sun/moon whose edge crossed into the blurred column looked smeared.
+    pad = 4
+    left_w = int(W * 0.60)
+    strip_h = max(16, int(H * 0.13))
+    fy = H - strip_h                                    # the forecast strip's top
+    blur_r = max(2, int(H * 0.05))
+
     # --- celestial: a crisp sun (day) or moon + colored stars (night); same geometry as PIL ----
-    icx, icy, ir = W - int(H * 0.42) - 1, int(H * 0.40), max(4, int(H * 0.26))
+    icy, ir = int(H * 0.40), max(4, int(H * 0.26))
+    # Sit the disc fully right of the scrim's feathered edge so no part of it gets blurred.
+    icx = max(W - int(H * 0.42) - 1, left_w + ir + blur_r + pad)
     if night:
         stars = [(0.06, 0.18, (200, 210, 255)), (0.16, 0.42, (255, 240, 200)),
                  (0.30, 0.12, (180, 220, 255)), (0.40, 0.55, (255, 220, 220)),
@@ -802,16 +812,13 @@ def _cv_weather_gtext(canvas, wx, unit, show_city, night, sky, frame):
     # GaussianBlur darken). The scene must never crowd the text, so dim the info column + forecast
     # strip toward the dark sky — the app "blacks out the info column", and an intruding cloud
     # vanishes behind it — then a box blur feathers the dimmed panels into the bright scene.
-    pad = 4
-    left_w = int(W * 0.60)
-    strip_h = max(16, int(H * 0.13))
-    fy = H - strip_h                                    # the forecast strip's top
-    blur_r = max(2, int(H * 0.05))
     dim_top = tuple(int(c * 0.45) for c in top_sky)
     dim_bot = tuple(int(c * 0.45) for c in bot_sky)
     canvas.gradient(0, 0, left_w, H, dim_top, dim_bot, 'v')             # dim the left info column
     canvas.rect(0, fy - 2, W, H - (fy - 2), color=dim_bot, fill=True)   # dim the forecast strip
-    canvas.blur(0, 0, min(W, left_w + 2 * blur_r), fy - 2, blur_r)      # feather the column edge
+    # feather the column edge — but never blur the celestial disc (stop short of its left edge)
+    blur_right = min(left_w + blur_r, icx - ir - blur_r)
+    canvas.blur(0, 0, max(1, blur_right), fy - 2, blur_r)
     sb = max(0, fy - 2 - 2 * blur_r)
     canvas.blur(0, sb, W, H - sb, blur_r)                               # feather the strip edge
     colw = left_w - 2 * pad
