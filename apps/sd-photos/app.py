@@ -56,7 +56,7 @@ def _render(canvas, raw, fit):
     return ImageOps.fit(img, (W, H))           # cover: fill the panel, center-cropped
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     dwell = canvas.num(settings, 'dwell', 10, 3, 300)
     if not getattr(canvas, 'can_sd', False):
         canvas.frame(canvas.message('PHOTO FRAME', 'No microSD card on this wall'))
@@ -65,11 +65,11 @@ def fetch_matrix(settings, canvas):
     fit = str(settings.get('fit', 'cover') or 'cover').strip().lower()
     shuffle = str(settings.get('shuffle', 'no')).strip().lower() in ('1', 'true', 'yes', 'on')
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None or st.get('sig') != (canvas.width, canvas.height, folder, shuffle):
         st = {'sig': (canvas.width, canvas.height, folder, shuffle),
               'paths': [], 'age': _LIST_TTL, 'i': -1, 'cache': {}}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
 
     st['age'] += 1
     if st['age'] >= _LIST_TTL:                 # refresh the listing; keep our place on no change

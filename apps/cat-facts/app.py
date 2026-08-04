@@ -36,7 +36,7 @@ def fetch(settings, format_lines, get_rows, get_cols, paginate=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A typographic card: a little drawn paw print and orange label over a thin
 # rule, the fact wrapped at the largest font that fits (paginating across
@@ -65,7 +65,7 @@ def _cv_state():
     return st
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     """Draw the cat fact as a typographic card, turning body pages each redraw
     when the panel can't hold the whole fact. The fact renews on the app's
     refresh_minutes cadence; a fetch failure keeps the last fact on screen."""

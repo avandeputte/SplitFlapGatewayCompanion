@@ -149,7 +149,7 @@ def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
                 size=8, align='center')
 
 
-def fetch_matrix(settings, canvas, controls=None, play_sound=None, game_store=None):
+def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=None):
     W, H = canvas.width, canvas.height
     cell = max(3, H // 12)                              # ~12 rows of play on any panel
     cols, rows = max(15, W // cell), max(8, H // cell)

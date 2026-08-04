@@ -312,7 +312,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The watchlist as quote rows: ticker left, price right, the day's change as a
 # green/red chip (a color-coded price where a chip won't fit). More tickers
@@ -422,7 +422,7 @@ def _cv_quote_rows(canvas, ImageDraw, rows_data):
     return img
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     """The same watchlist as the flap pages, in the same order, as quote rows —
     rotating page by page when there are more tickers than rows. Quotes are
     cached and refreshed at the polling rate, so a page turn never re-hits
@@ -451,10 +451,10 @@ def fetch_matrix(settings, canvas, i18n=None):
     except (TypeError, ValueError):
         poll = 60.0
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'quotes': None, 'ts': 0.0, 'sig': None, 'page': 0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     sig = tuple(tickers)
     now = time.time()
     if st['quotes'] is None or st['sig'] != sig or (now - st['ts']) >= max(30.0, poll):

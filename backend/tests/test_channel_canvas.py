@@ -69,6 +69,26 @@ def test_items_are_plain_text_and_render_a_non_black_frame():
     assert isinstance(cv.img, Image.Image) and cv.img.getbbox() is not None      # something was drawn
 
 
+def test_tall_panel_grows_a_short_channel_line_past_the_led_cap():
+    """On the LCD's tall panel (256x160) a SHORT channel line — a magic-8-ball answer —
+    fills the height instead of floating at the 28px LED cap. LED panels keep the cap, so
+    their look is unchanged."""
+    import numpy as np
+
+    def text_ink_h(w, h):
+        cv = _Cap(w, h)
+        channel_art.render(cv, "Without a doubt.", "eightball")
+        tx0, _, _ = channel_art._text_box(w, h, "eightball")
+        a = np.asarray(cv.img.convert("L"))[:, tx0:]        # the text column, past the icon
+        rows = np.nonzero(a.max(axis=1) > 20)[0]
+        return int(rows[-1] - rows[0] + 1) if rows.size else 0
+
+    led = text_ink_h(256, 64)
+    lcd = text_ink_h(256, 160)
+    assert lcd > led * 1.6                                   # markedly taller on the tall panel
+    assert lcd > 90                                          # …and actually filling the 160px height
+
+
 def test_long_channel_text_paginates_instead_of_shrinking():
     """A screen too long to stay readable on a short panel becomes several screens at the
     8px floor — never smaller type (below 8px the panel renders wrong-reading glyphs)."""

@@ -98,7 +98,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # Several cities, their local hour written in light: one lit row per city with a
 # warm day / cool night cue on the left stripe. Reads the same world_clock_zones
@@ -171,7 +171,7 @@ def _cv_next_minute_hold():
     return max(1.0, 60.0 - now.second - now.microsecond / 1_000_000.0)
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     from datetime import datetime
     from PIL import Image, ImageDraw
     try:

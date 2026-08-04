@@ -162,7 +162,7 @@ def test_get_ha_history_is_injected_into_the_sensor_graph(monkeypatch, tmp_path)
     from conftest import make_runtime
     from app import device
     rt = make_runtime(tmp_path=tmp_path, installed=["canvas-sensor-graph"], caps=device.SPLIT_FLAP)
-    wants = rt._wants_matrix["canvas-sensor-graph"]    # matrix-only: fetch_matrix's wants
+    wants = rt._wants_matrix["canvas-sensor-graph"]    # matrix-only: fetch_canvas's wants
     assert "get_ha_history" in wants
     monkeypatch.setattr(ha_rest, "fetch_history", lambda eid, minutes=60: [(1.0, 2.0)])
     kw = rt._helper_kwargs("canvas-sensor-graph", wants, {})

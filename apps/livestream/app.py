@@ -102,7 +102,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The same rotation as the flaps: a status card first (red LIVE dot, the
 # concurrent-viewer count large, the channel name under it), then each authored
@@ -261,7 +261,7 @@ def _cv_comment_card(canvas, ImageDraw, lines_in):
     return img
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     from datetime import datetime
     import time
     import pytz
@@ -272,10 +272,10 @@ def fetch_matrix(settings, canvas, i18n=None):
     video_id = str(settings.get('yt_video_id', '') or '').strip()
     slides = _comment_slides(settings.get('livestream_comments', ''))
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'i': 0, 'ts': 0.0, 'name': None, 'viewers': None}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     # The slide rotation redraws every few seconds; the stream numbers only need
     # refreshing on the app's own ~30s cadence.
     if time.time() - st['ts'] > 25:

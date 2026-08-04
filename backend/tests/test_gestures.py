@@ -1,6 +1,7 @@
-"""Clap/tap gestures: the engine's playlist skip (what a gesture drives) and the
+"""Tap gestures: the engine's playlist skip (what a gesture drives) and the
 gestures module's routing, dedupe and debounce. All against fakes — the SSE stream
-itself is exercised at the frame level (handle_frame), never over a socket."""
+itself is exercised at the frame level (handle_frame), never over a socket.
+(Clap detection was removed — unreliable, and the firmware no longer emits it.)"""
 
 import asyncio
 
@@ -76,29 +77,29 @@ class _StubCtl:
 
 
 def test_action_for_defaults_and_validates():
-    assert gestures.action_for({}, "clap") == "playlist_next"
+    assert gestures.action_for({}, "tap") == "playlist_next"
     assert gestures.action_for({"gesture_tap": "stop"}, "tap") == "stop"
-    assert gestures.action_for({"gesture_clap": "none"}, "clap") == "none"
-    assert gestures.action_for({"gesture_clap": "sing"}, "clap") == "playlist_next"
+    assert gestures.action_for({"gesture_tap": "none"}, "tap") == "none"
+    assert gestures.action_for({"gesture_tap": "sing"}, "tap") == "playlist_next"
 
 
 def test_dispatch_routes_by_setting():
     async def run():
         ctl = _StubCtl(playlist="Morning")
         d = _FakeDisplay(ctl)
-        assert await gestures.dispatch(d, "clap") == "playlist_next"
+        assert await gestures.dispatch(d, "tap") == "playlist_next"
         assert ctl.skipped == 1
 
         d = _FakeDisplay(_StubCtl(playlist=None))
-        assert await gestures.dispatch(d, "clap") == "none"   # nothing to advance
+        assert await gestures.dispatch(d, "tap") == "none"   # nothing to advance
 
         ctl = _StubCtl(playlist="Morning")
         d = _FakeDisplay(ctl, {"gesture_tap": "stop"})
         assert await gestures.dispatch(d, "tap") == "stop"
         assert ctl.stopped == 1
 
-        d = _FakeDisplay(_StubCtl(playlist="X"), {"gesture_clap": "none"})
-        assert await gestures.dispatch(d, "clap") == "none"
+        d = _FakeDisplay(_StubCtl(playlist="X"), {"gesture_tap": "none"})
+        assert await gestures.dispatch(d, "tap") == "none"
     asyncio.run(run())
 
 
@@ -107,21 +108,20 @@ def test_frames_dedupe_by_seq_and_debounce_by_clock():
         ctl = _StubCtl(playlist="Loop")
         d = _FakeDisplay(ctl)
         st = gestures.GestureState()
-        assert await gestures.handle_frame(d, st, "clap", '{"count":1,"seq":7}', 100.0) \
+        assert await gestures.handle_frame(d, st, "tap", '{"count":1,"seq":7}', 100.0) \
             == "playlist_next"
         # the same seq re-delivered: dropped
-        assert await gestures.handle_frame(d, st, "clap", '{"count":1,"seq":7}', 103.0) is None
+        assert await gestures.handle_frame(d, st, "tap", '{"count":1,"seq":7}', 103.0) is None
         # a fresh seq inside the debounce window: dropped
-        assert await gestures.handle_frame(d, st, "clap", '{"count":1,"seq":8}', 100.5) is None
+        assert await gestures.handle_frame(d, st, "tap", '{"count":1,"seq":8}', 100.5) is None
         # a fresh seq after the window: dispatched
-        assert await gestures.handle_frame(d, st, "clap", '{"count":1,"seq":9}', 102.0) \
+        assert await gestures.handle_frame(d, st, "tap", '{"count":1,"seq":9}', 102.0) \
             == "playlist_next"
-        # taps hold their own clock — a clap does not debounce a tap
-        assert await gestures.handle_frame(d, st, "tap", '{"count":1,"seq":1}', 102.1) \
-            == "playlist_next"
+        # a non-tap gesture (clap removed) is ignored outright
+        assert await gestures.handle_frame(d, st, "clap", '{"count":1,"seq":1}', 102.1) is None
         # non-gesture frames pass through untouched
         assert await gestures.handle_frame(d, st, "display", '{"x":1}', 200.0) is None
-        assert ctl.skipped == 3
+        assert ctl.skipped == 2
     asyncio.run(run())
 
 
@@ -129,8 +129,8 @@ def test_bad_gesture_payloads_do_not_crash():
     async def run():
         d = _FakeDisplay(_StubCtl(playlist="L"))
         st = gestures.GestureState()
-        assert await gestures.handle_frame(d, st, "clap", "not json", 1000.0) == "playlist_next"
-        assert await gestures.handle_frame(d, st, "clap", "", 1002.0) == "playlist_next"
+        assert await gestures.handle_frame(d, st, "tap", "not json", 1000.0) == "playlist_next"
+        assert await gestures.handle_frame(d, st, "tap", "", 1002.0) == "playlist_next"
     asyncio.run(run())
 
 
@@ -148,14 +148,14 @@ def test_a_landed_gesture_chirps_and_an_idle_one_stays_silent(monkeypatch):
         d = _FakeDisplay(ctl)
         d.gateway_url = "http://gw"
         st = gestures.GestureState()
-        await gestures.handle_frame(d, st, "clap", '{"seq":1}', 100.0)
+        await gestures.handle_frame(d, st, "tap", '{"seq":1}', 100.0)
         assert len(chirps) == 1 and chirps[0]["notes"][0][0] < chirps[0]["notes"][1][0]
 
         # nothing to skip -> no action -> no chirp
         idle = _FakeDisplay(_StubCtl(playlist=None))
         idle.controller.caps = SimpleNamespace(can_sound=True)
         idle.gateway_url = "http://gw"
-        await gestures.handle_frame(idle, gestures.GestureState(), "clap", '{"seq":1}', 200.0)
+        await gestures.handle_frame(idle, gestures.GestureState(), "tap", '{"seq":1}', 200.0)
         assert len(chirps) == 1
 
         # a wall without a speaker skips silently, but still skips
@@ -169,9 +169,9 @@ def test_a_landed_gesture_chirps_and_an_idle_one_stays_silent(monkeypatch):
         # stop gets the falling blip
         stopper = _StubCtl(playlist="Loop")
         stopper.caps = SimpleNamespace(can_sound=True)
-        ds = _FakeDisplay(stopper, {"gesture_clap": "stop"})
+        ds = _FakeDisplay(stopper, {"gesture_tap": "stop"})
         ds.gateway_url = "http://gw"
-        await gestures.handle_frame(ds, gestures.GestureState(), "clap", '{"seq":3}', 400.0)
+        await gestures.handle_frame(ds, gestures.GestureState(), "tap", '{"seq":3}', 400.0)
         assert len(chirps) == 2 and chirps[1]["notes"][0][0] > chirps[1]["notes"][1][0]
     asyncio.run(run())
 

@@ -252,7 +252,8 @@ def _draw_board(canvas, st, gx, gy, cell, dim=1.0):
         for rr, cc in _cells(p['kind'], p['rot'], p['r'], p['c']):
             _block(canvas, gx + cc * cell, gy + rr * cell, cell, col)
     if canvas.width >= 128:
-        canvas.shadow_text(canvas.width - 2, 0, str(st['score']), d((255, 255, 255)), 8, align="right")
+        sz = 8 if canvas.height < 96 else max(8, canvas.height // 12)   # bigger HUD on a tall panel
+        canvas.shadow_text(canvas.width - 2, 0, str(st['score']), d((255, 255, 255)), sz, align="right")
 
 
 def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
@@ -283,9 +284,12 @@ def _grav_period(st, speed):
     return max(2, 13 - st['level'] - speed)            # frames per left-step; faster each level
 
 
-def fetch_matrix(settings, canvas, controls=None, play_sound=None, game_store=None):
+def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=None):
     W, H = canvas.width, canvas.height
-    cell = max(4, min(H // 8, W // 12))                # ~8 rows tall, but keep >=12 columns on
+    if H >= 96:                                        # a tall panel (the LCD): a smaller cell
+        cell = max(8, min(H // 11, W // 15))           # gives a richer, taller well that fills the
+    else:                                              # height instead of ~8 fat rows in the middle
+        cell = max(4, min(H // 8, W // 12))            # ~8 rows tall, but keep >=12 columns on
                                                        # the width so a near-square panel doesn't
                                                        # overflow (pieces spawning off the edge)
     cols = max(12, W // cell)

@@ -299,7 +299,10 @@ def render(surface, text, motif="quote", accent=_INK):
         else:
             art(d, ax, ay, s)
     tx0, box_w, box_h = _text_box(W, H, motif)
-    max_size = min(28, int(box_h * 0.9))
+    # The text grows to fill the height: a tall panel (the LCD's 256x160) lifts the 28px
+    # LED cap so a short channel line — a magic-8-ball answer, a two-word greeting — reads
+    # large instead of floating small in a big black field. LED panels keep the 28px cap.
+    max_size = min(28 if H < 96 else max(28, H // 3), int(box_h * 0.9))
     f, lines, lh, gap = _fit_block(surface.font, str(text), box_w, box_h, max_size)
     total = len(lines) * lh + (len(lines) - 1) * gap
     y = max(2, (H - total) // 2)

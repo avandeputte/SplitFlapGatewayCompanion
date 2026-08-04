@@ -87,11 +87,11 @@ def test_photo_frame_rotates_and_caches(monkeypatch):
     real_get = cv.sd_get
     cv.sd_get = lambda p: (gets.append(p) or real_get(p))
 
-    hold = app.fetch_matrix({"dwell": "5"}, cv)
+    hold = app.fetch_canvas({"dwell": "5"}, cv)
     assert hold == 5 and len(cv.frames) == 1
     assert cv.frames[0].size == (128, 64)              # cover: panel-sized
-    app.fetch_matrix({"dwell": "5"}, cv)               # advances to the other photo
-    app.fetch_matrix({"dwell": "5"}, cv)               # wraps — cache hit, no re-download
+    app.fetch_canvas({"dwell": "5"}, cv)               # advances to the other photo
+    app.fetch_canvas({"dwell": "5"}, cv)               # wraps — cache hit, no re-download
     assert [p.rsplit("/", 1)[-1] for p in gets] == ["a.jpg", "b.jpg"]
 
 
@@ -99,7 +99,7 @@ def test_photo_frame_letterboxes_a_portrait_onto_a_backdrop():
     app = load_app("sd-photos")
     files = {"tall.jpg": _jpeg(w=20, h=60, color=(250, 250, 250))}
     cv = _Frames(_sd_stub(_cv(), files))
-    app.fetch_matrix({"fit": "contain"}, cv)
+    app.fetch_canvas({"fit": "contain"}, cv)
     img = cv.frames[0]
     assert img.size == (128, 64)
     # the letterboxed sides carry the dim backdrop, not pure black bars
@@ -112,7 +112,7 @@ def test_photo_frame_letterboxes_a_portrait_onto_a_backdrop():
 def test_photo_frame_without_a_card_hints_instead_of_failing():
     app = load_app("sd-photos")
     cv = _Frames(_cv(sd=False))
-    hold = app.fetch_matrix({}, cv)
+    hold = app.fetch_canvas({}, cv)
     assert hold == 30 and len(cv.frames) == 1          # the hint card, on a slow tick
 
 
@@ -120,7 +120,7 @@ def test_photo_frame_with_an_empty_folder_hints():
     app = load_app("sd-photos")
     cv = _Frames(_sd_stub(_cv(), {}))
     cv.sd_list = lambda path="/": []                   # card mounted, nothing on it
-    hold = app.fetch_matrix({}, cv)
+    hold = app.fetch_canvas({}, cv)
     assert hold == 30 and len(cv.frames) == 1
 
 
@@ -128,7 +128,7 @@ def test_photo_frame_skips_an_undecodable_file():
     app = load_app("sd-photos")
     files = {"broken.jpg": b"not a jpeg", "ok.jpg": _jpeg()}
     cv = _Frames(_sd_stub(_cv(), files))
-    hold = app.fetch_matrix({"dwell": "7"}, cv)
+    hold = app.fetch_canvas({"dwell": "7"}, cv)
     assert hold == 7 and cv.frames[0].size == (128, 64)   # landed on the good one
 
 
@@ -189,13 +189,13 @@ def test_photo_frame_plays_a_movie_in_the_rotation(gw_calls):
     app = load_app("sd-photos")
     files = {"a.jpg": _jpeg(), "clip.mpg": b"MPGA...."}
     cv = _Frames(_sd_stub(_cv313(), files))
-    hold = app.fetch_matrix({"dwell": "8"}, cv)             # a.jpg first (sorted)
+    hold = app.fetch_canvas({"dwell": "8"}, cv)             # a.jpg first (sorted)
     assert hold == 8 and len(cv.frames) == 1
-    hold = app.fetch_matrix({"dwell": "8"}, cv)             # then the movie
+    hold = app.fetch_canvas({"dwell": "8"}, cv)             # then the movie
     assert hold == 8 and len(cv.frames) == 1                # no frame pushed for a movie
     m, path, body, _ = gw_calls[-1]
     assert path == "/api/canvas/anim/play" and body == {"path": "/photos/clip.mpg"}
-    app.fetch_matrix({"dwell": "8"}, cv)                    # and back to the photo
+    app.fetch_canvas({"dwell": "8"}, cv)                    # and back to the photo
     assert len(cv.frames) == 2
 
 
@@ -203,8 +203,8 @@ def test_movies_stay_out_of_the_rotation_before_313():
     app = load_app("sd-photos")
     files = {"a.jpg": _jpeg(), "clip.mpg": b"MPGA...."}
     cv = _Frames(_sd_stub(_cv(), files))                    # the 3.10 wall from above
-    app.fetch_matrix({}, cv)
-    st = app.fetch_matrix.__globals__["fetch_matrix"]._state
+    app.fetch_canvas({}, cv)
+    st = app.fetch_canvas.__globals__["fetch_canvas"]._state
     assert st["paths"] == ["/photos/a.jpg"]                 # the movie is not listed
 
 
@@ -213,7 +213,7 @@ def test_an_unplayable_movie_skips_to_the_next_item(monkeypatch, gw_calls):
     files = {"bad.mpg": b"x", "z.jpg": _jpeg()}
     cv = _Frames(_sd_stub(_cv313(), files))
     monkeypatch.setattr(cv._cv, "play_anim_path", lambda p: {})   # {} = non-2xx refusal
-    hold = app.fetch_matrix({"dwell": "6"}, cv)
+    hold = app.fetch_canvas({"dwell": "6"}, cv)
     assert hold == 6 and len(cv.frames) == 1                # landed on the photo instead
 
 

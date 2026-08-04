@@ -130,7 +130,7 @@ def test_chomper_attract_mode_auto_plays_without_controls():
     cv = _cv()
     cells = set()
     for _ in range(12):
-        app.fetch_matrix({"speed": "5"}, cv)          # no controls → BFS attract
+        app.fetch_canvas({"speed": "5"}, cv)          # no controls → BFS attract
         cells.add(app._state._st["pac"]["cell"])
     assert len(cells) > 3                              # it moves itself
 
@@ -139,12 +139,12 @@ def test_chomper_player_steers_and_sounds():
     app = load_app("canvas-chomper")
     cv = _cv()
     sounds = []
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls(events=["start"]),
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls(events=["start"]),
                      play_sound=lambda **kw: sounds.append(kw))
     st = app._state._st
     moved = set()
     for i in range(24):                               # an actively-pressing player: presses
-        app.fetch_matrix({"speed": "8"}, cv,          # climb, so any between-lives freeze resumes
+        app.fetch_canvas({"speed": "8"}, cv,          # climb, so any between-lives freeze resumes
                          controls=_Controls("left", presses=i + 1),
                          play_sound=lambda **kw: sounds.append(kw))
         moved.add(st["pac"]["cell"])
@@ -159,7 +159,7 @@ def test_chomper_is_silent_in_attract_mode():
     cv = _cv()
     sounds = []
     for _ in range(30):
-        app.fetch_matrix({"speed": "8"}, cv, controls=_Controls(engaged=False),
+        app.fetch_canvas({"speed": "8"}, cv, controls=_Controls(engaged=False),
                          play_sound=lambda **kw: sounds.append(kw))
     assert app._state._st["score"] > 0                 # it ate pellets (would have waka'd)...
     assert not sounds                                  # ...yet made no sound while unattended
@@ -175,29 +175,29 @@ def test_chomper_takeover_setting_extends_the_idle_window():
             seen.append(within)
             return self._engaged
 
-    app.fetch_matrix({"speed": "8", "takeover": "90"}, cv, controls=_Rec())
+    app.fetch_canvas({"speed": "8", "takeover": "90"}, cv, controls=_Rec())
     assert seen[-1] == 90                               # the setting drives the auto-play delay
     seen.clear()
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Rec())
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Rec())
     assert seen[-1] == 30                               # generous default (was a hardcoded 6s)
     for raw, want in (("99999", 120), ("1", 5), ("abc", 30), ("", 30), (None, 30)):
         seen.clear()
-        app.fetch_matrix({"speed": "8", "takeover": raw}, cv, controls=_Rec())
+        app.fetch_canvas({"speed": "8", "takeover": raw}, cv, controls=_Rec())
         assert seen[-1] == want                         # clamped to [5, 120]; junk → default 30
 
 
 def test_chomper_pause_freezes_and_start_resets():
     app = load_app("canvas-chomper")
     cv = _cv()
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls("right"))
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls("right"))
     st = app._state._st
     st["score"] = 500
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls("right", ["pause"]))
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls("right", ["pause"]))
     assert st["paused"]
     frozen = st["pac"]["cell"]
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls("right"))
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls("right"))
     assert st["pac"]["cell"] == frozen                # paused → no movement
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls(events=["start"]))
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls(events=["start"]))
     assert st["score"] <= 10 and st["lives"] == 3 and not st["paused"]   # fresh game (then one tick)
 
 
@@ -216,34 +216,34 @@ def _force_death(st):
 def test_chomper_pauses_ready_between_lives_until_a_key():
     app = load_app("canvas-chomper")
     cv = _cv()
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls(events=["start"], presses=1))
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls(events=["start"], presses=1))
     st = app._state._st
     st["lives"] = 3
     _force_death(st)
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls("left", presses=1))
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls("left", presses=1))
     assert st["phase"] == "ready" and st["lives"] == 2      # a life lost -> frozen
     frozen = st["pac"]["cell"]
     for _ in range(4):                                       # a HELD key must not resume
-        app.fetch_matrix({"speed": "8"}, cv, controls=_Controls("left", presses=1))
+        app.fetch_canvas({"speed": "8"}, cv, controls=_Controls("left", presses=1))
     assert st["phase"] == "ready" and st["pac"]["cell"] == frozen
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls("left", presses=2))   # a fresh press
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls("left", presses=2))   # a fresh press
     assert st["phase"] == "play"
 
 
 def test_chomper_game_over_fades_then_restarts_on_a_key():
     app = load_app("canvas-chomper")
     cv = _cv()
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls(events=["start"], presses=1))
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls(events=["start"], presses=1))
     st = app._state._st
     st["lives"], st["score"] = 1, 999
     _force_death(st)
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls("left", presses=1))
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls("left", presses=1))
     assert st["phase"] == "gameover"
     f0 = st["fade"]
     for _ in range(3):                                       # the board fades while it waits
-        app.fetch_matrix({"speed": "8"}, cv, controls=_Controls("left", presses=1))
+        app.fetch_canvas({"speed": "8"}, cv, controls=_Controls("left", presses=1))
     assert st["fade"] > f0 and st["phase"] == "gameover"
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Controls("left", presses=2))   # any key
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Controls("left", presses=2))   # any key
     assert st["phase"] == "play" and st["lives"] == 3 and st["score"] <= 10
 
 
@@ -251,9 +251,9 @@ def test_chomper_attract_mode_never_freezes_on_a_death():
     app = load_app("canvas-chomper")
     cv = _cv()
     for _ in range(6):
-        app.fetch_matrix({"speed": "5"}, cv)                # no controls -> attract
+        app.fetch_canvas({"speed": "5"}, cv)                # no controls -> attract
     st = app._state._st
     st["lives"] = 1
     _force_death(st)
-    app.fetch_matrix({"speed": "5"}, cv)                    # fatal, but attract resets instantly
+    app.fetch_canvas({"speed": "5"}, cv)                    # fatal, but attract resets instantly
     assert st.get("phase", "play") == "play"

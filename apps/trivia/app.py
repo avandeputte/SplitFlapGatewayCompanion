@@ -83,7 +83,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # Two typographic cards shown in turn: the question under a violet "?" badge,
 # then the answer under a green "A" badge — the same quiz rhythm as the flap
@@ -186,7 +186,7 @@ def _cv_state():
     return st
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     """Question card, then answer card, each redraw a step — the panel's version
     of the flap pages' quiz rhythm, paced by loop_delay. A fresh question every
     ~5 minutes (the manifest's refresh cadence), and only between rounds, so an

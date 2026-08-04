@@ -147,7 +147,7 @@ def _cv_pull(sym, period, interval):
     return closes, last, prev, tz
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     from datetime import datetime, timezone
     from PIL import ImageDraw
 
@@ -175,10 +175,10 @@ def fetch_matrix(settings, canvas):
     # held for `dwell`, so a watchlist cycles; each symbol's history is refetched at most every
     # `poll` and never while its exchange is shut. A settings change resets cursor and cache.
     sigv = (tuple(s.upper() for s in symbols), rng, W, H)
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None or st.get('sig') != sigv:
         st = {'sig': sigv, 'idx': 0, 'data': {}}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     idx = st['idx'] % len(symbols)
     st['idx'] = (idx + 1) % len(symbols)              # advance so the next call shows the next one
     sym = symbols[idx]

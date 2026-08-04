@@ -3,6 +3,19 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.2
+
+- **LCD is quick now ⚡** — full frames encode ~40× faster (vectorised QOI) and only the
+  pixels that changed cross the wire, so apps stop stuttering on raw megapixel frames; the
+  Aquarium draws entirely on-device (a few hundred bytes a frame, not a ~2 MB picture).
+- **Apps fit the LCD's taller shape** — Dashboard, Weather, the clocks, games, quotes and
+  every channel redraw for the 1280×800 panel's 1.6∶1 aspect (type sized up, content filling
+  the height) instead of an LED layout stranded in a big black field.
+- **Clap gestures removed** — microphone claps proved unreliable and are gone from the
+  firmware; a tap (IMU) still advances the playlist. The "On a clap" setting is retired.
+- Custom-app entry point `fetch_matrix()` is renamed `fetch_canvas()` — it drives LCD panels
+  too. Only matters if you author your own apps.
+
 ## 2.10.12-beta.1
 
 - **LCD Gateway support 🖥️** — the new `surface` capability picks the render path: on

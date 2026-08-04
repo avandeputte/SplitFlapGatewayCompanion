@@ -16,17 +16,17 @@ _SETTINGS = {"country": "US", "fun_days": "on"}     # fun_days => always at leas
 def test_canvas_branch_pushes_a_panel_sized_frame_at_every_size():
     for w, h in [(256, 64), (128, 64), (96, 48), (64, 32)]:
         cap = _Cap(w, h)
-        hold = HOL.fetch_matrix(_SETTINGS, cap, i18n=None)
+        hold = HOL.fetch_canvas(_SETTINGS, cap, i18n=None)
         assert isinstance(hold, (int, float)) and hold > 0
         assert isinstance(cap.img, Image.Image) and cap.img.size == (w, h)
 
 
 def test_canvas_slideshow_advances_through_the_holidays():
     cap = _Cap(128, 64)
-    HOL.fetch_matrix.__dict__.pop("_state", None)         # fresh slideshow
+    HOL.fetch_canvas.__dict__.pop("_state", None)         # fresh slideshow
     seen = []
     for _ in range(4):
-        HOL.fetch_matrix(_SETTINGS, cap, i18n=None)
+        HOL.fetch_canvas(_SETTINGS, cap, i18n=None)
         seen.append(cap.img.tobytes())
     assert len(set(seen)) > 1                                # not stuck on one holiday
 
@@ -40,5 +40,5 @@ def test_flap_branch_still_returns_pages():
 def test_no_holidays_shows_a_message_not_a_crash(monkeypatch):
     monkeypatch.setattr(HOL, "_upcoming", lambda *a, **k: ([], "ZZ"))
     cap = _Cap(128, 64)
-    hold = HOL.fetch_matrix({}, cap, i18n=None)
+    hold = HOL.fetch_canvas({}, cap, i18n=None)
     assert isinstance(cap.img, Image.Image) and hold >= 10

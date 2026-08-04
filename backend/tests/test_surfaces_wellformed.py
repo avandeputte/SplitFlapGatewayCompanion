@@ -1,7 +1,7 @@
 """Every bundled app declares which surfaces it renders on, and its code backs that up. This is the
 invariant behind the whole surfaces model: a manifest's ``surfaces`` is a non-empty subset of the
 known displays, and a functional app has exactly the entry points its surfaces promise — ``fetch``
-for "flap", ``fetch_matrix`` for "matrix". A channel/quiz is data-driven (no app.py); its "matrix"
+for "flap", ``fetch_canvas`` for "matrix". A channel/quiz is data-driven (no app.py); its "matrix"
 surface is drawn generically, so it needs no code.
 """
 
@@ -37,12 +37,12 @@ def test_functional_apps_have_the_entry_points_their_surfaces_promise(name, mani
         return                                  # channels/quizzes are data-driven, drawn generically
     src = (app_dir / "app.py").read_text("utf-8")
     has_fetch = bool(re.search(r"^def fetch\(", src, re.M))
-    has_matrix = bool(re.search(r"^def fetch_matrix\(", src, re.M))
+    has_matrix = bool(re.search(r"^def fetch_canvas\(", src, re.M))
     surf = manifest.get("surfaces", [])
     if "flap" in surf:
         assert has_fetch, f"{name}: declares flap but has no fetch()"
     if "matrix" in surf:
-        assert has_matrix, f"{name}: declares matrix but has no fetch_matrix()"
+        assert has_matrix, f"{name}: declares matrix but has no fetch_canvas()"
     # And no dead entry point: a function with no surface to drive it is a bug either way.
     assert has_fetch == ("flap" in surf), f"{name}: fetch() vs 'flap' surface mismatch"
-    assert has_matrix == ("matrix" in surf), f"{name}: fetch_matrix() vs 'matrix' surface mismatch"
+    assert has_matrix == ("matrix" in surf), f"{name}: fetch_canvas() vs 'matrix' surface mismatch"

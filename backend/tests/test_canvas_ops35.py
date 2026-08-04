@@ -95,7 +95,7 @@ def test_entity_board_draws_arc_gauges_for_banded_entities(gw_calls):
     cfg = "sensor.co2 | CO2 | <500,1000\nsensor.hum | Hum"
     cv = _cv(w=128, h=64)
     cv.can_sprite = True
-    app.fetch_matrix({"config": cfg}, cv, get_ha_states=lambda: ha)
+    app.fetch_canvas({"config": cfg}, cv, get_ha_states=lambda: ha)
     batch = next(b for p, b in [(c[1], c[2]) for c in gw_calls]
                  if p == "/api/canvas/ops" and isinstance(b, list))
     arcs = [o for o in batch if o["op"] == "arc"]
@@ -105,7 +105,7 @@ def test_entity_board_draws_arc_gauges_for_banded_entities(gw_calls):
     gw_calls.clear()
     cv_old = _cv(OPS_OLD, w=128, h=64)
     cv_old.can_sprite = True
-    load_app("entity-board").fetch_matrix({"config": cfg}, cv_old, get_ha_states=lambda: ha)
+    load_app("entity-board").fetch_canvas({"config": cfg}, cv_old, get_ha_states=lambda: ha)
     batch = next(b for p, b in [(c[1], c[2]) for c in gw_calls]
                  if p == "/api/canvas/ops" and isinstance(b, list))
     assert not [o for o in batch if o["op"] == "arc"]
@@ -119,19 +119,19 @@ def test_chomper_plays_itself_through_ops(gw_calls):
     from conftest import load_app
     app = load_app("canvas-chomper")
     cv = _cv(w=256, h=64)
-    hold = app.fetch_matrix({"speed": "5", "ghosts": "2"}, cv)
+    hold = app.fetch_canvas({"speed": "5", "ghosts": "2"}, cv)
     batch = [b for p, b in [(c[1], c[2]) for c in gw_calls]
              if p == "/api/canvas/ops" and isinstance(b, list)][-1]
     assert 0.05 <= hold <= 0.35
     assert any(o["op"] == "arc" and o.get("fill") for o in batch)      # the chomper
     assert any(o["op"] == "rect" for o in batch)                       # maze walls
     score_before = app._state._st["step"]
-    app.fetch_matrix({"speed": "5", "ghosts": "2"}, cv)
+    app.fetch_canvas({"speed": "5", "ghosts": "2"}, cv)
     assert app._state._st["step"] == score_before + 1                  # the sim ticks
     # pre-3.5 wall: same game, no 3.5 ops
     gw_calls.clear()
     old = load_app("canvas-chomper")
-    old.fetch_matrix({"speed": "5", "ghosts": "2"}, _cv(OPS_OLD, w=256, h=64))
+    old.fetch_canvas({"speed": "5", "ghosts": "2"}, _cv(OPS_OLD, w=256, h=64))
     batch = [b for p, b in [(c[1], c[2]) for c in gw_calls]
              if p == "/api/canvas/ops" and isinstance(b, list)][-1]
     assert not [o for o in batch if o["op"] in ("arc", "poly")]

@@ -152,7 +152,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A dictionary card: the header small in violet, the word as LARGE as the panel
 # allows, and (for the English list) its part of speech + one-line gloss wrapped
@@ -165,7 +165,7 @@ _CV_POS = (168, 148, 255)
 _CV_DEF = (150, 156, 166)
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     from PIL import ImageDraw
 
     lang, word = _todays_word(i18n)
@@ -177,6 +177,41 @@ def fetch_matrix(settings, canvas, i18n=None):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
     pad = 3
+
+    if H >= 96:                                     # tall LCD — label / WORD / definition
+        pad = 8                                     # spread over the panel, no bottom sliver
+        hf = canvas.fit_font(header, W - 2 * pad, int(H * 0.11))
+        canvas.text_top(draw, (W - hf.getlength(header)) / 2.0, pad, header, hf, _CV_LABEL)
+
+        # The gloss at a comfortable read — whole words, up to two lines.
+        def_lines, df = [], None
+        if gloss:
+            df, def_lines = canvas.wrap_fit(f'{pos} {gloss}'.strip(), W - 2 * pad,
+                                            int(H * 0.24), 2)
+        dlh = canvas.ink(df, 'Ag') if def_lines else 0
+        dgap = max(2, dlh // 5)
+        def_block = (len(def_lines) * dlh + (len(def_lines) - 1) * dgap) if def_lines else 0
+
+        # The WORD — hero — centered in the band between the label and the gloss.
+        word_top = pad + canvas.ink(hf, header) + max(6, int(H * 0.05))
+        word_bot = H - pad - (def_block + max(8, int(H * 0.06)) if def_block else 0)
+        wf = canvas.fit_font(word, W - 2 * pad, word_bot - word_top)
+        wy = word_top + max(0, (word_bot - word_top - canvas.ink(wf, word)) // 2)
+        canvas.text_top(draw, (W - wf.getlength(word)) / 2.0, wy, word, wf, _CV_WORD)
+
+        # part of speech + definition, the pos picked out in the accent.
+        y = H - pad - def_block
+        for i, ln in enumerate(def_lines):
+            x = (W - df.getlength(ln)) / 2.0
+            if i == 0 and pos and ln.startswith(pos):
+                canvas.text_top(draw, x, y, pos, df, _CV_POS)
+                canvas.text_top(draw, x + df.getlength(pos + ' '), y, ln[len(pos):].strip(),
+                                df, _CV_DEF)
+            else:
+                canvas.text_top(draw, x, y, ln, df, _CV_DEF)
+            y += dlh + dgap
+        canvas.frame(img)
+        return 300.0
 
     # Header label — only where it doesn't crowd the word off a short panel.
     top = 1

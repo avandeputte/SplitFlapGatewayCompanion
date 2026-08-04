@@ -73,7 +73,7 @@ def fetch(settings, format_lines, get_rows, get_cols, paginate=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A typographic card: a little drawn paw print and sky-blue label over a thin
 # rule (the cat app's twin, told apart by its color), the fact wrapped at the
@@ -102,7 +102,7 @@ def _cv_state():
     return st
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     """Draw the dog fact as a typographic card, turning body pages each redraw
     when the panel can't hold the whole fact. The panel renders any length, so
     "fits one page" is simply "any" here — _pick then keeps its longest-allowed

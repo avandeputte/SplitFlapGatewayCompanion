@@ -907,7 +907,7 @@ def trigger(settings, conditions):
     return new_found
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A radar card, one aircraft per hold: the callsign big, its route beside it,
 # a heading-true bearing arrow with distance + compass, the altitude in the
@@ -975,7 +975,7 @@ def _mx_arrow(draw, cx, cy, r, deg, color):
         draw.line([tip, (tip[0] + math.sin(hr) * (r * 0.7), tip[1] - math.cos(hr) * (r * 0.7))], fill=color)
 
 
-def fetch_matrix(settings, canvas, get_location=None):
+def fetch_canvas(settings, canvas, get_location=None):
     """Draw one nearby aircraft per hold, rotating through the same list the wall pages. The
     provider poll is throttled inside the shared path (polling_rate), so redraws are cheap."""
     import time
@@ -1012,10 +1012,10 @@ def fetch_matrix(settings, canvas, get_location=None):
         max_results = 9
     shown = nearby[:min(5, max_results)]
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'i': 0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     idx = st['i'] % len(shown)
     st['i'] = (st['i'] + 1) % len(shown)
 

@@ -32,7 +32,7 @@ dataset rebuild):
 
 # =============================================================================
 # SHARED — the holiday DATA: retrieval, locale selection, and the upcoming list.
-# Used by every surface (fetch and fetch_matrix both build on _upcoming).
+# Used by every surface (fetch and fetch_canvas both build on _upcoming).
 # =============================================================================
 
 TRADITIONS = ('christian', 'islamic', 'jewish', 'hindu', 'buddhist', 'sikh')
@@ -284,7 +284,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A rich desk-calendar rendering of the same upcoming holidays (via _upcoming),
 # shown one at a time as a slideshow: a red-banded calendar card (month + big day
@@ -378,6 +378,42 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
     when, when_col = _cv_when(dt, days, i18n)
     pre = '~' if estimated else ''
 
+    # ---- tall panel (e.g. LCD 256x160): the name IS the content — the same
+    # calendar card on the left, the name genuinely large beside it (centered on
+    # its band), the countdown sized up along the bottom of the column.
+    if H >= 96 and W >= 104:
+        cs = min(H - 8, int(W * 0.42))
+        x0, y0 = 2, (H - 1 - cs) // 2
+        band_h = max(9, int(cs * 0.34))
+        draw.rounded_rectangle([x0, y0, x0 + cs, y0 + cs], radius=3, fill=_CARD, outline=_CARD_EDGE)
+        draw.rounded_rectangle([x0, y0, x0 + cs, y0 + band_h], radius=3, fill=_BAND)
+        draw.rectangle([x0, y0 + band_h - 3, x0 + cs, y0 + band_h], fill=_BAND)
+        mf = canvas.fit_font(mon, cs - 6, band_h - 3)
+        mb = mf.getbbox(mon)
+        draw.text((x0 + (cs - mf.getlength(mon)) / 2.0,
+                   y0 + (band_h - (mb[3] - mb[1])) / 2.0 - mb[1]), mon, font=mf, fill=(255, 255, 255))
+        low_h = cs - band_h
+        df = canvas.fit_font(day, cs - 6, int(low_h * 0.78))
+        db = df.getbbox(day)
+        draw.text((x0 + (cs - df.getlength(day)) / 2.0,
+                   y0 + band_h + (low_h - (db[3] - db[1])) / 2.0 - db[1] - 1), day, font=df, fill=_DAY)
+
+        rx = x0 + cs + 8
+        rw = W - 4 - rx
+        cf = canvas.fit_font(when, rw, max(10, int(H * 0.15)))
+        cb = cf.getbbox(when)
+        ch = cb[3] - cb[1]
+        name_h = H - 8 - ch - max(4, int(H * 0.05))
+        nf, lines, lh, gap = _cv_wrap_fit(canvas, pre + name, rw,
+                                          min(name_h, int(H * 0.55)), 3)
+        tot = len(lines) * lh + (len(lines) - 1) * gap
+        ny = max(2.0, (name_h - tot) / 2.0)
+        for ln in lines:
+            _cv_shadow(draw, rx, ny - nf.getbbox(ln)[1], ln, nf, _NAME)
+            ny += lh + gap
+        _cv_shadow(draw, rx, H - 4 - ch - cb[1], when, cf, when_col)
+        return img
+
     # Side-by-side calendar card only where it earns its space; otherwise stack.
     if W >= 104 and H >= 34:
         cs = min(H - 1, int(W * 0.42))    # a square card riding the full height
@@ -435,7 +471,7 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
     return img
 
 
-def fetch_matrix(settings, canvas, i18n=None, get_location=None):
+def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     """Draw one upcoming holiday as a desk-calendar frame, advancing through the list each redraw
     (a slideshow paced by the app's ``loop_delay``). Panel-adaptive; offline-safe."""
     from datetime import date
@@ -450,10 +486,10 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
         return 30.0
 
     items = upcoming[:8]
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'i': 0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     idx = st['i'] % len(items)
     st['i'] = (st['i'] + 1) % len(items)
 

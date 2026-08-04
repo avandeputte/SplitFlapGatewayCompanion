@@ -79,7 +79,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A typographic card: a drawn starburst (the impact mark) and red-orange label
 # over a thin rule, the fact wrapped at the largest font that fits (paginating
@@ -187,7 +187,7 @@ def _cv_state():
     return st
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     """Draw the fact as a typographic card, turning body pages each redraw when
     the panel can't hold it whole. A fresh fact every ~5 minutes (the manifest's
     refresh cadence) — _fetch_fact falls back to the bundled classics offline,

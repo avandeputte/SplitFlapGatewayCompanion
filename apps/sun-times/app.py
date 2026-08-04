@@ -122,7 +122,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The day drawn as a sky: a dotted sun arc over the horizon line, the sun
 # sitting where it actually is right now at the location (below the line before
@@ -157,7 +157,7 @@ def _cached_sun(settings, get_location):
     return st['data']
 
 
-def fetch_matrix(settings, canvas, i18n=None, get_location=None):
+def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     import math
     from datetime import datetime, timedelta, timezone
     from PIL import ImageDraw

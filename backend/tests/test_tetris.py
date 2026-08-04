@@ -38,7 +38,7 @@ def test_attract_mode_plays_and_clears_columns():
     cv = _cv()
     peak = 0
     for _ in range(500):
-        app.fetch_matrix({"speed": "6"}, cv)          # no controls → attract AI
+        app.fetch_canvas({"speed": "6"}, cv)          # no controls → attract AI
         peak = max(peak, app._state._st["lines"])
     assert peak > 0                                    # it completes columns on its own
 
@@ -46,33 +46,33 @@ def test_attract_mode_plays_and_clears_columns():
 def test_taps_move_and_rotate_the_piece():
     app = load_app("canvas-tetris")
     cv = _cv()
-    app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(events=["start"], presses=1))
+    app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(events=["start"], presses=1))
     st = app._state._st
     st["piece"] = {"kind": "T", "rot": 0, "r": 3, "c": 15}   # centered, room to move
     st["plan"] = None
-    app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(taps=["up"], presses=2))
+    app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(taps=["up"], presses=2))
     assert st["piece"]["r"] == 2                        # up moved it one row toward 0
-    app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(taps=["down", "down"], presses=4))
+    app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(taps=["down", "down"], presses=4))
     assert st["piece"]["r"] == 4
     r_before = st["piece"]["rot"]
-    app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(taps=["right"], presses=5))
+    app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(taps=["right"], presses=5))
     assert st["piece"]["rot"] == (r_before + 1) % 4     # right rotates
 
 
 def test_left_tap_soft_drops_toward_the_wall():
     app = load_app("canvas-tetris")
     cv = _cv()
-    app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(events=["start"], presses=1))
+    app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(events=["start"], presses=1))
     st = app._state._st
     c0 = st["piece"]["c"]
-    app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(taps=["left"], presses=2))
+    app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(taps=["left"], presses=2))
     assert st["piece"]["c"] < c0                        # moved left (toward gravity)
 
 
 def test_full_column_clears_and_shifts_left():
     app = load_app("canvas-tetris")
     cv = _cv()
-    app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(events=["start"], presses=1))
+    app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(events=["start"], presses=1))
     st = app._state._st
     rows, cols = st["rows"], st["cols"]
     # a solid column at col 1, a marker at col 2 — clearing col 1 pulls col 2 to col 1
@@ -88,26 +88,26 @@ def test_full_column_clears_and_shifts_left():
 def test_game_over_fades_then_restarts(gw_calls):
     app = load_app("canvas-tetris")
     cv = _cv()
-    app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(events=["start"], presses=1))
+    app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(events=["start"], presses=1))
     st = app._state._st
     for r in range(1, st["rows"]):                     # fill all but row 0 → no full column,
         for c in range(st["cols"]):                    # but the next spawn has no room
             st["grid"][r][c] = (70, 70, 80)
     st["score"] = 4200
-    app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(taps=["left"], presses=1))
+    app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(taps=["left"], presses=1))
     assert st["phase"] == "gameover"
     f0 = st["fade"]
     for _ in range(3):
-        app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(presses=1))
+        app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(presses=1))
     assert st["fade"] > f0                              # the well fades while it waits
-    app.fetch_matrix({"speed": "6"}, cv, controls=_Ctl(presses=2))   # any key
+    app.fetch_canvas({"speed": "6"}, cv, controls=_Ctl(presses=2))   # any key
     assert st["phase"] == "play" and st["score"] == 0
 
 
 def test_a_frame_streams_as_binary_ops(gw_calls):
     app = load_app("canvas-tetris")
     cv = _cv()
-    app.fetch_matrix({"speed": "6"}, cv)
+    app.fetch_canvas({"speed": "6"}, cv)
     assert "/api/canvas/opsb" in [c[1] for c in gw_calls]
 
 
@@ -117,13 +117,13 @@ def test_tetris_sounds_only_when_a_human_plays():
     # Unattended attract play locks pieces (and clears columns) but stays silent.
     quiet = []
     for _ in range(200):
-        app.fetch_matrix({"speed": "8"}, cv, controls=_Ctl(engaged=False),
+        app.fetch_canvas({"speed": "8"}, cv, controls=_Ctl(engaged=False),
                          play_sound=lambda **kw: quiet.append(kw))
     assert not quiet
     # A live player who drives a piece into a lock hears it.
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Ctl(events=["start"], presses=1))
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Ctl(events=["start"], presses=1))
     loud = []
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Ctl(taps=["left"] * 40, presses=2),
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Ctl(taps=["left"] * 40, presses=2),
                      play_sound=lambda **kw: loud.append(kw))
     assert loud                                        # the lock tone played for the player
 
@@ -138,14 +138,14 @@ def test_tetris_takeover_setting_extends_the_idle_window():
             seen.append(within)
             return self._engaged
 
-    app.fetch_matrix({"speed": "8", "takeover": "75"}, cv, controls=_Rec())
+    app.fetch_canvas({"speed": "8", "takeover": "75"}, cv, controls=_Rec())
     assert seen[-1] == 75
     seen.clear()
-    app.fetch_matrix({"speed": "8"}, cv, controls=_Rec())
+    app.fetch_canvas({"speed": "8"}, cv, controls=_Rec())
     assert seen[-1] == 30                               # default (was a hardcoded 6s)
     for raw, want in (("99999", 120), ("1", 5), ("abc", 30), ("", 30), (None, 30)):
         seen.clear()
-        app.fetch_matrix({"speed": "8", "takeover": raw}, cv, controls=_Rec())
+        app.fetch_canvas({"speed": "8", "takeover": raw}, cv, controls=_Rec())
         assert seen[-1] == want                         # clamped to [5, 120]; junk → default 30
 
 

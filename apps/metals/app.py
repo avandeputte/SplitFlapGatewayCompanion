@@ -92,7 +92,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # Two spot-price rows — GOLD in gold, SILVER in silver, prices right-aligned in
 # white — under a quiet 'SPOT /OZ' strip where the height allows. Solid black
@@ -106,7 +106,7 @@ _CV_GOLD = (238, 196, 64)                  # the metal itself names the row's co
 _CV_SILVER = (200, 206, 218)
 
 
-def fetch_matrix(settings, canvas, i18n=None, get_location=None):
+def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     """Gold and silver as two spot-price rows, each metal named in its own color
     (a 'SPOT /OZ' strip on panels tall enough to afford it). Same keyless source
     and the same local-currency conversion the flap pages use; prices are cached
@@ -122,10 +122,10 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
             return i18n.number(v, d, grouping)
         return f'{v:,.{d}f}' if grouping else f'{v:.{d}f}'
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'data': None, 'ts': 0.0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     now = time.time()
     if st['data'] is None or (now - st['ts']) >= 300.0:
         ccy, rate = _local_currency(i18n, get_location)
@@ -156,6 +156,36 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
+
+    if H >= 96:
+        # Tall LCD panel: the two rows carry the whole height instead of one
+        # gold row up top and a silver row stranded at the floor. A quiet
+        # 'SPOT PRICE /OZ' strip, then GOLD and SILVER in equal bands, each
+        # metal named in its color with the price right-aligned in white,
+        # sized to fill the band (no half-panel gap).
+        pad = 6
+        head = f'{t("Spot price")} /OZ'.upper()
+        hf = canvas.fit_font(head, W - 2 * pad, max(10, int(H * 0.12)))
+        canvas.text_top(draw, (W - hf.getlength(head)) / 2.0, pad, head, hf, _CV_DIM)
+        rows = [(t('Gold').upper(), fmt(gold), _CV_GOLD),
+                (t('Silver').upper(), fmt(silver), _CV_SILVER)]
+        body_top = pad + canvas.ink(hf, head) + max(6, int(H * 0.05))
+        rh = (H - body_top - pad) // len(rows)
+        fh = max(12, int(rh * 0.66))
+        name_f = min((canvas.fit_font(nm, int(W * 0.50), fh) for nm, _p, _c in rows),
+                     key=lambda f: f.size)
+        name_w = max(name_f.getlength(nm) for nm, _p, _c in rows)
+        price_f = min((canvas.fit_font(p, W - 2 * pad - name_w - 8, fh) for _n, p, _c in rows),
+                      key=lambda f: f.size)
+        row_ink = max(max(canvas.ink(name_f, nm), canvas.ink(price_f, p)) for nm, p, _c in rows)
+        for i, (name, prc, col) in enumerate(rows):
+            cy = body_top + i * rh + (rh - row_ink) // 2
+            canvas.text_top(draw, pad, cy + (row_ink - canvas.ink(name_f, name)) // 2,
+                            name, name_f, col)
+            canvas.text_top(draw, W - pad - price_f.getlength(prc),
+                            cy + (row_ink - canvas.ink(price_f, prc)) // 2, prc, price_f, _CV_TEXT)
+        canvas.frame(img)
+        return 300.0
 
     top = 0
     if H >= 48:

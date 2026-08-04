@@ -102,7 +102,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A launch card: a little drawn rocket, the vehicle big, the mission beneath it
 # and a T-minus line burning amber along the bottom. Black background.
@@ -157,7 +157,7 @@ def _cv_rocket(draw, x, y, w, h):
     draw.line([(cx, body_bot + 1), (cx, y + h - max(1, flame_h // 2))], fill=(255, 230, 120))
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     """Draw the next launch as a card — rocket icon, vehicle, mission, T-minus. The countdown
     reads in minutes, so a minutely redraw serves; it tightens as lift-off closes in."""
     from PIL import ImageDraw

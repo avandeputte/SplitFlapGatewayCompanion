@@ -106,7 +106,7 @@ def test_a_chomper_frame_is_fully_representable(gw_calls):
     from conftest import load_app
     app = load_app("canvas-chomper")
     cv = _cv()
-    app.fetch_matrix({"speed": "5", "ghosts": "4"}, cv)
+    app.fetch_canvas({"speed": "5", "ghosts": "4"}, cv)
     paths = [c[1] for c in gw_calls]
     assert "/api/canvas/opsb" in paths and "/api/canvas/ops" not in paths
 

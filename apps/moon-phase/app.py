@@ -117,7 +117,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A drawn moon: the disc with its true illuminated fraction (terminator curve
 # and all, waxing lit from the right like the northern-hemisphere sky), phase
@@ -202,7 +202,7 @@ def _draw_moon(draw, cx, cy, r, illumination, waxing):
                 draw.ellipse([cxx - cr, cyy - cr, cxx + cr, cyy + cr], fill=_CRATER)
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     from PIL import ImageDraw
 
     def t(s):

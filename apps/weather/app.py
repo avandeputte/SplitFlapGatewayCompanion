@@ -681,7 +681,7 @@ def _pollen_label(val):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The weather as a living sky scene (the merged Weather Sky app): a black panel
 # with a crisp sun by day or a moon and colored stars by night, cloud-shaped
@@ -722,15 +722,15 @@ def _cv_num(v, unit):
     return int(round(f))
 
 
-def fetch_matrix(settings, canvas, get_weather=None):
+def fetch_canvas(settings, canvas, get_weather=None):
     import math
     from datetime import datetime
     from PIL import Image, ImageDraw, ImageFilter
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'frame': 0, 'wx': None, 'at': None}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     st['frame'] += 1
     frame = st['frame']
 
@@ -832,7 +832,90 @@ def fetch_matrix(settings, canvas, get_weather=None):
             draw.text((x + dx, y + dy), s, font=font, fill=(0, 0, 0), anchor='la')
         draw.text((x, y), s, font=font, fill=col, anchor='la')
 
-    if large:
+    if H >= 96:
+        # A TALL panel (the LCD's 1.6:1): the large branch below balloons the font with
+        # H but keeps the LED horizontal layout, so its temp shoves H/L off the scrim and
+        # its forecast cells overlap. This lays weather out for the height instead — a
+        # left info column stacked vertically (city, big temp, condition, then H/L, feels,
+        # humidity/wind each on their own line) over a scrim, the sky scene on the right,
+        # and a full-width forecast strip of fitted cells along the bottom.
+        pad = 4
+        left_w = int(W * 0.60)
+        strip_h = max(16, int(H * 0.13))
+        fy = H - strip_h                                    # the forecast strip's top
+        scrim = Image.new('L', (W, H), 0)
+        _sd = ImageDraw.Draw(scrim)
+        _sd.rectangle([0, 0, left_w, fy - 2], fill=200)
+        _sd.rectangle([0, fy - 2, W - 1, H - 1], fill=200)
+        img = Image.composite(Image.new('RGB', (W, H), (0, 0, 0)), img,
+                              scrim.filter(ImageFilter.GaussianBlur(7)))
+        draw = ImageDraw.Draw(img)
+        draw.fontmode = "1"
+        colw = left_w - 2 * pad
+
+        name_f = canvas.font(max(9, int(H * 0.095)))
+        temp_f = canvas.font(max(16, int(H * 0.26)))
+        cond_f = canvas.font(max(9, int(H * 0.11)))
+        info_f = canvas.font(max(8, int(H * 0.085)))
+
+        y = pad
+        if show_city and wx.get('city'):
+            cs = str(wx['city'])
+            while cs and name_f.getlength(cs) > colw:
+                cs = cs[:-1]
+            _outline(draw, pad, y, cs, name_f, (216, 226, 244))
+        y += name_f.size + max(2, int(H * 0.015))
+
+        ts = f'{temp}{deg}' if temp is not None else '--'
+        _outline(draw, pad, y, ts, temp_f, (255, 255, 255) if temp is not None else (200, 200, 200))
+        y += temp_f.size + max(1, int(H * 0.005))
+
+        _outline(draw, pad, y, word[:16], cond_f, (214, 226, 246))
+        y += cond_f.size + max(3, int(H * 0.03))
+
+        step = info_f.size + max(3, int(H * 0.028))
+        if hi is not None or lo is not None:
+            x = pad
+            if hi is not None:
+                _outline(draw, x, y, f'H {hi}{deg}', info_f, (255, 150, 55))
+                x += info_f.getlength(f'H {hi}{deg}') + max(8, int(W * 0.05))
+            if lo is not None:
+                _outline(draw, x, y, f'L {lo}{deg}', info_f, (55, 150, 255))
+            y += step
+        feels = _cv_num(wx.get('feels_like_f'), unit)
+        if feels is not None:
+            _outline(draw, pad, y, f'Feels {feels}{deg}', info_f, (198, 208, 228))
+            y += step
+        extra = []
+        if wx.get('humidity') is not None:
+            extra.append(f'Hum {int(wx["humidity"])}%')
+        if wx.get('wind_mph') is not None:
+            extra.append(f'Wind {int(wx["wind_mph"])}')
+        if extra:
+            _outline(draw, pad, y, '   '.join(extra), info_f, (198, 208, 228))
+
+        fc = wx.get('forecast') or []
+        if fc:
+            from datetime import datetime as _dt
+            n = min(3, len(fc))
+            cw = W // n                                     # full-width, one cell per day
+            fcf = canvas.font(max(8, int(strip_h * 0.62)))
+            for i, day in enumerate(fc[:n]):
+                dhi, dlo = _cv_num(day.get('hi_f'), unit), _cv_num(day.get('lo_f'), unit)
+                try:
+                    lbl = _dt.strptime(str(day.get('date'))[:10], '%Y-%m-%d').strftime('%a')
+                except Exception:
+                    lbl = str(day.get('day') or '')[:3].title()
+                fs = f'{lbl} {dhi}{deg}/{dlo}{deg}' if (dhi is not None and dlo is not None) else (lbl or '')
+                f2 = fcf
+                while fs and f2.getlength(fs) > cw - 6:     # never let a cell spill into the next
+                    if f2.size > 8:
+                        f2 = canvas.font(f2.size - 1)
+                    else:
+                        fs = fs[:-1]
+                _outline(draw, i * cw + pad, fy + max(1, (strip_h - f2.size) // 2), fs, f2,
+                         (206, 216, 234))
+    elif large:
         # A dark info column on the left holds the place, a big temperature, the
         # condition, high/low, feels-like, humidity, wind and a 3-day forecast; the
         # sky scene fills the right.

@@ -71,7 +71,7 @@ class DisplayController:
         # Set = no interrupt in progress. The app/playlist loops await it rather than
         # polling a boolean every 0.1 s.
         self._interrupt_over = asyncio.Event()
-        # Set to cut the RUNNING playlist entry short (a clap/tap gesture, or the skip
+        # Set to cut the RUNNING playlist entry short (a tap gesture, or the skip
         # API): every entry-scoped hold sleeps through _entry_sleep, which wakes on it,
         # and the entry keep_going lambdas read it. Cleared at each entry's start.
         self._skip_evt = asyncio.Event()
@@ -753,7 +753,7 @@ class DisplayController:
         return url
 
     async def _run_matrix(self, app_id: str, keep_going, *, overrides=None, deadline=None) -> None:
-        """The ONE matrix-app body — take the panel over, then re-run ``fetch_matrix`` on a timer
+        """The ONE matrix-app body — take the panel over, then re-run ``fetch_canvas`` on a timer
         while ``keep_going()``. Shared by the standalone loop and a playlist entry (which passes its
         ``deadline`` so a long hold never sleeps past its slot) — the same single-body pattern as
         ``_play_app_pages``, so a fix never has to land twice.

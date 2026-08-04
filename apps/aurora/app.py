@@ -89,7 +89,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The Kp index as a color-graded gauge: nine segments, green through red, lit
 # up to the current reading, with a big KP number in the severity color and the
@@ -114,7 +114,7 @@ def _kp_color(v):
     return (240, 70, 58)
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     import requests
     from PIL import ImageDraw
 
@@ -146,6 +146,59 @@ def fetch_matrix(settings, canvas, i18n=None):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
     col = _kp_color(kp)
+
+    # ---- tall panel (e.g. LCD 256x160): the headline stays the hero up top, but
+    # the recent readings get the whole lower half as a full-width chart instead
+    # of a corner column; the 9-segment gauge keeps the bottom edge.
+    if H >= 96:
+        kps = f'KP {num(kp)}'
+        label = t(_label(kp)).upper()
+        gauge_h = max(6, H // 8)
+        gy1 = H - 1
+        gy0 = gy1 - gauge_h
+        hero_h = int(H * 0.42)
+        kf = canvas.fit_font(kps, W - 8, int(hero_h * 0.72))
+        lf = canvas.fit_font(label, W - 8, max(8, int(hero_h * 0.26)))
+        kb, lb = kf.getbbox(kps), lf.getbbox(label)
+        kh, lh = kb[3] - kb[1], lb[3] - lb[1]
+        draw.text(((W - kf.getlength(kps)) / 2.0, 2 - kb[1]), kps, font=kf, fill=col)
+        draw.text(((W - lf.getlength(label)) / 2.0, 2 + kh + 4 - lb[1]), label,
+                  font=lf, fill=_TXT_COL)
+
+        # the last 24h of 3-hour readings as chunky bars, newest in full color
+        hist = series[-8:] if len(series) >= 2 else []
+        top = 2 + kh + 4 + lh + 7
+        hy1 = gy0 - 4
+        hh = hy1 - top
+        if hist and hh >= 12:
+            n = len(hist)
+            bgap = 3
+            bw = (W - 4 - (n - 1) * bgap) / n
+            storm_y = hy1 - int(round(5.0 / 9.0 * hh))     # Kp 5 = storm threshold
+            for sx in range(2, W - 2, 6):
+                draw.line([(sx, storm_y), (sx + 2, storm_y)], fill=(96, 42, 40))
+            for i, v in enumerate(hist):
+                bx = 2 + i * (bw + bgap)
+                bh = max(2, int(round(min(9.0, v) / 9.0 * hh)))
+                c = _kp_color(v) if i == n - 1 else \
+                    tuple(int(cc * 0.55) for cc in _kp_color(v))
+                draw.rectangle([round(bx), hy1 - bh + 1, round(bx + bw) - 1, hy1], fill=c)
+
+        # the same 9-segment severity gauge as the wide layout, on the bottom edge
+        gap = 2
+        seg_w = (W - 2 - 8 * gap) / 9.0
+        x = 1.0
+        for i in range(9):
+            lit = kp >= i + 1
+            part = (not lit) and (kp > i)
+            c = _kp_color(i + 1) if (lit or part) else _SEG_OFF
+            w = seg_w if not part else max(1.0, seg_w * (kp - i))
+            draw.rectangle([round(x), gy0, round(x + w) - 1, gy1], fill=c)
+            if part:
+                draw.rectangle([round(x + w), gy0, round(x + seg_w) - 1, gy1], fill=_SEG_OFF)
+            x += seg_w + gap
+        canvas.frame(img)
+        return 300.0
 
     # Layout bands: the 9-segment gauge flush on the bottom edge, the headline
     # grown to fill everything above it, pinned to the top row. (Ink starts 1px

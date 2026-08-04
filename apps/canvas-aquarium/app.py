@@ -65,18 +65,25 @@ def _reset(st, W, H, n, tile):
     st['sig'] = (W, H, tile, n)
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     import random
     W, H = canvas.width, canvas.height
-    tile = max(8, min(22, H // 3)) & ~1                        # even, ~a third of the panel
+    # Every size and speed scales from the LED design height/width (64/256), so the same
+    # scene reads identically on a 256x64 LED wall (all factors resolve to 1) and a
+    # 1280x800 LCD (manifest lcd_ops: this draws live ops at native resolution there).
+    mv = max(1.0, H / 64.0)                                    # vertical motion/stroke scale
+    mh = max(1.0, W / 256.0)                                   # horizontal motion scale
+    k = max(1, int(mv))                                        # integer stroke/radius scale
+    # even, ~a third of the panel; capped so 10 rgb888 tiles stay inside a 2 MB atlas sheet
+    tile = max(8, min(max(22, H * 22 // 64), min(240, H // 3))) & ~1
 
     n = canvas.num(settings, 'fish', 6, 1, 16)
     water = _WATER.get(str(settings.get('water', 'reef') or 'reef').lower(), _WATER['reef'])
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None or st.get('sig') != (W, H, tile, n):
         st = st or {}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
         _reset(st, W, H, n, tile)
         st['frame'] = 0
         st['atlas'] = None
@@ -112,7 +119,7 @@ def fetch_matrix(settings, canvas):
         sway = math.sin(frame * 0.08 + ph) * (W * 0.02)
         h = int(H * 0.32)
         pts = [(x, H), (x + sway * 0.4, H - h * 0.5), (x + sway, H - h)]
-        canvas.polyline(pts, _WEED, t=1, aa=aa)
+        canvas.polyline(pts, _WEED, t=k, aa=aa)
 
     # bubbles: spawn near the floor, rise, pop at the top. Advance first, then draw, so the
     # additive halo and the crisp bubble land at the same position (no 1px glow offset).
@@ -120,21 +127,21 @@ def fetch_matrix(settings, canvas):
         st['bubbles'].append([random.uniform(2, W - 2), float(H), random.choice((1, 1, 2))])
     keep = []
     for b in st['bubbles']:
-        b[1] -= 0.8 + b[2] * 0.3
+        b[1] -= (0.8 + b[2] * 0.3) * mv
         if b[1] > 0:
             keep.append(b)
     st['bubbles'] = keep[-40:]
     if glow:
         canvas.blend('add')
         for b in st['bubbles']:
-            canvas.circle(int(b[0]), int(b[1]), b[2] + 1, (90, 150, 210, 70), fill=True)
+            canvas.circle(int(b[0]), int(b[1]), b[2] * k + k, (90, 150, 210, 70), fill=True)
         canvas.blend('over')
     for b in st['bubbles']:
-        canvas.circle(int(b[0]), int(b[1]), b[2], (200, 235, 255), aa=aa)
+        canvas.circle(int(b[0]), int(b[1]), b[2] * k, (200, 235, 255), aa=aa)
 
     for f in st['fish']:                                       # drift the fish, wrap at the edges
-        f['x'] += f['d'] * f['sp']
-        y = int(f['y'] + math.sin(frame * 0.1 + f['ph']) * f['amp'])
+        f['x'] += f['d'] * f['sp'] * mh
+        y = int(f['y'] + math.sin(frame * 0.1 + f['ph']) * f['amp'] * mv)
         if f['d'] > 0 and f['x'] > W:
             f['x'] = -tile
         elif f['d'] < 0 and f['x'] < -tile:

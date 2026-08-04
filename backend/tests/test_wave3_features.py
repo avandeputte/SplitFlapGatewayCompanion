@@ -136,26 +136,26 @@ def test_games_want_the_store_and_show_new_best(tmp_path):
     cv = canvas_surface("http://gw", 128, 64, ("rgb888",), (), ops=OPS35, ops_bin=True)
     gs = _GameStore(_Store(), "canvas-snake")
     ctl = _Ctl()
-    app.fetch_matrix({"speed": "8"}, cv, controls=ctl, game_store=gs)
+    app.fetch_canvas({"speed": "8"}, cv, controls=ctl, game_store=gs)
     st = app._state._st
     st["snake"] = [(1, 1), (1, 2)]
     st["dir"] = "u"
     st["score"] = 70
-    app.fetch_matrix({"speed": "8"}, cv, controls=ctl, game_store=gs)      # dies
+    app.fetch_canvas({"speed": "8"}, cv, controls=ctl, game_store=gs)      # dies
     ctl.presses = 1
-    app.fetch_matrix({"speed": "8"}, cv, controls=ctl, game_store=gs)      # freeze arms
+    app.fetch_canvas({"speed": "8"}, cv, controls=ctl, game_store=gs)      # freeze arms
     assert st["phase"] == "gameover"
     assert st["new_best"] is True and gs.get("high") == 70
 
     # a worse second run keeps the record and shows it
     ctl.presses = 2
-    app.fetch_matrix({"speed": "8"}, cv, controls=ctl, game_store=gs)      # redeal
+    app.fetch_canvas({"speed": "8"}, cv, controls=ctl, game_store=gs)      # redeal
     st = app._state._st
     st["snake"] = [(1, 1), (1, 2)]
     st["dir"] = "u"
     st["score"] = 30
-    app.fetch_matrix({"speed": "8"}, cv, controls=ctl, game_store=gs)
-    app.fetch_matrix({"speed": "8"}, cv, controls=ctl, game_store=gs)
+    app.fetch_canvas({"speed": "8"}, cv, controls=ctl, game_store=gs)
+    app.fetch_canvas({"speed": "8"}, cv, controls=ctl, game_store=gs)
     assert st["new_best"] is False and st["best_score"] == 70
 
 

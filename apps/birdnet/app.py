@@ -208,7 +208,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The same detections as a field-guide card: the species name large with a
 # confidence bar under it and the detection time in the corner ("latest" holds
@@ -378,7 +378,7 @@ def _cv_leaderboard(canvas, ImageDraw, counts):
     return img
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     """The configured display mode on the panel: latest = one card, last_3 = a rotating card,
     leaderboard = a count bar chart. Holds the last good data across a network hiccup."""
     from collections import Counter
@@ -390,10 +390,10 @@ def fetch_matrix(settings, canvas):
         canvas.frame(_cv_message(canvas, ImageDraw, 'BIRDNET', 'No host set'))
         return 60.0
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'i': 0, 'last': None}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
 
     try:
         detections = _recent_detections(settings, 50 if mode == 'leaderboard' else 10)

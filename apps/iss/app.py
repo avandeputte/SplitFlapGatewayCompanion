@@ -147,7 +147,7 @@ def trigger(settings, conditions, get_location=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A tracker view: a lat/lon world grid with the station's sinusoidal ground
 # track (51.6° inclination) threaded through its live position, the ISS as an
@@ -210,7 +210,7 @@ def _cv_map(draw, x0, y0, mw, mh, lat, lon):
     draw.point((mx, my), fill=_WHITE)
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     """Draw the live fix on a world grid with the ground track. The station moves about four
     degrees a minute, so a 15s redraw keeps the marker honest without hammering the API."""
     from PIL import ImageDraw

@@ -1,5 +1,5 @@
 """Surfaces: an app declares which displays it renders on — ``surfaces`` = ["flap"], ["matrix"], or
-both. A functional app renders each with a matching entry point (``fetch`` for flaps, ``fetch_matrix``
+both. A functional app renders each with a matching entry point (``fetch`` for flaps, ``fetch_canvas``
 for a Matrix panel); a channel's matrix surface is drawn generically. These pin the framework wiring:
 the surfaces predicates, the single ``matrix`` toggle (default on, grayed off-panel), the render-vs-
 pages routing, matrix-only gating, and the catalog field the UI badges off.
@@ -34,7 +34,7 @@ def test_surface_predicates():
     assert rt.is_dual_surface("countdown") and rt.is_dual_surface("world_clock")
     assert rt.is_matrix_only("canvas-art-clock") and not rt.is_dual_surface("canvas-art-clock")
     assert not rt.is_dual_surface("art-clock") and not rt.is_matrix_only("art-clock")
-    # A channel is dual-surface too (flap text / generic art on a panel), with no fetch_matrix.
+    # A channel is dual-surface too (flap text / generic art on a panel), with no fetch_canvas.
     assert rt.is_dual_surface("movie-quotes")
     assert rt.has_matrix_render("countdown") and rt.has_matrix_render("movie-quotes")
 
@@ -65,7 +65,7 @@ def test_render_matrix_passes_a_canvas_and_flap_helpers_never_do():
     rt = _matrix("countdown")
     # fetch (flap) never receives a canvas among its injected helpers...
     assert "canvas" not in rt._wants.get("countdown", frozenset())
-    # ...and render_matrix drives fetch_matrix with a real surface (returns its hold).
+    # ...and render_matrix drives fetch_canvas with a real surface (returns its hold).
     hold = rt.render_matrix("countdown")
     assert isinstance(hold, (int, float)) and hold > 0
 

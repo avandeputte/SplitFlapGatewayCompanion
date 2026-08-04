@@ -103,7 +103,7 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The same events one at a time: a gold year chip (the year is the hook) with
 # today's date opposite, the event wrapped large below. Advances through the
@@ -161,16 +161,16 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines, min_size=8):
     return font, lines, b[3] - b[1], 1
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     import time
     from datetime import datetime
     from PIL import ImageDraw
     import pytz
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'i': 0, 'ts': 0.0, 'events': None}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     # One API call an hour (it's a daily list) — the rotation runs off the cache.
     if st['events'] is None or time.time() - st['ts'] > 3600:
         st['events'] = _events(settings)            # never raises: falls back internally
@@ -243,6 +243,24 @@ def fetch_matrix(settings, canvas):
     # The event, wrapped as large as the room allows (ellipsis when it can't all
     # fit), anchored to the panel floor with the leading stretched up to the chip.
     body_top = ch_h + 2
+    if H >= 96:
+        # Tall panel: the event fills the body LARGE via the shared fitter — the
+        # local one walks down 1px at a time and can't get there from this height.
+        # Line budget floor-bound, so only an 8px-floor overflow ever ellipsizes.
+        avail = H - body_top
+        f, lines = canvas.wrap_fit(desc, W - 2 * pad, avail, max(4, avail // 12))
+        lh = canvas.ink(f, 'Ag')
+        gap = max(1, lh // 6)
+        step = lh + gap
+        if len(lines) > 1:                          # stretch the leading (gently) to fill
+            step += max(0, min(lh // 2, (avail - lh) // (len(lines) - 1) - step))
+        block = step * (len(lines) - 1) + lh
+        y = body_top + max(0, (avail - block) // 2)
+        for ln in lines:
+            canvas.text_top(draw, pad, y, ln, f, _CV_TXT)
+            y += step
+        canvas.frame(img)
+        return dwell
     max_lines = 4 if H >= 60 else 3
     f, lines, lh, gap = _cv_wrap_fit(canvas, desc, W - 2 * pad, H - body_top, max_lines)
     if sum(len(ln.split()) for ln in lines) < len(str(desc).split()):

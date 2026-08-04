@@ -100,7 +100,7 @@ def fetch(settings, format_lines, get_rows, get_cols, caps=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The same BCD columns as a wall of LED dots: a lit bit is a bright dot in the
 # configured "1" color, an unlit bit a faint socket in the "0" color, groups
@@ -137,7 +137,7 @@ def _dot_geometry(W, H, n, label_h):
     return 2, 1, 2, 1
 
 
-def fetch_matrix(settings, canvas, caps=None):
+def fetch_canvas(settings, canvas, caps=None):
     """The BCD clock as LED dots. Redraws in step with what it shows: on the
     second when the seconds columns are up, on the minute otherwise."""
     from datetime import datetime

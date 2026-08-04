@@ -87,6 +87,68 @@ def test_build_canvas_surface_picks_the_lcd_path(tmp_path):
     assert rt._registry["canvas-stock-graph"].get("lcd_native") is True
 
 
+def test_lcd_ops_apps_get_the_live_ops_surface(tmp_path):
+    """A fully size-proportional draw-ops app (manifest ``lcd_ops``) draws LIVE ops at
+    native LCD resolution — geometry/sprites render on-device, a few hundred bytes a
+    frame, instead of riding the offscreen pixel-push surface."""
+    from app import canvas as canvas_mod
+    from conftest import make_runtime
+    rt = make_runtime(tmp_path=tmp_path, installed=["canvas-aquarium"], caps=_lcd_caps())
+    assert rt._registry["canvas-aquarium"].get("lcd_ops") is True
+    s = rt.build_canvas_surface(ops=True)
+    assert isinstance(s, canvas_mod.CanvasSurface) and not isinstance(s, LcdSurface)
+    assert (s.width, s.height) == (1280, 800)
+    # an LED wall is unaffected by the flag
+    led = device.from_capabilities({
+        "product": "Matrix Gateway", "features": ["canvas"],
+        "charset": {"common": "A"}, "canvas": {"width": 256, "height": 64}})
+    rt2 = make_runtime(tmp_path=tmp_path / "led", installed=["canvas-aquarium"], caps=led)
+    assert isinstance(rt2.build_canvas_surface(ops=True), canvas_mod.CanvasSurface)
+
+
+def test_aquarium_scales_proportionally_not_at_all_on_led():
+    """The aquarium's LCD scale factors must resolve to 1 at the LED design sizes —
+    the committed LED gallery look is the contract — and scale everything at LCD sizes
+    (its atlas tiles staying inside the wall's 2 MB sheet cap)."""
+    import importlib.util
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "apps",
+                        "canvas-aquarium", "app.py")
+    spec = importlib.util.spec_from_file_location("aquarium_prop", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    class _Cv:
+        def __init__(self, w, h):
+            self.width, self.height = w, h
+            self.can_sprite = False
+            self.can_composite = False
+            self.aa_ok = False
+            self.ops = []
+
+        def num(self, settings, key, default, lo, hi):
+            return default
+
+        def __getattr__(self, name):                     # every draw op records its args
+            def op(*a, **k):
+                self.ops.append((name, a, k))
+            return op
+
+    led = _Cv(256, 64)
+    mod.fetch_canvas({}, led)
+    tiles_led = [k for n, a, k in led.ops]
+    weeds_led = [(a, k) for n, a, k in led.ops if n == "polyline"]
+    assert weeds_led and all(k.get("t") == 1 for a, k in weeds_led)   # k==1: LED unchanged
+
+    lcd = _Cv(1280, 800)
+    mod.fetch_canvas({}, lcd)
+    weeds_lcd = [(a, k) for n, a, k in lcd.ops if n == "polyline"]
+    assert weeds_lcd and all(k.get("t") == 12 for a, k in weeds_lcd)  # strokes scale ~H/64
+    # the tile cap keeps 10 rgb888 tiles inside a 2 MB atlas sheet
+    tile = max(8, min(max(22, 800 * 22 // 64), min(240, 800 // 3))) & ~1
+    assert tile == 240 and 10 * tile * tile * 3 <= 2 * 1024 * 1024
+
+
 # --- zones on an LCD ---------------------------------------------------------
 
 def test_zones_on_lcd_lay_out_logical_and_push_native(tmp_path, monkeypatch):

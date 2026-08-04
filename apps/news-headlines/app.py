@@ -154,7 +154,7 @@ def trigger(settings, conditions):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A ticker card: one headline at a time in real type, under a source-accented
 # red masthead with a position counter, advancing through the SAME titles the
@@ -167,17 +167,17 @@ _WHITE = (240, 240, 244)
 _GRAY = (150, 150, 158)
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     """Draw one headline per hold under a red masthead, advancing each redraw. The feed itself
     is refetched at most every five minutes; each headline holds ~8s."""
     import time
     from PIL import ImageDraw
 
     feed_url = settings.get('feed_url', 'https://feeds.bbci.co.uk/news/rss.xml')
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'ts': 0.0, 'url': None, 'titles': [], 'i': 0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
 
     now = time.time()
     if st['url'] != feed_url or (now - st['ts']) > 300:
@@ -229,6 +229,10 @@ def fetch_matrix(settings, canvas):
     # The headline, as big as it wraps — mixed case is the point on this panel.
     top = bar_h + 2
     max_lines = 3 if H >= 48 else 2
+    if H >= 96:
+        # Tall panel: completeness beats size — a line budget deep enough that the
+        # whole headline fits (three LCD-height lines were cutting it mid-sentence).
+        max_lines = max(4, (H - top) // 14)
     # canvas.wrap_fit already ellipsizes a title the line budget cuts short.
     nf, lines = canvas.wrap_fit(title, W - 6, H - top, max_lines)
     lh = canvas.ink(nf, 'Ag')

@@ -139,7 +139,7 @@ def _fmt(v):
     return s.rstrip('0').rstrip('.') if '.' in s else s
 
 
-def fetch_matrix(settings, canvas, get_ha_states=None, get_ha_history=None):
+def fetch_canvas(settings, canvas, get_ha_states=None, get_ha_history=None):
     import time
     from PIL import ImageDraw
 
@@ -158,11 +158,11 @@ def fetch_matrix(settings, canvas, get_ha_states=None, get_ha_history=None):
     # configured entities from one states read (so nothing misses a beat while another
     # rotates on screen); each entity draws from its own window.
     sigv = tuple(e[0] for e in entities)
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None or st.get('sig') != sigv:
         st = {'sig': sigv, 'idx': 0,
               'hist': {k: v for k, v in (st or {}).get('hist', {}).items() if k in sigv}}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
 
     states = {}
     try:

@@ -31,7 +31,7 @@ def _play_through_show(app, cv, ctl=None, limit=40):
     for _ in range(limit):
         if st['phase'] == 'input':
             return
-        app.fetch_matrix({"speed": "10"}, cv, controls=ctl)
+        app.fetch_canvas({"speed": "10"}, cv, controls=ctl)
     raise AssertionError('show phase never finished')
 
 
@@ -41,7 +41,7 @@ def test_catalog_and_binary_stream(gw_calls):
     assert card["interactive"] is True
     assert card["icon_svg"].startswith("data:image/svg+xml,")
     gw_calls.clear()
-    load_app("canvas-simon").fetch_matrix({"speed": "5"}, _cv())
+    load_app("canvas-simon").fetch_canvas({"speed": "5"}, _cv())
     assert "/api/canvas/opsb" in [c[1] for c in gw_calls]
 
 
@@ -49,7 +49,7 @@ def test_show_walks_the_melody_then_opens_input(quiet_gateway):
     app = load_app("canvas-simon")
     cv = _cv()
     ctl = _Ctl(events=["start"], presses=1)
-    app.fetch_matrix({"speed": "10"}, cv, controls=ctl)
+    app.fetch_canvas({"speed": "10"}, cv, controls=ctl)
     st = app._state._st
     assert st['phase'] == 'show' and len(st['seq']) == 1
     _play_through_show(app, cv, _Ctl(presses=1))
@@ -59,11 +59,11 @@ def test_show_walks_the_melody_then_opens_input(quiet_gateway):
 def test_correct_echo_grows_the_melody_and_replays(quiet_gateway):
     app = load_app("canvas-simon")
     cv = _cv()
-    app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(events=["start"], presses=1))
+    app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(events=["start"], presses=1))
     st = app._state._st
     _play_through_show(app, cv, _Ctl(presses=1))
     right = _PAD[st['seq'][0]]
-    app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(taps=[right], presses=2))
+    app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(taps=[right], presses=2))
     assert st['score'] == 10 and len(st['seq']) == 2     # grew...
     assert st['phase'] == 'show' and st['sp'] == 0       # ...and replays from the top
 
@@ -71,17 +71,17 @@ def test_correct_echo_grows_the_melody_and_replays(quiet_gateway):
 def test_one_wrong_press_ends_the_game_and_any_key_redeals(quiet_gateway):
     app = load_app("canvas-simon")
     cv = _cv()
-    app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(events=["start"], presses=1))
+    app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(events=["start"], presses=1))
     st = app._state._st
     _play_through_show(app, cv, _Ctl(presses=1))
     wrong = _PAD[(st['seq'][0] + 1) % 4]
-    app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(taps=[wrong], presses=2))
+    app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(taps=[wrong], presses=2))
     assert st['phase'] == 'gameover'
-    app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(presses=2))   # arms the freeze
+    app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(presses=2))   # arms the freeze
     f0 = st['fade']
-    app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(presses=2))
+    app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(presses=2))
     assert st['fade'] > f0
-    app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(presses=3))   # any key
+    app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(presses=3))   # any key
     assert st['phase'] == 'show' and st['score'] == 0 and len(st['seq']) == 1
 
 
@@ -90,16 +90,16 @@ def test_sound_rides_the_player_notes_but_never_attract(quiet_gateway):
     cv = _cv()
     sounds = []
     for _ in range(50):                                  # attract: melody + self-echo
-        app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(engaged=False),
+        app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(engaged=False),
                          play_sound=lambda **kw: sounds.append(kw))
     assert not sounds
-    app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(events=["start"], presses=1),
+    app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(events=["start"], presses=1),
                      play_sound=lambda **kw: sounds.append(kw))
     st = app._state._st
     for _ in range(6):
         if st['phase'] == 'input':
             break
-        app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(presses=1),
+        app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(presses=1),
                          play_sound=lambda **kw: sounds.append(kw))
     assert sounds and all('notes' in kw for kw in sounds)   # the melody is audible now
 
@@ -109,7 +109,7 @@ def test_attract_demos_forever_and_caps_the_melody(quiet_gateway):
     cv = _cv()
     longest = 0
     for _ in range(400):
-        app.fetch_matrix({"speed": "10"}, cv)
+        app.fetch_canvas({"speed": "10"}, cv)
         st = app._state._st
         assert st['phase'] in ('show', 'input')          # never sticks in gameover
         longest = max(longest, len(st['seq']))
@@ -119,11 +119,11 @@ def test_attract_demos_forever_and_caps_the_melody(quiet_gateway):
 def test_idle_player_gets_the_hint_replay(quiet_gateway):
     app = load_app("canvas-simon")
     cv = _cv()
-    app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(events=["start"], presses=1))
+    app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(events=["start"], presses=1))
     st = app._state._st
     _play_through_show(app, cv, _Ctl(presses=1))
     for _ in range(80):                                  # stare blankly at the wall
-        app.fetch_matrix({"speed": "10"}, cv, controls=_Ctl(presses=1))
+        app.fetch_canvas({"speed": "10"}, cv, controls=_Ctl(presses=1))
         if st['phase'] == 'show':
             break
     assert st['phase'] == 'show' and st['cursor'] == 0   # the melody replays as a hint

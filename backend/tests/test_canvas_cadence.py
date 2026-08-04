@@ -27,7 +27,7 @@ def test_world_clock_holds_until_the_next_minute(surface):
     """HH:MM per zone changes only on the minute — the hold is the time to the next boundary,
     never the old flat 1s that repainted ~60×/min."""
     m = _load("world_clock")           # dual-view: canvas branch draws the lit rows (was canvas-world)
-    hold = m.fetch_matrix({"world_clock_zones": "America/New_York, Europe/London"}, surface)
+    hold = m.fetch_canvas({"world_clock_zones": "America/New_York, Europe/London"}, surface)
     now = datetime.now()
     expected = 60.0 - now.second - now.microsecond / 1_000_000.0
     assert 1.0 <= hold <= 60.0
@@ -42,7 +42,7 @@ def test_date_card_holds_until_around_midnight(surface):
     import pytz
     m = _load("date")           # dual-surface: the Date Card is date's matrix branch
     zone = "America/New_York"
-    hold = m.fetch_matrix({"timezone": zone}, surface)
+    hold = m.fetch_canvas({"timezone": zone}, surface)
     now = datetime.now(pytz.timezone(zone))
     secs_to_midnight = ((24 - now.hour) * 3600 - now.minute * 60 - now.second)
     assert 1.0 <= hold <= 3600.0
@@ -54,8 +54,8 @@ def test_countdown_canvas_cadence(surface):
     the ~5fps sweep. Empty settings still draw slot 1's default New Year countdown (the flap
     default carries over to the panel), so this is never a static prompt."""
     m = _load("countdown")
-    m.fetch_matrix.__dict__.pop("_state", None)
-    slow = m.fetch_matrix({}, surface, caps=None)
+    m.fetch_canvas.__dict__.pop("_state", None)
+    slow = m.fetch_canvas({}, surface, caps=None)
     assert slow == 1.0
-    fast = m.fetch_matrix({"show_seconds": "yes"}, surface, caps=None)
+    fast = m.fetch_canvas({"show_seconds": "yes"}, surface, caps=None)
     assert fast == 0.2

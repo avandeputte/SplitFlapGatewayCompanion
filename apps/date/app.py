@@ -38,7 +38,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The Date Card: a huge day-of-month numeral on the left (gradient-filled through
 # a glyph mask), the weekday / month / year stacked in a size hierarchy beside it
@@ -89,7 +89,7 @@ def _cv_vfill(canvas, Image, W, H, top, bot, y0, y1):
     return col.resize((W, H))
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     from datetime import datetime
     from PIL import Image, ImageDraw
 

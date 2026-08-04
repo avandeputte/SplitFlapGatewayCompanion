@@ -136,7 +136,7 @@ def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
                 size=8, align='center')
 
 
-def fetch_matrix(settings, canvas, controls=None, play_sound=None, game_store=None):
+def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=None):
     W, H = canvas.width, canvas.height
     st = _state(W, H)
 

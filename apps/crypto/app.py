@@ -239,7 +239,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The watchlist as quote rows: coin left, price right, the 24h change as a
 # green/red chip (a color-coded price where a chip won't fit). More coins than
@@ -349,7 +349,7 @@ def _cv_quote_rows(canvas, ImageDraw, rows_data):
     return img
 
 
-def fetch_matrix(settings, canvas, i18n=None, get_location=None):
+def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     """The same watchlist as the flap pages, in the same order, as quote rows —
     rotating page by page when there are more coins than rows. One CoinGecko
     call covers the whole list; it is cached for a minute so page turns never
@@ -381,10 +381,10 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
         body = n(price, 0) if price >= 1 else n(price, 4, grouping=False)
         return f'{cur_sym}{sep}{body}'
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'r': None, 'ts': 0.0, 'sig': None, 'page': 0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     sig = (tuple(coins), vs)
     now = time.time()
     if st['r'] is None or st['sig'] != sig or (now - st['ts']) >= 60.0:

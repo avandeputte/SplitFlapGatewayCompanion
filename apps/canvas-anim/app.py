@@ -50,7 +50,7 @@ def _load(url, w, h, mode):
     return frames, max(1, min(30, fps))
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
 
     # A stored gateway animation is the first choice: it already lives on the panel (saved to
     # its library), so we just tell it to play — nothing is fetched or uploaded.

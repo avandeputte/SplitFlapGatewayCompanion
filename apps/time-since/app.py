@@ -113,7 +113,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A big elapsed-time counter: the event name up top, the counter as the hero —
 # values in white, unit letters in amber — and "TIME SINCE <date>" as a quiet
@@ -155,7 +155,7 @@ def _segments(diff, u, with_secs):
     return segs
 
 
-def fetch_matrix(settings, canvas, i18n=None, caps=None):
+def fetch_canvas(settings, canvas, i18n=None, caps=None):
     from PIL import ImageDraw
 
     def t(s):

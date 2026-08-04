@@ -85,12 +85,12 @@ Without it, an app that centers its own block gets centered **twice** and drifts
 middle.
 
 
-## The Matrix-panel surface (`fetch_matrix`)
+## The Matrix-panel surface (`fetch_canvas`)
 
 Most apps here define a second entry point alongside `fetch()`:
 
 ```python
-def fetch_matrix(settings, canvas, controls=None, play_sound=None):
+def fetch_canvas(settings, canvas, controls=None, play_sound=None):
     canvas.text(2, 2, "HELLO", (255, 200, 0), size=10)
     canvas.show()
     return 5           # seconds to hold before the next redraw

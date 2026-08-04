@@ -50,12 +50,12 @@ def test_scoreboard_uses_one_shared_sheet_of_all_logos():
     m = _load()
     m._logo_tile = lambda url, size, cache: Image.new("RGB", (size, size), (50, 80, 160))
     m._games = lambda follow, filt: _slate(6)          # 6 games, 8 distinct teams
-    m.fetch_matrix.__dict__.pop("_state", None)
+    m.fetch_canvas.__dict__.pop("_state", None)
     cv = _Cv()
     for _ in range(18):                                 # three full rotations
-        m.fetch_matrix({"follow": "nba"}, cv)
+        m.fetch_canvas({"follow": "nba"}, cv)
 
-    st = m.fetch_matrix.__dict__["_state"]
+    st = m.fetch_canvas.__dict__["_state"]
     assert len(st["sheet"]) == 8                        # ONE sheet holding all 8 distinct logos
     assert len(st["sheet_idx"]) == 8
     assert max(cv.uploads) == 8                         # never a per-game 2-tile sheet after growth
@@ -70,11 +70,11 @@ def test_scoreboard_refetches_when_the_follow_changes():
     calls = []
     m._logo_tile = lambda url, size, cache: None
     m._games = lambda follow, filt: calls.append(follow) or []
-    m.fetch_matrix.__dict__.pop("_state", None)
+    m.fetch_canvas.__dict__.pop("_state", None)
     cv = _Cv()
-    m.fetch_matrix({"follow": "nba"}, cv)          # first slate
-    m.fetch_matrix({"follow": "nba"}, cv)          # same -> served from cache
-    m.fetch_matrix({"follow": "epl:ARS"}, cv)      # changed -> refetch at once
+    m.fetch_canvas({"follow": "nba"}, cv)          # first slate
+    m.fetch_canvas({"follow": "nba"}, cv)          # same -> served from cache
+    m.fetch_canvas({"follow": "epl:ARS"}, cv)      # changed -> refetch at once
     assert calls == ["nba", "epl:ARS"]
 
 
@@ -82,8 +82,8 @@ def test_a_missing_logo_falls_back_to_a_color_chip():
     m = _load()
     m._logo_tile = lambda url, size, cache: None        # no logo fetchable
     m._games = lambda follow, filt: _slate(2)
-    m.fetch_matrix.__dict__.pop("_state", None)
+    m.fetch_canvas.__dict__.pop("_state", None)
     cv = _Cv()
-    m.fetch_matrix({"follow": "nba"}, cv)
-    assert m.fetch_matrix.__dict__["_state"]["sheet"] == []    # nothing uploaded
+    m.fetch_canvas({"follow": "nba"}, cv)
+    assert m.fetch_canvas.__dict__["_state"]["sheet"] == []    # nothing uploaded
     assert cv.blits == []                               # drawn as color chips, not sprites

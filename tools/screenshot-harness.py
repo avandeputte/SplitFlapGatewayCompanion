@@ -36,7 +36,11 @@ REVIEW = os.path.join(ROOT, 'screenshots')
 FONT_DIR = os.path.join(ROOT, 'backend', 'app', 'fonts')  # == app.canvas._FONT_DIR
 _FONT_CACHE = {}
 
-RESOLUTIONS = [(256, 64), (128, 64), (128, 32), (64, 32)]
+# The four LED panel sizes, then the LCD's logical panel (256x160, 1.6:1 — the
+# 1280x800 wall's LED-style drawing surface, upscaled on-device). Apps flagged
+# lcd_native/lcd_ops draw at the real resolution on the wall; here they preview
+# at the logical size like everything else.
+RESOLUTIONS = [(256, 64), (128, 64), (128, 32), (64, 32), (256, 160)]
 
 APP_IDS = [
     'advice', 'aurora', 'binary-clock', 'birdnet', 'bitcoin-fear-greed', 'calendar',
@@ -711,10 +715,10 @@ def render(app_id, w, h):
         stub(mod)
     cap = Cap(w, h)
     settings = settings_for(app_id)
-    kwargs = helper_kwargs(mod.fetch_matrix)
-    mod.fetch_matrix(settings, cap, **kwargs)
+    kwargs = helper_kwargs(mod.fetch_canvas)
+    mod.fetch_canvas(settings, cap, **kwargs)
     if not cap.frames:
-        raise RuntimeError('fetch_matrix pushed no frame')
+        raise RuntimeError('fetch_canvas pushed no frame')
     return cap.frames[-1]
 
 

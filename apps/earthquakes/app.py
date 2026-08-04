@@ -95,7 +95,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # One quake per card: the magnitude big and color-coded by severity, the place
 # beside it, distance/age dim below, and a 0-9 magnitude bar along the bottom
@@ -189,6 +189,36 @@ def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
 
     area_h = by0 - 3                       # everything above the bar (one dark row)
 
+    if H >= 96:
+        # ---- tall panel (e.g. LCD 256x160): the place becomes a proper header,
+        # the magnitude the hero on the left, the distance/age a sized-up right
+        # column — the magnitude bar keeps the full bottom edge.
+        hf, hlines, hlh, hgap = _cv_wrap_fit(canvas, loc, W - 6, int(H * 0.15), 2)
+        y = 1.0
+        for ln in hlines:
+            canvas.text_top(draw, 3, y, ln, hf, _CV_TEXT)
+            y += hlh + hgap
+        dy = int(y - hgap + 3)
+        draw.line([(3, dy), (W - 4, dy)], fill=_CV_TRACK)
+        top = dy + 4
+        mid_h = area_h - top
+        mf = canvas.fit_font(ms, int(W * 0.55), int(mid_h * 0.86))
+        mw, mh = mf.getlength(ms), canvas.ink(mf, ms)
+        canvas.text_top(draw, 3, top + (mid_h - mh) / 2.0, ms, mf, col)
+        rows = [x for x in (dist, ago) if x]
+        rx = 3 + mw + 12
+        rw = W - 5 - rx
+        if rows and rw >= 40:
+            fs = min(canvas.fit_font(s, rw, max(8, int(H * 0.14))).size for s in rows)
+            rf = canvas.font(fs)
+            hs = [canvas.ink(rf, s) for s in rows]
+            rgap = max(4, int(H * 0.06))
+            ry = top + (mid_h - sum(hs) - rgap * (len(rows) - 1)) / 2.0
+            for s, sh in zip(rows, hs):
+                canvas.text_top(draw, rx, ry, s, rf, _CV_DIM)
+                ry += sh + rgap
+        return img
+
     if W < 96:
         # Stacked: the place gets the full width for one line it can actually
         # hold — falling back to its last comma segment (the country/state)
@@ -262,7 +292,7 @@ def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
     return img
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     """The same five USGS quakes as the flap pages, in the same order, one card at
     a time — advancing each redraw like the flap page turn. The feed is cached
     for five minutes; the last good list survives an outage."""
@@ -273,10 +303,10 @@ def fetch_matrix(settings, canvas, i18n=None):
         return i18n.t(s, "quake") if i18n is not None else s
 
     minmag = str(settings.get('min_magnitude', '4.5') or '4.5')
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'feats': None, 'ts': 0.0, 'minmag': None, 'i': 0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     now = time.time()
     if st['feats'] is None or st['minmag'] != minmag or (now - st['ts']) >= 300.0:
         try:

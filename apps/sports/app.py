@@ -486,7 +486,7 @@ def trigger(settings, conditions):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A scoreboard card, one game per hold: the two teams as big rows with their
 # scores, the league up top and the status color-coded (live green, upcoming
@@ -585,7 +585,7 @@ def _mx_scoreboard(canvas, draw, game, top, height, rule=True, even=False):
         draw.text((vx, vy), vs, font=vf, fill=_MX_GRAY)
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     """Draw one followed game per hold as a scoreboard card, advancing each redraw. ESPN is
     polled at most once a minute (a cached gather); each game holds ~8s."""
     global _LOC
@@ -597,10 +597,10 @@ def fetch_matrix(settings, canvas, i18n=None):
         canvas.frame(canvas.message('SPORTS', 'NOTHING FOLLOWED', color=_MX_WHITE))
         return 120.0
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'sig': None, 'ts': 0.0, 'games': [], 'i': 0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     sig = (str(settings.get('follows', '')), str(settings.get('sports_filter', 'all')))
     now = time.time()
     if sig != st['sig'] or (now - st['ts']) > 60:

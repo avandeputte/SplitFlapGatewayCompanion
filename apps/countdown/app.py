@@ -258,7 +258,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The countdown as full-width draining color bars — the pixel-native cousin of
 # the flap bars above. It rotates through the SAME active slots as the flap view,
@@ -498,17 +498,17 @@ def _cv_render_message(canvas, ImageDraw, line1, line2):
     return img
 
 
-def fetch_matrix(settings, canvas, caps=None):
+def fetch_canvas(settings, canvas, caps=None):
     """Draw the current countdown as full-width draining bars, rotating through the active slots by
     wall-clock. ~5 fps for a smooth seconds sweep when seconds are on, gentler otherwise."""
     from datetime import datetime
     from PIL import Image, ImageDraw
     import pytz
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'frame': 0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     st['frame'] += 1
     frame = st['frame']
 

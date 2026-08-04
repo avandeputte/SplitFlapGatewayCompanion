@@ -580,8 +580,8 @@ async def start_display(d, companion_url: str = "") -> list:
         tasks.append(asyncio.create_task(d.ha.start()))
     if url and companion_url:
         tasks.append(asyncio.create_task(_companion_heartbeat(url, companion_url, d)))
-    # Clap/tap gestures ride the gateway's SSE stream (the "events" capability):
-    # by default either advances a running playlist to its next entry. Started
+    # Tap gestures ride the gateway's SSE stream (the "events" capability):
+    # by default a tap advances a running playlist to its next entry. Started
     # UNCONDITIONALLY (gateway + not sim): the capability check lives inside the
     # watch loop, re-read every cycle — a startup-time check silently lost the
     # feature whenever the add-on booted while the wall was down or mid-flash

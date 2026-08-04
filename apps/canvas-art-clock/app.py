@@ -97,14 +97,14 @@ def _cv_fill(canvas, Image, treatment, tone, W, H, y0, y1, frame):
     return col.resize((W, H))
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     from datetime import datetime
     from PIL import Image, ImageDraw, ImageFilter
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'frame': 0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     st['frame'] += 1
     frame = st['frame']
 

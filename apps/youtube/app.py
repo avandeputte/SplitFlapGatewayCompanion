@@ -133,7 +133,7 @@ def trigger(settings, conditions):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The channel as a stats card: a red play button beside the channel name, the
 # subscriber count large (or the recent-upload count when there's no API key),
@@ -182,7 +182,7 @@ def _cv_play_button(draw, x, y, w, h):
     draw.polygon([(tx, ty), (tx + tw, ty + th // 2), (tx, ty + th)], fill=(255, 255, 255))
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     from PIL import ImageDraw
 
     channel_id = str(settings.get('yt_channel_id', '') or '').strip()
@@ -190,10 +190,10 @@ def fetch_matrix(settings, canvas, i18n=None):
         canvas.frame(_cv_message(canvas, ImageDraw, 'YouTube', 'Set a channel ID'))
         return 120.0
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'feed': None}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     try:
         st['feed'] = _channel_feed(channel_id)
     except Exception:
@@ -219,6 +219,58 @@ def fetch_matrix(settings, canvas, i18n=None):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
     pad = 3                            # side margin; the header ink rides row 1
+
+    if H >= 96:                        # tall LCD — full name, hero count, full latest title
+        pad = 6
+        # Header: play button + channel name WRAPPED (up to two lines, never clipped).
+        head_h = int(H * 0.20)
+        bh = max(10, int(H * 0.12))
+        bw = int(bh * 1.45)
+        _cv_play_button(draw, pad, pad + max(0, (head_h - bh) // 2), bw, bh)
+        nx = pad + bw + 6
+        nf, nlines = canvas.wrap_fit(str(name or channel_id), W - pad - nx, head_h, 2)
+        nlh = canvas.ink(nf, 'Ag')
+        ngap = max(2, nlh // 6)
+        ny = pad + max(0, (head_h - (len(nlines) * nlh + (len(nlines) - 1) * ngap)) // 2)
+        for ln in nlines:
+            canvas.text_top(draw, nx, ny, ln, nf, _CV_TXT)
+            ny += nlh + ngap
+        head_bot = pad + head_h
+
+        # Latest upload — the WHOLE title wrapped (2-3 lines), a red caption above —
+        # owns the floor. Secondary to the count, so a modest size.
+        title = titles[0] if titles else ''
+        ltf, lat_lines = canvas.wrap_fit(title, W - 2 * pad, int(H * 0.24), 3) if title \
+            else (None, [])
+        llh = canvas.ink(ltf, 'Ag') if lat_lines else 0
+        lgap = max(2, llh // 6)
+        lat_blk = (len(lat_lines) * llh + (len(lat_lines) - 1) * lgap) if lat_lines else 0
+        cf_cap = canvas.fit_font('LATEST', int(W * 0.5), max(8, int(H * 0.08))) if lat_lines else None
+        cap_h = (canvas.ink(cf_cap, 'LATEST') + 4) if lat_lines else 0
+        lat_top = H - pad - lat_blk
+
+        # The count — hero — fills the band between the header and the latest block.
+        hero_top = head_bot + 4
+        hero_bot = (lat_top - cap_h - 6) if lat_lines else (H - pad)
+        lf = canvas.fit_font(label, W - 2 * pad, int(H * 0.10))
+        if lf.getlength(label) > W - 2 * pad:
+            label = ''                 # can't fit the caption — the count carries it
+        lbl_h = (canvas.ink(lf, label) + 3) if label else 0
+        cf = canvas.fit_font(big, W - 2 * pad, max(1, (hero_bot - hero_top) - lbl_h))
+        ch = canvas.ink(cf, big)
+        hy = hero_top + max(0, ((hero_bot - hero_top) - ch - lbl_h) // 2)
+        canvas.text_top(draw, (W - cf.getlength(big)) / 2.0, hy, big, cf, _CV_TXT)
+        if label:
+            canvas.text_top(draw, (W - lf.getlength(label)) / 2.0, hy + ch + 3, label, lf, _CV_RED)
+
+        if lat_lines:
+            canvas.text_top(draw, pad, lat_top - cap_h, 'LATEST', cf_cap, _CV_RED)
+            y = lat_top
+            for ln in lat_lines:
+                canvas.text_top(draw, pad, y, ln, ltf, _CV_DIM)
+                y += llh + lgap
+        canvas.frame(img)
+        return 120.0
 
     # Header: play button + channel name.
     bh = max(8, int(H * 0.20))

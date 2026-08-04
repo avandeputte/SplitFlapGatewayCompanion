@@ -325,7 +325,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # An agenda: the next events as rows — a color-coded time chip (amber today,
 # cyan tomorrow, steel later) over each title in real type. The panel's height
@@ -405,7 +405,7 @@ def _cv_title(canvas, draw, summary, x, y, w, h, cap_h=None, bottom=False):
     draw.text((x, ty - tb[1]), text, font=tf, fill=_WHITE)
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     """Draw the next events as chip-and-title rows. A calendar shifts slowly — redraw every
     two minutes keeps "Today 3:30PM" honest without hammering anyone's feed."""
     import pytz

@@ -5,6 +5,7 @@
   "description": "A living reef drawn on the panel with canvas draw-ops and a sprite atlas",
   "type": "functional",
   "surfaces": ["matrix"],
+  "lcd_ops": true,
   "category": "fun",
   "refresh_interval": 1,
   "loop_delay": 1,

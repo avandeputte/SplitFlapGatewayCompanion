@@ -47,7 +47,7 @@ def _static(canvas, text, color):
     canvas.frame(img)
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     color = _COLORS.get(str(settings.get("ticker_color", "amber")).lower(), _COLORS["amber"])
     try:
         speed = max(1, min(20, int(settings.get("ticker_speed", 4))))

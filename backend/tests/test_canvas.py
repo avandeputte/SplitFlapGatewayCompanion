@@ -444,7 +444,7 @@ from conftest import load_app as _load                                      # no
 def _push(gw_calls, app, W, H, settings, **kw):
     """Render one frame; return (hold, PIL image or None, raw bytes)."""
     cv = canvas_surface("http://gw", W, H, ("rgb888",), ())
-    hold = app.fetch_matrix(settings, cv, **kw)
+    hold = app.fetch_canvas(settings, cv, **kw)
     content = gw_calls[-1][3] if gw_calls else None
     img = (Image.frombytes("RGB", (W, H), content)
            if content and len(content) == W * H * 3 else None)
@@ -458,7 +458,7 @@ def _bright(img):
 # -- Lumina Clock --
 def test_art_clock_is_a_matrix_app():
     m = _load("canvas-art-clock")
-    assert callable(getattr(m, "fetch_matrix", None)) and not hasattr(m, "fetch")
+    assert callable(getattr(m, "fetch_canvas", None)) and not hasattr(m, "fetch")
 
 
 def test_art_clock_pushes_a_frame_with_the_time(gw_calls):
@@ -498,7 +498,7 @@ def _gw(sky="clear", t=52, hi=61, lo=44, city="Boston"):
 
 def test_weather_is_dual_surface_with_the_sky_view():
     m = _load("weather")
-    assert callable(getattr(m, "fetch_matrix", None)) and callable(getattr(m, "fetch", None))
+    assert callable(getattr(m, "fetch_canvas", None)) and callable(getattr(m, "fetch", None))
 
 
 def test_weather_pushes_a_scene_with_the_numbers(gw_calls):
@@ -609,7 +609,7 @@ def test_overview_weather_column_never_clips_off_the_bottom(gw_calls, monkeypatc
          "humidity": 100, "feels_like_f": 112, "wind_mph": 25},
     ):
         for W, H in ((256, 64), (192, 48), (128, 64)):
-            app.fetch_matrix._state = None              # bypass the 10-min weather cache
+            app.fetch_canvas._state = None              # bypass the 10-min weather cache
             seen.clear()
             _push(gw_calls, app, W, H, {}, get_weather=lambda days=1, air=False: reading)
             assert seen, f"{W}x{H}: nothing drawn"
@@ -618,11 +618,11 @@ def test_overview_weather_column_never_clips_off_the_bottom(gw_calls, monkeypatc
                     f"{W}x{H}: a {total}px stack overflows the {region_h}px region"
 
 
-# A matrix-only app exposes fetch_matrix and no flap fetch (a dual app like countdown has both).
+# A matrix-only app exposes fetch_canvas and no flap fetch (a dual app like countdown has both).
 @pytest.mark.parametrize("app_id", ["canvas-art-clock", "effects"])
-def test_matrix_apps_expose_fetch_matrix_only(app_id):
+def test_matrix_apps_expose_fetch_canvas_only(app_id):
     m = _load(app_id)
-    assert callable(getattr(m, "fetch_matrix", None)) and not hasattr(m, "fetch")
+    assert callable(getattr(m, "fetch_canvas", None)) and not hasattr(m, "fetch")
 
 
 # --- the 1.18 canvas extras: qoi, ticker, anim, rect, effect params ----------
@@ -686,6 +686,35 @@ def test_qoi_encode_round_trips_to_the_exact_pixels():
     assert _qoi_decode(q) == raw            # the wall draws exactly what we rendered
 
 
+def test_both_qoi_coders_round_trip_run_boundaries_and_noise():
+    """The vectorised coder (the LCD's ~15 ms path) and the pure-Python fallback must
+    both decode to the exact pixels — across the RUN chunk edges (62/63/124 repeats),
+    wraparound diffs, and incompressible noise."""
+    import random
+
+    from app.canvas_codec import _qoi_encode_np, _qoi_encode_py
+    rng = random.Random(99)
+    row = [(9, 9, 9)] * 62 + [(1, 2, 3)] + [(9, 9, 9)] * 63 + [(250, 4, 128)] \
+        + [(9, 9, 9)] * 124 + [(0, 0, 0)] * 6
+    runs = b"".join(bytes(p) for p in row)
+    noise = bytes(rng.randrange(256) for _ in range(256 * 3))
+    wrap = bytes((5, 5, 5)) + bytes((131, 131, 131)) + bytes((3, 3, 3))   # +126/-128 deltas
+    for raw, w, h in ((runs, len(row), 1), (noise, 256, 1), (wrap, 3, 1),
+                      (b"\x00\x00\x00" * 6, 3, 2)):
+        for enc in (_qoi_encode_np, _qoi_encode_py):
+            assert _qoi_decode(enc(raw, w, h)) == raw, enc.__name__
+
+
+def test_qoi_encode_is_fast_enough_for_lcd_fulls():
+    # ~15-30 ms at 1 MP on the numpy path — the pure loop took ~800 ms, which is why
+    # every LCD app start and keyframe used to stall.
+    import time
+    raw = b"\x14\x28\x3c" * (1280 * 800)
+    t0 = time.perf_counter()
+    canvas.qoi_encode(raw, 1280, 800)
+    assert (time.perf_counter() - t0) < 0.35     # generous CI headroom over the ~25 ms typical
+
+
 def test_frame_uses_qoi_when_advertised_else_raw(gw_calls):
     from PIL import Image
     img = Image.new("RGB", (64, 32), (10, 20, 30))
@@ -729,7 +758,7 @@ def test_anim_uploads_an_mpga_loop(gw_calls):
 
 def test_ticker_app_scrolls_a_message(gw_calls):
     cv = canvas_surface("http://gw", 256, 64, ("rgb888", "qoi"), (), ticker=True)
-    hold = _load("canvas-ticker").fetch_matrix(
+    hold = _load("canvas-ticker").fetch_canvas(
         {"ticker_source": "message", "ticker_text": "HI THERE", "ticker_color": "green",
          "ticker_speed": "6"}, cv)
     m, path, body, _ = gw_calls[-1]

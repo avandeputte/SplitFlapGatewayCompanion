@@ -127,7 +127,7 @@ def test_aquarium_frame_is_opsb_capable_on_a_compositing_wall(monkeypatch):
     app = load_app("canvas-aquarium")
     cv = _cv(composite=True)
     for _ in range(3):
-        app.fetch_matrix({"fish": "4"}, cv)
+        app.fetch_canvas({"fish": "4"}, cv)
     # rgba godrays/glow + the per-frame atlas bind no longer force the JSON kind:
     assert canvas_mod._wall("http://gw").last_kind == "opsb"
 
@@ -144,10 +144,10 @@ def test_aquarium_streams_bind_then_binary_frames(monkeypatch):
     monkeypatch.setattr(gateway, "_request", lambda m, u, p, **kw: _R())
     app = load_app("canvas-aquarium")
     cv = _cv(composite=True)
-    app.fetch_matrix({"fish": "4"}, cv)                       # warm-up: upload + first frame
+    app.fetch_canvas({"fish": "4"}, cv)                       # warm-up: upload + first frame
     st = _FakeStream()
     canvas_mod._wall("http://gw").stream = st
-    app.fetch_matrix({"fish": "4"}, cv)
+    app.fetch_canvas({"fish": "4"}, cv)
     kinds = [k for k, _ in st.records]
     assert kinds == ["bind", "opsb"]                          # the whole frame rode the socket
     payload = st.records[1][1]

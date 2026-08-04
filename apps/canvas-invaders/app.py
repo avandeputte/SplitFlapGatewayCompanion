@@ -46,7 +46,10 @@ def _play_sfx(play_sound, events):
 
 def _fleet_dims(W, H):
     """(columns, rows, row pitch, starting oy, drop) — a 64-row panel carries the
-    full four-row fleet with marching room; a 32-row one gets a two-row skirmish."""
+    full four-row fleet with marching room; a 32-row one gets a two-row skirmish.
+    A tall (96+) LCD panel doubles the sprite scale and fields all five row colors."""
+    if H >= 96:
+        return max(4, min(11, (W - 14) // (2 * _PX))), 5, 16, 18, 6
     ncols = max(4, min(11, (W - 14) // _PX))
     if H >= 48:
         return ncols, 4, 8, 9, 3
@@ -56,11 +59,13 @@ def _fleet_dims(W, H):
 def _new_wave(st, level):
     W = st['W']
     ncols, nrows, py, oy0, drop = _fleet_dims(W, st['H'])
+    k = 2 if st['H'] >= 96 else 1                      # sprite scale (2x on tall LCD panels)
+    aw, ah, px = _AW * k, _AH * k, _PX * k
     st.update(level=level, alive={(r, c) for r in range(nrows) for c in range(ncols)},
-              ox=float((W - ncols * _PX + (_PX - _AW)) // 2),
+              ox=float((W - ncols * px + (px - aw)) // 2),
               oy=float(oy0 + min(drop * (level - 1), drop * 3)),
               dir=1, tick=0, wiggle=0, bolt=None, bombs=[], saucer=None, saucer_in=200)
-    st.update(ncols=ncols, nrows=nrows, py=py, drop=drop)
+    st.update(ncols=ncols, nrows=nrows, py=py, drop=drop, k=k, aw=aw, ah=ah, px=px)
 
 
 def _new_game(st):
@@ -78,7 +83,7 @@ def _state(W, H):
 
 
 def _alien_xy(st, r, c):
-    return st['ox'] + c * _PX, st['oy'] + r * st['py']
+    return st['ox'] + c * st['px'], st['oy'] + r * st['py']
 
 
 def _bottom_aliens(st):
@@ -103,7 +108,7 @@ def _march(st):
     if not xs:
         return False
     step = 2 * st['dir']
-    if min(xs) + step < 2 or max(xs) + _AW + step > W - 2:
+    if min(xs) + step < 2 or max(xs) + st['aw'] + step > W - 2:
         st['dir'] = -st['dir']
         st['oy'] += st['drop']
     else:
@@ -115,17 +120,18 @@ def _march(st):
 def _step(st, move, fire, auto=False):
     """One tick: cannon, march, bolt, bombs, saucer, collisions, wave/lives."""
     W, H = st['W'], st['H']
-    cy = H - 4                                         # cannon top row
+    k, aw, ah = st['k'], st['aw'], st['ah']            # sprite scale (1 on LED, 2 on tall LCD)
+    cy = H - 4 * k                                     # cannon top row
     rng = random.Random(st['tick'] * 31 + st['score'] * 7 + len(st['alive']))
 
     if auto:
         move, fire = _auto_pilot(st, cy, rng)
     if move:
         st['cx'] += 2 if move == 'r' else -2
-    st['cx'] = max(4, min(W - 4, st['cx']))
+    st['cx'] = max(4 * k, min(W - 4 * k, st['cx']))
 
     if fire and st['bolt'] is None:
-        st['bolt'] = {'x': st['cx'], 'y': cy - 1.0}
+        st['bolt'] = {'x': st['cx'], 'y': cy - 1.0 * k}
         st['sfx'].append('shoot')
 
     if _march(st):
@@ -134,28 +140,28 @@ def _step(st, move, fire, auto=False):
         if len(st['bombs']) < 2 + st['level'] // 2 and rng.random() < 0.65:
             r, c = rng.choice(_bottom_aliens(st))
             x, y = _alien_xy(st, r, c)
-            st['bombs'].append({'x': x + _AW / 2, 'y': y + _AH + 1.0})
+            st['bombs'].append({'x': x + aw / 2, 'y': y + ah + 1.0 * k})
 
     # The saucer: worth 100, crosses the top on its own clock.
     if st['saucer'] is None:
         st['saucer_in'] -= 1
         if st['saucer_in'] <= 0:
-            st['saucer'] = {'x': -8.0, 'v': 1.5}
+            st['saucer'] = {'x': -8.0 * k, 'v': 1.5}
             st['saucer_in'] = 200 + rng.randrange(120)
     else:
         st['saucer']['x'] += st['saucer']['v']
         if st['tick'] % 3 == 0:                        # warble, not a note per frame
             st['sfx'].append('saucer')
-        if st['saucer']['x'] > W + 8:
+        if st['saucer']['x'] > W + 8 * k:
             st['saucer'] = None
 
     b = st['bolt']
     if b is not None:
-        b['y'] -= 3
+        b['y'] -= 3 * k
         hit = None
         for r, c in st['alive']:
             x, y = _alien_xy(st, r, c)
-            if x - 1 <= b['x'] <= x + _AW and y <= b['y'] <= y + _AH + 1:
+            if x - k <= b['x'] <= x + aw and y <= b['y'] <= y + ah + k:
                 hit = (r, c)
                 break
         if hit is not None:
@@ -167,8 +173,8 @@ def _step(st, move, fire, auto=False):
                 st['sfx'].append('level')
                 _new_wave(st, st['level'] + 1)
                 return
-        elif st['saucer'] is not None and 0 <= b['y'] <= 4 and \
-                st['saucer']['x'] - 1 <= b['x'] <= st['saucer']['x'] + 7:
+        elif st['saucer'] is not None and 0 <= b['y'] <= 4 * k and \
+                st['saucer']['x'] - k <= b['x'] <= st['saucer']['x'] + 7 * k:
             st['saucer'] = None
             st['bolt'] = None
             st['score'] += 100
@@ -178,13 +184,13 @@ def _step(st, move, fire, auto=False):
 
     hit_cannon = False
     for bomb in st['bombs']:
-        bomb['y'] += 2
-        if bomb['y'] >= cy and abs(bomb['x'] - st['cx']) <= 4:
+        bomb['y'] += 2 * k
+        if bomb['y'] >= cy and abs(bomb['x'] - st['cx']) <= 4 * k:
             hit_cannon = True
     st['bombs'] = [bb for bb in st['bombs'] if bb['y'] < H and
-                   not (bb['y'] >= cy and abs(bb['x'] - st['cx']) <= 4)]
+                   not (bb['y'] >= cy and abs(bb['x'] - st['cx']) <= 4 * k)]
 
-    invaded = any(_alien_xy(st, r, c)[1] + _AH >= cy for r, c in st['alive'])
+    invaded = any(_alien_xy(st, r, c)[1] + ah >= cy for r, c in st['alive'])
     if invaded or hit_cannon:
         if invaded:
             st['lives'] = 0                            # the fleet landed — no lives save that
@@ -265,7 +271,7 @@ def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
                 size=8, align='center')
 
 
-def fetch_matrix(settings, canvas, controls=None, play_sound=None, game_store=None):
+def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=None):
     W, H = canvas.width, canvas.height
     st = _state(W, H)
 

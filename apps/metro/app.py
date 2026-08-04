@@ -163,7 +163,7 @@ def trigger(settings, conditions):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A departure board: the line's own color as a header bar, then one row per
 # direction — destination left, minutes right, the minutes color-coded by
@@ -214,7 +214,7 @@ def _cv_minutes(mins):
     return f'{mins}', _LATER
 
 
-def fetch_matrix(settings, canvas):
+def fetch_canvas(settings, canvas):
     """Draw the stop as a departure board: line-color header, a row per direction with the
     destination and color-coded minutes. Predictions move by the minute — redraw every 30s."""
     from PIL import ImageDraw

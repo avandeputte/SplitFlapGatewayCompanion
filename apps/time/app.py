@@ -69,7 +69,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A big bold clock: the time as large as the panel allows, an AM/PM tag in
 # amber beside it, and — where there is vertical room — the weekday + date in
@@ -90,7 +90,7 @@ def _split_ampm(time_str):
     return time_str, ''
 
 
-def fetch_matrix(settings, canvas, i18n=None, caps=None):
+def fetch_canvas(settings, canvas, i18n=None, caps=None):
     from datetime import datetime
     from PIL import ImageDraw
 
@@ -103,6 +103,44 @@ def fetch_matrix(settings, canvas, i18n=None, caps=None):
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
+
+    if H >= 96:
+        # TALL panel (the 1.6:1 LCD — every LED wall is H <= 64): the pinned-top
+        # clock / pinned-bottom date split opens a void at this height, so the
+        # time and the weekday+date become one vertically centered group, the
+        # digits width-bound and the date lines sized up beneath them.
+        af = canvas.fit_font(ampm, int(W * 0.16), max(8, int(H * 0.13))) if ampm else None
+        aw = (af.getlength(ampm) + 3) if ampm else 0
+        tf = canvas.fit_font(main, W - 4 - aw, int(H * 0.42))
+        tb = tf.getbbox(main)
+        tw, th = tf.getlength(main), tb[3] - tb[1]
+
+        weekday, date_line = _day_lines(now, i18n)
+        subs = []                                   # (text, font, ink_h, ink_top)
+        for line in (weekday.upper(), date_line.upper()):
+            f = canvas.fit_font(line, W - 8, max(8, int(H * 0.12)))
+            b = f.getbbox(line)
+            subs.append((line, f, b[3] - b[1], b[1]))
+
+        g1, g2 = max(4, int(H * 0.055)), max(3, int(H * 0.03))
+        y = (H - (th + g1 + subs[0][2] + g2 + subs[1][2])) // 2
+        tx = (W - tw - aw) / 2.0
+        draw.text((tx, y - tb[1]), main, font=tf, fill=_TIME_COL)
+        if ampm:
+            ab = af.getbbox(ampm)
+            # The tag rides the clock's baseline, as on the LED walls.
+            draw.text((tx + tw + 3, y + th - (ab[3] - ab[1]) - ab[1]), ampm,
+                      font=af, fill=_AMPM_COL)
+        y += th + g1
+        for line, f, lh, ltop in subs:
+            draw.text(((W - f.getlength(line)) / 2.0, y - ltop), line,
+                      font=f, fill=_DATE_COL)
+            y += lh + g2
+
+        canvas.frame(img)
+        if seconds:
+            return max(0.05, 1.0 - now.microsecond / 1e6)
+        return max(1.0, 60.0 - now.second - now.microsecond / 1e6)
 
     # Layout: the clock pinned to the top row and grown as large as the panel
     # allows; weekday + date pinned to the bottom row — one quiet line, or two

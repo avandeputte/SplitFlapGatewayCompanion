@@ -97,14 +97,14 @@ def test_the_app_serializes_exactly_the_declared_params():
     cap = _Cap(DEFS_DOC["effectDefs"])
     # Plasma: bool set -> explicit True; int clamped into its declared range; the
     # blank speed is omitted (the effect keeps its current pace).
-    app.fetch_matrix({"effect": "plasma", "audio": "yes", "hue": "999", "speed": ""}, cap)
+    app.fetch_canvas({"effect": "plasma", "audio": "yes", "hue": "999", "speed": ""}, cap)
     assert cap.calls[-1]["params"] == {"audio": True, "hue": 255}
     # Fire consumes only audio — a stray speed setting stays off the wire; "no" is
     # sent explicitly so a def with default:true could still be turned off.
-    app.fetch_matrix({"effect": "fire", "speed": "9", "audio": "no"}, cap)
+    app.fetch_canvas({"effect": "fire", "speed": "9", "audio": "no"}, cap)
     assert cap.calls[-1]["params"] == {"audio": False}
     # The unknown "gradient" param never reaches the wire.
-    app.fetch_matrix({"effect": "life", "density": "50", "shade": "3"}, cap)
+    app.fetch_canvas({"effect": "life", "density": "50", "shade": "3"}, cap)
     assert cap.calls[-1]["params"] == {"density": 50}
 
 
@@ -113,7 +113,7 @@ def test_without_defs_the_legacy_call_shape_is_unchanged():
     app = load_app("effects")
     cap = _Cap([])
     cap.effects = ("plasma",)
-    app.fetch_matrix({"effect": "plasma", "speed": "7", "hue": "40"}, cap)
+    app.fetch_canvas({"effect": "plasma", "speed": "7", "hue": "40"}, cap)
     c = cap.calls[-1]
     assert c["params"] is None and c["speed"] == 7 and c["hue"] == 40
 

@@ -120,7 +120,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The full drawn overview card: a big clock as the focal point on the left with
 # the date beneath it, and — on any panel with room — a weather column on the
@@ -239,6 +239,20 @@ def _cv_line(font, segs):
     return (font, segs, bb[3] - bb[1], bb[1])
 
 
+def _draw_group(draw, x, top, region_h, lines, gap):
+    """Left-align `lines` as a TIGHT group — fixed `gap` between them — with the
+    whole block vertically centered in the region. For tall panels, where justifying
+    to the edges (see _draw_stack) would strand two lines with a void between them."""
+    total = sum(ln[2] for ln in lines) + gap * max(0, len(lines) - 1)
+    y = top + max(1, (region_h - total) // 2)
+    for font, segs, ih, itop in lines:
+        cx = x
+        for s, col in segs:
+            draw.text((cx, y - itop), s, font=font, fill=col, anchor='la')
+            cx += font.getlength(s)
+        y += ih + gap
+
+
 def _draw_stack(draw, x, top, region_h, lines, gap):
     """Left-align `lines` in a column at `x`, vertically justified across the
     region: the first line's ink pinned to row top+1, the last line's ending on
@@ -283,14 +297,14 @@ def _cv_fit_stack(canvas, specs, max_w, budget_h, gap):
     return lines
 
 
-def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
+def fetch_canvas(settings, canvas, get_weather=None, i18n=None):
     from datetime import datetime
     from PIL import Image, ImageDraw
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'wx': None, 'at': None, 'tried': None}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
 
     # --- time: the SAME instant the flap view shows (shared _local_now) --------
     now = _local_now(settings)
@@ -379,9 +393,12 @@ def fetch_matrix(settings, canvas, get_weather=None, i18n=None):
         dfont = canvas.font(dfloor)
         date_str = _cv_truncate(dfont, date_cands[-1], Lw)
 
-    _draw_stack(draw, pad, 0, region_h,
-                [_cv_line(cfont, [(clock, _C_CLOCK)]),
-                 _cv_line(dfont, [(date_str, _C_DATE)])], gap_l)
+    left_lines = [_cv_line(cfont, [(clock, _C_CLOCK)]),
+                  _cv_line(dfont, [(date_str, _C_DATE)])]
+    if H >= 96:                                  # tall panel: clock + date as one centered
+        _draw_group(draw, pad, 0, region_h, left_lines, max(gap_l, int(H * 0.035)))
+    else:                                        # group, not justified to the edges (no void)
+        _draw_stack(draw, pad, 0, region_h, left_lines, gap_l)
 
     # --- RIGHT column: the weather -------------------------------------------
     if two_col:

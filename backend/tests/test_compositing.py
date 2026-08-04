@@ -50,7 +50,7 @@ def test_aquarium_adds_glow_only_on_a_compositing_wall(monkeypatch):
                             lambda m, u, p, *, timeout, **kw: (seen.append((p, kw.get("json"))) or _R()))
         app = load_app("canvas-aquarium")
         for _ in range(6):
-            app.fetch_matrix({}, cv)
+            app.fetch_canvas({}, cv)
         return next(b for p, b in reversed(seen) if p == "/api/canvas/ops" and isinstance(b, list))
 
     new = batch(_cv(composite=True))
@@ -65,6 +65,6 @@ def test_chomper_power_glow_still_streams_binary(gw_calls):
     app = load_app("canvas-chomper")
     cv = _cv(composite=True)
     for _ in range(20):                                     # attract: power pellets present
-        app.fetch_matrix({"speed": "6"}, cv)
+        app.fetch_canvas({"speed": "6"}, cv)
     paths = [c[1] for c in gw_calls]
     assert "/api/canvas/opsb" in paths and "/api/canvas/ops" not in paths

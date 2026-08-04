@@ -100,7 +100,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, get_location=No
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The rate table as rows under a '1 BASE =' strip: target code in teal, the
 # rate right-aligned in white. More targets than rows rotate page by page.
@@ -113,7 +113,7 @@ _CV_DIM = (150, 150, 158)                  # secondary text
 _CV_CODE = (92, 205, 170)                  # currency-code teal
 
 
-def fetch_matrix(settings, canvas, i18n=None, get_location=None):
+def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     """The same rate table as the flap pages — '1 BASE =' as a quiet strip, then a
     row per target: code in teal, rate right-aligned in white, decimals in a
     column. More targets than rows rotate page by page. ECB rates move hourly at
@@ -124,10 +124,10 @@ def fetch_matrix(settings, canvas, i18n=None, get_location=None):
     base = _pick_base(settings, i18n, get_location)
     targets = _pick_targets(settings)
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'rates': None, 'ts': 0.0, 'sig': None, 'page': 0}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     sig = (base, tuple(targets))
     now = time.time()
     if st['rates'] is None or st['sig'] != sig or (now - st['ts']) >= 900.0:

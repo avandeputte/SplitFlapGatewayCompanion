@@ -95,7 +95,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The index as a color gauge: a red->green zone scale lit up to today's value,
 # a white marker on the spot, the number in its zone's color with the
@@ -127,6 +127,59 @@ def _cv_gauge(canvas, ImageDraw, value, label):
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
     col = _cv_zone_color(value)
+
+    if H >= 96:
+        # Tall LCD panel: a balanced top-to-bottom composition instead of a hero
+        # up top and a thin gauge stranded at the floor with dead air between.
+        # Title, a big number + classification hero filling the middle, and a
+        # thick red->green gauge (lit to the value, a scaled needle on the spot,
+        # 0/100 end labels) anchored along the bottom.
+        pad = 4
+        title = 'BTC FEAR & GREED'
+        tf = canvas.fit_font(title, W - 2 * pad, max(11, int(H * 0.12)))
+        canvas.text_top(draw, (W - tf.getlength(title)) / 2.0, 3, title, tf, _CV_DIM)
+        ttop = 3 + canvas.ink(tf, title)
+
+        bar_h = max(16, int(H * 0.17))
+        lab_h = max(9, int(H * 0.09))
+        by1 = H - 1 - lab_h - 2
+        by0 = by1 - bar_h
+        x0, x1 = pad, W - 1 - pad
+        for x in range(x0, x1 + 1):
+            v = (x - x0) / max(1, x1 - x0) * 100.0
+            c = _cv_zone_color(v)
+            f = 1.0 if v <= value else 0.22            # lit to the value, dim beyond it
+            draw.line([(x, by0), (x, by1)], fill=tuple(int(ch * f) for ch in c))
+        mx = x0 + round(value / 100.0 * (x1 - x0))
+        draw.rectangle([mx - 2, by0 - 1, mx + 2, by1], fill=(255, 255, 255))
+        draw.polygon([(mx - 5, by0 - 9), (mx + 5, by0 - 9), (mx, by0 - 1)],
+                     fill=(255, 255, 255))         # needle head
+        ef = canvas.font(lab_h)
+        canvas.text_top(draw, x0, by1 + 3, '0', ef, _CV_DIM)
+        canvas.text_top(draw, x1 - ef.getlength('100'), by1 + 3, '100', ef, _CV_DIM)
+
+        vs = str(value)
+        lab_lines = label.upper().split() or [label.upper()]
+        hero_top = ttop + max(4, int(H * 0.03))
+        hero_h = by0 - 9 - hero_top
+        vf = canvas.fit_font(vs, int(W * 0.44), hero_h)
+        vw, vh = vf.getlength(vs), canvas.ink(vf, vs)
+        gap = max(6, int(W * 0.03))
+        lw_max = W - 2 * pad - vw - gap
+        line_h = max(9, int(hero_h * (0.58 if len(lab_lines) == 1 else 0.40)))
+        lf = min((canvas.fit_font(ln, lw_max, line_h) for ln in lab_lines), key=lambda f: f.size)
+        lh = canvas.ink(lf, 'AG')
+        lgap = max(1, lh // 5)
+        lblock = len(lab_lines) * lh + (len(lab_lines) - 1) * lgap
+        lw = max(lf.getlength(ln) for ln in lab_lines)
+        gx = (W - (vw + gap + lw)) / 2.0
+        vy = hero_top + (hero_h - vh) / 2.0
+        canvas.text_top(draw, gx, vy, vs, vf, col)
+        ly = vy + (vh - lblock) / 2.0
+        for ln in lab_lines:
+            canvas.text_top(draw, gx + vw + gap, ly, ln, lf, _CV_TEXT)
+            ly += lh + lgap
+        return img
 
     top = 1
     if H >= 48:
@@ -178,7 +231,7 @@ def _cv_gauge(canvas, ImageDraw, value, label):
     return img
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     """Draw the index as a color gauge; the last good reading survives an outage.
     The index updates daily — five minutes between redraws is already generous."""
     from PIL import ImageDraw
@@ -186,10 +239,10 @@ def fetch_matrix(settings, canvas, i18n=None):
     def t(s):
         return i18n.t(s, "sentiment") if i18n is not None else s
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'last': None}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     try:
         st['last'] = _index()
     except Exception:

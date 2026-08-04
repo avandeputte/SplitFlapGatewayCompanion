@@ -115,7 +115,7 @@ def test_aquarium_keeps_streaming_with_aa(monkeypatch):
     cv = _cv()
     assert cv.aa_ok
     for _ in range(6):                                        # bubbles spawn over a few frames
-        app.fetch_matrix({"fish": "4"}, cv)
+        app.fetch_canvas({"fish": "4"}, cv)
     assert canvas_mod._wall("http://gw").last_kind == "opsb"  # aa'd frame, still binary
 
 

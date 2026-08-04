@@ -104,7 +104,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A next-race card: an F1-red round chip, the Grand Prix name big, the date and
 # a countdown to lights-out, with the championship leader along the bottom on a
@@ -181,7 +181,7 @@ def _cv_when(dt, i18n):
     return dt.strftime('%a %b %d').upper()
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     """Draw the next Grand Prix as a red-chipped race card (name, date, countdown, leader).
     The countdown moves by the hour, so an hourly-ish redraw is plenty; tighter inside race week."""
     from PIL import ImageDraw

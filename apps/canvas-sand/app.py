@@ -104,7 +104,7 @@ def _sim(st):
     st['air'] = keep
 
 
-def fetch_matrix(settings, canvas, controls=None, play_sound=None):
+def fetch_canvas(settings, canvas, controls=None, play_sound=None):
     from PIL import Image, ImageEnhance
 
     W, H = canvas.width, canvas.height

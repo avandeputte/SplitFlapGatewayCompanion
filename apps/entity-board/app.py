@@ -152,7 +152,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_ha_states=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A grid of entity CARDS drawn with canvas ops: a black card per entity with a
 # device icon from a generated sprite atlas, the name, and the value — the card
@@ -293,7 +293,7 @@ def _cv_icons(s):
     return out
 
 
-def fetch_matrix(settings, canvas, get_ha_states=None):
+def fetch_canvas(settings, canvas, get_ha_states=None):
     W, H = canvas.width, canvas.height
     use_sprites = bool(getattr(canvas, 'can_sprite', False))
     canvas.clear((0, 0, 0))                                    # black — best contrast on the panel

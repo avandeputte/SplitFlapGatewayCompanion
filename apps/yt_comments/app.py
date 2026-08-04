@@ -90,7 +90,7 @@ def trigger(settings, conditions):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The same comments, one text card at a time: the author in the accent color
 # over a hairline rule, the comment wrapped large below, a quiet i/N page mark
@@ -176,17 +176,54 @@ def _cv_message(canvas, ImageDraw, line1, line2):
     return img
 
 
-def fetch_matrix(settings, canvas):
+def _cv_tall(canvas, ImageDraw, author, text, idx, total):
+    """The 1.6:1 LCD card: a compact author header over a rule, then the comment
+    wrapped as LARGE type filling the body — the comment IS the content, so the
+    tall panel's height is spent on it, not banked as a void. Uses the shared
+    ratio-jumped wrap_fit (the LED path's local fitter can't reach a fitting size
+    from an LCD's tall start and falls to the 8px floor)."""
+    W, H = int(canvas.width), int(canvas.height)
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+    pad = 5
+
+    mark = f'{idx + 1}/{total}'
+    mf = canvas.fit_font(mark, int(W * 0.22), max(9, int(H * 0.09)))
+    mw = mf.getlength(mark) + 6
+    af = canvas.fit_font('Ag', W, int(H * 0.12))
+    ah = canvas.ink(af, 'Ag')
+    an = _cv_trim(af, str(author), W - 2 * pad - mw)
+    canvas.text_top(draw, pad, pad, an, af, _CV_AUTHOR)
+    canvas.text_top(draw, W - pad - mf.getlength(mark),
+                    pad + max(0, (ah - canvas.ink(mf, mark)) // 2), mark, mf, _CV_DIM)
+    ry = pad + ah + 4
+    draw.line([(pad, ry), (W - pad - 1, ry)], fill=_CV_RULE)
+
+    body_top = ry + 6
+    avail = H - pad - body_top
+    f, lines = canvas.wrap_fit(text, W - 2 * pad, avail, max(3, avail // 16))
+    lh = canvas.ink(f, 'Ag')
+    gap = max(2, lh // 5)
+    block = len(lines) * lh + (len(lines) - 1) * gap
+    y = body_top + max(0, (avail - block) // 2)     # the block centered in the body
+    for ln in lines:
+        canvas.text_top(draw, pad, y, ln, f, _CV_TXT)
+        y += lh + gap
+    return img
+
+
+def fetch_canvas(settings, canvas):
     from PIL import ImageDraw
 
     if not settings.get('yt_video_id', '') or not settings.get('yt_api_key', ''):
         canvas.frame(_cv_message(canvas, ImageDraw, 'Comments', 'Set video ID + API key'))
         return 60.0
 
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'i': 0, 'last': None}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     try:
         st['last'] = _comments(settings)
     except Exception:
@@ -202,6 +239,14 @@ def fetch_matrix(settings, canvas):
     idx = st['i'] % len(comments)
     st['i'] = (st['i'] + 1) % len(comments)
     author, text = comments[idx]
+
+    if int(canvas.height) >= 96:                     # tall LCD — the comment fills the body
+        canvas.frame(_cv_tall(canvas, ImageDraw, author, text, idx, len(comments)))
+        try:
+            dwell = float(settings.get('loop_delay', 8) or 8)
+        except (TypeError, ValueError):
+            dwell = 8.0
+        return max(3.0, min(30.0, dwell))
 
     W, H = int(canvas.width), int(canvas.height)
     img = canvas.blank((0, 0, 0))

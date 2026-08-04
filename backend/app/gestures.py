@@ -1,21 +1,22 @@
-"""gestures.py — the companion's consumer of the gateway's clap/tap events.
+"""gestures.py — the companion's consumer of the gateway's tap events.
 
-The Matrix Gateway detects CLAPS (microphones) and TAPS (the IMU) on-device and
-broadcasts them on its SSE stream (GET /api/events) as ``event: clap`` / ``event:
-tap`` with ``{"count": N, "seq": M}`` — after first offering them to its own
-timer/alarm (a double gesture dismisses those on-device; singles reach us).
+The Matrix Gateway detects TAPS (the IMU) on-device and broadcasts them on its SSE
+stream (GET /api/events) as ``event: tap`` with ``{"count": N, "seq": M}`` — after
+first offering them to its own timer/alarm (a double tap dismisses those on-device;
+singles reach us). (Clap detection was removed: the microphone events proved too
+unreliable to act on, and the firmware no longer emits them.)
 
 Per display, ``watch()`` rides that stream for the process lifetime (reconnecting
-with backoff) and turns each gesture into the user's configured action:
+with backoff) and turns each tap into the user's configured action:
 
   * ``playlist_next`` (the default) — advance the running playlist to its next
     entry via the engine's skip; outside a playlist the gesture does nothing.
   * ``stop``   — stop whatever is running.
   * ``none``   — ignore.
 
-The settings keys are ``gesture_clap`` / ``gesture_tap`` (per display, alongside
-the other global settings). ``seq`` dedupes SSE re-delivery; a short debounce
-keeps an enthusiastic burst of applause from skipping three entries at once.
+The setting key is ``gesture_tap`` (per display, alongside the other global
+settings). ``seq`` dedupes SSE re-delivery; a short debounce keeps a bounced
+double-tap from skipping two entries at once.
 """
 
 from __future__ import annotations
@@ -55,8 +56,8 @@ def _chirp(d, act: str) -> None:
 
 
 def action_for(settings, kind: str) -> str:
-    """The configured action for a gesture kind ('clap'/'tap') — playlist_next unless
-    the user chose otherwise."""
+    """The configured action for a gesture kind ('tap') — playlist_next unless the
+    user chose otherwise."""
     v = str(settings.get(f"gesture_{kind}", "playlist_next") or "").strip().lower()
     return v if v in ACTIONS else "playlist_next"
 
@@ -80,8 +81,8 @@ class GestureState:
     bursts). Pure bookkeeping, so tests can drive frames straight through it."""
 
     def __init__(self) -> None:
-        self.seen = {"clap": None, "tap": None}
-        self.last = {"clap": -1e9, "tap": -1e9}
+        self.seen = {"tap": None}
+        self.last = {"tap": -1e9}
 
     def admit(self, kind: str, seq, now: float) -> bool:
         if kind not in self.seen:
@@ -96,9 +97,9 @@ class GestureState:
 
 
 async def handle_frame(d, state: GestureState, event: str, data: str, now: float) -> str | None:
-    """One SSE frame: admit clap/tap through the dedupe/debounce and dispatch.
+    """One SSE frame: admit a tap through the dedupe/debounce and dispatch.
     Returns the action taken, or None for frames that are not (fresh) gestures."""
-    if event not in ("clap", "tap"):
+    if event != "tap":
         return None
     try:
         doc = json.loads(data) if data else {}

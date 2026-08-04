@@ -95,7 +95,7 @@ def _apps():
             # pixels with a real font (Pillow) straight onto the panel — never through renderer.fold.
             # Its case is rendered literally, so uppercase labels ("DAYS", "ARRIVED", "SET A TARGET")
             # are deliberate typography, not shouting. A dual app's FLAP pages are de-shouted at the
-            # source like every other app; only its fetch_matrix code carries the caps.
+            # source like every other app; only its fetch_canvas code carries the caps.
             continue
         app = manifest.parent / "app.py"
         if app.exists():

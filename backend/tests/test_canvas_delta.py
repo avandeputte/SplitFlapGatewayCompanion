@@ -47,6 +47,45 @@ def test_a_large_change_falls_back_to_full_frame():
     assert canvas.diff_rects(a.tobytes(), b.tobytes(), 16, 8) is None
 
 
+def test_two_sprites_on_one_band_become_two_rects():
+    # Two changes at opposite edges of the SAME rows used to merge into one
+    # panel-wide band rect — on an LCD that was 25x the bytes of the real change.
+    a = _rgb(40, 640)
+    b = a.copy()
+    b[10:20, 5:25] = 255                           # left sprite
+    b[12:22, 600:630] = 128                        # right sprite, overlapping rows
+    rects = canvas.diff_rects(a.tobytes(), b.tobytes(), 640, 40)
+    assert len(rects) == 2
+    xs = sorted((r[0], r[2]) for r in rects)
+    assert xs[0] == (5, 20) and xs[1] == (600, 30)
+
+
+def test_hairline_column_gaps_merge_into_one_rect():
+    a = _rgb(8, 64)
+    b = a.copy()
+    b[2, 10:12] = 255
+    b[2, 14:16] = 255                              # a 2px gap — under the merge threshold
+    rects = canvas.diff_rects(a.tobytes(), b.tobytes(), 64, 8)
+    assert len(rects) == 1 and (rects[0][0], rects[0][2]) == (10, 6)
+
+
+def test_rect_spam_collapses_back_to_the_band():
+    # >24 separated column runs on one band: one band rect beats dozens of headers.
+    a = _rgb(4, 2048)
+    b = a.copy()
+    for i in range(30):
+        b[1, i * 64] = 255
+    rects = canvas.diff_rects(a.tobytes(), b.tobytes(), 2048, 4)
+    assert len(rects) == 1
+    x, y, w, h, _ = rects[0]
+    assert x == 0 and w == 29 * 64 + 1
+
+
+def test_keyframe_cadence_scales_with_panel_area():
+    assert canvas._keyframe_every(256, 64) == canvas._KEYFRAME_EVERY        # LED class
+    assert canvas._keyframe_every(1280, 800) == canvas._KEYFRAME_EVERY * 10  # LCD class
+
+
 def test_rgb565_big_endian_encoding():
     assert canvas._rgb565_be(np.array([[[255, 0, 0]]], np.uint8)) == b"\xf8\x00"   # pure red
     assert canvas._rgb565_be(np.array([[[0, 0, 255]]], np.uint8)) == b"\x00\x1f"   # pure blue

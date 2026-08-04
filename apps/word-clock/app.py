@@ -312,7 +312,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The classic word-clock face: a grid of words with the current phrase lit
 # bright (hour word in amber) and the rest dimly visible — QLOCKTWO-style, on a
@@ -493,7 +493,7 @@ def _draw_sentence(canvas, draw, words):
     return True
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     from PIL import ImageDraw
 
     now = _tznow(settings)

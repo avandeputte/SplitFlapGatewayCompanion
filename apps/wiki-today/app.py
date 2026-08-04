@@ -82,7 +82,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # A slideshow of typographic cards: the featured article first, then the
 # most-read titles one per card with their rank in the label — the same items
@@ -171,7 +171,56 @@ def _cv_state():
     return st
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def _cv_tall(canvas, ImageDraw, t, title, mostread):
+    """The 1.6:1 LCD card: the featured title big and WHOLE-WORD (wrap_fit shrinks
+    so words stay whole — card_pages would hyphen-split it, 'Voyag-er 1') filling
+    the upper band, the also-featured most-read titles as a ranked list below —
+    one composition, not a slideshow of one-line cards."""
+    W, H = int(canvas.width), int(canvas.height)
+    img = canvas.blank((0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.fontmode = "1"
+    pad = 4
+    items = [a for a in (mostread or []) if a]
+    top = _cv_header(canvas, draw, (t('Featured') if title else t('Most read')).upper())
+
+    lf = canvas.font(max(12, int(H * 0.085)))        # the list rows
+    lih = canvas.ink(lf, 'Ag')
+    row = lih + max(2, lih // 4)
+    rx = pad + lf.getlength('0') + 6                 # title x, past the rank digit
+
+    if title:
+        items = items[:3]                            # a few — the hero keeps the room
+        mlf = canvas.fit_font(t('Most read').upper(), W - 2 * pad, max(9, int(H * 0.085)))
+        list_h = (canvas.ink(mlf, 'Ag') + 5 + len(items) * row) if items else 0
+        title_h = H - top - list_h - (8 if items else 0)
+        tf, tlines = canvas.wrap_fit(title, W - 2 * pad, max(1, title_h), 2)
+        tlh = canvas.ink(tf, 'Ag')
+        tgap = max(2, tlh // 6)
+        blk = len(tlines) * tlh + (len(tlines) - 1) * tgap
+        ty = top + max(0, (title_h - blk) // 2)
+        for ln in tlines:
+            canvas.text_top(draw, (W - tf.getlength(ln)) / 2.0, ty, ln, tf, _TEXT)
+            ty += tlh + tgap
+        if items:
+            y = top + title_h + 8
+            canvas.text_top(draw, pad, y, t('Most read').upper(), mlf, _ACCENT)
+            y += canvas.ink(mlf, 'Ag') + 5
+            for i, art in enumerate(items):
+                canvas.text_top(draw, pad, y, f'{i + 1}', lf, _ACCENT)
+                canvas.text_top(draw, rx, y, canvas.wrap(lf, art, W - pad - rx, 1)[0], lf, _TEXT)
+                y += row
+    else:                                            # no featured article — the list fills it
+        items = items[:6] or ['']
+        y = top + max(0, (H - top - 4 - row * len(items)) // 2)
+        for i, art in enumerate(items):
+            canvas.text_top(draw, pad, y, f'{i + 1}', lf, _ACCENT)
+            canvas.text_top(draw, rx, y, canvas.wrap(lf, art, W - pad - rx, 1)[0], lf, _TEXT)
+            y += row
+    return img
+
+
+def fetch_canvas(settings, canvas, i18n=None):
     """One card per redraw — the featured article, then the top most-read
     titles — paced by loop_delay. The feed renews hourly (the manifest's
     refresh cadence) and only between laps of the slideshow; a fetch failure
@@ -199,6 +248,15 @@ def fetch_matrix(settings, canvas, i18n=None):
                                             t('Offline') if i18n is not None else 'Offline'))
                 return 60.0
     title, mostread = st['data']
+
+    if int(canvas.height) >= 96:                      # tall LCD — hero title + most-read list
+        canvas.frame(_cv_tall(canvas, ImageDraw, t, title, mostread))
+        try:
+            d = float(settings.get('loop_delay', 8) or 8)
+        except (TypeError, ValueError):
+            d = 8.0
+        return max(6.0, min(30.0, d))
+
     cards = []
     if title:
         cards.append((t('Featured').upper(), title))

@@ -377,7 +377,7 @@ def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
     canvas.shadow_text(W // 2, y0 + f1 + 2, txt, sc, f2, align="center")
 
 
-def fetch_matrix(settings, canvas, controls=None, play_sound=None, game_store=None):
+def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=None):
     W, H = canvas.width, canvas.height
     # The grid is stretched edge-to-edge: as many ~4.5px cells as fit (odd counts, so
     # the outer wall stays one cell thick), each row/column mapped to pixel edges — no

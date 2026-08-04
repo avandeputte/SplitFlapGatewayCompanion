@@ -189,7 +189,7 @@ class PluginRuntime:
         # something to repeat on every fetch, and one structure serves both the
         # injection path and the UI ("uses location", global-usage notes).
         self._wants: dict[str, frozenset] = {}          # fetch()'s injected helpers
-        self._wants_matrix: dict[str, frozenset] = {}   # fetch_matrix()'s injected helpers
+        self._wants_matrix: dict[str, frozenset] = {}   # fetch_canvas()'s injected helpers
         self._trigger_wants: dict[str, frozenset] = {}
         # What THIS display's wall can show. A callable, because the answer is only known
         # once the transport has talked to the gateway — and it can change if the gateway
@@ -601,18 +601,18 @@ class PluginRuntime:
             log.error("plugin %s: import error: %s", app_id, e)
             return
         # A functional app renders each surface it declares with a matching entry point:
-        # fetch() for flaps, fetch_matrix() for a Matrix panel. It needs at least one.
+        # fetch() for flaps, fetch_canvas() for a Matrix panel. It needs at least one.
         has_fetch = hasattr(mod, "fetch") and callable(mod.fetch)
-        has_matrix = hasattr(mod, "fetch_matrix") and callable(mod.fetch_matrix)
+        has_matrix = hasattr(mod, "fetch_canvas") and callable(mod.fetch_canvas)
         if has_fetch or has_matrix:
             self._modules[app_id] = mod
             if has_fetch:
                 self._wants[app_id] = self._wanted_helpers(mod.fetch)
                 self._fetch_locks[app_id] = threading.Lock()
             if has_matrix:
-                self._wants_matrix[app_id] = self._wanted_helpers(mod.fetch_matrix)
+                self._wants_matrix[app_id] = self._wanted_helpers(mod.fetch_canvas)
         else:
-            log.error("plugin %s: app.py has neither fetch() nor fetch_matrix()", app_id)
+            log.error("plugin %s: app.py has neither fetch() nor fetch_canvas()", app_id)
         if hasattr(mod, "trigger") and callable(mod.trigger):
             self._triggers[app_id] = mod.trigger
             self._trigger_wants[app_id] = self._wanted_helpers(mod.trigger)
@@ -698,18 +698,21 @@ class PluginRuntime:
         buffer both key off."""
         return str(self.config.transport.get("gateway_url") or "").strip()
 
-    def build_canvas_surface(self, native: bool = False):
+    def build_canvas_surface(self, native: bool = False, ops: bool = False):
         """A drawing surface for this wall, or None if it has no framebuffer — the
         transport the canvas apps draw through (shared with the channel-on-canvas
         renderer). An LED wall gets the live-ops CanvasSurface; an LCD wall gets the
         offscreen LcdSurface — logical LED-style dimensions upscaled to full frames,
         so LED-era pixel sizes come out right — with ``native=True`` (a manifest's
-        ``lcd_native``, and the proportional channel renderer) skipping the shrink."""
+        ``lcd_native``, and the proportional channel renderer) skipping the shrink.
+        ``ops=True`` (a manifest's ``lcd_ops``) gives a fully size-proportional draw-ops
+        app the live CanvasSurface at native LCD resolution: its geometry/sprites render
+        on-device, a few hundred bytes a frame instead of a pixel stream."""
         caps = self._caps()
         if not caps.has_canvas:
             return None
         url = str(self.config.transport.get("gateway_url") or "").strip()
-        if getattr(caps, "is_lcd", False):
+        if getattr(caps, "is_lcd", False) and not ops:
             from .zonecanvas import LcdSurface
             return LcdSurface(url, caps, native=native)
         return canvas.CanvasSurface(url, caps)
@@ -725,7 +728,7 @@ class PluginRuntime:
     def surfaces(self, app_id: str) -> list:
         """The surfaces this app renders on: ``["flap"]`` (default), ``["matrix"]``, or both. A
         functional app renders each with a matching entry point — ``fetch`` for flaps,
-        ``fetch_matrix`` for a Matrix panel; a channel/quiz's matrix surface is drawn generically
+        ``fetch_canvas`` for a Matrix panel; a channel/quiz's matrix surface is drawn generically
         (its text + a themed icon)."""
         s = self._registry.get(app_id, {}).get("surfaces")
         return list(s) if isinstance(s, list) and s else ["flap"]
@@ -738,11 +741,11 @@ class PluginRuntime:
         return self.surfaces(app_id) == ["matrix"]
 
     def has_matrix_render(self, app_id: str) -> bool:
-        """The app can actually render on a panel — a functional app with ``fetch_matrix``, or a
+        """The app can actually render on a panel — a functional app with ``fetch_canvas``, or a
         channel/quiz (drawn generically). The capability behind the toggle and the badge."""
         if "matrix" not in self.surfaces(app_id):
             return False
-        return callable(getattr(self._modules.get(app_id), "fetch_matrix", None)) \
+        return callable(getattr(self._modules.get(app_id), "fetch_canvas", None)) \
             or self.is_channel_app(app_id)
 
     def is_dual_surface(self, app_id: str) -> bool:
@@ -1053,28 +1056,29 @@ class PluginRuntime:
         return self._registry.get(app_id)
 
     def render_matrix(self, app_id: str, overrides: dict | None = None):
-        """Run a matrix app's ``fetch_matrix(settings, canvas, **helpers)`` once — it draws through
+        """Run a matrix app's ``fetch_canvas(settings, canvas, **helpers)`` once — it draws through
         the ``canvas`` surface (the drawing is the point; there are no pages to return). Its return
         value, if a number, is the seconds the engine should hold before redrawing.
 
         ``overrides`` are per-playlist-entry setting values (e.g. a Scoreboard following its own
         teams), applied as a transient overlay exactly like a flap app's — so the same matrix app
         can appear twice in a playlist configured differently."""
-        surface = self.build_canvas_surface(
-            native=bool(self._registry.get(app_id, {}).get("lcd_native")))
+        manifest = self._registry.get(app_id, {})
+        surface = self.build_canvas_surface(native=bool(manifest.get("lcd_native")),
+                                            ops=bool(manifest.get("lcd_ops")))
         if surface is None:                                 # no framebuffer — nothing to draw on
             return None
         return self.render_matrix_on(app_id, surface, overrides)
 
     def renders_offscreen(self, app_id: str) -> bool:
-        """Can this app draw into an offscreen zone? Functional, has fetch_matrix,
+        """Can this app draw into an offscreen zone? Functional, has fetch_canvas,
         not interactive (needs the pad + whole panel), not device_render (drives the
         gateway's own renderer — effects, the device ticker/anim library)."""
         m = self._registry.get(app_id)
         mod = self._modules.get(app_id)
         return bool(m and not m.get("interactive") and not m.get("device_render")
                     and not self.is_channel_app(app_id)
-                    and callable(getattr(mod, "fetch_matrix", None)))
+                    and callable(getattr(mod, "fetch_canvas", None)))
 
     def render_matrix_on(self, app_id: str, surface, overrides: dict | None = None):
         """``render_matrix`` with the caller's surface — the ZONES engine renders each
@@ -1082,7 +1086,7 @@ class PluginRuntime:
         cannot be the one wall-bound instance build_canvas_surface() returns."""
         mod = self._modules.get(app_id)
         manifest = self._registry.get(app_id)
-        fn = getattr(mod, "fetch_matrix", None)
+        fn = getattr(mod, "fetch_canvas", None)
         if not mod or not manifest or not callable(fn):
             return None
         src = _SettingsOverlay(self.settings, overrides) if overrides else self.settings

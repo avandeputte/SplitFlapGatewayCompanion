@@ -122,7 +122,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
 
 
 # =============================================================================
-# MATRIX PANEL — fetch_matrix() and its helpers, unique to the LED panel.
+# MATRIX PANEL — fetch_canvas() and its helpers, unique to the LED panel.
 #
 # The day's tide as a drawn curve (cosine between the NOAA extremes, water
 # filled below), the next high/low called out above it, 'now' marked on the
@@ -200,7 +200,7 @@ def _cv_curve(draw, events, x0, y0, x1, y1, now_min):
     return
 
 
-def fetch_matrix(settings, canvas, i18n=None):
+def fetch_canvas(settings, canvas, i18n=None):
     """Today's tide curve with the next high/low called out above it (and the one
     after, where the width allows), 'now' marked on the curve. Predictions are
     station-local and cached for an hour; the marker only crawls, so a redraw
@@ -213,10 +213,10 @@ def fetch_matrix(settings, canvas, i18n=None):
         return i18n.t(s, "tides") if i18n is not None else s
 
     station = str(settings.get('tide_station', '8443970') or '8443970').strip()
-    st = getattr(fetch_matrix, '_state', None)
+    st = getattr(fetch_canvas, '_state', None)
     if st is None:
         st = {'preds': None, 'ts': 0.0, 'station': None}
-        setattr(fetch_matrix, '_state', st)
+        setattr(fetch_canvas, '_state', st)
     now = time.time()
     if st['preds'] is None or st['station'] != station or (now - st['ts']) >= 3600.0:
         try:

@@ -46,6 +46,14 @@ _KEYFRAME_EVERY = 20
 _READBACK_TTL = 1.0
 
 
+def _keyframe_every(w: int, h: int) -> int:
+    """How many pushes between self-heal keyframes. On an LED-sized panel a full frame is
+    ~16-48 KB — cheap enough to resend every 20th push. On an LCD-sized one a full frame is
+    megabytes (raw over the stream, ~1 MB as QOI), so keyframes stretch out proportionally:
+    drift still heals, just on a tens-of-seconds cadence instead of every couple of seconds."""
+    return _KEYFRAME_EVERY if w * h <= 131072 else _KEYFRAME_EVERY * 10
+
+
 class _Wall:
     """Everything the companion believes about ONE gateway's panel, in one object — the last frame
     it pushed, the delta counter, cached readbacks, sim mode, the atlas-library belief, the live
@@ -494,10 +502,12 @@ def put_rects(url: str, rects: list, fmt: int = 2, timeout: float = 10.0):
 
 
 def diff_rects(old_rgb: bytes, new_rgb: bytes, w: int, h: int, max_frac: float = 0.5):
-    """Coarse dirty-row bands between two rgb888 frames: group the changed rows into a few bands,
-    each one rect spanning the columns that differ across it. Returns ``[]`` when the frames are
-    identical, ``None`` when more than ``max_frac`` of the panel changed (caller: push a full
-    frame), else ``[(x, y, w, h, rgb565_be_bytes)]``. numpy-vectorised; the caller falls back to a
+    """Dirty rectangles between two rgb888 frames: the changed rows group into contiguous
+    bands, and within each band the changed columns split into runs (small gaps merged), one
+    rect per run — so two sprites moving at opposite edges cost two sprite-sized rects, not
+    one band spanning the whole panel width. Returns ``[]`` when the frames are identical,
+    ``None`` when more than ``max_frac`` of the panel changed (caller: push a full frame),
+    else ``[(x, y, w, h, rgb565_be_bytes)]``. numpy-vectorised; the caller falls back to a
     full frame if numpy is unavailable."""
     import numpy as np
     old = np.frombuffer(old_rgb, np.uint8).reshape(h, w, 3)
@@ -510,15 +520,24 @@ def diff_rects(old_rgb: bytes, new_rgb: bytes, w: int, h: int, max_frac: float =
     breaks = np.nonzero(np.diff(dirty_rows) > 1)[0]
     starts = np.concatenate(([dirty_rows[0]], dirty_rows[breaks + 1]))
     ends = np.concatenate((dirty_rows[breaks], [dirty_rows[-1]]))
+    # Column runs closer than this merge into one rect: each rect costs an 8-byte header
+    # plus per-row seek on the wall, so hairline gaps aren't worth splitting over.
+    gap = max(4, w // 64)
     rects, area = [], 0
     for y0, y1 in zip(starts.tolist(), ends.tolist()):
-        cols = np.nonzero(changed[y0:y1 + 1].any(axis=0))[0]
-        x0, x1 = int(cols[0]), int(cols[-1])
-        rw, rh = x1 - x0 + 1, y1 - y0 + 1
-        area += rw * rh
-        if area > max_frac * w * h:
-            return None
-        rects.append((x0, y0, rw, rh, _rgb565_be(new[y0:y1 + 1, x0:x1 + 1])))
+        colmask = changed[y0:y1 + 1].any(axis=0)
+        cols = np.nonzero(colmask)[0]
+        cbreaks = np.nonzero(np.diff(cols) > gap)[0]
+        cstarts = np.concatenate(([cols[0]], cols[cbreaks + 1]))
+        cends = np.concatenate((cols[cbreaks], [cols[-1]]))
+        if cstarts.size > 24:                    # rect spam: one band rect beats 25 headers
+            cstarts, cends = cstarts[:1], cends[-1:]
+        for x0, x1 in zip(cstarts.tolist(), cends.tolist()):
+            rw, rh = x1 - x0 + 1, y1 - y0 + 1
+            area += rw * rh
+            if area > max_frac * w * h or len(rects) >= 128:   # firmware takes ≤256/body
+                return None
+            rects.append((x0, y0, rw, rh, _rgb565_be(new[y0:y1 + 1, x0:x1 + 1])))
     return rects
 
 
@@ -1214,7 +1233,7 @@ class CanvasSurface(paneltext.PanelText):
 
         Matrix apps use this instead of hand-rolling the try/except clamp — it lives on the
         canvas surface (not an injected parameter) so a test or the screenshot harness can
-        call ``fetch_matrix(settings, canvas)`` directly and it is simply there. The flap-side
+        call ``fetch_canvas(settings, canvas)`` directly and it is simply there. The flap-side
         ``fetch()`` keeps the hand-rolled idiom: it has no canvas, and its signature is the
         portable upstream ABI (apps/README.md)."""
         try:
@@ -1411,10 +1430,19 @@ class CanvasSurface(paneltext.PanelText):
         old = wall.last_frame                              # the base (the last frame we sent)
         wall.delta_n += 1
         if not (self.can_rects and old is not None and (old[0], old[1]) == (self.width, self.height)
-                and wall.delta_n % _KEYFRAME_EVERY != 0):
+                and wall.delta_n % _keyframe_every(self.width, self.height) != 0):
             return None
         try:
-            rects = diff_rects(old[2], b, self.width, self.height)
+            # The delta-vs-full cutover depends on what a full frame would COST here. Rects
+            # carry raw rgb565 (2 B/px). Over an open stream a full is also raw rgb565 for the
+            # whole panel, so a delta wins right up to half the panel (0.5). Over HTTP a full
+            # goes QOI (~0.1 B/px for app content) — on an LCD-sized panel a half-panel delta
+            # is ~1 MB against a tens-of-KB full, so past 15% changed the keyframe is cheaper.
+            # LED-sized panels stay at 0.5 either way (even a full is only ~16-48 KB there).
+            st = wall.stream
+            frac = 0.5 if (self.width * self.height <= 131072
+                           or (st is not None and st.alive)) else 0.15
+            rects = diff_rects(old[2], b, self.width, self.height, max_frac=frac)
         except Exception as e:                             # numpy missing/failed -> full frame
             log.debug("canvas delta failed, full frame: %s", e)
             return None

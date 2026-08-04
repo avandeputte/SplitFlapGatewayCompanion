@@ -67,15 +67,9 @@ CATALOG: list[dict] = [
              "capitals regardless — this is for when you prefer that look."},
     {"key": "yt_api_key", "label": "YouTube Data API Key", "type": "password",
      "note": "Shared by the YouTube subscriber, comments and livestream apps."},
-    # Clap/tap gestures (a Matrix Gateway with microphones/IMU detects them on-device
-    # and streams them to the companion). A double clap/tap dismisses the gateway's own
+    # Tap gestures (a Matrix Gateway with an IMU detects a tap on the enclosure on-device
+    # and streams it to the companion). A double tap dismisses the gateway's own
     # timer/alarm first; singles arrive here and run the chosen action.
-    {"key": "gesture_clap", "label": "On a clap", "type": "select", "default": "playlist_next",
-     "options": [{"value": "playlist_next", "label": "Next playlist item"},
-                 {"value": "stop", "label": "Stop what's running"},
-                 {"value": "none", "label": "Do nothing"}],
-     "note": "What a single clap does (Matrix Gateway with microphones). A double clap "
-             "dismisses the panel's own timer/alarm before it ever reaches this."},
     {"key": "gesture_tap", "label": "On a tap", "type": "select", "default": "playlist_next",
      "options": [{"value": "playlist_next", "label": "Next playlist item"},
                  {"value": "stop", "label": "Stop what's running"},
