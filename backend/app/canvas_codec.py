@@ -207,6 +207,10 @@ def _bu8(v):
     return bytes((max(0, min(255, int(v))),))
 
 
+def _bu16(v):
+    return struct.pack(">H", max(0, min(65535, int(v))))
+
+
 def _brgb(c):
     return bytes((int(c[0]) & 255, int(c[1]) & 255, int(c[2]) & 255))
 
@@ -223,7 +227,7 @@ _OPCODE = {
     # The transform/layer/macro/bezier opcodes, at parity with JSON.
     "save": 0x16, "restore": 0x17, "translate": 0x18, "scale": 0x19, "rotate": 0x1a,
     "layer": 0x1b, "composite": 0x1c, "define": 0x1d, "call": 0x1e, "bezier": 0x1f,
-    "aaline": 0x20,
+    "aaline": 0x20, "gtext": 0x21, "blur": 0x22, "sprite2": 0x23,
 }
 
 
@@ -347,6 +351,30 @@ def encode_ops_bin(ops):
             if op.get("shadow") is not None:
                 out += _brgb(op["shadow"])
             out += _bu8(len(raw)) + raw
+        elif k == "gtext":
+            # 0x21: scalable AA TrueType text. size is u16 (native heroes exceed 255), face is a
+            # byte (0 sans/1 mono/2 custom), aa defaults on; slen u8 caps the string at 255 bytes.
+            raw = str(op.get("s", "")).encode("utf-8")
+            if len(raw) > 255 or op.get("tracking"):    # binary 0x21 carries no tracking -> JSON
+                return None
+            face = {"sans": 0, "mono": 1, "custom": 2}.get(str(op.get("face", "sans")), 0)
+            flags = {"center": 1, "right": 2}.get(op.get("align"), 0)
+            if op.get("aa", True):
+                flags |= 0x04
+            if op.get("outline") is not None:
+                flags |= 0x08
+            if op.get("shadow") is not None:
+                flags |= 0x10
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bu16(op.get("size", 24))
+                    + _bu8(face) + _bu8(flags) + _brgb(op["color"]))
+            if op.get("outline") is not None:
+                out += _brgb(op["outline"])
+            if op.get("shadow") is not None:
+                out += _brgb(op["shadow"])
+            out += _bu8(len(raw)) + raw
+        elif k == "blur":
+            out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op.get("w", 0))
+                    + _bi16(op.get("h", 0)) + _bu8(op.get("r", 4)))
         elif k == "sprite":
             flags = (1 if "h" in str(op.get("flip", "")) else 0)                 | (2 if "v" in str(op.get("flip", "")) else 0)                 | ((int(op.get("rot", 0)) // 90 & 3) << 2)                 | ((max(1, int(op.get("scale", 1))) - 1 & 3) << 4)
             out += (_opc(k) + struct.pack(">H", int(op["i"]) & 0xFFFF)

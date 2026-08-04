@@ -3,6 +3,17 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.5
+
+- **No more ~2 MB keyframes on the LCD** — a frame-push app no longer adopts the persistent
+  draw stream on a large panel (where a full frame is raw rgb565, ~2 MB); its full frames go
+  over HTTP as QOI (tens of KB) instead. Binary-ops apps still stream — a batch is a few
+  hundred bytes at any panel size.
+- **Groundwork for on-device text** — the companion can now emit the firmware's new `gtext`
+  (scalable anti-aliased TrueType) and `blur` ops (`canvas.gtext` / `canvas.blur`, binary
+  encodings and the `text2` capability), so the text apps can start drawing their type as a
+  few ops instead of pushing pixel frames. App conversions follow.
+
 ## 2.10.12-beta.4
 
 - **Aquarium speed fix (LCD)** — the beta.2 native-ops pass grew the fish sprite sheet to

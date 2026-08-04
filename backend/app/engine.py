@@ -806,10 +806,20 @@ class DisplayController:
         own 0x04 record, so a sprite app like the aquarium qualifies too). Apps whose
         batches only JSON can carry stay on the per-batch HTTP path; a mid-stream atlas
         re-upload closes the stream itself (see canvas.put_atlas_named) and we simply
-        re-adopt here on the next tick."""
-        if (url and getattr(caps, "canvas_stream", False) and not canvas.has_stream(url)
-                and (canvas.last_push_was_frame(url) or canvas.last_push_was_opsb(url))
+        re-adopt here on the next tick.
+
+        The stream carries a full FRAME as raw rgb565 — cheap on an LED panel (~16 KB) but
+        ~2 MB on a 1280×800 LCD, where a keyframe every heartbeat would flood the wall. So on
+        a big panel we DON'T adopt the stream for a frame-push app: its fulls go over HTTP as
+        QOI (tens of KB) instead. Binary-ops apps still stream (a batch is a few hundred bytes
+        at any panel size), which is exactly the path a converted text app should ride."""
+        if not (url and getattr(caps, "canvas_stream", False) and not canvas.has_stream(url)
                 and isinstance(hold, (int, float)) and hold <= _CANVAS_STREAM_MAX_HOLD):
+            return
+        big = int(getattr(caps, "canvas_w", 0)) * int(getattr(caps, "canvas_h", 0)) > 131072
+        streamable = canvas.last_push_was_opsb(url) or (
+            canvas.last_push_was_frame(url) and not big)
+        if streamable:
             await asyncio.to_thread(canvas.stream_begin, url)
 
     async def _run_channel_canvas(self, app_id: str, keep_going, *, overrides=None,

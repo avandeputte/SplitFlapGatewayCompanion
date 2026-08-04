@@ -54,6 +54,31 @@ def _keyframe_every(w: int, h: int) -> int:
     return _KEYFRAME_EVERY if w * h <= 131072 else _KEYFRAME_EVERY * 10
 
 
+_GTEXT_FONTS: dict = {}
+
+
+def _gtext_width(s: str, size: int, face: str = "sans", tracking: int = 0) -> float:
+    """Pixel width of ``s`` at ``size`` px in the gtext face — measured with the companion's
+    copy of the bundled TrueType (the same DejaVuSans-Bold the wall rasterizes), so an app's
+    wrap/fit math agrees with the glass. Mono falls back to sans until a mono face is bundled
+    (matching the wall's own fallback)."""
+    from PIL import ImageFont
+    name = "DejaVuSansMono-Bold.ttf" if face == "mono" else "DejaVuSans-Bold.ttf"
+    key = (name, max(4, int(size)))
+    f = _GTEXT_FONTS.get(key)
+    if f is None:
+        try:
+            f = ImageFont.truetype(os.path.join(_FONT_DIR, name), key[1])
+        except Exception:
+            f = ImageFont.truetype(os.path.join(_FONT_DIR, "DejaVuSans-Bold.ttf"), key[1])
+        _GTEXT_FONTS[key] = f
+    text = str(s)
+    w = f.getlength(text)
+    if tracking and len(text) > 1:
+        w += int(tracking) * (len(text) - 1)
+    return w
+
+
 class _Wall:
     """Everything the companion believes about ONE gateway's panel, in one object — the last frame
     it pushed, the delta counter, cached readbacks, sim mode, the atlas-library belief, the live
@@ -949,6 +974,12 @@ class CanvasSurface(paneltext.PanelText):
         # (the styled-text ops travel with it).
         self.op_names = tuple(caps.canvas_ops)
         self.can_text_styles = "textbox" in self.op_names
+        # Scalable on-device TrueType text (the gtext op) + the box-blur op — what lets a text
+        # app draw as ops rather than pushing pixel frames. text_max is the px size ceiling.
+        self.can_gtext = bool(getattr(caps, "canvas_gtext", False))
+        self.text_max = int(getattr(caps, "canvas_text_max", 0) or 0)
+        self.text_faces = tuple(getattr(caps, "canvas_text_faces", ()) or ())
+        self.can_blur = bool(getattr(caps, "canvas_blur", False))
         self.can_ops_bin = bool(caps.canvas_ops_bin)     # the binary ops encoding, whole
         self.can_composite = bool(caps.canvas_composite)   # canvas.compositing: alpha, blend, AA
         self.can_sd = bool(caps.can_sd)                    # "sd" feature: a microSD card is mounted
@@ -1159,6 +1190,44 @@ class CanvasSurface(paneltext.PanelText):
         if shadow is not None:
             op["shadow"] = _rgb(shadow)
         self._ops.append(op)
+        return self
+
+    def gtext(self, x, y, s, color=(255, 255, 255), size=24, align="left", face="sans",
+              aa=True, outline=None, shadow=None, tracking=0):
+        """Scalable, anti-aliased TrueType text — the on-device stand-in for a fitted PIL label,
+        so a text app draws its type as ops instead of pushing a pixel frame. ``size`` is any
+        pixel height (4…``caps.text_max``, ~512); ``(x, y)`` is the top-left of the ascent box;
+        ``align`` shifts about ``x``. ``face`` is "sans" (default), "mono", or "custom" (an
+        uploaded TTF). ``outline`` (1px ring) / ``shadow`` (+1,+1 drop) layer under the fill.
+        The bundled face is the companion's own DejaVuSans-Bold, so PIL layout matches the glass.
+        Needs ``canvas.can_gtext`` — fall back to a fitted frame where it's absent."""
+        op = {"op": "gtext", "x": int(x), "y": int(y), "s": str(s),
+              "color": _rgb(color), "size": int(size)}
+        if align in ("center", "right"):
+            op["align"] = align
+        if face and face != "sans":
+            op["face"] = str(face)
+        if not aa:
+            op["aa"] = False
+        if outline is not None:
+            op["outline"] = _rgb(outline)
+        if shadow is not None:
+            op["shadow"] = _rgb(shadow)
+        if tracking:
+            op["tracking"] = int(tracking)
+        self._ops.append(op)
+        return self
+
+    def text_width(self, s, size=24, face="sans", tracking=0):
+        """The pixel width of ``s`` at ``size`` in the gtext face — for the app's own align/wrap
+        math. Measured with the companion's copy of the bundled TTF (metrics match the wall)."""
+        return _gtext_width(str(s), int(size), str(face), int(tracking))
+
+    def blur(self, x, y, w, h, r=4):
+        """Box-blur a rectangle of the back buffer in place — the on-device stand-in for the
+        PIL scrim: soften busy art, then draw text on top. Needs ``canvas.can_blur``."""
+        self._ops.append({"op": "blur", "x": int(x), "y": int(y), "w": int(w),
+                          "h": int(h), "r": int(r)})
         return self
 
     def arc(self, x, y, r, start, end, color=(255, 255, 255), t=2, fill=False):

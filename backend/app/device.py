@@ -107,6 +107,13 @@ class Capabilities:
     canvas_ops: tuple[str, ...] = ()        # POST /api/canvas/ops draw ops the wall honors
     canvas_ops_bin: bool = False            # the binary ops encoding ("opsBin"), whole
     canvas_composite: bool = False          # canvas.compositing: per-color alpha, blend modes, AA
+    # canvas.text2 — scalable, anti-aliased on-device TrueType text (the "gtext" op). What lets
+    # a text app draw its type as ops instead of pushing pixel frames. maxSize is the px ceiling;
+    # faces are the bundled/uploaded family names ("sans"/"mono"/"custom").
+    canvas_gtext: bool = False
+    canvas_text_max: int = 0
+    canvas_text_faces: tuple[str, ...] = ()
+    canvas_blur: bool = False               # the "blur" op — on-device box blur (the PIL-scrim stand-in)
     # PUT /api/canvas/rects — a frame-push app sends only the rectangles that changed since
     # its last frame instead of the whole panel. Advertised as canvas.rects.
     canvas_rects: bool = False
@@ -273,6 +280,13 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     except (TypeError, ValueError):
         canvas_ops_bin = False
     canvas_composite = bool(canvas.get("compositing"))
+    # canvas.text2 — the scalable-text (gtext) capability. Parse the ceiling + face list; the
+    # blur op advertises itself in the ops vocabulary.
+    _t2 = canvas.get("text2") or {}
+    canvas_gtext = bool(_t2.get("scalable")) and "gtext" in canvas_ops
+    canvas_text_max = int(_t2.get("maxSize") or 0) if canvas_gtext else 0
+    canvas_text_faces = tuple(str(f) for f in (_t2.get("faces") or ()) if isinstance(f, str))
+    canvas_blur = "blur" in canvas_ops
     canvas_readback = bool(canvas.get("readback"))
     # `fw` is the firmware version string; take the leading major.minor. Informational
     # only (surfaced by /api/panel/caps) — never a gate.
@@ -312,6 +326,10 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         effect_defs=effect_defs,
         canvas_ops_bin=canvas_ops_bin,
         canvas_composite=canvas_composite,
+        canvas_gtext=canvas_gtext,
+        canvas_text_max=canvas_text_max,
+        canvas_text_faces=canvas_text_faces,
+        canvas_blur=canvas_blur,
         fw_version=fw_version,
         canvas_readback=canvas_readback,
         canvas_ops=canvas_ops,
