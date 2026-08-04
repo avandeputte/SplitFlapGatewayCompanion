@@ -221,20 +221,22 @@ def last_frame_png(url: str, scale: int = 1):
     return _frame_png(*f, scale=scale) if f else None
 
 
-def readback_png(url: str, scale: int = 1, fmt: str = "rgb565"):
+def readback_png(url: str, scale: int = 1, fmt: str = "rgb565", down: int = 1):
     """Read the lit panel back and return it as PNG bytes, or None. This is what
     lets the live preview show on-device content — an effect, a ticker, an animation — that the
     companion never rendered a frame for, so :func:`last_frame_png` has nothing cached.
 
     ``fmt`` defaults to rgb565 — a third less over WiFi than rgb888, and the panel's real depth
-    anyway. The result is cached ~1s: this is one gateway round-trip and an effect previews fine at
-    ~1 Hz, so a browser polling faster costs nothing extra."""
-    key = (url, scale, fmt)
+    anyway. ``down`` requests a 1/N on-wire readback (see :func:`get_frame`) so polling a big panel's
+    preview does not saturate the gateway's single worker; the wall returns the image already at
+    that size, so there is nothing to downscale here. The result is cached ~1s: this is one gateway
+    round-trip and an effect previews fine at ~1 Hz, so a browser polling faster costs nothing extra."""
+    key = (url, scale, fmt, down)
     now = time.monotonic()
     hit = _wall(url).readback.get(key)
     if hit and now - hit[0] < _READBACK_TTL:
         return hit[1]
-    f = get_frame(url, fmt)
+    f = get_frame(url, fmt, down=down)
     png = _frame_png(*f, scale=scale) if f else None
     _wall(url).readback[key] = (now, png)
     return png
@@ -653,17 +655,28 @@ def put_anim(url: str, frames: list, w: int, h: int, fps: int = 12, loop: bool =
         return False
 
 
-def get_frame(url: str, fmt: str = "rgb888", timeout: float = 8.0):
+def get_frame(url: str, fmt: str = "rgb888", timeout: float = 8.0, down: int = 1):
     """Read the lit panel back (GET /api/canvas/frame) — a screenshot of whatever
     is on screen: the flap wall, an effect, an animation, a ticker or a pushed frame. Returns
     ``(width, height, rgb888 bytes)`` or ``None``. In sim, there is no panel to read. Read-only,
     so a live preview can poll it. The panel's real bit depth is baked in (it is what is
-    physically lit); brightness is not in the framebuffer, so a dim wall reads back at full value."""
+    physically lit); brightness is not in the framebuffer, so a dim wall reads back at full value.
+
+    ``down`` (N ≥ 2) asks the wall for a 1/N-scaled readback (``&scale=N`` — every N-th pixel), so a
+    1280×800 panel comes back at (1280/N)×(800/N) and ~1/N² the bytes. That matters because the
+    gateway serves on a SINGLE worker: a full 2 MB readback holds it for ~2 s and every other
+    request (the liveness poll included) queues behind it and the wall reads "offline." The
+    downscale is a fast on-device copy of a still-full-res snapshot. The wall reports the ACTUAL
+    dimensions in the X-Canvas-* headers, so a gateway that ignores ``scale`` (returns full-res) is
+    handled transparently — sending it is always safe."""
     if _wall(url).sim:               # sim: no real panel to screenshot
         return None
     try:
         f = "rgb565" if str(fmt) == "rgb565" else "rgb888"
-        r = gateway._request("GET", url, f"/api/canvas/frame?fmt={f}", timeout=timeout)
+        q = f"/api/canvas/frame?fmt={f}"
+        if int(down) > 1:
+            q += f"&scale={int(down)}"
+        r = gateway._request("GET", url, q, timeout=timeout)
         if not _ok(r):
             return None
         w = int(r.headers.get("X-Canvas-Width") or 0)
@@ -1111,14 +1124,18 @@ class CanvasSurface(paneltext.PanelText):
     def sprite(self, i, x, y, flip=None, rot=None, scale=1):
         """Blit tile ``i`` of the uploaded atlas (see :meth:`upload_atlas`) at (x, y). Magenta is
         transparent. Needs ``canvas.can_sprite``. Transforms: ``flip`` "h"/"v"/"hv",
-        ``rot`` 90/180/270, ``scale`` 1–4 — one sheet serves every orientation."""
+        ``rot`` 90/180/270, ``scale`` ≥ 1 — one sheet serves every orientation. A whole 1–4 takes
+        the fast integer blit; a fractional value (e.g. 2.5) scales smoothly via the SPRITE2 op."""
         op = {"op": "sprite", "i": int(i), "x": int(x), "y": int(y)}
         if flip in ("h", "v", "hv"):
             op["flip"] = flip
         if rot in (90, 180, 270):
             op["rot"] = int(rot)
-        if int(scale) > 1:
-            op["scale"] = int(scale)
+        s = float(scale)
+        if s != 1.0:
+            # keep a whole 1–4 as an int (the JSON/fast-path form); a fractional or larger value
+            # stays a float so the codec emits SPRITE2 and the JSON op carries the exact scale.
+            op["scale"] = int(s) if (s.is_integer() and 1 <= s <= 4) else s
         self._ops.append(op)
         return self
 

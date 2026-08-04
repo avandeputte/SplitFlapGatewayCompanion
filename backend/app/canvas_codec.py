@@ -376,9 +376,21 @@ def encode_ops_bin(ops):
             out += (_opc(k) + _bi16(op["x"]) + _bi16(op["y"]) + _bi16(op.get("w", 0))
                     + _bi16(op.get("h", 0)) + _bu8(op.get("r", 4)))
         elif k == "sprite":
-            flags = (1 if "h" in str(op.get("flip", "")) else 0)                 | (2 if "v" in str(op.get("flip", "")) else 0)                 | ((int(op.get("rot", 0)) // 90 & 3) << 2)                 | ((max(1, int(op.get("scale", 1))) - 1 & 3) << 4)
-            out += (_opc(k) + struct.pack(">H", int(op["i"]) & 0xFFFF)
-                    + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(flags))
+            sc = float(op.get("scale", 1) or 1)
+            flip_flags = (1 if "h" in str(op.get("flip", "")) else 0) \
+                | (2 if "v" in str(op.get("flip", "")) else 0) \
+                | ((int(op.get("rot", 0)) // 90 & 3) << 2)
+            if sc.is_integer() and 1 <= sc <= 4:
+                # a whole 1–4 rides the fast integer SPRITE (0x11) — scale packed into the flag byte
+                flags = flip_flags | ((int(sc) - 1 & 3) << 4)
+                out += (_opc("sprite") + struct.pack(">H", int(op["i"]) & 0xFFFF)
+                        + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(flags))
+            else:
+                # anything else (fractional, or > 4) is SPRITE2 (0x23): scale is its own u16 8.8
+                # fixed-point field, so the flag byte carries only flip + rotation.
+                s88 = max(1, min(0xFFFF, int(round(sc * 256))))
+                out += (_opc("sprite2") + struct.pack(">H", int(op["i"]) & 0xFFFF)
+                        + _bi16(op["x"]) + _bi16(op["y"]) + _bu8(flip_flags) + struct.pack(">H", s88))
         elif k == "scroll":
             out += _opc(k) + _bi16(op["dx"]) + _bi16(op["dy"]) + _brgb(op.get("color", (0, 0, 0)))
         elif k == "blend":

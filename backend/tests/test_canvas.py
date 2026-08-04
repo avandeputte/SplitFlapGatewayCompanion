@@ -422,6 +422,48 @@ def test_effect_in_a_playlist_is_released_when_its_slot_ends(gw_calls, tmp_path)
     asyncio.run(run())
 
 
+def test_stopping_a_canvas_app_clears_the_panel_framebuffer(gw_calls, tmp_path):
+    """Regression: a stopped canvas app must not stay frozen on the panel.
+
+    On the LCD the firmware does NOT repaint the framebuffer when canvas mode is released —
+    the last frame just persists (an aquarium left lit long after it was turned off), and a
+    flap-blank page can race the stream teardown and miss. So an explicit stop has to clear the
+    panel itself: take_over (the firmware's whole-panel clear), then release it back to the idle
+    wall. A canvas→app SWITCH stays on the flash-free path (that is the test above); this is the
+    STOP-to-idle path, which has nothing following to repaint the wall."""
+    from pathlib import Path
+
+    async def run():
+        cfg = Config(data_dir=tmp_path)
+        cfg.update({"transport": {"gateway_url": "http://gw"}})
+        ctl = DisplayController(cfg, DisplayState(45))
+        ps = PluginSettings(tmp_path)
+        ps.set_installed(["canvas-art-clock"])
+        rt = PluginRuntime(cfg, ps, Path(__file__).resolve().parents[2] / "apps")
+        rt.attach_caps(lambda: device.from_capabilities(CANVAS_DOC))
+        rt.load()
+        ctl.attach_plugins(rt)
+        await ctl.start()
+
+        from conftest import until
+        await ctl.run_app("canvas-art-clock")           # a frame-push canvas app
+        await until(lambda: ctl._canvas_active, "the canvas app never took the panel")
+
+        gw_calls.clear()                                 # only look at what STOP does
+        await ctl.stop_app()
+        assert not ctl._canvas_active, "the canvas app was never let go on stop"
+        bodies = [(p, b) for _, p, b, _ in gw_calls]
+        # The stop cleared the framebuffer (take_over = active:true) and handed it back to the
+        # idle wall (release = active:false). Without both the last frame stays frozen on the LCD.
+        assert any(p == "/api/canvas" and (b or {}).get("active") is True for p, b in bodies), \
+            "stop did not take the panel over to clear the stale canvas frame"
+        assert any(p == "/api/canvas" and (b or {}).get("active") is False for p, b in bodies), \
+            "stop did not release the cleared panel back to the idle wall"
+        await ctl.stop()
+
+    asyncio.run(run())
+
+
 def test_a_canvas_app_will_not_run_on_a_non_canvas_wall(tmp_path):
     async def run():
         ctl = DisplayController(Config(data_dir=tmp_path), DisplayState(45))

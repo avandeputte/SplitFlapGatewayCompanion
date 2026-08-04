@@ -221,16 +221,17 @@ class ZoneCanvas:
         return True
 
     def sprite(self, i, x, y, flip=None, rot=None, scale=1):
-        # Fidelity note: this gallery shim honors ``scale`` (integer NEAREST upscale, matching
-        # the wall's sprite-scale blit) but ignores flip/rot and has no compositing/alpha, so
-        # those visuals render plain here. It never touches encode_ops_bin or the transport,
-        # so it can't surface encoding/routing bugs — a parallel render path for the gallery.
+        # Fidelity note: this gallery shim honors ``scale`` (NEAREST resize — whole OR fractional,
+        # matching the wall's sprite / SPRITE2 blit) but ignores flip/rot and has no compositing/
+        # alpha, so those visuals render plain here. It never touches encode_ops_bin or the
+        # transport, so it can't surface encoding/routing bugs — a parallel path for the gallery.
         if not (0 <= int(i) < len(self._atlas)):
             return self
         tile = self._atlas[int(i)]
-        s = max(1, int(scale))
-        if s > 1:
-            tile = tile.resize((tile.size[0] * s, tile.size[1] * s), Image.NEAREST)
+        s = max(1.0, float(scale))
+        if s != 1.0:
+            tile = tile.resize((max(1, round(tile.size[0] * s)), max(1, round(tile.size[1] * s))),
+                               Image.NEAREST)
         mask = Image.new('L', tile.size, 0)
         tp, mp = tile.load(), mask.load()
         for yy in range(tile.size[1]):       # magenta is transparent

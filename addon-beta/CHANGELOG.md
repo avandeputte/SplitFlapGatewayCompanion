@@ -3,6 +3,21 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.12
+
+- **Stopped apps no longer freeze the LCD** — stopping a canvas app (or a display going idle) now
+  clears the panel framebuffer instead of leaving its last frame lit (an aquarium stuck on-screen
+  long after it was turned off); releasing canvas mode alone does not repaint this hardware, so the
+  stop path takes the panel over and hands it back.
+- **Lighter live-preview readback (LCD)** — the preview reads a downscaled ~320 px panel (`?scale=N`)
+  instead of the full 2 MB frame, so watching an on-device app's preview no longer pins the gateway's
+  single worker and reads the wall "offline" (~4 s → ~0.15 s per poll).
+- **Frame-push apps stream from the first frame (LCD)** — a canvas app on a stream-capable wall opens
+  the draw stream up front, so even its first frame rides the stream instead of a one-shot ~2 MB PUT
+  (the "switched to weather, wall offline" window).
+- **Fractional sprite scale** — the sprite op accepts a float scale (via the on-device SPRITE2 op) for
+  smooth sizing, not just whole 1–4.
+
 ## 2.10.12-beta.11
 
 - **Weather sun fix (LCD)** — the sun/moon disc no longer sits partly under the info-column

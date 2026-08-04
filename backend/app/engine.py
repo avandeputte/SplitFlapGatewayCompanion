@@ -227,12 +227,13 @@ class DisplayController:
             except Exception as e:
                 log.debug("canvas stream close failed: %s", e)
         if network:
-            url = str(self.config.transport.get("gateway_url") or "").strip()
-            if url:
-                try:
-                    await asyncio.to_thread(canvas.release, url)
-                except Exception as e:
-                    log.debug("canvas release failed: %s", e)
+            # A hand-back to idle (an explicit stop, or shutdown): nothing follows to repaint
+            # the wall. Releasing canvas mode is not enough — on this hardware it only flips the
+            # flag and does NOT clear the panel's framebuffer, so the stopped app's last frame
+            # stays lit (an LCD left holding the aquarium after it was turned off). A flap-blank
+            # page can't be trusted either: it races the stream teardown and the device stays in
+            # canvas mode. Clear the framebuffer authoritatively instead.
+            await self._blank_panel(_url)
         # The canvas app drew straight to the framebuffer, bypassing the flap transport's
         # shown-cell cache — so it's now stale. Forget it, or the next flap page's unchanged
         # cells would be skipped (and never repaint, so the canvas mode would never auto-stop).
@@ -240,6 +241,28 @@ class DisplayController:
             self.transport.forget()
         except Exception as e:
             log.debug("transport.forget failed: %s", e)
+
+    async def _blank_panel(self, url: str = "") -> None:
+        """Physically clear a canvas wall's framebuffer, then hand it back to the idle wall.
+
+        A stopped canvas app leaves its last frame in the panel: releasing canvas mode does not
+        repaint it away on this hardware, and a flap-blank page can race the stream teardown and
+        miss. ``take_over`` is the firmware's whole-panel clear — authoritative where a flap
+        command isn't — and ``release`` then returns the wall to its idle (flap) rendering over
+        the cleared buffer. Best-effort and off the event loop; a no-op on a wall with no
+        framebuffer, so a plain reel wall is untouched."""
+        # _caps() (the panel-render caps), not self.caps: it is the same source _take_panel used
+        # to claim the panel, so "could a canvas app draw here" answers consistently on both ends.
+        if not getattr(self._caps(), "has_canvas", False):
+            return
+        url = url or str(self.config.transport.get("gateway_url") or "").strip()
+        if not url:
+            return
+        try:
+            await asyncio.to_thread(canvas.take_over, url)   # firmware clears the whole panel
+            await asyncio.to_thread(canvas.release, url)      # hand back to the idle wall
+        except Exception as e:
+            log.debug("panel framebuffer blank failed: %s", e)
 
     async def _cancel_temp(self) -> None:
         """Cancel a timed show_temporary() message, if one is up. Without this, stop()
@@ -737,7 +760,12 @@ class DisplayController:
             # An on-device effect/ticker/anim is read back from the panel: rgb565 where the wall
             # takes it (a third less over WiFi), cached ~1s so the preview poll stays cheap.
             fmt = "rgb565" if "rgb565" in self.caps.canvas_formats else "rgb888"
-            png = canvas.readback_png(url, scale=scale, fmt=fmt)
+            # A big panel's FULL readback is ~2 MB and pins the gateway's single HTTP worker for
+            # ~2 s — long enough that the liveness poll behind it times out and the wall reads
+            # "offline." Ask the wall to downscale to ≈320 px wide (a fast on-device copy); small
+            # panels resolve to N=1 (unchanged), and a gateway that ignores scale just returns full.
+            down = max(1, min(16, round(int(getattr(self.caps, "canvas_w", 0) or 0) / 320)))
+            png = canvas.readback_png(url, scale=scale, fmt=fmt, down=down)
         return png
 
     async def _take_panel(self) -> str:
@@ -772,6 +800,17 @@ class DisplayController:
         runs over the draw stream, ~28 fps vs the ~8 fps HTTP ceiling)."""
         url = await self._take_panel()
         caps = self._caps()
+        # Adopt the draw stream UP FRONT for a frame-push / ops app, so its FIRST frame already
+        # rides the stream (serviced on the gateway's second core) instead of a one-shot ~2 MB
+        # PUT that pins the single control worker and makes the wall read "offline" for seconds
+        # after a switch — weather's warm-up was the worst case. Gated to walls that take BINARY
+        # ops (there an app's ops ride the stream's 0x06 record, so nothing falls to the HTTP ops
+        # path an open stream 409s) and to offscreen-render apps (an on-device effect pushes
+        # nothing per frame and must not hold a stream; an atlas upload closes/reopens the stream
+        # on its own). A stream dropped mid-run is re-adopted by _maybe_stream on the next tick.
+        if (url and getattr(caps, "canvas_stream", False) and getattr(caps, "canvas_ops_bin", False)
+                and self.plugins.renders_offscreen(app_id)):
+            await asyncio.to_thread(canvas.stream_begin, url)
         if (self.plugins.manifest(app_id) or {}).get("interactive"):
             gameinput.reset(url)                        # fresh pad — no stale steering/presses
                                                        # left over from a prior game on this wall
@@ -911,7 +950,10 @@ class DisplayController:
         Only an EXPLICIT stop comes through here — starting another app cancels the loop
         directly (run_app), so switching apps does not flash a blank wall in between.
         """
-        await self._cancel_task()
+        # network_release: a stop leaves the wall idle with nothing following, so the panel's
+        # framebuffer must be cleared here (see _release_canvas) — not left holding the stopped
+        # canvas app's last frame while clear() only blanks the flap model.
+        await self._cancel_task(network_release=True)
         self._clear_driver_flags()
         self._remember(None)
         await self.clear()

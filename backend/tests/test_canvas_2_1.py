@@ -195,6 +195,28 @@ def test_readback_rgb565_widens_to_888(gw):
     assert f == (1, 1, bytes([255, 0, 0]))
 
 
+def test_readback_downscale_sends_scale_param_and_trusts_the_headers(gw):
+    """§1.1: a big-panel preview readback asks the wall to downscale (?scale=N), so the full 2 MB
+    frame never pins the gateway's single worker. The wall reports the DOWNSCALED size in
+    X-Canvas-*, and get_frame returns exactly that — there is nothing to resize on this side."""
+    body = bytes([10, 20, 30]) * (320 * 200)                     # the 1/4 readback of a 1280×800 panel
+    gw.respond(headers={"X-Canvas-Width": "320", "X-Canvas-Height": "200", "X-Canvas-Format": "rgb888"},
+               content=body)
+    f = canvas.get_frame("http://gw", "rgb888", down=4)
+    assert f == (320, 200, body)
+    _, path, _, _ = gw[0]
+    assert "scale=4" in path and "fmt=rgb888" in path
+
+
+def test_readback_down_1_sends_no_scale_param(gw):
+    """A small panel resolves to N=1 — unchanged wire behaviour, no scale param."""
+    gw.respond(headers={"X-Canvas-Width": "2", "X-Canvas-Height": "1", "X-Canvas-Format": "rgb888"},
+               content=bytes([1, 2, 3, 4, 5, 6]))
+    canvas.get_frame("http://gw", "rgb888", down=1)
+    _, path, _, _ = gw[0]
+    assert "scale=" not in path
+
+
 def test_preview_readback_requests_rgb565_and_caches(monkeypatch):
     """The effect/ticker preview reads the panel back as rgb565 (a third less over WiFi) and caches
     it ~1s, so the browser can poll the preview freely without a gateway round-trip each time."""

@@ -36,6 +36,20 @@ def test_rgba_is_binary_on_every_wall():
     assert encode_ops_bin([op])[:2] == b"\x15\x04"
 
 
+def test_sprite_scale_whole_is_fast_path_fractional_is_sprite2():
+    """§2.5: a whole 1–4 scale stays on the fast integer SPRITE (0x11, scale in the flag byte);
+    a fractional (or > 4) scale becomes SPRITE2 (0x23) with the scale as its own u16 8.8 field."""
+    from app.canvas import encode_ops_bin
+    assert encode_ops_bin([{"op": "sprite", "i": 3, "x": 10, "y": 20, "scale": 2}]) \
+        == bytes.fromhex("110003000a001410")               # 0x11, flags 0x10 = (2-1) << 4
+    b = encode_ops_bin([{"op": "sprite", "i": 3, "x": 10, "y": 20, "scale": 2.5}])
+    assert b[:1] == b"\x23" and b[7] == 0 and b[8:10] == (640).to_bytes(2, "big")   # 2.5 * 256
+    # flip-h + rot-90 land in the flag byte (bit0 | bits2-3); the scale stays its own field
+    b2 = encode_ops_bin([{"op": "sprite", "i": 1, "x": 0, "y": 0, "scale": 1.5,
+                          "flip": "h", "rot": 90}])
+    assert b2[:1] == b"\x23" and b2[7] == 0x05 and b2[8:10] == (384).to_bytes(2, "big")
+
+
 def test_sprite_after_an_rgba_op_draws_opaque():
     # JSON parity: a sprite has no color, so per-color alpha never dims it — the batch
     # alpha must be reset before the blit or the fish would render translucent.
@@ -154,3 +168,81 @@ def test_aquarium_streams_bind_then_binary_frames(monkeypatch):
     assert b"\x14\x01" in payload                             # additive blend for the godrays
     assert b"\x15" in payload                                 # batch alpha carries the rgba look
     canvas_mod._wall("http://gw").stream = None
+
+
+# --- §1.2 the engine adopts the stream UP FRONT -----------------------------
+
+def _stream_doc(*, ops_bin=True):
+    """A big stream-capable wall (like the LCD), optionally without binary ops."""
+    canvas = {"formats": ["rgb888", "rgb565"], "width": 1280, "height": 800,
+              "stream": True, "ops": ["clear", "gtext", "sprite", "rect"]}
+    if ops_bin:
+        canvas["opsBin"] = True
+    return {"features": ["cells", "canvas"], "charset": {"uniform": True, "common": "A"},
+            "canvas": canvas}
+
+
+def _run_first_tick(monkeypatch, tmp_path, doc):
+    """Start canvas-art-clock on a controller with ``doc``'s caps and return the ordered log of
+    ("stream" | "render") events up to and including its first draw."""
+    import asyncio
+    from pathlib import Path
+    from app.config import Config
+    from app.engine import DisplayController
+    from app.plugin_settings import PluginSettings
+    from app.plugins import PluginRuntime
+    from app.state import DisplayState
+    from app import device
+    import app.gateway as gateway
+    from conftest import until
+
+    class _R:
+        status_code = 200
+        headers = {}
+        content = b""
+
+        def json(self):
+            return {}
+
+    monkeypatch.setattr(gateway, "_request", lambda m, u, p, **kw: _R())
+    events = []
+    monkeypatch.setattr(canvas_mod, "stream_begin", lambda url: events.append("stream") or True)
+
+    async def run():
+        cfg = Config(data_dir=tmp_path)
+        cfg.update({"transport": {"gateway_url": "http://gw"}})
+        ctl = DisplayController(cfg, DisplayState(45))
+        ps = PluginSettings(tmp_path)
+        ps.set_installed(["canvas-art-clock"])
+        rt = PluginRuntime(cfg, ps, Path(__file__).resolve().parents[2] / "apps")
+        rt.attach_caps(lambda: device.from_capabilities(doc))
+        rt.load()
+        real = rt.render_matrix
+        monkeypatch.setattr(rt, "render_matrix",
+                            lambda *a, **k: (events.append("render"), real(*a, **k))[1])
+        ctl.attach_plugins(rt)
+        await ctl.start()
+        await ctl.run_app("canvas-art-clock")
+        await until(lambda: "render" in events, "the app never drew")
+        await ctl.stop()
+
+    asyncio.run(run())
+    return events
+
+
+def test_frame_push_app_opens_the_stream_before_its_first_draw(monkeypatch, tmp_path):
+    """§1.2: on a stream + binary-ops wall, an offscreen-render app adopts the draw stream UP
+    FRONT — so its first frame rides the stream (second core) instead of a one-shot ~2 MB PUT
+    that pins the single control worker and reads the wall 'offline'."""
+    events = _run_first_tick(monkeypatch, tmp_path, _stream_doc(ops_bin=True))
+    assert events and events[0] == "stream", \
+        f"the stream must open before the first draw, got {events[:3]}"
+
+
+def test_no_eager_stream_without_binary_ops(monkeypatch, tmp_path):
+    """Gated on binary ops: a wall that only takes JSON ops would 409 them against an open
+    stream, so the stream is NOT opened up front there — the first event is the draw, not a
+    stream open. (Lazy adoption may still happen later for a frame-push app; that is fine.)"""
+    events = _run_first_tick(monkeypatch, tmp_path, _stream_doc(ops_bin=False))
+    assert events and events[0] == "render", \
+        f"a JSON-ops wall must not pre-open the stream, got {events[:3]}"
