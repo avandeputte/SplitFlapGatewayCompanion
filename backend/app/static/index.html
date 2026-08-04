@@ -40,20 +40,19 @@
   </nav>
 
   <main>
-    <!-- LIVE DISPLAY -->
-    <section class="panel preview-panel">
+    <!-- DISPLAY CONTROLS — the live wall preview was removed: it polled the gateway's canvas
+         readback on a timer, which pinned the single-worker HTTP server and read the wall
+         "offline." Home all and the interactive game pad remain in this slim bar. -->
+    <section class="panel controls-panel">
       <div class="panel-head">
-        <h2 data-i18n="Live Display">Live Display</h2>
+        <h2 data-i18n="Display">Display</h2>
         <div class="preview-actions">
-          <span class="hint" id="previewMeta"></span>
           <button class="btn ghost btn-sm hidden" id="gifBtn" title="Record the panel for 8 seconds and download a GIF" data-i18n-title="Record the panel for 8 seconds and download a GIF" data-i18n="⏺ GIF">⏺ GIF</button>
           <button class="btn ghost btn-sm" id="homeAllBtn" data-i18n="⌂ Home all"
                   title="Home every module — returns the whole display to its blank home position and stops anything playing"
                   data-i18n-title="Home every module — returns the whole display to its blank home position and stops anything playing">⌂ Home all</button>
         </div>
       </div>
-      <div class="board" id="preview"></div>
-      <div class="preview-src" id="previewSrc"></div>
 
       <!-- Live-game control pad — shown only while an interactive matrix app is running
            (see updateActiveUI). Each press POSTs to /api/game/input; arrow keys / WASD,

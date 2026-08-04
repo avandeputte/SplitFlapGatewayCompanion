@@ -183,7 +183,7 @@ function buildBoard(board, count, cols) {
   }
 }
 
-// ---- live preview ----------------------------------------------------------
+// ---- live state feed (offline badge + active-app / game-pad UI) ------------
 // The browser rides a Server-Sent Events stream (GET /api/events): the backend PUSHES
 // the display state the instant the wall changes, so the preview follows in near-real
 // time without a poll hammering a few times a second. If the stream drops we fall back
@@ -198,84 +198,27 @@ function setBadge(offline) {
   badge.textContent = offline ? t("⚠ Display offline") : "";
 }
 
-// A canvas app draws on the LED panel, not the flaps, and its frame is a PNG we refresh
-// on a timer: a running effect's state snapshot doesn't change frame to frame, so no SSE
-// event announces each one. The timer runs ONLY while a canvas is up, so an ordinary flap
-// wall never polls for an image it doesn't have.
-let CANVAS_TIMER = null;
-function refreshCanvasImg() {
-  const cimg = $("canvasPreview");
-  if (!cimg) return;
-  const src = url("/api/current_state/canvas.png");
-  cimg.src = src + (src.includes("?") ? "&" : "?") + "t=" + Date.now();
-}
-function startCanvasRefresh() {
-  if (CANVAS_TIMER) return;
-  refreshCanvasImg();
-  CANVAS_TIMER = setInterval(refreshCanvasImg, 300);
-}
-function stopCanvasRefresh() {
-  if (CANVAS_TIMER) { clearInterval(CANVAS_TIMER); CANVAS_TIMER = null; }
-}
-
-// The tiny "how is the preview being fed" line under the board: the live SSE stream, the
-// fallback poll, or "local" when the wall is simulated (no gateway). Diffed — this runs on
-// every frame.
-function setPreviewSrc(mode) {
-  const el = $("previewSrc");
-  if (!el) return;
-  const txt = t("Updates: %s", mode);
-  if (el.textContent !== txt) el.textContent = txt;
-}
-
-// Paint the preview from one state document — whether it arrived over the stream or a
-// fallback poll. Idempotent (a diff-render), so applying the same state twice is harmless.
+// Apply one state document (from the SSE stream or the fallback poll) to the CHROME only: the
+// offline badge, a geometry change (rebuild the compose grid + re-gate apps), and the active-app
+// / game-pad UI. The wall's live pixel preview used to live here too — a flap-grid board plus a
+// canvas <img> refreshed on a 300 ms timer off the gateway's readback — but that poll pinned the
+// gateway's single HTTP worker and read the wall "offline", so it was removed. Nothing here
+// touches the gateway now; it is all local chrome. Idempotent (a diff-render).
 let APPLY_BUSY = false;          // guards the rare async re-boot when the grid resizes under us
 async function applyState(st, disp) {
   if (disp !== DISPLAY) return;                             // stale: for a wall we've left
   const tr = st.transport || {};
   setBadge(!(tr.connected || tr.type === "sim"));
-  setPreviewSrc(tr.type === "sim" ? "local" : (ES_LIVE ? "SSE" : "poll"));
-  const board = $("preview");
-  // The wall can change shape under us: the gateway may have been unreachable at boot, or
-  // its Display Layout edited since. Re-read the geometry rather than reusing a stale
-  // GRID.cols, which would lay 75 cells out 15-wide by luck alone.
+  // The wall can change shape under us: the gateway may have been unreachable at boot, or its
+  // Display Layout edited since. Rebuild the compose grid + re-gate apps rather than laying out
+  // on a stale geometry.
   if (st.module_count && st.module_count !== GRID.module_count) {
     if (APPLY_BUSY) return;
     APPLY_BUSY = true;
-    try { await bootGrid(); loadApps(); }                    // rebuilds both boards; re-gates apps
+    try { await bootGrid(); loadApps(); }
     finally { APPLY_BUSY = false; }
-    return;                                                  // next frame paints on the rebuilt grid
+    return;
   }
-  let cimg = $("canvasPreview");
-  if (st.canvas) {
-    if (!cimg) {
-      cimg = el("img"); cimg.id = "canvasPreview"; cimg.className = "canvas-preview"; cimg.alt = "";
-      // Only take the preview over once a panel frame actually LOADS. If the gateway can't
-      // produce one (readback unavailable — canvas.png 404s), keep the flap grid up rather
-      // than swapping in a blank/broken image, which is what left the preview empty.
-      cimg.addEventListener("load", () => { cimg.style.display = ""; $("preview").style.display = "none"; });
-      cimg.addEventListener("error", () => { cimg.style.display = "none"; $("preview").style.display = ""; });
-      board.parentNode.insertBefore(cimg, board.nextSibling);
-    }
-    startCanvasRefresh();          // sets the src; load/error above toggles which view shows
-  } else {
-    stopCanvasRefresh();
-    if (cimg) cimg.style.display = "none";
-    board.style.display = "";
-    if (board.children.length !== st.chars.length) buildBoard(board, st.chars.length, GRID.cols);
-    st.chars.forEach((ch, i) => {
-      const cell = board.children[i];
-      if (!cell) return;
-      // Diff before writing: most frames change nothing, and rewriting every cell's class
-      // + text is layout work for identical pixels.
-      const cls = classForChar(ch), g = glyph(ch);
-      if (cell.className !== cls) cell.className = cls;
-      if (cell.textContent !== g) cell.textContent = g;
-    });
-  }
-  const meta = `${GRID.rows}×${GRID.cols} · ${st.module_count} ${t("modules")}`;
-  if ($("previewMeta").textContent !== meta) $("previewMeta").textContent = meta;
   if (APPS.length) updateActiveUI(st.active_app, st.active_playlist);
 }
 
@@ -293,7 +236,7 @@ async function pollState() {
   }
 }
 
-// ---- live preview driver: a reliable poll, promoted to a live SSE stream where it works ---
+// ---- state-feed driver: a reliable poll, promoted to a live SSE stream where it works ---
 // Polling always runs first and is NOT torn down until the stream proves itself by delivering
 // an event — so the preview never depends on the stream coming up. A stream that never delivers
 // (a proxy that buffers or refuses it) just leaves the poll running; one that works takes over
@@ -310,14 +253,14 @@ function startPolling(ms) {
   pollState();                   // paint at once, then keep it fresh
   POLL_TIMER = setInterval(pollState, ms);
 }
-function stopPreview() {
+function stopStateFeed() {
   if (ES) { try { ES.close(); } catch (e) {} ES = null; }
   ES_LIVE = false;
   stopPolling();
 }
-// Start (or re-point, for the wall we just switched to) the live preview.
-function startPreview() {
-  stopPreview();
+// Start (or re-point, for the wall we just switched to) the live state feed.
+function startStateFeed() {
+  stopStateFeed();
   const disp = DISPLAY;
   startPolling(500);             // the reliable baseline — always paints, stream or not
   let es;
@@ -530,8 +473,7 @@ function cmpClear() {
 // ---- boot ------------------------------------------------------------------
 async function bootGrid() {
   GRID = await api("/api/grid");
-  buildBoard($("preview"), GRID.module_count, GRID.cols);
-  cmpBuild();
+  cmpBuild();                    // the compose grid; the live preview board was removed
 }
 
 function wireTabs() {
@@ -1987,7 +1929,7 @@ async function openDevMenu() {
       simF.appendChild(simLbl);
       const simNote = el("small", "field-note");
       simNote.textContent = st.sim_mode
-        ? t("Simulating — nothing is sent to the physical display (the live preview still updates).")
+        ? t("Simulating — nothing is sent to the physical display.")
         : t("Live — frames are sent to the display. Turn on to test apps without touching the wall.");
       simF.appendChild(simNote);
       sim.addEventListener("change", async () => {
@@ -2204,7 +2146,7 @@ async function switchDisplay(id) {
   await loadTriggers();
   GW_TRIES = 0;             // the NEW wall's gateway gets its own round of re-asks
   setupGatewayTabs();
-  startPreview();           // re-point the live preview at the wall we switched to
+  startStateFeed();           // re-point the state feed at the wall we switched to
 }
 
 // ---- Displays: add, rename, re-point, remove, choose the default -------------
@@ -2468,7 +2410,7 @@ async function init() {
   setupGatewayTabs();
   openTabFromHash();
   window.addEventListener("hashchange", openTabFromHash);
-  startPreview();                // live preview: poll baseline, promoted to SSE where it works
+  startStateFeed();                // state feed: poll baseline, promoted to SSE where it works
 }
 
 init();

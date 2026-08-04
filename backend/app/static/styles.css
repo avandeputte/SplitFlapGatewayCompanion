@@ -83,10 +83,9 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
  * glyphs stop being legible, so the board scrolls instead (overflow-x). */
 .board {
   --gap: 4px;
-  /* Size the flaps so the WHOLE board fits the same ~640px footprint as the canvas
-     preview (.canvas-preview), so switching between a canvas app and the flap grid does
-     not jump in size. Each flap fills its share of that width (min(viewport, 620px)),
-     still capped at 34px so a narrow wall's flaps don't balloon. */
+  /* Size the flaps so the WHOLE board fits a ~640px footprint (the compose grid uses this).
+     Each flap fills its share of that width (min(viewport, 620px)), still capped at 34px so a
+     narrow wall's flaps don't balloon. */
   --flap: clamp(12px,
                 calc((min(100vw - var(--board-chrome), 620px) - (var(--cols, 15) - 1) * var(--gap)) / var(--cols, 15)),
                 34px);
@@ -95,19 +94,6 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
   gap: var(--gap); justify-content: center;
   width: fit-content; max-width: min(100%, 642px); margin-inline: auto;
   overflow-x: auto; padding: 10px; background: #1a1a1a; border-radius: 10px; border: 1px solid #333;
-}
-/* How the live preview is being fed — SSE stream, fallback poll, or local (sim). Tiny and
-   muted, directly under the board, so it never competes with the display itself. */
-.preview-src {
-  margin: 6px auto 0; text-align: center;
-  font-size: 11px; letter-spacing: .04em; color: var(--dim); opacity: .8;
-}
-/* A canvas app's live frame (a Matrix panel), shown in place of the flap board.
-   Native res is tiny (e.g. 128×32) — upscale it crisp and frame it like the board. */
-.canvas-preview {
-  display: block; margin-inline: auto; width: min(100%, 640px);
-  image-rendering: pixelated; background: #000;
-  border-radius: 10px; border: 1px solid #333;
 }
 /* The compose keyboard-catcher: a real <input> (so iOS opens its keyboard) that is
    invisible but NOT display:none / visibility:hidden — those stop the keyboard.

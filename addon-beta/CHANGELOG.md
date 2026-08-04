@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.13
+
+- **Removed the live wall preview from the web UI** — it refreshed a full panel readback on a
+  ~300 ms timer, which pinned the gateway's single HTTP worker and read the wall "offline" while a
+  browser watched. The Home-all button and the interactive game pad stay (in a slim Display bar);
+  the offline badge and active-app UI are unaffected.
+
 ## 2.10.12-beta.12
 
 - **Stopped apps no longer freeze the LCD** — stopping a canvas app (or a display going idle) now
