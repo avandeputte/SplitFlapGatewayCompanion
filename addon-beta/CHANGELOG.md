@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.10
+
+- **Weather & Dashboard draw on-device now (LCD)** — both redraw their whole tall-panel scene
+  as ops: the sky (gradient + sun/moon disc + clouds + rain/snow), the text as scalable `gtext`,
+  and the info-panel scrim via the on-device `blur` op — crisp at 1280×800, a few hundred bytes a
+  frame over the stream, instead of an animated pixel frame. LED walls unchanged.
+
 ## 2.10.12-beta.9
 
 - **17 more apps draw as on-device text on the LCD** — the clocks and counters (Date, Countdown,

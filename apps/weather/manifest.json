@@ -9,6 +9,7 @@
     "flap",
     "matrix"
   ],
+  "lcd_ops": true,
   "refresh_interval": 300,
   "loop_delay": 8,
   "category": "data",

@@ -722,6 +722,172 @@ def _cv_num(v, unit):
     return int(round(f))
 
 
+def _cv_weather_gtext(canvas, wx, unit, show_city, night, sky, frame):
+    """The weather sky scene as on-device ops + gtext instead of a pushed pixel frame: a dark
+    sky gradient, a warm sun (day) or crescent moon + colored stars (night), cloud-shaped puffs
+    and rain/snow, a blurred info-column scrim, then the same tall info column (city, big temp,
+    condition, H/L, feels, humidity/wind) over a bottom forecast strip. The ops twin of the
+    H>=96 PIL layout below — every position/size/color mirrors it, so it fills the 1280x800 LCD
+    wall at native resolution and previews at 256x160 the same way the pixel path does."""
+    import math
+    from datetime import datetime as _dt
+
+    W, H = canvas.width, canvas.height
+    deg = '\N{DEGREE SIGN}'
+
+    # --- the sky: a dark vertical gradient (a whisper of dusk-blue by day, deep navy by night)
+    # under the celestial scene — kept dark enough that the sun/moon/stars and the outlined info
+    # text read exactly as they do over the LED path's black panel.
+    if night:
+        top_sky, bot_sky = (8, 10, 22), (1, 2, 6)
+    else:
+        top_sky, bot_sky = (16, 26, 46), (3, 6, 12)
+    canvas.gradient(0, 0, W, H, top_sky, bot_sky, 'v')
+
+    def _sky_at(y):                                     # the gradient's own color at a row
+        r = max(0.0, min(1.0, y / max(1, H - 1)))
+        return tuple(int(top_sky[k] + (bot_sky[k] - top_sky[k]) * r) for k in range(3))
+
+    # --- celestial: a crisp sun (day) or moon + colored stars (night); same geometry as PIL ----
+    icx, icy, ir = W - int(H * 0.42) - 1, int(H * 0.40), max(4, int(H * 0.26))
+    if night:
+        stars = [(0.06, 0.18, (200, 210, 255)), (0.16, 0.42, (255, 240, 200)),
+                 (0.30, 0.12, (180, 220, 255)), (0.40, 0.55, (255, 220, 220)),
+                 (0.52, 0.24, (210, 235, 255)), (0.63, 0.10, (255, 245, 210))]
+        for i, (fx, fy, col) in enumerate(stars):
+            if (frame // 7 + i) % 4:
+                canvas.pixel(int(W * fx), int(H * fy), col)
+        if sky in ('clear', 'pcloudy'):
+            canvas.circle(icx, icy, ir, color=(232, 236, 250), fill=True)
+            # the crescent: an offset disc carves the shadow — the local sky tone (black on the
+            # LED's flat panel; the gradient's own color here) so the cut reads seamless
+            canvas.circle(icx + int(ir * 0.55), icy - int(ir * 0.2), ir,
+                          color=_sky_at(icy), fill=True)
+    else:
+        if sky in ('clear', 'pcloudy'):
+            canvas.circle(icx, icy, ir, color=(255, 210, 70), fill=True)
+            canvas.circle(icx, icy, max(1, ir - 2), color=(255, 226, 120), fill=True)
+
+    # --- clouds: one resting by the sun/moon, one drifting across — three overlapping discs ----
+    if sky in _CV_CLOUDY:
+        dark = sky in ('storm', 'hail')
+        cc = (70, 74, 88) if dark else (150, 156, 172)
+
+        def _puff(px, py, s):
+            for dx, dy, rr in ((0, 0, s), (int(s * 0.9), 4, int(s * 0.78)),
+                               (-int(s * 0.9), 3, int(s * 0.72))):
+                canvas.circle(int(px + dx), int(py + dy), max(2, rr), color=cc, fill=True)
+
+        _puff(icx - int(W * 0.1), icy, ir)                       # the cloud beside the sun/moon
+        cx = (frame * 0.4) % (W + ir * 6) - ir * 3               # a smaller cloud drifting across
+        _puff(cx, H * 0.28, max(3, int(ir * 0.62)))
+
+    # --- precipitation ----------------------------------------------------------
+    if sky in _CV_RAIN:
+        for i in range(_CV_RAIN[sky]):
+            x = (i * 53 + 7) % W
+            y = int(H * 0.30) + (frame * 3 + i * 11) % max(1, int(H * 0.7))
+            canvas.line(x, y, x - 1, min(H - 1, y + 3), color=(120, 170, 255))
+    elif sky in _CV_SNOW:
+        for i in range(_CV_SNOW[sky]):
+            x = (i * 41 + 5 + int(2 * math.sin(frame * 0.15 + i))) % W
+            y = int(H * 0.28) + (frame + i * 9) % max(1, int(H * 0.72))
+            canvas.pixel(x, y, (238, 244, 255))
+    if sky in ('storm', 'hail') and frame % 22 < 2:
+        bx = int(W * 0.3)
+        canvas.polyline([(bx, int(H * 0.3)), (bx - 3, int(H * 0.55)), (bx + 2, int(H * 0.55)),
+                         (bx - 2, int(H * 0.8))], color=(255, 255, 170))
+
+    # --- the info column + forecast strip, over a soft scrim (the on-device version of the PIL
+    # GaussianBlur darken). The scene must never crowd the text, so dim the info column + forecast
+    # strip toward the dark sky — the app "blacks out the info column", and an intruding cloud
+    # vanishes behind it — then a box blur feathers the dimmed panels into the bright scene.
+    pad = 4
+    left_w = int(W * 0.60)
+    strip_h = max(16, int(H * 0.13))
+    fy = H - strip_h                                    # the forecast strip's top
+    blur_r = max(2, int(H * 0.05))
+    dim_top = tuple(int(c * 0.45) for c in top_sky)
+    dim_bot = tuple(int(c * 0.45) for c in bot_sky)
+    canvas.gradient(0, 0, left_w, H, dim_top, dim_bot, 'v')             # dim the left info column
+    canvas.rect(0, fy - 2, W, H - (fy - 2), color=dim_bot, fill=True)   # dim the forecast strip
+    canvas.blur(0, 0, min(W, left_w + 2 * blur_r), fy - 2, blur_r)      # feather the column edge
+    sb = max(0, fy - 2 - 2 * blur_r)
+    canvas.blur(0, sb, W, H - sb, blur_r)                               # feather the strip edge
+    colw = left_w - 2 * pad
+
+    name_size = max(9, int(H * 0.095))
+    temp_size = max(16, int(H * 0.26))
+    cond_size = max(9, int(H * 0.11))
+    info_size = max(8, int(H * 0.085))
+
+    temp = _cv_num(wx.get('temp_f'), unit)
+    hi, lo = _cv_num(wx.get('hi_f'), unit), _cv_num(wx.get('lo_f'), unit)
+    word = _CV_SKY_WORD.get(sky, 'Weather')
+
+    y = pad
+    if show_city and wx.get('city'):
+        cs = str(wx['city'])
+        while cs and canvas.text_width(cs, name_size) > colw:
+            cs = cs[:-1]
+        if cs:
+            canvas.gtext(pad, y, cs, color=(216, 226, 244), size=name_size, outline=(0, 0, 0))
+    y += name_size + max(2, int(H * 0.015))
+
+    ts = f'{temp}{deg}' if temp is not None else '--'
+    canvas.gtext(pad, y, ts, color=(255, 255, 255) if temp is not None else (200, 200, 200),
+                 size=temp_size, outline=(0, 0, 0))
+    y += temp_size + max(1, int(H * 0.005))
+
+    canvas.gtext(pad, y, word[:16], color=(214, 226, 246), size=cond_size, outline=(0, 0, 0))
+    y += cond_size + max(3, int(H * 0.03))
+
+    step = info_size + max(3, int(H * 0.028))
+    if hi is not None or lo is not None:
+        x = pad
+        if hi is not None:
+            canvas.gtext(x, y, f'H {hi}{deg}', color=(255, 150, 55), size=info_size,
+                         outline=(0, 0, 0))
+            x += canvas.text_width(f'H {hi}{deg}', info_size) + max(8, int(W * 0.05))
+        if lo is not None:
+            canvas.gtext(x, y, f'L {lo}{deg}', color=(55, 150, 255), size=info_size,
+                         outline=(0, 0, 0))
+        y += step
+    feels = _cv_num(wx.get('feels_like_f'), unit)
+    if feels is not None:
+        canvas.gtext(pad, y, f'Feels {feels}{deg}', color=(198, 208, 228), size=info_size,
+                     outline=(0, 0, 0))
+        y += step
+    extra = []
+    if wx.get('humidity') is not None:
+        extra.append(f'Hum {int(wx["humidity"])}%')
+    if wx.get('wind_mph') is not None:
+        extra.append(f'Wind {int(wx["wind_mph"])}')
+    if extra:
+        canvas.gtext(pad, y, '   '.join(extra), color=(198, 208, 228), size=info_size,
+                     outline=(0, 0, 0))
+
+    # --- the forecast strip: one fitted cell per day, spread across the full width -------------
+    fc = wx.get('forecast') or []
+    if fc:
+        n = min(3, len(fc))
+        cw = W // n
+        strip_size = max(8, int(strip_h * 0.62))
+        for i, day in enumerate(fc[:n]):
+            dhi, dlo = _cv_num(day.get('hi_f'), unit), _cv_num(day.get('lo_f'), unit)
+            try:
+                lbl = _dt.strptime(str(day.get('date'))[:10], '%Y-%m-%d').strftime('%a')
+            except Exception:
+                lbl = str(day.get('day') or '')[:3].title()
+            fs = (f'{lbl} {dhi}{deg}/{dlo}{deg}' if (dhi is not None and dlo is not None)
+                  else (lbl or ''))
+            fsize = canvas.fit_gtext(fs, cw - 6, strip_size) if fs else strip_size
+            canvas.gtext(i * cw + pad, fy + max(1, (strip_h - fsize) // 2), fs,
+                         color=(206, 216, 234), size=fsize, outline=(0, 0, 0))
+
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, get_weather=None):
     import math
     from datetime import datetime
@@ -765,6 +931,15 @@ def fetch_canvas(settings, canvas, get_weather=None):
     sky = wx.get('sky') or 'cloudy'
 
     W, H = canvas.width, canvas.height
+
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        # A wall with scalable on-device text + box blur (the LCD): draw the whole sky scene as
+        # ops and the info column / forecast as gtext, instead of pushing a pixel frame — crisp at
+        # native resolution, a draw stream instead of megabytes a frame. Same animated scene and
+        # tall layout as the PIL H>=96 path below; the LED path (H<=64) never reaches this.
+        _cv_weather_gtext(canvas, wx, unit, show_city, night, sky, frame)
+        return 0.16
+
     large = W >= 192 and H >= 48                # a large panel gets the richer layout
     img = canvas.blank((0, 0, 0))               # black — bright weather elements read best on unlit pixels
     draw = ImageDraw.Draw(img)

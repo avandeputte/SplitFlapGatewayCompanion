@@ -381,6 +381,154 @@ def _cv_fit_stack(canvas, specs, max_w, budget_h, gap):
     return lines
 
 
+def _cv_dash_weather_gtext(canvas, x, w, region_h, sky, tf, temp, hi, lo, feels,
+                           hum, wind_v, wind_u, night, deg, i18n):
+    """The weather column for the tall LCD, drawn with circle ops + gtext instead of pushed
+    pixels: a sun/moon disc header, the big temperature (colored by warmth), the FULL condition
+    ("Partly Cloudy"), then high/low, feels and humidity/wind — a centered vertical stack. The
+    ops twin of _draw_weather_tall; every size is a fraction of the region, so it fills the wall
+    at native resolution and previews at 256x160."""
+    cx = x + w // 2
+    gap = max(2, int(region_h * 0.03))
+    ir = max(5, int(region_h * 0.085))
+
+    ts = f'{temp}{deg}' if temp is not None else '--'
+    tcol = _cv_ramp(canvas, _TEMP_STOPS, float(tf)) if tf is not None else (232, 238, 246)
+    tsize = canvas.fit_gtext(ts, w, int(region_h * 0.24))
+
+    word = None
+    if sky:
+        word = _SKY_WORD_FULL.get(sky, 'Weather')
+        if i18n is not None:
+            word = i18n.t(word, 'weather')
+    csize = canvas.fit_gtext(word, w, int(region_h * 0.115)) if word else 0
+    dsize = canvas.fit_gtext('H 88  L 88', w, int(region_h * 0.10))
+
+    hl = []
+    if hi is not None:
+        hl += [('H ', _C_HI_L), (f'{hi}{deg}', _C_HI_V)]
+    if lo is not None:
+        hl += ([('  ', _C_SEP)] if hl else []) + [('L ', _C_LO_L), (f'{lo}{deg}', _C_LO_V)]
+    hw = []
+    if hum is not None:
+        hw += [(f'{hum}%', _C_MUTE_V)]
+    if wind_v is not None:
+        hw += ([('  ', _C_SEP)] if hw else []) + [(f'{wind_v}{wind_u}', _C_MUTE_V)]
+
+    # Build the row heights first (visual ink ~0.75*size) so the whole stack can be centered.
+    rows = [('icon', 2.0 * ir), ('temp', tsize * 0.75)]
+    if word:
+        rows.append(('cond', csize * 0.75))
+    if hl:
+        rows.append(('hl', dsize * 0.75))
+    if feels is not None:
+        rows.append(('feels', dsize * 0.75))
+    if hw:
+        rows.append(('hw', dsize * 0.75))
+
+    total = sum(h for _, h in rows) + gap * (len(rows) - 1)
+    if total > region_h - 2:                             # tighten if a rich day runs long
+        gap = max(1, gap - int((total - (region_h - 2)) / max(1, len(rows) - 1)))
+        total = sum(h for _, h in rows) + gap * (len(rows) - 1)
+    y = max(1.0, (region_h - total) / 2.0)               # visual top of the whole stack
+
+    def _center_segs(segs, size, yy):
+        tw = sum(canvas.text_width(s, size) for s, _ in segs)
+        lx = cx - tw / 2.0
+        for s, col in segs:
+            canvas.gtext(lx, yy - 0.20 * size, s, color=col, size=size)
+            lx += canvas.text_width(s, size)
+
+    for kind, h in rows:
+        if kind == 'icon':
+            icy = int(y + ir)
+            if night:
+                canvas.circle(cx, icy, ir, color=_C_MOON, fill=True)
+                o = max(1, int(ir * 0.55))
+                canvas.circle(cx + o, icy, ir, color=(0, 0, 0), fill=True)   # crescent cut
+            else:
+                canvas.circle(cx, icy, ir, color=_C_SUN, fill=True)
+                canvas.circle(cx, icy, max(1, ir - 1), color=_C_SUN_CORE, fill=True)
+        elif kind == 'temp':
+            canvas.gtext(cx, y - 0.20 * tsize, ts, color=tcol, size=tsize, align='center')
+        elif kind == 'cond':
+            canvas.gtext(cx, y - 0.20 * csize, word, color=_C_WORD, size=csize, align='center')
+        elif kind == 'hl':
+            _center_segs(hl, dsize, y)
+        elif kind == 'feels':
+            _center_segs([('Feels ', _C_MUTE), (f'{feels}{deg}', _C_MUTE_V)], dsize, y)
+        elif kind == 'hw':
+            _center_segs(hw, dsize, y)
+        y += h + gap
+
+
+def _cv_dashboard_gtext(canvas, now, clock, night, sky, tf, temp, hi, lo, feels,
+                        hum, wind_v, wind_u, have_wx, deg, i18n):
+    """The overview card as on-device ops + gtext instead of a pushed pixel frame: the big clock
+    over its date as a centered group on the left, a divider line, and the weather column on the
+    right, with the seconds bar sweeping the bottom. The ops twin of the tall (H>=96) PIL layout
+    below — same regions, sizes and colors — so it fills the 1280x800 LCD wall at native
+    resolution and previews at 256x160."""
+    W, H = canvas.width, canvas.height
+    canvas.clear((0, 0, 0))
+
+    pad = 2 if W >= 96 else 1
+    sb_h = 2 if H >= 48 else (1 if H >= 40 else 0)
+    region_h = H - sb_h
+
+    two_col = have_wx and W >= 112
+    rx = (W - min(max(46, int(W * 0.40)), W - 58)) if two_col else W
+    Lw = rx - 2 * pad
+
+    # --- LEFT: the big clock over its date, centered as a group ------------------
+    clock_size = canvas.fit_gtext(clock, Lw, int(H * 0.52))
+    if i18n is not None:
+        wd, mo = str(i18n.weekday(now, short=True)), str(i18n.month(now, short=True))
+    else:
+        wd, mo = _WEEKDAY[now.weekday()], _MONTH[now.month - 1]
+    if Lw >= 150:
+        date_cands = [f'{wd} {now.day} {mo} {now.year}', f'{wd} {now.day} {mo}',
+                      f'{wd} {now.day}', wd]
+    else:
+        date_cands = [f'{wd} {now.day} {mo}', f'{wd} {now.day}', f'{now.day} {mo}', wd]
+    date_cap = max(9, min(int(H * 0.15), 22))
+    dfloor = max(8, int(date_cap * 0.6))
+    date_str, date_size = date_cands[-1], dfloor
+    for cand in date_cands:                              # the richest date that fits, then a floor
+        ds = canvas.fit_gtext(cand, Lw, date_cap, lo=dfloor)
+        if canvas.text_width(cand, ds) <= Lw:
+            date_str, date_size = cand, ds
+            break
+
+    cgap = max(2, int(H * 0.035))
+    total = clock_size + cgap + date_size
+    gy = max(1, (region_h - total) // 2)
+    canvas.gtext(pad, gy, clock, color=_C_CLOCK, size=clock_size)
+    gy += clock_size + cgap
+    canvas.gtext(pad, gy, date_str, color=_C_DATE, size=date_size)
+
+    # --- RIGHT: the divider + the weather stack --------------------------------
+    if two_col:
+        canvas.line(rx, 3, rx, region_h - 3, color=_C_DIV)
+        wx0 = rx + pad + 2
+        wxw = max(8, W - pad - wx0)
+        _cv_dash_weather_gtext(canvas, wx0, wxw, region_h, sky, tf, temp, hi, lo, feels,
+                               hum, wind_v, wind_u, night, deg, i18n)
+
+    # --- the seconds bar sweeping the bottom edge ------------------------------
+    if sb_h:
+        frac = (now.second + now.microsecond / 1_000_000.0) / 60.0
+        by = H - sb_h
+        canvas.rect(0, by, W, sb_h, color=_C_SB_TRK, fill=True)
+        fw = int(round(W * frac))
+        if fw > 0:
+            canvas.rect(0, by, fw, sb_h, color=_C_SB_FIL, fill=True)
+        if 0 <= fw < W:
+            canvas.rect(fw, by, 1, sb_h, color=_C_SB_HEAD, fill=True)
+
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, get_weather=None, i18n=None):
     from datetime import datetime
     from PIL import Image, ImageDraw
@@ -431,6 +579,16 @@ def fetch_canvas(settings, canvas, get_weather=None, i18n=None):
 
     # --- panel + regions -------------------------------------------------------
     W, H = canvas.width, canvas.height
+
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        # A wall with scalable on-device text (the LCD): draw the clock/date, the weather column
+        # and the seconds bar as ops + gtext instead of a pixel frame — crisp at native
+        # resolution, a draw stream instead of megabytes a frame. Same tall layout as the PIL
+        # H>=96 path below; the LED path (H<=64) never reaches this.
+        _cv_dashboard_gtext(canvas, now, clock, night, sky, tf, temp, hi, lo, feels,
+                            hum, wind_v, wind_u, have_wx, deg, i18n)
+        return 0.5
+
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"                          # crisp 1-bit text — no AA fuzz
