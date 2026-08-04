@@ -100,6 +100,35 @@ def fetch_canvas(settings, canvas, i18n=None, caps=None):
     main, ampm = _split_ampm(time_str)
 
     W, H = canvas.width, canvas.height
+
+    if getattr(canvas, "can_gtext", False) and H >= 96:
+        # A wall with scalable on-device text (the LCD): draw the clock + date as a few gtext
+        # ops instead of a pixel frame — crisp at native resolution, a few hundred bytes a frame
+        # over the draw stream. Same centered clock-over-date group as the PIL tall layout.
+        weekday, date_line = _day_lines(now, i18n)
+        wd, dl = weekday.upper(), date_line.upper()
+        csize = canvas.fit_gtext(main, W - 12, int(H * 0.44))
+        cw = canvas.text_width(main, csize)
+        tag_gap = max(3, int(csize * 0.06))
+        asize = canvas.fit_gtext(ampm, int(W * 0.2), int(csize * 0.5)) if ampm else 0
+        aw = (canvas.text_width(ampm, asize) + tag_gap) if ampm else 0
+        dsize = canvas.fit_gtext(wd if len(wd) >= len(dl) else dl, W - 12, int(H * 0.13))
+        g1, g2 = max(4, int(H * 0.05)), max(2, int(H * 0.02))
+        y = max(2, (H - (csize + g1 + dsize + g2 + dsize)) // 2)
+        canvas.clear((0, 0, 0))
+        gx = int((W - cw - aw) / 2)
+        canvas.gtext(gx, y, main, color=_TIME_COL, size=csize)
+        if ampm:
+            canvas.gtext(gx + cw + tag_gap, int(y + csize - asize), ampm, color=_AMPM_COL, size=asize)
+        y += csize + g1
+        canvas.gtext(W // 2, y, wd, color=_DATE_COL, size=dsize, align="center")
+        y += dsize + g2
+        canvas.gtext(W // 2, y, dl, color=_DATE_COL, size=dsize, align="center")
+        canvas.show()
+        if seconds:
+            return max(0.05, 1.0 - now.microsecond / 1e6)
+        return max(1.0, 60.0 - now.second - now.microsecond / 1e6)
+
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

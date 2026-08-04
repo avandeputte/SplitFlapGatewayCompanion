@@ -1234,6 +1234,24 @@ class CanvasSurface(paneltext.PanelText):
         math. Measured with the companion's copy of the bundled TTF (metrics match the wall)."""
         return _gtext_width(str(s), int(size), str(face), int(tracking))
 
+    def fit_gtext(self, s, max_w, max_h, face="sans", lo=8):
+        """The largest gtext ``size`` (≤ ``max_h``, ≥ ``lo``) at which ``s`` fits ``max_w`` wide —
+        the on-device analogue of :meth:`fit_font`. Capped at the wall's ``text_max``. A quick
+        ratio jump then a short refine, so it works from any starting height."""
+        s = str(s)
+        hi = min(int(max_h), self.text_max or 512)
+        if hi < lo or not s.strip():
+            return max(lo, hi)
+        size = hi
+        for _ in range(12):
+            w = _gtext_width(s, size, face)
+            if w <= max_w or size <= lo:
+                break
+            size = max(lo, min(size - 1, int(size * max_w / max(1.0, w))))
+        while size > lo and _gtext_width(s, size, face) > max_w:
+            size -= 1
+        return size
+
     def blur(self, x, y, w, h, r=4):
         """Box-blur a rectangle of the back buffer in place — the on-device stand-in for the
         PIL scrim: soften busy art, then draw text on top. Needs ``canvas.can_blur``."""

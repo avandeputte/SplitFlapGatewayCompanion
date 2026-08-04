@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.8
+
+- **The clock draws as on-device text now (LCD)** — on a wall with the firmware's scalable
+  `gtext`, the Clock renders its digits + date as a few anti-aliased text ops at the real
+  1280×800 instead of an upscaled pixel frame: crisp, and sub-millisecond a frame over the
+  draw stream (verified on the wall). LED walls are byte-for-byte unchanged. First of the
+  text apps to convert; the rest follow the same pattern.
+
 ## 2.10.12-beta.7
 
 - **LCD speed, properly this time** — profiled directly on the 1280×800 wall: an HTTP request

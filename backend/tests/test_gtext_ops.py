@@ -61,6 +61,42 @@ def test_blur_builds_a_box_blur_op():
     assert s._ops[-1] == {"op": "blur", "x": 4, "y": 4, "w": 300, "h": 200, "r": 6}
 
 
+def test_fit_gtext_finds_the_largest_fitting_size():
+    s = _lcd_surface()
+    big = s.fit_gtext("22:35", 1000, 400)
+    assert big > s.fit_gtext("22:35", 120, 400) >= 8        # width-bound is smaller
+    assert s.fit_gtext("x", 1000, 40) <= 40                 # never taller than max_h
+    assert s.text_width("22:35", big) <= 1000               # the winner actually fits
+    assert s.fit_gtext("22:35", 100000, 900) <= s.text_max  # capped at the wall's ceiling
+
+
+def test_time_app_draws_gtext_ops_on_a_capable_wall():
+    """The clock converts: on a gtext wall its LCD render is a few gtext ops (crisp native text,
+    a few hundred bytes) instead of a pixel frame. LED walls keep the PIL path (no can_gtext)."""
+    import importlib.util
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "apps", "time", "app.py")
+    spec = importlib.util.spec_from_file_location("time_gtext", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    captured = {}
+    s = _lcd_surface()                                       # 1280x800, can_gtext=True
+
+    def cap_show():
+        captured["ops"] = list(s._ops)
+        s._ops = []
+        return True
+
+    s.show = cap_show
+    mod.fetch_canvas({"timezone": "US/Eastern", "want_seconds": "no"}, s)
+    ops = captured.get("ops", [])
+    kinds = [o["op"] for o in ops]
+    assert kinds.count("gtext") >= 3                        # clock + weekday + date (+ AM/PM)
+    assert "clear" in kinds and "frame" not in kinds        # ops, not a pixel frame
+    assert any(o.get("align") == "center" for o in ops if o["op"] == "gtext")
+
+
 def test_text_width_matches_the_bundled_face():
     s = _lcd_surface()
     w48 = s.text_width("Weather", size=48)
