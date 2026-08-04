@@ -248,12 +248,13 @@ def test_no_eager_stream_without_binary_ops(monkeypatch, tmp_path):
         f"a JSON-ops wall must not pre-open the stream, got {events[:3]}"
 
 
-def test_aquarium_opts_out_of_the_lcd_draw_stream(tmp_path):
-    """Regression: streaming the aquarium crashed the 0.1.0 LCD firmware. It re-asserts a sprite
-    atlas every run, and the atlas REST PUT must close any open draw stream — the open->atlas->close
-    sequence panics the wall (and streaming gains it nothing there anyway). It carries manifest
-    ``lcd_no_stream``, so the engine keeps it on HTTP ops on the LCD (is_lcd) while STILL streaming
-    it on the Matrix Gateway, where it works."""
+def test_aquarium_streams_on_the_lcd(tmp_path):
+    """Streaming the aquarium once crashed the 0.1.0 LCD firmware — its per-run sprite-atlas PUT
+    must close any open draw stream, and that open->atlas->close sequence rebooted the wall, so it
+    carried manifest ``lcd_no_stream`` to stay on HTTP ops there. The firmware fixed the reboot and
+    the companion moves in lockstep with it, so the opt-out is gone: the aquarium is a plain
+    offscreen frame-push app again and eager-streams on the LCD (the fast path — HTTP is ~2.4 s per
+    frame on the 1280x800 wall). The whole opt-out mechanism was removed with it."""
     import json
     from pathlib import Path
     from app.config import Config
@@ -261,19 +262,14 @@ def test_aquarium_opts_out_of_the_lcd_draw_stream(tmp_path):
     from app.plugin_settings import PluginSettings
     from app.plugins import PluginRuntime
     from app.state import DisplayState
-    from app import device
     APPS = Path(__file__).resolve().parents[2] / "apps"
-    assert json.loads((APPS / "canvas-aquarium" / "manifest.json").read_text()).get("lcd_no_stream") is True
+    manifest = json.loads((APPS / "canvas-aquarium" / "manifest.json").read_text())
+    assert "lcd_no_stream" not in manifest                       # opt-out removed (lockstep w/ fixed fw)
     cfg = Config(data_dir=tmp_path)
     ctl = DisplayController(cfg, DisplayState(45))
+    assert not hasattr(ctl, "_lcd_stream_opt_out")              # mechanism gone, not just unused
     ps = PluginSettings(tmp_path); ps.set_installed(["canvas-aquarium"])
     rt = PluginRuntime(cfg, ps, APPS); rt.load(); ctl.attach_plugins(rt)
-    lcd = device.from_capabilities({"product": "LCD Gateway", "features": ["canvas"],
-        "surface": {"kind": "lcd", "w": 1280, "h": 800}, "charset": {"common": "A"},
-        "canvas": {"width": 1280, "height": 800, "stream": True, "opsBin": True}})
-    led = device.from_capabilities({"product": "Matrix Gateway", "features": ["canvas"],
-        "surface": {"kind": "led-matrix", "w": 256, "h": 64}, "charset": {"common": "A"},
-        "canvas": {"width": 256, "height": 64, "stream": True, "opsBin": True}})
-    assert ctl._lcd_stream_opt_out("canvas-aquarium", lcd) is True    # HTTP ops on the LCD
-    assert ctl._lcd_stream_opt_out("canvas-aquarium", led) is False   # streams on the Matrix Gateway
-    assert ctl._lcd_stream_opt_out("time", lcd) is False              # a normal app still streams
+    # renders_offscreen == eager-stream-eligible: it's what the _run_matrix stream gate checks, so
+    # the aquarium now streams on any wall that advertises canvas.stream + opsBin (LCD included).
+    assert rt.renders_offscreen("canvas-aquarium") is True

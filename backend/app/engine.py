@@ -779,12 +779,12 @@ class DisplayController:
         left running — effect, looping anim, ticker — instead of painting over the new app's frames.
 
         ``claim`` False (a DEVICE-side renderer: an effect, on-device anim or ticker): do NOT take
-        the panel over. The renderer claims the panel with its OWN POST, and a pre-emptive take_over
-        parks the panel in raw-canvas mode — which the LCD firmware does not un-park when the effect
-        then starts, so the effect renders into the framebuffer but never reaches the screen. Hand
-        the panel back to the wall instead (``release`` = the firmware's ``dispReturnToWall``): that
-        stands down any prior device renderer AND un-parks, exactly what the wall's own UI does
-        before it starts an effect."""
+        the panel over. The renderer claims the panel with its OWN POST, so grabbing raw-canvas mode
+        first is the wrong model — hand the panel back to the wall instead (``release`` = the
+        firmware's ``dispReturnToWall``), which stands down any prior device renderer and readies the
+        panel for the next effect, exactly what the wall's own UI does before it starts one. (An
+        earlier LCD firmware also REQUIRED this: a pre-emptive take_over parked the panel and would
+        not un-park for the effect — since fixed, but release remains the correct path.)"""
         url = str(self.config.transport.get("gateway_url") or "").strip()
         if url:
             # Drop any draw stream a PREVIOUS app left open before this one claims the panel.
@@ -798,11 +798,11 @@ class DisplayController:
                 if not self._canvas_active:
                     await asyncio.to_thread(canvas.take_over, url)
             else:
-                # A device renderer POSTs its own claim next (gCanvasMode stays false), so instead
-                # of taking the panel over — which parks it, and the LCD won't un-park for the
-                # effect — hand it back to the wall: release stands down any prior device renderer
-                # AND un-parks. _canvas_active still marks the panel as claimed by a canvas/device
-                # app, so the switch-away teardown (stream close + flap-cache forget) is unchanged.
+                # A device renderer POSTs its own claim next (gCanvasMode stays false), so taking the
+                # panel over is the wrong model — hand it back to the wall: release stands down any
+                # prior device renderer and readies the panel for the effect, matching the wall's own
+                # UI. _canvas_active still marks the panel as claimed by a canvas/device app, so the
+                # switch-away teardown (stream close + flap-cache forget) is unchanged.
                 await asyncio.to_thread(canvas.release, url)
             self._canvas_active = True
         return url
@@ -818,8 +818,8 @@ class DisplayController:
         low floor lets an animating app pick its own frame rate (a fast frame-push app
         runs over the draw stream, ~28 fps vs the ~8 fps HTTP ceiling)."""
         # A device-side renderer (effect / on-device anim / ticker) claims the panel with its own
-        # POST — do NOT take the panel over first: on the LCD firmware take_over parks the panel and
-        # the effect never reaches the screen (it renders only into the framebuffer). See _take_panel.
+        # POST — do NOT take the panel over first; hand it back to the wall so the renderer starts
+        # cleanly, exactly as the wall's own UI does before an effect. See _take_panel.
         device_render = bool((self.plugins.manifest(app_id) or {}).get("device_render"))
         url = await self._take_panel(claim=not device_render)
         caps = self._caps()
@@ -831,10 +831,8 @@ class DisplayController:
         # path an open stream 409s) and to offscreen-render apps (an on-device effect pushes
         # nothing per frame and must not hold a stream; an atlas upload closes/reopens the stream
         # on its own). A stream dropped mid-run is re-adopted by _maybe_stream on the next tick.
-        # Skipped for an app that opts out on the LCD (see _lcd_stream_opt_out).
         if (url and getattr(caps, "canvas_stream", False) and getattr(caps, "canvas_ops_bin", False)
-                and self.plugins.renders_offscreen(app_id)
-                and not self._lcd_stream_opt_out(app_id, caps)):
+                and self.plugins.renders_offscreen(app_id)):
             await asyncio.to_thread(canvas.stream_begin, url)
         if (self.plugins.manifest(app_id) or {}).get("interactive"):
             gameinput.reset(url)                        # fresh pad — no stale steering/presses
@@ -887,23 +885,11 @@ class DisplayController:
         per frame. The stream's 2 MB raw keyframe is handled at the source instead: it is no
         longer sent periodically over a stream (see canvas._try_delta) — TCP continuity means
         no drift to heal, so only deltas flow after the first full."""
-        if self._lcd_stream_opt_out(app_id, caps):
-            return
         if not (url and getattr(caps, "canvas_stream", False) and not canvas.has_stream(url)
                 and isinstance(hold, (int, float)) and hold <= _CANVAS_STREAM_MAX_HOLD):
             return
         if canvas.last_push_was_opsb(url) or canvas.last_push_was_frame(url):
             await asyncio.to_thread(canvas.stream_begin, url)
-
-    def _lcd_stream_opt_out(self, app_id: str, caps) -> bool:
-        """Whether this app must NOT use the draw stream on the LCD (manifest ``lcd_no_stream``).
-
-        The aquarium is the case: it re-asserts a sprite atlas every run, and the atlas REST PUT
-        must close any open stream (see canvas.put_atlas_named) — so streaming it churns the stream
-        open→closed for no gain AND the 0.1.0 LCD firmware crashes on that open→atlas→close sequence.
-        On the LCD it stays on HTTP ops. LCD-only: other walls (the Matrix Gateway) stream it fine."""
-        return bool(getattr(caps, "is_lcd", False)
-                    and (self.plugins.manifest(app_id) or {}).get("lcd_no_stream"))
 
     async def _run_channel_canvas(self, app_id: str, keep_going, *, overrides=None,
                                   deadline=None) -> None:

@@ -6,6 +6,7 @@
   "description": "Space station",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_native": true,
   "refresh_interval": 5,
   "loop_delay": 5,
   "category": "data",

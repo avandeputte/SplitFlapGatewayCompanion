@@ -3,6 +3,22 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.16
+
+- **Lumina Clock renders at the LCD's native 1280×800** (`lcd_native`) instead of on the logical
+  256×160 panel upscaled ×5 — crisp digits. It also **fits the panel again**: the font-fit loop
+  stepped the size down one pixel per iteration capped at 60 tries, which could not converge from
+  the large native start size, so the digits overflowed both edges; it now converges proportionally
+  and fits at any resolution (matrix panels land on the exact same size as before).
+- **ISS Tracker renders native on the LCD too**, and **centers its title / coordinates / crew as one
+  block** so the crew count sits with the coordinates instead of pinned to the bottom edge (it read
+  as "too far down"). Its map's grid, dotted orbit and station marker now scale with the panel, so
+  the map stays coherent at native resolution rather than thinning to hairlines. Small LED panels are
+  unchanged (weights stay 1px, the sub-112px layout is untouched).
+- **Aquarium streams on the LCD again** — the firmware fixed the draw-stream-around-atlas-upload
+  crash, so the `lcd_no_stream` opt-out (and its whole engine mechanism) is removed; it takes the
+  fast draw-stream path there like any other frame-push app.
+
 ## 2.10.12-beta.15
 
 - **Aquarium no longer crashes the LCD** — the eager draw-stream adoption (beta.12) opened a stream

@@ -173,41 +173,55 @@ def _cv_shadow(draw, x, y, text, font, fill):
 
 def _cv_map(draw, x0, y0, mw, mh, lat, lon):
     """The world grid, the ground track through (lat, lon), and the station marker.
-    Equirectangular: the whole earth in the box."""
+    Equirectangular: the whole earth in the box. Line and dot weights scale with the map's
+    height (``kw``) so the graticule, dotted orbit and crosshair read at the LCD's native
+    1280x800 as well as on a small LED panel — at ``kw == 1`` (any matrix panel) every stroke
+    is the original single pixel, so the LED look is byte-for-byte unchanged."""
     import math
 
     def xy(la, lo):
         return (x0 + (lo + 180.0) / 360.0 * (mw - 1),
                 y0 + (90.0 - la) / 180.0 * (mh - 1))
 
+    kw = max(1, round(mh / 160))                 # 1 on a panel, ~5 at native 800px
+    gw = max(1, kw // 2)                          # graticule / equator / border stroke
     # graticule: meridians every 60°, parallels every 30°, the equator a shade brighter
     for lo in range(-120, 180, 60):
         x = int(round(xy(0, lo)[0]))
-        draw.line([(x, y0), (x, y0 + mh - 1)], fill=_GRID)
+        draw.line([(x, y0), (x, y0 + mh - 1)], fill=_GRID, width=gw)
     for la in (-60, -30, 30, 60):
         y = int(round(xy(la, 0)[1]))
-        draw.line([(x0, y), (x0 + mw - 1, y)], fill=_GRID)
+        draw.line([(x0, y), (x0 + mw - 1, y)], fill=_GRID, width=gw)
     eq = int(round(xy(0, 0)[1]))
-    draw.line([(x0, eq), (x0 + mw - 1, eq)], fill=_EQUATOR)
-    draw.rectangle([x0, y0, x0 + mw - 1, y0 + mh - 1], outline=_GRID)
+    draw.line([(x0, eq), (x0 + mw - 1, eq)], fill=_EQUATOR, width=gw)
+    draw.rectangle([x0, y0, x0 + mw - 1, y0 + mh - 1], outline=_GRID, width=gw)
 
     # the ground track: lat = incl * sin(k), threaded through the live fix (dotted)
     k0 = math.asin(max(-1.0, min(1.0, lat / _INCL)))
-    for px in range(0, mw, 2):
+    dot, step = max(0, kw // 2), max(2, 2 * kw)  # 1px points every 2px on a panel; discs, native
+    for px in range(0, mw, step):
         dlon = (px / (mw - 1)) * 360.0 - 180.0
         k = k0 + math.radians(dlon)
         tla = _INCL * math.sin(k)
         tlo = lon + dlon
         tlo = ((tlo + 180.0) % 360.0) - 180.0
-        tx, ty = xy(tla, tlo)
-        draw.point((int(round(tx)), int(round(ty))), fill=_TRACK)
+        tx, ty = (int(round(v)) for v in xy(tla, tlo))
+        if dot:
+            draw.ellipse([tx - dot, ty - dot, tx + dot, ty + dot], fill=_TRACK)
+        else:
+            draw.point((tx, ty), fill=_TRACK)
 
-    # the station: an amber crosshair with a white heart
+    # the station: an amber crosshair (a touch heavier than the grid) with a white heart
     mx, my = (int(round(v)) for v in xy(lat, lon))
     arm = max(2, mh // 12)
-    draw.line([(mx - arm, my), (mx + arm, my)], fill=_AMBER)
-    draw.line([(mx, my - arm), (mx, my + arm)], fill=_AMBER)
-    draw.point((mx, my), fill=_WHITE)
+    cw = max(1, round(kw * 0.6))
+    draw.line([(mx - arm, my), (mx + arm, my)], fill=_AMBER, width=cw)
+    draw.line([(mx, my - arm), (mx, my + arm)], fill=_AMBER, width=cw)
+    r = max(0, kw // 2)
+    if r:
+        draw.ellipse([mx - r, my - r, mx + r, my + r], fill=_WHITE)
+    else:
+        draw.point((mx, my), fill=_WHITE)
 
 
 def fetch_canvas(settings, canvas, i18n=None):
@@ -245,21 +259,28 @@ def fetch_canvas(settings, canvas, i18n=None):
         _cv_map(draw, 0, 0, mw, mh, lat, lon)
         tx = mw + 5
         tw = W - 3 - tx
-        title = 'ISS'
-        tf = canvas.fit_font(title, tw, max(10, int(H * 0.3)))
-        tb = tf.getbbox(title)
-        draw.text((tx, 1 - tb[1]), title, font=tf, fill=_WHITE)
-        y = 1 + (tb[3] - tb[1]) + 4
-        cf = canvas.fit_font(_coord(lat, "NS", 1), tw, max(7, int(H * 0.17)))
-        for ln in (_coord(lat, "NS", 1), _coord(lon, "EW", 1)):
-            b = cf.getbbox(ln)
-            draw.text((tx, y - b[1]), ln, font=cf, fill=_CYAN)
-            y += (b[3] - b[1]) + 3
+        # Title / coordinates / crew as ONE block, centered vertically in the text column so the
+        # crew count sits WITH the coordinates instead of pinned to the panel's bottom edge — which
+        # read as "too far down" on the tall LCD. A wider gap under the title and above the crew, a
+        # tight one between the two coord lines, groups them. Coord font fits the wider of the two
+        # lines (a west longitude runs to 6 chars), so neither clips.
+        lat_s, lon_s = _coord(lat, "NS", 1), _coord(lon, "EW", 1)
+        tf = canvas.fit_font('ISS', tw, max(10, int(H * 0.30)))
+        cf = canvas.fit_font(max(lat_s, lon_s, key=len), tw, max(7, int(H * 0.17)))
+        rows = [(tf, 'ISS', _WHITE, 0),
+                (cf, lat_s, _CYAN, max(3, int(H * 0.05))),
+                (cf, lon_s, _CYAN, max(2, int(H * 0.02)))]
         if crew:
             bf = canvas.fit_font(crew, tw, max(7, int(H * 0.15)))
-            bb = bf.getbbox(crew)
-            if (bb[3] - bb[1]) >= 6:
-                draw.text((tx, H - 1 - (bb[3] - bb[1]) - bb[1]), crew, font=bf, fill=_AMBER)
+            if (bf.getbbox(crew)[3] - bf.getbbox(crew)[1]) >= 6:
+                rows.append((bf, crew, _AMBER, max(4, int(H * 0.07))))
+        hs = [f.getbbox(s)[3] - f.getbbox(s)[1] for f, s, _c, _g in rows]
+        total = sum(hs) + sum(g for _f, _s, _c, g in rows)
+        y = max(1, (H - total) // 2)                 # centered block, top of the first row
+        for (f, s, col, gap), h in zip(rows, hs):
+            y += gap
+            draw.text((tx, y - f.getbbox(s)[1]), s, font=f, fill=col)
+            y += h
     else:
         # Compact: the map fills the panel edge to edge, the coordinates ride its
         # lower edge. Degrade the caption rather than the type: full precision, then

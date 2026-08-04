@@ -59,17 +59,32 @@ def _cv_resolve(canvas, palette, hourf):
 
 
 def _cv_fit_clock(canvas, W, H):
-    """Largest bundled font whose 'HH:MM' fits the panel, plus cap metrics."""
+    """Largest bundled font whose 'HH:MM' fits the panel, plus cap metrics.
+
+    Width usually binds — five glyphs across a 16:10 panel — so converge on the fit
+    PROPORTIONALLY. The old form stepped the size down 1px at a time capped at 60
+    iterations; at the LCD's native 1280x800 the start size is ~850 and the fit is
+    ~400, so it stalled 60px in and the digits overflowed both edges by a whole panel
+    width. The jump-then-settle below reaches the same largest-fitting size at any
+    resolution (matrix panels land on the identical size they always did)."""
+    limit = W - 2
     cap = max(6, int(round(H * 0.80)))
-    size = max(8, int(round(cap / 0.75)))
+    ceiling = max(8, int(round(cap / 0.75)))     # the height-target size; never exceed it
+    size = ceiling
     font = canvas.font(size)
-    for _ in range(60):
-        if font.getlength('88:88') <= W - 2 or size <= 8:
+    for _ in range(8):                            # proportional jumps toward the width limit
+        w = font.getlength('88:88')
+        if w <= limit or size <= 8:
             break
-        size -= 1
+        size = max(8, min(size - 1, int(size * limit / max(1.0, w))))
         font = canvas.font(size)
-    l, t, r, b = font.getbbox('8')          # ink box (anchor 'la': y=0 at ascender)
-    return font, t, b - t                    # font, ink_top, cap_height
+    while size < ceiling:                         # a jump can undershoot by a px — grow back
+        nf = canvas.font(size + 1)                # to the largest size that still fits, so a
+        if nf.getlength('88:88') > limit:         # matrix panel's chosen size is unchanged
+            break
+        size, font = size + 1, nf
+    l, t, r, b = font.getbbox('8')                # ink box (anchor 'la': y=0 at ascender)
+    return font, t, b - t                         # font, ink_top, cap_height
 
 
 def _cv_fill(canvas, Image, treatment, tone, W, H, y0, y1, frame):

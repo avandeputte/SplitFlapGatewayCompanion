@@ -6,7 +6,6 @@
   "type": "functional",
   "surfaces": ["matrix"],
   "lcd_ops": true,
-  "lcd_no_stream": true,
   "category": "fun",
   "refresh_interval": 1,
   "loop_delay": 1,

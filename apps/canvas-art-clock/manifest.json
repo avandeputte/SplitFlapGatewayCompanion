@@ -5,6 +5,7 @@
   "description": "The time as luminous color digits (Matrix panel)",
   "type": "functional",
   "surfaces": ["matrix"],
+  "lcd_native": true,
   "refresh_interval": 1,
   "loop_delay": 1,
   "category": "time",
