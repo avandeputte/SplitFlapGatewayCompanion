@@ -233,7 +233,9 @@ def fetch_canvas(settings, canvas, i18n=None):
         # Body: the vehicle (up to 2 lines), the mission under it in cyan.
         top = head_h + 3
         mis_h = max(7, int(H * 0.15))
-        body_h = fy - top - mis_h - 3
+        mis_lines = 2 if H >= 96 else 1          # a tall panel wraps the whole mission name;
+        mis_reserve = mis_h * mis_lines + (mis_lines - 1) * 2   # a short LED panel keeps one line
+        body_h = fy - top - mis_reserve - 3
         nf, lines = canvas.wrap_fit(rocket, tw, body_h, 2)
         lh = canvas.ink(nf, 'Ag')
         gap = max(1, lh // 6)
@@ -243,17 +245,28 @@ def fetch_canvas(settings, canvas, i18n=None):
             draw.text((tx, ny - nf.getbbox(ln)[1]), ln, font=nf, fill=_WHITE)
             ny += lh + gap
         if mission and mission != rocket:
-            # A readable size first, the full name second: keep the font at mis_h and
-            # ellipsise the mission to the width rather than shrink it out of legibility.
-            mf = canvas.fit_font('0', tw, mis_h)
-            mtext = mission
-            while mtext and mf.getlength(mtext + '…') > tw and mtext != '…':
-                mtext = mtext[:-1].rstrip()
-            mtext = mission if mf.getlength(mission) <= tw else (mtext + '…' if mtext else '')
-            if mtext:
-                mb = mf.getbbox(mtext)
-                draw.text((tx, fy - 2 - mis_h + (mis_h - (mb[3] - mb[1])) / 2.0 - mb[1]),
-                          mtext, font=mf, fill=_CYAN)
+            if mis_lines > 1:
+                # Tall panel: wrap the full name over two lines instead of ellipsising it
+                # mid-word ("STARLINK G…"); the block sits just above the T-minus footer.
+                mf, mlines = canvas.wrap_fit(mission, tw, mis_reserve, mis_lines)
+                mlh = canvas.ink(mf, 'Ag')
+                mgap = max(1, mlh // 6)
+                my = fy - 2 - (len(mlines) * mlh + (len(mlines) - 1) * mgap)
+                for ln in mlines:
+                    draw.text((tx, my - mf.getbbox(ln)[1]), ln, font=mf, fill=_CYAN)
+                    my += mlh + mgap
+            else:
+                # A readable size first, the full name second: keep the font at mis_h and
+                # ellipsise the mission to the width rather than shrink it out of legibility.
+                mf = canvas.fit_font('0', tw, mis_h)
+                mtext = mission
+                while mtext and mf.getlength(mtext + '…') > tw and mtext != '…':
+                    mtext = mtext[:-1].rstrip()
+                mtext = mission if mf.getlength(mission) <= tw else (mtext + '…' if mtext else '')
+                if mtext:
+                    mb = mf.getbbox(mtext)
+                    draw.text((tx, fy - 2 - mis_h + (mis_h - (mb[3] - mb[1])) / 2.0 - mb[1]),
+                              mtext, font=mf, fill=_CYAN)
     else:
         # Compact: vehicle over a big T-minus. The vehicle's ink rides row 1 (row 0 is
         # the bbox-overshoot slack) and the T-minus sinks to the panel's bottom edge.

@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.3
+
+- **LCD Dashboard & Rocket Launch polish** — Dashboard weather no longer draws the
+  temperature over the moon and spells the condition out ("Partly Cloudy"); the Rocket
+  Launch card wraps the full mission name ("Starlink Group 12-40") instead of clipping it
+  to "STARLINK G…".
+
 ## 2.10.12-beta.2
 
 - **LCD is quick now ⚡** — full frames encode ~40× faster (vectorised QOI) and only the

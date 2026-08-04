@@ -140,6 +140,9 @@ _SKY_SHORT = {'clear': 'Clear', 'pcloudy': 'Partly', 'cloudy': 'Cloudy', 'fog': 
               'rainl': 'Rain', 'rain': 'Rain', 'rainh': 'Rain', 'shwr': 'Showers',
               'snowl': 'Snow', 'snow': 'Snow', 'snowh': 'Snow', 'sleet': 'Sleet',
               'storm': 'Storm', 'hail': 'Hail'}
+# The full condition phrase for a roomy panel (the LCD): "Partly Cloudy", not the LED
+# column's clipped "Partly". Every other token is already a complete word.
+_SKY_WORD_FULL = dict(_SKY_WORD, pcloudy='Partly Cloudy', clear='Clear Sky')
 
 _WEEKDAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 _MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -253,6 +256,87 @@ def _draw_group(draw, x, top, region_h, lines, gap):
         y += ih + gap
 
 
+def _draw_weather_tall(canvas, draw, x, w, region_h, sky, tf, temp, hi, lo, feels,
+                       hum, wind_v, wind_u, night, deg, i18n):
+    """The weather column laid out for a TALL panel (the LCD): a sun/moon header, the big
+    temperature, the FULL condition ("Partly Cloudy", not "Partly"), then high/low, feels
+    and humidity/wind — a centered vertical stack. The LED's top-right accent disc collided
+    with the ballooned temperature here, so the accent becomes the stack's own header."""
+    cx = x + w // 2
+
+    def band(text, want, lo=8):
+        f = _cv_fit_band(canvas, text, w, want, lo=lo)
+        bb = f.getbbox(text or '8')
+        return f, bb[3] - bb[1], bb[1]
+
+    def segs_w(segs, f):
+        return sum(f.getlength(s) for s, _ in segs)
+
+    # Build the row list first (fonts + ink heights), so the whole stack can be centered.
+    rows = []                                            # (kind, payload, height)
+    ir = max(5, int(region_h * 0.085))
+    rows.append(('icon', ir, 2 * ir + 1))
+
+    ts = f'{temp}{deg}' if temp is not None else '--'
+    tcol = _cv_ramp(canvas, _TEMP_STOPS, float(tf)) if tf is not None else (232, 238, 246)
+    tf_font, th, ttop = band(ts, region_h * 0.24, lo=12)
+    rows.append(('one', (ts, tf_font, tcol, ttop), th))
+
+    if sky:
+        word = _SKY_WORD_FULL.get(sky, 'Weather')
+        if i18n is not None:
+            word = i18n.t(word, 'weather')
+        cf, ch, ctop = band(word, region_h * 0.115, lo=8)
+        rows.append(('one', (_cv_truncate(cf, word, w), cf, _C_WORD, ctop), ch))
+
+    df, dh, dtop = band('H 88 L 88', region_h * 0.10, lo=8)  # one shared font for the detail rows
+    if hi is not None or lo is not None:
+        hl = []
+        if hi is not None:
+            hl += [('H ', _C_HI_L), (f'{hi}{deg}', _C_HI_V)]
+        if lo is not None:
+            hl += ([('  ', _C_SEP)] if hl else []) + [('L ', _C_LO_L), (f'{lo}{deg}', _C_LO_V)]
+        rows.append(('segs', (hl, df, dtop), dh))
+    if feels is not None:
+        rows.append(('segs', ([('Feels ', _C_MUTE), (f'{feels}{deg}', _C_MUTE_V)], df, dtop), dh))
+    hw = []
+    if hum is not None:
+        hw += [(f'{hum}%', _C_MUTE_V)]
+    if wind_v is not None:
+        hw += ([('  ', _C_SEP)] if hw else []) + [(f'{wind_v}{wind_u}', _C_MUTE_V)]
+    if hw:
+        rows.append(('segs', (hw, df, dtop), dh))
+
+    gap = max(2, int(region_h * 0.03))
+    total = sum(h for _, _, h in rows) + gap * (len(rows) - 1)
+    if total > region_h - 2:                             # tighten if a rich day runs long
+        gap = max(1, gap - (total - (region_h - 2)) // max(1, len(rows) - 1))
+        total = sum(h for _, _, h in rows) + gap * (len(rows) - 1)
+    y = max(1, (region_h - total) // 2)
+
+    for kind, payload, h in rows:
+        if kind == 'icon':
+            r = payload
+            icy = y + r
+            if night:
+                draw.ellipse([cx - r, icy - r, cx + r, icy + r], fill=_C_MOON)
+                o = max(1, int(r * 0.55))
+                draw.ellipse([cx - r + o, icy - r, cx + r + o, icy + r], fill=(0, 0, 0))
+            else:
+                draw.ellipse([cx - r, icy - r, cx + r, icy + r], fill=_C_SUN)
+                draw.ellipse([cx - r + 1, icy - r + 1, cx + r - 1, icy + r - 1], fill=_C_SUN_CORE)
+        elif kind == 'one':
+            s, f, col, itop = payload
+            draw.text((cx, y - itop), s, font=f, fill=col, anchor='ma')
+        else:                                            # segs — centered multi-color line
+            segs, f, itop = payload
+            lx = cx - segs_w(segs, f) / 2
+            for s, col in segs:
+                draw.text((lx, y - itop), s, font=f, fill=col, anchor='la')
+                lx += f.getlength(s)
+        y += h + gap
+
+
 def _draw_stack(draw, x, top, region_h, lines, gap):
     """Left-align `lines` in a column at `x`, vertically justified across the
     region: the first line's ink pinned to row top+1, the last line's ending on
@@ -357,8 +441,8 @@ def fetch_canvas(settings, canvas, get_weather=None, i18n=None):
 
     two_col = have_wx and W >= 112
     if two_col:
-        rcw = max(46, int(W * 0.35))
-        rcw = min(rcw, W - 58)                   # always leave the clock a wide column
+        rcw = max(46, int(W * (0.40 if H >= 96 else 0.35)))   # a wider weather column on a
+        rcw = min(rcw, W - 58)                   # tall panel; always leave the clock a wide one
         rx = W - rcw                             # divider / right-column left edge
     else:
         rx = W
@@ -405,6 +489,11 @@ def fetch_canvas(settings, canvas, get_weather=None, i18n=None):
         draw.line([(rx, 3), (rx, region_h - 3)], fill=_C_DIV)   # subtle divider
         wx0 = rx + pad + 2
         wxw = max(8, W - pad - wx0)
+        if H >= 96:                              # tall panel: a centered stack with the sun/moon
+            _draw_weather_tall(canvas, draw, wx0, wxw, region_h, sky, tf, temp, hi, lo,
+                               feels, hum, wind_v, wind_u, night, deg, i18n)
+            two_col = False                      # skip the LED column layout below
+    if two_col:
         rich_h = wxw >= 78                       # room for feels/humidity/wind labels
         rich_v = H >= 48                         # room for many stacked lines
 
