@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.4
+
+- **Aquarium speed fix (LCD)** — the beta.2 native-ops pass grew the fish sprite sheet to
+  ~1.7 MB (240 px tiles), right under the panel's 2 MB atlas cap — a slow one-shot upload,
+  re-hashed every frame. The tiles are now drawn small and scaled up on-device (integer
+  sprite scale), so the sheet is ~0.4 MB with the fish unchanged at 240 px. LED walls
+  unchanged.
+
 ## 2.10.12-beta.3
 
 - **LCD Dashboard & Rocket Launch polish** — Dashboard weather no longer draws the

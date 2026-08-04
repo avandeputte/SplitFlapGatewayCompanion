@@ -74,8 +74,14 @@ def fetch_canvas(settings, canvas):
     mv = max(1.0, H / 64.0)                                    # vertical motion/stroke scale
     mh = max(1.0, W / 256.0)                                   # horizontal motion scale
     k = max(1, int(mv))                                        # integer stroke/radius scale
-    # even, ~a third of the panel; capped so 10 rgb888 tiles stay inside a 2 MB atlas sheet
-    tile = max(8, min(max(22, H * 22 // 64), min(240, H // 3))) & ~1
+    tile = max(8, min(max(22, H * 22 // 64), min(240, H // 3))) & ~1   # the visible fish size
+    # Keep the sprite SHEET small: draw the tiles at a capped source size and let the wall
+    # scale the blit up on-device (integer 1-4). A 240px LCD fish from an 80px tile is a
+    # ~190 KB sheet, not ~1.7 MB — the big sheet stalled the LCD's one-shot atlas upload
+    # (which sits right under the panel's 2 MB atlas cap). On the LED walls tile<=20, so the
+    # scale stays 1 and the source tile stays the visible tile: the sprite path is unchanged.
+    blit_scale = max(1, min(4, -(-tile // 128)))
+    src_tile = max(8, (tile // blit_scale) & ~1)
 
     n = canvas.num(settings, 'fish', 6, 1, 16)
     water = _WATER.get(str(settings.get('water', 'reef') or 'reef').lower(), _WATER['reef'])
@@ -96,9 +102,9 @@ def fetch_canvas(settings, canvas):
     # sheet evicted ours from the shared atlas library — the batch never relies on a sticky bind.
     use_sprites = bool(getattr(canvas, 'can_sprite', False))
     if use_sprites:
-        if st.get('tiles_for') != tile:                      # draw the sprites once per size, not per frame
-            st['tiles'] = _fish_tiles(tile)
-            st['tiles_for'] = tile
+        if st.get('tiles_for') != src_tile:                  # draw the sprites once per size, not per frame
+            st['tiles'] = _fish_tiles(src_tile)
+            st['tiles_for'] = src_tile
         canvas.upload_atlas(st['tiles'], persist=True)
 
     top, bot = water
@@ -148,7 +154,7 @@ def fetch_canvas(settings, canvas):
             f['x'] = W
         x = int(f['x'])
         if use_sprites:
-            canvas.sprite(2 * f['p'] + (0 if f['d'] > 0 else 1), x, y)
+            canvas.sprite(2 * f['p'] + (0 if f['d'] > 0 else 1), x, y, scale=blit_scale)
         else:                                                  # no atlas: draw the fish from ops
             body, fin = _FISH[f['p']]
             cy = y + tile // 2
