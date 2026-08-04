@@ -474,6 +474,10 @@ def stream_begin(url: str) -> bool:
     st = CanvasStream(url)
     if st.open():
         _wall(url).stream = st
+        # A fresh (re)adopted stream can't trust the last frame as a delta base: the wall may
+        # have rebooted while the socket was down. Drop it so the first push over the new stream
+        # is a full — the one keyframe a stream needs (the periodic ones are suppressed).
+        forget_frame(url)
         log.info("canvas %s: draw stream opened", url)
         return True
     _wall(url).stream = None
@@ -1500,13 +1504,18 @@ class CanvasSurface(paneltext.PanelText):
         was tried and FAILED (deliver a full frame and reset the base), None = a delta doesn't
         apply here (no rects support, no same-size base, or a due keyframe) — send a full frame.
 
-        A delta needs a same-size base, and every _KEYFRAME_EVERY pushes a full frame goes anyway
-        so a gateway reboot or drift self-heals. Deltas never transition, which is right for an
-        animating app."""
+        A delta needs a same-size base. On the HTTP path a full frame goes every _keyframe_every
+        pushes so a gateway reboot or drift self-heals — but NOT over an open stream: TCP delivers
+        every delta or breaks the socket (which drops the base, see stream_begin), so a live stream
+        can't drift, and a periodic full there is just a ~2 MB raw-rgb565 hitch for nothing. Deltas
+        never transition, which is right for an animating app."""
         old = wall.last_frame                              # the base (the last frame we sent)
         wall.delta_n += 1
+        st = wall.stream
+        streaming = st is not None and st.alive
+        keyframe_due = not streaming and wall.delta_n % _keyframe_every(self.width, self.height) == 0
         if not (self.can_rects and old is not None and (old[0], old[1]) == (self.width, self.height)
-                and wall.delta_n % _keyframe_every(self.width, self.height) != 0):
+                and not keyframe_due):
             return None
         try:
             # The delta-vs-full cutover depends on what a full frame would COST here. Rects

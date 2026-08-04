@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.7
+
+- **LCD speed, properly this time** — profiled directly on the 1280×800 wall: an HTTP request
+  costs ~1–2.4 s there, while the persistent draw stream runs at ~1 ms/frame. beta.5 had this
+  backwards — it moved frame-push apps to HTTP to dodge the 2 MB stream keyframe, which turned
+  the clocks and weather into ~2.4 s/frame and made switching to them feel broken. Now every
+  canvas app streams, and the 2 MB keyframe is fixed at the source: it's never sent periodically
+  over a stream (TCP can't drift there), only once when the stream (re)opens. Aquarium and
+  app-switching are quick again.
+
 ## 2.10.12-beta.6
 
 - **Aquarium fix (LCD): sprite-sheet churn** — a streaming sprite app re-checks its atlas each

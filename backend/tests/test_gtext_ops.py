@@ -100,7 +100,10 @@ def test_gtext_falls_back_to_json_when_binary_cant_carry_it():
 
 # --- the LCD stream-adoption gate (the 2 MB-keyframe fix) --------------------
 
-def test_big_panel_frame_apps_skip_the_stream_but_ops_apps_keep_it(monkeypatch, tmp_path):
+def test_frame_and_ops_apps_both_adopt_the_stream_on_a_big_panel(monkeypatch, tmp_path):
+    """On the LCD the stream is the only fast path (HTTP measured ~1-2.4 s/request), so BOTH a
+    frame-push app and a binary-ops app adopt it — the 2 MB keyframe is suppressed over a stream
+    instead (see test_no_periodic_keyframe_over_a_stream). A JSON-only ops batch stays on HTTP."""
     import asyncio
 
     from app.config import Config
@@ -120,24 +123,48 @@ def test_big_panel_frame_apps_skip_the_stream_but_ops_apps_keep_it(monkeypatch, 
                 "canvas": {"width": w, "height": h, "formats": ["rgb888"],
                            "stream": True, "ops": ["rect"]}})
 
-        # LCD (big): a frame-push app must NOT adopt the stream (its full = ~2 MB raw)…
+        # LCD (big): a frame-push app adopts the stream — HTTP would be seconds per frame there
         monkeypatch.setattr(canvas, "last_push_was_frame", lambda url: True)
         monkeypatch.setattr(canvas, "last_push_was_opsb", lambda url: False)
         await ctrl._maybe_stream("http://gw", caps(1280, 800), "a", 0.1)
-        assert adopted == []
-        # …but a binary-ops app (a converted text app) still streams — a batch is tiny
+        assert adopted == ["http://gw"]
+        # a binary-ops app (the aquarium / a converted text app) too
+        adopted.clear()
         monkeypatch.setattr(canvas, "last_push_was_frame", lambda url: False)
         monkeypatch.setattr(canvas, "last_push_was_opsb", lambda url: True)
         await ctrl._maybe_stream("http://gw", caps(1280, 800), "a", 0.1)
         assert adopted == ["http://gw"]
-        # on an LED panel a frame push is ~16 KB, so it keeps the round-trip-free stream
+        # a JSON-only ops batch (neither frame nor opsb) does NOT adopt — it can't ride the records
         adopted.clear()
-        monkeypatch.setattr(canvas, "last_push_was_frame", lambda url: True)
+        monkeypatch.setattr(canvas, "last_push_was_frame", lambda url: False)
         monkeypatch.setattr(canvas, "last_push_was_opsb", lambda url: False)
-        await ctrl._maybe_stream("http://gw", caps(256, 64), "a", 0.1)
-        assert adopted == ["http://gw"]
+        await ctrl._maybe_stream("http://gw", caps(1280, 800), "a", 0.1)
+        assert adopted == []
 
     asyncio.run(run())
+
+
+def test_no_periodic_keyframe_over_a_stream():
+    """The 2 MB-keyframe fix: over an open stream _try_delta never forces a periodic full frame
+    (TCP can't drift); on the HTTP path it still does, so a reboot self-heals."""
+    from conftest import canvas_surface
+
+    surf = canvas_surface("http://gw2", 1280, 800, ("rgb888", "rgb565", "qoi"), rects=True)
+    wall = canvas._wall("http://gw2")
+
+    class _LiveStream:
+        alive = True
+
+    same = bytes(1280 * 800 * 3)
+    wall.stream = _LiveStream()
+    wall.last_frame = (1280, 800, same)
+    wall.delta_n = canvas._keyframe_every(1280, 800) - 1        # the next push is the keyframe tick
+    assert surf._try_delta(wall, same) is True                 # streaming: identical -> nothing, NOT a full
+    wall.stream = None                                         # HTTP path: keyframe forces a full
+    wall.delta_n = canvas._keyframe_every(1280, 800) - 1
+    assert surf._try_delta(wall, same) is None
+    wall.stream = None
+    canvas.forget_frame("http://gw2")
 
 
 def test_take_panel_drops_a_lingering_stream_before_taking_over(monkeypatch, tmp_path):

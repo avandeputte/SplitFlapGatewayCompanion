@@ -816,18 +816,17 @@ class DisplayController:
         re-upload closes the stream itself (see canvas.put_atlas_named) and we simply
         re-adopt here on the next tick.
 
-        The stream carries a full FRAME as raw rgb565 — cheap on an LED panel (~16 KB) but
-        ~2 MB on a 1280×800 LCD, where a keyframe every heartbeat would flood the wall. So on
-        a big panel we DON'T adopt the stream for a frame-push app: its fulls go over HTTP as
-        QOI (tens of KB) instead. Binary-ops apps still stream (a batch is a few hundred bytes
-        at any panel size), which is exactly the path a converted text app should ride."""
+        The stream is the ONLY fast path on the LCD: measured on the 1280×800 wall, an HTTP
+        request costs ~1-2.4 s (a ~1 s base latency + slow throughput), while the persistent
+        stream runs at ~1 ms/frame. So a frame-push app MUST stream there too — pushing its
+        fulls over HTTP as QOI (the earlier big-panel gate) turned clocks/weather into ~2.4 s
+        per frame. The stream's 2 MB raw keyframe is handled at the source instead: it is no
+        longer sent periodically over a stream (see canvas._try_delta) — TCP continuity means
+        no drift to heal, so only deltas flow after the first full."""
         if not (url and getattr(caps, "canvas_stream", False) and not canvas.has_stream(url)
                 and isinstance(hold, (int, float)) and hold <= _CANVAS_STREAM_MAX_HOLD):
             return
-        big = int(getattr(caps, "canvas_w", 0)) * int(getattr(caps, "canvas_h", 0)) > 131072
-        streamable = canvas.last_push_was_opsb(url) or (
-            canvas.last_push_was_frame(url) and not big)
-        if streamable:
+        if canvas.last_push_was_opsb(url) or canvas.last_push_was_frame(url):
             await asyncio.to_thread(canvas.stream_begin, url)
 
     async def _run_channel_canvas(self, app_id: str, keep_going, *, overrides=None,
