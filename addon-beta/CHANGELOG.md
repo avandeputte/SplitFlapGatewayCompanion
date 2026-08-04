@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.6
+
+- **Aquarium fix (LCD): sprite-sheet churn** — a streaming sprite app re-checks its atlas each
+  minute, but that check is a GET that 409s while the draw stream is open, so the companion
+  wrongly concluded the sheet was evicted and re-uploaded it (~0.4 MB on the LCD) while closing
+  and reopening the stream every 60 s. It now keeps the sheet belief while streaming.
+- **Robust panel takeover** — every app start now drops any draw stream a prior app left open,
+  so a streaming app switched away can't freeze the wall on its last frame.
+
 ## 2.10.12-beta.5
 
 - **No more ~2 MB keyframes on the LCD** — a frame-push app no longer adopts the persistent

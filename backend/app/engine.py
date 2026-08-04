@@ -747,9 +747,17 @@ class DisplayController:
         left running — effect, looping anim, ticker — is stood down instead of painting over
         the new app's frames."""
         url = str(self.config.transport.get("gateway_url") or "").strip()
-        if url and not self._canvas_active:
-            await asyncio.to_thread(canvas.take_over, url)
-            self._canvas_active = True
+        if url:
+            # Drop any draw stream a PREVIOUS app left open before this one takes the panel.
+            # While a stream is open the drawing REST endpoints answer 409, so an un-torn-down
+            # stream — a streaming ops app (the aquarium) switched away by a path that skipped
+            # the release — would freeze the wall on its last frame and block every push here.
+            # stream_end is a no-op when none is open, and this app opens its own later if it
+            # earns one (see _maybe_stream). The universal choke point, so no switch path leaks.
+            await asyncio.to_thread(canvas.stream_end, url)
+            if not self._canvas_active:
+                await asyncio.to_thread(canvas.take_over, url)
+                self._canvas_active = True
         return url
 
     async def _run_matrix(self, app_id: str, keep_going, *, overrides=None, deadline=None) -> None:

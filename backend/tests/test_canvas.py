@@ -194,6 +194,23 @@ def test_a_sheet_the_wall_lost_is_re_uploaded(wall):
     assert len(_uploads(wall)) == 2                      # noticed and restored
 
 
+def test_a_streaming_sprite_app_does_not_re_verify_its_sheet(wall, monkeypatch):
+    """The aquarium bug: a streaming sprite app re-asserts its sheet every frame, so past the
+    verify window the belief goes to re-read the wall's library — but a GET 409s while a stream
+    is open and returns empty, which would wrongly drop residency and force a re-upload (a big
+    sheet on an LCD) plus a stream close/reopen churn. While streaming we must KEEP the belief."""
+    tiles = _imgs()
+    s = _named_surface(); s.upload_atlas(tiles); s.show()
+    assert len(_uploads(wall)) == 1
+    w = canvas._wall("http://gw")
+    w.atlas = {"at": w.atlas["at"] - canvas._ATLAS_VERIFY_S - 1, "rows": w.atlas["rows"]}
+    monkeypatch.setattr(canvas, "has_stream", lambda url: True)          # a draw stream is open
+    before_gets = len([c for c in wall["calls"] if c[0] == "GET"])
+    s = _named_surface(); s.upload_atlas(tiles); s.show()
+    assert len(_uploads(wall)) == 1                                      # NO re-upload…
+    assert len([c for c in wall["calls"] if c[0] == "GET"]) == before_gets  # …and NO re-verify GET
+
+
 def test_sheets_survive_handing_the_panel_back(wall):
     """The wall keeps its library across uses, so a playlist that cycles away from a canvas app
     and back again re-binds by name — it does not re-upload, and does not even re-check."""

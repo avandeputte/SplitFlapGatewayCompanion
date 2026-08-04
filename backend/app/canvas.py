@@ -824,13 +824,20 @@ def atlas_save(url: str, name: str, timeout: float = 15.0) -> bool:
 
 def _atlas_lib(url: str) -> dict:
     """``{name: row}`` of the wall's atlas library from what we last saw, re-reading it when the
-    belief is older than the verify window — a sheet can be evicted or lost to a reboot under us."""
+    belief is older than the verify window — a sheet can be evicted or lost to a reboot under us.
+
+    NOT while a draw stream is open, though: the re-read is a GET, and the drawing REST endpoints
+    answer 409 while streaming, so the GET comes back empty and would wrongly drop every sheet's
+    residency — forcing a full re-upload (a few hundred KB to megabytes on an LCD) and a stream
+    close/reopen churn every verify window. A streaming sprite app (the aquarium re-asserting its
+    sheet each frame) keeps the cached belief until its stream closes; the sheet is persisted, so
+    it can't actually vanish under us mid-stream."""
     e = _wall(url).atlas
     now = time.monotonic()
-    if e is None or now - e["at"] > _ATLAS_VERIFY_S:
+    if (e is None or now - e["at"] > _ATLAS_VERIFY_S) and not has_stream(url):
         rows = {str(a["name"]): a for a in atlas_list(url) if isinstance(a, dict) and a.get("name")}
         _wall(url).atlas = e = {"at": now, "rows": rows}
-    return e["rows"]
+    return e["rows"] if e is not None else {}
 
 
 def _atlas_row(url: str, name: str):
