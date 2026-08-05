@@ -74,6 +74,9 @@ class _FakeStream:
     def __init__(self):
         self.records = []
 
+    def writable(self):
+        return True                        # never backlogged (backpressure has its own tests)
+
     def bind(self, name):
         self.records.append(("bind", name))
         return True
@@ -273,3 +276,97 @@ def test_aquarium_streams_on_the_lcd(tmp_path):
     # renders_offscreen == eager-stream-eligible: it's what the _run_matrix stream gate checks, so
     # the aquarium now streams on any wall that advertises canvas.stream + opsBin (LCD included).
     assert rt.renders_offscreen("canvas-aquarium") is True
+
+
+# ---------------------------------------------------------------------------
+# Stream backpressure: never queue stale frames behind a slow wall
+# ---------------------------------------------------------------------------
+def _live_stream_wall(url):
+    """A wall with a live (fake) stream attached; returns (wall, sent_records)."""
+    sent = []
+
+    class _Stream:
+        alive = True
+        _head_pending = False
+
+        def writable(self):
+            return False                       # the wall is behind; the pipe is full
+
+        def bind(self, name):
+            sent.append(("bind", name)); return True
+
+        def opsb(self, enc):
+            sent.append(("opsb", enc)); return True
+
+        def ops(self, payload):
+            sent.append(("ops", payload)); return True
+
+        def frame(self, fmt, px):
+            sent.append(("frame", fmt)); return True
+
+        def rects(self, rects, fmt=2):
+            sent.append(("rects", fmt)); return True
+
+    w = canvas_mod._wall(url)
+    w.stream = _Stream()
+    return w, sent
+
+
+def test_a_backlogged_stream_skips_the_ops_batch(monkeypatch):
+    """The LCD renders the stream at ~2 records/s under the aquarium while the app draws at
+    10 fps — sendall just parks the excess in the OS socket buffer, so the panel plays a
+    growing backlog: late, jerky, and still swimming after a stop. A full pipe now SKIPS
+    the whole batch (bind included, all-or-nothing); the next redraw supersedes it."""
+    url = "http://bp-ops"
+    surf = canvas_surface(url, 128, 64, ("rgb888",), ops_bin=True)
+    w, sent = _live_stream_wall(url)
+    surf.clear((0, 0, 0)).rect(1, 1, 4, 4, (255, 0, 0), fill=True)
+    assert surf.show() is True                 # reported drawn — the app loop just moves on
+    assert sent == []                          # but NOTHING was queued behind the backlog
+    w.stream = None
+    canvas_mod.forget_frame(url)
+
+
+def test_a_backlogged_stream_skips_the_frame_and_keeps_the_delta_base(monkeypatch):
+    """Skipping a frame must not advance the delta base: the wall still shows the last
+    DELIVERED frame, so the next delta has to diff against that, not the skipped one."""
+    url = "http://bp-frame"
+    surf = canvas_surface(url, 8, 4, ("rgb888", "rgb565"), rects=True)
+    w, sent = _live_stream_wall(url)
+    base = bytes(8 * 4 * 3)
+    w.last_frame = (8, 4, base)                # what the wall genuinely shows
+    newer = bytes([255]) * (8 * 4 * 3)
+    assert surf._push_rgb(newer) is True       # skipped, not queued
+    assert sent == []
+    assert w.last_frame == (8, 4, base)        # base untouched -> the next delta is honest
+    w.stream = None
+    canvas_mod.forget_frame(url)
+
+
+def test_aquarium_paces_itself_on_a_huge_panel():
+    """At 1280x800 the wall renders each aquarium batch far slower than the app draws
+    (~2 fps measured), so the app returns a hold matched to what the panel can show —
+    LED panels keep the lively ~10 fps."""
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location(
+        "aquarium_app", Path(__file__).resolve().parents[2] / "apps" / "canvas-aquarium" / "app.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    class _Cv:
+        can_composite = False
+        can_sprite = False                     # plain-shape fallback: no atlas needed
+
+        def __init__(self, w, h):
+            self.width, self.height = w, h
+
+        @staticmethod
+        def num(settings, key, default, lo=None, hi=None):
+            return default
+
+        def __getattr__(self, name):           # every draw op: accept anything, draw nothing
+            return lambda *a, **k: None
+
+    assert mod.fetch_canvas({}, _Cv(256, 64)) == 0.10     # LED: lively
+    assert mod.fetch_canvas({}, _Cv(1280, 800)) == 0.40   # LCD: paced to the panel

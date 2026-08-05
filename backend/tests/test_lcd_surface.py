@@ -134,16 +134,25 @@ def test_aquarium_scales_proportionally_not_at_all_on_led():
                 self.ops.append((name, a, k))
             return op
 
-    led = _Cv(256, 64)
-    mod.fetch_canvas({}, led)
-    tiles_led = [k for n, a, k in led.ops]
-    weeds_led = [(a, k) for n, a, k in led.ops if n == "polyline"]
-    assert weeds_led and all(k.get("t") == 1 for a, k in weeds_led)   # k==1: LED unchanged
+    # Scale is read off the BUBBLES (the weeds were cut to lighten the per-frame op
+    # load on the LCD): a crisp bubble's radius is size*k with k = max(1, int(H/64)).
+    def bubble_radii(cv):
+        # run a few frames so bubbles have spawned (spawn is probabilistic)
+        import random
+        random.seed(7)
+        for _ in range(30):
+            mod.fetch_canvas({}, cv)
+        return [a[2] for n, a, k in cv.ops if n == "circle" and a[2]]
 
+    mod.fetch_canvas._state = None
+    led = _Cv(256, 64)
+    r_led = bubble_radii(led)
+    assert r_led and all(r in (1, 2) for r in r_led)                  # k==1: LED unchanged
+
+    mod.fetch_canvas._state = None
     lcd = _Cv(1280, 800)
-    mod.fetch_canvas({}, lcd)
-    weeds_lcd = [(a, k) for n, a, k in lcd.ops if n == "polyline"]
-    assert weeds_lcd and all(k.get("t") == 12 for a, k in weeds_lcd)  # strokes scale ~H/64
+    r_lcd = bubble_radii(lcd)
+    assert r_lcd and all(r % 12 == 0 for r in r_lcd)                  # radii scale k = 800//64 = 12
     # the tile cap keeps 10 rgb888 tiles inside a 2 MB atlas sheet
     tile = max(8, min(max(22, 800 * 22 // 64), min(240, 800 // 3))) & ~1
     assert tile == 240 and 10 * tile * tile * 3 <= 2 * 1024 * 1024

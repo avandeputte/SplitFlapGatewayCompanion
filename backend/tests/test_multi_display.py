@@ -235,3 +235,71 @@ def test_the_switcher_is_invisible_with_one_display():
 
 def test_the_chosen_wall_is_remembered():
     assert 'localStorage.setItem("splitflap.display"' in APP_JS
+
+
+# ---------------------------------------------------------------------------
+# Display teardown: a discarded controller must never keep driving the wall
+# ---------------------------------------------------------------------------
+def test_abort_kills_a_loop_even_when_the_task_pointer_was_lost(tmp_path):
+    """The unstoppable-aquarium regression. A display teardown that lost track of the
+    running app task (an exception mid-teardown, a re-created controller) left an ORPHAN
+    loop pushing frames to the wall forever — unreachable by every stop, surviving even a
+    wall reboot. abort() marks the controller dead, and the next _entry_sleep of ANY loop
+    on it raises, task pointer or no task pointer."""
+    import asyncio
+
+    from app.config import Config as _Cfg
+    from app.engine import DisplayController
+    from app.state import DisplayState
+
+    async def run():
+        ctl = DisplayController(_Cfg(data_dir=tmp_path), DisplayState(45))
+        ticks = []
+
+        async def zombie():
+            while True:                       # keep_going lost track of us — worst case
+                ticks.append(1)
+                await ctl._entry_sleep(0.01)
+
+        task = asyncio.create_task(zombie())
+        await asyncio.sleep(0.05)
+        assert ticks                          # it runs
+        ctl._task = None                      # the orphan scenario: nothing points at it
+        ctl.abort()
+        await asyncio.sleep(0.05)
+        n = len(ticks)
+        await asyncio.sleep(0.05)
+        assert len(ticks) == n                # dead — not one more tick
+        assert task.done()
+
+    asyncio.run(run())
+
+
+def test_stop_display_stops_the_app_loop_even_when_a_teardown_step_raises(tmp_path):
+    """stop_display used to run ha.stop -> scheduler.stop -> controller.stop bare: an
+    exception in either early step skipped controller.stop() and leaked the app loop.
+    Now abort() runs first (synchronous, cannot fail) and each step is best-effort."""
+    import asyncio
+
+    from app import main as main_mod
+
+    async def run():
+        d = _display(tmp_path, id="lcd", name="lcd", gateway_url="")
+        aborted = []
+        d.controller.abort = lambda: aborted.append(True)
+
+        async def boom():
+            raise RuntimeError("broker gone")
+
+        d.ha.stop = boom                      # the failing early step
+        stopped = []
+
+        async def ctl_stop():
+            stopped.append(True)
+
+        d.controller.stop = ctl_stop
+        await main_mod.stop_display(d, [])
+        assert aborted == [True]              # the kill switch ran FIRST
+        assert stopped == [True]              # and the controller still got its stop
+
+    asyncio.run(run())

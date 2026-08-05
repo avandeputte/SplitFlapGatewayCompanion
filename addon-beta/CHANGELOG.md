@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.19
+
+- **The unstoppable app is fixed** — a display teardown (disable/re-create, e.g. after the wall
+  changed IP) that failed partway leaked its render loop: an orphan no stop could reach, pushing
+  frames to the wall forever (it even survived a wall reboot). Teardown now starts with a
+  synchronous kill switch every driver loop obeys, and each teardown step is best-effort.
+- **The draw stream no longer builds a backlog** — a wall that renders slower than an app draws
+  (the aquarium pushes 10 fps, the 1280×800 LCD renders ~2) silently queued seconds of stale
+  frames in the socket: late, jerky, and still playing after a stop. A full pipe now skips the
+  frame — the next one supersedes it — so the wall always shows the freshest state.
+- **Aquarium leaned out and paced to the panel** — weeds removed, far fewer bubbles, and on a huge
+  panel it draws at the rate the wall can actually show (~2.5 fps) instead of flooding it; LED
+  panels keep the lively ~10 fps look.
+
 ## 2.10.12-beta.18
 
 - **App changes no longer trigger a settings write on the gateway** — every switch updated

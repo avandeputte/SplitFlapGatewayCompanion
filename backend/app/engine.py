@@ -284,9 +284,33 @@ class DisplayController:
         self._skip_evt.set()
         return True
 
+    # Set by abort(): this controller is being discarded and must never drive hardware
+    # again. Checked in _entry_sleep — the one await every driver loop passes through —
+    # so even a loop whose task pointer was lost dies on its next cycle.
+    _dead = False
+
+    def abort(self) -> None:
+        """Synchronous kill switch for a controller being DISCARDED (display disabled,
+        deleted, re-created). Marks the controller dead — every driver loop's next
+        ``_entry_sleep`` raises — and fire-and-forget cancels the tracked task.
+
+        This must be the FIRST thing display teardown does, precisely because it cannot
+        fail: the async teardown after it (HA, scheduler, controller.stop) can raise, and
+        before this existed an exception there skipped ``controller.stop()`` — leaking a
+        LIVE render loop on a discarded controller object. That orphan kept pushing frames
+        to the wall forever, unreachable by any stop (they all target the replacement
+        controller): the unstoppable-aquarium bug. The wall even rebooted mid-zombie and
+        the loop simply re-adopted its draw stream and carried on."""
+        self._dead = True
+        task, self._task = self._task, None
+        if task is not None and not task.done():
+            task.cancel()
+
     async def _entry_sleep(self, delay: float) -> None:
         """asyncio.sleep(delay) that wakes immediately when the running playlist entry
         is skipped. Outside a playlist the event is never set — an ordinary sleep."""
+        if self._dead:
+            raise asyncio.CancelledError("controller aborted (display discarded)")
         if delay <= 0:
             return
         try:

@@ -1,16 +1,17 @@
 """Aquarium — a living reef drawn ON the panel with canvas draw-ops.
 
 A canvas app that shows off the on-device draw vocabulary instead of pushing a
-whole picture: a gradient water column, swaying weeds (polyline), rising bubbles
-(circle), and fish blitted from a sprite ATLAS — a few dozen draw-ops a frame, not
-a frame of pixels. The fish tiles are generated once with Pillow and uploaded to
-the panel's atlas; each frame just says "blit fish 3 at (x, y)". On a wall without
-the sprite op the fish fall back to being drawn from ops (ellipse + triangle). On a
+whole picture: a gradient water column, a few rising bubbles (circle), and fish
+blitted from a sprite ATLAS — a couple dozen draw-ops a frame, not a frame of
+pixels. The fish tiles are generated once with Pillow and uploaded to the panel's
+atlas; each frame just says "blit fish 3 at (x, y)". On a wall without the sprite
+op the fish fall back to being drawn from ops (ellipse + triangle). On a
 compositing wall (``canvas.can_composite``) it adds what the ops surface newly allows:
 additive **godrays** shimmering down from the surface and a soft **glow** around the
 bubbles — per-color alpha + the additive blend mode ride the binary stream as batch
-alpha (0x15), and (``aa_ok``) the weeds and bubbles are anti-aliased too, still at
-game rate (no per-frame HTTP).
+alpha (0x15), and (``aa_ok``) the bubbles are anti-aliased too, still at game rate
+(no per-frame HTTP). Kept deliberately lean — every op is rendered by the wall each
+frame, and the big LCD pays for each one (weeds were cut, bubbles are few).
 """
 
 import math
@@ -25,9 +26,6 @@ _WATER = {
     'deep': ((12, 60, 105), (2, 12, 34)),
     'dusk': ((70, 55, 125), (16, 18, 52)),
 }
-_WEED = (36, 150, 96)
-
-
 def _fish_tiles(s):
     """The sprite atlas: each palette right- then left-facing, on magenta."""
     from PIL import Image, ImageDraw
@@ -59,8 +57,6 @@ def _reset(st, W, H, n, tile):
             'd': d, 'sp': rng.uniform(0.35, 0.9), 'amp': rng.uniform(1.0, 2.4),
             'ph': rng.uniform(0, 6.28),
         })
-    st['weeds'] = [(int(x), rng.uniform(0, 6.28)) for x in
-                   range(4, max(5, W), max(10, W // 6))]
     st['bubbles'] = []
     st['sig'] = (W, H, tile, n)
 
@@ -121,22 +117,17 @@ def fetch_canvas(settings, canvas):
             canvas.poly(ray, (150, 205, 255, 30), fill=True)  # low-alpha, sums to a soft shaft
         canvas.blend('over')
 
-    for x, ph in st['weeds']:                                  # swaying weeds along the floor
-        sway = math.sin(frame * 0.08 + ph) * (W * 0.02)
-        h = int(H * 0.32)
-        pts = [(x, H), (x + sway * 0.4, H - h * 0.5), (x + sway, H - h)]
-        canvas.polyline(pts, _WEED, t=k, aa=aa)
-
     # bubbles: spawn near the floor, rise, pop at the top. Advance first, then draw, so the
     # additive halo and the crisp bubble land at the same position (no 1px glow offset).
-    if random.random() < 0.5:
+    # A sparse column — every bubble costs the wall two circles a frame (glow + crisp).
+    if random.random() < 0.25:
         st['bubbles'].append([random.uniform(2, W - 2), float(H), random.choice((1, 1, 2))])
     keep = []
     for b in st['bubbles']:
         b[1] -= (0.8 + b[2] * 0.3) * mv
         if b[1] > 0:
             keep.append(b)
-    st['bubbles'] = keep[-40:]
+    st['bubbles'] = keep[-12:]
     if glow:
         canvas.blend('add')
         for b in st['bubbles']:
@@ -164,4 +155,7 @@ def fetch_canvas(settings, canvas):
                             tx - f['d'] * tile // 3, cy + tile // 4, fin, fill=True)
 
     canvas.show()
-    return 0.10                                                # ~10 fps; binary over the draw stream
+    # ~10 fps on an LED panel; a huge panel (the 1280x800 LCD) renders each ops batch far
+    # slower than it draws — measured ~2 fps drain — so pace to what it can actually show:
+    # fewer, honest frames instead of a backlog of stale ones (jerky and seconds late).
+    return 0.10 if W * H <= 131072 else 0.40

@@ -607,7 +607,15 @@ async def start_display(d, companion_url: str = "") -> list:
 
 
 async def stop_display(d, tasks: list) -> None:
-    """Take ONE display down: flush what it owes its gateway, then unwind."""
+    """Take ONE display down: flush what it owes its gateway, then unwind.
+
+    ``abort()`` comes FIRST and is synchronous: it marks the controller dead (every
+    driver loop's next tick raises) and cancels the app task. Everything after it is
+    best-effort — before this, an exception in the HA/scheduler teardown skipped
+    ``controller.stop()`` and LEAKED a live render loop on the discarded controller:
+    an orphan no stop could reach (they all target the replacement), pushing frames to
+    the wall forever — the unstoppable aquarium."""
+    d.controller.abort()
     try:
         await asyncio.to_thread(d.settings.flush)
     except Exception:
@@ -625,9 +633,12 @@ async def stop_display(d, tasks: list) -> None:
             log.info("companion deregistered from display %r", d.id)
         except Exception:
             pass
-    await d.ha.stop()
-    await d.scheduler.stop()
-    await d.controller.stop()
+    for step in (d.ha.stop, d.scheduler.stop, d.controller.stop):
+        try:
+            await step()
+        except Exception as e:
+            log.warning("display %r teardown step %s failed: %s", d.id,
+                        getattr(step, "__qualname__", step), e)
 
 
 @asynccontextmanager

@@ -476,6 +476,25 @@ class CanvasStream:
             self._kill()
             return False
 
+    def writable(self) -> bool:
+        """Whether the socket can take another record RIGHT NOW without blocking.
+
+        The wall drains the stream at its own render pace (measured ~2 records/s on the
+        1280x800 LCD under the aquarium); a producer running faster does not get errors —
+        ``sendall`` just parks the excess in the OS socket buffer, which silently holds
+        SECONDS of stale frames. The panel then plays a growing backlog: late, jerky, and
+        still animating long after the app stopped. A caller that finds the pipe full
+        should SKIP its frame — the next one supersedes it — instead of queueing it.
+        The head-carrying first record always reports writable (it opens the request);
+        errors report True and let the send surface the real failure."""
+        if not self.alive or self.sock is None or self._head_pending:
+            return True
+        try:
+            import select
+            return bool(select.select([], [self.sock], [], 0)[1])
+        except Exception:
+            return True
+
     def frame(self, fmt: int, pixels: bytes) -> bool:            # 0x01 full frame (fmt 2=rgb565, 3=rgb888)
         return self._send(_tlv(0x01, bytes((int(fmt) & 0xFF,)) + bytes(pixels)))
 
@@ -1517,6 +1536,14 @@ class CanvasSurface(paneltext.PanelText):
         wall.last_kind = "opsb" if segments is not None else "ops"
         st = wall.stream
         if st is not None and st.alive:
+            # Backpressure: the wall renders the stream at its own pace, and a full socket
+            # means it is still chewing on earlier records. Queueing more just builds a
+            # standing backlog of stale frames (late, jerky, and still playing after a
+            # stop) — skip this WHOLE batch instead; the app's next redraw supersedes it.
+            # All-or-nothing per batch: a frame's bind+ops segments never split.
+            if not st.writable():
+                log.debug("canvas %s: stream backlogged, ops batch skipped", self.url)
+                return True
             if segments is not None:
                 if all((seg_name is None or st.bind(seg_name)) and st.opsb(enc)
                        for seg_name, enc in segments):
@@ -1592,6 +1619,14 @@ class CanvasSurface(paneltext.PanelText):
             log.info("canvas %s: [sim] frame not sent (%d B)", self.url, len(b))
             return True
         wall.last_kind = "frame"                           # this app pushes frames (stream heuristic)
+
+        # Backpressure (see CanvasStream.writable): a full stream socket means the wall is
+        # behind — skip this frame rather than queue a stale one. State untouched: the wall
+        # still shows the last DELIVERED frame, so the next delta diffs against the truth.
+        st = wall.stream
+        if st is not None and st.alive and not st.writable():
+            log.debug("canvas %s: stream backlogged, frame skipped", self.url)
+            return True
 
         handled = self._try_delta(wall, b)
         if handled is None:                                # delta didn't apply -> a full frame
