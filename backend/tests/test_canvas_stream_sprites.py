@@ -129,52 +129,6 @@ def test_atlas_upload_closes_an_open_stream(monkeypatch, gw_calls):
     wall.stream = None
 
 
-# --- the aquarium end to end -------------------------------------------------
-
-def test_aquarium_frame_is_opsb_capable_on_a_compositing_wall(monkeypatch):
-    import app.gateway as gateway
-
-    class _R:
-        status_code = 200
-
-        def json(self):
-            return []
-
-    monkeypatch.setattr(gateway, "_request", lambda m, u, p, **kw: _R())
-    app = load_app("canvas-aquarium")
-    cv = _cv(composite=True)
-    for _ in range(3):
-        app.fetch_canvas({"fish": "4"}, cv)
-    # rgba godrays/glow + the per-frame atlas bind no longer force the JSON kind:
-    assert canvas_mod._wall("http://gw").last_kind == "opsb"
-
-
-def test_aquarium_streams_bind_then_binary_frames(monkeypatch):
-    import app.gateway as gateway
-
-    class _R:
-        status_code = 200
-
-        def json(self):
-            return []
-
-    monkeypatch.setattr(gateway, "_request", lambda m, u, p, **kw: _R())
-    app = load_app("canvas-aquarium")
-    cv = _cv(composite=True)
-    import random
-    random.seed(1)                            # bubble spawn is probabilistic; seed(1) spawns one
-    app.fetch_canvas({"fish": "4"}, cv)                       # warm-up: upload + first frame
-    st = _FakeStream()
-    canvas_mod._wall("http://gw").stream = st
-    app.fetch_canvas({"fish": "4"}, cv)
-    kinds = [k for k, _ in st.records]
-    assert kinds == ["bind", "opsb"]                          # the whole frame rode the socket
-    payload = st.records[1][1]
-    assert b"\x14\x01" in payload                             # additive blend for the bubble glow
-    assert b"\x15" in payload                                 # batch alpha carries the rgba glow
-    canvas_mod._wall("http://gw").stream = None
-
-
 # --- §1.2 the engine adopts the stream UP FRONT -----------------------------
 
 def _stream_doc(*, ops_bin=True):
@@ -252,34 +206,6 @@ def test_no_eager_stream_without_binary_ops(monkeypatch, tmp_path):
     assert events and events[0] == "render", \
         f"a JSON-ops wall must not pre-open the stream, got {events[:3]}"
 
-
-def test_aquarium_streams_on_the_lcd(tmp_path):
-    """Streaming the aquarium once crashed the 0.1.0 LCD firmware — its per-run sprite-atlas PUT
-    must close any open draw stream, and that open->atlas->close sequence rebooted the wall, so it
-    carried manifest ``lcd_no_stream`` to stay on HTTP ops there. The firmware fixed the reboot and
-    the companion moves in lockstep with it, so the opt-out is gone: the aquarium is a plain
-    offscreen frame-push app again and eager-streams on the LCD (the fast path — HTTP is ~2.4 s per
-    frame on the 1280x800 wall). The whole opt-out mechanism was removed with it."""
-    import json
-    from pathlib import Path
-    from app.config import Config
-    from app.engine import DisplayController
-    from app.plugin_settings import PluginSettings
-    from app.plugins import PluginRuntime
-    from app.state import DisplayState
-    APPS = Path(__file__).resolve().parents[2] / "apps"
-    manifest = json.loads((APPS / "canvas-aquarium" / "manifest.json").read_text())
-    assert "lcd_no_stream" not in manifest                       # opt-out removed (lockstep w/ fixed fw)
-    cfg = Config(data_dir=tmp_path)
-    ctl = DisplayController(cfg, DisplayState(45))
-    assert not hasattr(ctl, "_lcd_stream_opt_out")              # mechanism gone, not just unused
-    ps = PluginSettings(tmp_path); ps.set_installed(["canvas-aquarium"])
-    rt = PluginRuntime(cfg, ps, APPS); rt.load(); ctl.attach_plugins(rt)
-    # renders_offscreen == eager-stream-eligible: it's what the _run_matrix stream gate checks, so
-    # the aquarium now streams on any wall that advertises canvas.stream + opsBin (LCD included).
-    assert rt.renders_offscreen("canvas-aquarium") is True
-
-
 # ---------------------------------------------------------------------------
 # Stream backpressure: never queue stale frames behind a slow wall
 # ---------------------------------------------------------------------------
@@ -345,35 +271,6 @@ def test_a_backlogged_stream_skips_the_frame_and_keeps_the_delta_base(monkeypatc
     canvas_mod.forget_frame(url)
 
 
-def test_aquarium_runs_at_8_fps_on_every_wall():
-    """One production rate, 8 fps: the stream's backpressure gate (writable) makes
-    overproduction safe — a slower wall (the LCD renders a few fps of this scene) skips
-    to the freshest frame at its own pace, never building a backlog. No per-panel caps."""
-    import importlib.util
-    from pathlib import Path
-    spec = importlib.util.spec_from_file_location(
-        "aquarium_app", Path(__file__).resolve().parents[2] / "apps" / "canvas-aquarium" / "app.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-
-    class _Cv:
-        can_composite = False
-        can_sprite = False                     # plain-shape fallback: no atlas needed
-
-        def __init__(self, w, h):
-            self.width, self.height = w, h
-
-        @staticmethod
-        def num(settings, key, default, lo=None, hi=None):
-            return default
-
-        def __getattr__(self, name):           # every draw op: accept anything, draw nothing
-            return lambda *a, **k: None
-
-    assert mod.fetch_canvas({}, _Cv(256, 64)) == 1 / 8    # LED
-    assert mod.fetch_canvas({}, _Cv(1280, 800)) == 1 / 8   # LCD: same — writable() adapts
-
-
 def test_stream_socket_is_small_buffered_and_closes_abortively():
     """The OS default send buffer held ~10 s of batches — the wall played a kernel-held
     backlog and, after a stop, a graceful close kept FLUSHING it (the wall rendered stale
@@ -410,31 +307,3 @@ def test_stream_socket_is_small_buffered_and_closes_abortively():
         for c in accepted:
             c.close()
         srv.close()
-
-
-def test_aquarium_batch_keeps_the_fish_on_the_sprite_fast_lane(monkeypatch):
-    """Two firmware-profiled costs, kept out of the batch for good: the godray shafts are
-    PRECOMPOSED into the water (additive light over a vertical gradient is just a brighter
-    vertical gradient -> opaque gradient columns, ~55 ms of blended quads gone), and a
-    blend-reset (0x14 00) sits IMMEDIATELY before the sprite run so the wall's run-batched
-    sprite fast lane engages (~20 ms -> ~5 ms for the fish). The only additive section left
-    is the bubble glow."""
-    import app.gateway as gateway
-
-    class _R:
-        status_code = 200
-
-        def json(self):
-            return []
-
-    monkeypatch.setattr(gateway, "_request", lambda m, u, p, **kw: _R())
-    app = load_app("canvas-aquarium")
-    cv = _cv(composite=True)
-    app.fetch_canvas({"fish": "4"}, cv)                       # warm-up: upload + first frame
-    st = _FakeStream()
-    canvas_mod._wall("http://gw").stream = st
-    app.fetch_canvas({"fish": "4"}, cv)
-    payload = st.records[1][1]
-    assert b"\x14\x00\x11" in payload                         # reset ADJACENT to the first blit
-    assert payload.count(b"\x14\x01") == 1                    # one additive section: bubble glow
-    canvas_mod._wall("http://gw").stream = None

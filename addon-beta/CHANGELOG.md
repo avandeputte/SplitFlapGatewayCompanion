@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.23
+
+- **Aquarium app removed** — superseded by the firmware's own aquarium effect, which renders
+  on-device with zero network traffic. An install that still lists it just skips it.
+
 ## 2.10.12-beta.22
 
 - **Aquarium at 8 fps** — plenty for its drift-and-sway motion; the backpressure gate still adapts

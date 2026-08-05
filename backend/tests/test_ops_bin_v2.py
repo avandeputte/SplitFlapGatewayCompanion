@@ -101,24 +101,6 @@ def test_v2_batch_with_aa_still_posts_binary(gw_calls):
     assert canvas_mod._wall("http://gw").last_kind == "opsb"
 
 
-def test_aquarium_keeps_streaming_with_aa(monkeypatch):
-    import app.gateway as gateway
-
-    class _R:
-        status_code = 200
-
-        def json(self):
-            return []
-
-    monkeypatch.setattr(gateway, "_request", lambda m, u, p, **kw: _R())
-    app = load_app("canvas-aquarium")
-    cv = _cv()
-    assert cv.aa_ok
-    for _ in range(6):                                        # bubbles spawn over a few frames
-        app.fetch_canvas({"fish": "4"}, cv)
-    assert canvas_mod._wall("http://gw").last_kind == "opsb"  # aa'd frame, still binary
-
-
 def test_opsbin_capability_is_a_plain_boolean():
     """canvas.opsBin: true = the binary encoding is supported, full stop."""
     from app import device

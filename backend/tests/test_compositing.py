@@ -37,30 +37,6 @@ def test_blend_and_rgba_encode_binary():
                             "color": [1, 2, 3, 4], "fill": True}])[:2] == b"\x15\x04"
 
 
-def test_aquarium_adds_glow_only_on_a_compositing_wall(monkeypatch):
-    import app.gateway as gateway
-
-    def batch(cv):
-        seen = []
-
-        class _R:
-            status_code = 200
-
-        monkeypatch.setattr(gateway, "_request",
-                            lambda m, u, p, *, timeout, **kw: (seen.append((p, kw.get("json"))) or _R()))
-        app = load_app("canvas-aquarium")
-        for _ in range(6):
-            app.fetch_canvas({}, cv)
-        return next(b for p, b in reversed(seen) if p == "/api/canvas/ops" and isinstance(b, list))
-
-    new = batch(_cv(composite=True))
-    assert any(o.get("op") == "blend" for o in new)         # godrays / bubble glow
-    assert any(isinstance(o.get("color"), list) and len(o["color"]) == 4 for o in new)
-    old = batch(_cv(composite=False))
-    assert not any(o.get("op") == "blend" for o in old)     # plain look on an older wall
-    assert not any(isinstance(o.get("color"), list) and len(o["color"]) == 4 for o in old)
-
-
 def test_chomper_power_glow_still_streams_binary(gw_calls):
     app = load_app("canvas-chomper")
     cv = _cv(composite=True)

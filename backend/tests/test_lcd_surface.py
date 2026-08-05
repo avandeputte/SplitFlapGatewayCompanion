@@ -93,8 +93,8 @@ def test_lcd_ops_apps_get_the_live_ops_surface(tmp_path):
     frame, instead of riding the offscreen pixel-push surface."""
     from app import canvas as canvas_mod
     from conftest import make_runtime
-    rt = make_runtime(tmp_path=tmp_path, installed=["canvas-aquarium"], caps=_lcd_caps())
-    assert rt._registry["canvas-aquarium"].get("lcd_ops") is True
+    rt = make_runtime(tmp_path=tmp_path, installed=["time"], caps=_lcd_caps())
+    assert rt._registry["time"].get("lcd_ops") is True
     s = rt.build_canvas_surface(ops=True)
     assert isinstance(s, canvas_mod.CanvasSurface) and not isinstance(s, LcdSurface)
     assert (s.width, s.height) == (1280, 800)
@@ -102,60 +102,8 @@ def test_lcd_ops_apps_get_the_live_ops_surface(tmp_path):
     led = device.from_capabilities({
         "product": "Matrix Gateway", "features": ["canvas"],
         "charset": {"common": "A"}, "canvas": {"width": 256, "height": 64}})
-    rt2 = make_runtime(tmp_path=tmp_path / "led", installed=["canvas-aquarium"], caps=led)
+    rt2 = make_runtime(tmp_path=tmp_path / "led", installed=["time"], caps=led)
     assert isinstance(rt2.build_canvas_surface(ops=True), canvas_mod.CanvasSurface)
-
-
-def test_aquarium_scales_proportionally_not_at_all_on_led():
-    """The aquarium's LCD scale factors must resolve to 1 at the LED design sizes —
-    the committed LED gallery look is the contract — and scale everything at LCD sizes
-    (its atlas tiles staying inside the wall's 2 MB sheet cap)."""
-    import importlib.util
-    import os
-    path = os.path.join(os.path.dirname(__file__), "..", "..", "apps",
-                        "canvas-aquarium", "app.py")
-    spec = importlib.util.spec_from_file_location("aquarium_prop", path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-
-    class _Cv:
-        def __init__(self, w, h):
-            self.width, self.height = w, h
-            self.can_sprite = False
-            self.can_composite = False
-            self.aa_ok = False
-            self.ops = []
-
-        def num(self, settings, key, default, lo, hi):
-            return default
-
-        def __getattr__(self, name):                     # every draw op records its args
-            def op(*a, **k):
-                self.ops.append((name, a, k))
-            return op
-
-    # Scale is read off the BUBBLES (the weeds were cut to lighten the per-frame op
-    # load on the LCD): a crisp bubble's radius is size*k with k = max(1, int(H/64)).
-    def bubble_radii(cv):
-        # run a few frames so bubbles have spawned (spawn is probabilistic)
-        import random
-        random.seed(7)
-        for _ in range(30):
-            mod.fetch_canvas({}, cv)
-        return [a[2] for n, a, k in cv.ops if n == "circle" and a[2]]
-
-    mod.fetch_canvas._state = None
-    led = _Cv(256, 64)
-    r_led = bubble_radii(led)
-    assert r_led and all(r in (1, 2) for r in r_led)                  # k==1: LED unchanged
-
-    mod.fetch_canvas._state = None
-    lcd = _Cv(1280, 800)
-    r_lcd = bubble_radii(lcd)
-    assert r_lcd and all(r % 12 == 0 for r in r_lcd)                  # radii scale k = 800//64 = 12
-    # the tile cap keeps 10 rgb888 tiles inside a 2 MB atlas sheet
-    tile = max(8, min(max(22, 800 * 22 // 64), min(240, 800 // 3))) & ~1
-    assert tile == 240 and 10 * tile * tile * 3 <= 2 * 1024 * 1024
 
 
 # --- zones on an LCD ---------------------------------------------------------
