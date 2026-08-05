@@ -1251,6 +1251,24 @@ class PluginRuntime:
             "builtin": builtin,
         }
 
+    BUILTIN_PLAYLIST = "All apps"
+
+    def builtin_playlists(self) -> dict:
+        """The out-of-the-box playlists, computed FRESH on every call — never stored.
+
+        "All apps" loops through every app on the Apps screen, in the screen's own
+        (name-sorted) order, so it always mirrors what is installed without anyone
+        maintaining it: install an app and the next cycle includes it, uninstall and
+        it is gone. Merged ahead of the saved playlists by every reader (the
+        /api/playlists route, Home Assistant's playlist select, MCP), marked
+        ``builtin`` so the UI offers Run without Edit/Delete, and its name is
+        reserved against saves. Empty when nothing is installed."""
+        apps = [a["id"] for a in self.app_list()]
+        if not apps:
+            return {}
+        return {self.BUILTIN_PLAYLIST: {"entries": [{"app": a} for a in apps],
+                                        "loop": True, "builtin": True}}
+
     def app_list(self, lang=None) -> list[dict]:
         """Installed (loaded) apps, sorted by name — powers the Apps grid.
         ``lang`` is the viewer's chrome language: names/descriptions come back

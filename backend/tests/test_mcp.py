@@ -305,7 +305,10 @@ def test_list_playlists_shows_the_running_order(mcp_on):
     })
     try:
         pls = call(mcp_on, "list_playlists")
-        assert pls[0]["apps"] == ["word-clock", "crypto", "(message)"]
+        # by name, not position: the computed "All apps" builtin rides first when apps
+        # are installed, ahead of the saved playlists
+        morning = next(p for p in pls if p["name"] == "morning")
+        assert morning["apps"] == ["word-clock", "crypto", "(message)"]
     finally:
         mcp_on.plugin_settings.set("saved_app_playlists", {})
 

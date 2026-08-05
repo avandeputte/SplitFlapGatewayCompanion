@@ -127,7 +127,8 @@ class HomeAssistant:
         # active app/playlist.
         d, av = self._device(), self._avail()
         apps = [a["name"] for a in self.plugins.app_list()]
-        pls = list(self.settings.get("saved_app_playlists", {}).keys())
+        pls = (list(self.plugins.builtin_playlists().keys())        # "All apps" first
+               + list(self.settings.get("saved_app_playlists", {}).keys()))
         out = [
             ("select", "app", {
                 "name": "App", "unique_id": f"{self.node}_app",
@@ -428,7 +429,8 @@ class HomeAssistant:
         elif topic == self._cmd("playlist"):
             if off:
                 return self.controller.stop_app()
-            pl = self.settings.get("saved_app_playlists", {}).get(payload)
+            pl = (self.settings.get("saved_app_playlists", {}).get(payload)
+                  or self.plugins.builtin_playlists().get(payload))
             if pl:
                 return self.controller.run_playlist(pl.get("entries", []), pl.get("loop", True), payload)
             log.info("HA: unknown playlist %r", payload)

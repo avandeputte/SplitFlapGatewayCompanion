@@ -1553,17 +1553,24 @@ async function loadPlaylists() {
     const row = el("div", "saved-row" + (n === PL_NAME ? " editing" : ""));
     row.dataset.name = n;      // identity, so plMarkEditing can move the highlight in place
     const nm = el("span", "grow"); nm.textContent = n; row.appendChild(nm);
+    if (SAVED_PL[n].builtin) {
+      // The out-of-the-box playlist ("All apps" = the Apps screen, always current):
+      // run-only — it is computed, so there is nothing to edit and nothing to delete.
+      const tag = el("span", "pill sm"); tag.textContent = t("built-in"); row.appendChild(tag);
+    }
     if (n === PL_NAME) { const tag = el("span", "pill sm"); tag.textContent = t("editing"); row.appendChild(tag); }
     const run = btn(t("Run"), () => guard(() =>
       post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n })
     ), "btn btn-sm primary");
     row.appendChild(run);
-    row.appendChild(btn(t("Edit"), () => plEdit(n), "btn btn-sm ghost"));
-    const rm = btn(t("Delete"), () => guard(async () => {
-      await del("/api/playlists/" + encodeURIComponent(n));
-      loadPlaylists();
-    }), "btn btn-sm ghost");
-    row.appendChild(rm);
+    if (!SAVED_PL[n].builtin) {
+      row.appendChild(btn(t("Edit"), () => plEdit(n), "btn btn-sm ghost"));
+      const rm = btn(t("Delete"), () => guard(async () => {
+        await del("/api/playlists/" + encodeURIComponent(n));
+        loadPlaylists();
+      }), "btn btn-sm ghost");
+      row.appendChild(rm);
+    }
     saved.appendChild(row);
   });
   if (!PL_ENTRIES.length) plRender();

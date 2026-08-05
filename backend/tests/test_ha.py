@@ -41,6 +41,12 @@ class FakePlugins:
     def app_list(self):
         return self._apps
 
+    def builtin_playlists(self):
+        # The real runtime computes "All apps" from the Apps screen; these tests pin the
+        # SAVED-playlist plumbing, so the builtin stays out of the way (its own coverage
+        # lives in test_builtin_playlist.py).
+        return {}
+
     def manifest(self, aid):
         return next((a for a in self._apps if a["id"] == aid), None)
 

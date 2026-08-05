@@ -312,12 +312,13 @@ def build(displays) -> MCPServer:
         """
         from .engine import _entry_label
         d = _res(display)
-        saved = d.settings.get("saved_app_playlists", {}) or {}
+        merged = {**d.plugins.builtin_playlists(),               # "All apps" first
+                  **(d.settings.get("saved_app_playlists", {}) or {})}
         return [
             {"name": n,
              "apps": [_entry_label(e) for e in (p or {}).get("entries", [])],
              "loop": bool((p or {}).get("loop"))}
-            for n, p in saved.items()
+            for n, p in merged.items()
         ]
 
     @mcp.tool()
@@ -327,7 +328,7 @@ def build(displays) -> MCPServer:
         `display` picks the wall (see list_displays); omit it for the default one."""
         d = _res(display)
         saved = d.settings.get("saved_app_playlists", {}) or {}
-        pl = saved.get(name)
+        pl = saved.get(name) or d.plugins.builtin_playlists().get(name)
         if not pl:
             raise ValueError(f"no such playlist: {name}")
         entries = pl.get("entries") or []

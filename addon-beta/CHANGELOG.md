@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.24
+
+- **Built-in "All apps" playlist** — the Shows tab now always offers a playlist that loops through
+  every app on the Apps screen, computed fresh on each read so it mirrors installs/uninstalls
+  automatically. Run-only (nothing to edit or delete), first in the list, and offered in Home
+  Assistant's playlist select and MCP too. The name is reserved.
+
 ## 2.10.12-beta.23
 
 - **Aquarium app removed** — superseded by the firmware's own aquarium effect, which renders

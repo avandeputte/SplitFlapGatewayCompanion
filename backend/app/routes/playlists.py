@@ -52,8 +52,11 @@ def build(deps) -> APIRouter:
     # -----------------------------------------------------------------------
     @router.get("/api/playlists")
     async def playlists_list(request: Request):
+        # The built-in "All apps" (computed fresh from the Apps screen) rides first,
+        # then the user's saved playlists — one dict, so every client shows both.
         d = deps.display_for(request)
-        return {"playlists": d.settings.get("saved_app_playlists", {})}
+        return {"playlists": {**d.plugins.builtin_playlists(),
+                              **d.settings.get("saved_app_playlists", {})}}
 
     @router.post("/api/playlists")
     async def playlists_save(request: Request, req: PlaylistSave):
@@ -61,6 +64,8 @@ def build(deps) -> APIRouter:
         name = req.name.strip()
         if not name:
             raise HTTPException(400, "name required")
+        if name in d.plugins.builtin_playlists():
+            raise HTTPException(400, f"{name!r} is the built-in playlist — pick another name")
         saved = dict(d.settings.get("saved_app_playlists", {}))
         saved[name] = {"entries": req.entries, "loop": req.loop}
         d.settings.set("saved_app_playlists", saved)
@@ -70,6 +75,8 @@ def build(deps) -> APIRouter:
     @router.delete("/api/playlists/{name}")
     async def playlists_delete(request: Request, name: str):
         d = deps.display_for(request)
+        if name in d.plugins.builtin_playlists():
+            raise HTTPException(400, f"{name!r} is built in — it cannot be deleted")
         saved = dict(d.settings.get("saved_app_playlists", {}))
         saved.pop(name, None)
         d.settings.set("saved_app_playlists", saved)

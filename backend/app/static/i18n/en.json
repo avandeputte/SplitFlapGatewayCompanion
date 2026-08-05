@@ -520,6 +520,7 @@
   "YouTube Video ID (live, for viewers)",
   "birdnetpi.local or 192.168.x.x",
   "blank = follow Location",
+  "built-in",
   "channel",
   "click a cell to type · arrows to move · a swatch paints the cell",
   "comma-separated codes",
