@@ -275,6 +275,28 @@ def take_over(url: str, timeout: float = 5.0) -> bool:
     stays on the flash-free path and still gets the takeover's full clear."""
     if _wall(url).sim:
         return True
+    stand_down(url, timeout=timeout)
+    return set_active(url, True, timeout=timeout)
+
+
+def stand_down(url: str, timeout: float = 5.0) -> bool:
+    """Stop any device-side renderer (effect / looping anim / ticker) the previous app left
+    running, WITHOUT claiming the panel — the quiet half of ``take_over``.
+
+    This is the switch path's whole need: a frame/ops app's first push claims the panel itself
+    (the firmware's ``canvasEnter(false)`` — park the reel renderer, keep the pixels), so pairing
+    the stand-down with ``set_active(True)`` bought nothing but its side effects: the firmware
+    CLEARS AND PRESENTS on that takeover, which (a) blanks the panel ~a second early — a black
+    hole between apps until the newcomer's first frame lands — and (b) adds one more full-panel
+    present to the switch, on hardware where every present is a visible blink. Skipping the claim
+    makes an app→app switch a clean cut: the old frame holds until the new one paints, exactly
+    like the wall's own UI. ``take_over`` (clear + claim) remains for the paths that WANT the
+    wipe — the stop-blank, and anything that must leave the panel empty.
+
+    The stand-down half runs only when the state poll says a renderer is actually live, so the
+    everyday switch costs one GET and touches nothing."""
+    if _wall(url).sim:
+        return True
     st = {}
     try:
         r = gateway._request("GET", url, "/api/canvas", timeout=timeout)
@@ -287,7 +309,7 @@ def take_over(url: str, timeout: float = 5.0) -> bool:
         if st.get("ticker"):
             put_ticker(url, "", timeout=timeout)
         forget_frame(url)
-    return set_active(url, True, timeout=timeout)
+    return True
 
 
 def play_effect(url: str, effect: str, speed: int = 5, hue=None, density=None,

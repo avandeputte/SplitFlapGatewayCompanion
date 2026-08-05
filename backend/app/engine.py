@@ -774,9 +774,16 @@ class DisplayController:
         """Ready the Matrix panel for a panel-rendering loop and return the gateway url — the
         opening move every such loop shares.
 
-        ``claim`` True (a frame-push / ops app): ``take_over`` (not bare ``set_active``) so the
-        firmware clears the whole panel AND stands down any device-side renderer the previous app
-        left running — effect, looping anim, ticker — instead of painting over the new app's frames.
+        ``claim`` True (a frame-push / ops app): ``stand_down`` — stop any device-side renderer the
+        previous app left running (effect, looping anim, ticker) WITHOUT claiming the panel. The
+        app's first push claims it on the firmware side (``canvasEnter(false)``: park the reel
+        renderer, keep the pixels), so the old ``take_over`` here bought only its side effects: the
+        firmware clears-and-presents on that claim, which blanked the panel a second early (a black
+        hole between apps until the first frame landed) and added one more full-panel present to the
+        switch — on the LCD every present is a visible blink, so a switch read as a burst of them.
+        Now an app→app switch is a clean cut: the old frame holds until the new one paints, exactly
+        like the wall's own UI. ``forget_frame`` guarantees that first push is a FULL frame — never
+        deltas against a base the panel may no longer be showing (canvas → flap page → canvas).
 
         ``claim`` False (a DEVICE-side renderer: an effect, on-device anim or ticker): do NOT take
         the panel over. The renderer claims the panel with its OWN POST, so grabbing raw-canvas mode
@@ -796,7 +803,8 @@ class DisplayController:
             await asyncio.to_thread(canvas.stream_end, url)
             if claim:
                 if not self._canvas_active:
-                    await asyncio.to_thread(canvas.take_over, url)
+                    await asyncio.to_thread(canvas.stand_down, url)
+                    canvas.forget_frame(url)          # first push must be a full, not deltas
             else:
                 # A device renderer POSTs its own claim next (gCanvasMode stays false), so taking the
                 # panel over is the wrong model — hand it back to the wall: release stands down any

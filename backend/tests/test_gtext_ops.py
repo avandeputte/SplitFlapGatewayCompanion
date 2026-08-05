@@ -218,7 +218,10 @@ def test_no_periodic_keyframe_over_a_stream():
 def test_take_panel_drops_a_lingering_stream_before_taking_over(monkeypatch, tmp_path):
     """The stuck-stream fix: every app start closes any draw stream a prior app left open, so
     a streaming ops app (the aquarium) switched away can't freeze the wall on its last frame
-    (the drawing REST endpoints 409 while a stream is open)."""
+    (the drawing REST endpoints 409 while a stream is open). The claim itself is the QUIET one
+    (stand_down, no set_active(True)): the firmware clears-and-presents on a takeover, which
+    blanked the panel early and added one more full-panel present per switch — a visible blink
+    on the LCD. The app's first push claims the panel instead; forget_frame makes it a full."""
     import asyncio
 
     from app.config import Config
@@ -229,13 +232,15 @@ def test_take_panel_drops_a_lingering_stream_before_taking_over(monkeypatch, tmp
         cfg = Config(data_dir=tmp_path)
         cfg._effective["transport"]["gateway_url"] = "http://gw"
         ctrl = DisplayController(cfg, DisplayState(cfg.module_count()))
-        ended, took = [], []
+        ended, stood, forgot = [], [], []
         monkeypatch.setattr(canvas, "stream_end", lambda url: ended.append(url))
-        monkeypatch.setattr(canvas, "take_over", lambda url: took.append(url))
+        monkeypatch.setattr(canvas, "stand_down", lambda url: stood.append(url))
+        monkeypatch.setattr(canvas, "forget_frame", lambda url: forgot.append(url))
         url = await ctrl._take_panel()
-        assert url == "http://gw" and ended == ["http://gw"] and took == ["http://gw"]
-        # already in canvas mode (canvas->canvas switch): still drop the prior stream, don't re-take
+        assert url == "http://gw" and ended == ["http://gw"] and stood == ["http://gw"]
+        assert forgot == ["http://gw"]                 # first push after a claim is a FULL frame
+        # already in canvas mode (canvas->canvas switch): still drop the prior stream, don't re-claim
         await ctrl._take_panel()
-        assert ended == ["http://gw", "http://gw"] and took == ["http://gw"]
+        assert ended == ["http://gw", "http://gw"] and stood == ["http://gw"]
 
     asyncio.run(run())

@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.17
+
+- **App switches no longer clear the panel first** — starting a canvas app claimed the panel with a
+  takeover the firmware answers with a clear-and-present: a black gap between apps and one more
+  full-panel present per switch (every present is a visible blink on the LCD). The engine now only
+  stands down a live device renderer and lets the new app's first frame claim the panel, so a
+  switch is a clean cut from the old picture to the new. The stop path keeps the authoritative
+  clear.
+
 ## 2.10.12-beta.16
 
 - **Lumina Clock renders at the LCD's native 1280×800** (`lcd_native`) instead of on the logical

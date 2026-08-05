@@ -84,8 +84,31 @@ def test_state_poll_failure_still_takes_the_panel(monkeypatch):
     assert ("POST", "/api/canvas", {"active": True}) in calls
 
 
-def test_engine_take_panel_goes_through_take_over(monkeypatch):
+def test_engine_take_panel_claims_quietly(monkeypatch):
+    """The switch path must NOT go through take_over (set_active(True)): the firmware
+    clears-and-presents on that takeover — a black hole between apps plus one more full-panel
+    present, i.e. one more visible blink per switch on the LCD. The engine stands down any live
+    device renderer and lets the app's first push claim the panel (canvasEnter(false): park the
+    reel renderer, keep the pixels). take_over stays for the paths that WANT the wipe (stop-blank)."""
     import inspect
     from app import engine
     src = inspect.getsource(engine.DisplayController._take_panel)
-    assert "canvas.take_over" in src and "canvas.set_active" not in src
+    assert "canvas.stand_down" in src and "canvas.forget_frame" in src
+    assert "canvas.take_over" not in src and "canvas.set_active" not in src
+    # the stop-blank keeps the authoritative clear
+    blank = inspect.getsource(engine.DisplayController._blank_panel)
+    assert "canvas.take_over" in blank and "canvas.release" in blank
+
+
+def test_stand_down_stops_a_live_renderer_without_claiming(monkeypatch):
+    """stand_down = the quiet half of take_over: with an effect live it stops it (active:false),
+    with nothing live it touches nothing — and it NEVER sends active:true (the clearing claim)."""
+    calls = _wire(monkeypatch, {"active": False, "effect": "plasma",
+                                "anim": False, "ticker": False})
+    assert canvas.stand_down("http://gw") is True
+    assert ("POST", "/api/canvas", {"active": False}) in calls
+    assert not any((j or {}).get("active") is True for _m, p, j in calls if p == "/api/canvas")
+    calls2 = _wire(monkeypatch, {"active": False, "effect": "none",
+                                 "anim": False, "ticker": False})
+    assert canvas.stand_down("http://gw") is True
+    assert [c for c in calls2 if c[0] == "POST"] == []     # idle wall: one GET, no writes
