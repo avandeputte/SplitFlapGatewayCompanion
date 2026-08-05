@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.21
+
+- **Aquarium renders on the wall's fast paths** — the godray shafts are precomposed into the water
+  gradient (additive light over a vertical gradient is just a brighter vertical gradient, so they
+  draw as opaque columns — ~55 ms of blended quads per frame gone), and the blend mode is
+  explicitly reset (0x14 00) right before the fish so the sprite run stays on the wall's
+  run-batched fast lane (~20 ms → ~5 ms). The bubble glow is the only blended section left.
+
 ## 2.10.12-beta.20
 
 - **Stopping a streaming app is now instant and final** — the OS socket buffer held seconds of

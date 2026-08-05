@@ -161,6 +161,8 @@ def test_aquarium_streams_bind_then_binary_frames(monkeypatch):
     monkeypatch.setattr(gateway, "_request", lambda m, u, p, **kw: _R())
     app = load_app("canvas-aquarium")
     cv = _cv(composite=True)
+    import random
+    random.seed(1)                            # bubble spawn is probabilistic; seed(1) spawns one
     app.fetch_canvas({"fish": "4"}, cv)                       # warm-up: upload + first frame
     st = _FakeStream()
     canvas_mod._wall("http://gw").stream = st
@@ -168,8 +170,8 @@ def test_aquarium_streams_bind_then_binary_frames(monkeypatch):
     kinds = [k for k, _ in st.records]
     assert kinds == ["bind", "opsb"]                          # the whole frame rode the socket
     payload = st.records[1][1]
-    assert b"\x14\x01" in payload                             # additive blend for the godrays
-    assert b"\x15" in payload                                 # batch alpha carries the rgba look
+    assert b"\x14\x01" in payload                             # additive blend for the bubble glow
+    assert b"\x15" in payload                                 # batch alpha carries the rgba glow
     canvas_mod._wall("http://gw").stream = None
 
 
@@ -408,3 +410,31 @@ def test_stream_socket_is_small_buffered_and_closes_abortively():
         for c in accepted:
             c.close()
         srv.close()
+
+
+def test_aquarium_batch_keeps_the_fish_on_the_sprite_fast_lane(monkeypatch):
+    """Two firmware-profiled costs, kept out of the batch for good: the godray shafts are
+    PRECOMPOSED into the water (additive light over a vertical gradient is just a brighter
+    vertical gradient -> opaque gradient columns, ~55 ms of blended quads gone), and a
+    blend-reset (0x14 00) sits IMMEDIATELY before the sprite run so the wall's run-batched
+    sprite fast lane engages (~20 ms -> ~5 ms for the fish). The only additive section left
+    is the bubble glow."""
+    import app.gateway as gateway
+
+    class _R:
+        status_code = 200
+
+        def json(self):
+            return []
+
+    monkeypatch.setattr(gateway, "_request", lambda m, u, p, **kw: _R())
+    app = load_app("canvas-aquarium")
+    cv = _cv(composite=True)
+    app.fetch_canvas({"fish": "4"}, cv)                       # warm-up: upload + first frame
+    st = _FakeStream()
+    canvas_mod._wall("http://gw").stream = st
+    app.fetch_canvas({"fish": "4"}, cv)
+    payload = st.records[1][1]
+    assert b"\x14\x00\x11" in payload                         # reset ADJACENT to the first blit
+    assert payload.count(b"\x14\x01") == 1                    # one additive section: bubble glow
+    canvas_mod._wall("http://gw").stream = None

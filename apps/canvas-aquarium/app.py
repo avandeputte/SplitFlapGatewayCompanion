@@ -6,12 +6,15 @@ blitted from a sprite ATLAS — a couple dozen draw-ops a frame, not a frame of
 pixels. The fish tiles are generated once with Pillow and uploaded to the panel's
 atlas; each frame just says "blit fish 3 at (x, y)". On a wall without the sprite
 op the fish fall back to being drawn from ops (ellipse + triangle). On a
-compositing wall (``canvas.can_composite``) it adds what the ops surface newly allows:
-additive **godrays** shimmering down from the surface and a soft **glow** around the
-bubbles — per-color alpha + the additive blend mode ride the binary stream as batch
-alpha (0x15), and (``aa_ok``) the bubbles are anti-aliased too, still at game rate
+compositing wall (``canvas.can_composite``) it adds **godrays** — light shafts
+PRECOMPOSED into the water gradient (additive light over a vertical gradient is just a
+brighter vertical gradient, so they draw as opaque columns, no blending) — and a soft
+additive **glow** around the bubbles, whose per-color alpha rides the binary stream as
+batch alpha (0x15); (``aa_ok``) the bubbles are anti-aliased too, still at game rate
 (no per-frame HTTP). Kept deliberately lean — every op is rendered by the wall each
-frame, and the big LCD pays for each one (weeds were cut, bubbles are few).
+frame, and the big LCD pays for each one (weeds were cut, bubbles are few, and the
+blend mode is explicitly reset right before the fish so the sprite run stays on the
+wall's fast lane).
 """
 
 import math
@@ -108,14 +111,21 @@ def fetch_canvas(settings, canvas):
 
     glow = bool(getattr(canvas, 'can_composite', False))
     aa = bool(getattr(canvas, 'aa_ok', False))     # smooth strokes only where they stay binary
-    if glow:                                                   # godrays: additive light shafts
-        canvas.blend('add')                                   # from the surface, slowly drifting
+    if glow:
+        # Godrays PRECOMPOSED into the background: additive light over a vertical gradient
+        # is itself a vertical gradient (water(y) + ray*alpha), so each shaft draws as an
+        # OPAQUE gradient column — same pixels, zero blended quads (the three translucent
+        # polys cost the wall ~55 ms a frame at 1280x800; the gradient op is scanline
+        # fills on its fast path). Same slow drift, drawn right after the water so the
+        # bubbles and fish stack on top.
+        a = 30 / 255.0
+        ray = (150, 205, 255)
+        rt = tuple(min(255, int(top[c] + ray[c] * a)) for c in range(3))
+        rb = tuple(min(255, int(bot[c] + ray[c] * a)) for c in range(3))
         for i in range(3):
             bx = int((i + 0.5) * W / 3 + math.sin(frame * 0.02 + i * 2.1) * W * 0.06)
-            wtop, wbot = max(2, W // 22), max(4, W // 9)
-            ray = [(bx - wtop, 0), (bx + wtop, 0), (bx + wbot, H), (bx - wbot, H)]
-            canvas.poly(ray, (150, 205, 255, 30), fill=True)  # low-alpha, sums to a soft shaft
-        canvas.blend('over')
+            w2 = max(3, W // 13)                  # ~the old trapezoid's mean half-width
+            canvas.gradient(bx - w2, 0, 2 * w2, H, rt, rb, 'v')
 
     # bubbles: spawn near the floor, rise, pop at the top. Advance first, then draw, so the
     # additive halo and the crisp bubble land at the same position (no 1px glow offset).
@@ -136,6 +146,10 @@ def fetch_canvas(settings, canvas):
     for b in st['bubbles']:
         canvas.circle(int(b[0]), int(b[1]), b[2] * k, (200, 235, 255), aa=aa)
 
+    if glow:
+        canvas.blend('over')                       # explicit reset ADJACENT to the sprite run: the
+                                                   # wall's run-batched sprite fast lane keys on it
+                                                   # (blended path was ~20 ms for the fish; over ~5)
     for f in st['fish']:                                       # drift the fish, wrap at the edges
         f['x'] += f['d'] * f['sp'] * mh
         y = int(f['y'] + math.sin(frame * 0.1 + f['ph']) * f['amp'] * mv)
