@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.18
+
+- **App changes no longer trigger a settings write on the gateway** — every switch updated
+  `last_run` and the mirror pushed the whole settings blob to the wall, a flash write that stalls
+  the LCD's scanout (the visible white blinks) and wears the part. In mirror mode `last_run` is now
+  volatile: it persists locally (restart-resume unchanged) but never schedules a gateway push by
+  itself; it rides along when a real settings change pushes. Gateway-only mode is unchanged.
+
 ## 2.10.12-beta.17
 
 - **App switches no longer clear the panel first** — starting a canvas app claimed the panel with a

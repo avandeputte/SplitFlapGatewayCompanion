@@ -588,6 +588,32 @@ def test_settings_mirror_push_and_restore(tmp_path):
     assert ps.get("language") == "de" and ps.installed_apps == ["weather"]
 
 
+def test_volatile_key_change_never_pushes_to_the_gateway(tmp_path):
+    """A settings PUT is a FLASH write on the wall, and on the LCD the flash write stalls the
+    scanout — the panel blinks white. ``last_run`` changes on every app switch, so mirror mode
+    marks it VOLATILE: it persists to the local file (restart-resume) but never schedules a
+    push by itself; it rides along when a durable change pushes."""
+    import json
+    from app.plugin_settings import PluginSettings
+    ps = PluginSettings(tmp_path)
+    pushed = []
+    ps.attach_gateway_sync(lambda doc: pushed.append(doc) or True, debounce=60,
+                           volatile=("last_run",))
+    ps.set("last_run", {"kind": "app", "app": "time"})         # an app switch
+    assert ps.flush() is True and pushed == []                  # nothing pending: no flash write
+    on_disk = json.loads((tmp_path / "app_settings.json").read_text())
+    assert on_disk["last_run"] == {"kind": "app", "app": "time"}   # resume still works (meta key)
+    ps.set("language", "fr")                                    # a durable change
+    ps.set("last_run", {"kind": "app", "app": "iss"})           # more churn while pending
+    ps.flush()
+    assert len(pushed) == 1                                     # one push, carrying both
+    assert pushed[0]["global"]["language"] == "fr"
+    assert pushed[0]["last_run"] == {"kind": "app", "app": "iss"}
+    pushed.clear()
+    ps.set("last_run", {"kind": "app", "app": "moon-phase"})    # churn after the push
+    assert ps.flush() is True and pushed == []                  # still quiet
+
+
 def test_gateway_settings_http_roundtrip():
     """The gzipped GET/PUT wire format (the contract Gateway 3.1 implements) round-trips."""
     import http.server

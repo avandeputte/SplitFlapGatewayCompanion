@@ -126,6 +126,7 @@ class PluginSettings:
         self._local_persist = local_persist      # False = gateway-only (nothing local)
         self._pusher = None                       # callable(nested_doc) -> bool
         self._debounce = 3.0
+        self._volatile: frozenset = frozenset()   # keys that never trigger a push themselves
         self._timer: threading.Timer | None = None
         self._dirty = False
         if local_persist:
@@ -227,11 +228,22 @@ class PluginSettings:
         doc["apps"] = {a: dict(sorted(kv.items())) for a, kv in sorted(apps.items())}
         return doc
 
-    def _save(self) -> None:
+    def _save(self, changed=None) -> None:
         """A settings mutation: persist locally (unless gateway-only) and schedule a
-        debounced push to the gateway mirror if one is attached."""
+        debounced push to the gateway mirror if one is attached.
+
+        ``changed`` — the keys this mutation touched. A change that is entirely VOLATILE
+        keys (see attach_gateway_sync) updates the local file but does NOT dirty the
+        mirror or schedule a push: on the gateway a settings PUT is a FLASH write, and
+        the flash write stalls the LCD's scanout — the panel visibly blinks — besides
+        wearing the part. Volatile state (what app is running now) churns on every app
+        switch and is only needed for the local restart-resume, so it must never be the
+        reason a blob goes to the gateway. It still rides along whenever a durable
+        change pushes. A push already pending stays pending (the timer keeps running)."""
         if self._local_persist:
             self._write_raw_doc(self._to_nested())
+        if changed is not None and self._volatile and set(changed) <= self._volatile:
+            return
         self._dirty = True
         self._schedule_push()
 
@@ -242,11 +254,17 @@ class PluginSettings:
         atomic_write_json(self.path, doc)
 
     # -- gateway mirror ----------------------------------------------------
-    def attach_gateway_sync(self, pusher, debounce: float = 3.0) -> None:
+    def attach_gateway_sync(self, pusher, debounce: float = 3.0, volatile=()) -> None:
         """Register a push callback (nested_doc -> bool) called, debounced, after
-        changes. Used to mirror settings onto the gateway (Gateway 3.1+)."""
+        changes. Used to mirror settings onto the gateway (Gateway 3.1+).
+
+        ``volatile`` — keys whose changes are LOCAL-ONLY triggers: they persist to the
+        local file (restart-resume) but never schedule a gateway push by themselves,
+        because each push is a flash write on the wall (scanout blink + wear). They are
+        still included in the doc whenever a durable change pushes."""
         self._pusher = pusher
         self._debounce = max(0.0, float(debounce))
+        self._volatile = frozenset(volatile)
 
     def restore_from_doc(self, doc: dict) -> None:
         """Replace the store from a gateway-provided nested doc (boot restore on a
@@ -326,12 +344,12 @@ class PluginSettings:
     def set(self, key: str, value) -> None:
         with self._lock:
             self._data[key] = value
-            self._save()
+            self._save(changed=(key,))
 
     def update(self, mapping: dict) -> None:
         with self._lock:
             self._data.update(mapping)
-            self._save()
+            self._save(changed=tuple(mapping))
 
     @property
     def installed_apps(self) -> list[str]:

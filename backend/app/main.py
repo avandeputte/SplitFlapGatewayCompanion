@@ -369,7 +369,12 @@ async def setup_settings_sync(d=None) -> None:
             settings.sync_now()                   # seed the empty gateway
         log.info("settings[%s]: stored ONLY on the gateway (3.1+)", d.id)
     else:  # mirror
-        settings.attach_gateway_sync(_pusher, debounce)
+        # last_run is VOLATILE in mirror mode: it changes on every app switch, and each mirror
+        # push is a FLASH write on the wall — the write stalls the LCD's scanout (the panel
+        # visibly blinks white) and wears the part. The local file (which restart-resume reads)
+        # still records it on every change; it rides along whenever a durable change pushes.
+        # Gateway-only mode above keeps pushing it — there the gateway IS the resume store.
+        settings.attach_gateway_sync(_pusher, debounce, volatile=(LAST_RUN_SETTING,))
         has_local = settings.has_local()
         remote = await asyncio.to_thread(fetch_gateway_settings, url)
         if not has_local and remote is not None:
