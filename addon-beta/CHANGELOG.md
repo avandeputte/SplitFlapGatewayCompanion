@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.22
+
+- **Aquarium at 8 fps** — plenty for its drift-and-sway motion; the backpressure gate still adapts
+  the delivered rate to whatever each wall can render.
+
 ## 2.10.12-beta.21
 
 - **Aquarium renders on the wall's fast paths** — the godray shafts are precomposed into the water

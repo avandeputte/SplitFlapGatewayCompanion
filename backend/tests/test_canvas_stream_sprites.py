@@ -345,8 +345,8 @@ def test_a_backlogged_stream_skips_the_frame_and_keeps_the_delta_base(monkeypatc
     canvas_mod.forget_frame(url)
 
 
-def test_aquarium_runs_at_15_fps_on_every_wall():
-    """One production rate, 15 fps: the stream's backpressure gate (writable) makes
+def test_aquarium_runs_at_8_fps_on_every_wall():
+    """One production rate, 8 fps: the stream's backpressure gate (writable) makes
     overproduction safe — a slower wall (the LCD renders a few fps of this scene) skips
     to the freshest frame at its own pace, never building a backlog. No per-panel caps."""
     import importlib.util
@@ -370,8 +370,8 @@ def test_aquarium_runs_at_15_fps_on_every_wall():
         def __getattr__(self, name):           # every draw op: accept anything, draw nothing
             return lambda *a, **k: None
 
-    assert mod.fetch_canvas({}, _Cv(256, 64)) == 1 / 15   # LED
-    assert mod.fetch_canvas({}, _Cv(1280, 800)) == 1 / 15  # LCD: same — writable() adapts
+    assert mod.fetch_canvas({}, _Cv(256, 64)) == 1 / 8    # LED
+    assert mod.fetch_canvas({}, _Cv(1280, 800)) == 1 / 8   # LCD: same — writable() adapts
 
 
 def test_stream_socket_is_small_buffered_and_closes_abortively():

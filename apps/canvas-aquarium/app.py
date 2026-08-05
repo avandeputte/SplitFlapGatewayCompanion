@@ -169,8 +169,8 @@ def fetch_canvas(settings, canvas):
                             tx - f['d'] * tile // 3, cy + tile // 4, fin, fill=True)
 
     canvas.show()
-    # 15 fps production on every wall. Overproducing is safe: the draw stream's
-    # backpressure gate (CanvasStream.writable) SKIPS a frame whenever the wall is still
-    # rendering earlier ones, so a slower panel (the 1280x800 LCD renders a few fps of
-    # this scene) simply shows the freshest frame at its own pace — never a backlog.
-    return 1 / 15
+    # 8 fps production on every wall — plenty for the drift/sway motion here. Overproducing
+    # is safe regardless: the draw stream's backpressure gate (CanvasStream.writable) SKIPS
+    # a frame whenever the wall is still rendering earlier ones, so a slower panel simply
+    # shows the freshest frame at its own pace — never a backlog.
+    return 1 / 8
