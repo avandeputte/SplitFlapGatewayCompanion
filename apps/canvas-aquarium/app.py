@@ -155,7 +155,8 @@ def fetch_canvas(settings, canvas):
                             tx - f['d'] * tile // 3, cy + tile // 4, fin, fill=True)
 
     canvas.show()
-    # ~10 fps on an LED panel; a huge panel (the 1280x800 LCD) renders each ops batch far
-    # slower than it draws — measured ~2 fps drain — so pace to what it can actually show:
-    # fewer, honest frames instead of a backlog of stale ones (jerky and seconds late).
-    return 0.10 if W * H <= 131072 else 0.40
+    # 15 fps production on every wall. Overproducing is safe: the draw stream's
+    # backpressure gate (CanvasStream.writable) SKIPS a frame whenever the wall is still
+    # rendering earlier ones, so a slower panel (the 1280x800 LCD renders a few fps of
+    # this scene) simply shows the freshest frame at its own pace — never a backlog.
+    return 1 / 15

@@ -455,6 +455,16 @@ class CanvasStream:
             self.sock = (self._connect() if self._connect
                          else socket.create_connection((u.hostname, u.port or 80), self.timeout))
             self.sock.settimeout(self.timeout)
+            # A SMALL send buffer, so ``writable()`` tells the truth. The OS default (hundreds
+            # of KB) swallowed ~10 SECONDS of aquarium batches before the gate ever engaged:
+            # the wall played a kernel-held backlog — late, and still draining long after a
+            # stop (a graceful close flushes the buffer in the background; the wall kept
+            # rendering ~14 s of stale frames, re-raising canvas mode over the release).
+            # ~16 KB holds a batch or two: at most a moment of the scene is ever in flight.
+            try:
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 16384)
+            except Exception:
+                pass                                       # best-effort (fakes, exotic stacks)
             self.alive = True
             self._head_pending = True
             return True
@@ -535,6 +545,17 @@ class CanvasStream:
         self._head_pending = False
         try:
             if self.sock:
+                # ABORTIVE close (SO_LINGER 0 -> RST): anything still unsent dies with the
+                # stream. A graceful close instead FLUSHES the buffer in the background —
+                # the wall went on rendering seconds of a stopped app's stale frames, each
+                # record re-raising canvas mode over the hand-back, so the flap wall never
+                # came back. A dead stream's frames must die with it: a stop is final, and
+                # a re-adopted stream always opens with a fresh keyframe anyway.
+                try:
+                    self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
+                                         struct.pack("ii", 1, 0))
+                except Exception:
+                    pass                               # best-effort (fakes, exotic stacks)
                 self.sock.close()
         except Exception:
             pass

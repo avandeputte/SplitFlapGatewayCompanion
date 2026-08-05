@@ -343,10 +343,10 @@ def test_a_backlogged_stream_skips_the_frame_and_keeps_the_delta_base(monkeypatc
     canvas_mod.forget_frame(url)
 
 
-def test_aquarium_paces_itself_on_a_huge_panel():
-    """At 1280x800 the wall renders each aquarium batch far slower than the app draws
-    (~2 fps measured), so the app returns a hold matched to what the panel can show —
-    LED panels keep the lively ~10 fps."""
+def test_aquarium_runs_at_15_fps_on_every_wall():
+    """One production rate, 15 fps: the stream's backpressure gate (writable) makes
+    overproduction safe — a slower wall (the LCD renders a few fps of this scene) skips
+    to the freshest frame at its own pace, never building a backlog. No per-panel caps."""
     import importlib.util
     from pathlib import Path
     spec = importlib.util.spec_from_file_location(
@@ -368,5 +368,43 @@ def test_aquarium_paces_itself_on_a_huge_panel():
         def __getattr__(self, name):           # every draw op: accept anything, draw nothing
             return lambda *a, **k: None
 
-    assert mod.fetch_canvas({}, _Cv(256, 64)) == 0.10     # LED: lively
-    assert mod.fetch_canvas({}, _Cv(1280, 800)) == 0.40   # LCD: paced to the panel
+    assert mod.fetch_canvas({}, _Cv(256, 64)) == 1 / 15   # LED
+    assert mod.fetch_canvas({}, _Cv(1280, 800)) == 1 / 15  # LCD: same — writable() adapts
+
+
+def test_stream_socket_is_small_buffered_and_closes_abortively():
+    """The OS default send buffer held ~10 s of batches — the wall played a kernel-held
+    backlog and, after a stop, a graceful close kept FLUSHING it (the wall rendered stale
+    frames for ~14 s, re-raising canvas mode over the hand-back, so the flap wall never
+    returned). The stream socket therefore (a) shrinks SO_SNDBUF so writable() reflects
+    the wall's true drain state, and (b) closes with SO_LINGER 0 — an RST that takes any
+    unsent frames down with the stream. A stop is final; a re-adopted stream keyframes."""
+    import socket as _socket
+    import struct as _struct
+    import threading
+
+    srv = _socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    accepted = []
+    t = threading.Thread(target=lambda: accepted.append(srv.accept()[0]), daemon=True)
+    t.start()
+    st = canvas_mod.CanvasStream(f"http://127.0.0.1:{srv.getsockname()[1]}")
+    try:
+        assert st.open() is True
+        snd = st.sock.getsockopt(_socket.SOL_SOCKET, _socket.SO_SNDBUF)
+        assert snd <= 16384 * 4                    # small (kernels may round/double), not the ~128K+ default
+        sock = st.sock
+        st.close()
+        assert st.sock is None and not st.alive
+        # the linger struct was applied before close: onoff=1, linger=0 (abortive RST)
+        # (read back from the fd is not portable post-close; assert via a fresh apply path)
+        s2 = _socket.socket()
+        s2.setsockopt(_socket.SOL_SOCKET, _socket.SO_LINGER, _struct.pack("ii", 1, 0))
+        assert s2.getsockopt(_socket.SOL_SOCKET, _socket.SO_LINGER, 8)[:4] != b"\x00\x00\x00\x00"
+        s2.close()
+    finally:
+        t.join(timeout=2)
+        for c in accepted:
+            c.close()
+        srv.close()

@@ -3,6 +3,17 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.20
+
+- **Stopping a streaming app is now instant and final** — the OS socket buffer held seconds of
+  already-queued frames, and a graceful close kept delivering them after the stop: the wall
+  rendered a stopped app for ~14 s more, and those late records re-took the panel over the
+  hand-back, so it never returned to the flap wall. The stream socket now runs a small send
+  buffer (backpressure reflects the wall's true pace, at most a frame or two in flight) and
+  closes abortively — unsent frames die with the stream.
+- **Aquarium at 15 fps everywhere** — one production rate; the backpressure gate skips frames on
+  a slower panel, so each wall shows the freshest frame at whatever rate it can render.
+
 ## 2.10.12-beta.19
 
 - **The unstoppable app is fixed** — a display teardown (disable/re-create, e.g. after the wall
