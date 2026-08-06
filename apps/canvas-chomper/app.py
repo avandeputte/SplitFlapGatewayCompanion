@@ -417,7 +417,11 @@ def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=No
     # The grid is stretched edge-to-edge: as many ~4.5px cells (LED px — k-scaled) as fit
     # (odd counts, so the outer wall stays one cell thick), each row/column mapped to
     # pixel edges — no dead margin anywhere, and a 64px panel plays six corridor rows.
-    cols, rows = max(11, int(W / (4.5 * k))), max(5, int(H / (4.5 * k)))
+    # On a scaled panel the row budget tightens to 4.2: at the LCD's 16:10 frame the
+    # shared 4.5 left cells ~10% taller than wide — two more rows (15 at 1280x800)
+    # square them and add a corridor. k == 1 keeps the LED grid exactly as it was.
+    rv = 4.2 if k > 1 else 4.5
+    cols, rows = max(11, int(W / (4.5 * k))), max(5, int(H / (rv * k)))
     cols -= 1 - (cols % 2)
     rows -= 1 - (rows % 2)
     xe = [round(i * W / cols) for i in range(cols + 1)]

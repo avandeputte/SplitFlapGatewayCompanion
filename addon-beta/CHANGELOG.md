@@ -3,6 +3,11 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.29
+
+- **Chomper: two more maze rows on the LCD** — the 16:10 frame left cells ~10% taller than wide;
+  a tighter row budget squares them (15 rows at 1280×800, one more corridor). LED unchanged.
+
 ## 2.10.12-beta.28
 
 - **Chomper is crisp on the LCD** — the maze keeps its classic ~13-row density but draws with
