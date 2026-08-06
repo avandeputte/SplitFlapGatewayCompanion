@@ -223,22 +223,19 @@ def _cv_tall_ops(canvas, author, text, idx, total, W, H):
     pad = max(5, int(W * 0.02))
 
     # Header: author in the accent, the i/N mark opposite, a hairline rule under.
-    # gtext's y is the ascent-box top (ink starts ~0.2 of the size below), so the
-    # author's box is backed off to put its ink on the pad line like text_top did.
+    # valign anchors the author's ink-top on the pad line; the mark's ink centres on
+    # the author's 'Ag' band and the rule clears its bottom — all off the real ink.
     mark = f'{idx + 1}/{total}'
     msz = canvas.fit_gtext(mark, int(W * 0.22), max(9, int(H * 0.09)))
     mw = int(canvas.text_width(mark, msz)) + max(6, int(W * 0.024))
     asz = max(9, int(H * 0.11))
-    ay = pad - int(asz * 0.18)
-    an = str(author)
-    if canvas.text_width(an, asz) > W - 2 * pad - mw:      # _cv_trim, in gtext units
-        while an and canvas.text_width(an + '…', asz) > W - 2 * pad - mw:
-            an = an[:-1]
-        an = (an + '…') if an else ''
-    canvas.gtext(pad, ay, an, color=_CV_AUTHOR, size=asz)
-    canvas.gtext(W - pad, ay + int(0.565 * (asz - msz)), mark,
-                 color=_CV_DIM, size=msz, align='right')
-    ry = pad + int(asz * 0.97) + max(4, int(H * 0.025))
+    a_top, a_bot = canvas.gtext_ink('Ag', asz)
+    ah = a_bot - a_top
+    an = canvas.ellipsize(str(author), asz, W - 2 * pad - mw)
+    canvas.gtext(pad, pad, an, color=_CV_AUTHOR, size=asz, valign='ink-top')
+    canvas.gtext(W - pad, pad + ah // 2, mark, color=_CV_DIM, size=msz,
+                 align='right', valign='ink-center')
+    ry = pad + ah + max(4, int(H * 0.025))
     canvas.line(pad, ry, W - 1 - pad, ry, color=_CV_RULE, t=max(1, int(H * 0.006)))
 
     # The comment wrapped as LARGE as the body holds, the block centered in it —
@@ -248,12 +245,10 @@ def _cv_tall_ops(canvas, author, text, idx, total, W, H):
     max_lines = max(3, avail // max(1, int(H * 0.10)))
     size, lines = canvas.fit_wrap_gtext(text, W - 2 * pad, avail, max_lines=max_lines)
     if sum(len(ln.split()) for ln in lines) < len(str(text).split()):
-        last = lines[-1]
-        while last and canvas.text_width(last + '…', size) > W - 2 * pad:
-            last = last[:-1]
-        lines[-1] = last + '…'
-    step = int(size * 1.2)
-    block = (len(lines) - 1) * step + size
+        # even the 8px floor can't hold it — mark the tail (ellipsize trims it to fit)
+        lines[-1] = canvas.ellipsize(lines[-1] + '…', size, W - 2 * pad)
+    step = int(size * 1.18)
+    block = canvas.gtext_block_height(lines, size)
     y = body_top + max(0, (avail - block) // 2)
     for ln in lines:
         canvas.gtext(pad, y, ln, color=_CV_TXT, size=size)

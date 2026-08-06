@@ -57,11 +57,10 @@ def _keyframe_every(w: int, h: int) -> int:
 _GTEXT_FONTS: dict = {}
 
 
-def _gtext_width(s: str, size: int, face: str = "sans", tracking: int = 0) -> float:
-    """Pixel width of ``s`` at ``size`` px in the gtext face — measured with the companion's
-    copy of the bundled TrueType (the same DejaVuSans-Bold the wall rasterizes), so an app's
-    wrap/fit math agrees with the glass. Mono falls back to sans until a mono face is bundled
-    (matching the wall's own fallback)."""
+def _gtext_font(size: int, face: str = "sans"):
+    """The cached PIL handle to the bundled gtext face at ``size`` — the same DejaVuSans-Bold the
+    wall rasterizes, so the companion's width/ink math agrees with the glass. Mono falls back to
+    sans until a mono face is bundled (matching the wall's own fallback)."""
     from PIL import ImageFont
     name = "DejaVuSansMono-Bold.ttf" if face == "mono" else "DejaVuSans-Bold.ttf"
     key = (name, max(4, int(size)))
@@ -72,11 +71,66 @@ def _gtext_width(s: str, size: int, face: str = "sans", tracking: int = 0) -> fl
         except Exception:
             f = ImageFont.truetype(os.path.join(_FONT_DIR, "DejaVuSans-Bold.ttf"), key[1])
         _GTEXT_FONTS[key] = f
+    return f
+
+
+def _gtext_width(s: str, size: int, face: str = "sans", tracking: int = 0) -> float:
+    """Pixel width of ``s`` at ``size`` px in the gtext face — so an app's wrap/fit math agrees
+    with the glass. Mono falls back to sans (the wall's own fallback)."""
     text = str(s)
-    w = f.getlength(text)
+    w = _gtext_font(size, face).getlength(text)
     if tracking and len(text) > 1:
         w += int(tracking) * (len(text) - 1)
     return w
+
+
+def _gtext_ink(s, size: int, face: str = "sans") -> tuple[int, int]:
+    """``(ink_top, ink_bottom)`` in px BELOW the gtext ascent-box top (which is where ``gtext``'s
+    ``y`` sits), measured from THIS string's real glyph box on the bundled TTF — so descenders and
+    commas are EXACT, not a hand-tuned fraction. ``_gtext_ink('HI')`` bottoms higher than
+    ``_gtext_ink('apply,')`` (the y-tail + the comma). The metrics contract (companion TTF ==
+    wall face, ±1px) means the wall draws the same box, so a ``valign`` computed here lands true."""
+    l, t, r, b = _gtext_font(size, face).getbbox(str(s) or " ")
+    return int(t), int(b)
+
+
+def _gtext_valign_y(y, s, size, face, valign):
+    """Adjust ``gtext``'s ``y`` (normally the ascent-box top) so the string's INK sits where the
+    caller means: ``ink-bottom`` (y = the ink's bottom edge — floor-anchoring, descender-safe),
+    ``ink-center`` (y = the ink's vertical middle), ``ink-top`` (y = the first inked row).
+    ``top``/anything else is the raw ascent-box top (unchanged)."""
+    if valign in ("ink-bottom", "ink-center", "ink-top"):
+        t, b = _gtext_ink(s, size, face)
+        if valign == "ink-bottom":
+            return int(y - b)
+        if valign == "ink-center":
+            return int(y - (t + b) / 2)
+        return int(y - t)                    # ink-top
+    return int(y)
+
+
+def _ellipsize(s, size, max_w, face: str = "sans") -> str:
+    """``s`` trimmed with a trailing ``…`` so it fits ``max_w`` px at ``size`` in the gtext face —
+    the one true version of the trim loop ~six apps had each copy-pasted (with drift). Whole ``s``
+    when it already fits; a bare ``…`` when nothing does."""
+    s = str(s)
+    if max_w <= 0:
+        return "…"
+    if _gtext_width(s, size, face) <= max_w:
+        return s
+    while s and _gtext_width(s.rstrip() + "…", size, face) > max_w:
+        s = s[:-1]
+    return (s.rstrip() + "…") if s.strip() else "…"
+
+
+def _gtext_block_height(lines, size, face: str = "sans", lh_frac: float = 1.18) -> int:
+    """Pixel height of a wrapped ``lines`` block at ``size``: ``(n-1)`` line-steps plus the LAST
+    line's real ink bottom (descender-aware) — so centring a block with it never clips the tail.
+    ``lh_frac`` matches ``_fit_wrap_gtext``'s stepping, the value apps had drifted (1.18 vs 1.2)."""
+    lines = [ln for ln in (lines or [])]
+    if not lines:
+        return 0
+    return (len(lines) - 1) * int(size * lh_frac) + _gtext_ink(lines[-1], size, face)[1]
 
 
 def _wrap_gtext(s, max_w, size, max_lines=3, face="sans"):
@@ -252,9 +306,10 @@ def _ok(r) -> bool:
 
 
 def set_active(url: str, active: bool, timeout: float = 5.0) -> bool:
-    """Take the panel over from the reel wall (active=True) or hand it back
-    (active=False). Ops/effect/frame auto-take-over too, but a driver takes it
-    first so the wall is blanked before the first frame lands."""
+    """Take the panel over from the reel wall (active=True, which CLEARS-and-presents) or hand it
+    back (active=False). Ops/effect/frame auto-take-over too (``canvasEnter(false)`` — no clear),
+    so the app switch no longer calls this to claim; it is now the STOP/blank path's clear (via
+    ``take_over`` → ``_blank_panel``) plus the ``stand_down`` hand-back."""
     if _wall(url).sim:
         return True
     try:
@@ -266,18 +321,12 @@ def set_active(url: str, active: bool, timeout: float = 5.0) -> bool:
 
 
 def take_over(url: str, timeout: float = 5.0) -> bool:
-    """Take the panel for a NEW app run — ``set_active(True)`` (the firmware clears the
-    whole panel on that takeover) with one twist: a device-side renderer left by the
-    PREVIOUS app must be stood down first, or it keeps painting over the newcomer. A
-    looping animation or exclusive ticker re-claims the panel every frame it renders,
-    so the raw takeover alone loses the fight; an effect survives ``canvasEnter``'s
-    stand-down whenever canvas mode never dropped between apps.
-
-    The stand-down (``{active: false}`` = the firmware's ``dispReturnToWall``: effect +
-    anim + exclusive ticker; an empty ticker text for the overlay ticker that outlives
-    even that) repaints the flap wall for a round-trip — a visible blink — so it runs
-    ONLY when the state poll says a layer is actually live. The everyday app switch
-    stays on the flash-free path and still gets the takeover's full clear."""
+    """CLEAR the whole panel and claim it — ``stand_down`` (below) followed by ``set_active(True)``
+    (the firmware clears-and-presents on that takeover). NOT the app-switch path any more: the
+    switch uses bare ``stand_down`` for a clean cut (see ``stand_down`` / engine ``_take_panel``).
+    ``take_over``'s remaining caller is ``_blank_panel`` — the STOP/go-idle path that WANTS the
+    panel wiped. The stand-down half repaints the flap wall for a round-trip (a visible blink) so
+    it runs ONLY when the state poll says a device renderer is actually live."""
     if _wall(url).sim:
         return True
     stand_down(url, timeout=timeout)
@@ -461,9 +510,9 @@ class CanvasStream:
                          else socket.create_connection((u.hostname, u.port or 80), self.timeout))
             self.sock.settimeout(self.timeout)
             # A SMALL send buffer, so ``writable()`` tells the truth. The OS default (hundreds
-            # of KB) swallowed ~10 SECONDS of aquarium batches before the gate ever engaged:
-            # the wall played a kernel-held backlog — late, and still draining long after a
-            # stop (a graceful close flushes the buffer in the background; the wall kept
+            # of KB) swallowed ~10 SECONDS of a fast ops app's batches before the gate ever
+            # engaged: the wall played a kernel-held backlog — late, and still draining long after
+            # a stop (a graceful close flushes the buffer in the background; the wall kept
             # rendering ~14 s of stale frames, re-raising canvas mode over the release).
             # ~16 KB holds a batch or two: at most a moment of the scene is ever in flight.
             try:
@@ -495,7 +544,7 @@ class CanvasStream:
         """Whether the socket can take another record RIGHT NOW without blocking.
 
         The wall drains the stream at its own render pace (measured ~2 records/s on the
-        1280x800 LCD under the aquarium); a producer running faster does not get errors —
+        1280x800 LCD under a heavy ops app); a producer running faster does not get errors —
         ``sendall`` just parks the excess in the OS socket buffer, which silently holds
         SECONDS of stale frames. The panel then plays a growing backlog: late, jerky, and
         still animating long after the app stopped. A caller that finds the pipe full
@@ -603,6 +652,15 @@ def stream_end(url: str) -> None:
 def has_stream(url: str) -> bool:
     st = _wall(url).stream
     return st is not None and st.alive
+
+
+def _backlogged(wall) -> bool:
+    """The backpressure predicate, shared by every push path: an open stream whose socket can't
+    take another record right now (the wall is still draining earlier ones). A caller that finds
+    this True SKIPS its frame/batch — the next redraw supersedes it — rather than queueing a stale
+    one. Single source of truth so show() and _push_rgb() can't drift."""
+    st = wall.stream
+    return st is not None and st.alive and not st.writable()
 
 
 def last_push_was_opsb(url: str) -> bool:
@@ -950,9 +1008,9 @@ def _atlas_lib(url: str) -> dict:
     NOT while a draw stream is open, though: the re-read is a GET, and the drawing REST endpoints
     answer 409 while streaming, so the GET comes back empty and would wrongly drop every sheet's
     residency — forcing a full re-upload (a few hundred KB to megabytes on an LCD) and a stream
-    close/reopen churn every verify window. A streaming sprite app (the aquarium re-asserting its
-    sheet each frame) keeps the cached belief until its stream closes; the sheet is persisted, so
-    it can't actually vanish under us mid-stream."""
+    close/reopen churn every verify window. A streaming sprite app (one re-asserting its sheet
+    each frame) keeps the cached belief until its stream closes; the sheet is persisted, so it
+    can't actually vanish under us mid-stream."""
     e = _wall(url).atlas
     now = time.monotonic()
     if (e is None or now - e["at"] > _ATLAS_VERIFY_S) and not has_stream(url):
@@ -1325,14 +1383,17 @@ class CanvasSurface(paneltext.PanelText):
         return self
 
     def gtext(self, x, y, s, color=(255, 255, 255), size=24, align="left", face="sans",
-              aa=True, outline=None, shadow=None, tracking=0):
+              aa=True, outline=None, shadow=None, tracking=0, valign="top"):
         """Scalable, anti-aliased TrueType text — the on-device stand-in for a fitted PIL label,
         so a text app draws its type as ops instead of pushing a pixel frame. ``size`` is any
         pixel height (4…``caps.text_max``, ~512); ``(x, y)`` is the top-left of the ascent box;
-        ``align`` shifts about ``x``. ``face`` is "sans" (default), "mono", or "custom" (an
-        uploaded TTF). ``outline`` (1px ring) / ``shadow`` (+1,+1 drop) layer under the fill.
-        The bundled face is the companion's own DejaVuSans-Bold, so PIL layout matches the glass.
-        Needs ``canvas.can_gtext`` — fall back to a fitted frame where it's absent."""
+        ``align`` shifts about ``x``. ``valign`` moves ``y`` off the ascent-box top to the string's
+        real INK: "ink-bottom" (floor-anchor a line flush to ``y``, descender-safe), "ink-center"
+        (centre the ink on ``y``), "ink-top". "top" (default) keeps the raw ascent-box top. ``face``
+        is "sans" (default), "mono", or "custom". ``outline`` (1px ring) / ``shadow`` (+1,+1 drop)
+        layer under the fill. The bundled face is the companion's own DejaVuSans-Bold, so PIL layout
+        matches the glass. Needs ``canvas.can_gtext`` — fall back to a fitted frame where it's absent."""
+        y = _gtext_valign_y(y, s, size, face, valign)
         op = {"op": "gtext", "x": int(x), "y": int(y), "s": str(s),
               "color": _rgb(color), "size": int(size)}
         if align in ("center", "right"):
@@ -1381,6 +1442,20 @@ class CanvasSurface(paneltext.PanelText):
         """Largest gtext size wrapping ``s`` into ≤ ``max_lines`` that fit ``max_w``×``max_h`` and
         keep every word — the gtext analogue of ``wrap_fit``. Returns ``(size, lines)``."""
         return _fit_wrap_gtext(str(s), max_w, max_h, int(max_lines), face, self.text_max, lo)
+
+    def gtext_ink(self, s, size, face="sans"):
+        """``(ink_top, ink_bottom)`` px below the gtext ascent-box top for this string — the real
+        glyph box, so an app can anchor by ink without hand-tuned descender fractions."""
+        return _gtext_ink(s, int(size), str(face))
+
+    def ellipsize(self, s, size, max_w, face="sans"):
+        """``s`` trimmed with a trailing ``…`` to fit ``max_w`` px at ``size`` in the gtext face."""
+        return _ellipsize(str(s), int(size), max_w, str(face))
+
+    def gtext_block_height(self, lines, size, face="sans", lh_frac=1.18):
+        """Pixel height of a wrapped ``lines`` block at ``size`` (descender-aware last line) — for
+        centring a fit_wrap_gtext result without clipping its tail."""
+        return _gtext_block_height(lines, int(size), str(face), float(lh_frac))
 
     def blur(self, x, y, w, h, r=4):
         """Box-blur a rectangle of the back buffer in place — the on-device stand-in for the
@@ -1562,12 +1637,12 @@ class CanvasSurface(paneltext.PanelText):
         wall.last_kind = "opsb" if segments is not None else "ops"
         st = wall.stream
         if st is not None and st.alive:
-            # Backpressure: the wall renders the stream at its own pace, and a full socket
-            # means it is still chewing on earlier records. Queueing more just builds a
-            # standing backlog of stale frames (late, jerky, and still playing after a
-            # stop) — skip this WHOLE batch instead; the app's next redraw supersedes it.
-            # All-or-nothing per batch: a frame's bind+ops segments never split.
-            if not st.writable():
+            # Backpressure (see _backlogged): a full socket means the wall is still chewing on
+            # earlier records; queueing more just builds a backlog of stale frames. Skip this WHOLE
+            # batch (all-or-nothing — a frame's bind+ops segments never split); the next redraw
+            # supersedes it. Safe because every batch here is a full redraw (an app built on
+            # cumulative ops — canvas.scroll — would desync on a skip; none does today).
+            if _backlogged(wall):
                 log.debug("canvas %s: stream backlogged, ops batch skipped", self.url)
                 return True
             if segments is not None:
@@ -1646,11 +1721,10 @@ class CanvasSurface(paneltext.PanelText):
             return True
         wall.last_kind = "frame"                           # this app pushes frames (stream heuristic)
 
-        # Backpressure (see CanvasStream.writable): a full stream socket means the wall is
-        # behind — skip this frame rather than queue a stale one. State untouched: the wall
-        # still shows the last DELIVERED frame, so the next delta diffs against the truth.
-        st = wall.stream
-        if st is not None and st.alive and not st.writable():
+        # Backpressure (see _backlogged): a full stream socket means the wall is behind — skip this
+        # frame rather than queue a stale one. State untouched: the wall still shows the last
+        # DELIVERED frame, so the next delta diffs against the truth.
+        if _backlogged(wall):
             log.debug("canvas %s: stream backlogged, frame skipped", self.url)
             return True
 

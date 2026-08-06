@@ -171,20 +171,19 @@ def _cv_day_ops(canvas, year, desc, today, W, H):
     pad = max(3, int(W * 0.012))
 
     # The gold year chip flush with the panel's top edge, today's date opposite.
-    # gtext's y is the ascent-box top; digit ink spans ~0.20..0.93 of the size, so
-    # centering it in the chip means backing y off by ~0.56 of the size.
+    # valign='ink-center' drops each label's real ink onto the chip's mid-line.
     ch_h = max(11, int(H * 0.24))
     ysz = canvas.fit_gtext(year, int(W * 0.4), ch_h - max(4, int(ch_h * 0.11)))
     yw = int(canvas.text_width(year, ysz))
     inset = max(5, int(ch_h * 0.13))
     canvas.roundrect(pad, 0, yw + 2 * inset, ch_h, max(3, ch_h // 8),
                      color=_CV_CHIP, fill=True)
-    canvas.gtext(pad + inset, int(ch_h / 2 - ysz * 0.56), year,
-                 color=_CV_CHIP_TXT, size=ysz)
+    canvas.gtext(pad + inset, ch_h // 2, year,
+                 color=_CV_CHIP_TXT, size=ysz, valign='ink-center')
     dsz = canvas.fit_gtext(today, int(W * 0.35), max(6, int(ch_h * 0.55)))
     if pad + yw + 2 * inset + 6 + canvas.text_width(today, dsz) <= W - pad:
-        canvas.gtext(W - pad, int(ch_h / 2 - dsz * 0.56), today,
-                     color=_CV_DIM, size=dsz, align='right')
+        canvas.gtext(W - pad, ch_h // 2, today,
+                     color=_CV_DIM, size=dsz, align='right', valign='ink-center')
 
     # The event, wrapped as large as the room allows, the block centered in the
     # body with the leading gently stretched — the same fill the pixel path does.
@@ -192,15 +191,14 @@ def _cv_day_ops(canvas, year, desc, today, W, H):
     avail = H - body_top - max(2, int(H * 0.015))
     size, lines = canvas.fit_wrap_gtext(desc, W - 2 * pad, avail, max_lines=5)
     if sum(len(ln.split()) for ln in lines) < len(str(desc).split()):
-        last = lines[-1]                # cut off at the 8px floor — say so, don't just stop
-        while last and canvas.text_width(last + '…', size) > W - 2 * pad:
-            last = last[:-1]
-        lines[-1] = last + '…'
+        # cut off at the 8px floor — mark the tail with a … (ellipsize trims it to fit)
+        lines[-1] = canvas.ellipsize(lines[-1] + '…', size, W - 2 * pad)
     step = int(size * 1.18)
-    if len(lines) > 1:
-        step += min(size // 2,
-                    max(0, avail - ((len(lines) - 1) * step + size)) // (len(lines) - 1))
-    block = (len(lines) - 1) * step + size
+    block = canvas.gtext_block_height(lines, size)
+    if len(lines) > 1:                  # stretch the leading (never past half a line)
+        extra = min(size // 2, max(0, avail - block) // (len(lines) - 1))
+        step += extra
+        block += (len(lines) - 1) * extra
     y = body_top + max(0, (avail - block) // 2)
     for ln in lines:
         canvas.gtext(pad, y, ln, color=_CV_TXT, size=size)

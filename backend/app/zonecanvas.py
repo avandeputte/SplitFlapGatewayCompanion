@@ -170,7 +170,10 @@ class ZoneCanvas:
             d.ellipse(box, outline=_rgb(color), width=max(1, int(t)))
         return self
 
-    def line(self, x, y, x1, y1, color=(255, 255, 255), t=1):
+    def line(self, x, y, x1, y1, color=(255, 255, 255), t=1, aa=False):
+        # aa accepted-and-ignored (no AA in the sim) to MATCH CanvasSurface.line's signature —
+        # otherwise canvas.line(..., aa=True) crashes here (harness / Zones / LcdSurface) but works
+        # on the wall. Same accept-and-ignore contract as circle()/polyline().
         self._draw().line([(int(x), int(y)), (int(x1), int(y1))],
                           fill=_rgb(color), width=max(1, int(t)))
         return self
@@ -186,7 +189,8 @@ class ZoneCanvas:
             d.arc(box, a0, a1, fill=_rgb(color), width=max(1, int(t)))
         return self
 
-    def poly(self, points, color=(255, 255, 255), fill=True, t=1):
+    def poly(self, points, color=(255, 255, 255), fill=True, t=1, aa=False):
+        # aa accepted-and-ignored to match CanvasSurface.poly (see line()).
         d = self._draw()
         pts = [(int(px), int(py)) for px, py in points]
         if fill:
@@ -279,10 +283,13 @@ class ZoneCanvas:
         return self
 
     def gtext(self, x, y, s, color=(255, 255, 255), size=24, align='left', face='sans',
-              aa=True, outline=None, shadow=None, tracking=0):
+              aa=True, outline=None, shadow=None, tracking=0, valign='top'):
         # Simulate the wall's scalable gtext op with PIL DejaVu at the exact pixel size — (x,y)
         # is the top-left of the ascent box (PIL anchor 'a'), align shifts about x, matching
         # ttfDrawText. mono falls back to sans (as on the wall until a mono face is bundled).
+        # valign moves y off the ascent-box top onto the ink (same module math as the live op).
+        from .canvas import _gtext_valign_y
+        y = _gtext_valign_y(y, s, int(size), str(face), valign)
         s = str(s)
         if not s:
             return self
@@ -329,6 +336,18 @@ class ZoneCanvas:
     def fit_wrap_gtext(self, s, max_w, max_h, max_lines=3, face='sans', lo=8):
         from .canvas import _fit_wrap_gtext
         return _fit_wrap_gtext(str(s), max_w, max_h, int(max_lines), face, self.text_max, lo)
+
+    def gtext_ink(self, s, size, face='sans'):
+        from .canvas import _gtext_ink
+        return _gtext_ink(s, int(size), str(face))
+
+    def ellipsize(self, s, size, max_w, face='sans'):
+        from .canvas import _ellipsize
+        return _ellipsize(str(s), int(size), max_w, str(face))
+
+    def gtext_block_height(self, lines, size, face='sans', lh_frac=1.18):
+        from .canvas import _gtext_block_height
+        return _gtext_block_height(lines, int(size), str(face), float(lh_frac))
 
     def blur(self, x, y, w, h, r=4):
         from PIL import ImageFilter

@@ -203,8 +203,10 @@ def _cv_yt_ops(canvas, name, big, label, title, W, H):
     nx = pad + bw + pad
     nsize, nlines = canvas.fit_wrap_gtext(name, W - pad - nx, head_h, 2)
     nstep = int(nsize * 1.18)
-    nink = (len(nlines) - 1) * nstep + int(nsize * 0.72)      # cap-ink of the wrapped block
-    ny = top + max(0, (head_h - nink) // 2) - int(nsize * 0.20)
+    # centre the wrapped block's ink in the header band (ink-top of line 0 to the
+    # last line's real ink bottom — no cap-height fraction)
+    it0 = canvas.gtext_ink(nlines[0], nsize)[0] if nlines else 0
+    ny = top + max(0, (head_h - canvas.gtext_block_height(nlines, nsize) - it0) // 2)
     for ln in nlines:
         canvas.gtext(nx, ny, ln, color=_CV_TXT, size=nsize)
         ny += nstep
@@ -218,7 +220,7 @@ def _cv_yt_ops(canvas, name, big, label, title, W, H):
     cap_y = H - mb
     if lat_lines:
         lstep = int(tsize * 1.18)
-        lat_top = H - mb - ((len(lat_lines) - 1) * lstep + int(tsize * 1.16))
+        lat_top = H - mb - canvas.gtext_block_height(lat_lines, tsize)
         cap_sz = max(9, int(H * 0.07))
         cap_y = lat_top - int(cap_sz * 1.30)
         canvas.gtext(pad, cap_y, 'LATEST', color=_CV_RED, size=cap_sz)
@@ -234,19 +236,24 @@ def _cv_yt_ops(canvas, name, big, label, title, W, H):
     if canvas.text_width(label, lsz) > W - 2 * pad:
         label = ''                     # can't fit the caption — the count carries it
     g2 = max(2, int(H * 0.022))
-    lbl_ink = int(lsz * 0.72) if label else 0
-    avail = hero_bot - hero_top - ((g2 + lbl_ink) if label else 0)
-    # The count's ink runs to ~0.95x its size — the comma's tail hangs below the
-    # digits' baseline, and the label must sit under IT, not under the digits.
-    csize = canvas.fit_gtext(big, W - 2 * pad, max(10, int(avail * 1.05)))
-    blk = int(csize * 0.95) + ((g2 + lbl_ink) if label else 0)
-    ink_top = hero_top + max(0, (hero_bot - hero_top - blk) // 2)
-    canvas.gtext(W // 2, ink_top - int(csize * 0.20), big, color=_CV_TXT,
-                 size=csize, align='center')
     if label:
-        ly = ink_top + int(csize * 0.95) + g2
-        canvas.gtext(W // 2, ly - int(lsz * 0.20), label, color=_CV_RED, size=lsz,
-                     align='center')
+        _lt, _lb = canvas.gtext_ink(label, lsz)
+        lbl_ink = _lb - _lt
+    else:
+        lbl_ink = 0
+    avail = hero_bot - hero_top - ((g2 + lbl_ink) if label else 0)
+    csize = canvas.fit_gtext(big, W - 2 * pad, max(10, int(avail * 1.05)))
+    # The count's ink includes the comma tail hanging below the digits' baseline —
+    # measure it exactly so the label sits under the TAIL, not under the digits.
+    cit, cib = canvas.gtext_ink(big, csize)
+    count_ink = cib - cit
+    blk = count_ink + ((g2 + lbl_ink) if label else 0)
+    ink_top = hero_top + max(0, (hero_bot - hero_top - blk) // 2)
+    canvas.gtext(W // 2, ink_top, big, color=_CV_TXT, size=csize,
+                 align='center', valign='ink-top')
+    if label:
+        canvas.gtext(W // 2, ink_top + count_ink + g2, label, color=_CV_RED,
+                     size=lsz, align='center', valign='ink-top')
     canvas.show()
 
 

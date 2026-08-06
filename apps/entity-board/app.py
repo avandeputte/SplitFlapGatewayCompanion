@@ -221,135 +221,147 @@ def _cv_gauge(canvas, x, y, size, state, thr, col):
     return True
 
 
-def _cv_icons(s):
-    """The device-icon atlas (on magenta), indexed by _DOMAIN; last tile is the generic dot."""
-    from PIL import Image, ImageDraw
-    W = max(1, int(s * 0.09))
-    C = (232, 236, 246)
+_ICON_C = (232, 236, 246)
+# The 11 device-icon geometries in ONE fractional shape table, so a shape is described
+# once and BOTH surfaces render it: the atlas bitmap (_cv_icons, via _icon_atlas) and the
+# scalable vector ops (_ops_icon, via _icon_ops). Round shapes are stored as PIL-native
+# bboxes (x0,y0,x1,y1) — the atlas draws them verbatim (the tiles stay byte-for-byte); the
+# ops renderer converts a bbox to canvas's centre/radius form and adds 90° to arc angles
+# (canvas arc's convention vs PIL's). 'cdisc' is a centre+radius disc (the fan hub, where
+# the source used c±r); 'blades' is the 3-blade fan fan-out (shared trig, _fan_blades).
+_ICON_ORDER = ('light', 'switch', 'sensor', 'binary_sensor', 'lock', 'cover',
+               'climate', 'fan', 'media_player', 'person', 'generic')
+_ICON_SHAPES = {
+    'light': (('disc', 0.24, 0.14, 0.76, 0.66, (255, 214, 90)),
+              ('rect', 0.38, 0.62, 0.62, 0.82, _ICON_C),
+              ('line', 0.40, 0.86, 0.60, 0.86, _ICON_C)),
+    'switch': (('rrect', 0.14, 0.34, 0.86, 0.66, 0.16, (90, 200, 130)),
+               ('disc', 0.52, 0.36, 0.80, 0.64, (245, 250, 255))),
+    'sensor': (('arc', 0.16, 0.20, 0.84, 0.88, 200, 340, _ICON_C),
+               ('line', 0.5, 0.62, 0.66, 0.36, (255, 200, 90))),
+    'binary_sensor': (('ring', 0.26, 0.26, 0.74, 0.74, _ICON_C),
+                      ('disc', 0.42, 0.42, 0.58, 0.58, _ICON_C)),
+    'lock': (('arc', 0.30, 0.16, 0.70, 0.56, 180, 360, _ICON_C),
+             ('rrect', 0.26, 0.44, 0.74, 0.82, 0.08, (230, 195, 95))),
+    'cover': (('line', 0.18, 0.22, 0.82, 0.22, _ICON_C),
+              ('line', 0.18, 0.40, 0.82, 0.40, _ICON_C),
+              ('line', 0.18, 0.58, 0.82, 0.58, _ICON_C),
+              ('line', 0.18, 0.76, 0.82, 0.76, _ICON_C)),
+    'climate': (('rrect', 0.42, 0.16, 0.58, 0.70, 0.08, _ICON_C),
+                ('disc', 0.36, 0.62, 0.64, 0.90, (240, 120, 110)),
+                ('rect', 0.47, 0.30, 0.53, 0.74, (240, 120, 110))),
+    'fan': (('blades', (130, 195, 245)),
+            ('cdisc', 0.5, 0.5, 0.08, _ICON_C)),
+    'media_player': (('poly', ((0.36, 0.24), (0.36, 0.76), (0.76, 0.5)), _ICON_C),),
+    'person': (('disc', 0.36, 0.16, 0.64, 0.44, _ICON_C),
+               ('pie', 0.22, 0.50, 0.78, 1.06, 180, 360, _ICON_C)),
+    'generic': (('disc', 0.32, 0.32, 0.68, 0.68, (160, 168, 190)),),
+}
+
+
+def _fan_blades(cx, cy, s):
+    """The 3 fan-blade triangles as absolute-pixel vertex lists about hub (cx, cy) — shared
+    by the atlas bitmap and the vector ops so the blades match exactly."""
     out = []
-
-    def blank():
-        im = Image.new('RGB', (s, s), _MAGENTA)
-        return im, ImageDraw.Draw(im)
-
-    im, d = blank()                                            # 0 light — bulb
-    d.ellipse([s * 0.24, s * 0.14, s * 0.76, s * 0.66], fill=(255, 214, 90))
-    d.rectangle([s * 0.38, s * 0.62, s * 0.62, s * 0.82], fill=C)
-    d.line([s * 0.40, s * 0.86, s * 0.60, s * 0.86], fill=C, width=W)
-    out.append(im)
-
-    im, d = blank()                                            # 1 switch — toggle
-    d.rounded_rectangle([s * 0.14, s * 0.34, s * 0.86, s * 0.66], radius=int(s * 0.16), fill=(90, 200, 130))
-    d.ellipse([s * 0.52, s * 0.36, s * 0.52 + s * 0.28, s * 0.36 + s * 0.28], fill=(245, 250, 255))
-    out.append(im)
-
-    im, d = blank()                                            # 2 sensor — dial
-    d.arc([s * 0.16, s * 0.20, s * 0.84, s * 0.88], 200, 340, fill=C, width=W)
-    d.line([s * 0.5, s * 0.62, s * 0.66, s * 0.36], fill=(255, 200, 90), width=W)
-    out.append(im)
-
-    im, d = blank()                                            # 3 binary_sensor — ring
-    d.ellipse([s * 0.26, s * 0.26, s * 0.74, s * 0.74], outline=C, width=W)
-    d.ellipse([s * 0.42, s * 0.42, s * 0.58, s * 0.58], fill=C)
-    out.append(im)
-
-    im, d = blank()                                            # 4 lock — padlock
-    d.arc([s * 0.30, s * 0.16, s * 0.70, s * 0.56], 180, 360, fill=C, width=W)
-    d.rounded_rectangle([s * 0.26, s * 0.44, s * 0.74, s * 0.82], radius=int(s * 0.08), fill=(230, 195, 95))
-    out.append(im)
-
-    im, d = blank()                                            # 5 cover — blinds
-    for yy in (0.22, 0.40, 0.58, 0.76):
-        d.line([s * 0.18, s * yy, s * 0.82, s * yy], fill=C, width=W)
-    out.append(im)
-
-    im, d = blank()                                            # 6 climate — thermometer
-    d.rounded_rectangle([s * 0.42, s * 0.16, s * 0.58, s * 0.70], radius=int(s * 0.08), fill=C)
-    d.ellipse([s * 0.36, s * 0.62, s * 0.64, s * 0.90], fill=(240, 120, 110))
-    d.rectangle([s * 0.47, s * 0.30, s * 0.53, s * 0.74], fill=(240, 120, 110))
-    out.append(im)
-
-    im, d = blank()                                            # 7 fan — blades
-    c = s / 2.0
     for a in range(3):
         ang = a * 2.09
-        d.polygon([(c, c), (c + math.cos(ang) * s * 0.34, c + math.sin(ang) * s * 0.34),
-                   (c + math.cos(ang + 0.6) * s * 0.30, c + math.sin(ang + 0.6) * s * 0.30)], fill=(130, 195, 245))
-    d.ellipse([c - s * 0.08, c - s * 0.08, c + s * 0.08, c + s * 0.08], fill=C)
-    out.append(im)
-
-    im, d = blank()                                            # 8 media_player — play
-    d.polygon([(s * 0.36, s * 0.24), (s * 0.36, s * 0.76), (s * 0.76, s * 0.5)], fill=C)
-    out.append(im)
-
-    im, d = blank()                                            # 9 person
-    d.ellipse([s * 0.36, s * 0.16, s * 0.64, s * 0.44], fill=C)
-    d.pieslice([s * 0.22, s * 0.50, s * 0.78, s * 1.06], 180, 360, fill=C)
-    out.append(im)
-
-    im, d = blank()                                            # 10 generic — dot
-    d.ellipse([s * 0.32, s * 0.32, s * 0.68, s * 0.68], fill=(160, 168, 190))
-    out.append(im)
+        out.append([(cx, cy),
+                    (cx + math.cos(ang) * s * 0.34, cy + math.sin(ang) * s * 0.34),
+                    (cx + math.cos(ang + 0.6) * s * 0.30, cy + math.sin(ang + 0.6) * s * 0.30)])
     return out
 
 
-def _ops_ellipsis(canvas, text, size, max_w):
-    """``text`` cut with an ellipsis to fit ``max_w`` at gtext ``size`` (full text if it fits)."""
-    if canvas.text_width(text, size) <= max_w:
-        return text
-    while text and canvas.text_width(text + '…', size) > max_w:
-        text = text[:-1].rstrip()
-    return (text + '…') if text else ''
+def _icon_atlas(d, prim, s, w):
+    """Draw one _ICON_SHAPES primitive onto a magenta atlas tile via PIL — the exact bboxes/
+    endpoints the hand-rolled tiles used, so _cv_icons stays byte-for-byte identical."""
+    kind = prim[0]
+    if kind in ('disc', 'ring'):
+        _, x0, y0, x1, y1, col = prim
+        d.ellipse([s * x0, s * y0, s * x1, s * y1],
+                  **({'fill': col} if kind == 'disc' else {'outline': col, 'width': w}))
+    elif kind == 'cdisc':
+        _, cx, cy, r, col = prim
+        d.ellipse([s * cx - s * r, s * cy - s * r, s * cx + s * r, s * cy + s * r], fill=col)
+    elif kind == 'rect':
+        _, x0, y0, x1, y1, col = prim
+        d.rectangle([s * x0, s * y0, s * x1, s * y1], fill=col)
+    elif kind == 'rrect':
+        _, x0, y0, x1, y1, rad, col = prim
+        d.rounded_rectangle([s * x0, s * y0, s * x1, s * y1], radius=int(s * rad), fill=col)
+    elif kind == 'line':
+        _, x0, y0, x1, y1, col = prim
+        d.line([s * x0, s * y0, s * x1, s * y1], fill=col, width=w)
+    elif kind == 'poly':
+        _, pts, col = prim
+        d.polygon([(s * px, s * py) for px, py in pts], fill=col)
+    elif kind == 'arc':
+        _, x0, y0, x1, y1, a0, a1, col = prim
+        d.arc([s * x0, s * y0, s * x1, s * y1], a0, a1, fill=col, width=w)
+    elif kind == 'pie':
+        _, x0, y0, x1, y1, a0, a1, col = prim
+        d.pieslice([s * x0, s * y0, s * x1, s * y1], a0, a1, fill=col)
+    elif kind == 'blades':
+        for blade in _fan_blades(s * 0.5, s * 0.5, s):
+            d.polygon(blade, fill=prim[1])
+
+
+def _icon_ops(canvas, prim, x, y, s, t, aa):
+    """Draw one _ICON_SHAPES primitive as scalable vector ops at (x, y) — a bbox becomes
+    canvas's centre/radius; arc angles get +90 (canvas's convention vs PIL's)."""
+    kind = prim[0]
+    if kind in ('disc', 'ring'):
+        _, x0, y0, x1, y1, col = prim
+        canvas.circle(x + s * (x0 + x1) / 2, y + s * (y0 + y1) / 2, s * (x1 - x0) / 2,
+                      col, fill=(kind == 'disc'), t=t, aa=aa)
+    elif kind == 'cdisc':
+        _, cx, cy, r, col = prim
+        canvas.circle(x + s * cx, y + s * cy, s * r, col, fill=True, aa=aa)
+    elif kind == 'rect':
+        _, x0, y0, x1, y1, col = prim
+        canvas.rect(x + s * x0, y + s * y0, s * (x1 - x0), s * (y1 - y0), col, fill=True)
+    elif kind == 'rrect':
+        _, x0, y0, x1, y1, rad, col = prim
+        canvas.roundrect(x + s * x0, y + s * y0, s * (x1 - x0), s * (y1 - y0),
+                         int(s * rad), col, fill=True)
+    elif kind == 'line':
+        _, x0, y0, x1, y1, col = prim
+        canvas.line(x + s * x0, y + s * y0, x + s * x1, y + s * y1, col, t=t)
+    elif kind == 'poly':
+        _, pts, col = prim
+        canvas.poly([(x + s * px, y + s * py) for px, py in pts], col, fill=True)
+    elif kind in ('arc', 'pie'):
+        _, x0, y0, x1, y1, a0, a1, col = prim
+        canvas.arc(x + s * (x0 + x1) / 2, y + s * (y0 + y1) / 2, int(s * (x1 - x0) / 2),
+                   a0 + 90, a1 + 90, col, t=t, fill=(kind == 'pie'))
+    elif kind == 'blades':
+        for blade in _fan_blades(x + s * 0.5, y + s * 0.5, s):
+            canvas.poly(blade, prim[1], fill=True)
+
+
+def _cv_icons(s):
+    """The device-icon atlas (on magenta), one tile per _ICON_ORDER entry (indexed by
+    _DOMAIN; last tile is the generic dot). Each tile is drawn from the shared _ICON_SHAPES
+    table via _icon_atlas — the same geometry the vector ops render at native scale."""
+    from PIL import Image, ImageDraw
+    w = max(1, int(s * 0.09))
+    out = []
+    for domain in _ICON_ORDER:
+        im = Image.new('RGB', (s, s), _MAGENTA)
+        d = ImageDraw.Draw(im)
+        for prim in _ICON_SHAPES[domain]:
+            _icon_atlas(d, prim, s, w)
+        out.append(im)
+    return out
 
 
 def _ops_icon(canvas, domain, x, y, s, aa):
     """The device icon drawn as vector ops at ``s`` px — the scalable twin of the _cv_icons
-    atlas tile for the same domain (those are 8-16px bitmaps; blown up x5 on the LCD they
-    would be exactly the pixelation this path exists to avoid). Same shapes, same colors."""
-    C = (232, 236, 246)
+    atlas tile for the same domain, from the shared _ICON_SHAPES table so both surfaces show
+    the same shapes and colors. (Atlas tiles are 8-16px bitmaps; blown up x5 on the LCD they
+    would be exactly the pixelation this path exists to avoid.)"""
     t = max(1, int(s * 0.09))
-    if domain == 'light':                                      # bulb
-        canvas.circle(x + s * 0.50, y + s * 0.40, s * 0.26, (255, 214, 90), fill=True, aa=aa)
-        canvas.rect(x + s * 0.38, y + s * 0.62, s * 0.24, s * 0.20, C, fill=True)
-        canvas.line(x + s * 0.40, y + s * 0.86, x + s * 0.60, y + s * 0.86, C, t=t)
-    elif domain == 'switch':                                   # toggle
-        canvas.roundrect(x + s * 0.14, y + s * 0.34, s * 0.72, s * 0.32, int(s * 0.16),
-                         (90, 200, 130), fill=True)
-        canvas.circle(x + s * 0.66, y + s * 0.50, s * 0.14, (245, 250, 255), fill=True, aa=aa)
-    elif domain == 'sensor':                                   # dial (angles: PIL's +90)
-        canvas.arc(x + s * 0.50, y + s * 0.54, int(s * 0.34), 290, 430, C, t=t)
-        canvas.line(x + s * 0.50, y + s * 0.62, x + s * 0.66, y + s * 0.36, (255, 200, 90), t=t)
-    elif domain == 'binary_sensor':                            # ring
-        canvas.circle(x + s * 0.50, y + s * 0.50, s * 0.24, C, fill=False, t=t, aa=aa)
-        canvas.circle(x + s * 0.50, y + s * 0.50, s * 0.08, C, fill=True, aa=aa)
-    elif domain == 'lock':                                     # padlock
-        canvas.arc(x + s * 0.50, y + s * 0.36, int(s * 0.20), 270, 450, C, t=t)
-        canvas.roundrect(x + s * 0.26, y + s * 0.44, s * 0.48, s * 0.38, int(s * 0.08),
-                         (230, 195, 95), fill=True)
-    elif domain == 'cover':                                    # blinds
-        for fy in (0.22, 0.40, 0.58, 0.76):
-            canvas.line(x + s * 0.18, y + s * fy, x + s * 0.82, y + s * fy, C, t=t)
-    elif domain == 'climate':                                  # thermometer
-        canvas.roundrect(x + s * 0.42, y + s * 0.16, s * 0.16, s * 0.54, int(s * 0.08), C, fill=True)
-        canvas.circle(x + s * 0.50, y + s * 0.76, s * 0.14, (240, 120, 110), fill=True, aa=aa)
-        canvas.rect(x + s * 0.47, y + s * 0.30, s * 0.06, s * 0.44, (240, 120, 110), fill=True)
-    elif domain == 'fan':                                      # blades
-        c = s / 2.0
-        for a in range(3):
-            ang = a * 2.09
-            canvas.poly([(x + c, y + c),
-                         (x + c + math.cos(ang) * s * 0.34, y + c + math.sin(ang) * s * 0.34),
-                         (x + c + math.cos(ang + 0.6) * s * 0.30, y + c + math.sin(ang + 0.6) * s * 0.30)],
-                        (130, 195, 245), fill=True)
-        canvas.circle(x + c, y + c, s * 0.08, C, fill=True, aa=aa)
-    elif domain == 'media_player':                             # play
-        canvas.poly([(x + s * 0.36, y + s * 0.24), (x + s * 0.36, y + s * 0.76),
-                     (x + s * 0.76, y + s * 0.50)], C, fill=True)
-    elif domain == 'person':                                   # head + shoulders
-        canvas.circle(x + s * 0.50, y + s * 0.30, s * 0.14, C, fill=True, aa=aa)
-        canvas.arc(x + s * 0.50, y + s * 0.78, int(s * 0.28), 270, 450, C, fill=True)
-    else:                                                      # generic — dot
-        canvas.circle(x + s * 0.50, y + s * 0.50, s * 0.18, (160, 168, 190), fill=True, aa=aa)
+    for prim in _ICON_SHAPES.get(domain, _ICON_SHAPES['generic']):
+        _icon_ops(canvas, prim, x, y, s, t, aa)
 
 
 def _cv_board_ops(canvas, settings, get_ha_states, W, H):
@@ -364,8 +376,8 @@ def _cv_board_ops(canvas, settings, get_ha_states, W, H):
     ids = _entities(cfg_order)
     if not ids:
         size = canvas.fit_gtext('Pick entities', int(W * 0.8), int(H * 0.14))
-        canvas.gtext(W // 2, H / 2 - size * 0.56, 'Pick entities', color=(210, 216, 232),
-                     size=size, align='center')
+        canvas.gtext(W // 2, H / 2, 'Pick entities', color=(210, 216, 232),
+                     size=size, align='center', valign='ink-center')
         canvas.show()
         return 30.0
 
@@ -427,12 +439,12 @@ def _cv_board_ops(canvas, settings, get_ha_states, W, H):
             if cut and val[:cut] != val:
                 val = val[:cut]
                 vsize = canvas.fit_gtext(val, slot_w, int(top_h * 0.60))
-        canvas.gtext((vx0 + x + cw - pad) / 2, y + top_h / 2 - vsize * 0.56, val,
-                     color=col, size=vsize, align='center')
+        canvas.gtext((vx0 + x + cw - pad) / 2, y + top_h / 2, val,
+                     color=col, size=vsize, align='center', valign='ink-center')
         nsize = canvas.fit_gtext(name, cw - 2 * pad, int(name_h * 0.55))
-        nm = name if nsize >= floor else _ops_ellipsis(canvas, name, floor, cw - 2 * pad)
-        canvas.gtext(x + cw / 2, y + top_h + name_h / 2 - max(nsize, floor) * 0.56, nm,
-                     color=(222, 228, 242), size=max(nsize, floor), align='center')
+        nm = name if nsize >= floor else canvas.ellipsize(name, floor, cw - 2 * pad)
+        canvas.gtext(x + cw / 2, y + top_h + name_h / 2, nm,
+                     color=(222, 228, 242), size=max(nsize, floor), align='center', valign='ink-center')
     canvas.show()
     return 12.0
 

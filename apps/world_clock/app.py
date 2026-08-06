@@ -171,18 +171,6 @@ def _cv_next_minute_hold():
     return max(1.0, 60.0 - now.second - now.microsecond / 1_000_000.0)
 
 
-def _cv_ops_trim(canvas, s, size, max_w):
-    """``s`` trimmed with an ellipsis until it fits ``max_w`` at gtext ``size`` — the
-    ops twin of _cv_fit_text."""
-    if max_w <= 0:
-        return ''
-    if canvas.text_width(s, size) <= max_w:
-        return s
-    while s and canvas.text_width(s + '…', size) > max_w:
-        s = s[:-1]
-    return (s + '…') if s else ''
-
-
 def _cv_rows_ops(canvas, resolved, W, H):
     """The city rows as on-device DRAW OPS — the gtext twin of the PIL path below, for
     the LCD (manifest ``lcd_ops``): each row's day/night gradient shelf, accent stripe
@@ -217,12 +205,12 @@ def _cv_rows_ops(canvas, resolved, W, H):
 
         hhmm = '%02d:%02d' % (now.hour, now.minute)
         tx = W - pad - canvas.text_width(hhmm, tsz)
-        canvas.gtext(tx, y0 + rh / 2 - tsz * 0.56, hhmm, color=txt, size=tsz)
+        canvas.gtext(tx, y0 + rh / 2, hhmm, color=txt, size=tsz, valign='ink-center')
 
         cx = bar_w + pad
-        city = _cv_ops_trim(canvas, label, csz, tx - cx - pad)
+        city = canvas.ellipsize(label, csz, tx - cx - pad)
         if city:
-            canvas.gtext(cx, y0 + rh / 2 - csz * 0.56, city, color=city_c, size=csz)
+            canvas.gtext(cx, y0 + rh / 2, city, color=city_c, size=csz, valign='ink-center')
     canvas.show()
 
 
@@ -242,9 +230,13 @@ def fetch_canvas(settings, canvas):
     if not zones:
         zones = ['America/New_York', 'Europe/London', 'Asia/Tokyo']
 
-    # How many rows the wall can carry: two on a 32px panel, four on 64px. Fewer
-    # zones simply make taller rows that still fill the height.
-    rows_fit = max(1, H // 15)
+    # Row COUNT is resolution-independent on the native ops path, so the 256x160 preview
+    # and the 1280x800 wall show the SAME rows (H//15 tied the count to panel height — 53
+    # vs 10 for a long zone list). The LED PIL path keeps its height-based fit, unchanged.
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        rows_fit = min(len(zones), 8)
+    else:
+        rows_fit = max(1, H // 15)
     resolved = []
     for z in zones:
         if len(resolved) >= rows_fit:

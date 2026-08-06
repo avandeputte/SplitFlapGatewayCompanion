@@ -120,10 +120,12 @@ def _dim(color, k=0.24):
     return tuple(max(0, min(255, int(round(v * k)))) for v in color)
 
 
-def _dot_geometry(W, H, n, label_h):
-    """Dot diameter + gaps so 4 rows fit the height and the n columns (in pairs,
-    with wider group gaps) fit the width. Returns (d, pair_gap, group_gap, vgap)."""
+def _dot_geometry(W, H, n):
+    """Dot diameter + gaps so 4 rows fit the height and the n columns (in pairs, with
+    wider group gaps) fit the width, PLUS the label band and the centred grid origin both
+    surfaces share. Returns (d, pair_gap, group_gap, vgap, label_h, x0, y0)."""
     groups = n // 2
+    label_h = max(9, H // 5) if H >= 48 else 0     # decimal-answer band, when there's room
     avail_h = H - label_h - 2
     for d in range(avail_h, 1, -1):
         vgap = max(1, d // 3)
@@ -133,8 +135,14 @@ def _dot_geometry(W, H, n, label_h):
         group_gap = max(2, d)
         total_w = n * d + groups * pair_gap + (groups - 1) * group_gap
         if total_w <= W - 4:
-            return d, pair_gap, group_gap, vgap
-    return 2, 1, 2, 1
+            break
+    else:
+        d, pair_gap, group_gap, vgap = 2, 1, 2, 1
+    grid_w = n * d + groups * pair_gap + (groups - 1) * group_gap
+    grid_h = 4 * d + 3 * vgap
+    x0 = (W - grid_w) // 2
+    y0 = (H - label_h - grid_h) // 2
+    return d, pair_gap, group_gap, vgap, label_h, x0, y0
 
 
 def _cv_dots_ops(canvas, digits, one, zero, now, seconds, W, H):
@@ -147,14 +155,7 @@ def _cv_dots_ops(canvas, digits, one, zero, now, seconds, W, H):
     n = len(digits)
     canvas.clear((0, 0, 0))
 
-    label_h = max(9, H // 5) if H >= 48 else 0
-    d, pair_gap, group_gap, vgap = _dot_geometry(W, H, n, label_h)
-
-    groups = n // 2
-    grid_w = n * d + groups * pair_gap + (groups - 1) * group_gap
-    grid_h = 4 * d + 3 * vgap
-    x0 = (W - grid_w) // 2
-    y0 = (H - label_h - grid_h) // 2
+    d, pair_gap, group_gap, vgap, label_h, x0, y0 = _dot_geometry(W, H, n)
 
     x = x0
     r = max(1, d // 2)
@@ -171,10 +172,10 @@ def _cv_dots_ops(canvas, digits, one, zero, now, seconds, W, H):
             units.append(f'{now.second:02d}')
         text = ':'.join(units)
         size = canvas.fit_gtext(text, W - 6, label_h - 2)
-        # gtext's y is the top of the ascent box; park the digits on the bottom edge
-        # with a whisker of margin, like the PIL path's bottom-row placement.
-        canvas.gtext(W // 2, H - int(size * 1.02), text, color=(238, 238, 244),
-                     size=size, align='center')
+        # valign='ink-bottom' sinks the digits' real ink to the panel's bottom edge, exactly
+        # like the PIL path's bottom-row placement (ly = H - ink_bottom) — no hand fraction.
+        canvas.gtext(W // 2, H, text, color=(238, 238, 244),
+                     size=size, align='center', valign='ink-bottom')
     canvas.show()
 
 
@@ -209,14 +210,7 @@ def fetch_canvas(settings, canvas, caps=None):
     draw.fontmode = "1"
 
     # Decimal answer under the dots when there is vertical room for both.
-    label_h = max(9, H // 5) if H >= 48 else 0
-    d, pair_gap, group_gap, vgap = _dot_geometry(W, H, n, label_h)
-
-    groups = n // 2
-    grid_w = n * d + groups * pair_gap + (groups - 1) * group_gap
-    grid_h = 4 * d + 3 * vgap
-    x0 = (W - grid_w) // 2
-    y0 = (H - label_h - grid_h) // 2
+    d, pair_gap, group_gap, vgap, label_h, x0, y0 = _dot_geometry(W, H, n)
 
     x = x0
     for i, digit in enumerate(digits):

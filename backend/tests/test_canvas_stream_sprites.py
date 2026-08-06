@@ -293,15 +293,29 @@ def test_stream_socket_is_small_buffered_and_closes_abortively():
         assert st.open() is True
         snd = st.sock.getsockopt(_socket.SOL_SOCKET, _socket.SO_SNDBUF)
         assert snd <= 16384 * 4                    # small (kernels may round/double), not the ~128K+ default
-        sock = st.sock
+        # Wrap the live socket in a recording proxy so we assert _kill() (via close()) actually
+        # applies SO_LINGER 0 on THIS socket — not a decoy. getsockopt after close isn't portable.
+        class _Spy:
+            def __init__(self, real):
+                self._real, self.calls = real, []
+
+            def setsockopt(self, *a):
+                self.calls.append(a)
+                return self._real.setsockopt(*a)
+
+            def close(self):
+                return self._real.close()
+
+            def __getattr__(self, n):
+                return getattr(self._real, n)
+
+        spy = _Spy(st.sock)
+        st.sock = spy
         st.close()
         assert st.sock is None and not st.alive
-        # the linger struct was applied before close: onoff=1, linger=0 (abortive RST)
-        # (read back from the fd is not portable post-close; assert via a fresh apply path)
-        s2 = _socket.socket()
-        s2.setsockopt(_socket.SOL_SOCKET, _socket.SO_LINGER, _struct.pack("ii", 1, 0))
-        assert s2.getsockopt(_socket.SOL_SOCKET, _socket.SO_LINGER, 8)[:4] != b"\x00\x00\x00\x00"
-        s2.close()
+        linger = _struct.pack("ii", 1, 0)          # onoff=1, linger=0 = abortive RST
+        assert (_socket.SOL_SOCKET, _socket.SO_LINGER, linger) in spy.calls, \
+            "close() must set SO_LINGER 0 on the live socket (the abortive-close fix)"
     finally:
         t.join(timeout=2)
         for c in accepted:

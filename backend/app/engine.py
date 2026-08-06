@@ -90,6 +90,10 @@ class DisplayController:
         # framebuffer, bypassing the flaps). The next driver to take over must hand
         # the panel back to the reel wall first — see _cancel_task.
         self._canvas_active = False
+        # Set by abort() when this controller is being DISCARDED (display disabled/deleted/
+        # re-created) — every driver loop's next _entry_sleep raises, so a loop whose task
+        # pointer was lost still dies. See abort().
+        self._dead = False
         # When the app loop last painted a flap page. A non-anim app suppresses re-sending an
         # unchanged page — so a flap that drifts while the page holds (another client on the same
         # gateway, a transient) would never be re-asserted until the text finally changes. A
@@ -230,8 +234,8 @@ class DisplayController:
             # A hand-back to idle (an explicit stop, or shutdown): nothing follows to repaint
             # the wall. Releasing canvas mode is not enough — on this hardware it only flips the
             # flag and does NOT clear the panel's framebuffer, so the stopped app's last frame
-            # stays lit (an LCD left holding the aquarium after it was turned off). A flap-blank
-            # page can't be trusted either: it races the stream teardown and the device stays in
+            # stays lit (an LCD left holding a canvas app's last frame after it was turned off). A
+            # flap-blank page can't be trusted either: it races the stream teardown and stays in
             # canvas mode. Clear the framebuffer authoritatively instead.
             await self._blank_panel(_url)
         # The canvas app drew straight to the framebuffer, bypassing the flap transport's
@@ -285,22 +289,18 @@ class DisplayController:
         return True
 
     # Set by abort(): this controller is being discarded and must never drive hardware
-    # again. Checked in _entry_sleep — the one await every driver loop passes through —
-    # so even a loop whose task pointer was lost dies on its next cycle.
-    _dead = False
-
     def abort(self) -> None:
         """Synchronous kill switch for a controller being DISCARDED (display disabled,
-        deleted, re-created). Marks the controller dead — every driver loop's next
-        ``_entry_sleep`` raises — and fire-and-forget cancels the tracked task.
+        deleted, re-created). Marks the controller dead (``_dead``, set in __init__) — every
+        driver loop's next ``_entry_sleep`` raises — and fire-and-forget cancels the tracked task.
 
         This must be the FIRST thing display teardown does, precisely because it cannot
         fail: the async teardown after it (HA, scheduler, controller.stop) can raise, and
         before this existed an exception there skipped ``controller.stop()`` — leaking a
         LIVE render loop on a discarded controller object. That orphan kept pushing frames
         to the wall forever, unreachable by any stop (they all target the replacement
-        controller): the unstoppable-aquarium bug. The wall even rebooted mid-zombie and
-        the loop simply re-adopted its draw stream and carried on."""
+        controller). The wall even rebooted mid-zombie and the loop simply re-adopted its
+        draw stream and carried on."""
         self._dead = True
         task, self._task = self._task, None
         if task is not None and not task.done():
@@ -820,8 +820,8 @@ class DisplayController:
         if url:
             # Drop any draw stream a PREVIOUS app left open before this one claims the panel.
             # While a stream is open the drawing REST endpoints answer 409, so an un-torn-down
-            # stream — a streaming ops app (the aquarium) switched away by a path that skipped
-            # the release — would freeze the wall on its last frame and block every push here.
+            # stream — a streaming ops app switched away by a path that skipped the release —
+            # would freeze the wall on its last frame and block every push here.
             # stream_end is a no-op when none is open, and this app opens its own later if it
             # earns one (see _maybe_stream). The universal choke point, so no switch path leaks.
             await asyncio.to_thread(canvas.stream_end, url)
@@ -905,7 +905,7 @@ class DisplayController:
         advertises canvas.stream, a short hold (so it never trips the stream's 30 s idle
         timeout), and a push kind the stream carries whole — a frame, or a BINARY ops
         batch (record 0x06; a game like Chomper — atlas binds ride the stream's
-        own 0x04 record, so a sprite app like the aquarium qualifies too). Apps whose
+        own 0x04 record, so a sprite app qualifies too). Apps whose
         batches only JSON can carry stay on the per-batch HTTP path; a mid-stream atlas
         re-upload closes the stream itself (see canvas.put_atlas_named) and we simply
         re-adopt here on the next tick.

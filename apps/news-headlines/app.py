@@ -182,9 +182,8 @@ def _cv_news_ops(canvas, feed_url, title, idx, n, W, H):
     ssz = canvas.fit_gtext(src, int(W * 0.5), bar_h - max(3, int(bar_h * 0.22)))
     chip_w = int(canvas.text_width(src, ssz)) + 2 * pad
     canvas.rect(0, 0, chip_w, bar_h, color=_MAST, fill=True)
-    # gtext's y is the ascent-box top; caps ink spans ~0.20..0.93 of the size, so
-    # centering the ink in the chip means backing y off by ~0.56 of the size.
-    canvas.gtext(pad, int(bar_h / 2 - ssz * 0.56), src, color=_WHITE, size=ssz)
+    # valign='ink-center' drops the source label's real ink onto the chip's mid-line.
+    canvas.gtext(pad, bar_h // 2, src, color=_WHITE, size=ssz, valign='ink-center')
     canvas.line(0, bar_h, W - 1, bar_h, color=_MAST, t=max(1, int(H * 0.008)))
     d = max(2, int(H * 0.015))                   # base dot side; the lit one is 2d
     step = 2 * d
@@ -206,15 +205,14 @@ def _cv_news_ops(canvas, feed_url, title, idx, n, W, H):
     avail = H - top - floor
     size, lines = canvas.fit_wrap_gtext(title, W - 2 * m, avail, max_lines=5)
     if sum(len(ln.split()) for ln in lines) < len(str(title).split()):
-        last = lines[-1]                # cut off at the 8px floor — say so, don't just stop
-        while last and canvas.text_width(last + '…', size) > W - 2 * m:
-            last = last[:-1]
-        lines[-1] = last + '…'
+        # cut off at the 8px floor — mark the tail with a … (ellipsize trims it to fit)
+        lines[-1] = canvas.ellipsize(lines[-1] + '…', size, W - 2 * m)
     lstep = int(size * 1.18)
-    block = (len(lines) - 1) * lstep + int(size * 1.15)
-    if len(lines) > 1:
-        lstep += min(size // 2, max(0, avail - block) // (len(lines) - 1))
-        block = (len(lines) - 1) * lstep + int(size * 1.15)
+    block = canvas.gtext_block_height(lines, size)
+    if len(lines) > 1:                  # stretch the leading (never past half a line)
+        extra = min(size // 2, max(0, avail - block) // (len(lines) - 1))
+        lstep += extra
+        block += (len(lines) - 1) * extra
     y = H - floor - block
     for ln in lines:
         canvas.gtext(m, y, ln, color=_WHITE, size=size)

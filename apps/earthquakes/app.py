@@ -320,14 +320,12 @@ def _cv_quake_ops(canvas, mag, loc, dist, ago, W, H):
         canvas.rect(tx, by0, tw, bar_h + 1, (0, 0, 0), fill=True)
 
     # The place as a proper header, wrapped to at most two lines, its ink riding
-    # the top row (gtext ink starts ~0.18*size below the given y).
+    # the top row.
     hsz, hlines = canvas.fit_wrap_gtext(loc, W - 2 * marg, int(H * 0.17), max_lines=2)
-    y = 1 - int(hsz * 0.18)
-    for ln in hlines:
-        canvas.gtext(marg, y, ln, color=_CV_TEXT, size=hsz)
-        y += int(hsz * 1.18)
-    ink_bot = y - int(hsz * 1.18) + int(hsz * 0.94)
-    dy = ink_bot + max(3, int(H * 0.02))
+    hy0 = 1 - canvas.gtext_ink(hlines[0], hsz)[0]       # ascent-box top: line-0 ink on row 1
+    for i, ln in enumerate(hlines):
+        canvas.gtext(marg, hy0 + i * int(hsz * 1.18), ln, color=_CV_TEXT, size=hsz)
+    dy = hy0 + canvas.gtext_block_height(hlines, hsz) + max(3, int(H * 0.02))
     canvas.line(marg, dy, W - 1 - marg, dy, color=_CV_TRACK, t=max(1, int(round(H / 160))))
 
     # The magnitude hero on the left, the distance/age column dim beside it —
@@ -337,18 +335,19 @@ def _cv_quake_ops(canvas, mag, loc, dist, ago, W, H):
     mid_h = mid_bot - top
     msz = canvas.fit_gtext(ms, int(W * 0.60), int(mid_h * 0.92))
     mc = top + mid_h / 2.0                 # the band's visual center row
-    canvas.gtext(marg, int(mc - msz * 0.56), ms, color=col, size=msz)
+    canvas.gtext(marg, int(mc), ms, color=col, size=msz, valign='ink-center')
     rows = [x for x in (dist, ago) if x]
     rx = marg + int(canvas.text_width(ms, msz)) + max(8, int(W * 0.03))
     rw = W - marg - rx
     if rows and rw >= int(W * 0.16):
         fs = min(canvas.fit_gtext(s, rw, max(8, int(H * 0.14))) for s in rows)
         rgap = max(4, int(H * 0.06))
-        block = len(rows) * int(fs * 0.72) + (len(rows) - 1) * rgap
-        ry = mc - block / 2.0              # ink-top of the dim column
-        for s in rows:
-            canvas.gtext(rx, int(ry - fs * 0.18), s, color=_CV_DIM, size=fs)
-            ry += int(fs * 0.72) + rgap
+        hs = [canvas.gtext_ink(s, fs) for s in rows]      # exact per-line ink extents
+        block = sum(b - t for t, b in hs) + (len(rows) - 1) * rgap
+        ry = mc - block / 2.0              # the dim column, centered on the band
+        for s, (t, b) in zip(rows, hs):
+            canvas.gtext(rx, int(ry), s, color=_CV_DIM, size=fs, valign='ink-top')
+            ry += (b - t) + rgap
     canvas.show()
 
 

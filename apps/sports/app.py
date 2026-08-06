@@ -601,19 +601,20 @@ def _cv_score_ops(canvas, game, W, H):
     m = max(3, int(W * 0.015))
     lt = max(1, int(round(H / 160)))            # rule thickness, 1px per 160 rows
 
-    # Header: league left, status right, live dot beside the status. Cap tops
-    # pinned to y=1 (gtext y is the ascent top; caps sit ~0.20*size below it).
+    # Header: league left, status right, live dot beside the status. Ink tops
+    # pinned to y=1 with valign='ink-top' (exact — no cap-height fraction).
     head_h = max(12, int(H * 0.22))
     if league:
         lsz = canvas.fit_gtext(league, int(W * 0.4), head_h - 2)
-        canvas.gtext(m, 1 - int(lsz * 0.20), league, color=_MX_GRAY, size=lsz)
+        canvas.gtext(m, 1, league, color=_MX_GRAY, size=lsz, valign='ink-top')
     if status:
         ssz = canvas.fit_gtext(status, int(W * 0.5), head_h - 2)
-        canvas.gtext(W - m, 1 - int(ssz * 0.20), status, color=scol, size=ssz, align='right')
+        canvas.gtext(W - m, 1, status, color=scol, size=ssz, align='right', valign='ink-top')
         if state == 'in':
             r = max(2, int(ssz * 0.16))
+            it, ib = canvas.gtext_ink(status, ssz)          # dot on the status ink's vertical mid
             sx = W - m - canvas.text_width(status, ssz)
-            canvas.circle(sx - 3 * r, 1 + int(ssz * 0.36), r, color=_MX_LIVE, fill=True, aa=aa)
+            canvas.circle(sx - 3 * r, 1 + (ib - it) // 2, r, color=_MX_LIVE, fill=True, aa=aa)
     canvas.line(m, head_h + 1, W - 1 - m, head_h + 1, color=_MX_RULE, t=lt)
     top = head_h + max(3, int(H * 0.02))
     band = H - top
@@ -627,14 +628,12 @@ def _cv_score_ops(canvas, game, W, H):
         for i, ln in enumerate(lines):
             sz = canvas.fit_gtext(ln, W - 2 * m, lh - 2)
             if i == 0:
-                y = top - int(sz * 0.20)
+                y, va = top, 'ink-top'                        # first line hugs the band's top
             elif i == len(lines) - 1:
-                # ink bottom on the bottom row — descenders reach ~1.16*size
-                desc = any(c in 'gjpqy' for c in ln)
-                y = H - 1 - int(sz * (1.16 if desc else 0.93))
+                y, va = H - 1, 'ink-bottom'                   # last line's ink on the bottom row
             else:
-                y = top + i * lh + lh // 2 - int(sz * 0.56)
-            canvas.gtext(W // 2, y, ln, color=_MX_WHITE, size=sz, align='center')
+                y, va = top + i * lh + lh // 2, 'ink-center'  # a middle line centers in its slot
+            canvas.gtext(W // 2, y, ln, color=_MX_WHITE, size=sz, align='center', valign=va)
         canvas.show()
         return
 
@@ -656,20 +655,22 @@ def _cv_score_ops(canvas, game, W, H):
 
     canvas.line(m, top + row_h, W - 1 - m, top + row_h, color=_MX_RULE, t=lt)
     for i, ((abbr, score), col) in enumerate(zip(rows, colors)):
-        # the away row's caps hug the band's top, the home row's baseline sits
-        # on the bottom row — the scoreboard spends the whole band it was given
-        y = top - int(tsz * 0.20) if i == 0 else H - 1 - int(tsz * 0.93)
-        canvas.gtext(m, y, abbr, color=col, size=tsz)
+        # the away row's ink hugs the band's top, the home row's ink sits on the
+        # bottom row — the scoreboard spends the whole band it was given
+        y, va = (top, 'ink-top') if i == 0 else (H - 1, 'ink-bottom')
+        canvas.gtext(m, y, abbr, color=col, size=tsz, valign=va)
         if score:
-            canvas.gtext(W - m, y, score, color=col, size=tsz, align='right')
+            canvas.gtext(W - m, y, score, color=col, size=tsz, align='right', valign=va)
     if state == 'pre':
         vsz = canvas.fit_gtext('VS', int(W * 0.25), max(8, int(row_h * 0.5)))
         vw = canvas.text_width('VS', vsz)
-        vx, vy = W - m - vw, top + band // 2 - int(vsz * 0.56)
+        cy = top + band // 2
+        it, ib = canvas.gtext_ink('VS', vsz)                # scrim + mark centered on the band
+        vx = W - m - vw
         pad = max(2, int(vsz * 0.2))
-        canvas.rect(vx - pad, vy + int(vsz * 0.20) - pad, vw + 2 * pad,
-                    int(vsz * 0.73) + 2 * pad, (0, 0, 0), fill=True)
-        canvas.gtext(vx, vy, 'VS', color=_MX_GRAY, size=vsz)
+        canvas.rect(vx - pad, cy - (ib - it) // 2 - pad, vw + 2 * pad,
+                    (ib - it) + 2 * pad, (0, 0, 0), fill=True)
+        canvas.gtext(vx, cy, 'VS', color=_MX_GRAY, size=vsz, valign='ink-center')
     canvas.show()
 
 

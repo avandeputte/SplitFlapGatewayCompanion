@@ -713,7 +713,9 @@ async function loadApps() {
 }
 
 let ACTIVE_BANNER = null;   // last-painted banner markup — this runs on every state paint
+let LAST_ACTIVE = { app: null, playlist: null, current: null };  // so a rebuilt list can repaint
 function updateActiveUI(activeApp, activePlaylist, currentApp) {
+  LAST_ACTIVE = { app: activeApp, playlist: activePlaylist, current: currentApp };
   const banner = $("activeBanner");
   let label = "";
   if (activeApp) {
@@ -1587,6 +1589,9 @@ async function loadPlaylists() {
   });
   if (!PL_ENTRIES.length) plRender();
   plSaveLabel();
+  // Rebuilding the rows above dropped any .playing marker — repaint it from the last known
+  // state so a running playlist stays lit through a list refresh (don't wait for the next SSE).
+  updateActiveUI(LAST_ACTIVE.app, LAST_ACTIVE.playlist, LAST_ACTIVE.current);
   // The Zones card shares this page and every path that refreshes it (tab open,
   // boot, display switch, edits) comes through here — one seam, always current.
   await loadZones();

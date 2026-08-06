@@ -3,6 +3,21 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.31 — pre-stable audit pass
+
+- **Crisp LCD text is now consistent and descender-safe across every app** — the ~22 apps converted
+  for the LCD had each hand-tuned the same font-anchoring math slightly differently, and a couple
+  (metro, planes) clipped lowercase tails (a "y"/"g" in a name). They now share one exact set of
+  gtext helpers (ink-anchoring, ellipsis-trimming, wrapped-block height measured from the real
+  glyph box), so anchoring is uniform and a descender can no longer be clipped. LED panels unchanged.
+- **A running playlist stays lit through a list refresh** — the "playing" indicators no longer blank
+  when you open the Apps/Shows tab or install/save/delete while a playlist runs.
+- **App fixes**: Rocket Launch no longer runs its text off a narrow-tall panel; Chomper's pause
+  indicator is visible on the LCD; the World Clock shows the same rows on the wall as in the preview.
+- **Internal hardening** (from a full pre-stable code audit): shared draw-op backpressure predicate,
+  descender-exact text metrics, sim/wall surface parity for anti-aliased strokes, dead code and
+  stale comments removed, and a stronger test for the stream's abortive close.
+
 ## 2.10.12-beta.30
 
 - **Aurora Watch, Earthquakes and Livestream are crisp on the LCD** — converted to on-device ops

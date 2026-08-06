@@ -256,3 +256,56 @@ def test_fit_wrap_gtext_shrinks_for_an_unbreakable_word():
     # normal text is untouched: the accepted size already had every line inside max_w
     s2, l2 = _fit_wrap_gtext("DINNER IS READY", 200, 120, 3, "sans", 512)
     assert all(_gtext_width(ln, s2, "sans") <= 200 for ln in l2)
+
+
+# --- shared gtext anchoring helpers (retire the per-app drifted fractions) ---
+
+def test_gtext_ink_is_descender_exact():
+    """gtext_ink measures the REAL glyph box (PIL getbbox), so a descender/comma line bottoms
+    lower than a caps line — no hand-tuned 0.94/1.14 fractions, no 'JQ-only' char-set to miss."""
+    s = _lcd_surface()
+    _, b_caps = s.gtext_ink("ISS", 100)
+    _, b_desc = s.gtext_ink("apply,", 100)
+    assert b_caps == 94 and b_desc > b_caps       # comma + y-tail hang below the caps bottom
+    # scales linearly with size
+    _, b200 = s.gtext_ink("ISS", 200)
+    assert 185 <= b200 <= 190
+
+
+def test_gtext_valign_anchors_by_ink():
+    """valign moves y off the ascent-box top onto the string's ink: ink-bottom floor-anchors
+    descender-safe (the whole point — metro/planes clipped lowercase tails with JQ-only checks)."""
+    s = _lcd_surface()
+    _, b = s.gtext_ink("apply,", 100)
+    s._ops = []
+    s.gtext(10, 800, "apply,", size=100, valign="ink-bottom")
+    assert s._ops[-1]["y"] == 800 - b             # ink bottom lands exactly on y=800
+    s._ops = []
+    t, bb = s.gtext_ink("Xy", 80)
+    s.gtext(0, 400, "Xy", size=80, valign="ink-center")
+    assert s._ops[-1]["y"] == int(400 - (t + bb) / 2)
+    s._ops = []
+    s.gtext(0, 0, "Xy", size=80)                   # default valign=top: raw y, unchanged
+    assert s._ops[-1]["y"] == 0
+
+
+def test_ellipsize_trims_to_fit():
+    """One shared ellipsize (was copy-pasted under ~6 names with drift): trims with a trailing …
+    to fit max_w, whole string when it already fits, bare … when nothing does."""
+    s = _lcd_surface()
+    long = "Building a four panel LED matrix wall"
+    e = s.ellipsize(long, 60, 300)
+    assert e.endswith("…") and s.text_width(e, 60) <= 300 and e != long
+    assert s.ellipsize("Hi", 60, 300) == "Hi"      # fits: untouched
+    assert s.ellipsize("Hello", 60, 0) == "…"      # no room
+
+
+def test_gtext_block_height_is_descender_aware():
+    """Block height = (n-1) steps + the LAST line's real ink bottom, so centring a wrapped block
+    never clips its tail. Standardized on the 1.18 step apps had drifted (1.18 vs 1.2)."""
+    s = _lcd_surface()
+    caps = s.gtext_block_height(["ONE", "TWO"], 50)
+    desc = s.gtext_block_height(["ONE", "tail gjpqy"], 50)
+    assert desc > caps                             # descender last line reserves more
+    assert s.gtext_block_height([], 50) == 0
+    assert s.gtext_block_height(["X"], 100) == s.gtext_ink("X", 100)[1]   # 1 line = its ink bottom

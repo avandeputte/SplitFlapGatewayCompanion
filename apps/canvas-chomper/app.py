@@ -371,9 +371,9 @@ def _draw_board(canvas, st, xe, ye, W, H, dim=1.0, k=1):
                           d(_PAC), fill=True, aa=aa)
 
 
-def _draw_ready(canvas, W, H):
+def _draw_ready(canvas, W, H, k=1):
     """The get-set pause after a life is lost — press any key to go."""
-    if getattr(canvas, 'can_gtext', False) and H >= 96:
+    if getattr(canvas, 'can_gtext', False) and k > 1:
         size = canvas.fit_gtext("READY?", W - 8, H // 3)
         canvas.gtext(W // 2, (H - size) // 2, "READY?", color=(255, 240, 60), size=size,
                      align='center', shadow=(0, 0, 0))
@@ -382,7 +382,7 @@ def _draw_ready(canvas, W, H):
     canvas.shadow_text(W // 2, (H - face) // 2, "READY?", (255, 240, 60), face, align="center")
 
 
-def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
+def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False, k=1):
     """The end screen: GAME OVER and the score fading in (``appear`` 0..1) as the board
     fades out behind them. Press any key for a new game."""
     a = max(0.0, min(1.0, appear))
@@ -391,7 +391,7 @@ def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
     txt = "SCORE " + str(score)
     if best and not new_best and W >= 96:
         txt += "  BEST " + str(best)
-    if getattr(canvas, 'can_gtext', False) and H >= 96:
+    if getattr(canvas, 'can_gtext', False) and k > 1:
         s1 = canvas.fit_gtext(title, W - 8, H // 3)
         s2 = canvas.fit_gtext(txt, W - 8, H // 4)
         gap = s2 // 2
@@ -462,10 +462,10 @@ def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=No
             if phase == 'gameover':
                 _draw_board(canvas, st, xe, ye, W, H, dim=max(0.0, 1 - st['fade'] / _FADE_STEPS), k=k)
                 _draw_gameover(canvas, W, H, st['score'], st['fade'] / (_FADE_STEPS * 0.5),
-                               best=st.get('best_score', 0), new_best=st.get('new_best', False))
+                               best=st.get('best_score', 0), new_best=st.get('new_best', False), k=k)
             else:
                 _draw_board(canvas, st, xe, ye, W, H, k=k)
-                _draw_ready(canvas, W, H)
+                _draw_ready(canvas, W, H, k=k)
             canvas.show()
             return 0.08
 
@@ -480,9 +480,9 @@ def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=No
         _play_sfx(play_sound, sfx, st['pellets'])
 
     _draw_board(canvas, st, xe, ye, W, H, k=k)
-    if playing and st.get('paused'):                   # two-bar pause glyph, centered
-        canvas.rect(W // 2 - 3, H // 2 - 4, 2, 8, (255, 255, 255), fill=True)
-        canvas.rect(W // 2 + 1, H // 2 - 4, 2, 8, (255, 255, 255), fill=True)
+    if playing and st.get('paused'):                   # two-bar pause glyph, centered, k-scaled
+        canvas.rect(W // 2 - 3 * k, H // 2 - 4 * k, 2 * k, 8 * k, (255, 255, 255), fill=True)
+        canvas.rect(W // 2 + k, H // 2 - 4 * k, 2 * k, 8 * k, (255, 255, 255), fill=True)
 
     canvas.show()
     speed = canvas.num(settings, 'speed', 5, 1, 10)

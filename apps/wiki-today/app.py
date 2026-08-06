@@ -220,15 +220,6 @@ def _cv_tall(canvas, ImageDraw, t, title, mostread):
     return img
 
 
-def _ops_trim(canvas, s, size, max_w):
-    """``s`` trimmed with an ellipsis until it fits ``max_w`` at ``size`` (never past empty)."""
-    if canvas.text_width(s, size) <= max_w:
-        return s
-    while s and canvas.text_width(s + '…', size) > max_w:
-        s = s[:-1]
-    return (s + '…') if s else ''
-
-
 def _cv_wiki_ops(canvas, t, title, mostread, W, H):
     """The tall card as on-device DRAW OPS — the gtext-era twin of _cv_tall, for the
     LCD (manifest ``lcd_ops``): the W medallion and steel-blue label over the rule,
@@ -242,8 +233,8 @@ def _cv_wiki_ops(canvas, t, title, mostread, W, H):
     label = (t('Featured') if title else t('Most read')).upper()
 
     # Header: medallion + label over a thin accent rule (the _cv_header layout).
-    # gtext's y is the ascent-box top; cap ink spans ~0.20..0.93 of the size, so
-    # ring-centering the W means backing y off by ~0.56 of its size.
+    # valign anchors each string on its real ink: the W centred in the ring, the
+    # label's ink-top on the y=2 line, the rule below whichever of the two is taller.
     hh = max(7, int(H * 0.19))
     ms = hh + max(3, int(H * 0.02))
     x = max(3, int(W * 0.012))
@@ -251,11 +242,12 @@ def _cv_wiki_ops(canvas, t, title, mostread, W, H):
     canvas.circle(x + r, r, r - 1, color=_ACCENT, fill=False,
                   t=max(1, int(H * 0.008)), aa=aa)
     wsz = canvas.fit_gtext('W', int(ms * 0.88), int(ms * 0.88))
-    canvas.gtext(x + r, int(r - wsz * 0.56), 'W', color=_ACCENT, size=wsz, align='center')
+    canvas.gtext(x + r, r, 'W', color=_ACCENT, size=wsz, align='center', valign='ink-center')
     lx = x + ms + max(4, int(W * 0.015))
     lsz = canvas.fit_gtext(label, W - lx - pad, hh)
-    canvas.gtext(lx, 2 - int(lsz * 0.18), label, color=_ACCENT, size=lsz)
-    ry = max(ms, int(lsz * 0.95)) + max(2, int(H * 0.012))
+    lit, libot = canvas.gtext_ink(label, lsz)
+    canvas.gtext(lx, 2, label, color=_ACCENT, size=lsz, valign='ink-top')
+    ry = max(ms, 2 + (libot - lit)) + max(2, int(H * 0.012))
     canvas.line(x, ry, W - 1 - x, ry, color=tuple(c // 3 for c in _ACCENT),
                 t=max(1, int(H * 0.006)))
     top = ry + max(2, int(H * 0.015))
@@ -271,7 +263,7 @@ def _cv_wiki_ops(canvas, t, title, mostread, W, H):
         list_h = (msz + gap + len(items) * row) if items else 0
         title_h = H - top - list_h - (max(8, int(H * 0.05)) if items else 0)
         tsz, tlines = canvas.fit_wrap_gtext(title, W - 2 * pad, max(1, title_h), max_lines=2)
-        block = (len(tlines) - 1) * int(tsz * 1.18) + tsz
+        block = canvas.gtext_block_height(tlines, tsz)
         ty = top + max(0, (title_h - block) // 2)
         for ln in tlines:
             canvas.gtext(W // 2, ty, ln, color=_TEXT, size=tsz, align='center')
@@ -282,7 +274,7 @@ def _cv_wiki_ops(canvas, t, title, mostread, W, H):
             y += msz + gap
             for i, art in enumerate(items):
                 canvas.gtext(pad, y, f'{i + 1}', color=_ACCENT, size=lsz_l)
-                canvas.gtext(rx, y, _ops_trim(canvas, art, lsz_l, W - pad - rx),
+                canvas.gtext(rx, y, canvas.ellipsize(art, lsz_l, W - pad - rx),
                              color=_TEXT, size=lsz_l)
                 y += row
     else:                                        # no featured article — the list fills it
@@ -290,7 +282,7 @@ def _cv_wiki_ops(canvas, t, title, mostread, W, H):
         y = top + max(0, (H - top - pad - row * len(items)) // 2)
         for i, art in enumerate(items):
             canvas.gtext(pad, y, f'{i + 1}', color=_ACCENT, size=lsz_l)
-            canvas.gtext(rx, y, _ops_trim(canvas, art, lsz_l, W - pad - rx),
+            canvas.gtext(rx, y, canvas.ellipsize(art, lsz_l, W - pad - rx),
                          color=_TEXT, size=lsz_l)
             y += row
     canvas.show()

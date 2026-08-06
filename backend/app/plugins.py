@@ -1258,8 +1258,10 @@ class PluginRuntime:
 
         "All apps" loops through every app on the Apps screen, in the screen's own
         (name-sorted) order, so it always mirrors what is installed without anyone
-        maintaining it: install an app and the next cycle includes it, uninstall and
-        it is gone. Merged ahead of the saved playlists by every reader (the
+        maintaining it. Freshness is per LISTING/START, not per running instance:
+        run_playlist snapshots the entries, so an install mid-run is picked up the next
+        time it is started, not on the current cycle. Merged ahead of the saved playlists
+        by every reader (the
         /api/playlists route, Home Assistant's playlist select, MCP), marked
         ``builtin`` so the UI offers Run without Edit/Delete, and its name is
         reserved against saves. Empty when nothing is installed."""

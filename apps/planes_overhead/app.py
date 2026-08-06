@@ -998,8 +998,8 @@ def _cv_planes_ops(canvas, shown, idx, callsign, route, dist, alt, bearing, W, H
     with distance and altitude, the rest of the traffic on the bottom edge — drawn
     by the wall at native resolution instead of a 256x160 frame upscaled x5.
 
-    gtext's y is the ascent-box top; caps ink runs ~0.18..0.94 of the size (a J's
-    tail to ~1.13), hence the anchor offsets below."""
+    Anchoring is by gtext ``valign`` on the real ink (``ink-top``/``ink-center``/
+    ``ink-bottom``), so a descender parks exact — a J's tail or a comma no longer clips."""
     aa = bool(getattr(canvas, 'aa_ok', False))
     canvas.clear((0, 0, 0))
     pad = max(3, int(W * 0.012))
@@ -1007,7 +1007,7 @@ def _cv_planes_ops(canvas, shown, idx, callsign, route, dist, alt, bearing, W, H
     # Header: the label + pagination marks (this aircraft lit), then the card.
     head_h = max(12, int(H * 0.20))
     lsize = canvas.fit_gtext('OVERHEAD', int(W * 0.55), head_h - max(2, int(H * 0.012)))
-    canvas.gtext(pad, 1 - 0.18 * lsize, 'OVERHEAD', color=_MX_GRAY, size=lsize)
+    canvas.gtext(pad, 1, 'OVERHEAD', color=_MX_GRAY, size=lsize, valign='ink-top')
     u = max(2, int(H * 0.012))                   # the pagination unit square
     step = u * 3
     dyc = head_h // 2
@@ -1026,14 +1026,14 @@ def _cv_planes_ops(canvas, shown, idx, callsign, route, dist, alt, bearing, W, H
     hero_top = head_h + max(3, int(H * 0.019))
     hero_h = max(12, int(H * 0.34))
     csize = canvas.fit_gtext(callsign, int(W * 0.62), hero_h)
-    canvas.gtext(pad, hero_top + hero_h / 2 - 0.56 * csize, callsign,
-                 color=_MX_WHITE, size=csize)
+    canvas.gtext(pad, hero_top + hero_h / 2, callsign,
+                 color=_MX_WHITE, size=csize, valign='ink-center')
     if route:
         avail = W - 3 * pad - canvas.text_width(callsign, csize)
         rsize = canvas.fit_gtext(route, avail, max(8, int(hero_h * 0.55)))
         if canvas.text_width(route, rsize) <= avail:
-            canvas.gtext(W - pad, hero_top + hero_h / 2 - 0.56 * rsize, route,
-                         color=_MX_CYAN, size=rsize, align='right')
+            canvas.gtext(W - pad, hero_top + hero_h / 2, route,
+                         color=_MX_CYAN, size=rsize, align='right', valign='ink-center')
 
     # Info row: bearing arrow + distance (amber), altitude flush right (green).
     info_top = hero_top + hero_h + max(2, int(H * 0.012))
@@ -1050,7 +1050,8 @@ def _cv_planes_ops(canvas, shown, idx, callsign, route, dist, alt, bearing, W, H
                                      max(8, int(H * 0.14))))
 
     dsize = canvas.fit_gtext(dist, int(W * 0.5), info_h - 1)
-    dh = 0.76 * dsize                            # the distance line's ink height
+    d_it, d_ib = canvas.gtext_ink(dist, dsize)
+    dh = d_ib - d_it                             # the distance line's real ink height
     iy = info_top + (info_h - dh) / 2.0 if osize else H - 1 - dh   # its ink top
     ay = iy + dh / 2.0
     # The arrow can point anywhere, so its reach is clamped to the room under its
@@ -1059,16 +1060,15 @@ def _cv_planes_ops(canvas, shown, idx, callsign, route, dist, alt, bearing, W, H
     ax = pad + r_a
     _mx_arrow_ops(canvas, ax, ay, r_a, bearing, _MX_AMBER,
                   max(1, int(r_a * 0.14)), aa)
-    canvas.gtext(ax + r_a + max(3, int(W * 0.012)), iy - 0.18 * dsize, dist,
-                 color=_MX_AMBER, size=dsize)
+    canvas.gtext(ax + r_a + max(3, int(W * 0.012)), iy, dist,
+                 color=_MX_AMBER, size=dsize, valign='ink-top')
     if alt:
         asize = canvas.fit_gtext(alt, int(W * 0.32), info_h - 1)
         if asize >= 8:                           # ink bottoms aligned, like the PIL row
-            canvas.gtext(W - pad, iy + dh - 0.94 * asize, alt,
-                         color=_MX_GREEN, size=asize, align='right')
+            canvas.gtext(W - pad, iy + dh, alt,
+                         color=_MX_GREEN, size=asize, align='right', valign='ink-bottom')
     if osize:
-        ok = 1.13 if any(c in 'JQ' for c in oline) else 0.94
-        canvas.gtext(pad, H - 1 - ok * osize, oline, color=_MX_DIM, size=osize)
+        canvas.gtext(pad, H - 1, oline, color=_MX_DIM, size=osize, valign='ink-bottom')
     canvas.show()
 
 

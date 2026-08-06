@@ -127,8 +127,10 @@ class HomeAssistant:
         # active app/playlist.
         d, av = self._device(), self._avail()
         apps = [a["name"] for a in self.plugins.app_list()]
-        pls = (list(self.plugins.builtin_playlists().keys())        # "All apps" first
-               + list(self.settings.get("saved_app_playlists", {}).keys()))
+        # Dict-merge (builtin first, saved wins a name collision) — the SAME shape the route/MCP
+        # consumers use, so a legacy saved "All apps" can't show twice or diverge from them.
+        pls = list({**self.plugins.builtin_playlists(),
+                    **self.settings.get("saved_app_playlists", {})}.keys())
         out = [
             ("select", "app", {
                 "name": "App", "unique_id": f"{self.node}_app",

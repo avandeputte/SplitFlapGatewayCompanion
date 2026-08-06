@@ -262,9 +262,9 @@ def _cv_tides_ops(canvas, events, i18n, W, H):
     """The tide card drawn with the LCD's on-device ops + gtext instead of a pushed
     pixel frame (manifest ``lcd_ops``): the next high/low (and the one after, where
     the width allows) across the top, the day's curve full-bleed below — the same
-    composition as the pixel path, crisp at native resolution. gtext's y is the
-    ascent-box top; ink rides ~0.18..0.94 of the size, so the header's ink starts
-    on the panel's first rows and the water fill owns the last one."""
+    composition as the pixel path, crisp at native resolution. The header shares one
+    ascent-box top (its real ink measured once), so every glyph keeps the same baseline
+    and the line's ink rides the panel's first rows while the water fill owns the last."""
     from datetime import datetime
     aa = bool(getattr(canvas, 'aa_ok', False))
     canvas.clear((0, 0, 0))
@@ -293,19 +293,23 @@ def _cv_tides_ops(canvas, events, i18n, W, H):
     if not two:                            # one group: give it the full width
         hs = canvas.fit_gtext(sample, W - 2 * pad, head_h)
 
+    # One ascent-box top for the whole header line (its real ink measured once), so
+    # every glyph shares a baseline and the line's ink rides the panel's first rows.
+    head_it, head_ib = canvas.gtext_ink(sample, hs)
+    y_top = 1 - head_it
+
     def tide_line(x, event, bright, with_height=True):
         _m, v, is_high, hhmm = event
         arrow = '↑' if is_high else '↓'
         when = _fmt_time(hhmm, i18n)
-        y = 1 - 0.18 * hs                  # ink top rides the panel's first rows
-        canvas.gtext(x, y, arrow, color=_CV_SEA, size=hs)
+        canvas.gtext(x, y_top, arrow, color=_CV_SEA, size=hs)
         x += canvas.text_width(arrow + ' ', hs)
-        canvas.gtext(x, y, when, color=_CV_TEXT if bright else _CV_DIM, size=hs)
+        canvas.gtext(x, y_top, when, color=_CV_TEXT if bright else _CV_DIM, size=hs)
         if not with_height:
             return x + canvas.text_width(when, hs)
         x += canvas.text_width(when + ' ', hs)
         ht = f'{v:.1f}FT'
-        canvas.gtext(x, y, ht, color=_CV_SEA if bright else _CV_DIM, size=hs)
+        canvas.gtext(x, y_top, ht, color=_CV_SEA if bright else _CV_DIM, size=hs)
         return x + canvas.text_width(ht, hs)
 
     end = tide_line(pad, upcoming[0], True,
@@ -313,7 +317,7 @@ def _cv_tides_ops(canvas, events, i18n, W, H):
     if two:
         tide_line(end + max(8, W // 16), upcoming[1], False)
 
-    top = int(1 + 0.76 * hs + max(2, int(H * 0.012)))
+    top = int(1 + (head_ib - head_it) + max(2, int(H * 0.012)))
     _cv_curve_ops(canvas, events, 0, top, W - 1, H - 1, float(now_min), aa)
     canvas.show()
 

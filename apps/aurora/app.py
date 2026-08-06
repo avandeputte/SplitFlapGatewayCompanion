@@ -114,6 +114,42 @@ def _kp_color(v):
     return (240, 70, 58)
 
 
+# The gauge + history geometry, primitive-agnostic so the ops branch (canvas.rect)
+# and both PIL layouts (draw.rectangle) draw the same rects — one source of truth
+# for the segment fractions and the value->height/color mapping.
+
+def _gauge_segments(kp, W, gap):
+    """The 9-segment severity gauge as ``[(x_left, x_right_inclusive, color)]`` spanning
+    x=1..W-2: each segment its own severity color when lit, dark beyond the reading. A
+    fractional Kp part-lights its segment's leading edge and leaves the remainder dark
+    (a second rect). ``gap`` is the caller's inter-segment gap (it differs per surface)."""
+    seg_w = (W - 2 - 8 * gap) / 9.0
+    out, x = [], 1.0
+    for i in range(9):
+        lit = kp >= i + 1
+        part = (not lit) and (kp > i)
+        c = _kp_color(i + 1) if (lit or part) else _SEG_OFF
+        w = seg_w if not part else max(1.0, seg_w * (kp - i))
+        out.append((round(x), round(x + w) - 1, c))
+        if part:
+            out.append((round(x + w), round(x + seg_w) - 1, _SEG_OFF))
+        x += seg_w + gap
+    return out
+
+
+def _hist_bars(hist, hh, floor=2):
+    """Each history reading as ``(bar_height_px, color)``: Kp 0..9 mapped onto ``hh`` (a
+    small ``floor`` so a near-zero reading still shows), the newest in full severity
+    color and the rest dimmed. The X layout differs per surface, so callers place them."""
+    n = len(hist)
+    out = []
+    for i, v in enumerate(hist):
+        bh = max(floor, int(round(min(9.0, v) / 9.0 * hh)))
+        c = _kp_color(v) if i == n - 1 else tuple(int(cc * 0.55) for cc in _kp_color(v))
+        out.append((bh, c))
+    return out
+
+
 def _cv_kp_ops(canvas, kp, series, kps, label, W, H):
     """The tall-panel card as on-device DRAW OPS — the gtext-era twin of the H>=96
     PIL layout below, for the LCD (manifest ``lcd_ops``): scalable type and native-
@@ -129,17 +165,19 @@ def _cv_kp_ops(canvas, kp, series, kps, label, W, H):
     gy1 = H - 1
     gy0 = gy1 - gauge_h
 
-    # Headline: "KP 5.7" big in the severity color, its ink pinned to the top row
-    # (gtext ink starts ~0.18*size below the given y), the condition label under it.
+    # Headline: "KP 5.7" big in the severity color, its ink pinned to the top row,
+    # the condition label's ink just under it.
     ksz = canvas.fit_gtext(kps, W - 2 * marg, int(H * 0.40))
     lsz = canvas.fit_gtext(label, W - 2 * marg, max(8, int(H * 0.11)))
-    canvas.gtext(W // 2, 1 - int(ksz * 0.18), kps, color=col, size=ksz, align='center')
-    ly = 1 + int(ksz * 0.74) + max(3, int(H * 0.02))    # the label's ink-top row
-    canvas.gtext(W // 2, ly - int(lsz * 0.18), label, color=_TXT_COL, size=lsz, align='center')
+    canvas.gtext(W // 2, 1, kps, color=col, size=ksz, align='center', valign='ink-top')
+    kt, kb = canvas.gtext_ink(kps, ksz)
+    ly = 1 + (kb - kt) + max(3, int(H * 0.02))          # the label's ink-top row
+    canvas.gtext(W // 2, ly, label, color=_TXT_COL, size=lsz, align='center', valign='ink-top')
 
     # the last 24h of 3-hour readings as chunky bars, newest in full color
     hist = series[-8:] if len(series) >= 2 else []
-    top = ly + int(lsz * 0.76) + max(5, int(H * 0.03))
+    lt, lb = canvas.gtext_ink(label, lsz)
+    top = ly + (lb - lt) + max(5, int(H * 0.03))
     hy1 = gy0 - max(4, int(H * 0.025))
     hh = hy1 - top
     if hist and hh >= 12:
@@ -151,28 +189,14 @@ def _cv_kp_ops(canvas, kp, series, kps, label, W, H):
         for sx in range(marg, W - marg - dash, 3 * dash):
             canvas.line(sx, storm_y, sx + dash, storm_y, color=(96, 42, 40),
                         t=max(1, int(round(H / 160))))
-        for i, v in enumerate(hist):
+        for i, (bh, c) in enumerate(_hist_bars(hist, hh, 2)):
             bx = marg + i * (bw + bgap)
-            bh = max(2, int(round(min(9.0, v) / 9.0 * hh)))
-            c = _kp_color(v) if i == n - 1 else \
-                tuple(int(cc * 0.55) for cc in _kp_color(v))
             canvas.rect(round(bx), hy1 - bh + 1, round(bx + bw) - round(bx), bh,
                         c, fill=True)
 
     # the same 9-segment severity gauge as the pixel layouts, on the bottom edge
-    gap = max(2, int(W * 0.008))
-    seg_w = (W - 2 - 8 * gap) / 9.0
-    x = 1.0
-    for i in range(9):
-        lit = kp >= i + 1
-        part = (not lit) and (kp > i)
-        c = _kp_color(i + 1) if (lit or part) else _SEG_OFF
-        w = seg_w if not part else max(1.0, seg_w * (kp - i))
-        canvas.rect(round(x), gy0, round(x + w) - round(x), gy1 - gy0 + 1, c, fill=True)
-        if part:
-            canvas.rect(round(x + w), gy0, round(x + seg_w) - round(x + w),
-                        gy1 - gy0 + 1, _SEG_OFF, fill=True)
-        x += seg_w + gap
+    for left, right, c in _gauge_segments(kp, W, max(2, int(W * 0.008))):
+        canvas.rect(left, gy0, right - left + 1, gy1 - gy0 + 1, c, fill=True)
     canvas.show()
 
 
@@ -243,26 +267,13 @@ def fetch_canvas(settings, canvas, i18n=None):
             storm_y = hy1 - int(round(5.0 / 9.0 * hh))     # Kp 5 = storm threshold
             for sx in range(2, W - 2, 6):
                 draw.line([(sx, storm_y), (sx + 2, storm_y)], fill=(96, 42, 40))
-            for i, v in enumerate(hist):
+            for i, (bh, c) in enumerate(_hist_bars(hist, hh, 2)):
                 bx = 2 + i * (bw + bgap)
-                bh = max(2, int(round(min(9.0, v) / 9.0 * hh)))
-                c = _kp_color(v) if i == n - 1 else \
-                    tuple(int(cc * 0.55) for cc in _kp_color(v))
                 draw.rectangle([round(bx), hy1 - bh + 1, round(bx + bw) - 1, hy1], fill=c)
 
         # the same 9-segment severity gauge as the wide layout, on the bottom edge
-        gap = 2
-        seg_w = (W - 2 - 8 * gap) / 9.0
-        x = 1.0
-        for i in range(9):
-            lit = kp >= i + 1
-            part = (not lit) and (kp > i)
-            c = _kp_color(i + 1) if (lit or part) else _SEG_OFF
-            w = seg_w if not part else max(1.0, seg_w * (kp - i))
-            draw.rectangle([round(x), gy0, round(x + w) - 1, gy1], fill=c)
-            if part:
-                draw.rectangle([round(x + w), gy0, round(x + seg_w) - 1, gy1], fill=_SEG_OFF)
-            x += seg_w + gap
+        for left, right, c in _gauge_segments(kp, W, 2):
+            draw.rectangle([left, gy0, right, gy1], fill=c)
         canvas.frame(img)
         return 300.0
 
@@ -306,26 +317,14 @@ def fetch_canvas(settings, canvas, i18n=None):
     # The gauge: nine segments 1..9, each in its own severity color when lit,
     # asleep in dark gray beyond the current Kp. A fractional reading part-lights
     # its segment's leading edge.
-    gap = 2 if W >= 96 else 1
-    seg_w = (W - 2 - 8 * gap) / 9.0
-    x = 1.0
-    for i in range(9):
-        lit = kp >= i + 1
-        part = (not lit) and (kp > i)
-        c = _kp_color(i + 1) if (lit or part) else _SEG_OFF
-        w = seg_w if not part else max(1.0, seg_w * (kp - i))
-        draw.rectangle([round(x), gy0, round(x + w) - 1, gy1], fill=c)
-        if part:
-            draw.rectangle([round(x + w), gy0, round(x + seg_w) - 1, gy1], fill=_SEG_OFF)
-        x += seg_w + gap
+    for left, right, c in _gauge_segments(kp, W, 2 if W >= 96 else 1):
+        draw.rectangle([left, gy0, right, gy1], fill=c)
 
     if hist:
         hx = W - hw - 4
         hy1 = gy0 - 3                   # bars sit just above the gauge...
         hh = hy1 - 1                    # ...and a Kp-9 bar would reach the top row
-        for i, v in enumerate(hist):
-            bh = max(1, int(round(min(9.0, v) / 9.0 * hh)))
-            c = _kp_color(v) if i == len(hist) - 1 else tuple(int(cc * 0.55) for cc in _kp_color(v))
+        for i, (bh, c) in enumerate(_hist_bars(hist, hh, 1)):
             draw.rectangle([hx + i * (bw + bgap), hy1 - bh + 1,
                             hx + i * (bw + bgap) + bw - 1, hy1], fill=c)
 

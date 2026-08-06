@@ -176,23 +176,22 @@ def _cv_word_ops(canvas, header, word, pos, gloss, W, H):
     hsz = canvas.fit_gtext(header, W - 2 * pad, max(8, int(H * 0.11)))
     canvas.gtext(W // 2, pad, header, color=_CV_LABEL, size=hsz, align='center')
 
-    # The gloss at a comfortable read — whole words, up to two lines. Its block
-    # height counts the descenders (~1.12 of the size), so the last line's ink
-    # lands on the pad line the way the PIL path's floor-anchored block does.
+    # The gloss at a comfortable read — whole words, up to two lines. gtext_block_height
+    # measures the real ink (descender-aware last line), so the last line's ink lands on
+    # the pad line the way the PIL path's floor-anchored block does.
     dsz, dlines, dstep, def_block = 0, [], 0, 0
     if gloss:
         dsz, dlines = canvas.fit_wrap_gtext(f'{pos} {gloss}'.strip(), W - 2 * pad,
                                             int(H * 0.24), max_lines=2)
         dstep = int(dsz * 1.18)
-        def_block = (len(dlines) - 1) * dstep + int(dsz * 1.12)
+        def_block = canvas.gtext_block_height(dlines, dsz)
 
-    # The WORD — hero — centered in the band between the label and the gloss
-    # (by its ink, roughly 0.18..1.05 of the size down the ascent box).
+    # The WORD — hero — its ink centered in the band between the label and the gloss.
     word_top = pad + hsz + max(6, int(H * 0.05))
     word_bot = H - pad - (def_block + max(8, int(H * 0.06)) if def_block else 0)
     wsz = canvas.fit_gtext(word, W - 2 * pad, word_bot - word_top)
-    wy = word_top + max(0, int((word_bot - word_top - wsz * 1.23) / 2))
-    canvas.gtext(W // 2, wy, word, color=_CV_WORD, size=wsz, align='center')
+    canvas.gtext(W // 2, (word_top + word_bot) // 2, word, color=_CV_WORD,
+                 size=wsz, align='center', valign='ink-center')
 
     # part of speech + definition, the pos picked out in the accent.
     y = H - pad - def_block

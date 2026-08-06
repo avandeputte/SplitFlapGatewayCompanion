@@ -264,8 +264,10 @@ def _remember_driver(doc: dict | None, d=None) -> None:
     Wired into the engine (attach_persist), which is the one place that sees every way
     the display gets driven — the API, the scheduler, a trigger, MCP.
 
-    Only writes on a *change*: this fires on every manual message too, and the settings
-    store writes to disk and mirrors to the gateway.
+    Only writes on a *change*: this fires on every manual message too. last_run is a VOLATILE
+    settings key in mirror mode (see setup_settings_sync) — it persists to the local file for
+    restart-resume but does NOT push to the gateway on its own (a per-switch flash write); it
+    rides along on the next durable change. Gateway-only mode still mirrors it (the store there).
     """
     d = d or displays.default
     doc = doc or {}
@@ -614,7 +616,7 @@ async def stop_display(d, tasks: list) -> None:
     best-effort — before this, an exception in the HA/scheduler teardown skipped
     ``controller.stop()`` and LEAKED a live render loop on the discarded controller:
     an orphan no stop could reach (they all target the replacement), pushing frames to
-    the wall forever — the unstoppable aquarium."""
+    the wall forever (it even survived a wall reboot by re-adopting its stream)."""
     d.controller.abort()
     try:
         await asyncio.to_thread(d.settings.flush)

@@ -495,15 +495,16 @@ def _cv_card_ops(canvas, dt, name, days, estimated, i18n, W, H):
 
     pad = max(3, int(cs * 0.06))
     msz = canvas.fit_gtext(mon, cs - 2 * pad, int(band_h * 1.2))
-    canvas.gtext(x0 + (cs + 1) // 2, y0 + band_h // 2 - int(msz * 0.56), mon,
-                 color=(255, 255, 255), size=msz, align='center')
+    canvas.gtext(x0 + (cs + 1) // 2, y0 + band_h // 2, mon,
+                 color=(255, 255, 255), size=msz, align='center', valign='ink-center')
     low_h = cs - band_h
     dsz = canvas.fit_gtext(day, cs - 2 * pad, int(low_h * 1.08))
-    canvas.gtext(x0 + (cs + 1) // 2, y0 + band_h + low_h // 2 - int(dsz * 0.56), day,
-                 color=_DAY, size=dsz, align='center')
+    canvas.gtext(x0 + (cs + 1) // 2, y0 + band_h + low_h // 2, day,
+                 color=_DAY, size=dsz, align='center', valign='ink-center')
 
-    # Right column: the name centered on its band, the countdown sized up along
-    # the bottom (gtext y is the ascent top; caps sit ~0.20*size below it).
+    # Right column: the name centered in its area above the countdown, which is
+    # floor-anchored along the bottom (valign='ink-bottom', descender-safe). The
+    # shared fit_wrap_gtext already width-checks every line, so no re-shrink here.
     rx = x0 + cs + max(8, int(W * 0.03))
     rw = W - max(4, int(W * 0.015)) - rx
     csz = canvas.fit_gtext(when, rw, max(10, int(H * 0.21)))
@@ -511,21 +512,14 @@ def _cv_card_ops(canvas, dt, name, days, estimated, i18n, W, H):
     name_h = H - 8 - ch - max(4, int(H * 0.05))
     nsz, nlines = canvas.fit_wrap_gtext(pre + name, rw, min(name_h, int(H * 0.55)),
                                         max_lines=3)
-    # fit_wrap_gtext lets a single word wider than the column stand ("AL-FITR"
-    # would run off the edge) — shrink until every line truly fits the width.
-    for _ in range(6):
-        widest = max((canvas.text_width(ln, nsz) for ln in nlines), default=0)
-        if widest <= rw or nsz <= 8:
-            break
-        nsz = max(8, min(nsz - 1, int(nsz * rw / widest)))
-        nlines = canvas.wrap_gtext(pre + name, rw, nsz, max_lines=3)
     step = int(nsz * 1.18)
-    ny = max(2.0, (name_h - step * len(nlines)) / 2.0)
+    it0 = canvas.gtext_ink(nlines[0], nsz)[0] if nlines else 0
+    ny = max(2.0, (name_h - canvas.gtext_block_height(nlines, nsz) - it0) / 2.0)
     for ln in nlines:
         canvas.gtext(rx, ny, ln, color=_NAME, size=nsz)
         ny += step
-    canvas.gtext(rx, H - max(4, int(H * 0.025)) - int(csz * 0.93), when,
-                 color=when_col, size=csz)
+    canvas.gtext(rx, H - max(4, int(H * 0.025)), when,
+                 color=when_col, size=csz, valign='ink-bottom')
     canvas.show()
 
 

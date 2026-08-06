@@ -202,14 +202,15 @@ def _cv_race_ops(canvas, name, rnd, when, cd, cd_col, leader, W, H):
     # Clamp the label ink INSIDE the chip (>= its top + cpad): the fitted size keeps the
     # ink shorter than the chip by construction, and the max() is the same guarantee the
     # PIL chip spells out — a tall label pushes down, never clips against the chip's edge.
-    ly = max(y0 + cpad - 0.20 * csize, y0 + chip_h / 2 - 0.56 * csize)
+    cit, cib = canvas.gtext_ink(chip, csize)
+    ly = max(y0 + cpad - cit, y0 + chip_h / 2 - (cit + cib) / 2)
     canvas.gtext(m + cw / 2, ly, chip, color=_WHITE, size=csize, align='center')
     ww = 0
     if when:
         wsize = canvas.fit_gtext(when, int(W * 0.45), max(8, int(head_h * 0.52)))
         ww = canvas.text_width(when, wsize)
-        canvas.gtext(W - m, y0 + chip_h / 2 - 0.56 * wsize, when, color=_WHITE,
-                     size=wsize, align='right')
+        canvas.gtext(W - m, y0 + chip_h / 2, when, color=_WHITE,
+                     size=wsize, align='right', valign='ink-center')
     # "NEXT RACE" only where it fits at a readable size — the chip and date carry
     # the meaning on their own when it can't.
     lbl = 'NEXT RACE'
@@ -217,8 +218,8 @@ def _cv_race_ops(canvas, name, rnd, when, cd, cd_col, leader, W, H):
     avail = W - (m + cw + gap) - m - ww - gap
     lsize = canvas.fit_gtext(lbl, avail, max(8, int(head_h * 0.42)))
     if lsize >= max(9, int(H * 0.03)) and canvas.text_width(lbl, lsize) <= avail:
-        canvas.gtext(m + cw + gap, y0 + chip_h / 2 - 0.56 * lsize, lbl, color=_GRAY,
-                     size=lsize)
+        canvas.gtext(m + cw + gap, y0 + chip_h / 2, lbl, color=_GRAY,
+                     size=lsize, valign='ink-center')
     rule_y = head_h + y0
     canvas.line(m, rule_y, W - 1 - m, rule_y, color=_F1_RED, t=max(1, int(H * 0.005)))
 
@@ -229,7 +230,7 @@ def _cv_race_ops(canvas, name, rnd, when, cd, cd_col, leader, W, H):
     if cd:
         fsize = canvas.fit_gtext(cd, int(W * 0.55), foot_cap)
         cdw = canvas.text_width(cd, fsize)
-        canvas.gtext(m, H - int(fsize * 0.98), cd, color=cd_col, size=fsize)
+        canvas.gtext(m, H, cd, color=cd_col, size=fsize, valign='ink-bottom')
     if leader:
         avail = W - 2 * m - cdw - max(8, int(W * 0.03))
         gsize = canvas.fit_gtext(leader, avail, foot_cap)
@@ -237,19 +238,22 @@ def _cv_race_ops(canvas, name, rnd, when, cd, cd_col, leader, W, H):
             leader = leader.rsplit(' ', 1)[0]        # drop the points, keep the name
             gsize = canvas.fit_gtext(leader, avail, foot_cap)
         if canvas.text_width(leader, gsize) <= avail:  # can't fit at the floor: drop it
-            canvas.gtext(W - m, H - int(gsize * 0.98), leader, color=_GRAY, size=gsize,
-                         align='right')
+            canvas.gtext(W - m, H, leader, color=_GRAY, size=gsize,
+                         align='right', valign='ink-bottom')
 
     # Middle: the Grand Prix name, as big as it wraps.
     top = rule_y + max(2, int(H * 0.02))
     body_h = (H - int(foot_cap * 0.85) - max(2, int(H * 0.02))) - top
     nsize, nlines = canvas.fit_wrap_gtext(name, W - 2 * m, body_h, 2)
     step = int(nsize * 1.18)
-    blk = (len(nlines) - 1) * step + int(nsize * 0.72)
+    # gtext_block_height measures from the first line's ascent-box top; drop that top's
+    # ink offset so ny anchors the real ink and the block centers on its ink, not its box.
+    it0 = canvas.gtext_ink(nlines[0], nsize)[0]
+    blk = canvas.gtext_block_height(nlines, nsize) - it0
     ny = top + max(0.0, (body_h - blk) / 2.0)
     for ln in nlines:
-        canvas.gtext(W // 2, ny - 0.20 * nsize, ln, color=_WHITE, size=nsize,
-                     align='center')
+        canvas.gtext(W // 2, ny, ln, color=_WHITE, size=nsize,
+                     align='center', valign='ink-top')
         ny += step
     canvas.show()
 

@@ -213,8 +213,8 @@ def _cv_sky_ops(canvas, data, rise, sett, now_loc, f, i18n, W, H):
             mid = f'{secs // 3600}{u("H")}{(secs % 3600) // 60:02d}{u("M")}'
             col = _SUB_COL
         msz = canvas.fit_gtext(mid, int(W * 0.62), max(8, int(H * 0.20)))
-        canvas.gtext(W // 2, horizon_y - max(4, int(H * 0.025)) - int(msz * 0.93),
-                     mid, color=col, size=msz, align='center')
+        canvas.gtext(W // 2, horizon_y - max(4, int(H * 0.025)), mid, color=col,
+                     size=msz, align='center', valign='ink-bottom')
 
     # The sun where it actually is — on the arc by day, sunk into the horizon at
     # the side it set (or will rise) on by night, under the star field.
@@ -251,9 +251,9 @@ def _cv_sky_ops(canvas, data, rise, sett, now_loc, f, i18n, W, H):
     mt = max(2, int(W * 0.008))
     tsz = canvas.fit_gtext(rtxt if len(rtxt) >= len(stxt) else stxt,
                            int(W * 0.44), int(time_h * 1.25))
-    ty = H - 1 - int(tsz * 0.93)
-    canvas.gtext(mt, ty, rtxt, color=_RISE_COL, size=tsz)
-    canvas.gtext(W - mt, ty, stxt, color=_SET_COL, size=tsz, align='right')
+    canvas.gtext(mt, H - 1, rtxt, color=_RISE_COL, size=tsz, valign='ink-bottom')
+    canvas.gtext(W - mt, H - 1, stxt, color=_SET_COL, size=tsz, align='right',
+                 valign='ink-bottom')
     canvas.show()
 
 

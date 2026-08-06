@@ -214,24 +214,16 @@ def _cv_minutes(mins):
     return f'{mins}', _LATER
 
 
-def _cv_ellipsis_g(canvas, text, size, max_w):
-    """``text`` cut with an ellipsis to fit ``max_w`` at gtext ``size`` (full text if it fits)."""
-    if canvas.text_width(text, size) <= max_w:
-        return text
-    while text and canvas.text_width(text + '…', size) > max_w:
-        text = text[:-1].rstrip()
-    return (text + '…') if text else ''
-
-
 def _cv_board_ops(canvas, route, mins, dests, W, H):
     """The departure board as on-device DRAW OPS — the gtext-era twin of the PIL path
     below, for the LCD (manifest ``lcd_ops``): line-color bar, destinations and
     urgency-colored minutes rendered by the wall at its native resolution instead of
     a 256x160 pixel frame upscaled x5. Same bands, same colors — just crisp.
 
-    gtext's y is the top of the ascent box; caps ink runs ~0.18..0.94 of the size,
-    so band-centering is y = mid - 0.56*size and an edge-park is y = edge - 0.94*size
-    (1.14 when a J's tail hangs below the baseline)."""
+    Anchoring is by gtext ``valign`` on the real ink: the header and first row centre
+    on their band (``ink-center``), the last row parks its ink on the panel's floor
+    (``ink-bottom``, descender-exact — a comma or lowercase tail no longer clips), and
+    the divider sits on the measured air between the two rows' ink."""
     canvas.clear((0, 0, 0))
     color = _cv_line_color(route)
     pad = max(3, int(W * 0.015))
@@ -241,8 +233,8 @@ def _cv_board_ops(canvas, route, mins, dests, W, H):
     bar_h = max(9, int(H * 0.24))
     canvas.rect(0, 0, W, bar_h, color=color, fill=True)
     tsize = canvas.fit_gtext(title, W - 2 * pad - 2, bar_h - max(3, int(bar_h * 0.18)))
-    canvas.gtext(W / 2, bar_h / 2 - 0.56 * tsize, title, color=_WHITE, size=tsize,
-                 align='center')
+    canvas.gtext(W / 2, bar_h / 2, title, color=_WHITE, size=tsize,
+                 align='center', valign='ink-center')
 
     # One row per direction: destination left, minutes right, urgency-colored.
     rows = []
@@ -262,10 +254,6 @@ def _cv_board_ops(canvas, route, mins, dests, W, H):
         row_h = rb_ - ry + 1
         mm = mtxt if (mtxt in ('DUE', '--') or not unit) else f'{mtxt}{unit}'
         msize = canvas.fit_gtext(mm, int(W * 0.4), row_h - 2)
-        my = ry + row_h / 2 - 0.56 * msize
-        if i == 1:
-            my = rb_ - 0.94 * msize
-        canvas.gtext(W - pad, my, mm, color=mcol, size=msize, align='right')
         mw = canvas.text_width(mm, msize)
         # The whole destination at the largest size that fits the row; only when even
         # that hits the fit floor, hold a readable size and ellipsise instead.
@@ -274,14 +262,25 @@ def _cv_board_ops(canvas, route, mins, dests, W, H):
         dtext = dest
         if canvas.text_width(dest, dsize) > avail:
             dsize = max(9, int(H * 0.06))
-            dtext = _cv_ellipsis_g(canvas, dest, dsize, avail)
-        dk = 1.14 if any(c in 'JQ' for c in dtext) else 0.94
-        dy = ry + row_h / 2 - 0.56 * dsize
-        if i == 1:
-            dy = rb_ - dk * dsize
-        canvas.gtext(pad, dy, dtext, color=_WHITE, size=dsize)
-        row_ink.append((min(my + 0.18 * msize, dy + 0.18 * dsize),
-                        max(my + 0.94 * msize, dy + dk * dsize)))
+            dtext = canvas.ellipsize(dest, dsize, avail)
+        # First row centers in its band; the last parks its ink on the panel's floor.
+        # ink-bottom is exact, so any descender (a J's tail, a comma) parks without clip.
+        mit, mib = canvas.gtext_ink(mm, msize)
+        dit, dib = canvas.gtext_ink(dtext, dsize)
+        if i == 0:
+            cy = ry + row_h / 2
+            canvas.gtext(W - pad, cy, mm, color=mcol, size=msize, align='right',
+                         valign='ink-center')
+            canvas.gtext(pad, cy, dtext, color=_WHITE, size=dsize, valign='ink-center')
+            m_top, m_bot = cy - (mib - mit) / 2, cy + (mib - mit) / 2
+            d_top, d_bot = cy - (dib - dit) / 2, cy + (dib - dit) / 2
+        else:
+            canvas.gtext(W - pad, rb_, mm, color=mcol, size=msize, align='right',
+                         valign='ink-bottom')
+            canvas.gtext(pad, rb_, dtext, color=_WHITE, size=dsize, valign='ink-bottom')
+            m_top, m_bot = rb_ - (mib - mit), rb_
+            d_top, d_bot = rb_ - (dib - dit), rb_
+        row_ink.append((min(m_top, d_top), max(m_bot, d_bot)))
     # The divider sits midway between the first row's ink and the second's —
     # centered on the air between them, not on the band arithmetic.
     rule_y = int(round((row_ink[0][1] + row_ink[1][0]) / 2.0))

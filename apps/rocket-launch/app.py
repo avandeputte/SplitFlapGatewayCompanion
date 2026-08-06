@@ -197,9 +197,9 @@ def _cv_card_ops(canvas, rocket, mission, when, tmin, tcol, W, H):
     canvas.clear((0, 0, 0))
     m = max(3, int(W * 0.012))
 
-    # Header: label left, launch time right, amber divider. gtext's y is the
-    # ascent-box top (ink starts ~0.2 of the size below), so boxes are backed off
-    # to put the ink where the PIL header's text_top rows sat.
+    # Header: label left, launch time right, amber divider. valign='ink-top' lands each
+    # string's real ink top on y=1 (where the PIL header's text_top rows sit), so the
+    # ascent-box backoff is exact instead of a hand-tuned fraction.
     head_h = max(12, int(H * 0.22))
     cap = head_h - max(3, int(head_h * 0.17))
     lbl = 'NEXT LAUNCH'
@@ -211,18 +211,21 @@ def _cv_card_ops(canvas, rocket, mission, when, tmin, tcol, W, H):
             when = when[:-1]           # 'FRI 12:55PM' -> 'FRI 12:55P', keeps it legible
             wsz = canvas.fit_gtext(when, wbudget, cap)
         ww = canvas.text_width(when, wsz)
-        canvas.gtext(W - m, 1 - int(wsz * 0.18), when, color=_WHITE, size=wsz, align='right')
+        canvas.gtext(W - m, 1, when, color=_WHITE, size=wsz, align='right', valign='ink-top')
     lsz = canvas.fit_gtext(lbl, W - 2 * m - ww - max(8, int(W * 0.03)), cap)
     if int(lsz * 0.72) >= 6:
-        canvas.gtext(m, 1 - int(lsz * 0.18), lbl, color=_GRAY, size=lsz)
+        canvas.gtext(m, 1, lbl, color=_GRAY, size=lsz, valign='ink-top')
     canvas.line(m, head_h + 1, W - 1 - m, head_h + 1, color=_AMBER,
                 t=max(1, int(H * 0.008)))
 
     # A rocket riding the left edge, text beside it — its flame licks the last rows.
-    icon_w = max(12, int(H * 0.28))
-    _cv_rocket_ops(canvas, m, head_h + max(5, int(H * 0.03)), icon_w,
-                   H - head_h - max(6, int(H * 0.038)), aa)
-    tx = m + icon_w + max(4, int(W * 0.016))
+    # The icon only rides a wide panel (mirrors the PIL twin's W>=128 guard); on a
+    # narrow-tall panel it is dropped so the text keeps the full width.
+    icon_w = max(12, int(H * 0.28)) if W >= 128 else 0
+    if icon_w:
+        _cv_rocket_ops(canvas, m, head_h + max(5, int(H * 0.03)), icon_w,
+                       H - head_h - max(6, int(H * 0.038)), aa)
+    tx = m + (icon_w + max(4, int(W * 0.016)) if icon_w else 0)
     tw = W - m - tx
 
     # Footer: T-minus, big, its ink sunk to the panel's bottom edge.
@@ -230,7 +233,7 @@ def _cv_card_ops(canvas, rocket, mission, when, tmin, tcol, W, H):
     fy = H - foot_h - 1
     if tmin:
         fsz = canvas.fit_gtext(tmin, tw, foot_h)
-        canvas.gtext(tx, H - 1 - int(fsz * 0.93), tmin, color=tcol, size=fsz)
+        canvas.gtext(tx, H - 1, tmin, color=tcol, size=fsz, valign='ink-bottom')
 
     # Body: the vehicle (up to 2 lines), the mission under it in cyan — both
     # whole-word wrapped, the mission block parked just above the T-minus.
@@ -240,14 +243,14 @@ def _cv_card_ops(canvas, rocket, mission, when, tmin, tcol, W, H):
     mis_reserve = mis_h * 2 + mis_gap
     body_h = fy - top - mis_reserve - max(3, int(H * 0.02))
     nsz, nlines = canvas.fit_wrap_gtext(rocket, tw, max(1, body_h), max_lines=2)
-    block = (len(nlines) - 1) * int(nsz * 1.18) + nsz
+    block = canvas.gtext_block_height(nlines, nsz)
     ny = top + max(0, (body_h - block) // 2)
     for ln in nlines:
         canvas.gtext(tx, ny, ln, color=_WHITE, size=nsz)
         ny += int(nsz * 1.18)
     if mission and mission != rocket:
         msz, mlines = canvas.fit_wrap_gtext(mission, tw, mis_reserve, max_lines=2)
-        mblock = (len(mlines) - 1) * int(msz * 1.18) + msz
+        mblock = canvas.gtext_block_height(mlines, msz)
         my = fy - mis_gap - mblock
         for ln in mlines:
             canvas.gtext(tx, my, ln, color=_CYAN, size=msz)

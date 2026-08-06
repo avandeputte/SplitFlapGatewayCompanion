@@ -37,8 +37,14 @@ def build(deps) -> APIRouter:
     @router.get("/api/apps")
     async def apps_list(request: Request):
         d = deps.display_for(request)
+        # active_playlist + current_app ride along so a repaint of this list (tab open, install,
+        # save) can restore the "playing" indicators (banner / lit tile / Shows row) without
+        # waiting for the next SSE frame — a static playlist entry otherwise blanked them for its
+        # whole duration.
         return {"apps": d.plugins.app_list(lang=deps._ui_lang(request)),
-                "active_app": d.controller.active_app}
+                "active_app": d.controller.active_app,
+                "active_playlist": d.controller.active_playlist,
+                "current_app": d.state.current_app}
 
     @router.get("/api/apps/available")
     async def apps_available(request: Request):

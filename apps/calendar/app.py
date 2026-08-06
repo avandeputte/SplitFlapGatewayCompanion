@@ -405,15 +405,6 @@ def _cv_title(canvas, draw, summary, x, y, w, h, cap_h=None, bottom=False):
     draw.text((x, ty - tb[1]), text, font=tf, fill=_WHITE)
 
 
-def _ops_ellipsis(canvas, text, size, max_w):
-    """``text`` cut with an ellipsis to fit ``max_w`` at gtext ``size`` (full text if it fits)."""
-    if canvas.text_width(text, size) <= max_w:
-        return text
-    while text and canvas.text_width(text + '…', size) > max_w:
-        text = text[:-1].rstrip()
-    return (text + '…') if text else ''
-
-
 def _cv_agenda_ops(canvas, upcoming, now, i18n, W, H):
     """The stacked agenda as on-device DRAW OPS — the gtext twin of the PIL path below, for
     the LCD (manifest ``lcd_ops``): scalable-text chips and titles rendered by the wall at
@@ -448,7 +439,8 @@ def _cv_agenda_ops(canvas, upcoming, now, i18n, W, H):
         cw = int(canvas.text_width(label, csize)) + 2 * hpad
         canvas.roundrect(m, ry, cw, chip_h, max(2, int(chip_h * 0.14)),
                          _cv_chip_color(when, now), fill=True)
-        ly = max(ry + cpad - 0.20 * csize, ry + chip_h / 2 - 0.56 * csize)
+        cit, cib = canvas.gtext_ink(label, csize)
+        ly = max(ry + cpad - cit, ry + chip_h / 2 - (cit + cib) / 2)
         canvas.gtext(m + cw / 2, ly, label, color=_INK, size=csize, align='center')
 
         # The title, centered in the band's remainder: whole at the largest size that fits
@@ -460,8 +452,8 @@ def _cv_agenda_ops(canvas, upcoming, now, i18n, W, H):
         text = summary
         if tsize < floor:
             tsize = max(floor, int(cap * 0.75))
-            text = _ops_ellipsis(canvas, summary, tsize, W - 2 * m)
-        canvas.gtext(m, ty + th / 2 - 0.56 * tsize, text, color=_WHITE, size=tsize)
+            text = canvas.ellipsize(summary, tsize, W - 2 * m)
+        canvas.gtext(m, ty + th / 2, text, color=_WHITE, size=tsize, valign='ink-center')
     canvas.show()
 
 
