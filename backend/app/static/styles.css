@@ -650,6 +650,15 @@ input[type=checkbox] { accent-color: var(--brand); }
   outline-offset: 2px;
   border-radius: 8px;
 }
+/* The playlist the wall is playing right now (updateActiveUI keeps it current). */
+.saved-row.playing .grow::before {
+  content: "▶ ";
+  color: var(--brand, #4b8bf5);
+}
+.saved-row.playing {
+  background: color-mix(in srgb, var(--brand, #4b8bf5) 10%, transparent);
+  border-radius: 8px;
+}
 .pill.sm {
   font-size: 11px;
   padding: 1px 6px;

@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.25
+
+- **A running playlist shows as playing** — the banner names the playlist and the entry currently
+  up ("Playlist · All apps — Aurora"), that entry's tile lights on the Apps grid as the rotation
+  advances, the playing row is marked on the Shows tab (built-in included), and Run reflects
+  immediately instead of waiting for the next state update.
+
 ## 2.10.12-beta.24
 
 - **Built-in "All apps" playlist** — the Shows tab now always offers a playlist that loops through

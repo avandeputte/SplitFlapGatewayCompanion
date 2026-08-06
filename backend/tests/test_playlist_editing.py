@@ -93,3 +93,17 @@ def test_playlist_rejects_non_dict_entries():
     with pytest.raises(ValidationError):
         PlaylistSave(name="x", entries=["clock"])
     PlaylistSave(name="x", entries=[{"app": "clock", "seconds": 10}])   # fine
+
+
+def test_a_running_playlist_shows_as_playing():
+    """The complaint: "All apps" played the wall while the UI looked idle. Three surfaces
+    now say so — the banner names the playlist AND the entry now up, the current entry's
+    tile lights on the Apps grid, and the Shows row is marked (builtin included)."""
+    body = _fn("updateActiveUI")
+    assert "currentApp" in body                                    # entry now up, in the banner
+    assert 'activePlaylist ? currentApp : null' in body            # …and lighting its tile
+    assert '.saved-row' in body and '"playing"' in body.replace("'", '"')
+    # both state paints carry current_app through
+    assert APP_JS.count("st.current_app") + APP_JS.count("data.current_app") >= 2
+    # Run gives instant feedback instead of waiting out the next state paint
+    assert "updateActiveUI(null, n, null)" in APP_JS

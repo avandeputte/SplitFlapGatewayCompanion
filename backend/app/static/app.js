@@ -251,7 +251,7 @@ async function applyState(st, disp) {
   }
   const meta = `${GRID.rows}×${GRID.cols} · ${st.module_count} ${t("modules")}`;
   if ($("previewMeta").textContent !== meta) $("previewMeta").textContent = meta;
-  if (APPS.length) updateActiveUI(st.active_app, st.active_playlist);
+  if (APPS.length) updateActiveUI(st.active_app, st.active_playlist, st.current_app);
 }
 
 let POLL_BUSY = false;           // the fallback poll: never stack a request on a slow link
@@ -709,11 +709,11 @@ async function loadApps() {
     });
     grid.appendChild(tile);
   });
-  updateActiveUI(data.active_app, data.active_playlist);
+  updateActiveUI(data.active_app, data.active_playlist, data.current_app);
 }
 
 let ACTIVE_BANNER = null;   // last-painted banner markup — this runs on every state paint
-function updateActiveUI(activeApp, activePlaylist) {
+function updateActiveUI(activeApp, activePlaylist, currentApp) {
   const banner = $("activeBanner");
   let label = "";
   if (activeApp) {
@@ -721,6 +721,9 @@ function updateActiveUI(activeApp, activePlaylist) {
     label = a ? a.name : activeApp;
   } else if (activePlaylist) {
     label = t("Playlist · %s", activePlaylist);
+    // …and which entry is up right now, so a rotation reads as alive at a glance.
+    const c = currentApp ? APPS.find((x) => x.id === currentApp) : null;
+    if (c) label += ` — ${c.name}`;
   }
   // Word order differs per language ("X is running" / "X läuft"), so the whole
   // sentence is one catalog key with the app name spliced in bold.
@@ -733,12 +736,20 @@ function updateActiveUI(activeApp, activePlaylist) {
   // The live-game control pad rides along with an interactive matrix app.
   const act = activeApp ? APPS.find((x) => x.id === activeApp) : null;
   $("gamePad").classList.toggle("hidden", !(act && act.interactive && CANVAS));
+  // A standalone app lights its tile; during a playlist the CURRENT entry's tile lights,
+  // so the Apps grid tracks the rotation instead of looking idle while the wall plays.
+  const lit = activeApp || (activePlaylist ? currentApp : null) || null;
   document.querySelectorAll(".app-tile").forEach((tile) => {
-    const on = tile.dataset.appId === activeApp;
+    const on = tile.dataset.appId === lit;
     if (tile.classList.contains("running") !== on) tile.classList.toggle("running", on);
     const badge = tile.querySelector(".app-badge");
     const want = on ? t("▶ RUNNING") : "";
     if (badge && badge.textContent !== want) badge.textContent = want;
+  });
+  // The Shows tab's saved rows: mark the one that is playing (builtin included).
+  document.querySelectorAll(".saved-row").forEach((row) => {
+    const on = !!activePlaylist && row.dataset.name === activePlaylist;
+    if (row.classList.contains("playing") !== on) row.classList.toggle("playing", on);
   });
 }
 
@@ -1559,9 +1570,10 @@ async function loadPlaylists() {
       const tag = el("span", "pill sm"); tag.textContent = t("built-in"); row.appendChild(tag);
     }
     if (n === PL_NAME) { const tag = el("span", "pill sm"); tag.textContent = t("editing"); row.appendChild(tag); }
-    const run = btn(t("Run"), () => guard(() =>
-      post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n })
-    ), "btn btn-sm primary");
+    const run = btn(t("Run"), () => guard(async () => {
+      await post("/api/playlists/run", { entries: SAVED_PL[n].entries, loop: SAVED_PL[n].loop !== false, name: n });
+      updateActiveUI(null, n, null);          // instant feedback; the state stream refines it
+    }), "btn btn-sm primary");
     row.appendChild(run);
     if (!SAVED_PL[n].builtin) {
       row.appendChild(btn(t("Edit"), () => plEdit(n), "btn btn-sm ghost"));
@@ -1681,7 +1693,10 @@ function zonesSpec() {
 
 async function runPlaylistNow() {
   if (!PL_ENTRIES.length) return;
-  await guard(() => post("/api/playlists/run", { entries: PL_ENTRIES, loop: $("plLoop").checked, name: PL_NAME || "(unsaved)" }));
+  await guard(async () => {
+    await post("/api/playlists/run", { entries: PL_ENTRIES, loop: $("plLoop").checked, name: PL_NAME || "(unsaved)" });
+    updateActiveUI(null, PL_NAME || "(unsaved)", null);
+  });
 }
 // The editor's name field IS the identity. Saving writes to whatever it says: unchanged,
 // that updates the playlist you loaded; changed, it renames it (and the button says so, so
