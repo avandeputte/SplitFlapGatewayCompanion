@@ -292,6 +292,66 @@ def _cv_quake_card(canvas, ImageDraw, mag, loc, dist, ago):
     return img
 
 
+def _cv_quake_ops(canvas, mag, loc, dist, ago, W, H):
+    """The tall-panel card as on-device DRAW OPS — the gtext-era twin of the H>=96
+    branch in _cv_quake_card, for the LCD (manifest ``lcd_ops``): scalable type and
+    native-resolution rects drawn by the wall itself instead of a 256x160 pixel
+    frame upscaled x5. Same card: the place as a header over a rule, the magnitude
+    the hero in its severity color, distance/age dim beside it, the 0-9 magnitude
+    bar along the bottom edge."""
+    canvas.clear((0, 0, 0))
+    col = _cv_mag_color(mag)
+    ms = f'M{mag:.1f}' if isinstance(mag, (int, float)) else 'M?'
+    marg = max(3, int(W * 0.012))
+
+    bar_h = max(3, H // 10)
+    by1 = H - 1                            # the bar sits on the bottom row
+    by0 = by1 - bar_h
+    span = W - 2 * marg
+    canvas.rect(marg, by0, span, bar_h + 1, _CV_TRACK, fill=True)
+    if isinstance(mag, (int, float)):
+        frac = min(1.0, max(0.0, float(mag) / 9.0))
+        fill_w = round(span * frac)
+        if fill_w > 0:
+            canvas.rect(marg, by0, fill_w, bar_h + 1, col, fill=True)
+    tw = max(1, int(W * 0.004))            # scale ticks at 3, 6 and 9 keep the bar honest
+    for tick in (3, 6, 9):
+        tx = min(marg + round(span * tick / 9.0), W - marg - tw)
+        canvas.rect(tx, by0, tw, bar_h + 1, (0, 0, 0), fill=True)
+
+    # The place as a proper header, wrapped to at most two lines, its ink riding
+    # the top row (gtext ink starts ~0.18*size below the given y).
+    hsz, hlines = canvas.fit_wrap_gtext(loc, W - 2 * marg, int(H * 0.17), max_lines=2)
+    y = 1 - int(hsz * 0.18)
+    for ln in hlines:
+        canvas.gtext(marg, y, ln, color=_CV_TEXT, size=hsz)
+        y += int(hsz * 1.18)
+    ink_bot = y - int(hsz * 1.18) + int(hsz * 0.94)
+    dy = ink_bot + max(3, int(H * 0.02))
+    canvas.line(marg, dy, W - 1 - marg, dy, color=_CV_TRACK, t=max(1, int(round(H / 160))))
+
+    # The magnitude hero on the left, the distance/age column dim beside it —
+    # both centered in the band between the rule and the bar.
+    top = dy + max(4, int(H * 0.03))
+    mid_bot = by0 - max(3, int(H * 0.02))
+    mid_h = mid_bot - top
+    msz = canvas.fit_gtext(ms, int(W * 0.60), int(mid_h * 0.92))
+    mc = top + mid_h / 2.0                 # the band's visual center row
+    canvas.gtext(marg, int(mc - msz * 0.56), ms, color=col, size=msz)
+    rows = [x for x in (dist, ago) if x]
+    rx = marg + int(canvas.text_width(ms, msz)) + max(8, int(W * 0.03))
+    rw = W - marg - rx
+    if rows and rw >= int(W * 0.16):
+        fs = min(canvas.fit_gtext(s, rw, max(8, int(H * 0.14))) for s in rows)
+        rgap = max(4, int(H * 0.06))
+        block = len(rows) * int(fs * 0.72) + (len(rows) - 1) * rgap
+        ry = mc - block / 2.0              # ink-top of the dim column
+        for s in rows:
+            canvas.gtext(rx, int(ry - fs * 0.18), s, color=_CV_DIM, size=fs)
+            ry += int(fs * 0.72) + rgap
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     """The same five USGS quakes as the flap pages, in the same order, one card at
     a time — advancing each redraw like the flap page turn. The feed is cached
@@ -331,6 +391,18 @@ def fetch_canvas(settings, canvas, i18n=None):
     if isinstance(ms, (int, float)):
         mins = int((now - ms / 1000) / 60)
         ago = (f'{mins}M {t("ago")}' if mins < 120 else f'{mins // 60}H {t("ago")}').upper()
+    W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: the same card as live ops at native resolution
+        # (crisp TTF type + a native-width bar), same page-turn cadence.
+        _cv_quake_ops(canvas, mag, loc.upper(), dist.upper(), ago, W, H)
+        if len(feats) > 1:
+            try:
+                dwell = float(settings.get('loop_delay', 6) or 6)
+            except (TypeError, ValueError):
+                dwell = 6.0
+            return max(3.0, min(30.0, dwell))
+        return 60.0
     canvas.frame(_cv_quake_card(canvas, ImageDraw, mag, loc.upper(), dist.upper(), ago))
     if len(feats) > 1:
         try:

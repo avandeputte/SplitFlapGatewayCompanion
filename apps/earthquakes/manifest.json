@@ -5,6 +5,7 @@
   "description": "Recent significant earthquakes (USGS)",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "refresh_interval": 600,
   "loop_delay": 6,
   "category": "news",

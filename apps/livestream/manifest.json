@@ -5,6 +5,7 @@
   "description": "Launch day rotate",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "refresh_interval": 30,
   "loop_delay": 5,
   "settings": [

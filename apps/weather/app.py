@@ -760,6 +760,10 @@ def _cv_weather_gtext(canvas, wx, unit, show_city, night, sky, frame):
     icy, ir = int(H * 0.40), max(4, int(H * 0.26))
     # Sit the disc fully right of the scrim's feathered edge so no part of it gets blurred.
     icx = max(W - int(H * 0.42) - 1, left_w + ir + blur_r + pad)
+    # Where the scrim's feather ENDS (also used by the blur op below): everything left of
+    # this is dimmed toward the sky and feathered — scene elements that must stay visible
+    # (the disc, the resting cloud) size and sit to the open span right of it.
+    blur_right = min(left_w + blur_r, icx - ir - blur_r)
     if night:
         stars = [(0.06, 0.18, (200, 210, 255)), (0.16, 0.42, (255, 240, 200)),
                  (0.30, 0.12, (180, 220, 255)), (0.40, 0.55, (255, 220, 220)),
@@ -792,9 +796,22 @@ def _cv_weather_gtext(canvas, wx, unit, show_city, night, sky, frame):
                                (-int(s * 0.9), 3, int(s * 0.72))):
                 canvas.circle(int(px + dx), int(py + dy), max(2, rr), color=cc, fill=True)
 
-        _puff(icx - int(W * 0.1), icy, ir)                       # the cloud beside the sun/moon
+        # The RESTING cloud must stay fully visible — its old spot (left of the disc)
+        # buried the left half under the scrim's dim+blur. A puff spans ~1.7*s each way
+        # (see the offsets above), so size it to the open span right of the feathered
+        # edge; with a disc up it tucks at the lower-right shoulder (the classic
+        # partly-cloudy read), otherwise it IS the scene, centered in the span.
+        span = max(8, W - 2 - (blur_right + pad))
+        rs = max(3, min(int(ir * 0.62) if sky == 'pcloudy' else ir, int(span / 3.4)))
+        if sky == 'pcloudy':
+            rcx = min(icx + int(ir * 0.35), W - int(1.7 * rs) - 2)
+            rcy = icy + int(ir * 0.45)
+        else:
+            rcx, rcy = blur_right + pad + span // 2, icy
+        _puff(rcx, rcy, rs)
         cx = (frame * 0.4) % (W + ir * 6) - ir * 3               # a smaller cloud drifting across
-        _puff(cx, H * 0.28, max(3, int(ir * 0.62)))
+        _puff(cx, H * 0.28, max(3, int(ir * 0.62)))              # (vanishing behind the scrim
+        #                                                          mid-crossing is by design)
 
     # --- precipitation ----------------------------------------------------------
     if sky in _CV_RAIN:
@@ -821,8 +838,7 @@ def _cv_weather_gtext(canvas, wx, unit, show_city, night, sky, frame):
     canvas.gradient(0, 0, left_w, H, dim_top, dim_bot, 'v')             # dim the left info column
     canvas.rect(0, fy - 2, W, H - (fy - 2), color=dim_bot, fill=True)   # dim the forecast strip
     # feather the column edge — but never blur the celestial disc (stop short of its left edge)
-    blur_right = min(left_w + blur_r, icx - ir - blur_r)
-    canvas.blur(0, 0, max(1, blur_right), fy - 2, blur_r)
+    canvas.blur(0, 0, max(1, blur_right), fy - 2, blur_r)   # blur_right hoisted above the scene
     sb = max(0, fy - 2 - 2 * blur_r)
     canvas.blur(0, sb, W, H - sb, blur_r)                               # feather the strip edge
     colw = left_w - 2 * pad

@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.30
+
+- **Aurora Watch, Earthquakes and Livestream are crisp on the LCD** — converted to on-device ops
+  (native TTF text + AA shapes) like the rest; LED panels unchanged.
+- **Weather: the resting cloud is no longer swallowed by the info-column scrim** — it sizes to the
+  open sky and tucks at the sun/moon's lower-right shoulder (or centers, when overcast); the
+  drifting cloud still passes behind the column by design.
+
 ## 2.10.12-beta.29
 
 - **Chomper: two more maze rows on the LCD** — the 16:10 frame left cells ~10% taller than wide;

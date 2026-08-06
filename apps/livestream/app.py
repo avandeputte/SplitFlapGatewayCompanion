@@ -261,6 +261,118 @@ def _cv_comment_card(canvas, ImageDraw, lines_in):
     return img
 
 
+def _cv_ink_bot(s):
+    """How far a line's ink reaches below its gtext y, as a fraction of size:
+    descenders (and commas) hang to ~1.14, a descender-free line stops at the
+    ~0.94 baseline — the ops stand-in for the PIL cards' getbbox anchoring."""
+    return 1.14 if any(c in 'gjpqy,;()[]{}@Q' for c in str(s)) else 0.94
+
+
+def _cv_status_ops(canvas, viewers, name, time_s, i18n, W, H):
+    """The LIVE card as on-device DRAW OPS — the gtext-era twin of _cv_status_card,
+    for the LCD (manifest ``lcd_ops``): an AA dot and scalable type drawn by the
+    wall at native resolution instead of a 256x160 pixel frame upscaled x5. Same
+    card: red dot + LIVE and the clock up top, the viewer count the hero (or the
+    channel name when the stream isn't live), the channel dim on the bottom edge."""
+    aa = bool(getattr(canvas, 'aa_ok', False))
+    canvas.clear((0, 0, 0))
+    pad = max(3, int(W * 0.012))
+
+    hsz = canvas.fit_gtext('LIVE', int(W * 0.4), max(10, int(H * 0.20)))
+    hh = int(hsz * 0.76)                   # the header caps' ink height (0.18..0.94)
+    r = max(2, hh // 2 - 1)
+    cy = 1 + hh // 2                       # dot centered on the LIVE ink
+    canvas.circle(pad + r, cy, r, color=_CV_RED, fill=True, aa=aa)
+    hx = pad + 2 * r + max(3, int(W * 0.01))
+    hy = 1 - int(hsz * 0.18)               # header ink rides row 1
+    canvas.gtext(hx, hy, 'LIVE', color=_CV_RED, size=hsz)
+    live_end = hx + canvas.text_width('LIVE', hsz)
+    if time_s and live_end + max(6, int(W * 0.02)) + canvas.text_width(time_s, hsz) <= W - pad:
+        canvas.gtext(W - pad, hy, time_s, color=_CV_DIM, size=hsz, align='right')
+    top = 1 + hh + max(2, int(H * 0.02))
+
+    show_name_row = bool(name) and viewers is not None
+    nsz = canvas.fit_gtext(str(name or ''), W - 2 * pad, max(8, int(H * 0.13))) \
+        if show_name_row else 0
+    nh = int(nsz * _cv_ink_bot(name)) - int(nsz * 0.17) + max(2, int(H * 0.012)) \
+        if show_name_row else 0
+
+    body_h = H - top - 1 - nh
+    if viewers is not None:
+        count = i18n.number(int(viewers), 0) if i18n is not None else f'{int(viewers):,}'
+        label = 'WATCHING NOW'
+        lsz = canvas.fit_gtext(label, W - 2 * pad, max(8, int(H * 0.13)))
+        lh = int(lsz * 0.76) + max(3, int(H * 0.02))
+        csz = canvas.fit_gtext(count, W - 2 * pad, int((body_h - lh) * 0.95))
+        ch = int(csz * 0.89)               # digit ink incl. a grouping comma's tail
+        # Centered between header and channel row, ink-anchored (gtext ink starts
+        # ~0.18*size below the given y).
+        y = top + max(0, (body_h - ch - lh) // 2)
+        canvas.gtext(W // 2, y - int(csz * 0.18), count, color=_CV_TXT, size=csz,
+                     align='center')
+        canvas.gtext(W // 2, y + ch + max(3, int(H * 0.02)) - int(lsz * 0.18), label,
+                     color=_CV_DIM, size=lsz, align='center')
+    else:
+        body_h = H - top - 1               # no channel row beneath the hero
+        csz, lines = canvas.fit_wrap_gtext(name or 'Livestream', W - 2 * pad,
+                                           body_h, max_lines=2)
+        lstep = int(csz * 1.18)
+        last_ink = int(csz * (_cv_ink_bot(lines[-1]) - 0.17))
+        if len(lines) > 1:                 # spread slack into leading, then sink
+            block = (len(lines) - 1) * lstep + last_ink
+            lstep += min(csz // 3, max(0, body_h - block) // (len(lines) - 1))
+        block = (len(lines) - 1) * lstep + last_ink
+        y = top + max(0, body_h - block)   # the hero sinks to the bottom edge
+        for ln in lines:
+            canvas.gtext(W // 2, y - int(csz * 0.17), ln, color=_CV_TXT, size=csz,
+                         align='center')
+            y += lstep
+        show_name_row = False
+
+    if show_name_row:
+        ns = str(name)
+        while ns and canvas.text_width(ns + '…', nsz) > W - 2 * pad:
+            ns = ns[:-1]
+        ns = ns if ns == str(name) else ns + '…'
+        canvas.gtext(W // 2, H - 1 - int(nsz * _cv_ink_bot(ns)), ns, color=_CV_DIM,
+                     size=nsz, align='center')
+    canvas.show()
+
+
+def _cv_comment_ops(canvas, lines_in, W, H):
+    """One authored comment slide as on-device DRAW OPS — the gtext-era twin of
+    _cv_comment_card, for the LCD (manifest ``lcd_ops``): the red quote mark, the
+    text wrapped and centered in scalable type, floor-anchored with the leftover
+    height fed into the leading — crisp at native resolution."""
+    canvas.clear((0, 0, 0))
+    pad = max(3, int(W * 0.012))
+    # DejaVu's '“' is a big glyph (ink ~0.20..0.93 of its box) — size it like the
+    # PIL card's ink-height fit and the mark scales with the panel.
+    qsz = canvas.fit_gtext('“', int(W * 0.2), max(10, int(H * 0.30)))
+    canvas.gtext(pad, 1 - int(qsz * 0.20), '“', color=_CV_RED, size=qsz)
+    text = ' '.join(lines_in)
+    body_top = 1 + max(0, int(qsz * 0.93) - max(4, int(H * 0.025)))
+    avail = H - 1 - body_top
+    size, lines = canvas.fit_wrap_gtext(text, W - 2 * pad, avail, max_lines=5)
+    if sum(len(ln.split()) for ln in lines) < len(text.split()):
+        last = lines[-1]                   # cut at the 8px floor — say so, never silently
+        while last and canvas.text_width(last + '…', size) > W - 2 * pad:
+            last = last[:-1].rstrip()
+        lines[-1] = (last + '…') if last else '…'
+    lstep = int(size * 1.18)
+    last_ink = int(size * (_cv_ink_bot(lines[-1]) - 0.17))
+    if len(lines) > 1:                     # spread slack into leading, then sink
+        block = (len(lines) - 1) * lstep + last_ink
+        lstep += min(size // 3, max(0, avail - block) // (len(lines) - 1))
+    block = (len(lines) - 1) * lstep + last_ink
+    y = body_top + max(0, avail - block)   # the last line's ink lands on the bottom edge
+    for ln in lines:
+        canvas.gtext(W // 2, y - int(size * 0.17), ln, color=_CV_TXT, size=size,
+                     align='center')
+        y += lstep
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     from datetime import datetime
     import time
@@ -302,6 +414,22 @@ def fetch_canvas(settings, canvas, i18n=None):
     if cid or api_key and video_id:
         deck.append(('status',))
     deck += [('comment', b) for b in slides]
+
+    W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: the same slide rotation as live ops at native
+        # resolution (crisp TTF type + an AA dot) instead of an upscaled frame.
+        if not deck:
+            _cv_comment_ops(canvas, ['Livestream — no data'], W, H)
+            return 30.0
+        slide = deck[st['i'] % len(deck)]
+        st['i'] = (st['i'] + 1) % len(deck)
+        if slide[0] == 'status':
+            _cv_status_ops(canvas, st['viewers'], st['name'], time_s, i18n, W, H)
+        else:
+            _cv_comment_ops(canvas, slide[1], W, H)
+        return canvas.num(settings, 'loop_delay', 5.0, 3.0, 30.0)
+
     if not deck:
         canvas.frame(_cv_comment_card(canvas, ImageDraw, ['Livestream — no data']))
         return 30.0

@@ -114,6 +114,68 @@ def _kp_color(v):
     return (240, 70, 58)
 
 
+def _cv_kp_ops(canvas, kp, series, kps, label, W, H):
+    """The tall-panel card as on-device DRAW OPS — the gtext-era twin of the H>=96
+    PIL layout below, for the LCD (manifest ``lcd_ops``): scalable type and native-
+    resolution rects drawn by the wall itself instead of a 256x160 pixel frame
+    upscaled x5. Same story top to bottom: the KP headline in the severity color,
+    the condition label, the last 24h of readings as chunky bars, the 9-segment
+    gauge on the bottom edge."""
+    col = _kp_color(kp)
+    canvas.clear((0, 0, 0))
+    marg = max(4, int(W * 0.016))
+
+    gauge_h = max(6, H // 8)
+    gy1 = H - 1
+    gy0 = gy1 - gauge_h
+
+    # Headline: "KP 5.7" big in the severity color, its ink pinned to the top row
+    # (gtext ink starts ~0.18*size below the given y), the condition label under it.
+    ksz = canvas.fit_gtext(kps, W - 2 * marg, int(H * 0.40))
+    lsz = canvas.fit_gtext(label, W - 2 * marg, max(8, int(H * 0.11)))
+    canvas.gtext(W // 2, 1 - int(ksz * 0.18), kps, color=col, size=ksz, align='center')
+    ly = 1 + int(ksz * 0.74) + max(3, int(H * 0.02))    # the label's ink-top row
+    canvas.gtext(W // 2, ly - int(lsz * 0.18), label, color=_TXT_COL, size=lsz, align='center')
+
+    # the last 24h of 3-hour readings as chunky bars, newest in full color
+    hist = series[-8:] if len(series) >= 2 else []
+    top = ly + int(lsz * 0.76) + max(5, int(H * 0.03))
+    hy1 = gy0 - max(4, int(H * 0.025))
+    hh = hy1 - top
+    if hist and hh >= 12:
+        n = len(hist)
+        bgap = max(3, int(W * 0.012))
+        bw = (W - 2 * marg - (n - 1) * bgap) / n
+        storm_y = hy1 - int(round(5.0 / 9.0 * hh))      # Kp 5 = storm threshold
+        dash = max(3, int(W * 0.008))
+        for sx in range(marg, W - marg - dash, 3 * dash):
+            canvas.line(sx, storm_y, sx + dash, storm_y, color=(96, 42, 40),
+                        t=max(1, int(round(H / 160))))
+        for i, v in enumerate(hist):
+            bx = marg + i * (bw + bgap)
+            bh = max(2, int(round(min(9.0, v) / 9.0 * hh)))
+            c = _kp_color(v) if i == n - 1 else \
+                tuple(int(cc * 0.55) for cc in _kp_color(v))
+            canvas.rect(round(bx), hy1 - bh + 1, round(bx + bw) - round(bx), bh,
+                        c, fill=True)
+
+    # the same 9-segment severity gauge as the pixel layouts, on the bottom edge
+    gap = max(2, int(W * 0.008))
+    seg_w = (W - 2 - 8 * gap) / 9.0
+    x = 1.0
+    for i in range(9):
+        lit = kp >= i + 1
+        part = (not lit) and (kp > i)
+        c = _kp_color(i + 1) if (lit or part) else _SEG_OFF
+        w = seg_w if not part else max(1.0, seg_w * (kp - i))
+        canvas.rect(round(x), gy0, round(x + w) - round(x), gy1 - gy0 + 1, c, fill=True)
+        if part:
+            canvas.rect(round(x + w), gy0, round(x + seg_w) - round(x + w),
+                        gy1 - gy0 + 1, _SEG_OFF, fill=True)
+        x += seg_w + gap
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     import requests
     from PIL import ImageDraw
@@ -142,6 +204,10 @@ def fetch_canvas(settings, canvas, i18n=None):
     kp, series = got
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp TTF headline + rects).
+        _cv_kp_ops(canvas, kp, series, f'KP {num(kp)}', t(_label(kp)).upper(), W, H)
+        return 300.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
