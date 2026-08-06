@@ -165,6 +165,49 @@ _CV_POS = (168, 148, 255)
 _CV_DEF = (150, 156, 166)
 
 
+def _cv_word_ops(canvas, header, word, pos, gloss, W, H):
+    """The dictionary card as on-device DRAW OPS — the gtext-era twin of the tall
+    PIL path below, for the LCD (manifest ``lcd_ops``): the violet label, the word
+    in huge scalable type, the gloss beneath, rendered by the wall at native
+    resolution instead of a 256x160 frame upscaled x5. Same composition as the
+    pixel card, every measure a fraction of the panel."""
+    canvas.clear((0, 0, 0))
+    pad = max(8, int(H * 0.05))
+    hsz = canvas.fit_gtext(header, W - 2 * pad, max(8, int(H * 0.11)))
+    canvas.gtext(W // 2, pad, header, color=_CV_LABEL, size=hsz, align='center')
+
+    # The gloss at a comfortable read — whole words, up to two lines. Its block
+    # height counts the descenders (~1.12 of the size), so the last line's ink
+    # lands on the pad line the way the PIL path's floor-anchored block does.
+    dsz, dlines, dstep, def_block = 0, [], 0, 0
+    if gloss:
+        dsz, dlines = canvas.fit_wrap_gtext(f'{pos} {gloss}'.strip(), W - 2 * pad,
+                                            int(H * 0.24), max_lines=2)
+        dstep = int(dsz * 1.18)
+        def_block = (len(dlines) - 1) * dstep + int(dsz * 1.12)
+
+    # The WORD — hero — centered in the band between the label and the gloss
+    # (by its ink, roughly 0.18..1.05 of the size down the ascent box).
+    word_top = pad + hsz + max(6, int(H * 0.05))
+    word_bot = H - pad - (def_block + max(8, int(H * 0.06)) if def_block else 0)
+    wsz = canvas.fit_gtext(word, W - 2 * pad, word_bot - word_top)
+    wy = word_top + max(0, int((word_bot - word_top - wsz * 1.23) / 2))
+    canvas.gtext(W // 2, wy, word, color=_CV_WORD, size=wsz, align='center')
+
+    # part of speech + definition, the pos picked out in the accent.
+    y = H - pad - def_block
+    for i, ln in enumerate(dlines):
+        x = int((W - canvas.text_width(ln, dsz)) / 2)
+        if i == 0 and pos and ln.startswith(pos):
+            canvas.gtext(x, y, pos, color=_CV_POS, size=dsz)
+            canvas.gtext(x + canvas.text_width(pos + ' ', dsz), y,
+                         ln[len(pos):].strip(), color=_CV_DEF, size=dsz)
+        else:
+            canvas.gtext(x, y, ln, color=_CV_DEF, size=dsz)
+        y += dstep
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     from PIL import ImageDraw
 
@@ -173,6 +216,10 @@ def fetch_canvas(settings, canvas, i18n=None):
     header = (i18n.t('Word of the day', 'vocab') if i18n is not None else 'Word of the day').upper()
 
     W, H = int(canvas.width), int(canvas.height)
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp TTF label/word/gloss).
+        _cv_word_ops(canvas, header, word, pos, gloss, W, H)
+        return 300.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

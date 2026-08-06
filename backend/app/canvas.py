@@ -110,7 +110,12 @@ def _fit_wrap_gtext(s, max_w, max_h, max_lines, face, text_max, lo=8, lh_frac=1.
         lines = _wrap_gtext(s, max_w, size, max_lines, face)
         fits_h = len(lines) * int(size * lh_frac) <= max_h
         keeps_all = sum(len(ln.split()) for ln in lines) >= total_words
-        if fits_h and keeps_all:
+        # A word wider than the column can't be wrapped — _wrap_gtext puts it on its own
+        # line still overwide, and without this check the fit ACCEPTED that overflow
+        # ("AL-FITR" ran off a 256-wide holiday card). Keep shrinking until every line
+        # genuinely fits; at the lo floor the overflow is the caller's to ellipsize.
+        fits_w = all(_gtext_width(ln, size, face) <= max_w for ln in lines)
+        if fits_h and keeps_all and fits_w:
             return size, lines
         size = size - 1 if size <= lo + 6 else int(size * 0.9)
     return lo, _wrap_gtext(s, max_w, lo, max_lines, face)

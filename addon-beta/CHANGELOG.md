@@ -3,6 +3,19 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.27
+
+- **17 more apps are crisp on the LCD** — calendar, YT comments, Formula 1, Home Assistant board,
+  metro, news headlines, on this day, planes overhead, public holidays, rocket launch, sports,
+  tides, sun times, wikipedia today, word of the day, world clock and youtube now draw on-device
+  ops (scalable TTF text + anti-aliased shapes) at native 1280×800 instead of upscaled pixel
+  frames. LED panels are unchanged.
+- **Weather LCD layout fixed** — a night-sky loop clobbered the forecast-strip position, drawing
+  the forecast over the location and dimming the whole panel (the left-crowded look). Night, day
+  and rain compositions all verified balanced.
+- **Text fitter overflow fixed** — a single word wider than its column (e.g. "AL-FITR") could
+  overflow; the fitter now shrinks until every line truly fits.
+
 ## 2.10.12-beta.26
 
 - **Binary Clock is crisp on the LCD** — converted to on-device draw ops (`lcd_ops`):

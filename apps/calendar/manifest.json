@@ -5,6 +5,7 @@
   "description": "Your next event, from an iCal feed",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "i18n": true,
   "refresh_interval": 900,
   "loop_delay": 6,

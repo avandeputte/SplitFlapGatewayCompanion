@@ -171,6 +171,61 @@ def _cv_next_minute_hold():
     return max(1.0, 60.0 - now.second - now.microsecond / 1_000_000.0)
 
 
+def _cv_ops_trim(canvas, s, size, max_w):
+    """``s`` trimmed with an ellipsis until it fits ``max_w`` at gtext ``size`` — the
+    ops twin of _cv_fit_text."""
+    if max_w <= 0:
+        return ''
+    if canvas.text_width(s, size) <= max_w:
+        return s
+    while s and canvas.text_width(s + '…', size) > max_w:
+        s = s[:-1]
+    return (s + '…') if s else ''
+
+
+def _cv_rows_ops(canvas, resolved, W, H):
+    """The city rows as on-device DRAW OPS — the gtext twin of the PIL path below, for
+    the LCD (manifest ``lcd_ops``): each row's day/night gradient shelf, accent stripe
+    and type drawn by the wall at native resolution instead of a 256x160 pixel frame
+    upscaled x5. Same geometry: full-height rows, the city leading on the left, the
+    time held to ~a third of the width on the right."""
+    canvas.clear((0, 0, 0))
+    n = len(resolved)
+
+    # Two sizes shared by every row, like the PIL path (gtext caps are ~0.72*size,
+    # so the PIL cap targets translate through /0.72; width limits bind the same).
+    row_h = H / n
+    tsz = canvas.fit_gtext('88:88', int(W * 0.34), int(row_h * 0.72))
+    csz = canvas.fit_gtext('Los Angeles', int(W * 0.68), int(row_h * 0.64))
+
+    bar_w = max(2, int(W * 0.012))
+    pad = max(4, int(W * 0.02))
+    for i, (label, now) in enumerate(resolved):
+        y0 = int(round(i * H / n))
+        y1 = H if i == n - 1 else int(round((i + 1) * H / n))
+        rh = y1 - y0
+
+        df = _cv_day_factor(now.hour + now.minute / 60.0)
+        bg = canvas.mix(_NIGHT_BG, _DAY_BG, df)
+        txt = canvas.mix(_NIGHT_TXT, _DAY_TXT, df)
+        accent = canvas.mix(_NIGHT_ACCENT, _DAY_ACCENT, df)
+        city_c = canvas.dim(txt, 0.9)             # bright, just under the time
+
+        # The same dark shelf: near-black, a whisper lighter at the top.
+        canvas.gradient(0, y0, W, rh, canvas.dim(bg, 1.2), canvas.dim(bg, 0.35), 'v')
+        canvas.rect(0, y0, bar_w, rh, accent, fill=True)   # day/night stripe
+
+        hhmm = '%02d:%02d' % (now.hour, now.minute)
+        tx = W - pad - canvas.text_width(hhmm, tsz)
+        canvas.gtext(tx, y0 + rh / 2 - tsz * 0.56, hhmm, color=txt, size=tsz)
+
+        cx = bar_w + pad
+        city = _cv_ops_trim(canvas, label, csz, tx - cx - pad)
+        if city:
+            canvas.gtext(cx, y0 + rh / 2 - csz * 0.56, city, color=city_c, size=csz)
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas):
     from datetime import datetime
     from PIL import Image, ImageDraw
@@ -206,6 +261,11 @@ def fetch_canvas(settings, canvas):
             now = datetime.now()
         label = z.split('/')[-1].replace('_', ' ')   # "America/New_York" -> "New York"
         resolved.append((label, now))
+
+    if resolved and getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp TTF rows).
+        _cv_rows_ops(canvas, resolved, W, H)
+        return _cv_next_minute_hold()
 
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)

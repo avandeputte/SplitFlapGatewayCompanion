@@ -157,6 +157,104 @@ def _cv_rocket(draw, x, y, w, h):
     draw.line([(cx, body_bot + 1), (cx, y + h - max(1, flame_h // 2))], fill=(255, 230, 120))
 
 
+def _cv_rocket_ops(canvas, x, y, w, h, aa):
+    """The little rocket as draw ops — nose, hull, porthole, fins, flame — the
+    gtext-era twin of _cv_rocket, anti-aliased on the LCD."""
+    cx = x + w // 2
+    nose_h = max(3, int(h * 0.22))
+    flame_h = max(3, int(h * 0.2))
+    body_top = y + nose_h
+    body_bot = y + h - flame_h - 1
+    bw = max(3, int(w * 0.5))
+    bx0, bx1 = cx - bw // 2, cx + bw // 2
+    # nose cone, hull, porthole
+    canvas.poly([(cx, y), (bx0, body_top), (bx1, body_top)], color=_RED, fill=True)
+    canvas.rect(bx0, body_top, bx1 - bx0 + 1, body_bot - body_top + 1, color=_HULL, fill=True)
+    pr = max(1, bw // 4)
+    pc_y = body_top + (body_bot - body_top) // 3
+    canvas.circle(cx, pc_y, pr, color=_CYAN, fill=True, aa=aa)
+    # fins
+    fin_h = max(3, int(h * 0.18))
+    canvas.poly([(bx0, body_bot), (bx0 - max(2, bw // 2), body_bot), (bx0, body_bot - fin_h)],
+                color=_RED, fill=True)
+    canvas.poly([(bx1, body_bot), (bx1 + max(2, bw // 2), body_bot), (bx1, body_bot - fin_h)],
+                color=_RED, fill=True)
+    # flame
+    canvas.poly([(bx0 + 1, body_bot + 1), (bx1 - 1, body_bot + 1), (cx, y + h)],
+                color=_FLAME, fill=True)
+    canvas.line(cx, body_bot + 1, cx, y + h - max(1, flame_h // 2),
+                color=(255, 230, 120), t=max(1, w // 40))
+
+
+def _cv_card_ops(canvas, rocket, mission, when, tmin, tcol, W, H):
+    """The launch card as on-device DRAW OPS — the gtext-era twin of the PIL card
+    below, for the LCD (manifest ``lcd_ops``): label and launch time over the amber
+    divider, the drawn rocket riding the left edge, vehicle and mission in scalable
+    type, the T-minus sunk to the panel floor — rendered by the wall at native
+    resolution instead of a 256x160 frame upscaled x5. Same composition, every
+    measure a fraction of the panel."""
+    aa = bool(getattr(canvas, 'aa_ok', False))
+    canvas.clear((0, 0, 0))
+    m = max(3, int(W * 0.012))
+
+    # Header: label left, launch time right, amber divider. gtext's y is the
+    # ascent-box top (ink starts ~0.2 of the size below), so boxes are backed off
+    # to put the ink where the PIL header's text_top rows sat.
+    head_h = max(12, int(H * 0.22))
+    cap = head_h - max(3, int(head_h * 0.17))
+    lbl = 'NEXT LAUNCH'
+    ww = 0
+    if when:
+        wbudget = int(W * 0.42)
+        wsz = canvas.fit_gtext(when, wbudget, cap)
+        if canvas.text_width(when, wsz) > wbudget and when.endswith(('AM', 'PM')):
+            when = when[:-1]           # 'FRI 12:55PM' -> 'FRI 12:55P', keeps it legible
+            wsz = canvas.fit_gtext(when, wbudget, cap)
+        ww = canvas.text_width(when, wsz)
+        canvas.gtext(W - m, 1 - int(wsz * 0.18), when, color=_WHITE, size=wsz, align='right')
+    lsz = canvas.fit_gtext(lbl, W - 2 * m - ww - max(8, int(W * 0.03)), cap)
+    if int(lsz * 0.72) >= 6:
+        canvas.gtext(m, 1 - int(lsz * 0.18), lbl, color=_GRAY, size=lsz)
+    canvas.line(m, head_h + 1, W - 1 - m, head_h + 1, color=_AMBER,
+                t=max(1, int(H * 0.008)))
+
+    # A rocket riding the left edge, text beside it — its flame licks the last rows.
+    icon_w = max(12, int(H * 0.28))
+    _cv_rocket_ops(canvas, m, head_h + max(5, int(H * 0.03)), icon_w,
+                   H - head_h - max(6, int(H * 0.038)), aa)
+    tx = m + icon_w + max(4, int(W * 0.016))
+    tw = W - m - tx
+
+    # Footer: T-minus, big, its ink sunk to the panel's bottom edge.
+    foot_h = max(9, int(H * 0.22))
+    fy = H - foot_h - 1
+    if tmin:
+        fsz = canvas.fit_gtext(tmin, tw, foot_h)
+        canvas.gtext(tx, H - 1 - int(fsz * 0.93), tmin, color=tcol, size=fsz)
+
+    # Body: the vehicle (up to 2 lines), the mission under it in cyan — both
+    # whole-word wrapped, the mission block parked just above the T-minus.
+    top = head_h + max(3, int(H * 0.02))
+    mis_h = max(7, int(H * 0.15))
+    mis_gap = max(2, int(H * 0.012))
+    mis_reserve = mis_h * 2 + mis_gap
+    body_h = fy - top - mis_reserve - max(3, int(H * 0.02))
+    nsz, nlines = canvas.fit_wrap_gtext(rocket, tw, max(1, body_h), max_lines=2)
+    block = (len(nlines) - 1) * int(nsz * 1.18) + nsz
+    ny = top + max(0, (body_h - block) // 2)
+    for ln in nlines:
+        canvas.gtext(tx, ny, ln, color=_WHITE, size=nsz)
+        ny += int(nsz * 1.18)
+    if mission and mission != rocket:
+        msz, mlines = canvas.fit_wrap_gtext(mission, tw, mis_reserve, max_lines=2)
+        mblock = (len(mlines) - 1) * int(msz * 1.18) + msz
+        my = fy - mis_gap - mblock
+        for ln in mlines:
+            canvas.gtext(tx, my, ln, color=_CYAN, size=msz)
+            my += int(msz * 1.18)
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     """Draw the next launch as a card — rocket icon, vehicle, mission, T-minus. The countdown
     reads in minutes, so a minutely redraw serves; it tightens as lift-off closes in."""
@@ -189,6 +287,12 @@ def fetch_canvas(settings, canvas, i18n=None):
             when = local.strftime('%a %I:%M%p').lstrip('0').upper()
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp AA rocket + TTF type).
+        _cv_card_ops(canvas, rocket, mission, when, tmin, tcol, W, H)
+        if secs is not None and secs <= 3600:
+            return 30.0                # inside the last hour the minutes matter
+        return 120.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

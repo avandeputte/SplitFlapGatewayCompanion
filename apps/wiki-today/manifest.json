@@ -6,6 +6,7 @@
   "description": "Featured article & most-read on Wikipedia",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "refresh_interval": 3600,
   "loop_delay": 8,
   "category": "news",

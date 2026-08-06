@@ -244,3 +244,15 @@ def test_take_panel_drops_a_lingering_stream_before_taking_over(monkeypatch, tmp
         assert ended == ["http://gw", "http://gw"] and stood == ["http://gw"]
 
     asyncio.run(run())
+
+
+def test_fit_wrap_gtext_shrinks_for_an_unbreakable_word():
+    """A word wider than the column can't wrap — the fitter must shrink the SIZE until the
+    word fits, not accept an overflowing line ("AL-FITR" ran off a 256-wide holiday card)."""
+    from app.canvas import _fit_wrap_gtext, _gtext_width
+    size, lines = _fit_wrap_gtext("EID AL-FITRALFITR", 90, 200, 3, "sans", 512)
+    assert all(_gtext_width(ln, size, "sans") <= 90 for ln in lines)
+    assert size >= 8 and sum(len(ln.split()) for ln in lines) == 2
+    # normal text is untouched: the accepted size already had every line inside max_w
+    s2, l2 = _fit_wrap_gtext("DINNER IS READY", 200, 120, 3, "sans", 512)
+    assert all(_gtext_width(ln, s2, "sans") <= 200 for ln in l2)

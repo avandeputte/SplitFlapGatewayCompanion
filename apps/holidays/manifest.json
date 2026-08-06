@@ -6,6 +6,7 @@
   "description": "Upcoming holidays for your location — ten years bundled, works offline; optional religious observances by tradition",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "refresh_interval": 21600,
   "loop_delay": 6,
   "category": "data",

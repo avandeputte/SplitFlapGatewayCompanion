@@ -214,6 +214,82 @@ def _cv_minutes(mins):
     return f'{mins}', _LATER
 
 
+def _cv_ellipsis_g(canvas, text, size, max_w):
+    """``text`` cut with an ellipsis to fit ``max_w`` at gtext ``size`` (full text if it fits)."""
+    if canvas.text_width(text, size) <= max_w:
+        return text
+    while text and canvas.text_width(text + '…', size) > max_w:
+        text = text[:-1].rstrip()
+    return (text + '…') if text else ''
+
+
+def _cv_board_ops(canvas, route, mins, dests, W, H):
+    """The departure board as on-device DRAW OPS — the gtext-era twin of the PIL path
+    below, for the LCD (manifest ``lcd_ops``): line-color bar, destinations and
+    urgency-colored minutes rendered by the wall at its native resolution instead of
+    a 256x160 pixel frame upscaled x5. Same bands, same colors — just crisp.
+
+    gtext's y is the top of the ascent box; caps ink runs ~0.18..0.94 of the size,
+    so band-centering is y = mid - 0.56*size and an edge-park is y = edge - 0.94*size
+    (1.14 when a J's tail hangs below the baseline)."""
+    canvas.clear((0, 0, 0))
+    color = _cv_line_color(route)
+    pad = max(3, int(W * 0.015))
+
+    # Header: the line's color as a full-width bar with the route's name on it.
+    title = f'{route} LINE'.replace('-', ' ').upper() if W >= 96 else str(route).upper()
+    bar_h = max(9, int(H * 0.24))
+    canvas.rect(0, 0, W, bar_h, color=color, fill=True)
+    tsize = canvas.fit_gtext(title, W - 2 * pad - 2, bar_h - max(3, int(bar_h * 0.18)))
+    canvas.gtext(W / 2, bar_h / 2 - 0.56 * tsize, title, color=_WHITE, size=tsize,
+                 align='center')
+
+    # One row per direction: destination left, minutes right, urgency-colored.
+    rows = []
+    for d_id in (0, 1):
+        dest = str(dests.get(d_id) or f'Dir {d_id}').upper()
+        rows.append((dest, *_cv_minutes(mins.get(d_id))))
+
+    # Two full-height bands under the bar: the first starts right beneath it, the
+    # second's ink is parked on the panel's last row — no dark strip at the bottom.
+    area_top = bar_h + max(1, int(H * 0.006))
+    mid = area_top + (H - area_top) // 2
+    unit = ' MIN' if W >= 128 else ''
+    gap = max(4, int(W * 0.02))
+    row_ink = []                                # (ink top, ink bottom) per row
+    for i, (dest, mtxt, mcol) in enumerate(rows):
+        ry, rb_ = (area_top, mid - 1) if i == 0 else (mid + 1, H - 1)
+        row_h = rb_ - ry + 1
+        mm = mtxt if (mtxt in ('DUE', '--') or not unit) else f'{mtxt}{unit}'
+        msize = canvas.fit_gtext(mm, int(W * 0.4), row_h - 2)
+        my = ry + row_h / 2 - 0.56 * msize
+        if i == 1:
+            my = rb_ - 0.94 * msize
+        canvas.gtext(W - pad, my, mm, color=mcol, size=msize, align='right')
+        mw = canvas.text_width(mm, msize)
+        # The whole destination at the largest size that fits the row; only when even
+        # that hits the fit floor, hold a readable size and ellipsise instead.
+        avail = W - 2 * pad - gap - mw
+        dsize = canvas.fit_gtext(dest, avail, row_h - 2)
+        dtext = dest
+        if canvas.text_width(dest, dsize) > avail:
+            dsize = max(9, int(H * 0.06))
+            dtext = _cv_ellipsis_g(canvas, dest, dsize, avail)
+        dk = 1.14 if any(c in 'JQ' for c in dtext) else 0.94
+        dy = ry + row_h / 2 - 0.56 * dsize
+        if i == 1:
+            dy = rb_ - dk * dsize
+        canvas.gtext(pad, dy, dtext, color=_WHITE, size=dsize)
+        row_ink.append((min(my + 0.18 * msize, dy + 0.18 * dsize),
+                        max(my + 0.94 * msize, dy + dk * dsize)))
+    # The divider sits midway between the first row's ink and the second's —
+    # centered on the air between them, not on the band arithmetic.
+    rule_y = int(round((row_ink[0][1] + row_ink[1][0]) / 2.0))
+    canvas.line(pad, rule_y, W - 1 - pad, rule_y, color=(45, 50, 60),
+                t=max(1, int(round(H / 160))))
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas):
     """Draw the stop as a departure board: line-color header, a row per direction with the
     destination and color-coded minutes. Predictions move by the minute — redraw every 30s."""
@@ -229,6 +305,10 @@ def fetch_canvas(settings, canvas):
         return 60.0
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp bar + TTF type).
+        _cv_board_ops(canvas, route, mins, dests, W, H)
+        return 30.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

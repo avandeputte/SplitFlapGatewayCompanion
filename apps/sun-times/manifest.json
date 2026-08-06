@@ -6,6 +6,7 @@
   "description": "Sunrise, sunset & day length",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "refresh_interval": 1800,
   "loop_delay": 6,
   "category": "data",

@@ -200,6 +200,124 @@ def _cv_curve(draw, events, x0, y0, x1, y1, now_min):
     return
 
 
+def _cv_curve_ops(canvas, events, x0, y0, x1, y1, now_min, aa):
+    """The day's tide curve as draw ops — the ops-surface twin of _cv_curve, for the
+    gtext LCD path: the water as 16-vertex poly slices under an anti-aliased polyline
+    stroke (both chunked to the wall's fast binary-op vertex cap), a dot at each
+    extreme, a guide line + white marker at 'now'. Same cosine-through-the-extremes
+    math, phantom points past midnight and all."""
+    import math
+    pts = [(m, v) for m, v, _hi, _t in events]
+    if len(pts) < 2:
+        mid = (y0 + y1) // 2
+        canvas.line(x0, mid, x1, mid, color=_CV_SEA)
+        return
+    ext = ([(pts[0][0] - (pts[1][0] - pts[0][0]), pts[1][1])] + pts
+           + [(pts[-1][0] + (pts[-1][0] - pts[-2][0]), pts[-2][1])])
+    lo = min(v for _m, v in ext)
+    hi = max(v for _m, v in ext)
+    span = (hi - lo) or 1.0
+
+    def height_at(minute):
+        for (ma, va), (mb, vb) in zip(ext, ext[1:]):
+            if ma <= minute <= mb:
+                u = (minute - ma) / max(1.0, float(mb - ma))
+                return va + (vb - va) * (1 - math.cos(math.pi * u)) / 2.0
+        return ext[0][1] if minute < ext[0][0] else ext[-1][1]
+
+    def ypix(v):
+        return y1 - 1 - (v - lo) / span * (y1 - y0 - 2)
+
+    step = max(2, (x1 - x0) // 640)                    # a point every couple of columns
+    xs = list(range(x0, x1 + 1, step))
+    if xs[-1] != x1:
+        xs.append(x1)
+    curve = [(x, int(round(ypix(height_at((x - x0) / max(1, x1 - x0) * 1439.0)))))
+             for x in xs]
+    # Water first: slices of 14 curve points + 2 floor corners (the codec's 16-vertex
+    # poly cap), overlapping one point so no seam column shows through the fill.
+    for j in range(0, len(curve) - 1, 13):
+        sl = curve[j:j + 14]
+        if len(sl) < 2:
+            break
+        canvas.poly(sl + [(sl[-1][0], y1), (sl[0][0], y1)], color=_CV_SEA_FILL, fill=True)
+    # The stroke rides on top, chunked likewise (one shared point per seam).
+    t = max(2, int((y1 - y0) / 90))
+    for j in range(0, len(curve) - 1, 15):
+        canvas.polyline(curve[j:j + 16], color=_CV_SEA, t=t, aa=aa)
+    r = max(2, int((y1 - y0) * 0.010))
+    for m, v, is_high, _t in events:
+        x = x0 + round(m / 1439.0 * (x1 - x0))
+        canvas.circle(x, int(round(ypix(v))), r,
+                      color=_CV_TEXT if is_high else _CV_DIM, fill=True, aa=aa)
+    if now_min is not None:
+        x = x0 + round(min(1439.0, max(0.0, now_min)) / 1439.0 * (x1 - x0))
+        y = int(round(ypix(height_at(now_min))))
+        canvas.line(x, y0, x, y1, color=(60, 66, 78), t=max(1, t // 2))
+        canvas.circle(x, y, r, color=_CV_NOW, fill=True, aa=aa)
+    return
+
+
+def _cv_tides_ops(canvas, events, i18n, W, H):
+    """The tide card drawn with the LCD's on-device ops + gtext instead of a pushed
+    pixel frame (manifest ``lcd_ops``): the next high/low (and the one after, where
+    the width allows) across the top, the day's curve full-bleed below — the same
+    composition as the pixel path, crisp at native resolution. gtext's y is the
+    ascent-box top; ink rides ~0.18..0.94 of the size, so the header's ink starts
+    on the panel's first rows and the water fill owns the last one."""
+    from datetime import datetime
+    aa = bool(getattr(canvas, 'aa_ok', False))
+    canvas.clear((0, 0, 0))
+
+    # The wall's clock stands in for station time — a tide wall lives by its water.
+    local = datetime.now()
+    now_min = local.hour * 60 + local.minute
+    upcoming = [e for e in events if e[0] >= now_min] or [events[-1]]
+
+    pad = max(3, int(W * 0.012))
+    sample = '↑ 12:28PM 11.2FT'
+    head_h = max(10, int(H * 0.135))
+    hs = canvas.fit_gtext(sample, int(W * 0.52) if W >= 128 else W - 2 * pad, head_h)
+
+    def tide_w(event, with_height=True):
+        _m, v, _is_high, hhmm = event
+        when = _fmt_time(hhmm, i18n)
+        w = canvas.text_width('↑ ', hs) + canvas.text_width(when, hs)
+        if with_height:
+            w += canvas.text_width(' ', hs) + canvas.text_width(f'{v:.1f}FT', hs)
+        return w
+
+    # Both groups share the font; the second is dropped whole when it can't fit.
+    two = W >= 128 and len(upcoming) > 1 and \
+        tide_w(upcoming[0]) + max(8, W // 16) + tide_w(upcoming[1]) <= W - 2 * pad
+    if not two:                            # one group: give it the full width
+        hs = canvas.fit_gtext(sample, W - 2 * pad, head_h)
+
+    def tide_line(x, event, bright, with_height=True):
+        _m, v, is_high, hhmm = event
+        arrow = '↑' if is_high else '↓'
+        when = _fmt_time(hhmm, i18n)
+        y = 1 - 0.18 * hs                  # ink top rides the panel's first rows
+        canvas.gtext(x, y, arrow, color=_CV_SEA, size=hs)
+        x += canvas.text_width(arrow + ' ', hs)
+        canvas.gtext(x, y, when, color=_CV_TEXT if bright else _CV_DIM, size=hs)
+        if not with_height:
+            return x + canvas.text_width(when, hs)
+        x += canvas.text_width(when + ' ', hs)
+        ht = f'{v:.1f}FT'
+        canvas.gtext(x, y, ht, color=_CV_SEA if bright else _CV_DIM, size=hs)
+        return x + canvas.text_width(ht, hs)
+
+    end = tide_line(pad, upcoming[0], True,
+                    with_height=tide_w(upcoming[0]) <= W - 2 * pad)
+    if two:
+        tide_line(end + max(8, W // 16), upcoming[1], False)
+
+    top = int(1 + 0.76 * hs + max(2, int(H * 0.012)))
+    _cv_curve_ops(canvas, events, 0, top, W - 1, H - 1, float(now_min), aa)
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     """Today's tide curve with the next high/low called out above it (and the one
     after, where the width allows), 'now' marked on the curve. Predictions are
@@ -231,6 +349,10 @@ def fetch_canvas(settings, canvas, i18n=None):
         return 300.0
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (AA curve + TTF type).
+        _cv_tides_ops(canvas, events, i18n, W, H)
+        return 300.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

@@ -182,6 +182,74 @@ def _cv_play_button(draw, x, y, w, h):
     draw.polygon([(tx, ty), (tx + tw, ty + th // 2), (tx, ty + th)], fill=(255, 255, 255))
 
 
+def _cv_yt_ops(canvas, name, big, label, title, W, H):
+    """The stats card as on-device DRAW OPS — the gtext twin of the tall-LCD PIL branch
+    below, for the LCD (manifest ``lcd_ops``): play button, wrapped channel name, hero
+    count and the latest title drawn by the wall at its native resolution instead of a
+    256x160 pixel frame upscaled x5. Same bands, same red-accent identity."""
+    canvas.clear((0, 0, 0))
+    pad = max(6, int(W * 0.023))
+    top = max(3, int(H * 0.025))
+
+    # Header: the play button + the channel name WRAPPED (up to two lines, never clipped).
+    head_h = int(H * 0.20)
+    bh = max(10, int(H * 0.12))
+    bw = int(bh * 1.45)
+    by = top + max(0, (head_h - bh) // 2)
+    canvas.roundrect(pad, by, bw, bh, max(2, bh // 4), _CV_RED, fill=True)
+    tw, th = max(3, bw // 3), max(4, bh // 2)
+    tx, ty = pad + (bw - tw) // 2 + max(1, bw // 20), by + (bh - th) // 2
+    canvas.poly([(tx, ty), (tx + tw, ty + th // 2), (tx, ty + th)], (255, 255, 255), fill=True)
+    nx = pad + bw + pad
+    nsize, nlines = canvas.fit_wrap_gtext(name, W - pad - nx, head_h, 2)
+    nstep = int(nsize * 1.18)
+    nink = (len(nlines) - 1) * nstep + int(nsize * 0.72)      # cap-ink of the wrapped block
+    ny = top + max(0, (head_h - nink) // 2) - int(nsize * 0.20)
+    for ln in nlines:
+        canvas.gtext(nx, ny, ln, color=_CV_TXT, size=nsize)
+        ny += nstep
+    head_bot = top + head_h
+
+    # Latest upload — the WHOLE title wrapped, a red caption above — owns the floor
+    # (descender-safe: the last line's tails clear the panel's bottom edge).
+    mb = max(2, int(H * 0.015))
+    tsize, lat_lines = (canvas.fit_wrap_gtext(title, W - 2 * pad, int(H * 0.24), 3)
+                        if title else (0, []))
+    cap_y = H - mb
+    if lat_lines:
+        lstep = int(tsize * 1.18)
+        lat_top = H - mb - ((len(lat_lines) - 1) * lstep + int(tsize * 1.16))
+        cap_sz = max(9, int(H * 0.07))
+        cap_y = lat_top - int(cap_sz * 1.30)
+        canvas.gtext(pad, cap_y, 'LATEST', color=_CV_RED, size=cap_sz)
+        y = lat_top
+        for ln in lat_lines:
+            canvas.gtext(pad, y, ln, color=_CV_DIM, size=tsize)
+            y += lstep
+
+    # The count — hero — fills the band between the header and the latest block.
+    hero_top = head_bot + max(2, int(H * 0.02))
+    hero_bot = (cap_y - max(2, int(H * 0.02))) if lat_lines else (H - mb)
+    lsz = max(9, int(H * 0.10))
+    if canvas.text_width(label, lsz) > W - 2 * pad:
+        label = ''                     # can't fit the caption — the count carries it
+    g2 = max(2, int(H * 0.022))
+    lbl_ink = int(lsz * 0.72) if label else 0
+    avail = hero_bot - hero_top - ((g2 + lbl_ink) if label else 0)
+    # The count's ink runs to ~0.95x its size — the comma's tail hangs below the
+    # digits' baseline, and the label must sit under IT, not under the digits.
+    csize = canvas.fit_gtext(big, W - 2 * pad, max(10, int(avail * 1.05)))
+    blk = int(csize * 0.95) + ((g2 + lbl_ink) if label else 0)
+    ink_top = hero_top + max(0, (hero_bot - hero_top - blk) // 2)
+    canvas.gtext(W // 2, ink_top - int(csize * 0.20), big, color=_CV_TXT,
+                 size=csize, align='center')
+    if label:
+        ly = ink_top + int(csize * 0.95) + g2
+        canvas.gtext(W // 2, ly - int(lsz * 0.20), label, color=_CV_RED, size=lsz,
+                     align='center')
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     from PIL import ImageDraw
 
@@ -215,6 +283,12 @@ def fetch_canvas(settings, canvas, i18n=None):
         label = 'RECENT UPLOADS'
 
     W, H = int(canvas.width), int(canvas.height)
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp button + TTF type).
+        _cv_yt_ops(canvas, str(name or channel_id), big, label,
+                   titles[0] if titles else '', W, H)
+        return 120.0
+
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

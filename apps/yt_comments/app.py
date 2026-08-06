@@ -213,6 +213,54 @@ def _cv_tall(canvas, ImageDraw, author, text, idx, total):
     return img
 
 
+def _cv_tall_ops(canvas, author, text, idx, total, W, H):
+    """The tall card as on-device DRAW OPS — the gtext-era twin of _cv_tall, for the
+    LCD (manifest ``lcd_ops``): the author header and rule, the comment as large
+    scalable type centered in the body — rendered by the wall at native resolution
+    instead of a 256x160 frame upscaled x5. Same composition, every measure a
+    fraction of the panel."""
+    canvas.clear((0, 0, 0))
+    pad = max(5, int(W * 0.02))
+
+    # Header: author in the accent, the i/N mark opposite, a hairline rule under.
+    # gtext's y is the ascent-box top (ink starts ~0.2 of the size below), so the
+    # author's box is backed off to put its ink on the pad line like text_top did.
+    mark = f'{idx + 1}/{total}'
+    msz = canvas.fit_gtext(mark, int(W * 0.22), max(9, int(H * 0.09)))
+    mw = int(canvas.text_width(mark, msz)) + max(6, int(W * 0.024))
+    asz = max(9, int(H * 0.11))
+    ay = pad - int(asz * 0.18)
+    an = str(author)
+    if canvas.text_width(an, asz) > W - 2 * pad - mw:      # _cv_trim, in gtext units
+        while an and canvas.text_width(an + '…', asz) > W - 2 * pad - mw:
+            an = an[:-1]
+        an = (an + '…') if an else ''
+    canvas.gtext(pad, ay, an, color=_CV_AUTHOR, size=asz)
+    canvas.gtext(W - pad, ay + int(0.565 * (asz - msz)), mark,
+                 color=_CV_DIM, size=msz, align='right')
+    ry = pad + int(asz * 0.97) + max(4, int(H * 0.025))
+    canvas.line(pad, ry, W - 1 - pad, ry, color=_CV_RULE, t=max(1, int(H * 0.006)))
+
+    # The comment wrapped as LARGE as the body holds, the block centered in it —
+    # an ellipsis owns the tail on the rare comment even the 8px floor can't hold.
+    body_top = ry + max(6, int(H * 0.038))
+    avail = H - pad - body_top
+    max_lines = max(3, avail // max(1, int(H * 0.10)))
+    size, lines = canvas.fit_wrap_gtext(text, W - 2 * pad, avail, max_lines=max_lines)
+    if sum(len(ln.split()) for ln in lines) < len(str(text).split()):
+        last = lines[-1]
+        while last and canvas.text_width(last + '…', size) > W - 2 * pad:
+            last = last[:-1]
+        lines[-1] = last + '…'
+    step = int(size * 1.2)
+    block = (len(lines) - 1) * step + size
+    y = body_top + max(0, (avail - block) // 2)
+    for ln in lines:
+        canvas.gtext(pad, y, ln, color=_CV_TXT, size=size)
+        y += step
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas):
     from PIL import ImageDraw
 
@@ -239,6 +287,16 @@ def fetch_canvas(settings, canvas):
     idx = st['i'] % len(comments)
     st['i'] = (st['i'] + 1) % len(comments)
     author, text = comments[idx]
+
+    W, H = int(canvas.width), int(canvas.height)
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp TTF header + comment).
+        _cv_tall_ops(canvas, author, text, idx, len(comments), W, H)
+        try:
+            dwell = float(settings.get('loop_delay', 8) or 8)
+        except (TypeError, ValueError):
+            dwell = 8.0
+        return max(3.0, min(30.0, dwell))
 
     if int(canvas.height) >= 96:                     # tall LCD — the comment fills the body
         canvas.frame(_cv_tall(canvas, ImageDraw, author, text, idx, len(comments)))

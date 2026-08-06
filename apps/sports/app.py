@@ -585,6 +585,94 @@ def _mx_scoreboard(canvas, draw, game, top, height, rule=True, even=False):
         draw.text((vx, vy), vs, font=vf, fill=_MX_GRAY)
 
 
+def _cv_score_ops(canvas, game, W, H):
+    """The scoreboard card as on-device DRAW OPS — the gtext twin of the PIL card
+    below, for the LCD (manifest ``lcd_ops``): scalable type and AA shapes at the
+    wall's native resolution instead of an upscaled 256x160 pixel frame. Same
+    card: league/status header over a rule (live dot when the game is on), the
+    two team rows spending the whole band beneath (VS mark pre-game, the loser
+    dimmed after the final), golf/UFC pages as their centered text stack."""
+    aa = bool(getattr(canvas, 'aa_ok', False))
+    canvas.clear((0, 0, 0))
+    league = str(game.get('league', '') or '').upper()
+    status = str(game.get('status', '') or '').upper()
+    state = game.get('state', 'pre')
+    scol = _mx_status_color(state)
+    m = max(3, int(W * 0.015))
+    lt = max(1, int(round(H / 160)))            # rule thickness, 1px per 160 rows
+
+    # Header: league left, status right, live dot beside the status. Cap tops
+    # pinned to y=1 (gtext y is the ascent top; caps sit ~0.20*size below it).
+    head_h = max(12, int(H * 0.22))
+    if league:
+        lsz = canvas.fit_gtext(league, int(W * 0.4), head_h - 2)
+        canvas.gtext(m, 1 - int(lsz * 0.20), league, color=_MX_GRAY, size=lsz)
+    if status:
+        ssz = canvas.fit_gtext(status, int(W * 0.5), head_h - 2)
+        canvas.gtext(W - m, 1 - int(ssz * 0.20), status, color=scol, size=ssz, align='right')
+        if state == 'in':
+            r = max(2, int(ssz * 0.16))
+            sx = W - m - canvas.text_width(status, ssz)
+            canvas.circle(sx - 3 * r, 1 + int(ssz * 0.36), r, color=_MX_LIVE, fill=True, aa=aa)
+    canvas.line(m, head_h + 1, W - 1 - m, head_h + 1, color=_MX_RULE, t=lt)
+    top = head_h + max(3, int(H * 0.02))
+    band = H - top
+
+    rows = _mx_team_rows(game)
+    if rows is None:
+        # Golf and UFC pages carry their own lines — the first hugs the band's
+        # top, the last sits on its bottom, a middle line centers in its slot.
+        lines = [ln for ln in str(game.get('page', '')).split('\n') if str(ln).strip()][:3] or ['']
+        lh = band // len(lines)
+        for i, ln in enumerate(lines):
+            sz = canvas.fit_gtext(ln, W - 2 * m, lh - 2)
+            if i == 0:
+                y = top - int(sz * 0.20)
+            elif i == len(lines) - 1:
+                # ink bottom on the bottom row — descenders reach ~1.16*size
+                desc = any(c in 'gjpqy' for c in ln)
+                y = H - 1 - int(sz * (1.16 if desc else 0.93))
+            else:
+                y = top + i * lh + lh // 2 - int(sz * 0.56)
+            canvas.gtext(W // 2, y, ln, color=_MX_WHITE, size=sz, align='center')
+        canvas.show()
+        return
+
+    # One size for everything: the widest cell at the row height decides it.
+    row_h = band // 2
+    cells = [c for pair in rows for c in pair if c]
+    probe = max(cells, key=len) if cells else '0'
+    tsz = canvas.fit_gtext(probe, int(W * 0.55), int(row_h * 1.05))
+
+    # post: the winner stays bright, the loser dims (a tie keeps both lit)
+    colors = [_MX_WHITE, _MX_WHITE]
+    if state == 'post':
+        try:
+            a, h = int(rows[0][1]), int(rows[1][1])
+            if a != h:
+                colors = [_MX_WHITE, _MX_DIM] if a > h else [_MX_DIM, _MX_WHITE]
+        except (TypeError, ValueError):
+            pass
+
+    canvas.line(m, top + row_h, W - 1 - m, top + row_h, color=_MX_RULE, t=lt)
+    for i, ((abbr, score), col) in enumerate(zip(rows, colors)):
+        # the away row's caps hug the band's top, the home row's baseline sits
+        # on the bottom row — the scoreboard spends the whole band it was given
+        y = top - int(tsz * 0.20) if i == 0 else H - 1 - int(tsz * 0.93)
+        canvas.gtext(m, y, abbr, color=col, size=tsz)
+        if score:
+            canvas.gtext(W - m, y, score, color=col, size=tsz, align='right')
+    if state == 'pre':
+        vsz = canvas.fit_gtext('VS', int(W * 0.25), max(8, int(row_h * 0.5)))
+        vw = canvas.text_width('VS', vsz)
+        vx, vy = W - m - vw, top + band // 2 - int(vsz * 0.56)
+        pad = max(2, int(vsz * 0.2))
+        canvas.rect(vx - pad, vy + int(vsz * 0.20) - pad, vw + 2 * pad,
+                    int(vsz * 0.73) + 2 * pad, (0, 0, 0), fill=True)
+        canvas.gtext(vx, vy, 'VS', color=_MX_GRAY, size=vsz)
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     """Draw one followed game per hold as a scoreboard card, advancing each redraw. ESPN is
     polled at most once a minute (a cached gather); each game holds ~8s."""
@@ -619,6 +707,10 @@ def fetch_canvas(settings, canvas, i18n=None):
     game = games[idx]
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp TTF scoreboard).
+        _cv_score_ops(canvas, game, W, H)
+        return 8.0 if len(games) > 1 else 30.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

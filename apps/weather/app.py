@@ -764,9 +764,13 @@ def _cv_weather_gtext(canvas, wx, unit, show_city, night, sky, frame):
         stars = [(0.06, 0.18, (200, 210, 255)), (0.16, 0.42, (255, 240, 200)),
                  (0.30, 0.12, (180, 220, 255)), (0.40, 0.55, (255, 220, 220)),
                  (0.52, 0.24, (210, 235, 255)), (0.63, 0.10, (255, 245, 210))]
-        for i, (fx, fy, col) in enumerate(stars):
+        # sx/sy, NOT fx/fy: unlike the PIL twin (which computes fy later), this branch
+        # computed `fy` — the forecast strip's top — above, and a loop variable named
+        # fy would clobber it, flooding the panel with the strip's dim rect and
+        # drawing the forecast over the city name.
+        for i, (sx, sy, col) in enumerate(stars):
             if (frame // 7 + i) % 4:
-                canvas.pixel(int(W * fx), int(H * fy), col)
+                canvas.pixel(int(W * sx), int(H * sy), col)
         if sky in ('clear', 'pcloudy'):
             canvas.circle(icx, icy, ir, color=(232, 236, 250), fill=True)
             # the crescent: an offset disc carves the shadow — the local sky tone (black on the

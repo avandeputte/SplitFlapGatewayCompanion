@@ -975,6 +975,103 @@ def _mx_arrow(draw, cx, cy, r, deg, color):
         draw.line([tip, (tip[0] + math.sin(hr) * (r * 0.7), tip[1] - math.cos(hr) * (r * 0.7))], fill=color)
 
 
+def _mx_arrow_ops(canvas, cx, cy, r, deg, color, t, aa):
+    """The bearing arrow as draw ops — the ops-surface twin of _mx_arrow, for the
+    gtext LCD path: shaft + two head strokes as polylines (they carry the AA flag),
+    thickness scaled with the arrow."""
+    import math
+    rad = math.radians(deg)
+    dx, dy = math.sin(rad), -math.cos(rad)
+    tip = (cx + dx * r, cy + dy * r)
+    canvas.polyline([(cx - dx * r, cy - dy * r), tip], color=color, t=t, aa=aa)
+    for off in (150, -150):
+        hr = math.radians(deg + off)
+        canvas.polyline([tip, (tip[0] + math.sin(hr) * (r * 0.7),
+                               tip[1] - math.cos(hr) * (r * 0.7))],
+                        color=color, t=t, aa=aa)
+
+
+def _cv_planes_ops(canvas, shown, idx, callsign, route, dist, alt, bearing, W, H):
+    """The aircraft card as on-device DRAW OPS — the gtext-era twin of the tall PIL
+    layout below, for the LCD (manifest ``lcd_ops``): the OVERHEAD header with its
+    pagination marks, the callsign hero with the route beside it, the bearing arrow
+    with distance and altitude, the rest of the traffic on the bottom edge — drawn
+    by the wall at native resolution instead of a 256x160 frame upscaled x5.
+
+    gtext's y is the ascent-box top; caps ink runs ~0.18..0.94 of the size (a J's
+    tail to ~1.13), hence the anchor offsets below."""
+    aa = bool(getattr(canvas, 'aa_ok', False))
+    canvas.clear((0, 0, 0))
+    pad = max(3, int(W * 0.012))
+
+    # Header: the label + pagination marks (this aircraft lit), then the card.
+    head_h = max(12, int(H * 0.20))
+    lsize = canvas.fit_gtext('OVERHEAD', int(W * 0.55), head_h - max(2, int(H * 0.012)))
+    canvas.gtext(pad, 1 - 0.18 * lsize, 'OVERHEAD', color=_MX_GRAY, size=lsize)
+    u = max(2, int(H * 0.012))                   # the pagination unit square
+    step = u * 3
+    dyc = head_h // 2
+    dx0 = W - pad - len(shown) * step
+    for j in range(len(shown)):
+        cxj = dx0 + j * step
+        if j == idx:                             # the shown aircraft: amber + bigger
+            canvas.rect(cxj - u, dyc - u, 2 * u, 2 * u, color=_MX_AMBER, fill=True)
+        else:
+            canvas.rect(cxj - u // 2, dyc - u // 2, u, u, color=_MX_DIM, fill=True)
+    t_rule = max(1, int(round(H / 160)))
+    canvas.line(pad, head_h + t_rule, W - 1 - pad, head_h + t_rule,
+                color=_MX_RULE, t=t_rule)
+
+    # Hero: callsign big, route beside it in cyan.
+    hero_top = head_h + max(3, int(H * 0.019))
+    hero_h = max(12, int(H * 0.34))
+    csize = canvas.fit_gtext(callsign, int(W * 0.62), hero_h)
+    canvas.gtext(pad, hero_top + hero_h / 2 - 0.56 * csize, callsign,
+                 color=_MX_WHITE, size=csize)
+    if route:
+        avail = W - 3 * pad - canvas.text_width(callsign, csize)
+        rsize = canvas.fit_gtext(route, avail, max(8, int(hero_h * 0.55)))
+        if canvas.text_width(route, rsize) <= avail:
+            canvas.gtext(W - pad, hero_top + hero_h / 2 - 0.56 * rsize, route,
+                         color=_MX_CYAN, size=rsize, align='right')
+
+    # Info row: bearing arrow + distance (amber), altitude flush right (green).
+    info_top = hero_top + hero_h + max(2, int(H * 0.012))
+    info_h = max(8, int(H * 0.20))
+
+    # Who else is up there earns the panel's bottom edge; with nobody else the
+    # info row itself sinks onto it — either way the last rows carry ink.
+    others = [str(g.get('callsign') or '') for _d, _b, g in shown[:idx] + shown[idx + 1:]][:2]
+    oline = ('+ ' + '  '.join(o for o in others if o)) if any(others) else ''
+    osize = 0
+    if oline and H - (info_top + info_h + max(2, int(H * 0.012))) >= max(8, int(H * 0.05)):
+        osize = canvas.fit_gtext(oline, W - 2 * pad,
+                                 min(H - info_top - info_h - max(3, int(H * 0.019)),
+                                     max(8, int(H * 0.14))))
+
+    dsize = canvas.fit_gtext(dist, int(W * 0.5), info_h - 1)
+    dh = 0.76 * dsize                            # the distance line's ink height
+    iy = info_top + (info_h - dh) / 2.0 if osize else H - 1 - dh   # its ink top
+    ay = iy + dh / 2.0
+    # The arrow can point anywhere, so its reach is clamped to the room under its
+    # center — a bottom-parked row (no other traffic) must not shoot past the edge.
+    r_a = max(3, min(int(info_h * 0.45), int(H - 1 - ay)))
+    ax = pad + r_a
+    _mx_arrow_ops(canvas, ax, ay, r_a, bearing, _MX_AMBER,
+                  max(1, int(r_a * 0.14)), aa)
+    canvas.gtext(ax + r_a + max(3, int(W * 0.012)), iy - 0.18 * dsize, dist,
+                 color=_MX_AMBER, size=dsize)
+    if alt:
+        asize = canvas.fit_gtext(alt, int(W * 0.32), info_h - 1)
+        if asize >= 8:                           # ink bottoms aligned, like the PIL row
+            canvas.gtext(W - pad, iy + dh - 0.94 * asize, alt,
+                         color=_MX_GREEN, size=asize, align='right')
+    if osize:
+        ok = 1.13 if any(c in 'JQ' for c in oline) else 0.94
+        canvas.gtext(pad, H - 1 - ok * osize, oline, color=_MX_DIM, size=osize)
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, get_location=None):
     """Draw one nearby aircraft per hold, rotating through the same list the wall pages. The
     provider poll is throttled inside the shared path (polling_rate), so redraws are cheap."""
@@ -1028,6 +1125,10 @@ def fetch_canvas(settings, canvas, get_location=None):
     alt = _mx_alt(f.get('altitude_m'), au)
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp AA arrow + TTF type).
+        _cv_planes_ops(canvas, shown, idx, callsign, route, dist, alt, bearing, W, H)
+        return 10.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

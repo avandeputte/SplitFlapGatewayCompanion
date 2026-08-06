@@ -6,6 +6,7 @@
   "category": "news",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "version": "1.0",
   "refresh_interval": 600,
   "loop_delay": 8,

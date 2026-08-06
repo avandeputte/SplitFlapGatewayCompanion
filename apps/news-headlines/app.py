@@ -167,6 +167,61 @@ _WHITE = (240, 240, 244)
 _GRAY = (150, 150, 158)
 
 
+def _cv_news_ops(canvas, feed_url, title, idx, n, W, H):
+    """The ticker card as on-device DRAW OPS — the gtext-era twin of the PIL path
+    below, for the LCD (manifest ``lcd_ops``): the red masthead with its source chip
+    and position dots, the headline in scalable type, rendered by the wall at native
+    resolution instead of a 256x160 frame upscaled x5. Same composition as the pixel
+    card, every measure a fraction of the panel."""
+    canvas.clear((0, 0, 0))
+    src = _source_tag(feed_url)
+
+    # Masthead: source badge on red, pagination dots on the right (this headline lit).
+    bar_h = max(9, int(H * 0.22))
+    pad = max(4, int(W * 0.016))
+    ssz = canvas.fit_gtext(src, int(W * 0.5), bar_h - max(3, int(bar_h * 0.22)))
+    chip_w = int(canvas.text_width(src, ssz)) + 2 * pad
+    canvas.rect(0, 0, chip_w, bar_h, color=_MAST, fill=True)
+    # gtext's y is the ascent-box top; caps ink spans ~0.20..0.93 of the size, so
+    # centering the ink in the chip means backing y off by ~0.56 of the size.
+    canvas.gtext(pad, int(bar_h / 2 - ssz * 0.56), src, color=_WHITE, size=ssz)
+    canvas.line(0, bar_h, W - 1, bar_h, color=_MAST, t=max(1, int(H * 0.008)))
+    d = max(2, int(H * 0.015))                   # base dot side; the lit one is 2d
+    step = 2 * d
+    if chip_w + 3 * d + n * step < W - d:
+        dy = (bar_h - d) // 2
+        dx = W - d - n * step
+        for j in range(n):
+            if j == idx:                          # the current headline: the masthead red,
+                canvas.rect(dx + j * step - d // 2, dy - d // 2,       # and a hair bigger
+                            2 * d, 2 * d, color=_MAST, fill=True)
+            else:
+                canvas.rect(dx + j * step, dy, d, d, color=(95, 95, 102), fill=True)
+
+    # The headline, as big as it wraps whole — floor-anchored like the pixel path,
+    # the leading stretched (never past half a line) toward the masthead.
+    m = max(3, int(W * 0.012))
+    top = bar_h + max(2, int(H * 0.02))
+    floor = max(2, int(H * 0.015))
+    avail = H - top - floor
+    size, lines = canvas.fit_wrap_gtext(title, W - 2 * m, avail, max_lines=5)
+    if sum(len(ln.split()) for ln in lines) < len(str(title).split()):
+        last = lines[-1]                # cut off at the 8px floor — say so, don't just stop
+        while last and canvas.text_width(last + '…', size) > W - 2 * m:
+            last = last[:-1]
+        lines[-1] = last + '…'
+    lstep = int(size * 1.18)
+    block = (len(lines) - 1) * lstep + int(size * 1.15)
+    if len(lines) > 1:
+        lstep += min(size // 2, max(0, avail - block) // (len(lines) - 1))
+        block = (len(lines) - 1) * lstep + int(size * 1.15)
+    y = H - floor - block
+    for ln in lines:
+        canvas.gtext(m, y, ln, color=_WHITE, size=size)
+        y += lstep
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas):
     """Draw one headline per hold under a red masthead, advancing each redraw. The feed itself
     is refetched at most every five minutes; each headline holds ~8s."""
@@ -200,6 +255,10 @@ def fetch_canvas(settings, canvas):
     title = titles[idx]
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp masthead + TTF headline).
+        _cv_news_ops(canvas, feed_url, title, idx, len(titles), W, H)
+        return 8.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

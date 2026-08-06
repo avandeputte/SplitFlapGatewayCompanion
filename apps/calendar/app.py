@@ -405,6 +405,66 @@ def _cv_title(canvas, draw, summary, x, y, w, h, cap_h=None, bottom=False):
     draw.text((x, ty - tb[1]), text, font=tf, fill=_WHITE)
 
 
+def _ops_ellipsis(canvas, text, size, max_w):
+    """``text`` cut with an ellipsis to fit ``max_w`` at gtext ``size`` (full text if it fits)."""
+    if canvas.text_width(text, size) <= max_w:
+        return text
+    while text and canvas.text_width(text + '…', size) > max_w:
+        text = text[:-1].rstrip()
+    return (text + '…') if text else ''
+
+
+def _cv_agenda_ops(canvas, upcoming, now, i18n, W, H):
+    """The stacked agenda as on-device DRAW OPS — the gtext twin of the PIL path below, for
+    the LCD (manifest ``lcd_ops``): scalable-text chips and titles rendered by the wall at
+    its native resolution instead of a 256x160 pixel frame upscaled x5 (which is exactly the
+    pixelated look). Same full-height bands, same chip colors — the familiar agenda, crisp."""
+    canvas.clear((0, 0, 0))
+    shown = upcoming[:3]                    # the ops surface is the tall panel: three events
+    n = len(shown)
+    m = max(3, int(W * 0.012))
+    floor = max(9, int(H * 0.05))           # the readable-size floor, scaled to the wall
+    for i, (when, all_day, summary) in enumerate(shown):
+        ry = round(i * H / n)
+        band_h = round((i + 1) * H / n) - ry
+        chip_h = max(11, int(band_h * 0.42))
+
+        # The chip. Label ink is ~0.72x its gtext size, so the size cap keeps the ink
+        # inside the chip's padding by construction; the max() below is the same guarantee
+        # _cv_chip spells out — a label must push down, never clip against the chip's edge.
+        cpad = max(2, int(chip_h * 0.09))
+        size_cap = max(8, int((chip_h - 2 * cpad) / 0.72))
+        label = _when(when, all_day, now, i18n).upper()
+        lw = W - 2 * m - 2 * max(3, int(size_cap * 0.4))
+        csize = canvas.fit_gtext(label, lw, size_cap)
+        if csize < floor:                   # too long to stay readable: degrade like the PIL chip
+            days = (when.date() - now.date()).days
+            if days == 0 and not all_day:
+                label = label.rsplit(' ', 1)[-1]              # today: the clock is the useful part
+            else:
+                label = _when(when, True, now, i18n).upper()  # the day alone
+            csize = canvas.fit_gtext(label, lw, size_cap)
+        hpad = max(3, int(csize * 0.45))
+        cw = int(canvas.text_width(label, csize)) + 2 * hpad
+        canvas.roundrect(m, ry, cw, chip_h, max(2, int(chip_h * 0.14)),
+                         _cv_chip_color(when, now), fill=True)
+        ly = max(ry + cpad - 0.20 * csize, ry + chip_h / 2 - 0.56 * csize)
+        canvas.gtext(m + cw / 2, ly, label, color=_INK, size=csize, align='center')
+
+        # The title, centered in the band's remainder: whole at the largest size that fits
+        # (capped near the chip's scale, like the PIL cap_h), else held readable and cut.
+        vgap = max(2, int(band_h * 0.04))
+        ty, th = ry + chip_h + vgap, band_h - chip_h - vgap
+        cap = min(int(th * 0.80), int(chip_h * 1.30))
+        tsize = canvas.fit_gtext(summary, W - 2 * m, cap)
+        text = summary
+        if tsize < floor:
+            tsize = max(floor, int(cap * 0.75))
+            text = _ops_ellipsis(canvas, summary, tsize, W - 2 * m)
+        canvas.gtext(m, ty + th / 2 - 0.56 * tsize, text, color=_WHITE, size=tsize)
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     """Draw the next events as chip-and-title rows. A calendar shifts slowly — redraw every
     two minutes keeps "Today 3:30PM" honest without hammering anyone's feed."""
@@ -432,6 +492,11 @@ def fetch_canvas(settings, canvas, i18n=None):
         return 300.0
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp chips + TTF titles).
+        _cv_agenda_ops(canvas, upcoming, now, i18n, W, H)
+        return 120.0
+
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

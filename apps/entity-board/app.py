@@ -293,8 +293,155 @@ def _cv_icons(s):
     return out
 
 
+def _ops_ellipsis(canvas, text, size, max_w):
+    """``text`` cut with an ellipsis to fit ``max_w`` at gtext ``size`` (full text if it fits)."""
+    if canvas.text_width(text, size) <= max_w:
+        return text
+    while text and canvas.text_width(text + '…', size) > max_w:
+        text = text[:-1].rstrip()
+    return (text + '…') if text else ''
+
+
+def _ops_icon(canvas, domain, x, y, s, aa):
+    """The device icon drawn as vector ops at ``s`` px — the scalable twin of the _cv_icons
+    atlas tile for the same domain (those are 8-16px bitmaps; blown up x5 on the LCD they
+    would be exactly the pixelation this path exists to avoid). Same shapes, same colors."""
+    C = (232, 236, 246)
+    t = max(1, int(s * 0.09))
+    if domain == 'light':                                      # bulb
+        canvas.circle(x + s * 0.50, y + s * 0.40, s * 0.26, (255, 214, 90), fill=True, aa=aa)
+        canvas.rect(x + s * 0.38, y + s * 0.62, s * 0.24, s * 0.20, C, fill=True)
+        canvas.line(x + s * 0.40, y + s * 0.86, x + s * 0.60, y + s * 0.86, C, t=t)
+    elif domain == 'switch':                                   # toggle
+        canvas.roundrect(x + s * 0.14, y + s * 0.34, s * 0.72, s * 0.32, int(s * 0.16),
+                         (90, 200, 130), fill=True)
+        canvas.circle(x + s * 0.66, y + s * 0.50, s * 0.14, (245, 250, 255), fill=True, aa=aa)
+    elif domain == 'sensor':                                   # dial (angles: PIL's +90)
+        canvas.arc(x + s * 0.50, y + s * 0.54, int(s * 0.34), 290, 430, C, t=t)
+        canvas.line(x + s * 0.50, y + s * 0.62, x + s * 0.66, y + s * 0.36, (255, 200, 90), t=t)
+    elif domain == 'binary_sensor':                            # ring
+        canvas.circle(x + s * 0.50, y + s * 0.50, s * 0.24, C, fill=False, t=t, aa=aa)
+        canvas.circle(x + s * 0.50, y + s * 0.50, s * 0.08, C, fill=True, aa=aa)
+    elif domain == 'lock':                                     # padlock
+        canvas.arc(x + s * 0.50, y + s * 0.36, int(s * 0.20), 270, 450, C, t=t)
+        canvas.roundrect(x + s * 0.26, y + s * 0.44, s * 0.48, s * 0.38, int(s * 0.08),
+                         (230, 195, 95), fill=True)
+    elif domain == 'cover':                                    # blinds
+        for fy in (0.22, 0.40, 0.58, 0.76):
+            canvas.line(x + s * 0.18, y + s * fy, x + s * 0.82, y + s * fy, C, t=t)
+    elif domain == 'climate':                                  # thermometer
+        canvas.roundrect(x + s * 0.42, y + s * 0.16, s * 0.16, s * 0.54, int(s * 0.08), C, fill=True)
+        canvas.circle(x + s * 0.50, y + s * 0.76, s * 0.14, (240, 120, 110), fill=True, aa=aa)
+        canvas.rect(x + s * 0.47, y + s * 0.30, s * 0.06, s * 0.44, (240, 120, 110), fill=True)
+    elif domain == 'fan':                                      # blades
+        c = s / 2.0
+        for a in range(3):
+            ang = a * 2.09
+            canvas.poly([(x + c, y + c),
+                         (x + c + math.cos(ang) * s * 0.34, y + c + math.sin(ang) * s * 0.34),
+                         (x + c + math.cos(ang + 0.6) * s * 0.30, y + c + math.sin(ang + 0.6) * s * 0.30)],
+                        (130, 195, 245), fill=True)
+        canvas.circle(x + c, y + c, s * 0.08, C, fill=True, aa=aa)
+    elif domain == 'media_player':                             # play
+        canvas.poly([(x + s * 0.36, y + s * 0.24), (x + s * 0.36, y + s * 0.76),
+                     (x + s * 0.76, y + s * 0.50)], C, fill=True)
+    elif domain == 'person':                                   # head + shoulders
+        canvas.circle(x + s * 0.50, y + s * 0.30, s * 0.14, C, fill=True, aa=aa)
+        canvas.arc(x + s * 0.50, y + s * 0.78, int(s * 0.28), 270, 450, C, fill=True)
+    else:                                                      # generic — dot
+        canvas.circle(x + s * 0.50, y + s * 0.50, s * 0.18, (160, 168, 190), fill=True, aa=aa)
+
+
+def _cv_board_ops(canvas, settings, get_ha_states, W, H):
+    """The card grid as on-device DRAW OPS — the gtext twin of the sprite path below, for
+    the LCD (manifest ``lcd_ops``): AA vector icons, gauge dials and scalable-text values
+    rendered by the wall at its native resolution instead of a 256x160 pixel frame upscaled
+    x5. Same grid math, same card idiom — black cards, state-colored borders and values."""
+    aa = bool(getattr(canvas, 'aa_ok', False))
+    canvas.clear((0, 0, 0))
+
+    cfg, cfg_order = _parse_config(settings.get('config', ''))
+    ids = _entities(cfg_order)
+    if not ids:
+        size = canvas.fit_gtext('Pick entities', int(W * 0.8), int(H * 0.14))
+        canvas.gtext(W // 2, H / 2 - size * 0.56, 'Pick entities', color=(210, 216, 232),
+                     size=size, align='center')
+        canvas.show()
+        return 30.0
+
+    states = {}
+    try:
+        for s in (get_ha_states() if get_ha_states else []):
+            states[s.get('entity_id')] = s
+    except Exception:
+        states = {}
+
+    n = len(ids)
+    cols = canvas.num(settings, 'columns', 0)
+    if cols < 1:
+        cols = 1 if n == 1 else 2 if n <= 4 else 3 if n <= 9 else 4
+    cols = max(1, min(6, cols))
+    rows = max(1, math.ceil(n / cols))
+    # Both grid edges land on the panel's edges (remainders spread by rounding), like the
+    # sprite path's row bands — no dead rows or columns anywhere.
+    redges = [round(r * H / rows) for r in range(rows + 1)]
+    cedges = [round(c * W / cols) for c in range(cols + 1)]
+    floor = max(9, int(H * 0.03))            # the readable-size floor, scaled to the wall
+
+    for i, eid in enumerate(ids):
+        r, c = divmod(i, cols)
+        x = cedges[c] if c == 0 else cedges[c] + 1
+        y = redges[r] if r == 0 else redges[r] + 1
+        cw = cedges[c + 1] - x
+        card_h = redges[r + 1] - y
+        s = states.get(eid, {})
+        domain = eid.split('.')[0]
+        attrs = s.get('attributes') or {}
+        cname, thr = cfg.get(eid, (None, None))
+        name = str(cname or attrs.get('friendly_name') or eid.split('.', 1)[-1].replace('_', ' '))
+        val, col = _mx_value(s.get('state'), attrs, thr, canvas.cp)
+
+        rr = max(3, int(min(cw, card_h) * 0.05))
+        for k in range(max(1, int(min(cw, card_h) * 0.012))):  # a border with weight at 800p
+            canvas.roundrect(x + k, y + k, cw - 2 * k, card_h - 2 * k, max(2, rr - k),
+                             col, fill=False)
+
+        pad = max(3, int(min(cw, card_h) * 0.06))
+        name_h = int(card_h * 0.26)
+        top_h = card_h - name_h                                # icon + value share the top band
+        tile = int(min(cw * 0.30, top_h * 0.58))
+        iy = y + max(pad, (top_h - tile) // 2)
+        # A thresholded numeric entity gets the live dial where its icon would sit — the
+        # same _cv_gauge the sprite path draws, just at native scale.
+        drew = (thr is not None and canvas.has_op('arc')
+                and _cv_gauge(canvas, x + pad, iy, tile, s.get('state'), thr, col))
+        if not drew:
+            _ops_icon(canvas, domain, x + pad, iy, tile, aa)
+        vx0 = x + pad + tile + pad
+        slot_w = (x + cw - pad) - vx0
+        vsize = canvas.fit_gtext(val, slot_w, int(top_h * 0.60))
+        if vsize < floor:
+            # The unit down to the bare number ("72" beats "72°F" crushed small), the
+            # same last resort the sprite path takes.
+            cut = next((k for k, ch in enumerate(val) if not (ch.isdigit() or ch in '-.')), len(val))
+            if cut and val[:cut] != val:
+                val = val[:cut]
+                vsize = canvas.fit_gtext(val, slot_w, int(top_h * 0.60))
+        canvas.gtext((vx0 + x + cw - pad) / 2, y + top_h / 2 - vsize * 0.56, val,
+                     color=col, size=vsize, align='center')
+        nsize = canvas.fit_gtext(name, cw - 2 * pad, int(name_h * 0.55))
+        nm = name if nsize >= floor else _ops_ellipsis(canvas, name, floor, cw - 2 * pad)
+        canvas.gtext(x + cw / 2, y + top_h + name_h / 2 - max(nsize, floor) * 0.56, nm,
+                     color=(222, 228, 242), size=max(nsize, floor), align='center')
+    canvas.show()
+    return 12.0
+
+
 def fetch_canvas(settings, canvas, get_ha_states=None):
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp dials + TTF values).
+        return _cv_board_ops(canvas, settings, get_ha_states, W, H)
     use_sprites = bool(getattr(canvas, 'can_sprite', False))
     canvas.clear((0, 0, 0))                                    # black — best contrast on the panel
 

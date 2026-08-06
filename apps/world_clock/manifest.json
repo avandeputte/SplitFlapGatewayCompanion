@@ -6,6 +6,7 @@
   "description": "Time zones — text on flaps, lit day/night rows on a Matrix panel",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "refresh_interval": 1,
   "loop_delay": 1,
   "category": "time",

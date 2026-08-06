@@ -5,6 +5,7 @@
   "description": "Next Grand Prix & championship leader",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "i18n": true,
   "refresh_interval": 3600,
   "loop_delay": 6,

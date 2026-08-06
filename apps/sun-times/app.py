@@ -157,6 +157,106 @@ def _cached_sun(settings, get_location):
     return st['data']
 
 
+def _cv_sky_ops(canvas, data, rise, sett, now_loc, f, i18n, W, H):
+    """The sky as on-device DRAW OPS — the gtext twin of the PIL path below, for the
+    LCD (manifest ``lcd_ops``): AA circles, lines and scalable type drawn by the wall
+    at native resolution instead of a 256x160 pixel frame upscaled x5. Same scene:
+    dotted arc over the horizon, the sun (or stars and a sunk disc) where the day
+    actually stands, day length / rise countdown mid-sky, times at the arc's feet."""
+    import math
+    from datetime import timedelta
+
+    def t(s):
+        return i18n.t(s, "sun") if i18n is not None else s
+
+    def u(k):
+        return i18n.unit(k) if i18n is not None else k
+
+    def fmt_time(dt):
+        if i18n is not None:
+            return i18n.time(dt, ampm_space=False)
+        return dt.strftime('%I:%M%p').lstrip('0')
+
+    aa = bool(getattr(canvas, 'aa_ok', False))
+    canvas.clear((0, 0, 0))
+
+    time_h = max(8, int(H * 0.22))
+    horizon_y = H - time_h - max(3, int(H * 0.02))
+    hz_t = max(1, int(round(H / 160)))              # stroke weight, 1px per 160 rows
+    rd = max(1, int(H * 0.006))                     # an arc dot's radius
+    peak_y = rd + 1                                 # the crown dot rides the top row
+    x0 = max(5, int(W * 0.02))
+    x1 = W - 1 - x0
+    span = x1 - x0
+
+    # The horizon, with the day arc dotted over it.
+    canvas.line(1, horizon_y, W - 2, horizon_y, color=_HORIZON, t=hz_t)
+    steps = max(16, span // max(4, int(W * 0.016)))
+    for i in range(steps + 1):
+        if i % 2:
+            continue                                # dotted
+        a = i / steps
+        x = x0 + a * span
+        y = horizon_y - math.sin(a * math.pi) * (horizon_y - peak_y)
+        canvas.circle(int(round(x)), int(round(y)), rd, color=_ARC_COL, fill=True, aa=aa)
+
+    # Mid-sky label: day length by day, the countdown to sunrise by night.
+    night = not (0.0 <= f <= 1.0)
+    if W >= 96:
+        if night:
+            nxt = rise if now_loc < rise else rise + timedelta(days=1)
+            left = max(0, int((nxt - now_loc).total_seconds()))
+            mid = f'{t("Rise in").upper()} {left // 3600}{u("H")}{(left % 3600) // 60:02d}{u("M")}'
+            col = _RISE_COL
+        else:
+            secs = data['daylight']
+            mid = f'{secs // 3600}{u("H")}{(secs % 3600) // 60:02d}{u("M")}'
+            col = _SUB_COL
+        msz = canvas.fit_gtext(mid, int(W * 0.62), max(8, int(H * 0.20)))
+        canvas.gtext(W // 2, horizon_y - max(4, int(H * 0.025)) - int(msz * 0.93),
+                     mid, color=col, size=msz, align='center')
+
+    # The sun where it actually is — on the arc by day, sunk into the horizon at
+    # the side it set (or will rise) on by night, under the star field.
+    r = max(2, H // 14)
+    if not night:
+        ray_in = r + max(2, int(r * 0.2))
+        ray_out = r + max(3, int(r * 0.45))
+        sx = x0 + f * span
+        sy = horizon_y - math.sin(f * math.pi) * (horizon_y - peak_y)
+        sy = max(sy, ray_out + 2.0)                 # rays kiss the top row near noon
+        canvas.circle(sx, sy, r, color=_SUN_COL, fill=True, aa=aa)
+        for ang in range(0, 360, 45):               # rays only when it's up
+            dx, dy = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+            canvas.line(sx + dx * ray_in, sy + dy * ray_in,
+                        sx + dx * ray_out, sy + dy * ray_out,
+                        color=_SUN_COL, t=max(1, int(r * 0.12)))
+    else:
+        # The same fixed pseudo-random star field (deterministic — no flicker).
+        rs = max(1, int(H * 0.003))
+        for i in range(max(8, W // 12)):
+            h = (i * 2654435761) & 0xFFFFFFFF
+            sx_ = 2 + (h % (W - 4))
+            sy_ = 1 + ((h >> 11) % max(1, horizon_y - 5))
+            bright = (230, 230, 240) if (h >> 22) % 5 == 0 else (120, 122, 132)
+            canvas.circle(sx_, sy_, rs, color=bright, fill=True, aa=aa)
+        sx = x0 if f < 0 else x1
+        canvas.circle(sx, horizon_y, r, color=_SUN_DOWN, fill=True, aa=aa)
+        canvas.rect(sx - r - 1, horizon_y + 1, 2 * r + 3, r + 2,
+                    (0, 0, 0), fill=True)           # sunk below the line
+        canvas.line(1, horizon_y, W - 2, horizon_y, color=_HORIZON, t=hz_t)
+
+    # Rise and set times at the arc's feet, digits sitting on the bottom row.
+    rtxt, stxt = fmt_time(rise), fmt_time(sett)
+    mt = max(2, int(W * 0.008))
+    tsz = canvas.fit_gtext(rtxt if len(rtxt) >= len(stxt) else stxt,
+                           int(W * 0.44), int(time_h * 1.25))
+    ty = H - 1 - int(tsz * 0.93)
+    canvas.gtext(mt, ty, rtxt, color=_RISE_COL, size=tsz)
+    canvas.gtext(W - mt, ty, stxt, color=_SET_COL, size=tsz, align='right')
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     import math
     from datetime import datetime, timedelta, timezone
@@ -188,6 +288,10 @@ def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     f = (now_loc - rise).total_seconds() / day_len          # <0 before rise, >1 after set
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp AA sky + TTF times).
+        _cv_sky_ops(canvas, data, rise, sett, now_loc, f, i18n, W, H)
+        return 120.0
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"

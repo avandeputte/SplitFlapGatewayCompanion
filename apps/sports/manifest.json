@@ -6,6 +6,7 @@
   "description": "Scores & Schedules",
   "type": "functional",
   "surfaces": ["flap", "matrix"],
+  "lcd_ops": true,
   "refresh_interval": 15,
   "loop_delay": 5,
   "trigger_interval": 60,

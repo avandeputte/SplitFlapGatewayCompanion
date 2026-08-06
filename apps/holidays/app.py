@@ -471,6 +471,64 @@ def _cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n):
     return img
 
 
+def _cv_card_ops(canvas, dt, name, days, estimated, i18n, W, H):
+    """The tall-panel desk calendar as on-device DRAW OPS — the gtext twin of
+    _cv_card's tall branch, for the LCD (manifest ``lcd_ops``): rounded card,
+    red month band and scalable type rendered by the wall at native resolution
+    instead of a 256x160 pixel frame upscaled x5. Same composition: the card on
+    the left, the name genuinely large beside it, the countdown along the bottom."""
+    canvas.clear((0, 0, 0))
+    mon, day, _dow = _cv_month_day(dt, i18n)
+    when, when_col = _cv_when(dt, days, i18n)
+    pre = '~' if estimated else ''
+
+    cs = min(H - 8, int(W * 0.42))
+    x0, y0 = max(2, int(W * 0.01)), (H - 1 - cs) // 2
+    band_h = max(9, int(cs * 0.34))
+    rr = max(3, int(cs * 0.05))
+    e = max(1, int(cs * 0.012))                       # the card's visible edge
+    canvas.roundrect(x0, y0, cs + 1, cs + 1, rr, _CARD_EDGE, fill=True)
+    canvas.roundrect(x0 + e, y0 + e, cs + 1 - 2 * e, cs + 1 - 2 * e,
+                     max(2, rr - e), _CARD, fill=True)
+    canvas.roundrect(x0, y0, cs + 1, band_h + 1, rr, _BAND, fill=True)
+    canvas.rect(x0, y0 + band_h - rr, cs + 1, rr + 1, _BAND, fill=True)   # square off the band's base
+
+    pad = max(3, int(cs * 0.06))
+    msz = canvas.fit_gtext(mon, cs - 2 * pad, int(band_h * 1.2))
+    canvas.gtext(x0 + (cs + 1) // 2, y0 + band_h // 2 - int(msz * 0.56), mon,
+                 color=(255, 255, 255), size=msz, align='center')
+    low_h = cs - band_h
+    dsz = canvas.fit_gtext(day, cs - 2 * pad, int(low_h * 1.08))
+    canvas.gtext(x0 + (cs + 1) // 2, y0 + band_h + low_h // 2 - int(dsz * 0.56), day,
+                 color=_DAY, size=dsz, align='center')
+
+    # Right column: the name centered on its band, the countdown sized up along
+    # the bottom (gtext y is the ascent top; caps sit ~0.20*size below it).
+    rx = x0 + cs + max(8, int(W * 0.03))
+    rw = W - max(4, int(W * 0.015)) - rx
+    csz = canvas.fit_gtext(when, rw, max(10, int(H * 0.21)))
+    ch = int(csz * 0.72)
+    name_h = H - 8 - ch - max(4, int(H * 0.05))
+    nsz, nlines = canvas.fit_wrap_gtext(pre + name, rw, min(name_h, int(H * 0.55)),
+                                        max_lines=3)
+    # fit_wrap_gtext lets a single word wider than the column stand ("AL-FITR"
+    # would run off the edge) — shrink until every line truly fits the width.
+    for _ in range(6):
+        widest = max((canvas.text_width(ln, nsz) for ln in nlines), default=0)
+        if widest <= rw or nsz <= 8:
+            break
+        nsz = max(8, min(nsz - 1, int(nsz * rw / widest)))
+        nlines = canvas.wrap_gtext(pre + name, rw, nsz, max_lines=3)
+    step = int(nsz * 1.18)
+    ny = max(2.0, (name_h - step * len(nlines)) / 2.0)
+    for ln in nlines:
+        canvas.gtext(rx, ny, ln, color=_NAME, size=nsz)
+        ny += step
+    canvas.gtext(rx, H - max(4, int(H * 0.025)) - int(csz * 0.93), when,
+                 color=when_col, size=csz)
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     """Draw one upcoming holiday as a desk-calendar frame, advancing through the list each redraw
     (a slideshow paced by the app's ``loop_delay``). Panel-adaptive; offline-safe."""
@@ -497,6 +555,15 @@ def fetch_canvas(settings, canvas, i18n=None, get_location=None):
     name = str((i18n.holiday(rec.get('name')) if i18n is not None else None)
                or rec.get('name') or '').upper()
     days = (dt - date.today()).days
+    W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96 and W >= 104:
+        # The big-panel path: live ops at native resolution (crisp card + TTF name).
+        _cv_card_ops(canvas, dt, name, days, estimated, i18n, W, H)
+        try:
+            dwell = float(settings.get('loop_delay', 6) or 6)
+        except (TypeError, ValueError):
+            dwell = 6.0
+        return max(3.0, min(30.0, dwell))
     canvas.frame(_cv_card(canvas, ImageDraw, dt, name, days, estimated, i18n))
     try:
         dwell = float(settings.get('loop_delay', 6) or 6)

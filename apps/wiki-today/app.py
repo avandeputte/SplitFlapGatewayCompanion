@@ -220,6 +220,82 @@ def _cv_tall(canvas, ImageDraw, t, title, mostread):
     return img
 
 
+def _ops_trim(canvas, s, size, max_w):
+    """``s`` trimmed with an ellipsis until it fits ``max_w`` at ``size`` (never past empty)."""
+    if canvas.text_width(s, size) <= max_w:
+        return s
+    while s and canvas.text_width(s + '…', size) > max_w:
+        s = s[:-1]
+    return (s + '…') if s else ''
+
+
+def _cv_wiki_ops(canvas, t, title, mostread, W, H):
+    """The tall card as on-device DRAW OPS — the gtext-era twin of _cv_tall, for the
+    LCD (manifest ``lcd_ops``): the W medallion and steel-blue label over the rule,
+    the featured title big and whole-word, the most-read titles as a ranked list —
+    rendered by the wall at native resolution instead of a 256x160 frame upscaled
+    x5. Same composition, every measure a fraction of the panel."""
+    aa = bool(getattr(canvas, 'aa_ok', False))
+    canvas.clear((0, 0, 0))
+    pad = max(4, int(W * 0.016))
+    items = [a for a in (mostread or []) if a]
+    label = (t('Featured') if title else t('Most read')).upper()
+
+    # Header: medallion + label over a thin accent rule (the _cv_header layout).
+    # gtext's y is the ascent-box top; cap ink spans ~0.20..0.93 of the size, so
+    # ring-centering the W means backing y off by ~0.56 of its size.
+    hh = max(7, int(H * 0.19))
+    ms = hh + max(3, int(H * 0.02))
+    x = max(3, int(W * 0.012))
+    r = ms // 2
+    canvas.circle(x + r, r, r - 1, color=_ACCENT, fill=False,
+                  t=max(1, int(H * 0.008)), aa=aa)
+    wsz = canvas.fit_gtext('W', int(ms * 0.88), int(ms * 0.88))
+    canvas.gtext(x + r, int(r - wsz * 0.56), 'W', color=_ACCENT, size=wsz, align='center')
+    lx = x + ms + max(4, int(W * 0.015))
+    lsz = canvas.fit_gtext(label, W - lx - pad, hh)
+    canvas.gtext(lx, 2 - int(lsz * 0.18), label, color=_ACCENT, size=lsz)
+    ry = max(ms, int(lsz * 0.95)) + max(2, int(H * 0.012))
+    canvas.line(x, ry, W - 1 - x, ry, color=tuple(c // 3 for c in _ACCENT),
+                t=max(1, int(H * 0.006)))
+    top = ry + max(2, int(H * 0.015))
+
+    lsz_l = max(12, int(H * 0.085))              # the list rows
+    row = int(lsz_l * 1.3)
+    rx = pad + int(canvas.text_width('0', lsz_l)) + max(6, int(W * 0.02))
+
+    if title:
+        items = items[:3]                        # a few — the hero keeps the room
+        msz = canvas.fit_gtext(t('Most read').upper(), W - 2 * pad, max(9, int(H * 0.085)))
+        gap = max(5, int(H * 0.03))
+        list_h = (msz + gap + len(items) * row) if items else 0
+        title_h = H - top - list_h - (max(8, int(H * 0.05)) if items else 0)
+        tsz, tlines = canvas.fit_wrap_gtext(title, W - 2 * pad, max(1, title_h), max_lines=2)
+        block = (len(tlines) - 1) * int(tsz * 1.18) + tsz
+        ty = top + max(0, (title_h - block) // 2)
+        for ln in tlines:
+            canvas.gtext(W // 2, ty, ln, color=_TEXT, size=tsz, align='center')
+            ty += int(tsz * 1.18)
+        if items:
+            y = top + title_h + max(8, int(H * 0.05))
+            canvas.gtext(pad, y, t('Most read').upper(), color=_ACCENT, size=msz)
+            y += msz + gap
+            for i, art in enumerate(items):
+                canvas.gtext(pad, y, f'{i + 1}', color=_ACCENT, size=lsz_l)
+                canvas.gtext(rx, y, _ops_trim(canvas, art, lsz_l, W - pad - rx),
+                             color=_TEXT, size=lsz_l)
+                y += row
+    else:                                        # no featured article — the list fills it
+        items = items[:6] or ['']
+        y = top + max(0, (H - top - pad - row * len(items)) // 2)
+        for i, art in enumerate(items):
+            canvas.gtext(pad, y, f'{i + 1}', color=_ACCENT, size=lsz_l)
+            canvas.gtext(rx, y, _ops_trim(canvas, art, lsz_l, W - pad - rx),
+                         color=_TEXT, size=lsz_l)
+            y += row
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, i18n=None):
     """One card per redraw — the featured article, then the top most-read
     titles — paced by loop_delay. The feed renews hourly (the manifest's
@@ -248,6 +324,16 @@ def fetch_canvas(settings, canvas, i18n=None):
                                             t('Offline') if i18n is not None else 'Offline'))
                 return 60.0
     title, mostread = st['data']
+
+    W, H = int(canvas.width), int(canvas.height)
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp medallion + TTF titles).
+        _cv_wiki_ops(canvas, t, title, mostread, W, H)
+        try:
+            d = float(settings.get('loop_delay', 8) or 8)
+        except (TypeError, ValueError):
+            d = 8.0
+        return max(6.0, min(30.0, d))
 
     if int(canvas.height) >= 96:                      # tall LCD — hero title + most-read list
         canvas.frame(_cv_tall(canvas, ImageDraw, t, title, mostread))

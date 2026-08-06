@@ -161,6 +161,53 @@ def _cv_wrap_fit(canvas, text, max_w, max_h, max_lines, min_size=8):
     return font, lines, b[3] - b[1], 1
 
 
+def _cv_day_ops(canvas, year, desc, today, W, H):
+    """The event card as on-device DRAW OPS — the gtext-era twin of the PIL path
+    below, for the LCD (manifest ``lcd_ops``): the gold year chip and today's date
+    over the event in scalable type, rendered by the wall at native resolution
+    instead of a 256x160 frame upscaled x5. Same composition as the pixel card,
+    every measure a fraction of the panel."""
+    canvas.clear((0, 0, 0))
+    pad = max(3, int(W * 0.012))
+
+    # The gold year chip flush with the panel's top edge, today's date opposite.
+    # gtext's y is the ascent-box top; digit ink spans ~0.20..0.93 of the size, so
+    # centering it in the chip means backing y off by ~0.56 of the size.
+    ch_h = max(11, int(H * 0.24))
+    ysz = canvas.fit_gtext(year, int(W * 0.4), ch_h - max(4, int(ch_h * 0.11)))
+    yw = int(canvas.text_width(year, ysz))
+    inset = max(5, int(ch_h * 0.13))
+    canvas.roundrect(pad, 0, yw + 2 * inset, ch_h, max(3, ch_h // 8),
+                     color=_CV_CHIP, fill=True)
+    canvas.gtext(pad + inset, int(ch_h / 2 - ysz * 0.56), year,
+                 color=_CV_CHIP_TXT, size=ysz)
+    dsz = canvas.fit_gtext(today, int(W * 0.35), max(6, int(ch_h * 0.55)))
+    if pad + yw + 2 * inset + 6 + canvas.text_width(today, dsz) <= W - pad:
+        canvas.gtext(W - pad, int(ch_h / 2 - dsz * 0.56), today,
+                     color=_CV_DIM, size=dsz, align='right')
+
+    # The event, wrapped as large as the room allows, the block centered in the
+    # body with the leading gently stretched — the same fill the pixel path does.
+    body_top = ch_h + max(2, int(H * 0.02))
+    avail = H - body_top - max(2, int(H * 0.015))
+    size, lines = canvas.fit_wrap_gtext(desc, W - 2 * pad, avail, max_lines=5)
+    if sum(len(ln.split()) for ln in lines) < len(str(desc).split()):
+        last = lines[-1]                # cut off at the 8px floor — say so, don't just stop
+        while last and canvas.text_width(last + '…', size) > W - 2 * pad:
+            last = last[:-1]
+        lines[-1] = last + '…'
+    step = int(size * 1.18)
+    if len(lines) > 1:
+        step += min(size // 2,
+                    max(0, avail - ((len(lines) - 1) * step + size)) // (len(lines) - 1))
+    block = (len(lines) - 1) * step + size
+    y = body_top + max(0, (avail - block) // 2)
+    for ln in lines:
+        canvas.gtext(pad, y, ln, color=_CV_TXT, size=size)
+        y += step
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas):
     import time
     from datetime import datetime
@@ -188,6 +235,14 @@ def fetch_canvas(settings, canvas):
     today = datetime.now(tz).strftime('%b %d').upper()
 
     W, H = int(canvas.width), int(canvas.height)
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp chip + TTF event).
+        try:
+            dwell = float(settings.get('loop_delay', 10) or 10)
+        except (TypeError, ValueError):
+            dwell = 10.0
+        _cv_day_ops(canvas, year, desc, today, W, H)
+        return max(3.0, min(30.0, dwell))
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
