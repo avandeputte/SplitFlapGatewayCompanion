@@ -8,6 +8,7 @@
   "surfaces": [
     "matrix"
   ],
+  "lcd_ops": true,
   "category": "fun",
   "refresh_interval": 1,
   "loop_delay": 1,

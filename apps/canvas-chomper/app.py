@@ -302,21 +302,27 @@ def _draw_pac(canvas, x, y, r, d, phase, dim=1.0):
                     x + dx * r - dy * r, y + dy * r - dx * r, (0, 0, 0), fill=True)
 
 
-def _draw_ghost(canvas, x, y, r, col, d, dim=1.0):
+def _draw_ghost(canvas, x, y, r, col, d, dim=1.0, k=1):
     eye = _EYE
     if dim < 1.0:
         col, eye = canvas.dim(col, dim), canvas.dim(_EYE, dim)
-    canvas.circle(x, y - 1, r, col, fill=True)
-    canvas.rect(x - r, y - 1, 2 * r + 1, r, col, fill=True)
+    canvas.circle(x, y - k, r, col, fill=True)
+    canvas.rect(x - r, y - k, 2 * r + 1, r, col, fill=True)
     dx, dy = _DIRS[d]
     ex = max(1, r // 2)
-    canvas.pixel(x - ex + dx, y - 1 + dy, eye)
-    canvas.pixel(x + ex + dx, y - 1 + dy, eye)
+    if k == 1:
+        canvas.pixel(x - ex + dx, y - 1 + dy, eye)
+        canvas.pixel(x + ex + dx, y - 1 + dy, eye)
+    else:                                              # native scale: pixel eyes vanish — discs
+        er = max(1, k // 2)
+        canvas.circle(x - ex + dx * k, y - k + dy * k, er, eye, fill=True)
+        canvas.circle(x + ex + dx * k, y - k + dy * k, er, eye, fill=True)
 
 
-def _draw_board(canvas, st, xe, ye, W, H, dim=1.0):
+def _draw_board(canvas, st, xe, ye, W, H, dim=1.0, k=1):
     """The whole playfield — maze, pellets, ghosts, chomper, score/lives — every color
-    scaled by ``dim`` (1.0 full; lower fades toward black for the game-over screen)."""
+    scaled by ``dim`` (1.0 full; lower fades toward black for the game-over screen).
+    ``k`` is the render scale (1 = the classic LED pixel sizes, byte-identical)."""
     def d(c):
         return canvas.dim(c, dim) if dim < 1.0 else c
 
@@ -330,33 +336,48 @@ def _draw_board(canvas, st, xe, ye, W, H, dim=1.0):
     for x0, r0, w0, h0 in st['wall_rects']:            # the maze in a handful of rects
         canvas.rect(xe[x0], ye[r0], xe[x0 + w0] - xe[x0], ye[r0 + h0] - ye[r0],
                     d(_WALL), fill=True)
+    aa = bool(getattr(canvas, 'aa_ok', False)) and k > 1
     for cell in st['dots']:
-        canvas.pixel(cx(cell), cy(cell), d(_DOT))
+        if k == 1:
+            canvas.pixel(cx(cell), cy(cell), d(_DOT))
+        else:                                          # a 1px dot disappears at native scale
+            canvas.circle(cx(cell), cy(cell), max(1, int(k * 0.4)), d(_DOT), fill=True, aa=aa)
     if (st['step'] // 2) % 2 == 0:                     # power pellets blink
         # On a compositing wall (and at full brightness) a power pellet blooms — an additive
         # halo where overlapping LED light sums; binary-friendly (blend, not per-op alpha).
         if dim >= 1.0 and getattr(canvas, 'can_composite', False):
             canvas.blend('add')
             for cell in st['power']:
-                canvas.circle(cx(cell), cy(cell), 3, (54, 36, 0), fill=True)   # warm amber; no
+                canvas.circle(cx(cell), cy(cell), 3 * k, (54, 36, 0), fill=True)   # warm amber; no
                 #                    sub-32 blue channel (the 3-bitplane crush renders it wrong)
             canvas.blend('over')
         for cell in st['power']:
-            canvas.circle(cx(cell), cy(cell), 1, d(_DOT), fill=True)
-    pr = 2                                             # 5px sprites, arcade-oversized for the lanes
+            canvas.circle(cx(cell), cy(cell), max(1, round(k * 0.45)), d(_DOT), fill=True, aa=aa)
+    pr = 2 * k                                         # 5px sprites (LED), arcade-oversized for the lanes
     for g in st['ghost_list']:
         col = _FRIGHT if st['fright'] > 0 else g['col']
-        _draw_ghost(canvas, cx(g['cell']), cy(g['cell']), pr, col, g['dir'], dim)
+        _draw_ghost(canvas, cx(g['cell']), cy(g['cell']), pr, col, g['dir'], dim, k)
     pac = st['pac']
     _draw_pac(canvas, cx(pac['cell']), cy(pac['cell']), pr, pac['dir'], pac['phase'], dim)
     if W >= 128:                                       # score rides the top wall band
-        canvas.shadow_text(2, 0, str(st['score']), d((255, 255, 255)), 8)
+        if getattr(canvas, 'can_gtext', False) and k > 1:
+            size = canvas.fit_gtext(str(st['score']), W // 4, max(10, ye[1] - 2))
+            canvas.gtext(2 * k, max(0, (ye[1] - size) // 2), str(st['score']),
+                         color=d((255, 255, 255)), size=size, shadow=(0, 0, 0))
+        else:
+            canvas.shadow_text(2, 0, str(st['score']), d((255, 255, 255)), 8)
         for i in range(st['lives']):
-            canvas.circle(W - 5 - i * 7, max(2, ye[1] // 2), 2, d(_PAC), fill=True)
+            canvas.circle(W - 5 * k - i * 7 * k, max(2 * k, ye[1] // 2), 2 * k,
+                          d(_PAC), fill=True, aa=aa)
 
 
 def _draw_ready(canvas, W, H):
     """The get-set pause after a life is lost — press any key to go."""
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        size = canvas.fit_gtext("READY?", W - 8, H // 3)
+        canvas.gtext(W // 2, (H - size) // 2, "READY?", color=(255, 240, 60), size=size,
+                     align='center', shadow=(0, 0, 0))
+        return
     face = canvas.fit("READY?", W - 4, max(8, H // 3))
     canvas.shadow_text(W // 2, (H - face) // 2, "READY?", (255, 240, 60), face, align="center")
 
@@ -367,10 +388,19 @@ def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
     a = max(0.0, min(1.0, appear))
     title = "NEW BEST!" if new_best else "GAME OVER"
     go, sc = canvas.dim((255, 240, 60), a), canvas.dim((235, 235, 245), a)
-    f1 = canvas.fit(title, W - 4, max(8, H // 3))
     txt = "SCORE " + str(score)
     if best and not new_best and W >= 96:
         txt += "  BEST " + str(best)
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        s1 = canvas.fit_gtext(title, W - 8, H // 3)
+        s2 = canvas.fit_gtext(txt, W - 8, H // 4)
+        gap = s2 // 2
+        y0 = (H - (s1 + gap + s2)) // 2
+        canvas.gtext(W // 2, y0, title, color=go, size=s1, align='center', shadow=(0, 0, 0))
+        canvas.gtext(W // 2, y0 + s1 + gap, txt, color=sc, size=s2, align='center',
+                     shadow=(0, 0, 0))
+        return
+    f1 = canvas.fit(title, W - 4, max(8, H // 3))
     f2 = canvas.fit(txt, W - 4, max(8, H // 4))
     y0 = (H - (f1 + 2 + f2)) // 2
     canvas.shadow_text(W // 2, y0, title, go, f1, align="center")
@@ -379,10 +409,15 @@ def _draw_gameover(canvas, W, H, score, appear, best=0, new_best=False):
 
 def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=None):
     W, H = canvas.width, canvas.height
-    # The grid is stretched edge-to-edge: as many ~4.5px cells as fit (odd counts, so
-    # the outer wall stays one cell thick), each row/column mapped to pixel edges — no
-    # dead margin anywhere, and a 64px panel plays six corridor rows.
-    cols, rows = max(11, int(W / 4.5)), max(5, int(H / 4.5))
+    # Render scale: 1 on an LED panel (everything below collapses to the classic look,
+    # byte for byte); on the LCD (manifest ``lcd_ops`` routes this to the native 1280x800
+    # surface) the SAME ~13-row maze draws with k-times-fatter cells and crisp gtext,
+    # instead of a 256x160 frame upscaled x5 — that upscale was the pixelation.
+    k = max(1, round(H / 64))
+    # The grid is stretched edge-to-edge: as many ~4.5px cells (LED px — k-scaled) as fit
+    # (odd counts, so the outer wall stays one cell thick), each row/column mapped to
+    # pixel edges — no dead margin anywhere, and a 64px panel plays six corridor rows.
+    cols, rows = max(11, int(W / (4.5 * k))), max(5, int(H / (4.5 * k)))
     cols -= 1 - (cols % 2)
     rows -= 1 - (rows % 2)
     xe = [round(i * W / cols) for i in range(cols + 1)]
@@ -421,11 +456,11 @@ def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=No
                 st['phase'], st['freeze_presses'] = 'play', None
         else:
             if phase == 'gameover':
-                _draw_board(canvas, st, xe, ye, W, H, dim=max(0.0, 1 - st['fade'] / _FADE_STEPS))
+                _draw_board(canvas, st, xe, ye, W, H, dim=max(0.0, 1 - st['fade'] / _FADE_STEPS), k=k)
                 _draw_gameover(canvas, W, H, st['score'], st['fade'] / (_FADE_STEPS * 0.5),
                                best=st.get('best_score', 0), new_best=st.get('new_best', False))
             else:
-                _draw_board(canvas, st, xe, ye, W, H)
+                _draw_board(canvas, st, xe, ye, W, H, k=k)
                 _draw_ready(canvas, W, H)
             canvas.show()
             return 0.08
@@ -440,7 +475,7 @@ def fetch_canvas(settings, canvas, controls=None, play_sound=None, game_store=No
     if playing and play_sound and sfx:                 # sound only while a human plays
         _play_sfx(play_sound, sfx, st['pellets'])
 
-    _draw_board(canvas, st, xe, ye, W, H)
+    _draw_board(canvas, st, xe, ye, W, H, k=k)
     if playing and st.get('paused'):                   # two-bar pause glyph, centered
         canvas.rect(W // 2 - 3, H // 2 - 4, 2, 8, (255, 255, 255), fill=True)
         canvas.rect(W // 2 + 1, H // 2 - 4, 2, 8, (255, 255, 255), fill=True)

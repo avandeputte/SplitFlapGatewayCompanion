@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.28
+
+- **Chomper is crisp on the LCD** — the maze keeps its classic ~13-row density but draws with
+  k-times-fatter cells at native 1280×800 (`lcd_ops`): visible pellets, proper ghosts with eyes,
+  arcade-sized chomper, gtext score/READY?/GAME OVER. The LED game is pixel-identical.
+
 ## 2.10.12-beta.27
 
 - **17 more apps are crisp on the LCD** — calendar, YT comments, Formula 1, Home Assistant board,
