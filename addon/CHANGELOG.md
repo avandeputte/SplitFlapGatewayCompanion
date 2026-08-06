@@ -3,6 +3,32 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12 — LCD Gateway
+
+The big one: full support for the **1280×800 LCD Gateway**, plus a season of reliability and
+polish. (Bundles betas 1–31.)
+
+- **Crisp native rendering on the LCD.** ~40 apps now draw with on-device scalable text and
+  anti-aliased shapes at the panel's real 1280×800 resolution — clocks, weather, sports, world
+  clock, calendar, the news/wiki/word cards, ISS, tides, sun times, planes overhead, the Home
+  Assistant board, Formula 1, Binary Clock, Chomper and more — instead of a small pixel frame
+  upscaled and blurry. Every app also keeps its exact LED look on the Matrix walls.
+- **Clean, quiet app switching.** Switching apps is a seamless cut with no black gap or white
+  blink, stopping is instant and final (no lingering frames), and an app change no longer triggers
+  a gateway flash write. A draw-stream backpressure system keeps a busy app smooth on the LCD by
+  always showing the freshest frame instead of a growing backlog.
+- **Built-in "All apps" playlist.** The Shows tab always offers a playlist that loops through every
+  app on your Apps screen, kept current automatically — one tap to tour everything. A running
+  playlist now clearly shows as playing (banner, lit tile, marked row) in the UI and Home Assistant.
+- **Firmware-aligned.** Effects, on-device animations and the ticker work on the LCD from the
+  companion; settings sync via the gateway's capability flag; the Aquarium app was retired in favour
+  of the firmware's own on-device aquarium effect.
+- **Reliability fix.** A display that changed IP (or was re-created) could leave an app running that
+  no "stop" could reach — fixed with a synchronous teardown kill-switch.
+- **Pre-stable code audit.** A full independent audit of the release hardened text rendering
+  (uniform, descender-safe across every app), fixed a handful of layout bugs, removed dead code, and
+  strengthened the tests — with no functional regressions found in the core.
+
 ## 2.10.11
 
 - **Multiview 🪟** — split the Matrix panel into 2–3 vertical zones, one app each, with
