@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12-beta.26
+
+- **Binary Clock is crisp on the LCD** — converted to on-device draw ops (`lcd_ops`):
+  anti-aliased dots and scalable-text digits rendered at the panel's native 1280×800, instead of
+  a 256×160 pixel frame upscaled ×5 (the pixelated look). LED panels are unchanged.
+
 ## 2.10.12-beta.25
 
 - **A running playlist shows as playing** — the banner names the playlist and the entry currently

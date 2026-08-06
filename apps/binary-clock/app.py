@@ -137,11 +137,51 @@ def _dot_geometry(W, H, n, label_h):
     return 2, 1, 2, 1
 
 
+def _cv_dots_ops(canvas, digits, one, zero, now, seconds, W, H):
+    """The dot grid as on-device DRAW OPS — the gtext-era twin of the PIL path below,
+    for the LCD (manifest ``lcd_ops``): anti-aliased circles and scalable-text digits
+    rendered by the wall at its native resolution, instead of a 256x160 pixel frame
+    upscaled x5 (which is exactly the pixelated look). Same geometry math, so the
+    layout is the familiar one, just crisp."""
+    aa = bool(getattr(canvas, 'aa_ok', False))
+    n = len(digits)
+    canvas.clear((0, 0, 0))
+
+    label_h = max(9, H // 5) if H >= 48 else 0
+    d, pair_gap, group_gap, vgap = _dot_geometry(W, H, n, label_h)
+
+    groups = n // 2
+    grid_w = n * d + groups * pair_gap + (groups - 1) * group_gap
+    grid_h = 4 * d + 3 * vgap
+    x0 = (W - grid_w) // 2
+    y0 = (H - label_h - grid_h) // 2
+
+    x = x0
+    r = max(1, d // 2)
+    for i, digit in enumerate(digits):
+        for row, w in enumerate(WEIGHTS):
+            cy = y0 + row * (d + vgap) + d // 2
+            canvas.circle(x + d // 2, cy, r, color=(one if digit & w else zero),
+                          fill=True, aa=aa)
+        x += d + (pair_gap if i % 2 == 0 else group_gap)
+
+    if label_h:
+        units = [f'{now.hour:02d}', f'{now.minute:02d}']
+        if seconds:
+            units.append(f'{now.second:02d}')
+        text = ':'.join(units)
+        size = canvas.fit_gtext(text, W - 6, label_h - 2)
+        # gtext's y is the top of the ascent box; park the digits on the bottom edge
+        # with a whisker of margin, like the PIL path's bottom-row placement.
+        canvas.gtext(W // 2, H - int(size * 1.02), text, color=(238, 238, 244),
+                     size=size, align='center')
+    canvas.show()
+
+
 def fetch_canvas(settings, canvas, caps=None):
     """The BCD clock as LED dots. Redraws in step with what it shows: on the
     second when the seconds columns are up, on the minute otherwise."""
     from datetime import datetime
-    from PIL import ImageDraw
 
     now = datetime.now(_tz(settings))
     seconds = _truthy(settings.get('show_seconds', True))    # a panel repaints instantly
@@ -156,6 +196,14 @@ def fetch_canvas(settings, canvas, caps=None):
     zero = _SOCKET if zero_key == 'off' else _dim(_RGB.get(zero_key, _RGB['red']))
 
     W, H = canvas.width, canvas.height
+    if getattr(canvas, 'can_gtext', False) and H >= 96:
+        # The big-panel path: live ops at native resolution (crisp AA dots + TTF digits).
+        _cv_dots_ops(canvas, digits, one, zero, now, seconds, W, H)
+        if seconds:
+            return max(0.05, 1.0 - now.microsecond / 1e6)   # land on the next second
+        return max(1.0, 60.0 - now.second - now.microsecond / 1e6)
+
+    from PIL import ImageDraw
     img = canvas.blank((0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.fontmode = "1"
