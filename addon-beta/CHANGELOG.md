@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.12 — LCD Gateway
+
+Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
+when the next prerelease begins. See the betas below for the itemized history of this line.
+
+- Full **1280×800 LCD Gateway** support: ~40 apps render crisp at native resolution (on-device
+  scalable text + anti-aliased shapes) instead of an upscaled pixel frame; LED walls unchanged.
+- Seamless, quiet **app switching** (no black gap / white blink), instant final stops, draw-stream
+  backpressure, and no gateway flash-write blink on app changes.
+- Built-in **"All apps"** playlist + a running playlist shows as playing in the UI and Home Assistant.
+- Firmware-aligned (effects/anim/ticker on the LCD, settings via the capability flag, Aquarium
+  retired for the firmware effect); an unstoppable-app teardown fix; and a full pre-stable code audit
+  (uniform descender-safe text, layout bug fixes, dead-code removal, stronger tests).
+
 ## 2.10.12-beta.31 — pre-stable audit pass
 
 - **Crisp LCD text is now consistent and descender-safe across every app** — the ~22 apps converted
