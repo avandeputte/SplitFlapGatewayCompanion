@@ -3,6 +3,18 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.13
+
+Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
+when the next prerelease begins.
+
+- Overlay ticker auto-dismiss timer — a duration on the Compose card + a per-trigger **Ticker**
+  toggle (a fired trigger scrolls as a non-intrusive lower-third instead of the toast).
+- **Debug logging** (⚙ Tools) — an opt-in, downloadable wire log of gateway send/receive (payload
+  hex + ascii) and app data fetches, for chasing "the gateway is getting garbage". Keys redacted.
+- Physical split-flap fix — don't degrade text against a charset the wall (firmware v3.8+) hasn't
+  finished learning after boot.
+
 ## 2.10.13-beta.2 — physical split-flap: don't degrade while the wall is still learning its reels
 
 - **Fix apps rendering wrong/blank on a physical Split-Flap Gateway (firmware v3.8+).** The wall

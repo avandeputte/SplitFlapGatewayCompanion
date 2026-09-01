@@ -3,6 +3,19 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.13
+
+- **Overlay ticker auto-dismiss timer.** A duration field on the Compose overlay card, and a
+  per-trigger **Ticker** toggle that shows a fired trigger as a non-intrusive scrolling lower-third
+  for N seconds (on canvas walls) instead of the slide-in toast.
+- **Debug logging** (⚙ Tools). An opt-in, downloadable **wire log** of every gateway send/receive
+  (with a hex + ascii preview of the payload) and every app data fetch — for diagnosing exactly
+  what the companion sends a gateway. API keys are redacted.
+- **Physical split-flap rendering fix.** A physical Split-Flap Gateway on firmware v3.8+ now reports
+  its charset, but learns each module's reel by a slow bus trickle after boot — so text was being
+  degraded (blanked/substituted) against an incomplete set. The companion now sends characters
+  as-is until the wall has finished learning its reels.
+
 ## 2.10.12 — LCD Gateway
 
 The big one: full support for the **1280×800 LCD Gateway**, plus a season of reliability and
