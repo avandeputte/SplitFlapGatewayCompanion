@@ -62,3 +62,35 @@ def test_dev_endpoints_flow(monkeypatch):
         assert client.post("/api/dev/grid", json={"rows": 5, "cols": 5}).status_code == 400
     finally:
         main.config.set_sim_mode(False)
+
+
+def test_debug_log_toggle_download_and_clear(tmp_path):
+    """The wire log switch: off by default, downloadable while on, and clearable — all
+    without dev mode (it's an ordinary Tools control, like resync)."""
+    from app import debuglog, main
+    debuglog.configure(tmp_path / "wire.log", False)   # pin a hermetic path for this test
+    client = TestClient(main.app)
+    try:
+        assert client.get("/api/dev").json()["debug_log"] is False
+        assert client.get("/api/dev/debug-log").json()["enabled"] is False
+
+        # turn it on -> the switch and the module agree
+        st = client.post("/api/dev/debug-log", json={"on": True}).json()
+        assert st["debug_log"] is True and debuglog.is_enabled() is True
+
+        debuglog.gw_send("POST", "http://gw", "/api/rs485/batch", b"hello")
+        r = client.get("/api/dev/debug-log/download")
+        assert r.status_code == 200
+        assert 'filename="companion-wire.log"' in r.headers["content-disposition"]
+        assert "GW POST gw/api/rs485/batch" in r.text and "hello" in r.text
+
+        # clear empties it, download still works (returns the placeholder/marker)
+        assert client.post("/api/dev/debug-log/clear").json()["enabled"] is True
+        assert "hello" not in client.get("/api/dev/debug-log/download").text
+
+        # turn it off
+        assert client.post("/api/dev/debug-log", json={"on": False}).json()["debug_log"] is False
+        assert debuglog.is_enabled() is False
+    finally:
+        debuglog.configure(tmp_path / "wire.log", False)
+        main.config.set_debug_log(False)

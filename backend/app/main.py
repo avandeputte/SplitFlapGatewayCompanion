@@ -134,6 +134,14 @@ plugins = _default.plugins
 scheduler = _default.scheduler
 ha = _default.ha
 
+# The wire log (debuglog.py): point it at a file under the data dir and set its boot state
+# (off unless COMPANION_DEBUG_LOG forced it on), then install the app-fetch hook. One
+# process-wide log; the ⚙ Tools menu toggles and downloads it (routes/dev.py).
+from . import debuglog  # noqa: E402
+
+debuglog.configure(DATA_DIR / "debug" / "wire.log", config.debug_log_enabled)
+debuglog.install_http_hooks()
+
 
 def display_by_id(display_id: str):
     """The display a PATH names. Used where the caller cannot send `?display=` — a

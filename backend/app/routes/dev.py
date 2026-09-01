@@ -9,9 +9,10 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
+from .. import debuglog
 from ..gateway import (fetch_gateway_config, fetch_gateway_settings,
                        push_gateway_settings, supports_settings)
 
@@ -19,6 +20,10 @@ log = logging.getLogger("companion")
 
 
 class DevSim(BaseModel):
+    on: bool
+
+
+class DevDebugLog(BaseModel):
     on: bool
 
 
@@ -163,6 +168,40 @@ def build(deps) -> APIRouter:
             "url": await _external_url("/mcp"),
             "env_token": bool(deps.displays.default.config.mcp.get("token")),          # pinned via env
         }
+
+    # -- the wire log (debuglog.py) -----------------------------------------
+    @router.post("/api/dev/debug-log")
+    async def dev_debug_log(req: DevDebugLog):
+        """Turn the wire log on/off at runtime. Process-wide (one file captures every
+        display's gateway traffic and every app fetch), so it lives on the default config —
+        same reasoning as the Vestaboard/MCP switches."""
+        deps.displays.default.config.set_debug_log(req.on)
+        debuglog.set_enabled(req.on)
+        log.info("debug logging %s (dev menu)", "enabled" if req.on else "disabled")
+        return deps.displays.default.config.dev_state()
+
+    @router.get("/api/dev/debug-log")
+    async def dev_debug_log_state():
+        """Whether it's on and how big the log is — for the Tools menu to show a size and
+        enable/disable the Download button."""
+        return debuglog.status()
+
+    @router.get("/api/dev/debug-log/download")
+    async def dev_debug_log_download():
+        """The captured log as a text file. Empty (not a 404) when nothing's been logged, so
+        the browser still gets a file rather than an error."""
+        data = await asyncio.to_thread(debuglog.read_bytes)
+        return Response(
+            content=data or b"(the wire log is empty - turn on Debug logging, reproduce the "
+                            b"problem, then download)\n",
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="companion-wire.log"'})
+
+    @router.post("/api/dev/debug-log/clear")
+    async def dev_debug_log_clear():
+        """Empty the log without turning it off — start a clean capture for the next repro."""
+        await asyncio.to_thread(debuglog.clear)
+        return debuglog.status()
 
     @router.post("/api/dev/resync")
     async def dev_resync(request: Request):

@@ -19,6 +19,7 @@ import threading
 import time
 from contextlib import contextmanager
 
+from . import debuglog
 from .tabs import COMPANION_TABS, clean_tabs
 
 log = logging.getLogger("companion.gateway")
@@ -60,7 +61,34 @@ def _request(method: str, url: str, path: str, *, timeout: float, **kw):
     """The shared wrapper: base-url rstrip + the pooled per-gateway client, one place."""
     if log.isEnabledFor(logging.DEBUG):
         _log_send(method, url, path, kw)
-    return _client(url).request(method, path, timeout=timeout, **kw)
+    if not debuglog.is_enabled():
+        return _client(url).request(method, path, timeout=timeout, **kw)
+    # Wire log on: capture the send (payload preview) and the answer (status + small body).
+    body = kw.get("content") if kw.get("content") is not None else kw.get("json")
+    ctype = (kw.get("headers") or {}).get("Content-Type")
+    debuglog.gw_send(method, url, path, body, ctype)
+    t0 = time.monotonic()
+    try:
+        r = _client(url).request(method, path, timeout=timeout, **kw)
+    except Exception as e:
+        debuglog.gw_recv(method, url, path, None, (time.monotonic() - t0) * 1000, error=e)
+        raise
+    debuglog.gw_recv(method, url, path, r.status_code, (time.monotonic() - t0) * 1000,
+                     body=_resp_preview(r), ctype=r.headers.get("content-type"))
+    return r
+
+
+def _resp_preview(r):
+    """A gateway response body worth logging: the small JSON/text ok-or-error the command
+    endpoints return. Big binary (a frame readback) is left unread — size alone is enough,
+    and forcing 2 MB into memory to log it would be its own bug."""
+    ct = str(r.headers.get("content-type", "")).lower()
+    if "json" not in ct and "text" not in ct:
+        return None
+    try:
+        return r.content            # httpx caches it; the caller's .json()/.content re-reads free
+    except Exception:
+        return None
 
 
 def _log_send(method: str, url: str, path: str, kw: dict) -> None:

@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.13-beta.1 — overlay ticker timer + debug wire log
+
+- **Overlay ticker auto-dismiss timer**: a seconds field on the Compose card, and a per-trigger
+  "Ticker" toggle that shows a fired trigger as a non-intrusive scrolling lower-third for N seconds
+  (canvas walls) instead of the slide-in toast. Firmware `seconds` TTL, companion-driven so the
+  duration holds even on firmware that predates it.
+- **Debug logging** (⚙ Tools): an opt-in, downloadable wire log of every gateway send/receive
+  (payload hex + ascii) and every app data fetch — for chasing "the gateway is getting garbage from
+  the companion". API keys are redacted.
+
 ## 2.10.12 — LCD Gateway
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again

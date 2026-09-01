@@ -135,6 +135,20 @@ def test_plain_ticker_omits_the_2_1_keys(gw):
     _surface().ticker("HELLO")
     body = gw[0][2]
     assert "overlay" not in body and "band" not in body and "font" not in body
+    assert "seconds" not in body
+
+
+def test_overlay_ticker_seconds_ttl_is_sent_and_clamped(gw):
+    _surface().ticker("NEWS", (255, 0, 0), 3, overlay=True, seconds=25)
+    assert gw[0][2]["seconds"] == 25
+    gw.clear()
+    _surface().ticker("LONG", overlay=True, seconds=999999)   # a day is the ceiling
+    assert gw[0][2]["seconds"] == 86400
+
+
+def test_ticker_seconds_omitted_when_zero(gw):
+    _surface().ticker("HELLO", overlay=True, seconds=0)       # 0 = persistent (the default)
+    assert "seconds" not in gw[0][2]
 
 
 # --- transitions ------------------------------------------------------------

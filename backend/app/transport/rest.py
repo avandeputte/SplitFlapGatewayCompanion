@@ -15,7 +15,7 @@ import logging
 import time
 from dataclasses import replace
 
-from .. import device, renderer
+from .. import debuglog, device, renderer
 from .base import DisplayTransport, frame_for
 
 
@@ -163,14 +163,37 @@ class RestTransport(DisplayTransport):
         cell diff would otherwise skip flaps that need to come back."""
         self._shown.clear()
 
+    async def _post(self, path: str, *, content, headers, timeout, label: str = ""):
+        """Every flap-page send funnels through here — the one place the wire log sees the
+        REST transport's traffic (these POSTs bypass gateway._request's client). A no-op
+        wrapper around ``self._client.post`` while logging is off; when on, it records the
+        outgoing payload (hex+ascii) and the gateway's answer, error included."""
+        if not debuglog.is_enabled():
+            return await self._client.post(path, content=content, headers=headers, timeout=timeout)
+        ctype = (headers or {}).get("Content-Type")
+        debuglog.gw_send("POST", self.base, path, content, ctype, note=label)
+        t0 = time.monotonic()
+        try:
+            r = await self._client.post(path, content=content, headers=headers, timeout=timeout)
+        except Exception as e:
+            debuglog.gw_recv("POST", self.base, path, None, (time.monotonic() - t0) * 1000, error=e)
+            raise
+        try:
+            rbody = r.content
+        except Exception:
+            rbody = None
+        debuglog.gw_recv("POST", self.base, path, r.status_code, (time.monotonic() - t0) * 1000,
+                         body=rbody, ctype=r.headers.get("content-type"))
+        return r
+
     async def send_frame(self, module_id: int, char: str) -> None:
         if self._client is None:
             raise RuntimeError("REST transport not connected")
         try:
-            r = await self._client.post(
+            r = await self._post(
                 "/api/rs485/send",
                 content=_win1252_body({"data": frame_for(module_id, char)}),
-                headers=_JSON_1252_HEADERS,
+                headers=_JSON_1252_HEADERS, timeout=self.timeout, label="1 frame",
             )
             r.raise_for_status()
             self._connected = True
@@ -231,11 +254,11 @@ class RestTransport(DisplayTransport):
         if not sent:
             return                                       # the wall already says this
         payload = {"start": base, "step_ms": int(step_ms), "cells": cells}
-        r = await self._client.post(
+        r = await self._post(
             "/api/display/cells",
             content=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
             headers={"Content-Type": "application/json; charset=utf-8"},
-            timeout=_BATCH_TIMEOUT)
+            timeout=_BATCH_TIMEOUT, label=f"{sent} cells @{base}")
         r.raise_for_status()
         self._shown.update(by_id)
 
@@ -308,9 +331,10 @@ class RestTransport(DisplayTransport):
                    "step_ms": int(step_ms)}
         try:
             # allow the gateway to pace a long page without a client timeout
-            r = await self._client.post("/api/rs485/batch",
-                                        content=_win1252_body(payload),
-                                        headers=_JSON_1252_HEADERS, timeout=_BATCH_TIMEOUT)
+            r = await self._post("/api/rs485/batch",
+                                 content=_win1252_body(payload),
+                                 headers=_JSON_1252_HEADERS, timeout=_BATCH_TIMEOUT,
+                                 label=f"{len(send)} frames")
             r.raise_for_status()
             self._connected = True
             self._last_error = None

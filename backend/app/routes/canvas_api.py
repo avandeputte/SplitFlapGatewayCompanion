@@ -25,6 +25,8 @@ class Overlay(BaseModel):
     color: list[int] = [255, 255, 255]
     speed: int = 2
     band: bool = True
+    # Auto-dismiss after N seconds (firmware v0.4.7); 0 = keep scrolling until cleared.
+    seconds: int = 0
     font: str | None = None
 
 
@@ -74,11 +76,11 @@ def build(deps) -> APIRouter:
     @router.post("/api/panel/overlay")
     async def panel_overlay(request: Request, req: Overlay):
         """Set (or, with empty text, clear) a lower-third ticker that composites OVER whatever the
-        wall is showing and survives page/mode changes."""
+        wall is showing and survives page/mode changes. ``seconds`` > 0 auto-dismisses it."""
         _d, url, caps = _wall(request)
         _need(caps.canvas_endpoints, "the overlay ticker")
         ok = await asyncio.to_thread(canvas.put_ticker, url, req.text, tuple(req.color),
-                                     req.speed, True, req.band, req.font)
+                                     req.speed, True, req.band, req.font, req.seconds)
         if not ok:
             raise HTTPException(502, "the gateway refused the ticker (Quiet Time?)")
         return {"ok": True, "active": bool(req.text)}

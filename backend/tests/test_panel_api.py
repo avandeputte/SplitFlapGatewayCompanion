@@ -64,6 +64,13 @@ def test_overlay_empty_text_clears(canvas_wall):
     assert client.post("/api/panel/overlay", json={"text": ""}).json()["active"] is False
 
 
+def test_overlay_forwards_the_ttl_seconds(canvas_wall):
+    client, calls = canvas_wall
+    client.post("/api/panel/overlay", json={"text": "NEWS", "seconds": 45})
+    sent = [b for m, p, b in calls if p == "/api/canvas/ticker"]
+    assert sent and sent[0]["seconds"] == 45
+
+
 def test_transition_proxies(canvas_wall):
     client, calls = canvas_wall
     client.post("/api/panel/transition", json={"type": "wipe", "ms": 300})

@@ -1779,7 +1779,15 @@ function trigRender() {
     const info = el("span", "grow"); info.textContent = app ? `${app.icon} ${app.name}` : trig.app; row.appendChild(info);
     const nm = el("input"); nm.placeholder = t("Label"); nm.value = trig.name || ""; nm.oninput = () => (trig.name = nm.value); row.appendChild(nm);
     const cd = el("input"); cd.type = "number"; cd.style.width = "76px"; cd.title = t("cooldown (s)"); cd.value = trig.cooldown || 300; cd.oninput = () => (trig.cooldown = Number(cd.value)); row.appendChild(cd);
-    const ds = el("input"); ds.type = "number"; ds.style.width = "68px"; ds.title = t("show (s)"); ds.value = trig.display_seconds || 30; ds.oninput = () => (trig.display_seconds = Number(ds.value)); row.appendChild(ds);
+    const ds = el("input"); ds.type = "number"; ds.style.width = "68px"; ds.title = t("show (s)"); ds.value = trig.display_seconds || 30; ds.disabled = !!trig.ticker; ds.oninput = () => (trig.display_seconds = Number(ds.value)); row.appendChild(ds);
+    // Overlay-ticker option: on a canvas wall, scroll the fired text as a non-intrusive
+    // lower-third for `ticker_seconds` instead of the slide-in toast. Its seconds field is
+    // enabled only while the toggle is on, and "show (s)" (the toast time) is disabled then.
+    const tk = el("input"); tk.type = "checkbox"; tk.style.width = "auto"; tk.checked = !!trig.ticker;
+    const tkw = el("label", "field inline"); tkw.style.margin = "0"; tkw.title = t("Scroll as an overlay ticker (canvas walls) instead of a toast");
+    const tkl = el("span"); tkl.style.minWidth = "0"; tkl.textContent = t("Ticker"); tkw.appendChild(tk); tkw.appendChild(tkl); row.appendChild(tkw);
+    const ts = el("input"); ts.type = "number"; ts.style.width = "60px"; ts.title = t("ticker (s)"); ts.value = trig.ticker_seconds || 20; ts.disabled = !trig.ticker; ts.oninput = () => (trig.ticker_seconds = Number(ts.value)); row.appendChild(ts);
+    tk.onchange = () => { trig.ticker = tk.checked; ts.disabled = !tk.checked; ds.disabled = tk.checked; };
     row.appendChild(btn("✕", () => { TRIGS.splice(i, 1); trigRender(); }, "del"));
     box.appendChild(row);
   });
@@ -1797,7 +1805,7 @@ async function loadTriggers() {
 function addTrigger() {
   const app = $("trigAddApp").value; if (!app) return;
   const meta = TRIG_APPS.find((a) => a.id === app) || {};
-  TRIGS.push({ id: rid("trig_"), app, name: meta.name || app, enabled: true, cooldown: meta.trigger_cooldown || 300, display_seconds: meta.trigger_display_seconds || 30, conditions: {} });
+  TRIGS.push({ id: rid("trig_"), app, name: meta.name || app, enabled: true, cooldown: meta.trigger_cooldown || 300, display_seconds: meta.trigger_display_seconds || 30, ticker: false, ticker_seconds: 20, conditions: {} });
   trigRender();
 }
 async function saveTriggers() {
@@ -1857,11 +1865,13 @@ function wireGamePad() {
 
 function wireOverlay() {
   $("ovShow").addEventListener("click", () => guard(async () => {
+    const secs = Math.max(0, Math.min(86400, +$("ovSecs").value || 0));
     await post("/api/panel/overlay", {
       text: $("ovText").value, color: _hex2rgb($("ovColor").value),
-      speed: +$("ovSpeed").value || 3, band: $("ovBand").checked,
+      speed: +$("ovSpeed").value || 3, band: $("ovBand").checked, seconds: secs,
     });
-    $("ovMsg").textContent = t("Overlay showing.");
+    $("ovMsg").textContent = secs > 0 ? t("Overlay showing for %ss.", secs)
+                                      : t("Overlay showing.");
   }, $("ovMsg")));
   $("ovClear").addEventListener("click", () => guard(async () => {
     await post("/api/panel/overlay", { text: "" });
@@ -2130,6 +2140,50 @@ async function openDevMenu() {
     });
     gsRow.appendChild(pullBtn); gsRow.appendChild(pushBtn); gsF.appendChild(gsRow); gsF.appendChild(gsMsg);
     wrap.appendChild(gsF);
+
+    // 3) Debug logging (the wire log). Capture every gateway send/receive and app fetch to a
+    // downloadable file — for chasing down "the gateway is getting garbage from the companion".
+    const dbgF = el("div", "field");
+    const dbgLbl = el("label"); dbgLbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
+    const dbg = el("input"); dbg.type = "checkbox"; dbg.checked = !!st.debug_log; dbg.style.width = "auto";
+    dbgLbl.appendChild(dbg);
+    dbgLbl.appendChild(document.createTextNode(t("Debug logging")));
+    dbgF.appendChild(dbgLbl);
+    const dbgNote = el("small", "field-note"); dbgF.appendChild(dbgNote);
+    const dbgRow = el("div"); dbgRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap";
+    const dlBtn = el("button", "btn ghost btn-sm"); dlBtn.textContent = t("⭳ Download log");
+    const clrBtn = el("button", "btn ghost btn-sm"); clrBtn.textContent = t("Clear log");
+    dbgRow.appendChild(dlBtn); dbgRow.appendChild(clrBtn); dbgF.appendChild(dbgRow);
+    const dbgStatus = async () => {
+      try {
+        const d = await api("/api/dev/debug-log");
+        dbgNote.textContent = d.enabled
+          ? t("Recording gateway I/O and app fetches — %s KB, %s events. Reproduce the problem, then download.",
+              String(Math.round((d.bytes || 0) / 1024)), String(d.events || 0))
+          : t("Off. Turn on, reproduce the problem, then download the log to see exactly what the companion sent the gateway.");
+      } catch { dbgNote.textContent = ""; }
+    };
+    dbg.addEventListener("change", async () => {
+      dbg.disabled = true;
+      try { render(await post("/api/dev/debug-log", { on: dbg.checked })); }
+      catch (e) { dbgNote.textContent = t("Failed: %s", e.message); dbg.disabled = false; }
+    });
+    dlBtn.addEventListener("click", () => guard(async () => {
+      const r = await fetch(url("/api/dev/debug-log/download"));
+      if (!r.ok) throw new Error(r.statusText);
+      const blob = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = "companion-wire.log"; a.click();
+      URL.revokeObjectURL(a.href);
+    }, dbgNote));
+    clrBtn.addEventListener("click", async () => {
+      clrBtn.disabled = true;
+      try { await post("/api/dev/debug-log/clear", {}); await dbgStatus(); }
+      catch (e) { dbgNote.textContent = t("Failed: %s", e.message); }
+      clrBtn.disabled = false;
+    });
+    dbgStatus();
+    wrap.appendChild(dbgF);
 
   };
 

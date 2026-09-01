@@ -98,18 +98,24 @@ class Scheduler:
             return
         if fired:
             self._cooldown[tid] = now
-            secs = float(trig.get("display_seconds", m.get("trigger_display_seconds", 30)))
             try:
                 pages = await loop.run_in_executor(None, self.plugins.get_pages, app_id)
             except Exception:
                 pages = []
             if pages:
                 text = pages[0] if isinstance(pages[0], str) else str(pages[0].get("text", ""))
-                log.info("trigger fired: %s (%s)", trig.get("name", tid), app_id)
                 # Only an ANIMATION draws with lowercase color codes. Treating every
                 # trigger page as one put color flaps in the middle of ordinary words.
-                await self.c.fire_interrupt(text, secs,
-                                            frame=self.plugins.is_anim(app_id))
+                anim = self.plugins.is_anim(app_id)
+                log.info("trigger fired: %s (%s)", trig.get("name", tid), app_id)
+                if trig.get("ticker"):
+                    # Present as a non-intrusive overlay ticker (canvas walls) for its own
+                    # duration; falls back to the toast/flap interrupt on a plain flap wall.
+                    tsecs = float(trig.get("ticker_seconds", 20) or 20)
+                    await self.c.fire_overlay_ticker(text, tsecs, frame=anim)
+                else:
+                    secs = float(trig.get("display_seconds", m.get("trigger_display_seconds", 30)))
+                    await self.c.fire_interrupt(text, secs, frame=anim)
 
     async def _trigger_loop(self) -> None:
         try:

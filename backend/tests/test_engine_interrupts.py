@@ -23,9 +23,20 @@ Everything runs against fakes — no gateway is ever contacted.
 """
 import asyncio
 
+from app import device
 from app.config import Config
 from app.engine import DisplayController
 from app.state import DisplayState
+
+# A minimal canvas wall, enough for _caps() to report the overlay-ticker surface.
+CANVAS_DOC = {
+    "product": "Matrix Portal Gateway", "fw": "3.13.0",
+    "features": ["cells", "colors", "canvas", "ticker"],
+    "charset": {"uniform": True, "common": "ABC"},
+    "canvas": {"formats": ["rgb888"], "width": 128, "height": 32,
+               "rect": True, "ticker": True, "readback": True,
+               "ops": ["clear", "text", "show"]},
+}
 
 
 class FakePlugins:
@@ -189,6 +200,55 @@ def test_stop_cancels_a_live_temporary_message(tmp_path):
         await c.stop()
         assert c._temp_task is None
         assert task.done(), "stop() left the temporary-message task running"
+    asyncio.run(go())
+
+
+# ---------------------------------------------------------------------------
+# a trigger's overlay ticker (fire_overlay_ticker)
+# ---------------------------------------------------------------------------
+def test_overlay_ticker_falls_back_to_the_interrupt_off_canvas(tmp_path):
+    """No canvas endpoints here — the trigger must still notify, through the ordinary
+    interrupt, with the same (clamped) duration and frame flag."""
+    async def go():
+        c = _controller(tmp_path, FakeGateway())        # default caps = plain split-flap
+        seen = []
+
+        async def fake_fi(text, seconds, *, frame=False, **k):
+            seen.append((text, seconds, frame))
+
+        c.fire_interrupt = fake_fi
+        await c.fire_overlay_ticker("PING", 5, frame=True)
+        assert seen == [("PING", 5, True)]
+    asyncio.run(go())
+
+
+def test_overlay_ticker_on_canvas_composites_without_taking_over(tmp_path, monkeypatch):
+    """A canvas wall gets a NON-intrusive overlay ticker — put_ticker(overlay=True) carrying
+    the TTL — never a fire_interrupt takeover, and a background self-clear is scheduled."""
+    import app.engine as engine_mod
+    calls = []
+    monkeypatch.setattr(engine_mod.canvas, "put_ticker",
+                        lambda url, text, *a, **k: (calls.append((text, a)) or True))
+
+    async def go():
+        c = _controller(tmp_path, FakeGateway())
+        c.config.update({"transport": {"gateway_url": "http://gw"}})
+        c.plugins._caps = lambda: device.from_capabilities(CANVAS_DOC)
+        took_over = []
+
+        async def fake_fi(*a, **k):        # must NOT be called on the canvas path
+            took_over.append(a)
+
+        c.fire_interrupt = fake_fi
+
+        await c.fire_overlay_ticker("BREAKING", 30, color=(9, 8, 7))
+        assert not took_over, "a canvas overlay ticker must not take the panel over"
+        assert calls and calls[0][0] == "BREAKING"
+        _color, _speed, overlay, _band, _font, secs = calls[0][1]
+        assert overlay is True and secs == 30
+        assert c._ticker_tasks, "no self-clear was scheduled"
+        c.abort()                                # cancels the pending clear
+        assert not c._ticker_tasks
     asyncio.run(go())
 
 

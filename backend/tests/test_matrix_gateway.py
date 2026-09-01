@@ -356,10 +356,12 @@ def test_a_trigger_does_not_paint_color_flaps_through_the_words():
 
 def test_the_scheduler_says_which_kind_of_page_it_is():
     """The engine cannot know: only the scheduler knows whether the app it is firing is an
-    animation. It has to say so, and nothing else may guess."""
+    animation. It has to say so, and nothing else may guess — via the toast interrupt or the
+    overlay ticker, both get the scheduler's own is_anim() as the frame flag."""
     from pathlib import Path
     src = (Path(__file__).resolve().parents[1] / "app" / "scheduler.py").read_text("utf-8")
-    assert "frame=self.plugins.is_anim(app_id)" in src
+    assert "self.plugins.is_anim(app_id)" in src
+    assert "frame=anim" in src
 
 
 def test_there_is_exactly_one_place_that_folds():

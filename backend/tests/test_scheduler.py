@@ -30,9 +30,13 @@ class FakeTime:
 class FakeController:
     def __init__(self):
         self.interrupts = []
+        self.tickers = []
 
     async def fire_interrupt(self, text, seconds, *, frame=False, **kw):
         self.interrupts.append((text, seconds, frame))
+
+    async def fire_overlay_ticker(self, text, seconds, *, frame=False, **kw):
+        self.tickers.append((text, seconds, frame))
 
 
 class FakePlugins:
@@ -157,7 +161,22 @@ def test_a_fired_trigger_interrupts_with_its_first_page(monkeypatch):
 
     _check(s)
     assert s.c.interrupts == [("Something happened", 5.0, False)]
+    assert s.c.tickers == []                 # the default trigger uses the toast, not a ticker
     assert s.last_fired("t1") == clock.t     # cooldown recorded
+
+
+def test_a_ticker_trigger_scrolls_an_overlay_for_its_own_duration(monkeypatch):
+    """A trigger opted into the overlay ticker fires fire_overlay_ticker for its
+    ticker_seconds — not the slide-in toast."""
+    clock = FakeTime()
+    monkeypatch.setattr(scheduler_module, "time", clock)
+    p = FakePlugins(interval=60, behave=lambda app_id: True)
+    p.settings["triggers"][0].update({"ticker": True, "ticker_seconds": 25})
+    s = _scheduler(p)
+
+    _check(s)
+    assert s.c.tickers == [("Something happened", 25.0, False)]
+    assert s.c.interrupts == []              # the toast path is bypassed
 
 
 # ---------------------------------------------------------------------------

@@ -26,7 +26,7 @@ import threading
 import time
 from urllib.parse import urlparse
 
-from . import gateway
+from . import debuglog, gateway
 
 log = logging.getLogger("companion.canvas")
 
@@ -521,9 +521,11 @@ class CanvasStream:
                 pass                                       # best-effort (fakes, exotic stacks)
             self.alive = True
             self._head_pending = True
+            debuglog.stream_event(self.url, "open")
             return True
         except Exception as e:
             log.debug("canvas stream open failed: %s", e)
+            debuglog.stream_event(self.url, "open FAILED", str(e))
             self._kill()
             return False
 
@@ -537,6 +539,7 @@ class CanvasStream:
             return True
         except Exception as e:
             log.debug("canvas stream send failed: %s", e)
+            debuglog.stream_event(self.url, "send FAILED", str(e))
             self._kill()
             return False
 
@@ -592,6 +595,7 @@ class CanvasStream:
             log.debug("canvas stream close: %s", e)
         finally:
             self._kill()
+        debuglog.stream_event(self.url, "close", f"{sent} records")
         return sent
 
     def _kill(self) -> None:
@@ -736,7 +740,7 @@ def diff_rects(old_rgb: bytes, new_rgb: bytes, w: int, h: int, max_frac: float =
 
 def put_ticker(url: str, text: str, color=(255, 255, 255), speed: int = 2,
                overlay: bool = False, band: bool = True, font: str | None = None,
-               timeout: float = 5.0) -> bool:
+               seconds: int = 0, timeout: float = 5.0) -> bool:
     """Scroll one line of text across the panel ON-DEVICE (POST /api/canvas/ticker) — smooth,
     nothing streamed. Empty text hands the panel back. Speed 1–20.
 
@@ -744,7 +748,12 @@ def put_ticker(url: str, text: str, color=(255, 255, 255), speed: int = 2,
     presenting — the flap wall, an effect, an animation, a pushed frame — and it survives page
     and mode changes until an empty text stops it. ``band=False`` drops the black bar and scrolls
     the glyphs straight over the content. ``font`` names an uploaded/library face (``"custom"`` or
-    a saved name); an unknown name falls back to the built-in face rather than erroring."""
+    a saved name); an unknown name falls back to the built-in face rather than erroring.
+
+    ``seconds`` (firmware v0.4.7) auto-dismisses the ticker after that many seconds — an exclusive
+    ticker hands the panel back, an overlay one simply vanishes; ``0`` (the default) keeps it until
+    an empty text stops it. Sent only when set, and firmware that predates the field ignores an
+    unknown key, so passing it is always safe."""
     try:
         body = {"text": str(text), "color": list(_rgb(color)),
                 "speed": max(1, min(20, int(speed)))}
@@ -753,6 +762,8 @@ def put_ticker(url: str, text: str, color=(255, 255, 255), speed: int = 2,
             body["band"] = bool(band)
         if font:
             body["font"] = str(font)
+        if seconds and int(seconds) > 0:
+            body["seconds"] = min(86400, int(seconds))
         return _ok(gateway._request("POST", url, "/api/canvas/ticker", json=body, timeout=timeout))
     except Exception as e:
         log.debug("canvas put_ticker failed: %s", e)
@@ -1808,16 +1819,18 @@ class CanvasSurface(paneltext.PanelText):
         return self._push_rgb(b)
 
     def ticker(self, text, color=(255, 255, 255), speed: int = 2,
-               overlay: bool = False, band: bool = True, font=None) -> bool:
+               overlay: bool = False, band: bool = True, font=None, seconds: int = 0) -> bool:
         """Scroll one line of text across the panel ON-DEVICE — smooth, nothing streamed.
         Empty text hands the panel back. Needs ``canvas.can_ticker``.
 
         ``overlay`` (needs ``canvas.can_overlay``) composites the ticker as a lower-third band OVER
         whatever else is presenting, surviving page/mode changes until an empty text stops it;
-        ``band=False`` drops the black bar. ``font`` names an uploaded/library face."""
+        ``band=False`` drops the black bar. ``font`` names an uploaded/library face. ``seconds``
+        auto-dismisses it after that many seconds (0 = until stopped)."""
         if not overlay:
             forget_frame(self.url)             # a full-screen ticker has no single still frame
-        return put_ticker(self.url, text, color, speed, overlay=overlay, band=band, font=font)
+        return put_ticker(self.url, text, color, speed, overlay=overlay, band=band,
+                          font=font, seconds=seconds)
 
     def transition(self, kind: str = "crossfade", ms: int = 400) -> bool:
         """Set how subsequent ``frame()`` pushes present: "none" (hard cut),

@@ -77,6 +77,12 @@ class DisplayController:
         self._skip_evt = asyncio.Event()
         self._interrupt_over.set()
         self._temp_task: asyncio.Task | None = None   # a timed show_temporary() message
+        # A trigger's overlay ticker clears itself after its TTL via one of these background
+        # tasks — companion-driven, so the duration is honoured even on firmware that predates
+        # the ticker `seconds` field. A monotonic token lets a newer ticker's clear supersede an
+        # older pending one (the newer POST already replaced it on the wall). See fire_overlay_ticker.
+        self._ticker_tasks: set[asyncio.Task] = set()
+        self._ticker_token = 0
         # The page an app loop last put on the wall, for unchanged-page suppression.
         # Valid only while the wall actually still shows it: _emit_page invalidates it
         # on EVERY paint (an interrupt's text, a manual message, a failed send), and
@@ -305,6 +311,13 @@ class DisplayController:
         task, self._task = self._task, None
         if task is not None and not task.done():
             task.cancel()
+        # Pending trigger-ticker clears target THIS controller's gateway; drop them so a
+        # discarded controller can't fire a stray clear at a reused wall.
+        self._ticker_token += 1
+        for tk in list(self._ticker_tasks):
+            if not tk.done():
+                tk.cancel()
+        self._ticker_tasks.clear()
 
     async def _entry_sleep(self, delay: float) -> None:
         """asyncio.sleep(delay) that wakes immediately when the running playlist entry
@@ -1239,6 +1252,53 @@ class DisplayController:
         if blank_if_idle and takeovers == self._takeovers \
                 and not (self.active_app or self.active_playlist):
             await self.clear()
+
+    async def fire_overlay_ticker(self, text: str, seconds: float, *, frame: bool = False,
+                                  color=(255, 255, 255), band: bool = True) -> None:
+        """A trigger's NON-INTRUSIVE face on a canvas wall: scroll ``text`` as a lower-third
+        OVERLAY over whatever is running, for ``seconds``, then clear it. The overlay composites
+        on the firmware side (it does NOT take the panel over the way ``fire_interrupt``'s toast
+        does), so the running app keeps painting underneath and is never parked — which is the
+        point of offering it per-trigger.
+
+        Falls back to ``fire_interrupt`` (the toast / flap-cell interrupt) on a wall with no
+        overlay-ticker endpoint — a plain flap wall — or if the gateway refuses the ticker (Quiet
+        Time), so the trigger still notifies.
+
+        The clear is driven HERE after ``seconds`` rather than trusting the firmware TTL: the
+        ``seconds`` field is new (firmware v0.4.7) and not on every wall yet, so a companion-side
+        stop is what makes the duration hold everywhere. We still send ``seconds`` too, so a wall
+        that honours it self-dismisses even if the companion dies mid-wait. Non-blocking: the clear
+        runs as a background task (the overlay owns nothing, so there is no lock to hold)."""
+        secs = max(1, min(86400, int(seconds or 0)))
+        url = str(self.config.transport.get("gateway_url") or "").strip()
+        caps = self._caps()
+        canvas_ok = (getattr(caps, "has_canvas", False)
+                     and getattr(caps, "canvas_endpoints", False)
+                     and url and not self.config.sim_mode)
+        if not canvas_ok:
+            await self.fire_interrupt(text, secs, frame=frame)
+            return
+        line = " ".join(str(text or "").split())    # a grid-laid page collapses to its words
+        ok = await asyncio.to_thread(canvas.put_ticker, url, line, tuple(color), 2,
+                                     True, band, None, secs)
+        if not ok:
+            await self.fire_interrupt(text, secs, frame=frame)
+            return
+        self._ticker_token += 1
+        tok = self._ticker_token
+
+        async def _clear_after() -> None:
+            await asyncio.sleep(secs)
+            if self._ticker_token == tok:        # not superseded by a newer ticker
+                try:
+                    await asyncio.to_thread(canvas.put_ticker, url, "")
+                except Exception as e:
+                    log.debug("overlay ticker clear failed: %s", e)
+
+        tk = asyncio.create_task(_clear_after())
+        self._ticker_tasks.add(tk)
+        tk.add_done_callback(self._ticker_tasks.discard)
 
     def show_temporary(self, text: str, seconds: float, *, style: str = "ltr",
                        frame: bool = False, icon: str = "info", accent=None) -> bool:

@@ -326,6 +326,12 @@ class Config:
         self._vestaboard = bool(self._effective["vestaboard"]["enabled"])
         # Same deal for the MCP server (see mcp_server.py).
         self._mcp = bool(self._effective["mcp"]["enabled"])
+        # The wire log (debuglog.py) — a runtime-only switch, off unless COMPANION_DEBUG_LOG
+        # forces it on at boot. Deliberately NOT persisted to the settings store: it's a
+        # debugging tool you turn on to catch a problem and turn off after, not a preference
+        # that should quietly stay on across restarts and fill a disk.
+        self._debug_log = os.environ.get("COMPANION_DEBUG_LOG", "").lower() in (
+            "1", "true", "yes", "on")
 
     def _recompute(self) -> dict:
         # defaults <- gateway sync <- add-on options <- env <- this display's identity.
@@ -401,6 +407,15 @@ class Config:
         m["enabled"] = self._mcp
         return m
 
+    # -- the wire log (debuglog.py) -----------------------------------------
+    @property
+    def debug_log_enabled(self) -> bool:
+        return self._debug_log
+
+    def set_debug_log(self, on: bool) -> None:
+        with self._lock:
+            self._debug_log = bool(on)
+
     def dev_state(self) -> dict:
         """State for the developer menu (safe to expose regardless of dev_mode)."""
         return {
@@ -414,6 +429,8 @@ class Config:
             "vestaboard": self._vestaboard,
             # Same for the MCP token — GET /api/dev/mcp has it.
             "mcp": self._mcp,
+            # The wire log switch; GET /api/dev/debug-log carries size/events.
+            "debug_log": self._debug_log,
         }
 
     @property
