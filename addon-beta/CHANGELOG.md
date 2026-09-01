@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.13-beta.2 — physical split-flap: don't degrade while the wall is still learning its reels
+
+- **Fix apps rendering wrong/blank on a physical Split-Flap Gateway (firmware v3.8+).** The wall
+  now reports its alphabet via `/api/capabilities`, but it learns each module's reel by a slow bus
+  trickle over the minutes after every boot — so `common` (what *every* module can show) is an
+  incomplete subset until all modules report. The companion no longer degrades text against that
+  moving target: while any module is still `unknown` it sends characters as-is (the pre-capabilities
+  behaviour), and the charset becomes authoritative on the next resync once the wall has settled.
+
 ## 2.10.13-beta.1 — overlay ticker timer + debug wire log
 
 - **Overlay ticker auto-dismiss timer**: a seconds field on the Compose card, and a per-trigger

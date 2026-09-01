@@ -237,6 +237,18 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     common = cs.get("common")
     if not isinstance(common, str):
         common = ""
+    # …but ONLY once the wall actually knows its own alphabet. A physical Split-Flap Gateway
+    # learns each module's reel by a slow bus trickle over the first minutes after every boot;
+    # until a module has reported, it is listed under `unknown` and left OUT of `common`, so
+    # `common` is the intersection of only the reels heard so far — a shrinking subset of what
+    # the wall can really show. Degrading text against that subset blanks/substitutes characters
+    # that would print fine once the rest report in. So while ANY module is still `unknown`,
+    # decline the charset entirely: an empty set means knows_charset() is False and degrade()
+    # sends characters as-is (the pre-/api/capabilities "send and hope" behaviour). It becomes
+    # authoritative on the next capability probe once every module has reported (unknown == []).
+    unknown = cs.get("unknown")
+    if isinstance(unknown, list) and unknown:
+        common = ""
 
     colors = tuple(str(c) for c in (doc.get("colors") or []) if isinstance(c, str))
 

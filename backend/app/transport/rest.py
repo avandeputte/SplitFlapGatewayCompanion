@@ -123,13 +123,21 @@ class RestTransport(DisplayTransport):
 
         if caps is not None:
             self.caps = caps
-            log.info(
-                "gateway %s: %d characters on every module%s%s%s", self.base,
-                len(caps.charset),
-                "" if caps.uniform else " (a MIXED wall — this is the intersection)",
-                ", lowercase" if caps.lowercase else "",
-                ", pictographs" if caps.pictographs else "",
-            )
+            if caps.knows_charset():
+                log.info(
+                    "gateway %s: %d characters on every module%s%s%s", self.base,
+                    len(caps.charset),
+                    "" if caps.uniform else " (a MIXED wall — this is the intersection)",
+                    ", lowercase" if caps.lowercase else "",
+                    ", pictographs" if caps.pictographs else "",
+                )
+            else:
+                # Either an old wall that reports no charset at all, or a physical wall still
+                # learning its modules' reels (capabilities `unknown` is non-empty). Both mean the
+                # same thing to us: do NOT degrade, send characters as-is. A re-probe on the next
+                # resync settles it once every module has reported its reel.
+                log.info("gateway %s: charset not settled yet — sending characters as-is until "
+                         "every module has reported its reel", self.base)
             return
 
         # Older firmware: no /api/capabilities. Guess from the product, as we always did — and

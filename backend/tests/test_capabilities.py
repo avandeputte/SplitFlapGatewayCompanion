@@ -64,6 +64,50 @@ def test_a_mixed_wall_reports_the_INTERSECTION():
     assert caps.can_show("A") and not caps.can_show("D")
 
 
+def test_a_wall_still_learning_its_reels_defers_the_charset():
+    """A physical wall learns each module's reel by a slow bus trickle over the minutes after
+    every boot; until a module reports it is listed `unknown` and left OUT of `common`, so
+    `common` is the intersection of only the reels heard SO FAR — a subset of the real one.
+    Degrading against that subset blanks characters that will print fine once the rest report,
+    so while ANY module is unknown we decline the charset and send as-is (the pre-capabilities
+    behaviour) — exactly as if it were empty."""
+    doc = {
+        "features": [],
+        # `common` is missing most of the reel because two modules have not reported yet.
+        "charset": {"uniform": False, "common": "ABC", "union": "ABCDEFGHIJ",
+                    "assumed": [], "unknown": [3, 7]},
+    }
+    caps = device.from_capabilities(doc)
+    assert not caps.knows_charset(), "an unsettled wall must not claim to know its alphabet"
+    assert caps.can_show("Z") and caps.can_show("♥"), "everything is sent as-is meanwhile"
+    assert renderer.degrade("Zurich ♥", caps) == "Zurich ♥", "nothing degraded on a moving target"
+
+
+def test_the_charset_settles_once_every_module_has_reported():
+    """Same wall with `unknown` now empty: `common` is authoritative, so degrade engages —
+    the reel has no lowercase and no heart, so those fold/blank."""
+    doc = {
+        "features": [],
+        "charset": {"uniform": True, "common": " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+                    "union": " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+                    "assumed": [], "unknown": []},
+    }
+    caps = device.from_capabilities(doc)
+    assert caps.knows_charset()
+    assert caps.can_show("A") and not caps.can_show("a") and not caps.can_show("♥")
+
+
+def test_assumed_modules_do_not_defer_the_charset():
+    """`assumed` (a module on old firmware given the default reel) is already folded into
+    `common` — a reasonable answer, not an absent one — so it does not defer degrade. Only
+    genuinely `unknown` modules (no reel at all yet) do."""
+    doc = {"features": [],
+           "charset": {"uniform": True, "common": "ABC", "union": "ABC",
+                       "assumed": [5], "unknown": []}}
+    caps = device.from_capabilities(doc)
+    assert caps.knows_charset() and caps.can_show("A") and not caps.can_show("Z")
+
+
 def test_a_gateway_too_old_to_answer_falls_back_to_the_split_flap():
     """No /api/capabilities -> None, so the caller falls back — and with every current
     Matrix firmware answering the probe, a capabilities-less gateway is by definition an
