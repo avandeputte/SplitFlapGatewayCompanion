@@ -3,7 +3,7 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
-## 2.10.15
+## 2.10.16
 
 - **Dashboard now honors the Temperature Unit AND the Time format on split-flap walls.** The flap
   view hard-coded °F/mph and derived 12h/24h from the language, ignoring both settings; it now
