@@ -2185,6 +2185,32 @@ async function openDevMenu() {
     dbgStatus();
     wrap.appendChild(dbgF);
 
+    // 4) Check for updates (companion-wide). When on, the SPA shows a banner on every page if
+    // GitHub reports a newer release, linking to the notes. The check is cached ~6h server-side.
+    const cuF = el("div", "field");
+    const cuLbl = el("label"); cuLbl.style.cssText = "display:flex;align-items:center;gap:8px;font-weight:600";
+    const cu = el("input"); cu.type = "checkbox"; cu.style.width = "auto";
+    cuLbl.appendChild(cu); cuLbl.appendChild(document.createTextNode(t("Check for updates")));
+    cuF.appendChild(cuLbl);
+    const cuNote = el("small", "field-note"); cuF.appendChild(cuNote);
+    const cuShow = (d) => {
+      if (!d || !d.enabled) {
+        cuNote.textContent = t("Off. Turn on to check GitHub for new releases and show a notice on every page when one is available.");
+        return;
+      }
+      cuNote.textContent = d.update_available
+        ? t("Update available: %s (you have %s).", d.latest, d.current)
+        : t("Up to date (you have %s).", d.current);
+    };
+    (async () => { try { const d = await api("/api/update-check"); cu.checked = !!(d && d.enabled); cuShow(d); } catch { cuShow(null); } })();
+    cu.addEventListener("change", async () => {
+      cu.disabled = true;
+      try { const d = await post("/api/update-check", { on: cu.checked }); cuShow(d); updateCheck(); }
+      catch (e) { cuNote.textContent = t("Failed: %s", e.message); }
+      cu.disabled = false;
+    });
+    wrap.appendChild(cuF);
+
   };
 
   render(await api("/api/dev"));
@@ -2410,6 +2436,30 @@ async function openDisplays() {
 }
 
 
+// ---- update banner ("a new version is available") --------------------------
+// Shown on EVERY page when the companion-wide Check-for-updates setting is on (⚙ Tools) and
+// GitHub reports a newer release. Dismiss is remembered per-version, so it only comes back when
+// a version newer than the one you dismissed appears. Never throws — a failed check just hides it.
+async function updateCheck() {
+  const bar = $("updateBanner");
+  if (!bar) return;
+  try {
+    const d = await api("/api/update-check");
+    let dismissed = null;
+    try { dismissed = localStorage.getItem("update_dismissed"); } catch { /* private mode */ }
+    if (!d.enabled || !d.update_available || dismissed === d.latest) {
+      bar.classList.add("hidden");
+      return;
+    }
+    bar.dataset.version = d.latest;
+    $("updateBannerText").textContent = t("A new version (%s) is available.", d.latest);
+    const link = $("updateBannerLink");
+    if (d.url) { link.href = d.url; link.classList.remove("hidden"); }
+    else { link.classList.add("hidden"); }
+    bar.classList.remove("hidden");
+  } catch { bar.classList.add("hidden"); }
+}
+
 async function init() {
   // Unless an explicit choice was made, prefer Home Assistant's language over the
   // browser's: someone whose HA is in French wants a French add-on, whatever their
@@ -2515,6 +2565,13 @@ async function init() {
   // overlay ticker (the Compose card, canvas walls only) + the game control pad
   wireOverlay();
   wireGamePad();
+  // "New version available" banner: dismiss remembers the version, then check (non-blocking).
+  $("updateBannerDismiss").addEventListener("click", () => {
+    const bar = $("updateBanner");
+    try { localStorage.setItem("update_dismissed", bar.dataset.version || ""); } catch { /* ignore */ }
+    bar.classList.add("hidden");
+  });
+  updateCheck();
   // triggers
   $("trigAdd").addEventListener("click", addTrigger);
   $("trigSave").addEventListener("click", saveTriggers);

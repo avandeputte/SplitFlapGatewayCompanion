@@ -41,14 +41,19 @@ def _weather(get_weather):
 
 def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=None):
     dt = _local_now(settings)
-    if i18n is not None:                     # localized names, locale date order, 24h outside English
+    # Honor the app's Time format toggle on the FLAP view too (the canvas path already did).
+    # It used to derive 12h/24h from the LANGUAGE alone and ignore this setting entirely.
+    fmt = str(settings.get('clock_format', '24h') or '24h').lower()
+    if fmt not in ('12h', '24h'):
+        fmt = '24h'
+    if i18n is not None:                     # localized names, locale date order, `force` honors fmt
         weekday = i18n.weekday(dt)
         date_line = i18n.date(dt, short=True, year=True)
-        time_str = i18n.time(dt)
+        time_str = i18n.time(dt, force=fmt)
     else:
         weekday = dt.strftime("%A")
         date_line = dt.strftime("%b %d %Y")
-        time_str = dt.strftime("%I:%M %p").lstrip("0")
+        time_str = dt.strftime("%H:%M") if fmt == '24h' else dt.strftime("%I:%M %p").lstrip("0")
     time_page = format_lines(weekday, date_line, time_str)
 
     # Weather comes from the companion's shared helper (global provider + key +
@@ -111,7 +116,8 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
         return [format_lines(*lines[:rows])]
 
     # Compact walls keep the two-page rotation.
-    now_t = i18n.time(dt, ampm_space=False) if i18n is not None else dt.strftime("%I:%M%p").lstrip("0")
+    now_t = (i18n.time(dt, ampm_space=False, force=fmt) if i18n is not None
+             else (dt.strftime("%H:%M") if fmt == '24h' else dt.strftime("%I:%M%p").lstrip("0")))
     mcl = max(1, c - 1 - len(now_t))
     l1 = f"{city[:mcl]} {now_t}".center(c)
     pfx = f"{temp}{u} ({feels}{u}) "

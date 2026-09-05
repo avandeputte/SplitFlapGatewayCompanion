@@ -281,3 +281,15 @@ def test_dashboard_flap_defaults_to_fahrenheit():
     body = " ".join(l for p in _dash_pages(6) for l in p)
     assert "72F" in body and "10mph" in body
     assert "H 91F" in body and "L 64F" in body
+
+
+def test_dashboard_flap_time_is_24h_by_default():
+    """The flap view used to pick 12h/24h from the LANGUAGE and ignore the Time format
+    toggle; the default is 24h, so no AM/PM."""
+    time_page = _dash_pages(3)[0]                     # [weekday, date, time_str]
+    assert not any("AM" in l or "PM" in l for l in time_page), time_page
+
+
+def test_dashboard_flap_time_honors_12h():
+    time_page = _dash_pages(3, clock_format="12h")[0]
+    assert any("AM" in l or "PM" in l for l in time_page), time_page

@@ -3,13 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
-## 2.10.14
+## 2.10.15
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
 when the next prerelease begins.
 
-- Dashboard honors the Temperature Unit on split-flap walls (the flap view had hard-coded °F/mph).
+- Dashboard honors the Temperature Unit and the Time format on split-flap walls (the flap view had
+  hard-coded °F/mph and language-based 12h/24h).
 - Weather wind now follows the temperature unit — labelled, mph on imperial / km/h on metric.
+- New "Check for updates" setting (⚙ Tools): checks GitHub for a newer release and shows a notice
+  with a release-notes link on every page.
 
 ## 2.10.13
 

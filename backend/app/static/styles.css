@@ -238,6 +238,15 @@ main { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
 .active-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px;
   background: rgba(124,92,255,.15); border: 1px solid var(--brand); border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; }
 
+/* "A new version is available" — full-width strip under the header, on every tab. */
+.update-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: rgba(124,92,255,.15); border-bottom: 1px solid var(--brand);
+  padding: 8px 16px; font-size: .85rem; }
+.update-banner .update-banner-link { color: var(--brand); font-weight: 600; text-decoration: underline; }
+.update-banner .update-banner-x { margin-left: auto; background: none; border: 0; cursor: pointer;
+  color: var(--dim); font-size: 1rem; line-height: 1; padding: 2px 6px; }
+.update-banner .update-banner-x:hover { color: var(--fg); }
+
 /* Fields, inputs, buttons */
 label, .field > span, .field.inline > span { display: block; color: var(--dim); font-size: .8rem; margin: 7px 0 2px; }
 .field { margin: 4px 0; }

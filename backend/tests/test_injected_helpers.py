@@ -72,6 +72,21 @@ def test_tz_helper_junk_and_blank_fall_back_to_utc():
         assert datetime.now(tz).utcoffset() == datetime.now(timezone.utc).utcoffset()
 
 
+def test_clock_force_overrides_the_locale_default():
+    """An app's Time-format toggle (`force`) beats the locale's usual 12h/24h convention,
+    while the French `h` separator survives so a forced 12h clock still fits a colon-less reel."""
+    from datetime import datetime
+
+    from app import i18n
+    dt = datetime(2026, 9, 5, 14, 30)                # 2:30 PM
+    assert i18n.Localizer("en-US").time(dt) == "2:30 PM"          # English default: 12h
+    assert i18n.Localizer("en-US").time(dt, force="24h") == "14:30"
+    assert i18n.Localizer("de").time(dt) == "14:30"              # elsewhere default: 24h
+    assert i18n.Localizer("de").time(dt, force="12h") == "2:30 PM"
+    assert i18n.Localizer("fr").time(dt, force="12h") == "2h30 PM"   # fr keeps its `h` separator
+    assert i18n.Localizer("en-US").time(dt, force="bogus") == "2:30 PM"  # junk -> locale default
+
+
 # -- trigger helper injection -------------------------------------------------
 
 TRIGGER_APP = '''

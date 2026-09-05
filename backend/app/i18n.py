@@ -250,7 +250,7 @@ def holiday(name, lang):
     return _localized(_HOLIDAYS, str(name).strip().lower(), lang, None)
 
 
-def clock(dt, lang, seconds=False, ampm_space=True):
+def clock(dt, lang, seconds=False, ampm_space=True, force=None):
     """Locale-appropriate wall-clock time: ``3:48 PM`` in English, ``15:48`` elsewhere.
 
     FRENCH SEPARATES ITS HOURS WITH AN ``h`` — ``15h48`` — and here that is not a matter of
@@ -261,7 +261,11 @@ def clock(dt, lang, seconds=False, ampm_space=True):
     anyway, and it is on the reel.
     """
     hsep = "h" if base_lang(lang) == "fr" else ":"
-    if uses_24h(lang):
+    # ``force`` ('12h'/'24h') lets an app's own Time-format toggle beat the locale convention;
+    # None keeps the locale default (AM/PM in English, 24h elsewhere). The French `h` separator
+    # is preserved either way, so a forced 12h clock still reaches a French reel without a colon.
+    use24 = force == "24h" if force in ("12h", "24h") else uses_24h(lang)
+    if use24:
         body = dt.strftime(f"%H{hsep}%M")
         return f"{body}{hsep}{dt.strftime('%S')}" if seconds else body
     body = dt.strftime(f"%I{hsep}%M{hsep}%S" if seconds else f"%I{hsep}%M").lstrip("0")
@@ -307,8 +311,8 @@ class Localizer:
     def date(self, dt, short=False, year=False):
         return date(dt, self.lang, short, year)
 
-    def time(self, dt, seconds=False, ampm_space=True):
-        return clock(dt, self.lang, seconds, ampm_space)
+    def time(self, dt, seconds=False, ampm_space=True, force=None):
+        return clock(dt, self.lang, seconds, ampm_space, force)
 
     def unit(self, key):
         return duration_unit(key, self.lang)

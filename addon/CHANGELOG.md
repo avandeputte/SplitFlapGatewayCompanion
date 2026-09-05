@@ -3,13 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
-## 2.10.14
+## 2.10.15
 
-- **Dashboard now honors the Temperature Unit on split-flap walls.** The flap view hard-coded
-  °F (and mph) and ignored the setting; it now shows °C/°F/K and converts wind to match, exactly
-  as the Matrix/LCD view already did.
+- **Dashboard now honors the Temperature Unit AND the Time format on split-flap walls.** The flap
+  view hard-coded °F/mph and derived 12h/24h from the language, ignoring both settings; it now
+  converts temperature (°C/°F/K) and wind to match, and shows 12h/24h per the toggle — exactly as
+  the Matrix/LCD view already did.
 - **Weather: wind follows the temperature unit.** The drawn scene showed a bare, unlabeled mph
   value; it now reads e.g. "Wind 16kph" on metric and "Wind 10mph" on imperial.
+- **New "Check for updates" setting (⚙ Tools).** When on, the companion checks GitHub for a newer
+  release and shows a notice — with a link to the release notes — on every page.
 
 ## 2.10.13
 

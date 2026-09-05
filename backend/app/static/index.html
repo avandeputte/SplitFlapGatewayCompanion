@@ -29,6 +29,17 @@
     </div>
   </header>
 
+  <!-- "A new version is available" notice, shown on every page when the companion-wide
+       Check-for-updates setting is on (⚙ Tools) and GitHub reports a newer release. Hidden
+       otherwise, and dismissible per-version (see updateCheck() in app.js). -->
+  <div class="update-banner hidden" id="updateBanner" role="status">
+    <span id="updateBannerText"></span>
+    <a class="update-banner-link" id="updateBannerLink" href="#" target="_blank" rel="noopener"
+       data-i18n="Release notes">Release notes</a>
+    <button class="update-banner-x" id="updateBannerDismiss" aria-label="Dismiss"
+            title="Dismiss" data-i18n-title="Dismiss">✕</button>
+  </div>
+
   <!-- The gateway's tabs are appended here at runtime, from the list it advertises
        when we register (Gateway 3.4+), or from GW_TABS_FALLBACK in app.js when it
        advertises nothing. See backend/app/tabs.py. -->

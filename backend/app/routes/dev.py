@@ -12,7 +12,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
-from .. import debuglog
+from .. import debuglog, update_check
 from ..gateway import (fetch_gateway_config, fetch_gateway_settings,
                        push_gateway_settings, supports_settings)
 
@@ -24,6 +24,10 @@ class DevSim(BaseModel):
 
 
 class DevDebugLog(BaseModel):
+    on: bool
+
+
+class UpdateCheck(BaseModel):
     on: bool
 
 
@@ -202,6 +206,32 @@ def build(deps) -> APIRouter:
         """Empty the log without turning it off — start a clean capture for the next repro."""
         await asyncio.to_thread(debuglog.clear)
         return debuglog.status()
+
+    # -- "check for new version" (update_check.py) --------------------------
+    # Companion-wide: the switch and the banner it feeds are one per companion, so both read
+    # and write the DEFAULT display's settings store (like the Vestaboard/MCP switches read the
+    # default config). The banner GET is what every SPA page calls on load.
+    @router.get("/api/update-check")
+    async def update_check_get():
+        """{enabled:false} unless the setting is on; otherwise the cached GitHub result, for
+        the on-every-page 'a new version is available' banner."""
+        s = deps.displays.default.plugins.settings
+        if not bool(s.get("check_for_updates", False)):
+            return {"enabled": False}
+        st = await asyncio.to_thread(update_check.status)
+        return {"enabled": True, **st}
+
+    @router.post("/api/update-check")
+    async def update_check_set(req: UpdateCheck):
+        """The ⚙ Tools toggle. Persists the companion-wide preference; warms the cache when
+        turned on so the menu (and banner) can show the result immediately."""
+        s = deps.displays.default.plugins.settings
+        s.set("check_for_updates", bool(req.on))
+        log.info("check-for-updates %s (dev menu)", "enabled" if req.on else "disabled")
+        if not req.on:
+            return {"enabled": False}
+        st = await asyncio.to_thread(update_check.status, True)
+        return {"enabled": True, **st}
 
     @router.post("/api/dev/resync")
     async def dev_resync(request: Request):
