@@ -13,7 +13,20 @@ import pytest
 
 from app import renderer
 from conftest import Resp as _Resp
+from conftest import load_app
 from conftest import make_runtime
+
+
+def test_wind_is_converted_and_labelled_to_match_the_unit():
+    """The drawn scene used to print a bare, unconverted mph number ("Wind 10"), which read
+    as km/h to anyone on °C. Wind must follow the temperature unit and carry a label."""
+    w = load_app("weather")
+    assert w._format_wind(10, "f") == "10mph"
+    assert w._format_wind(10, "c") == "16kph"    # 10 mph -> 16 km/h on metric
+    assert w._format_wind(10, "k") == "16kph"
+    assert w._format_wind(None, "c") == ""       # no reading -> nothing, not "Wind 0"
+    # temperature already honoured the unit; pin that the two now agree.
+    assert w._format_temp(72, "f") == "72F" and w._format_temp(72, "c") == "22C"
 
 
 def _pages(rows, cols, provider="openmeteo", **settings):

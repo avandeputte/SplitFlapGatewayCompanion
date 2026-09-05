@@ -244,3 +244,40 @@ def test_five_day_forecast_fills_a_five_row_page():
     full = [p for p in fc if len(p) == 5]
     assert full, [len(p) for p in fc]
     assert not any("Forecast" in l for l in full[0])
+
+
+# --- dashboard: the FLAP view must honor the Temperature Unit setting ---------
+# The helper always returns Fahrenheit/mph; the flap path used to hard-code "F"/"mph" and
+# ignore temperature_unit, so a wall configured for °C still showed °F.
+_DASH_WX = {
+    "ok": True, "provider": "openweather", "city": "Boston",
+    "temp_f": 72, "feels_like_f": 75, "hi_f": 91, "lo_f": 64,
+    "humidity": 66, "wind_mph": 10, "desc": "Sunny", "sky": "clear",
+}
+
+
+def _dash_pages(rows, cols=22, **settings):
+    d = _mod("dashboard")
+    return d.fetch(settings, lambda *l, **k: list(l), lambda: rows, lambda: cols,
+                   get_weather=lambda days=0, air=False: _DASH_WX)
+
+
+def test_dashboard_tall_flap_converts_to_celsius():
+    body = " ".join(l for p in _dash_pages(6, temperature_unit="c") for l in p)
+    assert "72F" not in body, "still emitting a raw Fahrenheit value"
+    assert "22C" in body                        # 72F -> 22C
+    assert "24C" in body                        # feels 75F -> 24C
+    assert "33C" in body and "18C" in body      # hi 91 -> 33, lo 64 -> 18
+    assert "16kph" in body                      # wind 10mph -> 16kph on metric
+
+
+def test_dashboard_compact_flap_converts_to_celsius():
+    body = " ".join(l for p in _dash_pages(3, temperature_unit="c") for l in p)
+    assert "72F" not in body and "22C" in body
+    assert "H:33C L:18C" in body
+
+
+def test_dashboard_flap_defaults_to_fahrenheit():
+    body = " ".join(l for p in _dash_pages(6) for l in p)
+    assert "72F" in body and "10mph" in body
+    assert "H 91F" in body and "L 64F" in body

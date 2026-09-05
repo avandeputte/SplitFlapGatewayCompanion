@@ -55,6 +55,22 @@ def _format_temp(value, temp_unit):
     return f"{int(round(converted))}{temp_unit.upper()}"
 
 
+def _format_wind(value, temp_unit):
+    """Wind speed (native mph) in the unit that matches the chosen temperature — mph on
+    Fahrenheit, km/h on Celsius/Kelvin — and LABELLED. It used to print a bare, unconverted
+    mph number ("Wind 10"), which read as km/h to anyone who had picked °C. Returns e.g.
+    '10mph' / '16kph', or '' when there is no reading."""
+    if value is None:
+        return ''
+    try:
+        mph = float(value)
+    except (TypeError, ValueError):
+        return ''
+    if temp_unit in ('c', 'k'):
+        return f"{int(round(mph * 1.60934))}kph"
+    return f"{int(round(mph))}mph"
+
+
 # The condition spelled OUT for a wide Matrix wall, where there is room for the whole
 # phrase instead of the narrow wall's 6-char word + '-'/'!' intensity mark. The eight
 # single-word forms are the same keys _SKY uses, so they are already translated; the six
@@ -888,8 +904,9 @@ def _cv_weather_gtext(canvas, wx, unit, show_city, night, sky, frame):
     extra = []
     if wx.get('humidity') is not None:
         extra.append(f'Hum {int(wx["humidity"])}%')
-    if wx.get('wind_mph') is not None:
-        extra.append(f'Wind {int(wx["wind_mph"])}')
+    _w = _format_wind(wx.get('wind_mph'), unit)
+    if _w:
+        extra.append(f'Wind {_w}')
     if extra:
         canvas.gtext(pad, y, '   '.join(extra), color=(198, 208, 228), size=info_size,
                      outline=(0, 0, 0))
@@ -1091,8 +1108,9 @@ def fetch_canvas(settings, canvas, get_weather=None):
         extra = []
         if wx.get('humidity') is not None:
             extra.append(f'Hum {int(wx["humidity"])}%')
-        if wx.get('wind_mph') is not None:
-            extra.append(f'Wind {int(wx["wind_mph"])}')
+        _w = _format_wind(wx.get('wind_mph'), unit)
+        if _w:
+            extra.append(f'Wind {_w}')
         if extra:
             _outline(draw, pad, y, '   '.join(extra), info_f, (198, 208, 228))
 
@@ -1161,8 +1179,9 @@ def fetch_canvas(settings, canvas, get_weather=None):
         extra = []
         if wx.get('humidity') is not None:
             extra.append(f'Hum {int(wx["humidity"])}%')
-        if wx.get('wind_mph') is not None:
-            extra.append(f'Wind {int(wx["wind_mph"])}')
+        _w = _format_wind(wx.get('wind_mph'), unit)
+        if _w:
+            extra.append(f'Wind {_w}')
         if extra:
             _outline(draw, dx, dyy, '  '.join(extra), info_f, (198, 208, 228))
 

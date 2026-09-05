@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.14
+
+- **Dashboard now honors the Temperature Unit on split-flap walls.** The flap view hard-coded
+  °F (and mph) and ignored the setting; it now shows °C/°F/K and converts wind to match, exactly
+  as the Matrix/LCD view already did.
+- **Weather: wind follows the temperature unit.** The drawn scene showed a bare, unlabeled mph
+  value; it now reads e.g. "Wind 16kph" on metric and "Wind 10mph" on imperial.
+
 ## 2.10.13
 
 - **Overlay ticker auto-dismiss timer.** A duration field on the Compose overlay card, and a

@@ -61,14 +61,23 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
         return [time_page, format_lines("No weather", "data", "Try later")]
 
     city = str(w.get('city') or 'Location')
-    temp = w.get('temp_f')
-    feels = w.get('feels_like_f')
+    # Honor the app's Temperature Unit (default F) on the FLAP view too. The shared weather
+    # helper always returns Fahrenheit/mph, so convert here with the same helpers the
+    # Matrix/LCD view uses (_cv_num/_cv_wind) — the flap path used to hard-code "F"/"mph" and
+    # ignored the setting entirely.
+    unit = str(settings.get('temperature_unit', 'f') or 'f').lower()
+    if unit not in ('f', 'c', 'k'):
+        unit = 'f'
+    u = unit.upper()                         # a one-letter suffix a reel can show: F / C / K
+    temp = _cv_num(w.get('temp_f'), unit)
+    feels = _cv_num(w.get('feels_like_f'), unit)
     desc = str(w.get('desc') or '')
     if i18n is not None:                     # translate shared-helper condition text where we can
         desc = i18n.t(desc, "weather")
-    high = w.get('hi_f')
-    low = w.get('lo_f')
-    hum, wind = w.get('humidity'), w.get('wind_mph')
+    high = _cv_num(w.get('hi_f'), unit)
+    low = _cv_num(w.get('lo_f'), unit)
+    hum = w.get('humidity')
+    wind_v, wind_u = _cv_wind(w.get('wind_mph'), unit)
 
     def row(left, right):
         """One full-width line: `left` flush left, `right` flush right — so a wide
@@ -82,21 +91,21 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
 
     # A TALL wall gets one dense page that uses every row and the full width.
     if rows >= 5:
-        temp_s = f"{temp}F" if temp is not None else ""
+        temp_s = f"{temp}{u}" if temp is not None else ""
         lines = [row(weekday, date_line), time_str,
                  row(city[:max(1, c - len(temp_s) - 1)], temp_s), desc]
-        hl = row(f"H {high}F" if high is not None else "",
-                 f"L {low}F" if low is not None else "")
+        hl = row(f"H {high}{u}" if high is not None else "",
+                 f"L {low}{u}" if low is not None else "")
         if hl.strip():
             lines.append(hl)
         if rows >= 6:
             det = []
             if feels is not None:
-                det.append(f"Feels {feels}F")
+                det.append(f"Feels {feels}{u}")
             if hum is not None:
                 det.append(f"{int(hum)}% hum")
-            if wind is not None:
-                det.append(f"{int(wind)}mph")
+            if wind_v is not None:
+                det.append(f"{wind_v}{wind_u}")
             if det:
                 lines.append("  ".join(det))
         return [format_lines(*lines[:rows])]
@@ -105,15 +114,15 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
     now_t = i18n.time(dt, ampm_space=False) if i18n is not None else dt.strftime("%I:%M%p").lstrip("0")
     mcl = max(1, c - 1 - len(now_t))
     l1 = f"{city[:mcl]} {now_t}".center(c)
-    pfx = f"{temp}F ({feels}F) "
+    pfx = f"{temp}{u} ({feels}{u}) "
     l2 = (pfx + desc[:max(0, c - len(pfx))]).center(c)
-    l3 = f"H:{high}F L:{low}F".center(c)
+    l3 = f"H:{high}{u} L:{low}{u}".center(c)
     if rows >= 4:
         bits = []
         if hum is not None:
             bits.append(f"{int(hum)}% hum")
-        if wind is not None:
-            bits.append(f"{int(wind)}mph")
+        if wind_v is not None:
+            bits.append(f"{wind_v}{wind_u}")
         l4 = "  ".join(bits).center(c) if bits else ""
         return [time_page, format_lines(l1, l2, l3, l4)]
     return [time_page, format_lines(l1, l2, l3)]
