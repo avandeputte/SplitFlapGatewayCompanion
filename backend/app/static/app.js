@@ -1493,6 +1493,146 @@ let SAVED_PL = {};
 // made a second playlist instead of updating the one you meant.
 let PL_NAME = "";
 
+// A one-line, tiles-and-all preview of a composed message for the playlist row.
+function _msgPreview(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+// Rich editor for a playlist "compose" entry — the SAME interface as the Compose tab (the
+// display's geometry as a clickable grid, color swatches, Center, transition style + speed),
+// hosted in a modal. It keeps its own local state and reuses only the shared board primitive
+// (buildBoard), so the Compose tab — a proven singleton — is left untouched. On Save it writes
+// the entry's `text` (flat, one unit per cell, exactly what the engine renders), `style` and
+// `speed`, which the backend already honors for playlist compose entries.
+function openMessageEditor(entry, onDone) {
+  const grid = GRID;
+  const n = grid.module_count, cols = grid.cols, rows = grid.rows;
+  const emoji2code = grid.color_map || {};
+  const isTile = (v) => Object.prototype.hasOwnProperty.call(emoji2code, v);
+  const upper = (ch) => (RICH ? ch : (ch.toUpperCase().length === 1 ? ch.toUpperCase() : ch));
+  const cells = Array(n).fill("");
+  let at = 0;
+  // Prefill from the stored message: it's a flat string of one unit per cell (space | char |
+  // color tile), so codepoint iteration maps 1:1 back onto the grid. Pad/truncate to this
+  // display's geometry (a message composed for another wall still opens sensibly).
+  const units = [...String(entry.text || "")];
+  for (let i = 0; i < n && i < units.length; i++) cells[i] = units[i] === " " ? "" : units[i];
+
+  const wrap = el("div", "msg-editor");     // a tighter, modal-sized take on the Compose grid
+  const hint = el("p", "hint");
+  hint.textContent = t("click a cell to type · arrows to move · a swatch paints the cell");
+  wrap.appendChild(hint);
+  const catcher = el("input", "cmp-catcher"); catcher.type = "text";
+  catcher.autocomplete = "off"; catcher.setAttribute("autocorrect", "off");
+  catcher.setAttribute("autocapitalize", "off"); catcher.spellcheck = false; catcher.tabIndex = -1;
+  wrap.appendChild(catcher);
+  const board = el("div", "board compose-board"); board.tabIndex = 0;
+  wrap.appendChild(board);
+  buildBoard(board, n, cols);
+
+  const render = () => {
+    cells.forEach((v, i) => {
+      const cell = board.children[i]; if (!cell) return;
+      if (isTile(v)) { cell.className = `flap color-${emoji2code[v]}`; cell.textContent = ""; }
+      else { cell.className = "flap"; cell.textContent = v ? upper(v) : ""; }
+      cell.classList.add("cmp-cell");
+      if (i === at) cell.classList.add("cmp-at");
+    });
+  };
+  const focus = (i) => { at = ((i % n) + n) % n; render(); };
+  const setv = (v, advance = true) => { cells[at] = v; advance ? focus(at + 1) : render(); };
+  catcher.addEventListener("keydown", (e) => {
+    const k = e.key;
+    if (k === "ArrowRight") focus(at + 1);
+    else if (k === "ArrowLeft") focus(at - 1);
+    else if (k === "ArrowDown") focus(at + cols);
+    else if (k === "ArrowUp") focus(at - cols);
+    else if (k === "Home") focus(at - (at % cols));
+    else if (k === "End") focus(at - (at % cols) + cols - 1);
+    else if (k === "Enter") focus(at - (at % cols) + cols);
+    else if (k === "Backspace") { focus(at - 1); cells[at] = ""; render(); }
+    else if (k === "Delete") setv("", false);
+    else return;
+    e.preventDefault();
+  });
+  catcher.addEventListener("input", () => {
+    for (const ch of catcher.value) setv(ch === " " ? "" : ch);
+    catcher.value = "";
+  });
+  [...board.children].forEach((cell, i) =>
+    cell.addEventListener("click", () => { catcher.focus(); focus(i); }));
+
+  // Center toggle rides the single controls row below (with style + speed) — one row instead of
+  // Compose's two, to keep the modal compact.
+  const centerLbl = el("label", "field inline"); centerLbl.style.margin = "0";
+  const center = el("input"); center.type = "checkbox"; center.style.width = "auto"; center.checked = !!entry.center;
+  const cspan = el("span"); cspan.style.minWidth = "0"; cspan.textContent = t("Center");
+  centerLbl.append(center, cspan);
+
+  const sw = el("div", "swatches");
+  Object.keys(emoji2code).forEach((emoji) => {
+    const code = emoji2code[emoji];
+    const b = el("button", "swatch");
+    const blank = code.trim() === "";
+    b.classList.add(blank ? "swatch-blank" : `color-${code}`);
+    b.title = blank ? t("Blank") : t("Color %s", code);
+    b.addEventListener("click", () => { catcher.focus(); setv(blank ? "" : emoji); });
+    sw.appendChild(b);
+  });
+  wrap.appendChild(sw);
+
+  const ctlB = el("div", "controls compose-controls");
+  const styLbl = el("label", "field inline"); styLbl.style.margin = "0";
+  const styIco = el("span"); styIco.style.minWidth = "0"; styIco.textContent = "↔"; styLbl.appendChild(styIco);
+  const style = el("select");
+  const d0 = el("option"); d0.value = ""; d0.textContent = t("Default (global)"); style.appendChild(d0);
+  (grid.styles || []).forEach((s) => { const o = el("option"); o.value = s; o.textContent = s; style.appendChild(o); });
+  style.value = entry.style || "";
+  const spLbl = el("label", "field inline"); spLbl.style.margin = "0";
+  const spIco = el("span"); spIco.style.minWidth = "0"; spIco.textContent = "⚡"; spLbl.appendChild(spIco);
+  const speed = el("input"); speed.type = "number"; speed.min = 0; speed.max = 200; speed.step = 1; speed.className = "cmp-speed";
+  const disp = grid.display || {};
+  speed.value = (entry.speed != null) ? entry.speed : (disp.transition_speed ?? 15);
+  style.onchange = () => { speed.value = style.value === "slot" ? (disp.slot_speed ?? 80) : (disp.transition_speed ?? 15); };
+  const ms = el("span", "hint"); ms.textContent = "ms";
+  ctlB.append(centerLbl, styLbl, style, spLbl, speed, ms);
+  wrap.appendChild(ctlB);
+
+  const flatten = () => {
+    const out = [];
+    for (let r = 0; r < rows; r++) {
+      let row = cells.slice(r * cols, (r + 1) * cols).map((v) => v || " ");
+      if (center.checked) {
+        let a = 0, b = row.length;
+        while (a < b && row[a] === " ") a++;
+        while (b > a && row[b - 1] === " ") b--;
+        const inner = row.slice(a, b);
+        if (inner.length) {
+          const pad = Math.floor((cols - inner.length) / 2);
+          row = Array(pad).fill(" ").concat(inner, Array(cols - pad - inner.length).fill(" "));
+        }
+      }
+      out.push(row.join(""));
+    }
+    return out.join("");
+  };
+
+  render();
+  const save = el("button", "btn primary"); save.textContent = t("Save");
+  save.addEventListener("click", () => {
+    entry.text = flatten();
+    entry.style = style.value || "";
+    const sp = parseInt(speed.value, 10);
+    entry.speed = Number.isFinite(sp) ? sp : null;
+    entry.center = center.checked;
+    closeModal();
+    (onDone || plRender)();
+  });
+  const cancel = el("button", "btn"); cancel.textContent = t("Cancel"); cancel.addEventListener("click", closeModal);
+  openModal(t("Message"), wrap, [cancel, save]);
+  setTimeout(() => catcher.focus(), 50);
+}
+
 function plRender() {
   const box = $("plEntries"); box.innerHTML = "";
   if (!PL_ENTRIES.length) box.innerHTML = `<span class="hint">${t("Add an app or message.")}</span>`;
@@ -1546,8 +1686,13 @@ function plRender() {
       sel.onchange = () => (e.layout = sel.value);
       row.appendChild(sel);
     } else {
-      const inp = el("input"); inp.className = "grow"; inp.placeholder = t("MESSAGE"); inp.value = e.text || "";
-      inp.oninput = () => (e.text = inp.value); row.appendChild(inp);
+      // A composed message: edit it in the SAME rich editor as the Compose tab (grid geometry,
+      // colors, transition style/speed) via a modal, rather than a bare text field.
+      const prev = btn(_msgPreview(e.text) || t("Edit message…"),
+                       () => openMessageEditor(e, plRender), "grow");
+      prev.classList.add("msg-preview");
+      prev.title = t("Edit message");
+      row.appendChild(prev);
     }
     const dur = el("input"); dur.type = "number"; dur.min = 1; dur.style.width = "70px"; dur.title = t("seconds");
     dur.value = e.duration || 30; dur.oninput = () => (e.duration = Number(dur.value)); row.appendChild(dur);
@@ -2509,7 +2654,10 @@ async function init() {
   $("cmpClear").addEventListener("click", cmpClear);
   // playlists
   $("plAddApp").addEventListener("click", () => { PL_ENTRIES.push({ type: "app", app: APPS[0]?.id || "", duration: 30 }); plRender(); });
-  $("plAddMsg").addEventListener("click", () => { PL_ENTRIES.push({ type: "compose", text: "", duration: 15 }); plRender(); });
+  $("plAddMsg").addEventListener("click", () => {
+    const e = { type: "compose", text: "", style: "", speed: null, duration: 15 };
+    PL_ENTRIES.push(e); plRender(); openMessageEditor(e, plRender);
+  });
   $("plAddZones").addEventListener("click", () => guard(async () => {
     if (!Object.keys(ZONE_LAYOUTS).length) await loadZones();
     const names = Object.keys(ZONE_LAYOUTS);

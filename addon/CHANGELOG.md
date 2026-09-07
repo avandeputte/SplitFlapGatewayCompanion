@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.18
+
+- **Rich message editor on the Playlists tab.** "+ Message" now opens the same grid-and-colors
+  editor as the Compose tab — the display's geometry as a clickable flap grid, color swatches,
+  Center, and transition style + speed — in a compact modal, instead of a plain text field. An
+  existing message shows a preview you click to edit; its colors and style/speed are saved with
+  the playlist.
+
 ## 2.10.17
 
 - **Per-screen dwell for apps with multiple predefined screens.** Set how long each screen holds,

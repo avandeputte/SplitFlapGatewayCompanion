@@ -294,6 +294,10 @@ a.btn { text-decoration: none; display: inline-block; }
 .row-card select, .row-card input { margin: 0; width: auto; }
 .row-card .grow { flex: 1; min-width: 120px; }
 .row-card .del { background: none; border: none; color: var(--hi); cursor: pointer; font-size: 16px; margin: 0; }
+/* A composed-message row: a clickable field-like preview that opens the rich editor. */
+.row-card .msg-preview { text-align: left; font-weight: normal; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; background: var(--card); border: 1px solid var(--acc);
+  padding: 8px 10px; border-radius: 6px; }
 .row-card .handle { color: var(--dim); cursor: grab; user-select: none; white-space: nowrap; }
 .row-card .handle:active { cursor: grabbing; }
 .row-card.dragging { opacity: 0.45; }
@@ -414,6 +418,19 @@ a.btn { text-decoration: none; display: inline-block; }
 
 .compose-controls { margin-top: 10px; }
 .cmp-speed { width: 84px; }
+
+/* The playlist message editor (modal): the same Compose grid, but tighter — smaller flaps and
+   swatches, one controls row, less vertical space than the full Compose screen. */
+.msg-editor .board { --gap: 3px;
+  --flap: clamp(9px,
+                calc((min(100vw - var(--board-chrome), 440px) - (var(--cols, 15) - 1) * var(--gap)) / var(--cols, 15)),
+                22px); }
+.msg-editor .hint { margin: 0 0 6px; font-size: .78rem; }
+.msg-editor .swatches { gap: 5px; margin-top: 8px; }
+.msg-editor .swatch { width: 24px; height: 24px; }
+.msg-editor .compose-controls { margin-top: 8px; row-gap: 6px; }
+.msg-editor .cmp-speed { width: 60px; }
+.msg-editor select { max-width: 150px; }
 .cmp-push { width: 100%; margin-top: 14px; padding: 14px; font-size: 1rem; font-weight: 700; }
 
 /* ---------------------------------------------------------------------------
