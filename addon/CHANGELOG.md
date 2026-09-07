@@ -3,7 +3,7 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
-## 2.10.18
+## 2.10.19
 
 - **Rich message editor on the Playlists tab.** "+ Message" now opens the same grid-and-colors
   editor as the Compose tab — the display's geometry as a clickable flap grid, color swatches,

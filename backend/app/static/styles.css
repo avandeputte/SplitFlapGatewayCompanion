@@ -295,9 +295,10 @@ a.btn { text-decoration: none; display: inline-block; }
 .row-card .grow { flex: 1; min-width: 120px; }
 .row-card .del { background: none; border: none; color: var(--hi); cursor: pointer; font-size: 16px; margin: 0; }
 /* A composed-message row: a clickable field-like preview that opens the rich editor. */
-.row-card .msg-preview { text-align: left; font-weight: normal; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap; background: var(--card); border: 1px solid var(--acc);
-  padding: 8px 10px; border-radius: 6px; }
+.row-card .msg-preview { text-align: left; font: inherit; font-weight: normal; color: var(--txt);
+  cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  background: var(--card); border: 1px solid var(--acc); padding: 8px 10px; border-radius: 6px; }
+.row-card .msg-preview:hover { border-color: var(--brand); }
 .row-card .handle { color: var(--dim); cursor: grab; user-select: none; white-space: nowrap; }
 .row-card .handle:active { cursor: grabbing; }
 .row-card.dragging { opacity: 0.45; }
