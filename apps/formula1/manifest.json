@@ -14,12 +14,22 @@
   "min_cols": 12,
   "settings": [
     {
-      "key": "loop_delay",
-      "label": "Delay Between Pages (seconds)",
+      "key": "secs_race",
+      "label": "Next race screen (seconds)",
       "type": "number",
       "default": "6",
       "min": "2",
-      "max": "30",
+      "max": "120",
+      "step": "1",
+      "stepper": true
+    },
+    {
+      "key": "secs_standings",
+      "label": "Standings screen (seconds)",
+      "type": "number",
+      "default": "6",
+      "min": "2",
+      "max": "120",
       "step": "1",
       "stepper": true
     }

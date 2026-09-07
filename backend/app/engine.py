@@ -1061,6 +1061,16 @@ class DisplayController:
             if not keep_going():
                 return
             text = page if isinstance(page, str) else str(page.get("text", ""))
+            # PER-PAGE dwell: an app with multiple predefined screens can say how long to hold
+            # each one by returning a page dict with its own ``seconds`` (e.g. the Dashboard's
+            # Time vs Weather screens). Absent/invalid falls back to the app's uniform loop_delay,
+            # so every existing app is unchanged. Clamped to a sane floor/ceiling.
+            dwell = float(t["loop_delay"])
+            if isinstance(page, dict) and page.get("seconds") is not None:
+                try:
+                    dwell = max(0.5, min(3600.0, float(page["seconds"])))
+                except (TypeError, ValueError):
+                    pass
             # Re-emit even an UNCHANGED page every _PAGE_HEARTBEAT_S: it gives the transport a send
             # to repaint through (its cell-diff drops to a whole page on the same clock), so a flap
             # that drifted while the page held is re-asserted instead of lingering until the text
@@ -1071,7 +1081,7 @@ class DisplayController:
                 await self._emit_page_from_loop(clean, style=t["style"], speed=t["speed"],
                                                 record_as=text)
                 self._last_page_emit = rt_loop.time()
-            await self._entry_sleep(max(0.0, float(t["loop_delay"])))
+            await self._entry_sleep(max(0.0, dwell))
 
     async def _emit_page_from_loop(self, clean: str, *, style: str, speed: int,
                                    record_as: str | None = None) -> bool:

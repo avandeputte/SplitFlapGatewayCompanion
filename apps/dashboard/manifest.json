@@ -61,12 +61,22 @@
       "global_key": true
     },
     {
-      "key": "loop_delay",
-      "label": "Delay Between Pages (seconds)",
+      "key": "secs_time",
+      "label": "Time screen (seconds)",
       "type": "number",
       "default": "5",
       "min": "2",
-      "max": "30",
+      "max": "120",
+      "step": "1",
+      "stepper": true
+    },
+    {
+      "key": "secs_weather",
+      "label": "Weather screen (seconds)",
+      "type": "number",
+      "default": "5",
+      "min": "2",
+      "max": "120",
       "step": "1",
       "stepper": true
     }

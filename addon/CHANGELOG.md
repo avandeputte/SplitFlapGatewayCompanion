@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.17
+
+- **Per-screen dwell for apps with multiple predefined screens.** Set how long each screen holds,
+  independently. **Dashboard** (Time / Weather), **Formula 1** (Next race / Standings) and
+  **Trivia** (Question / Answer) now have per-screen "seconds" settings — e.g. let a trivia
+  question linger so people can guess, then time the reveal. Each defaults to the app's old
+  Delay-Between-Pages value, so nothing changes until you customize.
+
 ## 2.10.16
 
 - **Dashboard now honors the Temperature Unit AND the Time format on split-flap walls.** The flap

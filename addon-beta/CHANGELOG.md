@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.17
+
+Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
+when the next prerelease begins.
+
+- Per-screen dwell for apps with multiple predefined screens: Dashboard (Time / Weather),
+  Formula 1 (Next race / Standings) and Trivia (Question / Answer) get per-screen "seconds"
+  settings, each defaulting to the app's old Delay-Between-Pages value.
+
 ## 2.10.16
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again

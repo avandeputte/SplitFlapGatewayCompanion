@@ -56,14 +56,29 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
         time_str = dt.strftime("%H:%M") if fmt == '24h' else dt.strftime("%I:%M %p").lstrip("0")
     time_page = format_lines(weekday, date_line, time_str)
 
+    # Per-screen dwell: how long each predefined screen holds on a flap wall that PAGINATES
+    # (compact walls show a Time page then a Weather page). Each page carries its own `seconds`;
+    # the engine honors it and, absent it, falls back to the app's loop_delay. (A tall wall shows
+    # one combined card — a single screen — so the Time value simply paces that.)
+    def _sec(key):
+        try:
+            return max(2, min(120, int(float(settings.get(key, 5) or 5))))
+        except (TypeError, ValueError):
+            return 5
+    secs_time, secs_weather = _sec('secs_time'), _sec('secs_weather')
+    def _time_screen(pg):
+        return {"text": pg, "seconds": secs_time}
+    def _wx_screen(pg):
+        return {"text": pg, "seconds": secs_weather}
+
     # Weather comes from the companion's shared helper (global provider + key +
     # location). With no helper (e.g. a bare host), just show the time.
     if get_weather is None:
-        return [time_page]
+        return [_time_screen(time_page)]
     w = _weather(get_weather)
     rows, c = get_rows(), get_cols()
     if not w:
-        return [time_page, format_lines("No weather", "data", "Try later")]
+        return [_time_screen(time_page), _wx_screen(format_lines("No weather", "data", "Try later"))]
 
     city = str(w.get('city') or 'Location')
     # Honor the app's Temperature Unit (default F) on the FLAP view too. The shared weather
@@ -113,7 +128,7 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
                 det.append(f"{wind_v}{wind_u}")
             if det:
                 lines.append("  ".join(det))
-        return [format_lines(*lines[:rows])]
+        return [_time_screen(format_lines(*lines[:rows]))]
 
     # Compact walls keep the two-page rotation.
     now_t = (i18n.time(dt, ampm_space=False, force=fmt) if i18n is not None
@@ -130,8 +145,8 @@ def fetch(settings, format_lines, get_rows, get_cols, get_weather=None, i18n=Non
         if wind_v is not None:
             bits.append(f"{wind_v}{wind_u}")
         l4 = "  ".join(bits).center(c) if bits else ""
-        return [time_page, format_lines(l1, l2, l3, l4)]
-    return [time_page, format_lines(l1, l2, l3)]
+        return [_time_screen(time_page), _wx_screen(format_lines(l1, l2, l3, l4))]
+    return [_time_screen(time_page), _wx_screen(format_lines(l1, l2, l3))]
 
 
 # =============================================================================

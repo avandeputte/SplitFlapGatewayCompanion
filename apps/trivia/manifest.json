@@ -12,12 +12,22 @@
   "loop_delay": 10,
   "settings": [
     {
-      "key": "loop_delay",
-      "label": "Delay Between Pages (seconds)",
+      "key": "secs_question",
+      "label": "Question screen (seconds)",
       "type": "number",
       "default": "10",
       "min": "2",
-      "max": "30",
+      "max": "120",
+      "step": "1",
+      "stepper": true
+    },
+    {
+      "key": "secs_answer",
+      "label": "Answer screen (seconds)",
+      "type": "number",
+      "default": "10",
+      "min": "2",
+      "max": "120",
       "step": "1",
       "stepper": true
     }

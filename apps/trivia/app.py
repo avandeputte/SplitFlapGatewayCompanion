@@ -64,6 +64,17 @@ def fetch(settings, format_lines, get_rows, get_cols):
 
     question, answer = _fetch_qa()
 
+    # Per-screen dwell: let the QUESTION linger so people can guess, then time the ANSWER
+    # reveal separately. Each page carries its own `seconds`; the engine honors it (a long
+    # question/answer that wraps onto >1 page holds its role's duration on each). Absent, it
+    # falls back to loop_delay.
+    def _sec(key):
+        try:
+            return max(2, min(120, int(float(settings.get(key, 10) or 10))))
+        except (TypeError, ValueError):
+            return 10
+    secs_q, secs_a = _sec('secs_question'), _sec('secs_answer')
+
     # No character filtering: the renderer degrades wall-aware at the last moment
     # (accents survive on reels that carry them). Filtering to ASCII here was
     # punching holes in trivia about "Beyoncé" on walls that could have shown her.
@@ -71,13 +82,13 @@ def fetch(settings, format_lines, get_rows, get_cols):
     pages = []
     for i in range(0, len(q_lines), rows):
         chunk = q_lines[i:i + rows]
-        pages.append(format_lines(*chunk))
+        pages.append({"text": format_lines(*chunk), "seconds": secs_q})
 
     a_lines = split_text(answer, cols)
     a_lines = ['Answer:'] + a_lines
     for i in range(0, len(a_lines), rows):
         chunk = a_lines[i:i + rows]
-        pages.append(format_lines(*chunk))
+        pages.append({"text": format_lines(*chunk), "seconds": secs_a})
 
     return pages or [format_lines('Trivia', 'No data', '')]
 

@@ -255,6 +255,31 @@ def test_overlay_ticker_on_canvas_composites_without_taking_over(tmp_path, monke
 # ---------------------------------------------------------------------------
 # the loops still resume normally
 # ---------------------------------------------------------------------------
+def test_per_page_seconds_set_the_dwell_else_loop_delay(tmp_path):
+    """An app with predefined screens can hold each a different length by returning page dicts
+    with their own `seconds`; a page without one falls back to the app's loop_delay."""
+    async def go():
+        c = _controller(tmp_path, FakeGateway())
+        c.plugins.get_pages = lambda app_id, ov=None: [
+            {"text": "A", "seconds": 3}, {"text": "B", "seconds": 12}, "C"]
+        c.plugins.page_timing = lambda app_id, ov=None: {
+            "is_anim": False, "style": "ltr", "speed": 0, "loop_delay": 7}
+        slept = []
+
+        async def fake_sleep(d):
+            slept.append(d)
+
+        async def fake_emit(*a, **k):
+            return True
+
+        c._entry_sleep = fake_sleep            # capture dwell instead of waiting
+        c._emit_page_from_loop = fake_emit     # isolate the dwell logic from the transport
+        c._normalize = lambda text, frame=False: text
+        await c._play_app_pages("x", None, lambda: True)
+        assert slept == [3.0, 12.0, 7.0]       # per-page, per-page, then the loop_delay fallback
+    asyncio.run(go())
+
+
 def test_an_app_whose_page_changes_still_updates(tmp_path):
     """Suppression must only skip pages the wall REALLY shows — a changed page sends."""
     async def go():

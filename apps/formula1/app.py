@@ -49,6 +49,16 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     def u(k):                                 # localized D/H duration suffix
         return i18n.unit(k) if i18n is not None else k
 
+    # Per-screen dwell: the Next-race screen and the Standings screen can hold for different
+    # lengths. Each page carries its own `seconds`; the engine honors it (falls back to
+    # loop_delay when absent). See the dashboard for the pattern.
+    def _sec(key):
+        try:
+            return max(2, min(120, int(float(settings.get(key, 6) or 6))))
+        except (TypeError, ValueError):
+            return 6
+    secs_race, secs_standings = _sec('secs_race'), _sec('secs_standings')
+
     pages = []
     try:
         r = _next_race()
@@ -76,6 +86,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
     except Exception:
         return [format_lines('Formula 1', t('Offline'), '')]
 
+    race_end = len(pages)                      # pages so far are the race screen; standings follow
     try:
         ds = _driver_standings()
         if ds:
@@ -100,7 +111,10 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None):
                 pages.append(format_lines(t('Leader'), nm, f'{pts} {t("points")}'))
     except Exception:
         pass
-    return pages or [format_lines('Formula 1', t('No data'), '')]
+    if not pages:
+        return [format_lines('Formula 1', t('No data'), '')]
+    return [{"text": p, "seconds": secs_race if i < race_end else secs_standings}
+            for i, p in enumerate(pages)]
 
 
 # =============================================================================

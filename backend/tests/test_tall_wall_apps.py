@@ -256,10 +256,16 @@ _DASH_WX = {
 }
 
 
-def _dash_pages(rows, cols=22, **settings):
+def _dash_raw(rows, cols=22, **settings):
+    """The dashboard's flap pages verbatim — each is a {'text': [lines], 'seconds': N} screen."""
     d = _mod("dashboard")
     return d.fetch(settings, lambda *l, **k: list(l), lambda: rows, lambda: cols,
                    get_weather=lambda days=0, air=False: _DASH_WX)
+
+
+def _dash_pages(rows, cols=22, **settings):
+    """Just the line-lists, for content assertions (screens are dicts now — unwrap the text)."""
+    return [p["text"] if isinstance(p, dict) else p for p in _dash_raw(rows, cols, **settings)]
 
 
 def test_dashboard_tall_flap_converts_to_celsius():
@@ -293,3 +299,15 @@ def test_dashboard_flap_time_is_24h_by_default():
 def test_dashboard_flap_time_honors_12h():
     time_page = _dash_pages(3, clock_format="12h")[0]
     assert any("AM" in l or "PM" in l for l in time_page), time_page
+
+
+def test_dashboard_screens_carry_their_own_dwell():
+    """Each predefined screen holds for its configured duration (a compact wall paginates
+    Time then Weather); the engine reads the per-page `seconds`."""
+    pages = _dash_raw(3, secs_time="7", secs_weather="20")   # compact -> [time, weather]
+    assert [p["seconds"] for p in pages] == [7, 20]
+
+
+def test_dashboard_screen_dwell_defaults_preserve_old_behavior():
+    pages = _dash_raw(3)
+    assert [p["seconds"] for p in pages] == [5, 5]           # was the uniform 5s delay
