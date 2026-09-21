@@ -253,6 +253,59 @@ def test_overlay_ticker_on_canvas_composites_without_taking_over(tmp_path, monke
 
 
 # ---------------------------------------------------------------------------
+# a clock page re-ticks mid-hold on the minute boundary (refresh_align: minute)
+# ---------------------------------------------------------------------------
+def test_clock_page_reticks_at_the_minute_boundary_during_a_long_hold(tmp_path, monkeypatch):
+    """A Time screen held for a long dwell must still tick over: _hold_page wakes at each
+    wall-clock minute boundary, re-fetches, and re-emits the page with the new time."""
+    import app.engine as eng
+
+    async def go():
+        c = _controller(tmp_path, FakeGateway())
+        c.plugins.manifest = lambda a: {"refresh_align": "minute"}
+        fake = {"t": 100000 * 60 + 30.0}                       # 30s into a minute
+        monkeypatch.setattr(eng.time, "monotonic", lambda: fake["t"])
+        monkeypatch.setattr(eng.time, "time", lambda: fake["t"])
+        # get_pages renders the CURRENT (fake) minute, so the text changes each rollover.
+        c.plugins.get_pages = lambda app_id, ov=None: [f"TIME {int(fake['t'] // 60)}"]
+
+        async def fake_sleep(delay):                           # advance the clock, never really wait
+            fake["t"] += max(0.0, delay)
+        monkeypatch.setattr(c, "_entry_sleep", fake_sleep)
+
+        emits = []
+
+        async def spy_emit(clean, *, style, speed, record_as=None):
+            emits.append(record_as)
+            c._app_last_sent = record_as                       # mirror the real emit path
+            return True
+        monkeypatch.setattr(c, "_emit_page_from_loop", spy_emit)
+
+        c._app_last_sent = "TIME 100000"                       # what's on the wall now
+        t = {"is_anim": False, "style": "ltr", "speed": 0}
+        await c._hold_page("dashboard", None, 0, 200.0, t, lambda: True)   # ~3 rollovers
+        assert emits == ["TIME 100001", "TIME 100002", "TIME 100003"]
+    asyncio.run(go())
+
+
+def test_hold_page_without_refresh_align_just_sleeps(tmp_path, monkeypatch):
+    """A normal app holds its page for the whole dwell — one sleep, no re-emits."""
+    async def go():
+        c = _controller(tmp_path, FakeGateway())
+        c.plugins.manifest = lambda a: {}                      # not a clock app
+        naps = []
+        async def fake_sleep(delay):
+            naps.append(delay)
+        monkeypatch.setattr(c, "_entry_sleep", fake_sleep)
+        monkeypatch.setattr(c, "_emit_page_from_loop",
+                            lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not re-emit")))
+        await c._hold_page("news", None, 0, 30.0, {"is_anim": False, "style": "ltr", "speed": 0},
+                           lambda: True)
+        assert naps == [30.0]
+    asyncio.run(go())
+
+
+# ---------------------------------------------------------------------------
 # the loops still resume normally
 # ---------------------------------------------------------------------------
 def test_per_page_seconds_set_the_dwell_else_loop_delay(tmp_path):

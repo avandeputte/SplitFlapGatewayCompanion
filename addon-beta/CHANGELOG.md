@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.20
+
+Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
+when the next prerelease begins.
+
+- Clock apps (Dashboard, Art Clock, Word Clock) re-render on the wall-clock minute boundary and
+  keep ticking even during a long per-screen hold, so the displayed time is always current.
+
 ## 2.10.19
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again

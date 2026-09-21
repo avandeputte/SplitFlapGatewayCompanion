@@ -11,6 +11,7 @@
   ],
   "lcd_ops": true,
   "refresh_interval": 60,
+  "refresh_align": "minute",
   "loop_delay": 5,
   "settings": [
     {

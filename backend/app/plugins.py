@@ -981,7 +981,15 @@ class PluginRuntime:
                 now = time.time()
                 cached = self._caches.get(ckey)
                 if cached and (now - cached["fetched_at"]) < refresh:
-                    return cached["pages"]
+                    # A clock-style app (manifest `refresh_align: "minute"`) re-renders on the
+                    # wall-clock MINUTE boundary, not just when the TTL expires — otherwise the
+                    # displayed HH:MM drifts by up to `refresh` seconds behind the real minute.
+                    # Its loop_delay keeps get_pages polling, so invalidating here makes the clock
+                    # tick within one poll of the turnover.
+                    stale_minute = (manifest.get("refresh_align") == "minute"
+                                    and int(now // 60) != int(cached["fetched_at"] // 60))
+                    if not stale_minute:
+                        return cached["pages"]
                 try:
                     # A reload/global-save mid-fetch invalidates what this fetch is
                     # computing (it read the OLD settings). Capture the generation

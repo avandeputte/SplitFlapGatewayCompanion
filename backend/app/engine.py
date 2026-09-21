@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 from . import canvas, channel_art, device, gameinput, gateway, renderer
 from .plugins import app_id_from_ref
@@ -1057,7 +1058,7 @@ class DisplayController:
             await asyncio.sleep(1)
             return
         t = self.plugins.page_timing(app_id, ov)
-        for page in pages:
+        for idx, page in enumerate(pages):
             if not keep_going():
                 return
             text = page if isinstance(page, str) else str(page.get("text", ""))
@@ -1081,7 +1082,50 @@ class DisplayController:
                 await self._emit_page_from_loop(clean, style=t["style"], speed=t["speed"],
                                                 record_as=text)
                 self._last_page_emit = rt_loop.time()
-            await self._entry_sleep(max(0.0, dwell))
+            await self._hold_page(app_id, ov, idx, dwell, t, keep_going)
+
+    async def _hold_page(self, app_id: str, ov: dict | None, idx: int, dwell: float,
+                         t: dict, keep_going) -> None:
+        """Hold the current page for ``dwell`` seconds. For a clock app (manifest
+        ``refresh_align: "minute"``), wake at each wall-clock minute boundary within that dwell,
+        re-render, and re-emit THIS page — so a Time screen held for a long dwell still ticks over
+        and the displayed time is always current. Every other app just sleeps the dwell.
+
+        Minute rollovers happen at Unix ``time() % 60 == 0`` in every timezone (offsets are whole
+        minutes), so that is the boundary to wake on. The re-emit rides the same unchanged-page
+        suppression as the main loop: the Time page's text changed, so it repaints; a neighbour
+        page (e.g. Weather) is identical on re-fetch and is skipped."""
+        rt_loop = asyncio.get_running_loop()
+        dwell = max(0.0, dwell)
+        _mf = getattr(self.plugins, "manifest", None)
+        manifest = _mf(app_id) if callable(_mf) else None
+        aligned = bool(manifest) and manifest.get("refresh_align") == "minute"
+        if not aligned or dwell <= 0.05:
+            await self._entry_sleep(dwell)
+            return
+        end = time.monotonic() + dwell
+        while keep_going():
+            remaining = end - time.monotonic()
+            if remaining <= 0.05:
+                return
+            to_minute = 60.0 - (time.time() % 60.0) + 0.05      # just past the next rollover
+            await self._entry_sleep(min(remaining, to_minute))
+            if not keep_going() or (end - time.monotonic()) <= 0.05:
+                return                                          # dwell ended, not a rollover
+            try:
+                pages = await rt_loop.run_in_executor(None, self.plugins.get_pages, app_id, ov)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                pages = None
+            if pages and idx < len(pages):
+                pg = pages[idx]
+                text = pg if isinstance(pg, str) else str(pg.get("text", ""))
+                if t["is_anim"] or text != self._app_last_sent:
+                    clean = self._normalize(text, frame=t["is_anim"])
+                    await self._emit_page_from_loop(clean, style=t["style"], speed=t["speed"],
+                                                    record_as=text)
+                    self._last_page_emit = rt_loop.time()
 
     async def _emit_page_from_loop(self, clean: str, *, style: str, speed: int,
                                    record_as: str | None = None) -> bool:

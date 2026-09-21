@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.20
+
+- **Clock apps stay in sync to the minute.** The Dashboard, Art Clock and Word Clock re-render
+  exactly when the wall-clock minute turns instead of drifting with their refresh interval — and
+  now even a screen held for a long per-screen dwell ticks over on the minute, so the time shown
+  is always current.
+
 ## 2.10.19
 
 - **Rich message editor on the Playlists tab.** "+ Message" now opens the same grid-and-colors

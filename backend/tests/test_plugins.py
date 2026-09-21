@@ -393,6 +393,37 @@ def test_grid_change_clears_page_caches(tmp_path):
     assert "date" not in rt._caches
 
 
+def test_refresh_align_minute_reticks_on_the_minute_boundary(tmp_path, monkeypatch):
+    """A clock app (manifest refresh_align: "minute") re-renders the instant the wall-clock
+    minute turns — even inside the refresh TTL — so HH:MM never drifts. Without the flag the
+    cached page is held for the whole TTL regardless of the minute."""
+    from app import plugins as plugins_mod
+    rt = _runtime(tmp_path, ["art-clock"])
+    clk = {"t": 0.0}
+    monkeypatch.setattr(plugins_mod.time, "time", lambda: clk["t"])
+
+    # With the flag: held within a minute, re-fetched when the minute turns (both within TTL).
+    clk["t"] = 100000 * 60 + 30.0                       # 30s into a minute
+    rt.get_pages("art-clock")
+    at0 = rt._caches["art-clock"]["fetched_at"]
+    clk["t"] += 20                                      # same minute -> cache held
+    rt.get_pages("art-clock")
+    assert rt._caches["art-clock"]["fetched_at"] == at0
+    clk["t"] = 100001 * 60 + 1.0                        # next minute, still < 60s TTL
+    rt.get_pages("art-clock")
+    assert rt._caches["art-clock"]["fetched_at"] != at0, "clock did not re-tick on the minute"
+
+    # Without the flag: the cache holds across the minute for the whole TTL.
+    rt._registry["art-clock"].pop("refresh_align", None)
+    rt._caches.pop("art-clock", None)
+    clk["t"] = 100005 * 60 + 30.0
+    rt.get_pages("art-clock")
+    base = rt._caches["art-clock"]["fetched_at"]
+    clk["t"] = 100006 * 60 + 1.0                        # next minute, within TTL
+    rt.get_pages("art-clock")
+    assert rt._caches["art-clock"]["fetched_at"] == base
+
+
 def test_i18n_localizes_labels_and_dates():
     from datetime import date
     from app import i18n
