@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.22
+
+Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
+when the next prerelease begins.
+
+- Default step pacing (`step_ms`) now comes from the gateway: it reports `stepMs` in its config and
+  the companion inherits it as the default every app send + Compose use. Replaces (and removes) the
+  companion-local control from 2.10.21; a gateway that doesn't report it keeps the 15 ms default.
+
 ## 2.10.21
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again

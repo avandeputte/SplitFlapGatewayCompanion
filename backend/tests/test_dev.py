@@ -2,39 +2,7 @@
 
 from fastapi.testclient import TestClient
 
-from conftest import APPS_DIR
 from app.config import Config
-
-
-def test_default_step_ms_setting_applies_and_clamps():
-    """The default cascade pacing (step_ms) every page send inherits: setting it lands in the
-    live config.display AND the durable settings store, and clamps to 0..200."""
-    from app import main
-    client = TestClient(main.app)
-    orig = int(main.config.display.get("transition_speed", 15))
-    try:
-        assert client.get("/api/dev/step-ms").json()["step_ms"] == orig
-        r = client.post("/api/dev/step-ms", json={"ms": 25}).json()
-        assert r["step_ms"] == 25
-        assert int(main.config.display["transition_speed"]) == 25          # apps inherit it now
-        assert int(main.plugins.settings.get("transition_speed")) == 25    # and it's persisted
-        assert client.get("/api/dev/step-ms").json()["step_ms"] == 25
-        assert client.get("/api/grid").json()["display"]["transition_speed"] == 25  # Compose reads this
-        assert client.post("/api/dev/step-ms", json={"ms": 999}).json()["step_ms"] == 200
-    finally:
-        main.plugins.settings.set("transition_speed", orig)
-        main.config.update({"display": {"transition_speed": orig}})
-
-
-def test_default_step_ms_survives_a_restart(tmp_path):
-    """config.update is in-memory; the durable value lives in the settings store and is
-    re-applied to config when the display is rebuilt (a restart)."""
-    from app.display import Display
-    d1 = Display.build(apps_dir=APPS_DIR, data_dir=tmp_path)
-    assert int(d1.config.display.get("transition_speed", 15)) == 15       # default
-    d1.plugins.settings.set("transition_speed", 25)                        # persist
-    d2 = Display.build(apps_dir=APPS_DIR, data_dir=tmp_path)               # "restart"
-    assert int(d2.config.display["transition_speed"]) == 25
 
 
 def test_dev_mode_reads_env(monkeypatch, tmp_path):

@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.22
+
+- **Default step pacing now comes from the gateway.** The Split-Flap Gateway reports its wall's
+  default cascade pacing (`stepMs`) in its config, and the companion inherits it as the `step_ms`
+  every app page send uses (and Compose defaults to) — set it once on the gateway (needs the
+  matching firmware update) and the companion follows. This replaces the companion-local "Default
+  step pacing" control added in 2.10.21, which is removed. A gateway that doesn't report it leaves
+  the companion's own default (15 ms) in place.
+
 ## 2.10.21
 
 - **Configurable default step pacing (`step_ms`).** A new per-display **Default step pacing (ms)**

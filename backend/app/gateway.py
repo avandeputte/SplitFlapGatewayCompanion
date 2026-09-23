@@ -470,11 +470,11 @@ def _as_int(v):
 def build_sync_patch(gw: dict) -> dict:
     """Map a gateway /api/config document to a companion config patch.
 
-    Only the grid geometry is synced — that is all the gateway is the source of
-    truth for. The transport choice, the gateway URL and the companion's own Home
-    Assistant broker are companion-owned and left untouched. (A broker a pre-3.0
-    gateway publishes here is ignored too: the companion's HA integration takes
-    its broker from local config only, and a firmware 3.0+ gateway has no MQTT.)
+    The grid geometry and (firmware v3.9+) the default cascade pacing are synced — those the
+    gateway is the source of truth for. The transport choice, the gateway URL and the companion's
+    own Home Assistant broker are companion-owned and left untouched. (A broker a pre-3.0 gateway
+    publishes here is ignored too: the companion's HA integration takes its broker from local
+    config only, and a firmware 3.0+ gateway has no MQTT.)
     """
     grid: dict = {}
     rows, cols = _as_int(gw.get("gridRows")), _as_int(gw.get("gridCols"))
@@ -486,6 +486,13 @@ def build_sync_patch(gw: dict) -> dict:
     patch: dict = {}
     if grid:
         patch["grid"] = grid
+    # The wall's default per-module pacing (step_ms). The companion inherits it as
+    # display.transition_speed — which every page send and the Compose default already read —
+    # so a large wall that needs slower pacing is configured once, on the gateway. Absent (older
+    # firmware) leaves the companion's own default (15) in place.
+    step = _as_int(gw.get("stepMs"))
+    if step is not None:
+        patch["display"] = {"transition_speed": max(0, min(200, step))}
     return patch
 
 
