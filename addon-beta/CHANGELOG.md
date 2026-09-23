@@ -9,17 +9,8 @@ Promoted to stable. The beta channel is caught up to the stable release; it will
 when the next prerelease begins.
 
 - Default step pacing (`step_ms`) now comes from the gateway: it reports `stepMs` in its config and
-  the companion inherits it as the default every app send + Compose use. Replaces (and removes) the
-  companion-local control from 2.10.21; a gateway that doesn't report it keeps the 15 ms default.
-
-## 2.10.21
-
-Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
-when the next prerelease begins.
-
-- New per-display **Default step pacing (ms)** setting (⚙ Tools): the default `step_ms` every app
-  page send inherits (and Compose defaults to). Raise it for a large wall that needs slower pacing;
-  persists across restarts.
+  the companion inherits it as the default every app send + Compose use. A gateway that doesn't
+  report it keeps the 15 ms default.
 
 ## 2.10.20
 
