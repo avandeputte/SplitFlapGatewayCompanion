@@ -43,6 +43,10 @@ log = logging.getLogger("companion.settings")
 _META_KEYS = ("installed_apps", "saved_app_playlists", "saved_zone_layouts",
               "triggers", "triggers_enabled",
               "vestaboard_api_key", "mcp_token", "last_run",
+              # Per-display default cascade pacing (step_ms) the page sends inherit — a
+              # display-level setting, not app or catalog, so it persists here. See
+              # routes/dev.py step-ms and Display.build (re-applied to config on startup).
+              "transition_speed",
               # True once the user has actually saved the Language control; lets
               # the UI-language chain tell "chose en-US" from "never touched"
               # (the store is seeded with en-US). See uilang.setting_is_explicit.

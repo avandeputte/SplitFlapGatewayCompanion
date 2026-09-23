@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.21
+
+- **Configurable default step pacing (`step_ms`).** A new per-display **Default step pacing (ms)**
+  setting in the ⚙ Tools menu sets how long the gateway waits between modules when it lays down a
+  whole page. Every app inherits it and Compose defaults to it, so a larger wall that needs slower
+  pacing to avoid missed modules can be set once (e.g. 25 ms) instead of per message. Persists
+  across restarts; per display, so a big wall doesn't slow a small one.
+
 ## 2.10.20
 
 - **Clock apps stay in sync to the minute.** The Dashboard, Art Clock and Word Clock re-render

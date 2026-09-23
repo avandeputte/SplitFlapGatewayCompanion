@@ -31,6 +31,10 @@ class UpdateCheck(BaseModel):
     on: bool
 
 
+class StepMs(BaseModel):
+    ms: int
+
+
 class DevVestaboard(BaseModel):
     on: bool
 
@@ -232,6 +236,26 @@ def build(deps) -> APIRouter:
             return {"enabled": False}
         st = await asyncio.to_thread(update_check.status, True)
         return {"enabled": True, **st}
+
+    # -- default step pacing (step_ms every page send inherits) --------------
+    @router.get("/api/dev/step-ms")
+    async def step_ms_get(request: Request):
+        d = deps.display_for(request)
+        return {"step_ms": int(d.config.display.get("transition_speed", 15)), "default": 15}
+
+    @router.post("/api/dev/step-ms")
+    async def step_ms_set(request: Request, req: StepMs):
+        """Set THIS display's default cascade pacing (``step_ms``) — how long the gateway waits
+        between modules laying down a whole page. Higher = slower = more reliable on a large wall.
+        Persisted in the settings store (survives restart, mirrors to the gateway) and applied to
+        the live config, so every app page send and the Compose default inherit it at once.
+        Per-display: a big wall can pace slower without slowing a small one."""
+        d = deps.display_for(request)
+        ms = max(0, min(200, int(req.ms)))
+        d.plugins.settings.set("transition_speed", ms)
+        d.config.update({"display": {"transition_speed": ms}})
+        log.info("default step_ms set to %d ms [%s]", ms, d.id)
+        return {"step_ms": ms, "default": 15}
 
     @router.post("/api/dev/resync")
     async def dev_resync(request: Request):

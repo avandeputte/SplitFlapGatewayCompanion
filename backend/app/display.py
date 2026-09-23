@@ -81,6 +81,16 @@ class Display:
         # which is what makes it recoverable. There is no shared store (see plugin_settings).
         settings = PluginSettings(cfg.data_dir,
                                   display_id=id if own_settings else None)
+        # A user-set default step pacing (step_ms) persists in the settings store; re-apply it to
+        # the live config here so it survives a restart (config.update is in-memory only). Every
+        # page send reads config.display.transition_speed, and Compose defaults to it, so this one
+        # line is what makes a big-wall pacing choice stick across restarts.
+        _ts = settings.get("transition_speed")
+        if _ts not in (None, ""):
+            try:
+                cfg.update({"display": {"transition_speed": max(0, min(200, int(float(_ts))))}})
+            except (TypeError, ValueError):
+                pass
         # Uploaded apps are SHARED across displays (data/apps/): which apps a wall has
         # *installed* is per display, but the same zip should not live on disk twice.
         plugins = PluginRuntime(cfg, settings, apps_dir, cfg.data_dir / "apps")

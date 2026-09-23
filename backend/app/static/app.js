@@ -2134,6 +2134,26 @@ async function openDevMenu() {
     dF.append(dLbl, dBtn, dNote);
     wrap.appendChild(dF);
 
+    // Default step pacing (step_ms): how long the gateway waits between modules when it lays down
+    // a whole page. Higher = slower = more reliable on a large wall. Every app page send inherits
+    // it and Compose defaults to it; per display, persisted. See routes/dev.py step-ms.
+    const spF = el("div", "field");
+    const spLbl = el("span"); spLbl.textContent = t("Default step pacing (ms)"); spLbl.style.fontWeight = "600"; spF.appendChild(spLbl);
+    const spRow = el("div"); spRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap";
+    const spInp = el("input"); spInp.type = "number"; spInp.min = 0; spInp.max = 200; spInp.step = 1; spInp.style.width = "80px";
+    const spBtn = el("button", "btn ghost btn-sm"); spBtn.textContent = t("Apply");
+    const spMsg = el("small", "field-note");
+    spMsg.textContent = t("Every app inherits this, and Compose defaults to it. Raise it if modules miss updates on a large wall.");
+    spRow.appendChild(spInp); spRow.appendChild(spBtn); spF.appendChild(spRow); spF.appendChild(spMsg);
+    (async () => { try { const d = await api("/api/dev/step-ms"); spInp.value = d.step_ms; } catch { /* leave blank */ } })();
+    spBtn.addEventListener("click", async () => {
+      spBtn.disabled = true;
+      try { const d = await post("/api/dev/step-ms", { ms: Number(spInp.value) }); spInp.value = d.step_ms; spMsg.textContent = t("Saved ✓"); }
+      catch (e) { spMsg.textContent = t("Failed: %s", e.message); }
+      spBtn.disabled = false;
+    });
+    wrap.appendChild(spF);
+
     // 1) Simulation mode — the one dev-gated control (COMPANION_DEV_MODE).
     if (st.enabled) {
       const simF = el("div", "field");
