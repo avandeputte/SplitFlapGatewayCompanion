@@ -7,7 +7,7 @@ App plugins live here, one folder per app: `apps/<id>/manifest.json` +
 written against the bare contract drops in here unmodified and works**. (An app
 authored here also runs on a bare host that injects none of the extras,
 unoptimized — best-effort, no guarantees.)
-See [Compatibility](https://github.com/avandeputte/SplitFlapGateway/wiki/Compatibility).
+See [Compatibility](https://splitflap.iothing.net/docs/Compatibility/).
 
 ## Do not uppercase your own text
 
@@ -110,7 +110,7 @@ Interactive games additionally declare `"interactive": true` and take the `contr
 `play_sound` helpers.
 
 The full surface reference (draw ops, the PIL text toolkit, capabilities, compositing)
-lives on the wiki: [Writing Matrix Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Matrix-Apps).
+lives on the wiki: [Writing Matrix Apps](https://splitflap.iothing.net/docs/Writing-Matrix-Apps/).
 A dual-surface app keeps `fetch()` as its flap view; the manifest's `surfaces` list and
 the per-app "Show on Matrix panel" toggle decide which view a given wall runs.
 

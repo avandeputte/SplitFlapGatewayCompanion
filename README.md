@@ -1,9 +1,9 @@
 # SplitFlap Gateway Companion
 
-> ### 📖 [SplitFlap Wiki — the comprehensive documentation](https://github.com/avandeputte/SplitFlapGateway/wiki)
-> Quick start · choosing a configuration · provisioning & calibration · the SplitFlap and
-> Matrix Gateways · the companion and its apps · APIs and wire protocols — the whole
-> ecosystem, documented in one place.
+> ### 🌐 [splitflap.iothing.net](https://splitflap.iothing.net) · 📖 [Documentation](https://splitflap.iothing.net/docs/)
+> Quick start · choosing a configuration · provisioning & calibration · the SplitFlap,
+> Matrix and LCD gateways · the companion and its apps · APIs and wire protocols — the
+> whole ecosystem, documented in one place.
 
 
 A web app that sends rich content — clocks, weather, stocks, sports, quotes,
@@ -21,9 +21,9 @@ matches what actually exists on both.
 The companion ships **its own app library**, running on a plugin runtime that is a
 **behavior-identical port of [csader/splitflap-os](https://github.com/csader/splitflap-os)'s**
 — so any splitflap-os app drops in unchanged.
-Building your own? **[Writing Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Apps)**
+Building your own? **[Writing Apps](https://splitflap.iothing.net/docs/Writing-Apps/)**
 is a full guide; see also
-[Compatibility](https://github.com/avandeputte/SplitFlapGateway/wiki/Compatibility)
+[Compatibility](https://splitflap.iothing.net/docs/Compatibility/)
 and [ATTRIBUTION.md](ATTRIBUTION.md).
 
 > **License:** CC BY-NC-SA 4.0 (non-commercial, share-alike, attribution) — a
@@ -291,7 +291,7 @@ rows/cols/base to match how your modules are provisioned in the gateway.
 `app.py` (functional) or `data.json` (channel, or a quiz of question/answer pairs), the same format as the built-in apps.
 The upload is validated (manifest + a functional app's `fetch()` must import), written
 to `<data_dir>/apps/<id>/` so it survives restarts and image upgrades, enabled and
-loaded immediately. **[Writing Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Apps)**
+loaded immediately. **[Writing Apps](https://splitflap.iothing.net/docs/Writing-Apps/)**
 is the full guide.
 
 > ⚠️ A functional app's `app.py` runs arbitrary Python on the companion host — only
@@ -579,7 +579,7 @@ state** (Quebec ≠ British Columbia), the common ones in your Language.
 every location-tied app has a **Location** override — per app *and* per playlist entry,
 so one playlist can show Paris in French and Tokyo in Japanese back to back.
 
-Building an app that localizes? **[Writing Apps](https://github.com/avandeputte/SplitFlapGateway/wiki/Writing-Apps)**
+Building an app that localizes? **[Writing Apps](https://splitflap.iothing.net/docs/Writing-Apps/)**
 documents the injected `i18n`, `get_weather` and `get_location` helpers.
 
 ## API reference
