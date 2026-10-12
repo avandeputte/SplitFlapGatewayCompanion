@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.23
+
+- **Date app (flap, German).** The German date drops the space after the day's ordinal dot —
+  `9.Juli` instead of `9. Juli` — to save a module and tighten the line. Other languages and the
+  Matrix/LCD Date Card are unchanged.
+
 ## 2.10.22
 
 - **Default step pacing now comes from the gateway.** The Split-Flap Gateway reports its wall's

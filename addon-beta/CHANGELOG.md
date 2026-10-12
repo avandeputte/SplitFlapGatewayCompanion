@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.23
+
+Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
+when the next prerelease begins.
+
+- Date app (flap, German): drops the space after the day's ordinal dot (`9.Juli`, not `9. Juli`).
+  Other languages and the Matrix/LCD card are unchanged.
+
 ## 2.10.22
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again

@@ -11,6 +11,17 @@ def _tz(settings):
         return pytz.timezone('US/Eastern')
 
 
+def _de_tighten_flap(lang, date_str):
+    """German writes the day with an ordinal dot ("9. Juli"). On the flap wall a
+    reader asked to drop the space after that dot ("9.Juli") to save a module and
+    tighten the line. German only — other locales have no leading ordinal dot — and
+    only here in the flap path; the Matrix/LCD card draws the day and month apart."""
+    import re
+    if str(lang or "").lower().split("-")[0] == "de":
+        return re.sub(r"(\d)\.\s+", r"\1.", date_str)
+    return date_str
+
+
 def _parts(settings, i18n):
     """(now, time_str, weekday, month_day) — the strings every surface shows.
     When the companion injects i18n, honor the global Language: localized weekday,
@@ -18,7 +29,8 @@ def _parts(settings, i18n):
     from datetime import datetime
     now = datetime.now(_tz(settings))
     if i18n is not None:
-        return now, i18n.time(now), i18n.weekday(now), i18n.date(now)
+        return (now, i18n.time(now), i18n.weekday(now),
+                _de_tighten_flap(getattr(i18n, "lang", ""), i18n.date(now)))
     return (now, now.strftime('%I:%M %p').lstrip('0'), now.strftime('%A'),
             f"{now.strftime('%B')} {now.day}")
 
