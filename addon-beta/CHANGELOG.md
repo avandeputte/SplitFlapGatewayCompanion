@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.25
+
+Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
+when the next prerelease begins.
+
+- Vestaboard Local API reads now present a standard board shape — a Note (3×15) by default, a
+  Flagship (6×22) for larger walls — so clients that only know those two sizes (ha-vestaboard) can
+  read a non-standard wall (e.g. 1×15) instead of failing setup with "Unexpected error". The write
+  path still drives the real wall; 3×15 and 6×22 walls are unchanged.
+
 ## 2.10.24
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again

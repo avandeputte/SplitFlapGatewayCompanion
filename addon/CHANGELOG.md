@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.25
+
+- **Vestaboard Local API reads now present a standard board shape.** A Vestaboard client (the
+  ha-vestaboard integration) only recognises a Note (3×15) or a Flagship (6×22) and errors on any
+  other size — so a wall that wasn't one of those (e.g. a 1×15 strip) failed setup with "Unexpected
+  error". Reads now report a **Note (3×15)** by default (a **Flagship 6×22** for larger walls), with
+  the wall's content centred into it; the write path still drives the real wall. Walls that already
+  are 3×15 or 6×22 are unchanged.
+
 ## 2.10.24
 
 - **Vestaboard Local API now also answers on port 7000.** The ha-vestaboard Home Assistant

@@ -240,6 +240,45 @@ def encode(chars: list[str], rows: int, cols: int) -> list[list[int]]:
     return out
 
 
+# The two board shapes every Vestaboard client knows (docs.vestaboard.com): a Note is
+# 3x15, a Flagship 6x22. A wall that is neither must still be PRESENTED as one of these on
+# reads — the popular ha-vestaboard integration looks the matrix size up in a table of
+# exactly {(6,22): flagship, (3,15): note} and raises "Unknown Vestaboard model: RxC" on
+# anything else, which its config flow then reports as a bare "Unexpected error".
+NOTE_ROWS, NOTE_COLS = 3, 15
+FLAGSHIP_ROWS, FLAGSHIP_COLS = 6, 22
+
+
+def present_model(rows: int, cols: int) -> tuple[int, int]:
+    """The standard Vestaboard shape to report for a ``rows`` x ``cols`` wall: a Note
+    (3x15) by default, a Flagship (6x22) only when the wall is larger than a Note in
+    either dimension. These are the only two sizes a Vestaboard client recognizes, so a
+    1x15 strip or a 2x20 wall is reported as the smallest standard board that holds it."""
+    if rows <= NOTE_ROWS and cols <= NOTE_COLS:
+        return (NOTE_ROWS, NOTE_COLS)
+    return (FLAGSHIP_ROWS, FLAGSHIP_COLS)
+
+
+def encode_board(chars: list[str], rows: int, cols: int) -> list[list[int]]:
+    """The live wall -> a STANDARD Vestaboard matrix for reads: a Note (3x15) by default,
+    a Flagship (6x22) for larger walls (see ``present_model``).
+
+    A wall that already is a standard size round-trips cell-for-cell; any other size (a
+    1x15 strip, say) has its current content centered into the presented board, so a client
+    that only knows the two official sizes can still read us. The write path is unaffected —
+    ``decode_request`` already fits a standard-shaped message back onto the real wall.
+    ``encode`` stays the raw, grid-exact codec for callers that want the true geometry."""
+    vb_rows, vb_cols = present_model(rows, cols)
+    if (rows, cols) == (vb_rows, vb_cols):
+        return encode(chars, rows, cols)
+    wall_lines = [
+        "".join(chars[r * cols + c] if r * cols + c < len(chars) else " "
+                for c in range(cols))
+        for r in range(rows)
+    ]
+    return encode(list(fit(wall_lines, vb_rows, vb_cols)), vb_rows, vb_cols)
+
+
 def style_for(strategy: str | None, default: str) -> str:
     """The transition style for a Vestaboard animation strategy (unknown -> default)."""
     if not strategy:

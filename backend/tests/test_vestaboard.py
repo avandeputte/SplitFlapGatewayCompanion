@@ -377,3 +377,43 @@ class TestMirrorPort:
         from app.config import vestaboard_mirror_port
         monkeypatch.setenv("COMPANION_VESTABOARD_PORT", "   ")
         assert vestaboard_mirror_port(8000) == 7000
+
+
+# --- reads present a STANDARD board shape (ha-vestaboard only knows 3x15 / 6x22) ------
+class TestEncodeBoardShape:
+    """A 1x15 (or any non-standard) wall must READ as a Note 3x15 by default — else a
+    Vestaboard client measures the matrix, finds no model that size, and fails setup with
+    "Unexpected error". The write path still targets the real wall, so this is read-only."""
+
+    def test_present_model_defaults_to_note(self):
+        assert vb.present_model(1, 15) == (3, 15)   # the reporter's 1x15 strip
+        assert vb.present_model(3, 15) == (3, 15)
+        assert vb.present_model(2, 10) == (3, 15)
+
+    def test_present_model_escalates_to_flagship_when_larger_than_a_note(self):
+        assert vb.present_model(6, 22) == (6, 22)
+        assert vb.present_model(4, 15) == (6, 22)   # too many rows for a Note
+        assert vb.present_model(1, 22) == (6, 22)   # too many columns for a Note
+        assert vb.present_model(10, 40) == (6, 22)  # bigger than a Flagship -> Flagship (crop)
+
+    def test_a_1x15_wall_reads_as_a_3x15_note(self):
+        chars = list("HELLO WORLD    ")   # 15 cells, one row
+        assert len(chars) == 15
+        m = vb.encode_board(chars, 1, 15)
+        assert len(m) == 3 and all(len(row) == 15 for row in m)   # a Note, not a 1x15
+        # the content lands on the middle row; the others are blank
+        assert m[0] == [vb.BLANK] * 15
+        assert m[2] == [vb.BLANK] * 15
+        assert any(code != vb.BLANK for code in m[1])
+        # and it decodes back to the original word
+        assert vb.decode(m)[1].strip() == "HELLO WORLD"
+
+    def test_a_3x15_wall_round_trips_unchanged(self):
+        chars = list("A" * 45)
+        assert vb.encode_board(chars, 3, 15) == vb.encode(chars, 3, 15)
+
+    def test_a_6x22_wall_reports_as_a_flagship_unchanged(self):
+        chars = list("B" * (6 * 22))
+        out = vb.encode_board(chars, 6, 22)
+        assert len(out) == 6 and all(len(r) == 22 for r in out)
+        assert out == vb.encode(chars, 6, 22)

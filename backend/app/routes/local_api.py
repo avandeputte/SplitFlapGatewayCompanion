@@ -92,7 +92,11 @@ def build(deps) -> APIRouter:
         if err := _key_error(request):
             return err
         rows, cols = d.grid_size()
-        return {"message": vestaboard.encode(d.state.current_chars, rows, cols)}
+        # Present a STANDARD board shape (Note 3x15 by default, Flagship 6x22 for larger
+        # walls), not the raw wall geometry: a Vestaboard client only recognizes those two
+        # sizes and raises on anything else (a 1x15 wall made ha-vestaboard fail setup with
+        # "Unexpected error"). The write path still maps messages back onto the real wall.
+        return {"message": vestaboard.encode_board(d.state.current_chars, rows, cols)}
 
     @router.post("/local-api/{display_id}/message")
     @router.post("/local-api/message")
