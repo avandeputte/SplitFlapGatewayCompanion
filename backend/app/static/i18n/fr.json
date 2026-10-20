@@ -482,6 +482,8 @@
   "cooldown (s)": "délai entre déclenchements (s)",
   "editing": "en cours de modification",
   "functional": "fonctionnelle",
+  "ha-vestaboard integration (HACS): enter just the host — it always uses port 7000, served here too. No URL.": "Intégration ha-vestaboard (HACS) : saisissez seulement l'hôte — elle utilise toujours le port 7000, servi ici aussi. Pas d'URL.",
+  "ha-vestaboard integration (HACS): set Host to %s and leave the port — it always uses 7000, served here too. No URL.": "Intégration ha-vestaboard (HACS) : réglez l'hôte sur %s et laissez le port — elle utilise toujours le 7000, servi ici aussi. Pas d'URL.",
   "https://example.com/loop.gif": "https://example.com/loop.gif",
   "https://example.com/picture.png": "https://example.com/picture.png",
   "iCal URL(s)": "URL(s) iCal",

@@ -23,7 +23,7 @@ import os
 
 import uvicorn
 
-from .config import addon_option
+from .config import addon_option, vestaboard_mirror_port
 
 
 def gateway_url() -> str:
@@ -52,14 +52,63 @@ def main() -> None:
     host = os.environ.get("COMPANION_HOST", "0.0.0.0")
     port = int(os.environ.get("COMPANION_PORT", "8000"))
     reload = os.environ.get("COMPANION_RELOAD", "").lower() in ("1", "true", "yes", "on")
-    logging.getLogger("companion").info(
-        "binding %s:%d%s", host, port, " (reload)" if reload else "")
     # The add-on's log_level option, for the same reason (this is uvicorn's own level).
     uv_level = (os.environ.get("COMPANION_LOG_LEVEL")
                 or addon_option("log_level", "INFO")).strip().lower()
     if uv_level not in ("debug", "info", "warning", "error", "critical"):
         uv_level = "info"
-    uvicorn.run("app.main:app", host=host, port=port, reload=reload, log_level=uv_level)
+
+    log = logging.getLogger("companion")
+
+    # A second listener on 7000 lets the Vestaboard Local API be reached where real boards
+    # (and the ha-vestaboard HA integration, which hardcodes 7000) expect it. Skipped under
+    # --reload: the reloader spawns its own process and dev doesn't need the mirror.
+    vb_port = None if reload else vestaboard_mirror_port(port)
+    if vb_port is None:
+        log.info("binding %s:%d%s", host, port, " (reload)" if reload else "")
+        uvicorn.run("app.main:app", host=host, port=port, reload=reload, log_level=uv_level)
+        return
+
+    log.info("binding %s:%d and %s:%d (Vestaboard Local API)", host, port, host, vb_port)
+    _run_dual(host, port, vb_port, uv_level)
+
+
+def _run_dual(host: str, port: int, vb_port: int, uv_level: str) -> None:
+    """Serve the SAME app on two ports in one process. The primary runs the lifespan
+    (startup registers with the gateway and starts the background loops); the mirror runs
+    with ``lifespan="off"`` so those run exactly once — it only answers requests against the
+    already-initialized app. One combined signal handler stops both together on SIGTERM
+    (add-on stop) / SIGINT, since uvicorn's per-server handlers would otherwise clobber each
+    other and leave one listener running."""
+    import asyncio
+    import signal
+
+    from app.main import app as app_obj
+
+    class _Server(uvicorn.Server):
+        def install_signal_handlers(self) -> None:  # managed in _serve() for both at once
+            pass
+
+    primary = _Server(uvicorn.Config(
+        app_obj, host=host, port=port, log_level=uv_level, lifespan="auto"))
+    mirror = _Server(uvicorn.Config(
+        app_obj, host=host, port=vb_port, log_level=uv_level, lifespan="off"))
+
+    async def _serve() -> None:
+        loop = asyncio.get_running_loop()
+
+        def _stop() -> None:
+            primary.should_exit = True
+            mirror.should_exit = True
+
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, _stop)
+            except NotImplementedError:   # e.g. Windows
+                pass
+        await asyncio.gather(primary.serve(), mirror.serve())
+
+    asyncio.run(_serve())
 
 
 if __name__ == "__main__":

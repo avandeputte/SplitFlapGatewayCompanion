@@ -20,7 +20,7 @@
 # is no run script to do it. The app reads /data/options.json itself — see
 # config._addon_overrides() — which is what lets one image serve both worlds.
 name: SplitFlap Gateway Companion (Beta)
-version: "2.10.23"
+version: "2.10.24"
 slug: splitflap_companion_beta
 description: >-
   Prerelease. Drive a SplitFlap wall from Home Assistant — apps, playlists, schedules
@@ -60,12 +60,21 @@ panel_title: SplitFlap (Beta)
 # frontend and so need a real port: the Vestaboard Local API (a rest_command, a
 # script, the HACS integration) and the MCP server (an LLM client). Publishing 8000
 # is what makes those reachable at http://<ha-host>:8000.
+#
+# 7000 is published too: the ha-vestaboard HACS integration (and the official Vestaboard
+# Local API) always talk to port 7000 with no way to override it, so the app binds a second
+# listener there (see app/__main__._run_dual) and this maps it onto the host. Scripts and
+# rest_commands can keep using 8000; the integration needs 7000.
 ports:
   8000/tcp: 8000
+  7000/tcp: 7000
 ports_description:
   8000/tcp: >-
     Direct access, needed only for the Vestaboard-compatible API and the MCP server.
     The web UI itself goes through the sidebar and does not need this.
+  7000/tcp: >-
+    Vestaboard Local API on its standard port, for the ha-vestaboard integration, which
+    always uses 7000. Enter just the Home Assistant host (no port) in that integration.
 
 options:
   gateway_url: ""

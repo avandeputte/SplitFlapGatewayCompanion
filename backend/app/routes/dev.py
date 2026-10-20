@@ -8,15 +8,23 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from .. import debuglog, update_check
+from ..config import vestaboard_mirror_port
 from ..gateway import (fetch_gateway_config, fetch_gateway_settings,
                        push_gateway_settings, supports_settings)
 
 log = logging.getLogger("companion")
+
+
+def _vestaboard_mirror_port() -> int | None:
+    """The port the app also serves the Vestaboard Local API on (7000 by default), resolved
+    against this process's actual primary port. ``None`` when the mirror is off."""
+    return vestaboard_mirror_port(int(os.environ.get("COMPANION_PORT", "8000")))
 
 
 class DevSim(BaseModel):
@@ -140,6 +148,9 @@ def build(deps) -> APIRouter:
             # Same as MCP: a rest_command is not the browser, and under ingress the browser's
             # own origin is Home Assistant's, which does not reach this endpoint.
             "url": await _external_url("/local-api/message"),
+            # The port the app also serves the Local API on (7000 by default), so the UI can
+            # tell users how to point the ha-vestaboard integration — which only speaks 7000.
+            "vb_port": _vestaboard_mirror_port(),
             "env_key": bool(deps.displays.default.config.vestaboard.get("api_key")),   # pinned via env
         }
 

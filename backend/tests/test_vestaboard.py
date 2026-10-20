@@ -339,3 +339,41 @@ def test_the_generated_key_survives_a_restart(tmp_path):
     s.set("vestaboard_api_key", "sekrit-key")
 
     assert PluginSettings(tmp_path).get("vestaboard_api_key") == "sekrit-key"
+
+
+# --- the 7000 mirror port (so ha-vestaboard, which hardcodes 7000, can reach us) ------
+class TestMirrorPort:
+    """`vestaboard_mirror_port` decides the second port app/__main__ binds for the
+    Vestaboard Local API. The ha-vestaboard HA integration always talks to 7000 and
+    cannot be given another port, so this defaults there regardless of the main port."""
+
+    def test_defaults_to_7000_when_unset(self, monkeypatch):
+        from app.config import vestaboard_mirror_port
+        monkeypatch.delenv("COMPANION_VESTABOARD_PORT", raising=False)
+        assert vestaboard_mirror_port(8000) == 7000
+
+    def test_env_overrides_the_port(self, monkeypatch):
+        from app.config import vestaboard_mirror_port
+        monkeypatch.setenv("COMPANION_VESTABOARD_PORT", "7777")
+        assert vestaboard_mirror_port(8000) == 7777
+
+    def test_zero_disables_the_mirror(self, monkeypatch):
+        from app.config import vestaboard_mirror_port
+        monkeypatch.setenv("COMPANION_VESTABOARD_PORT", "0")
+        assert vestaboard_mirror_port(8000) is None
+
+    def test_a_value_equal_to_the_primary_disables_it(self, monkeypatch):
+        """No point binding the same port twice (and it would fail to bind)."""
+        from app.config import vestaboard_mirror_port
+        monkeypatch.setenv("COMPANION_VESTABOARD_PORT", "8000")
+        assert vestaboard_mirror_port(8000) is None
+
+    def test_a_non_numeric_value_disables_it_rather_than_crashing(self, monkeypatch):
+        from app.config import vestaboard_mirror_port
+        monkeypatch.setenv("COMPANION_VESTABOARD_PORT", "nope")
+        assert vestaboard_mirror_port(8000) is None
+
+    def test_blank_falls_back_to_the_default(self, monkeypatch):
+        from app.config import vestaboard_mirror_port
+        monkeypatch.setenv("COMPANION_VESTABOARD_PORT", "   ")
+        assert vestaboard_mirror_port(8000) == 7000

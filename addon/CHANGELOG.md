@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.24
+
+- **Vestaboard Local API now also answers on port 7000.** The ha-vestaboard Home Assistant
+  integration (and real Vestaboards) always talk to port 7000 with no way to override it, so a
+  companion on 8000 was unreachable to them — the config flow reported "Invalid hostname or IP
+  address." The add-on now serves the Local API on 7000 as well as 8000. Point the integration at
+  just the Home Assistant host (no port, no URL); scripts and rest_commands keep using 8000.
+
 ## 2.10.23
 
 - **Date app (flap, German).** The German date drops the space after the day's ordinal dot —

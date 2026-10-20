@@ -545,6 +545,8 @@
   "cooldown (s)",
   "editing",
   "functional",
+  "ha-vestaboard integration (HACS): enter just the host — it always uses port 7000, served here too. No URL.",
+  "ha-vestaboard integration (HACS): set Host to %s and leave the port — it always uses 7000, served here too. No URL.",
   "https://example.com/loop.gif",
   "https://example.com/picture.png",
   "iCal URL(s)",

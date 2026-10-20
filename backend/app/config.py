@@ -223,6 +223,30 @@ def addon_option(key: str, default: str = "") -> str:
     return v.strip() if isinstance(v, str) and v.strip() else default
 
 
+def vestaboard_mirror_port(primary: int = 8000) -> int | None:
+    """The extra port the app also listens on so the Vestaboard Local API is reachable
+    where real boards serve it — port 7000 — even though the companion's own port is 8000.
+
+    The ha-vestaboard Home Assistant integration (and the official Vestaboard Local API)
+    always talk to port 7000 with no way to override it, so a companion on 8000 is simply
+    unreachable to them. ``__main__`` binds a second listener on this port (the whole app,
+    so ``/local-api/message`` answers there), and the dev menu shows it to the user.
+
+    ``COMPANION_VESTABOARD_PORT`` tunes it; 0, a non-numeric value, or a value equal to the
+    primary port turns the mirror off (returns ``None``)."""
+    raw = os.environ.get("COMPANION_VESTABOARD_PORT")
+    if raw is None or raw.strip() == "":
+        vb = 7000
+    else:
+        try:
+            vb = int(raw.strip())
+        except ValueError:
+            return None
+    if vb <= 0 or vb == primary:
+        return None
+    return vb
+
+
 def _addon_overrides() -> dict:
     """The add-on options as an override tree.
 

@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.24
+
+Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
+when the next prerelease begins.
+
+- Vestaboard Local API now also answers on port 7000, the fixed port the ha-vestaboard HA
+  integration uses (8000 still works for scripts/rest_commands). Point the integration at just the
+  Home Assistant host — no port, no URL. Fixes the "Invalid hostname or IP address" error.
+
 ## 2.10.23
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
