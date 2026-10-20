@@ -17,7 +17,8 @@ Two house rules this module has to respect:
 
 1. **The companion doesn't police characters** (see renderer.py): a module blanks
    whatever glyph it lacks, so we translate a code to its character and pass it on —
-   no substituting, no stripping. ``°`` (62) goes through as ``°``.
+   no substituting, no stripping. A reel that can't show one (``♥``, say) is handled by
+   renderer.degrade(), not here.
 2. **Case is load-bearing**: ``y`` is a yellow tile, ``Y`` is the letter Y. Everything
    this module emits is final, so callers must send it with ``raw=True`` to skip the
    uppercasing that would turn every color chip into a letter.
@@ -39,7 +40,13 @@ CODE_TO_CHAR: dict[int, str] = {
     37: "!", 38: "@", 39: "#", 40: "$", 41: "(", 42: ")",
     44: "-", 46: "+", 47: "&", 48: "=", 49: ";", 50: ":",
     52: "'", 53: '"', 54: "%", 55: ",", 56: ".", 59: "/", 60: "?",
-    62: "°",                                                   # Flagship degree (a Note shows a heart)
+    # Flap 62 is the degree sign on a classic Flagship but a HEART on a Note (and newer
+    # Flagships) — the same flap, two prints. We present a Note by default (see
+    # local_api.encode_board), so this flap decodes to the heart. The physical reel shows ♥
+    # if it has that flap, else renderer.degrade() turns it into `*`. A wall degree still
+    # encodes back to 62 — see CHAR_TO_CODE below.
+    62: "♥",                                              # ♥
+
     # Color chips -> the firmware's COLOR FLAPS, as their own codepoints — never the
     # letters r/o/y/g/b/p/w: decoding a red chip to "r" would write the LETTER r on a Matrix
     # Portal, and encoding the r of "Hello" would read back as a red chip. Violet is `p`.
@@ -63,6 +70,10 @@ MAX_CODE = 71   # a real board rejects anything outside 0..71, and so do we
 CHAR_TO_CODE: dict[str, int] = {
     char: code for code, char in CODE_TO_CHAR.items() if code not in (70, 71)
 }
+# Flap 62 reads back as 62 whether the wall shows the heart (handled by the table above:
+# ♥ -> 62) or a degree sign: both are that one flap on a Vestaboard, so a ° on the wall must
+# not fall through to a blank. (A Note client renders 62 as ❤ either way — it has no degree.)
+CHAR_TO_CODE["°"] = 62   # °
 
 BLANK = 0
 

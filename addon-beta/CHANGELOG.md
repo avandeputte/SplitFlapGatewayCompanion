@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.26
+
+Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
+when the next prerelease begins.
+
+- Vestaboard heart flap (code 62): the flap that prints a degree sign on a classic Flagship is a
+  heart on a Note, which is what we present — so a heart now round-trips as `♥` instead of becoming a
+  degree sign. Reels without a heart flap degrade it to `*`; a wall degree still maps to 62 too.
+
 ## 2.10.25
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again

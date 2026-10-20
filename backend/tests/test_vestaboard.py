@@ -20,7 +20,9 @@ def test_code_table_matches_the_published_one():
     assert vb.CODE_TO_CHAR[27] == "1" and vb.CODE_TO_CHAR[35] == "9"
     assert vb.CODE_TO_CHAR[36] == "0"          # zero comes AFTER the nines
     assert vb.CODE_TO_CHAR[37] == "!" and vb.CODE_TO_CHAR[60] == "?"
-    assert vb.CODE_TO_CHAR[62] == "°"
+    # Flap 62 is a degree on a classic Flagship but a heart on a Note; we present a Note, so
+    # it decodes to ♥ (the reel/degrade decides whether the wall can actually show it).
+    assert vb.CODE_TO_CHAR[62] == "♥"
     # Color chips -> the firmware's COLOR FLAPS, each its own codepoint rather than the
     # letter that used to stand in for it. Violet is `p`. Spelling a chip as `r` was only
     # ever safe because no wall could show a lowercase letter; one now can.
@@ -417,3 +419,40 @@ class TestEncodeBoardShape:
         out = vb.encode_board(chars, 6, 22)
         assert len(out) == 6 and all(len(r) == 22 for r in out)
         assert out == vb.encode(chars, 6, 22)
+
+
+# --- the heart flap (code 62): a Note's heart, a classic Flagship's degree ------------
+class TestHeartFlap:
+    """Vestaboard flap 62 is one flap with two prints: a degree sign on a classic Flagship,
+    a heart on a Note (and newer Flagships). We advertise a Note, so 62 <-> ♥, while a wall
+    degree still reads back to 62 so it isn't lost to a blank."""
+
+    HEART = "♥"
+    DEGREE = "°"
+
+    def test_code_62_decodes_to_a_heart(self):
+        assert vb.decode([[62]]) == [self.HEART]
+
+    def test_a_heart_on_the_wall_reads_back_as_code_62(self):
+        assert vb.encode([self.HEART], 1, 1) == [[62]]
+
+    def test_the_heart_round_trips(self):
+        assert vb.decode(vb.encode([self.HEART], 1, 1)) == [self.HEART]
+
+    def test_a_wall_degree_also_reads_back_as_62_not_a_blank(self):
+        """A ° on the wall is the same physical Vestaboard flap as the heart, so it must
+        encode to 62 rather than falling through to a blank."""
+        assert vb.encode([self.DEGREE], 1, 1) == [[62]]
+
+    def test_incoming_heart_lands_as_the_pictograph_a_reel_can_degrade(self):
+        """decode_request turns an incoming heart into the ♥ pictograph; a reel that lacks
+        it is renderer.degrade()'s job (♥ -> *), not the codec's."""
+        from app import renderer
+
+        page, _ = vb.decode_request([[62]], 1, 1)
+        assert page == self.HEART
+
+        class _NoHeartReel:
+            def knows_charset(self): return True
+            def can_show(self, ch): return ch != "♥"   # every flap except the heart
+        assert renderer.degrade(self.HEART, _NoHeartReel()) == "*"   # the documented stand-in

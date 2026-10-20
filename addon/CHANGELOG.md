@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.10.26
+
+- **Vestaboard heart flap (code 62).** The Vestaboard flap that is a degree sign on a classic
+  Flagship is a **heart** on a Note — and we present as a Note. A heart sent from Home Assistant now
+  lands as a heart (`♥`) on the wall instead of a degree sign, and a heart on the wall reads back as
+  a heart in the integration. If your reel has no heart flap it degrades to `*` like any other
+  pictograph; a degree sign on the wall still round-trips too.
+
 ## 2.10.25
 
 - **Vestaboard Local API reads now present a standard board shape.** A Vestaboard client (the
