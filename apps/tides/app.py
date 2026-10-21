@@ -82,7 +82,7 @@ def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
             # with room to spare. Only where the wall HAS arrows: on a real reel a ↑ falls
             # back to "^", which is not what you want a tide table to say — so there it
             # keeps the word, and shortens it to an initial only if it must.
-            arrows = bool(caps and caps.pictographs)
+            arrows = caps is not None and caps.can_show('↑') and caps.can_show('↓')
             pairs = []
             for p in preds[:rows - 1]:
                 raw = str(p.get('t', ''))

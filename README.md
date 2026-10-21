@@ -462,7 +462,9 @@ a widely-spoken [Local API](https://docs.vestaboard.com/docs/local-api/endpoints
 this on and the companion answers that API, so anything written for a Vestaboard — a
 `rest_command`, the [ha-vestaboard](https://github.com/natekspencer/ha-vestaboard)
 integration, a script, a client library — drives *your* wall unchanged. A Vestaboard
-Note is 3 × 15, exactly the default grid.
+Note is 3 × 15, exactly the default grid. Vestaboard code **62** is the ♥ (heart) flap;
+on a physical wall it shows the heart if that module's reel carries one, otherwise it
+degrades to its stand-in (`*`) like any symbol flap.
 
 ```bash
 COMPANION_VESTABOARD=1          # off by default

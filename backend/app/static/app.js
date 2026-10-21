@@ -448,6 +448,15 @@ function cmpBuild() {
     });
     sw.appendChild(b);
   });
+  // Symbol flaps the wall can show (♥ ↑ …), from /api/grid. Each inserts its character; the
+  // grid/preview already render a symbol as itself (it is not a colour).
+  (GRID.symbols || []).forEach((sym) => {
+    const b = el("button", "swatch swatch-symbol");
+    b.textContent = sym.ch;
+    b.title = t("Symbol %s", sym.name);
+    b.addEventListener("click", () => { $("cmpCatcher").focus(); cmpSet(sym.ch); });
+    sw.appendChild(b);
+  });
 
   // Style + speed default to the display's globals; "" means "let the server decide".
   const sel = $("cmpStyle");
@@ -1577,6 +1586,14 @@ function openMessageEditor(entry, onDone) {
     b.classList.add(blank ? "swatch-blank" : `color-${code}`);
     b.title = blank ? t("Blank") : t("Color %s", code);
     b.addEventListener("click", () => { catcher.focus(); setv(blank ? "" : emoji); });
+    sw.appendChild(b);
+  });
+  // Symbol flaps the wall can show (♥ ↑ …), same palette as Compose.
+  (grid.symbols || []).forEach((sym) => {
+    const b = el("button", "swatch swatch-symbol");
+    b.textContent = sym.ch;
+    b.title = t("Symbol %s", sym.name);
+    b.addEventListener("click", () => { catcher.focus(); setv(sym.ch); });
     sw.appendChild(b);
   });
   wrap.appendChild(sw);

@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.11.0
+
+- **Symbol flaps on physical reels.** A physical wall can now show the symbol flaps `♥ ↑ ↓ ☺ ← →`
+  where its reel carries them — the gateway (firmware 4.1.0+) reports which byte each symbol uses
+  and the companion sends it, instead of always degrading to a stand-in. A module without the flap
+  still falls back (`♥ → *`), and older gateways/Matrix walls are unchanged. Compose and the
+  playlist message editor gain a palette of the symbols the wall can show; the emoji spellings
+  (❤, ⬆, 🙂 …) are accepted as input. The down-arrow stand-in is now a capital `V` (a lowercase `v`
+  re-homed the module), and a double-quote flap is driven correctly on reels that have one.
+
 ## 2.10.26
 
 - **Vestaboard heart flap (code 62).** The Vestaboard flap that is a degree sign on a classic

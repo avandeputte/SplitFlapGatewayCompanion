@@ -456,3 +456,18 @@ class TestHeartFlap:
             def knows_charset(self): return True
             def can_show(self, ch): return ch != "♥"   # every flap except the heart
         assert renderer.degrade(self.HEART, _NoHeartReel()) == "*"   # the documented stand-in
+
+
+def test_code_62_reaches_a_heart_flap_and_reads_back_as_62():
+    """On a wall whose reel has the heart, Vestaboard code 62 -> ♥ -> the gateway byte `h`,
+    and the heart on the wall reads back as 62 (SYMBOL-FLAPS C8)."""
+    from app import device, renderer
+    assert vb.decode([[62]]) == ["♥"]                 # 62 decodes to the heart
+    reel = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?'-♥"
+    caps = device.from_capabilities({
+        "features": ["colors", "symbols"],
+        "charset": {"uniform": True, "common": reel, "union": reel},
+        "spelling": {"♥": "h"}, "pictographs": ["heart"],
+    })
+    assert renderer.for_legacy("♥", caps) == "h"      # reaches the heart flap byte
+    assert vb.encode(["♥"], 1, 1) == [[62]]           # and reads back as 62

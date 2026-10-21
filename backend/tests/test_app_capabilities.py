@@ -51,11 +51,30 @@ def test_a_matrix_portal_gets_arrows(tide_api):
     assert "↑" in page and "↓" in page
 
 
-def test_a_plain_reel_keeps_the_words(tide_api):
-    """A ↑ falls back to "^", which is not what a tide table should say."""
-    page = _runtime(device.SPLIT_FLAP, "tides").get_pages("tides")[0]
+def test_a_known_reel_without_arrows_keeps_the_words(tide_api):
+    """A ↑ falls back to "^", which is not what a tide table should say — so a wall whose
+    REPORTED reel has no arrow flaps keeps the words (now gated on can_show, not pictographs)."""
+    reel = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.,'-"
+    no_arrows = device.from_capabilities({
+        "features": ["colors"],
+        "charset": {"uniform": True, "common": reel, "union": reel},
+    })
+    page = _runtime(no_arrows, "tides").get_pages("tides")[0]
     assert "↑" not in page and "↓" not in page
     assert "H " in page and "L " in page
+
+
+def test_a_physical_wall_with_arrow_flaps_shows_arrows(tide_api):
+    """The point of the symbol-flap change: a REAL reel that carries ↑ ↓ gets the arrows."""
+    reel = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.,'-↑↓"
+    with_arrows = device.from_capabilities({
+        "features": ["colors", "symbols"],
+        "charset": {"uniform": True, "common": reel, "union": reel},
+        "pictographs": ["up", "down"],
+        "spelling": {"↑": "u", "↓": "d"},
+    })
+    page = _runtime(with_arrows, "tides").get_pages("tides")[0]
+    assert "↑" in page and "↓" in page
 
 
 def test_the_default_is_the_pessimistic_answer():
@@ -68,7 +87,7 @@ def test_the_default_is_the_pessimistic_answer():
 # ---------------------------------------------------------------------------
 # arrows need no permission — they survive the fallback
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize("arrow,fallback", [("←", "<"), ("↑", "^"), ("→", ">"), ("↓", "v")])
+@pytest.mark.parametrize("arrow,fallback", [("←", "<"), ("↑", "^"), ("→", ">"), ("↓", "V")])
 def test_an_arrow_still_reads_on_a_plain_reel(arrow, fallback):
     assert renderer.for_legacy(arrow) == fallback
 

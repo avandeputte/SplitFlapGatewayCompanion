@@ -416,6 +416,10 @@ a.btn { text-decoration: none; display: inline-block; }
 .swatch.color-b { background: var(--b); } .swatch.color-p { background: var(--p); }
 .swatch.color-w { background: var(--w); }
 .swatch-blank { background: #0a0a0a; }
+/* Symbol flaps (♥ ↑ …) show their glyph rather than a solid colour tile. */
+.swatch-symbol { background: #0a0a0a; color: #eee; font-size: 18px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; }
+.msg-editor .swatch-symbol { font-size: 14px; }
 
 .compose-controls { margin-top: 10px; }
 .cmp-speed { width: 84px; }

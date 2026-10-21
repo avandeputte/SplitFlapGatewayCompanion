@@ -302,3 +302,58 @@ def test_a_physical_gateway_advertising_colors_does_not_change_the_wire():
         "features": PHYSICAL_FEATURES, "colors": ["red", "blue"], "charset": {}})
     assert caps.named_colors is True
     assert caps.indexed is False
+
+
+# --- symbol flaps (SYMBOL-FLAPS spec) ---------------------------------------
+_SYMBOL_REEL = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?'-\"*♥↑↓"
+SYMBOL_WALL = {
+    "features": ["colors", "symbols"],
+    "colors": ["red", "orange", "yellow", "green", "blue", "purple", "white"],
+    "charset": {"uniform": True, "common": _SYMBOL_REEL, "union": _SYMBOL_REEL},
+    "pictographs": ["heart", "up", "down"],
+    "spelling": {"♥": "h", "↑": "u", "↓": "d",
+                 "☺": "s", "←": "l", "→": "t", '"': "q"},
+}
+
+
+def test_symbol_fields_are_parsed():
+    caps = device.from_capabilities(SYMBOL_WALL)
+    assert caps.symbols is True
+    assert dict(caps.spelling)["♥"] == "h"
+    assert dict(caps.spelling)['"'] == "q"
+    assert set(caps.pictograph_names) == {"heart", "up", "down"}
+
+
+def test_pictographs_feature_stays_false_on_a_physical_symbol_wall():
+    """`symbols` is NOT `pictographs`: the Matrix token means all fourteen, and the companion
+    must keep reading it that way. A physical symbol wall advertises only `symbols`."""
+    caps = device.from_capabilities(SYMBOL_WALL)
+    assert caps.pictographs is False
+    assert caps.can_show("♥"), "♥ is in common, so the wall can show it"
+
+
+def test_a_symbol_only_some_modules_have_is_not_in_common():
+    caps = device.from_capabilities({
+        "features": ["symbols"],
+        "charset": {"uniform": False, "common": " ABC", "union": " ABC♥"},
+        "spelling": {"♥": "h"}, "pictographs": ["heart"],
+    })
+    assert not caps.can_show("♥"), "only in union — not safe to send to every module"
+
+
+def test_c1_guard_strips_raw_symbol_letters_from_an_older_gateway():
+    """An OLD gateway (no `symbols` feature) serves a symbol reel's letters RAW. Without the
+    guard, degrade()/expand() could put a ♥ where an `H` was missing."""
+    old = device.from_capabilities({
+        "features": ["colors"],      # no "symbols", no "lowercase"
+        "charset": {"uniform": True, "common": " ABCDEFGHIJKLMNOPQRSTUVWXYZhudslt"},
+    })
+    for letter in "hudslt":
+        assert not old.can_show(letter), f"reserved symbol letter {letter!r} must be stripped"
+    assert old.can_show("A")
+    # a real lowercase wall (Matrix) keeps its genuine lowercase letters
+    matrix = device.from_capabilities({
+        "features": ["lowercase"],
+        "charset": {"uniform": True, "common": " ABChudslt"},
+    })
+    assert matrix.can_show("h") and matrix.can_show("u")

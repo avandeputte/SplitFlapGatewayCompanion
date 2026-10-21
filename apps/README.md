@@ -36,25 +36,29 @@ Two exceptions, both real:
 ## Asking what the wall can show
 
 Some walls are drawn rather than mechanical (a Matrix Gateway), and those have fourteen
-pictographs the reel has no flap for. Declare `caps` and the runtime hands you the answer:
+pictographs the reel has no flap for. A **physical** reel can also carry six of them as real
+flaps — `♥ ↑ ↓ ☺ ← →` — when they're printed on it. Either way, ask `can_show` rather than
+guessing; declare `caps` and the runtime hands you the answer:
 
 ```python
 def fetch(settings, format_lines, get_rows, get_cols, i18n=None, caps=None):
-    high = '↑' if (caps and caps.pictographs) else 'HIGH'
+    high = '↑' if (caps and caps.can_show('↑')) else 'HIGH'
 ```
 
-`caps` has `lowercase`, `pictographs` and `named_colors`. It is optional and defaults to
-`None`, so an app that asks for it still runs on a host that injects nothing — treat
-`None` as "a plain reel". Available pictographs: `♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`
+`caps` has `lowercase`, `pictographs`, `named_colors` and `can_show(ch)`. It is optional and
+defaults to `None`, so an app that asks for it still runs on a host that injects nothing —
+treat `None` as "a plain reel". `caps.pictographs` means **all fourteen** (a drawn wall);
+`caps.can_show("♥")` is the right question for everything else, since a physical reel may carry
+some symbols and not others. Available pictographs: `♥ ♦ ♣ ♠ ☺ ♪ ● ■ ⌂ ← ↑ → ↓ ☀`
 
-**Check before you use one.** A wall without them substitutes the nearest character it has,
+**Check before you use one.** A wall without a flap substitutes the nearest character it has,
 and only some of those still mean anything:
 
 | pictograph | on a plain reel | verdict |
 |---|---|---|
-| `← ↑ → ↓` | `< ^ > v` | **safe without a check** — still reads |
+| `← ↑ → ↓` | `< ^ > V` | **safe without a check** — still reads |
 | `■` `⌂` `☺` | `#` `^` `:` | usable |
-| `♥ ♦ ♣ ♠ ♪ ● ☀` | `*` | **the meaning is lost** — check `caps.pictographs` |
+| `♥ ♦ ♣ ♠ ♪ ● ☀` | `*` | **the meaning is lost** — ask `caps.can_show("♥")` |
 
 The seven **color flaps** are a different matter: every wall has had them from the start, so
 a color tile (🟥🟩🟦🟨🟧🟪⬜) is always safe. But a color is invisible with colors turned

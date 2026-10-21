@@ -79,6 +79,15 @@ class Capabilities:
     # no bundled consumer yet.
     colors: tuple[str, ...] = ()
 
+    # SYMBOL FLAPS (SYMBOL-FLAPS spec). A physical reel can carry ♥ ↑ ↓ ☺ ← →, each stored as
+    # a reserved lowercase letter the GATEWAY owns and reports via `spelling`. The companion
+    # learns the bytes here and never hard-codes a letter.
+    symbols: bool = False                   # the "symbols" feature (gateway provides spelling/pictographs)
+    # display character -> the wire byte to send on the raw paths (e.g. ("♥","h"), ("\"","q")),
+    # from capabilities `spelling`; only one-character key/value entries are kept.
+    spelling: tuple[tuple[str, str], ...] = ()
+    pictograph_names: tuple[str, ...] = ()  # names of the symbols some reel carries, e.g. ("heart","up")
+
     # CANVAS — a Matrix wall with a framebuffer can draw ANYTHING, free of the flap grid:
     # arbitrary pixels/lines/rects/text (POST /api/canvas/ops), a full raw frame
     # (PUT /api/canvas/frame), or an on-device effect that the panel renders itself at
@@ -250,6 +259,22 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
     if isinstance(unknown, list) and unknown:
         common = ""
 
+    # SYMBOL FLAPS. The gateway reports the symbols as themselves (♥) in charset and maps each
+    # to its wire byte in `spelling`; it also lists the symbol names in `pictographs` (a union).
+    symbols = "symbols" in features
+    spell_doc = doc.get("spelling")
+    spelling = (tuple((k, v) for k, v in spell_doc.items()
+                      if isinstance(k, str) and isinstance(v, str) and len(k) == 1 and len(v) == 1)
+                if isinstance(spell_doc, dict) else ())
+    pictograph_names = tuple(str(p) for p in (doc.get("pictographs") or []) if isinstance(p, str))
+
+    # Guard against an OLDER gateway that serves a symbol reel's letters RAW (no "symbols"
+    # feature): without this, degrade()'s ch.lower() candidate or expand()'s lowercase step
+    # could put a ♥ where an `H` was missing. A wall with real lowercase flaps keeps them.
+    if common and "lowercase" not in features and not symbols:
+        from .renderer import SYMBOL_LETTERS
+        common = "".join(c for c in common if c not in SYMBOL_LETTERS)
+
     colors = tuple(str(c) for c in (doc.get("colors") or []) if isinstance(c, str))
 
     # The wall's own statement about how it moves (physical Gateway 3.10+; every current
@@ -328,6 +353,9 @@ def from_capabilities(doc: dict | None) -> Capabilities | None:
         charset=frozenset(common),
         uniform=bool(cs.get("uniform", True)),
         colors=colors,
+        symbols=symbols,
+        spelling=spelling,
+        pictograph_names=pictograph_names,
         motion=kind,
         settle_ms=settle,
         canvas_w=canvas_w,

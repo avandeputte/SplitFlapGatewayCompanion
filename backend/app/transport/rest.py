@@ -335,7 +335,7 @@ class RestTransport(DisplayTransport):
                 self._connected = True       # the wall already says this
                 self._last_error = None
                 return
-        payload = {"frames": [frame_for(mid, renderer.for_legacy(ch)) for mid, ch in send],
+        payload = {"frames": [frame_for(mid, renderer.for_legacy(ch, self.caps)) for mid, ch in send],
                    "step_ms": int(step_ms)}
         try:
             # allow the gateway to pace a long page without a client timeout

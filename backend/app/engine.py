@@ -500,7 +500,7 @@ class DisplayController:
                 else:
                     for step in plan:
                         for grid_index, char in step.frames:
-                            await self.transport.send_frame(base + grid_index, renderer.for_legacy(char))
+                            await self.transport.send_frame(base + grid_index, renderer.for_legacy(char, self.caps))
                             self.state.set_module(grid_index, char)
                         if step.delay_after > 0:
                             await asyncio.sleep(step.delay_after)

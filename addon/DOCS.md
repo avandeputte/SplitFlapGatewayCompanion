@@ -137,3 +137,11 @@ microSD card.
 
 Prefer the classic look? **Always uppercase** in Global settings folds it anyway, per
 display, and costs nothing else: the wall keeps its pictographs and its colors.
+
+## Symbol flaps on a physical wall
+
+A physical reel can carry a few **symbol flaps** too — `♥ ↑ ↓ ☺ ← →` — printed in place of
+punctuation. With a current gateway, the companion learns which modules have them and shows a
+symbol where its reel can (a heart sent from Home Assistant lands as a heart). A module without
+the flap falls back to a stand-in (`♥ → *`) rather than a blank. In **Compose** and the playlist
+message editor, a palette offers the symbols the wall can actually show, next to the colors.

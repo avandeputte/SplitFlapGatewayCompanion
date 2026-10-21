@@ -252,6 +252,10 @@ def build(deps) -> APIRouter:
             "module_id_base": int(g.get("module_id_base", 0)),
             "styles": list(renderer.ALL_STYLES),
             "color_map": renderer.COLOR_MAP,
+            # The symbol flaps this wall can show (♥ ↑ …), for the Compose/message palette:
+            # all fourteen on a Matrix wall, the reel's symbols on a physical wall, none when
+            # the charset is unknown (see renderer.symbols_for).
+            "symbols": [{"ch": c, "name": n} for c, n in renderer.symbols_for(d.controller.caps)],
             "display": d.config.display,
         }
 

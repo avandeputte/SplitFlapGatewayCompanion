@@ -263,3 +263,53 @@ def test_legacy_batch_never_diffs_an_ordered_repaint():
         assert frames == ["m00-X\n", "m00-A\n", "m01-B\n"]
         assert t._shown == {0: "A", 1: "B"}
     asyncio.run(go())
+
+
+# ---------------------------------------------------------------------------
+# symbol flaps: the gateway's byte goes on the raw wire (SYMBOL-FLAPS spec)
+# ---------------------------------------------------------------------------
+def _symbol_caps(*, has_symbols: bool):
+    reel = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?'-\"*"
+    if has_symbols:
+        reel += "♥↑↓"
+    return device.from_capabilities({
+        "features": ["colors", "symbols"],
+        "colors": ["red", "orange", "yellow", "green", "blue", "purple", "white"],
+        "charset": {"uniform": True, "common": reel, "union": reel},
+        "pictographs": ["heart", "up", "down"] if has_symbols else [],
+        "spelling": {"♥": "h", "↑": "u", "↓": "d",
+                     "☺": "s", "←": "l", "→": "t", '"': "q"},
+    })
+
+
+def _wall(caps):
+    t = RestTransport("http://gw")
+    t._client = FakeHttp(200)
+    t.caps = caps
+    return t
+
+
+def test_a_heart_module_gets_the_h_byte_on_the_wire():
+    async def go():
+        t = _wall(_symbol_caps(has_symbols=True))
+        # "I ♥ SF" — the heart on module 2
+        await t.send_batch([(0, "I"), (1, " "), (2, "♥"), (3, " "), (4, "S"), (5, "F")], 0)
+        frames = _frames_of(t._client.calls[0])
+        assert "m02-h\n" in frames, frames
+    asyncio.run(go())
+
+
+def test_a_heart_on_a_default_reel_falls_back_to_the_stand_in():
+    async def go():
+        t = _wall(_symbol_caps(has_symbols=False))
+        await t.send_batch([(2, "♥")], 0)
+        assert _frames_of(t._client.calls[0]) == ["m02-*\n"]
+    asyncio.run(go())
+
+
+def test_a_double_quote_takes_its_q_byte():
+    async def go():
+        t = _wall(_symbol_caps(has_symbols=False))   # a default reel, with the " -> q spelling
+        await t.send_batch([(0, '"')], 0)
+        assert _frames_of(t._client.calls[0]) == ["m00-q\n"]
+    asyncio.run(go())

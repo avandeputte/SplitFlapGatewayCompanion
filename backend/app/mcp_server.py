@@ -57,7 +57,9 @@ def build(displays) -> MCPServer:
         instructions=(
             "Controls a physical split-flap display: a grid of character modules on a "
             "wall. Showing a message takes the display over and stops any running app "
-            "or playlist. Reads report what is physically on the flaps right now."
+            "or playlist. Reads report what is physically on the flaps right now. "
+            "The wall may have symbol flaps (a heart, arrows, a smiley); get_display "
+            "lists the ones it can show."
         ),
     )
 
@@ -140,6 +142,9 @@ def build(displays) -> MCPServer:
                       for r in range(rows)],
             "driver": driver,
             "showing": {"app_id": showing, "name": _app_name(d, showing)} if showing else None,
+            # The symbol flaps this wall can show (♥ ↑ …) — a message may use them; empty when
+            # the wall has none or its charset is unknown.
+            "symbols": [{"ch": c, "name": n} for c, n in renderer.symbols_for(d.controller.caps)],
         }
         if driver == "playlist":
             labels = snap.get("playlist_entries") or []
@@ -184,6 +189,9 @@ def build(displays) -> MCPServer:
         # we tell the caller matches what the wall will actually show.
         page = vestaboard.layout_text(text, rows, cols, d.controller.caps)
         shown = page if d.controller.shows_lowercase else renderer.fold(page)
+        # Degrade to what the wall can actually show (♥ -> * on a reel without a heart flap,
+        # é -> E …), so the reported `lines` match the flaps, not just the folded case.
+        shown = renderer.degrade(shown, d.controller.caps)
         lines = [shown[r * cols:(r + 1) * cols] for r in range(rows)]
 
         if seconds and seconds > 0:

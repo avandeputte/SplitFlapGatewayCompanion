@@ -73,11 +73,69 @@ PICTOGRAPHS = {
 # What each becomes on a wall that has no flap for it. The arrows have honest CP1252
 # stand-ins; the rest degrade to a character that at least occupies the cell.
 PICTOGRAPH_FALLBACK = {
-    "\u2190": "<", "\u2191": "^", "\u2192": ">", "\u2193": "v",
+    # \u2193 -> "V" (capital), not "v": a split-flap reel has no lowercase, so a lowercase `v`
+    # sent raw re-homes the module; the capital at least shows. \u2191 has no cp1252 cap stand-in.
+    "\u2190": "<", "\u2191": "^", "\u2192": ">", "\u2193": "V",
     "\u2665": "*", "\u2666": "*", "\u2663": "*", "\u2660": "*",
     "\u263a": ":", "\u266a": "*", "\u25cf": "*", "\u25a0": "#",
     "\u2302": "^", "\u2600": "*",
 }
+
+# The six pictographs that ALSO have a reserved lowercase letter on a physical reel \u2014 the
+# gateway's symbol-flap convention (SYMBOL-FLAPS specs). The gateway OWNS the letters and
+# tells the companion which byte each symbol uses via capabilities `spelling`; the companion
+# never hard-codes a letter to SEND. These constants are only for recognising the symbols
+# (and, in device.py's C1 guard, for stripping raw letters an OLD gateway might report).
+SYMBOL_CHARS = ("\u2665", "\u2191", "\u2193", "\u263a", "\u2190", "\u2192")  # \u2665 \u2191 \u2193 \u263a \u2190 \u2192
+SYMBOL_LETTERS = "hudslt"       # the reserved letters, in SYMBOL_CHARS order \u2014 never sent directly
+# Emoji a client might type for each symbol -> its canonical code point (the one the reel and
+# PICTOGRAPHS use). A variation selector right after any symbol is dropped (see _fold_symbols).
+SYMBOL_ALIASES = {
+    "\u2764": "\u2665",        # heavy heart -> heart
+    "\u2b06": "\u2191",        # up arrow emoji -> up arrow
+    "\u2b07": "\u2193",        # down arrow emoji -> down arrow
+    "\U0001f642": "\u263a",    # slightly-smiling face -> smiley
+    "\U0001f60a": "\u263a",    # smiling face w/ eyes -> smiley
+    "\U0001f600": "\u263a",    # grinning face -> smiley
+    "\u2b05": "\u2190",        # left arrow emoji -> left arrow
+    "\u27a1": "\u2192",        # right arrow emoji -> right arrow
+}
+_VARIATION_SELECTORS = ("\ufe0e", "\ufe0f")
+
+
+def _fold_symbols(s: str) -> str:
+    """Map each emoji alias to its canonical symbol (heart/arrows/smiley -- see SYMBOL_ALIASES)
+    and drop a variation selector (U+FE0E / U+FE0F) that directly follows a symbol, so a heart
+    typed as U+2764 U+FE0F is folded to one U+2665."""
+    syms = set(SYMBOL_CHARS)
+    out: list[str] = []
+    i, n = 0, len(s)
+    while i < n:
+        canon = SYMBOL_ALIASES.get(s[i], s[i])
+        if canon in syms:
+            out.append(canon)
+            i += 1
+            if i < n and s[i] in _VARIATION_SELECTORS:
+                i += 1              # the selector belongs to the symbol; consume it
+            continue
+        out.append(s[i])
+        i += 1
+    return "".join(out)
+
+
+def symbols_for(caps) -> list[tuple[str, str]]:
+    """The (symbol, name) pairs a wall can show, for the Compose palette / MCP get_display.
+
+    A Matrix wall (``caps.pictographs``) draws all fourteen; a physical wall shows the symbol
+    letters its reel actually carries (``caps.charset``); an unknown charset shows none.
+    """
+    if caps is None:
+        return []
+    if caps.pictographs:
+        return list(PICTOGRAPHS.items())            # all fourteen
+    if not caps.knows_charset():
+        return []
+    return [(ch, PICTOGRAPHS[ch]) for ch in SYMBOL_CHARS if ch in caps.charset]
 
 # Styles handled by the generic "one module per step" ordering path.
 ORDERED_STYLES = (
@@ -155,6 +213,9 @@ def normalize(text: str, n: int, *, frame: bool = False) -> str:
     clean = str(text)
     for tile, code in COLOR_MAP.items():
         clean = clean.replace(tile, COLOR_PUA.get(code, code))
+    # Accept the emoji spellings of the symbol flaps (❤ -> ♥, ⬆ -> ↑ …) and drop a trailing
+    # variation selector. In frame mode too — an animation/raw grid may carry them.
+    clean = _fold_symbols(clean)
     if frame:
         # In a frame, a lowercase color code IS a color. Say so, before anything else can
         # mistake it for a letter.
@@ -315,10 +376,34 @@ def degrade(page: str, caps) -> str:
     return "".join(out)
 
 
-def for_legacy(ch: str) -> str:
-    """One cell, as the legacy one-byte protocol wants it: a color becomes its letter, and
-    a pictograph — which has no byte at all — becomes the nearest thing that does."""
-    return PUA_TO_CODE.get(ch, PICTOGRAPH_FALLBACK.get(ch, ch))
+def for_legacy(ch: str, caps=None) -> str:
+    """One cell, as the legacy one-byte protocol wants it.
+
+    - A colour becomes its reserved letter (r o y g b p w), as always.
+    - A symbol (♥ ↑ …) or a double quote the gateway has given a wire byte for — via
+      capabilities ``spelling`` — becomes that byte, so a reel with the flap shows it. For a
+      SYMBOL we only send the byte when the wall is known to carry it (``knows_charset`` and
+      ``ch in charset``); ``degrade()`` runs first, so a symbol that reaches here on a KNOWN
+      wall is showable, and on an unknown wall we fall back to the stand-in (today's behaviour).
+      The double quote always takes its byte when ``spelling`` lists one (the gateway only lists
+      it when every known reel stores ``"`` that way).
+    - Any other pictograph has no byte at all, so it becomes its stand-in.
+    - Anything else goes through unchanged.
+
+    The companion never hard-codes the symbol letters: the byte always comes from the gateway.
+    """
+    if ch in PUA_TO_CODE:
+        return PUA_TO_CODE[ch]
+    # `caps is not None`, NOT `caps`: Capabilities.__bool__ is `indexed`, which is False on a
+    # physical wall — the very wall this matters on — so a truthiness test would skip it.
+    byte = dict(caps.spelling).get(ch) if (caps is not None and caps.spelling) else None
+    if byte is not None:
+        if ch == '"':
+            return byte                     # the double-quote flap, when the gateway says so
+        if caps.knows_charset() and ch in caps.charset:
+            return byte                     # a symbol the wall actually carries
+        # else: an unknown wall, or degrade() already handled a missing symbol — stand in
+    return PICTOGRAPH_FALLBACK.get(ch, ch)
 
 
 # The reverse of COLOR_MAP: the legacy color code back to the tile a person would have

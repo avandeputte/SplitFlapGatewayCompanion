@@ -106,3 +106,86 @@ def test_engine_sim_send_updates_state(tmp_path):
     snap = st.snapshot()
     assert "".join(snap["chars"]).startswith("HELLO")
     assert snap["transport"]["type"] == "sim"
+
+
+# ===========================================================================
+# Symbol flaps (SYMBOL-FLAPS spec): ♥ ↑ ↓ ☺ ← → on a physical reel.
+# ===========================================================================
+_SYM_SPELLING = {"♥": "h", "↑": "u", "↓": "d",
+                 "☺": "s", "←": "l", "→": "t", '"': "q"}
+
+
+def _sym_caps(*, has_symbols: bool):
+    """A physical wall from a modern (symbols) gateway. ``has_symbols`` puts ♥ ↑ ↓ in the
+    reel (so they're in `common`); either way the default reel carries ``"`` and ``*``."""
+    reel = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?'-\"*"
+    if has_symbols:
+        reel += "♥↑↓"
+    return device.from_capabilities({
+        "features": ["colors", "symbols"],
+        "colors": ["red", "orange", "yellow", "green", "blue", "purple", "white"],
+        "charset": {"uniform": True, "common": reel, "union": reel},
+        "pictographs": ["heart", "up", "down"] if has_symbols else [],
+        "spelling": _SYM_SPELLING,
+    })
+
+
+class TestSymbolAliases:
+    def test_emoji_aliases_fold_to_the_canonical_symbol(self):
+        assert renderer.normalize("❤", 1) == "♥"          # ❤ -> ♥
+        assert renderer.normalize("⬆", 1) == "↑"          # ⬆ -> ↑
+        assert renderer.normalize("\U0001f642", 1) == "☺"      # 🙂 -> ☺
+        assert renderer.normalize("\U0001f60a", 1) == "☺"      # 😊 -> ☺
+        assert renderer.normalize("➡", 1) == "→"          # ➡ -> →
+
+    def test_a_variation_selector_is_consumed_with_the_symbol(self):
+        assert renderer.normalize("❤️", 1) == "♥"    # ❤️ is one ♥
+        assert renderer.normalize("↑︎", 1) == "↑"    # ↑︎ is one ↑
+        # one cell, not two: the selector did not spill into the next module
+        assert renderer.normalize("❤️X", 2) == "♥X"
+
+    def test_aliases_fold_in_frame_mode_too(self):
+        assert renderer.normalize("❤", 1, frame=True) == "♥"
+
+
+class TestForLegacySymbols:
+    def test_each_row_of_the_spec_table(self):
+        heart = _sym_caps(has_symbols=True)
+        default = _sym_caps(has_symbols=False)
+        # a colour -> its letter (caps irrelevant)
+        assert renderer.for_legacy(renderer.COLOR_PUA["r"], heart) == "r"
+        # a symbol the wall carries -> the spelling byte
+        assert renderer.for_legacy("♥", heart) == "h"
+        assert renderer.for_legacy("↑", heart) == "u"
+        # a double quote with a spelling entry -> that byte
+        assert renderer.for_legacy('"', default) == "q"
+        # any other pictograph -> its stand-in
+        assert renderer.for_legacy("♦", heart) == "*"          # ♦ has no letter
+        # a symbol the wall does NOT carry -> stand-in (degrade would catch it first anyway)
+        assert renderer.for_legacy("♥", default) == "*"
+        # unknown wall (no caps) -> stand-in, as before
+        assert renderer.for_legacy("♥") == "*"
+        # anything else -> unchanged
+        assert renderer.for_legacy("A", heart) == "A"
+
+    def test_down_arrow_stand_in_is_capital_V(self):
+        assert renderer.PICTOGRAPH_FALLBACK["↓"] == "V"
+        assert renderer.for_legacy("↓") == "V"
+        assert renderer.for_legacy("↑") == "^"       # ↑ unchanged, blank-ish on a default reel
+
+    def test_hello_still_folds_to_capitals(self):
+        # fold() is the wall's job (no lowercase flaps); for_legacy passes letters through.
+        page = renderer.fold(renderer.normalize("hello", 5))
+        assert "".join(renderer.for_legacy(c, _sym_caps(has_symbols=True)) for c in page) == "HELLO"
+
+
+def test_symbols_for_lists_the_right_set():
+    # a Matrix wall draws all fourteen pictographs
+    assert len(renderer.symbols_for(device.MATRIX_GATEWAY)) == 14
+    # a physical wall: only the symbols its reel carries
+    pairs = dict(renderer.symbols_for(_sym_caps(has_symbols=True)))
+    assert pairs == {"♥": "heart", "↑": "up", "↓": "down"}
+    # a default reel: none
+    assert renderer.symbols_for(_sym_caps(has_symbols=False)) == []
+    # unknown charset: none
+    assert renderer.symbols_for(device.SPLIT_FLAP) == []

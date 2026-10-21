@@ -122,7 +122,7 @@ async def test_an_unrenderable_character_is_never_sent():
     """The firmware 400s the whole page for one bad glyph — correctly, but that would mean
     a single stray emoji from an app blanks the wall."""
     t = _rich_transport()
-    page = renderer.normalize("A\U0001f600B", 3)     # 😀 has no flap
+    page = renderer.normalize("A\U0001f389B", 3)     # a party-popper emoji has no flap (not a symbol alias)
     await t.send_batch(list(enumerate(page)), 0)
 
     _, body = t._client.posts[0]

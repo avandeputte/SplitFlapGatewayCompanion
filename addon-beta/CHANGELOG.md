@@ -3,6 +3,17 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.11.0
+
+Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
+when the next prerelease begins.
+
+- Symbol flaps on physical reels: a physical wall shows `♥ ↑ ↓ ☺ ← →` where its reel carries them
+  (gateway firmware 4.1.0+ reports the byte per symbol; the companion sends it). A module without
+  the flap falls back (`♥ → *`); older gateways and Matrix walls are unchanged. Compose and the
+  playlist editor gain a symbol palette; emoji spellings (❤, ⬆, 🙂 …) are accepted. Down-arrow
+  stand-in is now capital `V`, and a double-quote flap is driven correctly.
+
 ## 2.10.26
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
