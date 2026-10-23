@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.9
+
+- **Auto-calibrate checks its own work.** After each module is re-homed, the camera confirms the
+  blank is really showing — a home that lands on a printed flap is flagged “needs a look”, never a
+  quiet green check. A new **full-reel pass** (on by default, un-tickable) steps every flap once
+  and catches skipped/stuck flaps by name. And every log line now says what was dialed and what
+  was seen — “dialed flap 5 (“E”) — saw ink 0.21”.
+
 ## 2.12.0-beta.8
 
 - **Auto-calibrate: the live log now moves with the wall.** Every flap it looks at is narrated
