@@ -320,20 +320,25 @@ class CalibrationSession:
     """The wall-level job: calibrate every module in turn, one at a time, abortably, and be
     able to put every offset back the way it was.
 
-    Side effects are injected, exactly as for ``calibrate_module_fast``, so the whole run is
-    tested against the simulated wall. Each ``module`` is ``{id, flap_chars, total_steps}``:
+    Side effects are injected, so the whole run is tested against the simulated wall. Each
+    ``module`` is just ``{id, grid_index}``; its reel is read LAZILY when its turn comes (the
+    gateway's list endpoint doesn't carry the reel/offset — only the per-module detail does, so
+    fetching it up front for the whole wall would stall the start):
+      - ``meta_fn(id)``        -> ``{flap_chars, total_steps}`` or None when the module isn't
+                                  ready (still learning its reel / no blank to anchor on);
       - ``capture_index(id, i)`` -> command module ``id`` to flap ``i`` and return its tile;
       - ``get_offset(id)`` / ``set_offset(id, steps)`` -> its home offset.
-    ``snapshot`` records every offset up front so ``revert()`` can undo a run the user dislikes.
+    ``snapshot`` records each offset as the module is touched, so ``revert()`` undoes the run.
     """
 
-    def __init__(self, modules, capture_index, get_offset, set_offset):
+    def __init__(self, modules, *, meta_fn, capture_index, get_offset, set_offset):
         self.modules = list(modules)
+        self._meta = meta_fn
         self._capture_index = capture_index
         self._get = get_offset
         self._set = set_offset
         self._abort = False
-        self.snapshot = {m["id"]: get_offset(m["id"]) for m in self.modules}
+        self.snapshot: dict[int, int] = {}
         self.results: dict[int, dict] = {}
         self.done = False
 
@@ -357,16 +362,21 @@ class CalibrationSession:
             if self._abort:
                 break
             mid = m["id"]
+            meta = self._meta(mid)
+            if not meta:
+                self.results[mid] = {"status": "needs_review", "reason": "module not ready"}
+                continue
+            self.snapshot[mid] = self._get(mid)
             self.results[mid] = calibrate_module_fast(
                 lambda i, mid=mid: self._capture_index(mid, i),
                 lambda mid=mid: self._get(mid),
                 lambda s, mid=mid: self._set(mid, s),
-                m["flap_chars"], m["total_steps"], should_abort=lambda: self._abort)
+                meta["flap_chars"], meta["total_steps"], should_abort=lambda: self._abort)
         self.done = not self._abort
         return self.progress
 
     def revert(self) -> None:
-        """Restore every module's home offset to its pre-run value."""
+        """Restore the home offset of every module this run touched to its pre-run value."""
         for mid, steps in self.snapshot.items():
             self._set(mid, steps)
 
@@ -385,8 +395,8 @@ class CalibrationSession:
 # ---------------------------------------------------------------------------
 class AutocalRun:
     def __init__(self, *, gateway_url, corners, rows, cols, modules, settle_s=4.0,
-                 loop=None, commander=None, offset_writer=None, capture=None):
-        # modules: [{id, grid_index, flap_chars, total_steps, home_offset}]
+                 loop=None, commander=None, offset_writer=None, capture=None, meta=None):
+        # modules: [{id, grid_index}] — the reel/offset is fetched lazily per module (meta).
         self.gateway_url = gateway_url
         self.corners = corners
         self.rows, self.cols = rows, cols
@@ -396,15 +406,33 @@ class AutocalRun:
         self._commander = commander          # test seam: commander(id, index)
         self._offset_writer = offset_writer   # test seam: offset_writer(id, steps)
         self._capture = capture               # test seam: capture(grid_index) -> tile
+        self._meta_seam = meta                # test seam: meta(id) -> {flap_chars,total_steps,home_offset}
         self._frame = None                    # (jpeg bytes, ts)
-        self._offsets = {m["id"]: m["home_offset"] for m in modules}
+        self._offsets: dict[int, int] = {}    # seeded from each module's detail as it's read
         self.error = None
         self.finished = False
         self.session = CalibrationSession(
-            [{"id": m["id"], "flap_chars": m["flap_chars"], "total_steps": m["total_steps"]}
-             for m in modules],
-            capture_index=self._capture_index, get_offset=self._get_offset,
-            set_offset=self._set_offset)
+            [{"id": m["id"], "grid_index": m["grid_index"]} for m in modules],
+            meta_fn=self._meta, capture_index=self._capture_index,
+            get_offset=self._get_offset, set_offset=self._set_offset)
+
+    def _meta(self, mid):
+        """Read module ``mid``'s reel + offset (``/api/flap/all``), seed its offset, and return
+        ``{flap_chars, total_steps}`` — or None when it isn't ready (no dump / no blank)."""
+        if self._meta_seam is not None:
+            m = self._meta_seam(mid)
+        else:
+            from . import gateway
+            raw = self._run_coro(gateway.flap_all(self.gateway_url, mid))
+            dump = gateway._parse_dump(raw.get("dump", ""))
+            chars = raw.get("flapChars") or ""
+            if dump is None or not chars or " " not in chars:
+                return None
+            m = {"flap_chars": chars, "total_steps": dump[1], "home_offset": dump[0]}
+        if not m:
+            return None
+        self._offsets[mid] = m["home_offset"]
+        return {"flap_chars": m["flap_chars"], "total_steps": m["total_steps"]}
 
     # -- frames --------------------------------------------------------------
     def push_frame(self, data: bytes) -> None:

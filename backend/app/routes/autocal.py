@@ -31,29 +31,29 @@ def _is_physical(caps) -> bool:
     return caps is not None and not caps.has_canvas
 
 
-async def _ready_modules(d) -> tuple[str, int, list[dict]]:
-    """(gateway_url, module_id_base, modules) where each module is ready to calibrate — its
-    reel (flapChars) and EEPROM (homeOffset:totalSteps) are known. Raises HTTPException on a
-    missing gateway. A module still learning its reel (stale / no dump) is left out."""
+async def _wall_modules(d) -> tuple[str, list[dict]]:
+    """(gateway_url, modules) — the PROVISIONED modules on this wall as ``{id, grid_index}``,
+    from the list endpoint. Their reels/offsets are read later, per module, during the run
+    (the list endpoint carries neither). Raises HTTPException on a missing/unreachable gateway."""
     url = (d.config.transport.get("gateway_url") or "").strip()
     if not url:
         raise HTTPException(400, "no gateway_url configured")
     base = int(d.config.grid.get("module_id_base", 0))
+    count = int(d.config.grid["rows"]) * int(d.config.grid["cols"])
     try:
         raw = await gateway.flap_modules(url)
     except Exception as e:                                   # noqa: BLE001
         raise HTTPException(502, f"gateway unreachable: {e}")
     out = []
     for m in raw:
-        dump = gateway._parse_dump(m.get("dump", ""))
-        chars = m.get("flapChars") or ""
-        if dump is None or not chars or " " not in chars:
-            continue                                         # not ready / no blank to anchor on
-        home, total = dump
-        out.append({"id": int(m["id"]), "grid_index": int(m["id"]) - base,
-                    "flap_chars": chars, "total_steps": total, "home_offset": home,
-                    "flap_count": len(chars)})
-    return url, base, out
+        mid = int(m.get("id", 255))
+        if mid == 255 or not m.get("provisioned", True):     # unprovisioned slot
+            continue
+        gi = mid - base
+        if 0 <= gi < count:                                  # only cells on this wall
+            out.append({"id": mid, "grid_index": gi})
+    out.sort(key=lambda m: m["grid_index"])
+    return url, out
 
 
 def build(deps):
@@ -68,15 +68,14 @@ def build(deps):
         if not _is_physical(caps):
             return {"available": False, "reason": "not a physical split-flap wall"}
         g = d.config.grid
-        _, _, mods = await _ready_modules(d)
+        _, mods = await _wall_modules(d)
         settle = (caps.settle_ms / 1000.0) if getattr(caps, "settle_ms", None) else 4.0
         return {
             "available": bool(mods),
-            "reason": "" if mods else "modules are still learning their reels — try again shortly",
+            "reason": "" if mods else "no provisioned modules on this wall yet",
             "rows": int(g["rows"]), "cols": int(g["cols"]),
             "settle_s": settle,
-            "modules": [{"id": m["id"], "grid_index": m["grid_index"],
-                         "flap_count": m["flap_count"]} for m in mods],
+            "modules": mods,
         }
 
     @router.post("/api/autocal/start")
@@ -91,9 +90,9 @@ def build(deps):
         if not _is_physical(caps):
             raise HTTPException(400, "not a physical split-flap wall")
         g = d.config.grid
-        url, _, mods = await _ready_modules(d)
+        url, mods = await _wall_modules(d)
         if not mods:
-            raise HTTPException(409, "no modules are ready to calibrate yet")
+            raise HTTPException(409, "no provisioned modules on this wall")
         settle = (caps.settle_ms / 1000.0) if getattr(caps, "settle_ms", None) else 4.0
         run = autocal.AutocalRun(
             gateway_url=url, corners=[tuple(c) for c in req.corners],

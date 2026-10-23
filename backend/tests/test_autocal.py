@@ -290,23 +290,24 @@ def _capture_index(mods):
 
 
 def _fake_wall(specs):
-    """specs: list of (id, err_flaps). Returns (modules, meta, wiring) for a CalibrationSession."""
+    """specs: list of (id, err_flaps). Returns (mods, modules, wiring) for a CalibrationSession."""
     mods = {mid: FakeModule(REEL, 2000, err_flaps=err) for mid, err in specs}
-    meta = [{"id": mid, "flap_chars": REEL, "total_steps": 2000} for mid, _ in specs]
+    modules = [{"id": mid, "grid_index": mid} for mid, _ in specs]
     wiring = dict(
+        meta_fn=lambda mid: {"flap_chars": REEL, "total_steps": 2000},
         capture_index=_capture_index(mods),
         get_offset=lambda mid: mods[mid].homeoffset,
         set_offset=lambda mid, s: mods[mid].set_homeoffset(s),
     )
-    return mods, meta, wiring
+    return mods, modules, wiring
 
 
 def test_the_session_calibrates_every_module_and_snapshots():
-    mods, meta, wiring = _fake_wall([(0, 3), (1, 0), (2, -4)])
-    sess = autocal.CalibrationSession(meta, **wiring)
-    assert sess.snapshot == {0: 1000, 1: 1000, 2: 1000}
+    mods, modules, wiring = _fake_wall([(0, 3), (1, 0), (2, -4)])
+    sess = autocal.CalibrationSession(modules, **wiring)
     prog = sess.run()
     assert prog["done"] and prog["completed"] == 3
+    assert sess.snapshot == {0: 1000, 1: 1000, 2: 1000}   # captured as each module was touched
     assert {r["status"] for r in prog["results"].values()} <= {"aligned", "adjusted"}
     for mid in (0, 1, 2):
         mods[mid].show_index(7)
@@ -314,12 +315,20 @@ def test_the_session_calibrates_every_module_and_snapshots():
 
 
 def test_the_session_reverts_to_the_snapshot():
-    mods, meta, wiring = _fake_wall([(0, 5), (1, 8)])
-    sess = autocal.CalibrationSession(meta, **wiring)
+    mods, modules, wiring = _fake_wall([(0, 5), (1, 8)])
+    sess = autocal.CalibrationSession(modules, **wiring)
     sess.run()
     assert mods[0].homeoffset != 1000 or mods[1].homeoffset != 1000   # it moved them
     sess.revert()
     assert mods[0].homeoffset == 1000 and mods[1].homeoffset == 1000
+
+
+def test_a_module_that_isnt_ready_is_flagged_not_calibrated():
+    mods, modules, wiring = _fake_wall([(0, 3), (1, 0)])
+    wiring["meta_fn"] = lambda mid: None if mid == 1 else {"flap_chars": REEL, "total_steps": 2000}
+    prog = autocal.CalibrationSession(modules, **wiring).run()
+    assert prog["results"][1]["status"] == "needs_review"
+    assert prog["results"][0]["status"] in ("aligned", "adjusted")
 
 
 # ===========================================================================
@@ -327,14 +336,14 @@ def test_the_session_reverts_to_the_snapshot():
 # ===========================================================================
 def _run_over_fake_wall(specs, **kw):
     wall = {mid: FakeModule(REEL, 2000, err_flaps=err) for mid, err in specs}
-    modules = [{"id": mid, "grid_index": mid, "flap_chars": REEL, "total_steps": 2000,
-                "home_offset": 1000} for mid, _ in specs]
+    modules = [{"id": mid, "grid_index": mid} for mid, _ in specs]
     run = autocal.AutocalRun(
         gateway_url="http://gw", corners=[(0, 0), (1, 0), (1, 1), (0, 1)],
         rows=1, cols=len(specs), modules=modules, settle_s=0,
         commander=lambda mid, idx: wall[mid].show_index(idx),
         offset_writer=lambda mid, steps: wall[mid].set_homeoffset(steps),
-        capture=lambda gi: wall[gi].capture(), **kw)
+        capture=lambda gi: wall[gi].capture(),
+        meta=lambda mid: {"flap_chars": REEL, "total_steps": 2000, "home_offset": 1000}, **kw)
     return wall, run
 
 
@@ -443,8 +452,54 @@ def test_fast_calibrate_falls_back_to_full_sweep_when_the_blank_is_ambiguous(mon
 
 
 def test_session_summary_counts_outcomes():
-    mods, meta, wiring = _fake_wall([(0, 0), (1, 4), (2, -2)])
-    sess = autocal.CalibrationSession(meta, **wiring)
+    mods, modules, wiring = _fake_wall([(0, 0), (1, 4), (2, -2)])
+    sess = autocal.CalibrationSession(modules, **wiring)
     prog = sess.run()
     s = prog["summary"]
     assert s["aligned"] + s["adjusted"] == 3 and s["failed"] == 0
+
+
+# ===========================================================================
+# routes: the wall-module listing (the Phase-2 bug: the list endpoint has no reel)
+# ===========================================================================
+def test_wall_modules_filters_to_provisioned_in_grid(monkeypatch):
+    import asyncio
+    from app import gateway
+    from app.routes import autocal as ac
+
+    class _Cfg:
+        transport = {"gateway_url": "http://gw"}
+        grid = {"rows": 1, "cols": 4, "module_id_base": 0}
+    class _D:
+        config = _Cfg
+
+    async def fake_modules(url, timeout=10.0):
+        return [{"id": 0, "provisioned": True}, {"id": 1, "provisioned": True},
+                {"id": 255}, {"id": 9, "provisioned": True},   # 255 = slot; 9 = out of grid
+                {"id": 2, "provisioned": False}]               # not provisioned
+    monkeypatch.setattr(gateway, "flap_modules", fake_modules)
+
+    url, mods = asyncio.run(ac._wall_modules(_D))
+    assert url == "http://gw"
+    assert [m["id"] for m in mods] == [0, 1]                   # the ready wall cells, in order
+    assert mods[0]["grid_index"] == 0 and mods[1]["grid_index"] == 1
+
+
+def test_flap_all_posts_the_id_and_returns_detail(monkeypatch):
+    import asyncio
+    from app import gateway
+
+    class _R:
+        status_code = 200
+        def raise_for_status(self): pass
+        def json(self): return {"ok": True, "id": 5, "dump": "42:4096:0=1",
+                                "flapChars": " ABC", "flapCount": 4}
+    seen = {}
+    async def fake_arequest(method, url, path, *, timeout, **kw):
+        seen.update(method=method, path=path, json=kw.get("json")); return _R()
+    monkeypatch.setattr(gateway, "_arequest", fake_arequest)
+
+    detail = asyncio.run(gateway.flap_all("http://gw", 5))
+    assert seen == {"method": "POST", "path": "/api/flap/all", "json": {"id": 5}}
+    assert gateway._parse_dump(detail["dump"]) == (42, 4096)
+    assert detail["flapChars"] == " ABC"

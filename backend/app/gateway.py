@@ -402,6 +402,15 @@ async def flap_modules(gateway_url: str, timeout: float = 10.0) -> list[dict]:
     return mods if isinstance(mods, list) else []
 
 
+async def flap_all(gateway_url: str, mid: int, timeout: float = 10.0) -> dict:
+    """``POST /api/flap/all`` — one module's full detail (version, serial, EEPROM ``dump`` with
+    homeOffset/totalSteps, ``flapCount`` and ``flapChars``). The list endpoint doesn't carry
+    the reel or the offset, so the calibration job reads each module's detail from here."""
+    r = await _arequest("POST", gateway_url, "/api/flap/all", json={"id": int(mid)}, timeout=timeout)
+    r.raise_for_status()
+    return r.json() if r.status_code < 400 else {}
+
+
 async def flap_show_index(gateway_url: str, mid: int, index: int, timeout: float = 10.0) -> None:
     """``POST /api/flap/index`` — turn module ``mid`` to flap ``index`` (one step of a sweep)."""
     r = await _arequest("POST", gateway_url, "/api/flap/index",
