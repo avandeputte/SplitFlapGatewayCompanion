@@ -721,6 +721,8 @@ async function calPoll() {
       const where = String((a.module || 0) + 1);
       line += "  ·  " + (a.action === "adjusting" ? t("module %s — adjusting", where)
         : a.action === "parking" ? t("module %s — returning to blank", where)
+        : a.action === "homing" ? t("module %s — homing", where)
+        : a.action === "measuring" ? t("module %s — measuring the reel", where)
         : t("module %s — reading the reel", where));
     }
     $("calStatus").textContent = line;
@@ -749,37 +751,24 @@ function calEventLine(e) {
   switch (e.kind) {
     case "start": return [null, t("module %s: starting", m)];
     case "not_ready": return ["warn", t("module %s: not ready — skipped", m)];
-    case "probe":
-      return [null, t("module %s: dialed flap %s (“%s”) — saw ink %s", m, String(e.flap),
-                      ch(e.char), String(e.ink))];
-    case "learned": {
-      const pct = String(Math.round(Math.abs(e.sub_flap || 0) * 100));
-      const dir = (e.sub_flap || 0) > 0 ? t("low") : t("high");
-      return [null, t("module %s: reel learned — %s flap(s) off · glyph %s% %s · confidence %s",
-                      m, String(e.offset_flaps), pct, dir, String(e.confidence))];
-    }
-    case "anchor": {
-      // the independent answers to "which captured flap is which character": the blank's
-      // flatness, the glyph-shape consensus, and OCR reading the sweep back
-      const names = { blank: t("blank"), font: t("glyph shapes"), ocr: t("OCR") };
-      const val = (v) => (v === null || v === undefined ? "—" : String(v));
-      if (e.used === "conflict")
-        return ["bad", t("module %s: ⚠ anchors disagree — blank %s · glyph shapes %s · OCR %s", m, val(e.blank), val(e.font), val(e.ocr))];
-      if (e.used === "none")
-        return ["bad", t("module %s: ⚠ no trustworthy anchor — flagged for a look", m)];
-      const who = String(e.used).split("+").map((k) => names[k] || k).join(" + ");
-      const off = e.used.indexOf("blank") >= 0 ? e.blank : (e.used.indexOf("font") >= 0 ? e.font : e.ocr);
-      return ["ok", t("module %s: ✓ offset %s flap(s) — anchored by %s", m, val(off), who)];
-    }
+    case "fw_calibrate":
+      return e.steps ? [null, t("module %s: the reel measured itself — %s steps per turn", m, String(e.steps))]
+                     : [null, t("module %s: measuring the reel (steps per turn)", m)];
+    case "seeking":
+      // the home search: homed and reading what shows, stepping toward the blank
+      if (e.saw === "glyph")
+        return [null, t("module %s: a letter is showing at home — stepping to the blank", m)];
+      if (e.saw === "dark")
+        return [null, t("module %s: a colour flap is showing at home — stepping to the blank", m)];
+      return [null, t("module %s: searching for the blank at home", m)];
     case "ocr_check":
-      // OCR reads the whole verified reel back — bulk validation of WHICH characters show
+      // OCR reads the whole confirmed reel back — bulk validation of WHICH characters show
       if (e.shift === null || e.shift === undefined)
         return [null, t("module %s: OCR read the reel back — not enough to judge (%s of %s)", m, String(e.hits), String(e.votes))];
       return e.ok ? ["ok", t("module %s: ✓ OCR read the reel back — matches (%s of %s flaps)", m, String(e.hits), String(e.votes))]
                   : ["bad", t("module %s: ⚠ OCR reads the reel %s flap(s) off", m, String(e.shift))];
     case "verify_ocr":
       return ["warn", t("module %s: flap %s (“%s”) — OCR read “%s”", m, String(e.flap), ch(e.expected), String(e.ocr))];
-    case "relearn": return [null, t("module %s: re-reading the reel at the corrected offset", m)];
     case "verify_start": return [null, t("module %s: verifying all %s flaps, one by one", m, String(e.flaps))];
     case "verify":
       // the literal dialed-vs-saw check, one line per flap

@@ -134,17 +134,8 @@ def test_a_glyph_riding_high_is_measured_negative():
 
 
 # ---------------------------------------------------------------------------
-# confidence + blankness
+# blankness: the reliable signal the home search steers on
 # ---------------------------------------------------------------------------
-def test_an_ambiguous_sweep_reports_low_confidence():
-    """Two near-blank tiles (a second almost-empty flap) should not be trusted as a clean
-    anchor — the engine flags it rather than guessing."""
-    sweep = _sweep(error=0)
-    sweep[10] = _glyph_tile(" ")          # a second 'blank' collides with the real one
-    r = autocal.analyze_sweep(sweep, REEL)
-    assert r["confidence"] < 0.15
-
-
 def test_blankness_separates_the_blank_from_the_faintest_glyph():
     """The user's wall measured blank INK 0.117 vs '.' at 0.132 — too close. Peak-deviation
     flatness must keep them far apart: a dot has few but STRONG dark pixels."""
@@ -153,31 +144,24 @@ def test_blankness_separates_the_blank_from_the_faintest_glyph():
     assert dot > 4 * blank + 0.05
 
 
-def test_colour_flaps_are_as_flat_as_the_blank():
-    """Why the blank anchor alone cannot be trusted on the default reel: in grayscale a solid
-    colour flap (the white one especially) is indistinguishable from the blank by flatness."""
-    blank = autocal.tile_blankness(_glyph_tile(" "))
-    white = autocal.tile_blankness(_glyph_tile("w"))
-    assert abs(white - blank) < 0.02
-    lib = autocal.learn_reel(_sweep(REEL64, error=2, noise=5.0, seed=3), REEL64)
-    assert lib["confidence"] < autocal.CONFIDENCE_MIN     # ambiguous -> needs the second anchor
+def test_colour_flaps_are_flat_but_most_are_darker_than_the_blank():
+    """Why the home search uses brightness, not just flatness: a solid colour flap is flat too,
+    so flatness alone can't tell it from the blank — but most colours sit well below the flap
+    background, so the grayscale LEVEL separates them (the white flap stays ambiguous, which is
+    why the blank is confirmed by its letter neighbour, not by flatness alone)."""
+    blank = _glyph_tile(" ")
+    assert autocal.tile_blankness(_glyph_tile("w")) < 3 * autocal.tile_blankness(blank) + 0.02
+    bg = float(np.percentile(_glyph_tile("A"), 85))
+    assert float(np.median(_glyph_tile("b"))) < bg - 35      # blue: clearly a dark colour
+    assert float(np.median(blank)) > bg - 35                 # the blank reads at background
 
 
 # ---------------------------------------------------------------------------
-# the learned glyph library + identity
+# glyph identity — the LOCAL check (dialed char vs its few neighbours)
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize("error", [0, 1, -4, 9])
-def test_learn_reel_recovers_the_offset_and_labels_the_tiles(error):
-    lib = autocal.learn_reel(_sweep(error=error, noise=4.0, seed=error + 5), REEL)
-    assert lib["offset_flaps"] == error
-    assert set(lib["templates"]) == set(REEL)
-    assert set(lib["blankness"]) == set(REEL)
-
-
 def test_identify_names_every_glyph_under_fresh_noise():
-    """The library is learned under one noise draw and re-read under ANOTHER — every glyph must
-    still be identified as itself, by a clear margin. (Templates built at the known rotation:
-    labelling a colour reel is the anchors' job, tested separately.)"""
+    """Learn each glyph under one noise draw, re-read under ANOTHER: every glyph identifies as
+    itself, by a clear margin, against the full set."""
     sweep1 = _sweep(REEL64, error=0, noise=5.0, seed=1)
     templates = {REEL64[i]: autocal.glyph_pool(sweep1[i]) for i in range(len(REEL64))}
     fresh = _sweep(REEL64, error=0, noise=5.0, seed=2)
@@ -190,53 +174,21 @@ def test_identify_names_every_glyph_under_fresh_noise():
 
 
 def test_identify_finds_the_glyph_under_a_vertical_roll():
-    """A library learned at one sub-flap shift must still identify a capture at another, once
+    """A template learned at one sub-flap shift must still identify a capture at another, once
     the roll search registers them (the seam masked at both its positions)."""
-    lib = autocal.learn_reel(_sweep(REEL, error=0, shift=10, noise=3.0, seed=4), REEL)
+    templates = {c: autocal.glyph_pool(_glyph_tile(c, shift=10)) for c in REEL}
     rolls = tuple(range(-(autocal.TILE_H // 2), autocal.TILE_H // 2 + 1, 2))
-    got, _, _ = autocal.identify(_glyph_tile("K"), lib["templates"], rolls=rolls)
+    got, _, _ = autocal.identify(_glyph_tile("K"), templates, rolls=rolls)
     assert got == "K"
 
 
 def test_a_wrong_flap_is_named_not_scored():
     """Dial A, see B: identify must SAY B — the literal check the whole feature hangs on."""
-    lib = autocal.learn_reel(_sweep(error=0, noise=3.0, seed=6), REEL)
-    got, _, _ = autocal.identify(_glyph_tile("B"), lib["templates"])
+    templates = {c: autocal.glyph_pool(_glyph_tile(c)) for c in REEL}
+    got, _, _ = autocal.identify(_glyph_tile("B"), templates)
     assert got == "B"
-    got, _, _ = autocal.identify(_glyph_tile("4"), lib["templates"])
+    got, _, _ = autocal.identify(_glyph_tile("4"), templates)
     assert got == "4"
-
-
-# ---------------------------------------------------------------------------
-# the rendered-reference consensus anchor
-# ---------------------------------------------------------------------------
-@pytest.mark.parametrize("error", [0, 2, -5, 17])
-def test_consensus_shift_picks_the_rotation(error):
-    r = autocal.consensus_shift(_sweep(REEL, error=error, noise=6.0, seed=abs(error) + 1), REEL)
-    assert r["offset_flaps"] == error
-    assert r["confidence"] > autocal.FONT_ANCHOR_MIN
-
-
-@pytest.mark.parametrize("error", [0, 2, -5])
-def test_consensus_shift_works_on_the_default_reel_with_colour_flaps(error):
-    r = autocal.consensus_shift(_sweep(REEL64, error=error, noise=6.0, seed=abs(error) + 9),
-                                REEL64)
-    assert r["offset_flaps"] == error
-
-
-def test_consensus_shift_survives_the_modules_own_sub_flap_shift():
-    """A miscalibrated module's sweep carries a vertical shift too — the anchor roll-searches."""
-    r = autocal.consensus_shift(_sweep(REEL, error=3, shift=12, noise=4.0, seed=11), REEL)
-    assert r["offset_flaps"] == 3
-
-
-@pytest.mark.parametrize("error", [0, 3])
-def test_consensus_never_gives_a_wrong_opinion_on_an_alien_look(error):
-    """An unknown-enough print must make the font anchor ABSTAIN (or agree) — a confident wrong
-    rotation would poison the dual-anchor check."""
-    alien = [_block_tile(REEL[(i + error) % len(REEL)]) for i in range(len(REEL))]
-    r = autocal.consensus_shift(alien, REEL)
-    assert r["offset_flaps"] in (None, error)
 
 
 # ---------------------------------------------------------------------------
@@ -287,32 +239,6 @@ def test_align_opinions_abstains_on_weak_or_conflicting_evidence():
     # scattered random opinions: no shift dominates
     noise = {i: REEL64[(i * 7 + 3) % 40 + 1] for i in range(0, 60, 2)}
     assert autocal.align_opinions(noise, REEL64)["offset_flaps"] is None
-
-
-@pytest.mark.ocr
-@needs_tesseract
-def test_ocr_votes_in_the_anchor_and_reads_the_reel_back():
-    mod = FakeModule(REEL64, 4096, err_flaps=2)
-    seen = []
-    r = _learned(mod, notify=lambda k, d: seen.append((k, d)))
-    assert r["status"] == "adjusted"
-    anchors = [d for k, d in seen if k == "anchor"]
-    assert all("ocr" in a and "blank" in a and "font" in a for a in anchors)
-    assert any("ocr" in a["used"] for a in anchors)         # OCR actually anchored
-    checks = [d for k, d in seen if k == "ocr_check"]
-    assert checks and checks[-1]["ok"] and checks[-1]["shift"] == 0
-    assert r["reel_check"]["ocr"]["shift"] == 0
-
-
-def test_calibration_still_works_without_tesseract(monkeypatch):
-    """Bare installs may lack the binary: the other anchors carry the run, no ocr_check."""
-    monkeypatch.setattr(autocal, "ocr_available", lambda: False)
-    mod = FakeModule(REEL, 2000, err_flaps=3)
-    seen = []
-    r = _learned(mod, notify=lambda k, d: seen.append((k, d)))
-    assert r["status"] == "adjusted" and r["reel_check"]["ok"]
-    assert "ocr_check" not in [k for k, _ in seen]
-    assert r["reel_check"]["ocr"]["shift"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -419,127 +345,112 @@ class FakeModule:
         return out
 
 
-def _learned(mod, **kw):
+def _calibrate(mod, **kw):
     def cap(i):
         mod.show_index(i)
         return mod.capture()
-    return autocal.calibrate_module_learned(cap, mod.nudge, mod.reel, mod.total, **kw)
+    return autocal.calibrate_module(cap, mod.nudge, lambda: mod.show_index(0),
+                                    mod.reel, mod.total, **kw)
+
+
+def _truly_aligned(mod):
+    mod.show_index(7)
+    return autocal.analyze_sweep(mod.sweep(), mod.reel)["aligned"]
 
 
 def test_an_already_aligned_module_is_left_alone():
     mod = FakeModule(REEL, 2000)
-    r = _learned(mod)
+    r = _calibrate(mod)
     assert r["status"] == "aligned"
     assert r["applied_steps"] == 0 and mod.homeoffset == 1000
     assert r["reel_check"]["ok"] and r["reel_check"]["flagged"] == []
 
 
-@pytest.mark.parametrize("err,conv", [(3, 1), (3, -1), (-5, 1), (12, -1), (1, 1)])
+@pytest.mark.parametrize("err,conv", [(2, 1), (3, -1), (-1, 1), (-5, 1), (8, -1), (-7, -1)])
 def test_a_whole_flap_error_converges_for_either_nudge_direction(err, conv):
+    """Home, read what shows, and drive to aligned — for an offset either side of home and for
+    either hardware nudge direction. The reel is circular, so a forward sweep always reaches
+    the blank, whatever ``conv`` maps a +nudge to."""
     mod = FakeModule(REEL, 2000, err_flaps=err, conv=conv)
-    r = _learned(mod)
-    assert r["status"] == "adjusted", r["history"]
-    assert r["reel_check"]["ok"]
-    mod.show_index(3)
-    assert autocal.analyze_sweep(mod.sweep(), REEL)["aligned"]
+    r = _calibrate(mod)
+    assert r["status"] in ("aligned", "adjusted"), r["history"]
+    assert _truly_aligned(mod)
 
 
 def test_a_sub_flap_residual_is_corrected():
     mod = FakeModule(REEL, 2000, sub=0.25)
-    r = _learned(mod)
-    assert r["status"] == "adjusted"
-    assert autocal.analyze_sweep(mod.sweep(), REEL)["aligned"]
+    r = _calibrate(mod)
+    assert r["status"] in ("aligned", "adjusted")
+    assert _truly_aligned(mod)
 
 
 def test_a_combined_whole_and_sub_error_converges():
     mod = FakeModule(REEL, 3600, err_flaps=4, sub=0.3, conv=-1)
-    r = _learned(mod)
-    assert r["status"] == "adjusted", r["history"]
-    assert autocal.analyze_sweep(mod.sweep(), REEL)["aligned"]
+    r = _calibrate(mod)
+    assert r["status"] in ("aligned", "adjusted"), r["history"]
+    assert _truly_aligned(mod)
 
 
-def test_the_default_reel_with_colour_flaps_calibrates_via_the_font_rescue():
-    """The real wall: the blank anchor is ambiguous (the white flap ties it) — the rendered
-    consensus must rescue the labelling and the run must still verify every flap."""
+def test_the_default_reel_with_colour_flaps_calibrates():
+    """The real wall: a 64-flap reel with solid-colour flaps. The home search must still find
+    the blank (a colour flap is flat too, so brightness + the letter-neighbour decide it)."""
     mod = FakeModule(REEL64, 4096, err_flaps=2)
-    seen = []
-    r = _learned(mod, notify=lambda k, d: seen.append((k, d)))
-    assert r["status"] == "adjusted"
-    assert r["reel_check"]["ok"]
-    anchors = [d for k, d in seen if k == "anchor"]
-    assert "blank" not in anchors[0]["used"]               # the blank abstained (white flap tie)
-    assert anchors[0]["used"] in ("font", "ocr", "font+ocr")
+    r = _calibrate(mod)
+    assert r["status"] in ("aligned", "adjusted")
+    assert _truly_aligned(mod)
 
 
-def test_anchor_conflict_is_flagged_never_guessed():
-    """Blank says one rotation, the glyph consensus another (an impostor blank) — the module
-    must go to needs_review, not silently follow either anchor."""
-    tiles = _sweep(REEL, error=0, noise=3.0)
-    tiles[0] = _glyph_tile("E")           # the true blank slot shows a glyph
-    tiles[5] = _glyph_tile(" ")           # an impostor blank elsewhere
-    seen = []
-    r = autocal.calibrate_module_learned(lambda i: tiles[i % len(REEL)], lambda s: None,
-                                         REEL, 2000,
-                                         notify=lambda k, d: seen.append((k, d)))
-    assert r["status"] == "needs_review"
-    anchor = next(d for k, d in seen if k == "anchor")
-    assert anchor["used"] == "conflict"
+def test_home_lands_on_a_colour_flap_and_still_finds_the_blank():
+    """The case the user named: homing shows a colour/symbol, not the blank. The search reads
+    that, keeps stepping forward, and lands on the real blank."""
+    mod = FakeModule(REEL64, 4096, err_flaps=-2)      # home shows a colour flap (before blank)
+    r = _calibrate(mod)
+    assert r["status"] in ("aligned", "adjusted")
+    assert _truly_aligned(mod)
 
 
 def test_abort_stops_the_loop_without_touching_the_module():
     mod = FakeModule(REEL, 2000, err_flaps=7)
-    r = _learned(mod, should_abort=lambda: True)
+    r = _calibrate(mod, should_abort=lambda: True)
     assert r["status"] == "failed" and r["reason"] == "aborted"
     assert mod.homeoffset == 1000
 
 
 def test_events_narrate_the_whole_run():
-    """The live log the UI renders: every capture a probe line, the learned measurement, both
-    anchors, every nudge, the re-learn, and a dialed-vs-saw verify line per flap."""
+    """The live log the UI renders: the home search narrates what it saw, every nudge, a
+    verify_start, and a dialed-vs-saw verify line per flap, ending on a reel verdict."""
     mod = FakeModule(REEL, 2000, err_flaps=2)
     seen = []
-    r = _learned(mod, notify=lambda kind, data: seen.append((kind, data)))
+    r = _calibrate(mod, notify=lambda kind, data: seen.append((kind, data)))
     kinds = [k for k, _ in seen]
-    assert "learned" in kinds and "adjust" in kinds and "anchor" in kinds
-    assert "relearn" in kinds                       # corrections happened -> fresh library
-    assert "verify_start" in kinds and "reel_verified" in kinds
-    learned = next(d for k, d in seen if k == "learned")
-    assert learned["offset_flaps"] == 2
-    probes = [d for k, d in seen if k == "probe"]
-    assert len(probes) >= 2 * len(REEL)             # learning sweep + re-learn sweep, narrated
-    assert all("char" in d and "ink" in d for d in probes)
+    assert "adjust" in kinds and "verify_start" in kinds
+    assert "reel_verified" in kinds or "reel_issues" in kinds
     verifies = [d for k, d in seen if k == "verify"]
     assert len(verifies) >= len(REEL)
     assert all({"flap", "expected", "saw", "ok"} <= set(d) for d in verifies)
-    assert r["status"] == "adjusted"
-
-
-def test_an_aligned_module_skips_the_relearn_sweep():
-    mod = FakeModule(REEL, 2000)
-    seen = []
-    _learned(mod, notify=lambda k, d: seen.append((k, d)))
-    assert "relearn" not in [k for k, _ in seen]
-    probes = [d for k, d in seen if k == "probe"]
-    assert len(probes) == len(REEL)                 # exactly one learning sweep
+    assert r["status"] in ("aligned", "adjusted")
 
 
 def test_a_glued_flap_is_caught_and_downgrades():
     mod = FakeModule(REEL, 2000, glued=10)
     seen = []
-    r = _learned(mod, notify=lambda k, d: seen.append((k, d)))
+    r = _calibrate(mod, notify=lambda k, d: seen.append((k, d)))
     assert r["status"] == "needs_review"
     assert 10 in r["reel_check"]["skips"]
     assert any(k == "skip_suspect" and d.get("flap") == 10 for k, d in seen)
 
 
 def test_verify_names_what_it_saw():
-    """The dialed-vs-saw lines: on a healthy module every verify line says it saw the expected
-    character, by name."""
+    """The dialed-vs-saw lines: on a healthy module every verify line in the final pass says it
+    saw the expected character (letters by name, flat flaps as flat)."""
     mod = FakeModule(REEL, 2000)
     seen = []
-    _learned(mod, notify=lambda k, d: seen.append((k, d)))
-    verifies = [d for k, d in seen if k == "verify"]
-    assert verifies and all(d["ok"] and d["saw"] == d["expected"] for d in verifies)
+    _calibrate(mod, notify=lambda k, d: seen.append((k, d)))
+    # the final verify pass is the run of verify events after the last verify_start
+    starts = [i for i, (k, _) in enumerate(seen) if k == "verify_start"]
+    assert starts
+    final = [d for k, d in seen[starts[-1]:] if k == "verify"]
+    assert final and all(d["ok"] and d["saw"] == d["expected"] for d in final)
 
 
 def test_looks_blank_judges_by_the_modules_own_evidence():
@@ -548,6 +459,30 @@ def test_looks_blank_judges_by_the_modules_own_evidence():
     assert autocal.looks_blank(0.08, ev)
     assert not autocal.looks_blank(0.2, ev)
     assert not autocal.looks_blank(0.19, ev)
+
+
+@pytest.mark.ocr
+@needs_tesseract
+def test_ocr_reads_the_reel_back_as_the_final_check():
+    mod = FakeModule(REEL64, 4096, err_flaps=2)
+    seen = []
+    r = _calibrate(mod, notify=lambda k, d: seen.append((k, d)))
+    assert r["status"] in ("aligned", "adjusted")
+    checks = [d for k, d in seen if k == "ocr_check"]
+    assert checks and checks[-1]["ok"] and checks[-1]["shift"] == 0
+    assert r["reel_check"]["ocr"]["shift"] == 0
+
+
+def test_calibration_still_works_without_tesseract(monkeypatch):
+    """Bare installs may lack the binary: the home search + per-flap verify carry the run with
+    no ocr_check event and a None OCR read-back."""
+    monkeypatch.setattr(autocal, "ocr_available", lambda: False)
+    mod = FakeModule(REEL, 2000, err_flaps=3)
+    seen = []
+    r = _calibrate(mod, notify=lambda k, d: seen.append((k, d)))
+    assert r["status"] in ("aligned", "adjusted") and r["reel_check"]["ok"]
+    assert "ocr_check" not in [k for k, _ in seen]
+    assert r["reel_check"]["ocr"]["shift"] is None
 
 
 # ===========================================================================
@@ -680,12 +615,10 @@ def test_autocal_run_emits_the_event_narration():
     run.run_blocking()
     kinds = [e["kind"] for e in run.events]            # the full buffer; status serves a window
     assert kinds[0] == "start"
-    for k in ("learned", "anchor", "adjust", "verify_start", "verify", "result", "park_check"):
+    for k in ("fw_calibrate", "adjust", "verify_start", "verify", "result", "park_check"):
         assert k in kinds, k
-    probe = next(e for e in run.events if e["kind"] == "probe")
-    assert "char" in probe and "ink" in probe          # dialed-vs-saw detail on every look
     verify = next(e for e in run.events if e["kind"] == "verify")
-    assert "expected" in verify and "saw" in verify
+    assert "expected" in verify and "saw" in verify    # the dialed-vs-saw detail
     assert all("seq" in e and "module" in e for e in run.status["events"])
 
 

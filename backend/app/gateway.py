@@ -445,6 +445,33 @@ async def flap_home(gateway_url: str, mid: int, timeout: float = 10.0) -> None:
     r.raise_for_status()
 
 
+async def flap_calibrate_start(gateway_url: str, mid: int, timeout: float = 10.0) -> dict:
+    """``POST /api/flap/calibrate`` — start the firmware's steps-per-revolution measurement for
+    one module (ASYNCHRONOUS: the reel spins a full revolution, up to ~15s; poll
+    ``flap_calibrate_status``). The module saves the measured value to its own EEPROM."""
+    r = await _arequest("POST", gateway_url, "/api/flap/calibrate",
+                        json={"id": int(mid)}, timeout=timeout)
+    r.raise_for_status()
+    return r.json()
+
+
+async def flap_calibrate_status(gateway_url: str, timeout: float = 10.0) -> dict:
+    """``GET /api/flap/calibrate/status`` — the async job's state: ``pending`` while measuring,
+    ``done`` with ``stepsPerRev``, ``timeout`` when the module never replied, ``idle``."""
+    r = await _arequest("GET", gateway_url, "/api/flap/calibrate/status", timeout=timeout)
+    r.raise_for_status()
+    return r.json()
+
+
+async def flap_set_totalsteps(gateway_url: str, mid: int, steps: int,
+                              timeout: float = 10.0) -> None:
+    """``POST /api/flap/totalsteps`` — write the measured steps/rev back (the confirm step the
+    calibrate flow's docs recommend after a ``done`` measurement)."""
+    r = await _arequest("POST", gateway_url, "/api/flap/totalsteps",
+                        json={"id": int(mid), "steps": int(steps)}, timeout=timeout)
+    r.raise_for_status()
+
+
 def gateway_version(gw: dict) -> tuple[int, int] | None:
     """(major, minor) parsed from a gateway /api/config document, or None.
 
