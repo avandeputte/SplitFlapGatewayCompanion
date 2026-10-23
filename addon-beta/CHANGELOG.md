@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.18
+
+- **Fixes a crash in recognition on the aspect-correct tiles.** The rectified tile width now
+  varies with the wall, but the glyph comparison assumed a fixed size, so a capture and a
+  reference could be different shapes and the compare threw. Recognition now normalises to a
+  canonical size before matching (blankness/stroke/centroid stay on the real-aspect tile).
+
 ## 2.12.0-beta.17
 
 - **Tiles now match the real module shape.** Split-flap modules are tall and narrow (~1:2), but
