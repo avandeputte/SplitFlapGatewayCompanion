@@ -605,6 +605,7 @@ function calWire() {
   $("calResetCorners").addEventListener("click", () => { CAL.corners = []; calDrawOverlay(); calSyncRunBtn(); });
   $("calOverlay").addEventListener("click", calTapCorner);
   $("calRun").addEventListener("click", calStart);
+  { const d = $("calDebug"); if (d) d.addEventListener("click", calDebug); }
   $("calAbort").addEventListener("click", () => post("/api/autocal/abort").catch(() => {}));
   $("calRevert").addEventListener("click", calRevert);
   window.addEventListener("resize", calDrawOverlay);
@@ -650,11 +651,25 @@ function calDrawOverlay() {
 }
 
 function calSyncRunBtn() {
-  $("calRun").disabled = CAL.corners.length !== 4 || !(CAL.plan && CAL.plan.available) || CAL.running;
+  const ready = CAL.corners.length === 4 && CAL.plan && CAL.plan.available && !CAL.running;
+  $("calRun").disabled = !ready;
+  const dbg = $("calDebug"); if (dbg) dbg.disabled = !ready;
   if (CAL.stream && CAL.corners.length < 4) {
     const labels = [t("top-left"), t("top-right"), t("bottom-right"), t("bottom-left")];
     $("calHint").textContent = t("Tap the %s corner.", labels[CAL.corners.length]);
   }
+}
+
+async function calDebug() {
+  // Stream frames with the calibration loop OFF, so the wall can be driven from the MCP debug
+  // tools (debug_read / debug_command / debug_nudge / debug_home / debug_meta) against the real
+  // camera. Leaving the page stops the camera and ends the session.
+  try { await post("/api/autocal/debug/start", { corners: CAL.corners }); }
+  catch (e) { $("calStatus").textContent = t("Failed: %s", e.message); return; }
+  CAL.running = true;
+  $("calRun").classList.add("hidden"); $("calAbort").classList.remove("hidden");
+  calStartStreaming();
+  $("calStatus").textContent = t("Debug session live — streaming frames for MCP. Leave the page to stop.");
 }
 
 async function calStart() {

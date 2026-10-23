@@ -132,6 +132,7 @@ def call(main, name, args=None):
 def test_tools_are_all_registered(mcp_on):
     names = sorted(t.name for t in asyncio.run(mcp_on.mcp.list_tools()))
     assert names == ["abort_calibration", "clear_alarm", "clear_display", "configure_app",
+                     "debug_command", "debug_home", "debug_meta", "debug_nudge", "debug_read",
                      "get_app_settings", "get_calibration", "get_display", "get_gateway_settings",
                      "get_timer", "list_alarms", "list_apps", "list_displays", "list_playlists",
                      "list_styles", "revert_calibration", "run_app", "run_playlist", "run_zones",

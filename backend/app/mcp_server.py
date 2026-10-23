@@ -558,6 +558,90 @@ def build(displays) -> MCPServer:
         run.revert()
         return {"ok": True}
 
+    # --- debug the auto-calibration on the REAL wall ------------------------
+    # The automatic loop can't be tuned against a simulator. When a human has a debug session
+    # open on the Calibrate page (camera on, corners set, frames streaming, loop OFF), these let
+    # an agent drive the wall one step at a time and read back the ACTUAL captured tile — the
+    # image plus every measurement the algorithm makes on it (ink, blankness, centroid, the local
+    # glyph identification, OCR's opinion). Image bytes come back base64 PNG, and the same tile is
+    # also at GET /api/autocal/debug/tile.png?module=ID for a direct fetch.
+    def _debug_run():
+        import app.main as _main
+        run = _main.autocal_run
+        if run is None or not getattr(run, "debug", False) or run.finished:
+            raise ToolError("no debug session — open the Calibrate page, start the camera, set "
+                            "the four corners and press the debug button first")
+        return run
+
+    def _debug_gi(run, mid: int) -> int:
+        m = run.modules.get(int(mid))
+        if m is None:
+            raise ToolError(f"module {mid} is not on this wall")
+        return m["grid_index"]
+
+    async def _debug_capture(mid: int, index, *, nudge=None, home=False):
+        import base64
+        from .routes.autocal import analyze_tile, _tile_png
+        run = _debug_run()
+        gi = _debug_gi(run, mid)
+        if home:
+            await gateway.flap_home(run.gateway_url, int(mid))
+            await asyncio.sleep(run.settle_s)
+        if nudge is not None:
+            await gateway.flap_nudge(run.gateway_url, int(mid), int(nudge))
+            await asyncio.sleep(run.settle_s)
+        if index is not None:
+            await gateway.flap_show_index(run.gateway_url, int(mid), int(index))
+            await asyncio.sleep(run.settle_s)
+        if run._frame is None:
+            raise ToolError("no camera frame yet — is the page streaming?")
+        tile = run._capture_tile(gi)
+        chars = run._reel.get(int(mid))
+        if not chars:
+            raw = await gateway.flap_all(run.gateway_url, int(mid))
+            chars = raw.get("flapChars") or ""
+            if chars:
+                run._reel[int(mid)] = chars
+        return {"ok": True, "id": int(mid), "index": index, "flap_chars": chars,
+                "analysis": analyze_tile(tile, chars),
+                "tile_png_base64": base64.b64encode(_tile_png(tile)).decode()}
+
+    @mcp.tool()
+    async def debug_read(module: int, display: str = "") -> dict:
+        """Read the module's CURRENT camera tile without moving it — the image (base64 PNG) plus
+        every measurement the calibration makes on it. Needs a debug session open on the page."""
+        return await _debug_capture(module, None)
+
+    @mcp.tool()
+    async def debug_command(module: int, index: int, display: str = "") -> dict:
+        """Command a module to show flap ``index``, wait the settle, and return the captured
+        tile (image + measurements). This is 'dial it and see what actually shows'."""
+        return await _debug_capture(module, int(index))
+
+    @mcp.tool()
+    async def debug_nudge(module: int, steps: int, display: str = "") -> dict:
+        """Nudge a module's reel by ``steps`` (moves AND saves the offset), then return the
+        captured tile. Use revert_calibration afterwards to undo everything the run touched."""
+        return await _debug_capture(module, None, nudge=int(steps))
+
+    @mcp.tool()
+    async def debug_home(module: int, display: str = "") -> dict:
+        """Re-home a module, then return what it shows at the home position (image + measurements)."""
+        return await _debug_capture(module, None, home=True)
+
+    @mcp.tool()
+    async def debug_meta(module: int, display: str = "") -> dict:
+        """The module's raw EEPROM read + parsed home offset / total steps / flap set — exactly
+        what a run uses, so a 'not ready' is diagnosable (``stale`` = the module didn't answer)."""
+        run = _debug_run()
+        _debug_gi(run, module)
+        raw = await gateway.flap_all(run.gateway_url, int(module))
+        dump = gateway._parse_dump(raw.get("dump", ""))
+        return {"ok": True, "id": int(module), "stale": raw.get("stale"),
+                "flap_chars": raw.get("flapChars") or "", "flap_count": raw.get("flapCount"),
+                "home_offset": dump[0] if dump else None,
+                "total_steps": dump[1] if dump else None, "raw_dump": raw.get("dump", "")}
+
     return mcp
 
 

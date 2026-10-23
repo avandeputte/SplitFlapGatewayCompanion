@@ -857,17 +857,27 @@ class CalibrationSession:
                 break
             mid = m["id"]
             self._log(mid, "start", {})
-            # The golden order starts with Total Steps: the firmware measures the reel itself
-            # (a full revolution) and saves it, so every later correction uses the true scale.
-            if self._fw_calibrate is not None:
-                steps = self._fw_calibrate(mid)
-                self._log(mid, "fw_calibrate", {"steps": steps})
-            meta = self._meta(mid)                             # fresh: totals + saved offset
+            # Read the reel FIRST, while the module is responsive. Firmware calibration spins the
+            # reel a full revolution and leaves the module briefly unable to answer a bus query
+            # (an EEPROM read then comes back empty/stale) — so reading before any maintenance is
+            # what keeps "not ready" from being a false alarm.
+            meta = self._meta(mid)
             if not meta:
                 self.results[mid] = {"status": "needs_review", "reason": "module not ready"}
                 self._log(mid, "not_ready", {})
                 continue
             self.snapshot[mid] = meta["home_offset"]           # its own saved value, pre-run
+            # Total Steps first (the golden order), but only MEASURE it when it isn't already
+            # known: re-spinning an already-calibrated reel every run is slow and needless. When
+            # the saved value is missing/zero, the firmware measures it and we use that.
+            if self._fw_calibrate is not None and not meta.get("total_steps"):
+                steps = self._fw_calibrate(mid)
+                self._log(mid, "fw_calibrate", {"steps": steps, "measured": True})
+                if steps:
+                    meta["total_steps"] = steps
+            else:
+                self._log(mid, "fw_calibrate", {"steps": meta.get("total_steps"),
+                                                "measured": False})
             # The guided flow: home and read what shows (the reel ORDER says which way to go),
             # walk to the blank in quarter-flap nudges, then dial every character and read it
             # back, correcting the same way, until a full pass needs no correction.
@@ -1018,11 +1028,18 @@ class AutocalRun:
             m = self._meta_seam(mid)
         else:
             from . import gateway
-            raw = self._run_coro(gateway.flap_all(self.gateway_url, mid))
-            dump = gateway._parse_dump(raw.get("dump", ""))
-            chars = raw.get("flapChars") or ""
-            # say WHY a module is skipped, so "not ready" is diagnosable from the log
-            reason = ("no EEPROM dump" if dump is None else
+            # A bus query can come back ``stale`` (no reply yet — the module was busy); the read
+            # is fetched fresh each call, so a couple of retries clears a transient miss.
+            raw, dump, chars = {}, None, ""
+            for attempt in range(4):
+                raw = self._run_coro(gateway.flap_all(self.gateway_url, mid))
+                dump = gateway._parse_dump(raw.get("dump", ""))
+                chars = raw.get("flapChars") or ""
+                if dump is not None and chars and not raw.get("stale"):
+                    break
+                self._sleep_abortable(1.0)
+            reason = ("no reply from the module (bus busy?)" if raw.get("stale") and dump is None
+                      else "no EEPROM dump" if dump is None else
                       "no flap set reported" if not chars else
                       "reel has no blank flap" if " " not in chars else None)
             if reason is not None:
