@@ -543,6 +543,7 @@ function wireTabs() {
       document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
       btn.classList.add("active");
       const tab = btn.dataset.tab;
+      if (tab !== "calibrate") calLeave();   // leaving Calibrate stops the run + the camera
       ["apps", "compose", "playlists", "triggers", "calibrate"]
         .forEach((p) => $("page-" + p).classList.toggle("hidden", p !== tab));
       const loaders = { apps: loadApps, playlists: loadPlaylists, triggers: loadTriggers,
@@ -607,6 +608,7 @@ function calWire() {
   $("calAbort").addEventListener("click", () => post("/api/autocal/abort").catch(() => {}));
   $("calRevert").addEventListener("click", calRevert);
   window.addEventListener("resize", calDrawOverlay);
+  window.addEventListener("pagehide", calLeave);   // closing/leaving the app stops the run too
 }
 
 async function calStartCamera() {
@@ -659,6 +661,8 @@ async function calStart() {
   try { await post("/api/autocal/start", { corners: CAL.corners }); }
   catch (e) { $("calStatus").textContent = t("Failed: %s", e.message); return; }
   CAL.running = true;
+  CAL.lastSeq = 0;
+  const lg = $("calLog"); lg.innerHTML = ""; lg.classList.remove("hidden");
   $("calRun").classList.add("hidden"); $("calAbort").classList.remove("hidden");
   $("calRevert").classList.add("hidden");
   calStartStreaming();
@@ -682,11 +686,25 @@ function calStopStreaming() {
   if (CAL.pollTimer) { clearTimeout(CAL.pollTimer); CAL.pollTimer = null; }
 }
 
+function calLeave() {
+  // Leaving the page takes the camera with it, so a run can't continue — stop it OURSELVES
+  // rather than leaving the wall flipping against a frozen image. (The backend also aborts on
+  // its own if frames stop arriving, as the net for a closed tab or a crashed browser.)
+  if (CAL.running) { post("/api/autocal/abort").catch(() => {}); CAL.running = false; }
+  calStopStreaming();
+  if (CAL.stream) {
+    CAL.stream.getTracks().forEach((tr) => tr.stop());
+    CAL.stream = null;
+    $("calStartCam").textContent = t("Start camera");
+  }
+}
+
 async function calPoll() {
   let st = null;
   try { st = await api("/api/autocal/status"); } catch (e) { /* keep trying */ }
   if (st) {
     calRenderGrid(st);
+    calRenderLog(st.events || []);
     if (st.finished) {
       const s = st.summary || {};
       const flagged = (s.needs_review || 0) + (s.failed || 0);
@@ -701,8 +719,8 @@ async function calPoll() {
     const a = st.activity;
     if (a) {
       const where = String((a.module || 0) + 1);
-      line += "  ·  " + (a.action === "adjusting"
-        ? t("module %s — adjusting", where)
+      line += "  ·  " + (a.action === "adjusting" ? t("module %s — adjusting", where)
+        : a.action === "parking" ? t("module %s — returning to blank", where)
         : t("module %s — reading the reel", where));
     }
     $("calStatus").textContent = line;
@@ -721,6 +739,51 @@ function calFinish() {
 async function calRevert() {
   try { await post("/api/autocal/revert"); $("calStatus").textContent = t("Reverted."); }
   catch (e) { $("calStatus").textContent = t("Failed: %s", e.message); }
+}
+
+// The live narration: structured events from the backend -> readable, localized lines.
+// This is what lets you TRUST the run — every measurement, every nudge, every verdict.
+function calEventLine(e) {
+  const m = String((e.module || 0) + 1);
+  switch (e.kind) {
+    case "start": return [null, t("module %s: starting", m)];
+    case "not_ready": return ["warn", t("module %s: not ready — skipped", m)];
+    case "fallback": return ["warn", t("module %s: blank unclear — scanning the whole reel", m)];
+    case "measured": {
+      const pct = String(Math.round(Math.abs(e.sub_flap || 0) * 100));
+      const dir = (e.sub_flap || 0) > 0 ? t("low") : t("high");
+      return [null, t("module %s: blank %s flap(s) off · glyph %s% %s · confidence %s",
+                      m, String(e.offset_flaps), pct, dir, String(e.confidence))];
+    }
+    case "adjust": return [null, t("module %s: nudging %s steps", m, String(e.steps))];
+    case "result":
+      if (e.status === "aligned") return ["ok", t("module %s: ✓ already aligned", m)];
+      if (e.status === "adjusted") return ["ok", t("module %s: ✓ adjusted (%s steps)", m, String(e.applied_steps))];
+      if (e.status === "needs_review") return ["warn", t("module %s: ? needs a look", m)];
+      return ["bad", t("module %s: ✕ failed", m)];
+    case "parked": return [null, t("module %s: homed", m)];
+    default: return [null, ""];
+  }
+}
+
+function calRenderLog(events) {
+  const lg = $("calLog");
+  let appended = false;
+  for (const e of events) {
+    if (e.seq <= (CAL.lastSeq || 0)) continue;
+    CAL.lastSeq = e.seq;
+    const [cls, text] = calEventLine(e);
+    if (!text) continue;
+    const div = el("div", cls || "");
+    div.textContent = text;
+    lg.appendChild(div);
+    appended = true;
+  }
+  if (appended) {
+    lg.classList.remove("hidden");
+    lg.scrollTop = lg.scrollHeight;
+    while (lg.children.length > 300) lg.removeChild(lg.firstChild);
+  }
 }
 
 function calRenderGrid(st) {

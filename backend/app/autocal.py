@@ -86,6 +86,15 @@ def tile_ink(tile: np.ndarray) -> float:
     return float(np.std(tile) / 255.0)
 
 
+TILE_STABLE_DIFF = 6.0   # mean |a-b| in intensity levels: consecutive reads of a SETTLED flap
+                         # differ only by sensor noise (well below this); one in flight, wildly.
+
+
+def tiles_similar(a: np.ndarray, b: np.ndarray) -> bool:
+    """Do two consecutive reads of the same module agree — i.e. has the flap stopped moving?"""
+    return float(np.mean(np.abs(a - b))) < TILE_STABLE_DIFF
+
+
 def tile_v_centroid(tile: np.ndarray) -> float:
     """Vertical centre of the ink, 0 (top) .. 1 (bottom). For a correctly-homed flap the glyph
     sits centred (~0.5); a module a fraction of a flap off shows the glyph high (<0.5) or low
@@ -157,67 +166,19 @@ def analyze_sweep(sweep: list[np.ndarray], flap_chars: str) -> dict:
 # This is the closed loop the calibration job runs per module. It is pure — every side
 # effect is an injected callable — so the whole thing is tested against a simulated wall
 # with no camera and no gateway (see test_autocal.py). In production the session wires:
-#   sweep_fn    -> command each flap index on the gateway, wait to settle, grab the latest
-#                  camera frame and rectify this module's tile (one pass per call);
-#   get_offset  -> the module's current homeOffset (from /api/flap/modules);
-#   set_offset  -> POST /api/flap/homeoffset.
+#   capture_index -> command a flap on the gateway, wait out the motion, then read the
+#                    module's tile from a PROVEN-settled fresh camera frame;
+#   adjust        -> POST /api/flap/nudge (a LIVE correction: moves the reel + saves);
+#   restore       -> POST /api/flap/homeoffset + /api/flap/home (revert only).
 # ---------------------------------------------------------------------------
 CONFIDENCE_MIN = 0.12          # below this, flag the module for a human rather than guess
 MAX_ROUNDS = 6                 # a correction + a few refinements; mechanical walls are slow
+SETTLE_FLOOR_S = 1.0           # min wait per step: enough for a flap to physically settle AND for
+                               # a fresh camera frame to arrive, and slow enough to watch
 
 
 def steps_per_flap(total_steps: int, flap_count: int) -> float:
     return float(total_steps) / max(1, int(flap_count))
-
-
-def calibrate_module(sweep_fn, get_offset, set_offset, flap_chars: str,
-                     total_steps: int, *, max_rounds: int = MAX_ROUNDS,
-                     confidence_min: float = CONFIDENCE_MIN, should_abort=None) -> dict:
-    """Iterate a single module to aligned, measuring with the camera and writing its home
-    offset, until the blank sits at index 0 and glyphs ride centred — or we run out of rounds
-    or the measurement is too ambiguous to trust.
-
-    The direction a home-offset change moves the reel is hardware-dependent, so the loop
-    DISCOVERS the sign: if a correction makes the error worse, it flips sign and continues.
-    That makes the real-hardware sign a non-issue (Phase 3 just confirms it converges).
-
-    Returns ``{status, rounds, applied_steps, final, history}`` where status is
-    ``aligned`` (already good), ``adjusted`` (fixed), ``needs_review`` (too ambiguous) or
-    ``failed`` (didn't converge / aborted).
-    """
-    spf = steps_per_flap(total_steps, len(flap_chars))
-    sign = 1
-    applied = 0
-    prev_err = None
-    history: list[dict] = []
-
-    for rnd in range(max_rounds):
-        if should_abort is not None and should_abort():
-            return {"status": "failed", "reason": "aborted", "rounds": rnd,
-                    "applied_steps": applied, "history": history}
-        res = analyze_sweep(sweep_fn(), flap_chars)
-        err = res["offset_flaps"] + res["sub_flap"]            # total error, in flaps
-        history.append({"round": rnd, "offset_flaps": res["offset_flaps"],
-                        "sub_flap": res["sub_flap"], "confidence": res["confidence"]})
-        if res["confidence"] < confidence_min:
-            return {"status": "needs_review", "rounds": rnd + 1, "applied_steps": applied,
-                    "final": res, "history": history}
-        if res["aligned"]:
-            return {"status": "aligned" if rnd == 0 else "adjusted", "rounds": rnd + 1,
-                    "applied_steps": applied, "final": res, "history": history}
-        # A correction that made things worse means our sign guess was wrong; flip it.
-        if prev_err is not None and abs(err) > abs(prev_err) + 0.02:
-            sign = -sign
-        delta = int(round(sign * -err * spf))                  # move to shrink the error
-        if delta == 0:                                         # a sub-flap residual < 1 step
-            delta = -sign if err > 0 else sign
-        set_offset(get_offset() + delta)
-        applied += delta
-        prev_err = err
-
-    res = analyze_sweep(sweep_fn(), flap_chars)
-    return {"status": "adjusted" if res["aligned"] else "failed", "rounds": max_rounds,
-            "applied_steps": applied, "final": res, "history": history}
 
 
 def find_blank(capture_index, n: int, blank_index: int = 0) -> tuple[int, float, int]:
@@ -260,18 +221,29 @@ def find_blank(capture_index, n: int, blank_index: int = 0) -> tuple[int, float,
     return signed, round(conf, 4), best_i
 
 
-def calibrate_module_fast(capture_index, get_offset, set_offset, flap_chars: str,
+def calibrate_module_fast(capture_index, adjust, flap_chars: str,
                           total_steps: int, *, max_rounds: int = MAX_ROUNDS,
-                          confidence_min: float = CONFIDENCE_MIN, should_abort=None) -> dict:
-    """Like ``calibrate_module`` but it locates the blank with ``find_blank`` instead of
-    sweeping every flap, so a mostly-aligned wall calibrates quickly. Sub-flap is read from the
-    flap right after the blank (a real glyph). If the blank can't be found confidently it falls
-    back to a full sweep + ``analyze_sweep`` (robust, slow) for that module."""
+                          confidence_min: float = CONFIDENCE_MIN, should_abort=None,
+                          notify=None) -> dict:
+    """Drive ONE module to aligned: locate the blank with ``find_blank`` (no full sweep), read
+    the sub-flap shift off the glyph beside it, then correct and re-measure until it's right.
+
+    ``adjust(delta_steps)`` must be a LIVE, RELATIVE correction — the gateway's **nudge**, which
+    moves the reel AND saves the new home offset instantly. It must NOT be an absolute
+    home-offset write: per the calibration contract, that only takes effect after the next
+    re-home, so the camera would see no change, and re-applying the "missing" correction every
+    round would silently pile up a huge wrong offset. (Exactly that bug shipped in beta ≤6.)
+
+    The direction a nudge moves the glyph in the window is hardware-dependent, so the loop
+    DISCOVERS the sign: if a correction makes the error worse, it flips and continues.
+    If the blank can't be found confidently it falls back to one full sweep + ``analyze_sweep``
+    for this module."""
     n = len(flap_chars)
     blank_index = flap_chars.index(" ") if " " in flap_chars else 0
     spf = steps_per_flap(total_steps, n)
     sign, applied, prev_err = 1, 0, None
     history: list[dict] = []
+    say = notify or (lambda kind, data: None)   # the live event feed the UI narrates from
 
     for rnd in range(max_rounds):
         if should_abort is not None and should_abort():
@@ -281,6 +253,7 @@ def calibrate_module_fast(capture_index, get_offset, set_offset, flap_chars: str
         offset, conf, blank_cmd = find_blank(capture_index, n, blank_index)
         if conf < confidence_min:
             # Ambiguous — spend a full sweep on this one module and trust analyze_sweep.
+            say("fallback", {})
             res = analyze_sweep([capture_index(i) for i in range(n)], flap_chars)
             offset, conf, sub = res["offset_flaps"], res["confidence"], res["sub_flap"]
             if conf < confidence_min:
@@ -293,6 +266,8 @@ def calibrate_module_fast(capture_index, get_offset, set_offset, flap_chars: str
 
         err = offset + sub
         aligned = offset == 0 and abs(sub) < 0.08
+        say("measured", {"offset_flaps": offset, "sub_flap": round(sub, 3),
+                         "confidence": round(conf, 2)})
         history.append({"round": rnd, "offset_flaps": offset, "sub_flap": round(sub, 4),
                         "confidence": conf})
         if aligned:
@@ -303,7 +278,8 @@ def calibrate_module_fast(capture_index, get_offset, set_offset, flap_chars: str
         if prev_err is not None and abs(err) > abs(prev_err) + 0.02:
             sign = -sign
         delta = int(round(sign * -err * spf)) or (-sign if err > 0 else sign)
-        set_offset(get_offset() + delta)
+        say("adjust", {"steps": delta})
+        adjust(delta)                          # a live nudge: reel moves now, offset saved now
         applied += delta
         prev_err = err
 
@@ -324,19 +300,27 @@ class CalibrationSession:
     ``module`` is just ``{id, grid_index}``; its reel is read LAZILY when its turn comes (the
     gateway's list endpoint doesn't carry the reel/offset — only the per-module detail does, so
     fetching it up front for the whole wall would stall the start):
-      - ``meta_fn(id)``        -> ``{flap_chars, total_steps}`` or None when the module isn't
-                                  ready (still learning its reel / no blank to anchor on);
+      - ``meta_fn(id)``        -> ``{flap_chars, total_steps, home_offset}`` or None when the
+                                  module isn't ready (still learning its reel / no blank);
       - ``capture_index(id, i)`` -> command module ``id`` to flap ``i`` and return its tile;
-      - ``get_offset(id)`` / ``set_offset(id, steps)`` -> its home offset.
-    ``snapshot`` records each offset as the module is touched, so ``revert()`` undoes the run.
+      - ``adjust(id, steps)``  -> a LIVE relative correction (the gateway's nudge: moves the
+                                  reel and saves the offset instantly);
+      - ``restore(id, steps)`` -> write an ABSOLUTE home offset back and re-home so it takes
+                                  effect (only used by ``revert``);
+      - ``park_fn(id)``        -> leave a finished module on its blank (home).
+    ``snapshot`` records each module's saved offset (from its own EEPROM, via ``meta_fn``) as its
+    turn comes, so ``revert()`` undoes exactly what the run touched.
     """
 
-    def __init__(self, modules, *, meta_fn, capture_index, get_offset, set_offset):
+    def __init__(self, modules, *, meta_fn, capture_index, adjust, restore, park_fn=None,
+                 log_fn=None):
         self.modules = list(modules)
         self._meta = meta_fn
         self._capture_index = capture_index
-        self._get = get_offset
-        self._set = set_offset
+        self._adjust = adjust
+        self._restore = restore
+        self._park = park_fn
+        self._log = log_fn or (lambda mid, kind, data: None)
         self._abort = False
         self.snapshot: dict[int, int] = {}
         self.results: dict[int, dict] = {}
@@ -362,23 +346,35 @@ class CalibrationSession:
             if self._abort:
                 break
             mid = m["id"]
+            self._log(mid, "start", {})
             meta = self._meta(mid)
             if not meta:
                 self.results[mid] = {"status": "needs_review", "reason": "module not ready"}
+                self._log(mid, "not_ready", {})
                 continue
-            self.snapshot[mid] = self._get(mid)
-            self.results[mid] = calibrate_module_fast(
+            self.snapshot[mid] = meta["home_offset"]           # its own saved value, pre-run
+            res = calibrate_module_fast(
                 lambda i, mid=mid: self._capture_index(mid, i),
-                lambda mid=mid: self._get(mid),
-                lambda s, mid=mid: self._set(mid, s),
-                meta["flap_chars"], meta["total_steps"], should_abort=lambda: self._abort)
+                lambda s, mid=mid: self._adjust(mid, s),
+                meta["flap_chars"], meta["total_steps"], should_abort=lambda: self._abort,
+                notify=lambda kind, data, mid=mid: self._log(mid, kind, data))
+            self.results[mid] = res
+            self._log(mid, "result", {"status": res["status"],
+                                      "applied_steps": res.get("applied_steps", 0)})
+            # A finished module ends on its blank (a home), not whatever flap the last read
+            # landed on — the wall goes visibly clean, module by module, and the re-home
+            # confirms the hall sync, as the calibration doc's "always finish with Home" says.
+            if self._park is not None and not self._abort:
+                self._park(mid)
+                self._log(mid, "parked", {})
         self.done = not self._abort
         return self.progress
 
     def revert(self) -> None:
-        """Restore the home offset of every module this run touched to its pre-run value."""
+        """Restore every touched module's home offset to its pre-run value — an ABSOLUTE write
+        plus a re-home, because a written offset only takes effect when the reel re-homes."""
         for mid, steps in self.snapshot.items():
-            self._set(mid, steps)
+            self._restore(mid, steps)
 
 
 # ---------------------------------------------------------------------------
@@ -395,7 +391,7 @@ class CalibrationSession:
 # ---------------------------------------------------------------------------
 class AutocalRun:
     def __init__(self, *, gateway_url, corners, rows, cols, modules, settle_s=4.0,
-                 loop=None, commander=None, offset_writer=None, capture=None, meta=None):
+                 loop=None, commander=None, adjuster=None, restorer=None, capture=None, meta=None):
         # modules: [{id, grid_index}] — the reel/offset is fetched lazily per module (meta).
         self.gateway_url = gateway_url
         self.corners = corners
@@ -404,24 +400,50 @@ class AutocalRun:
         self.modules = {m["id"]: m for m in modules}
         self._loop = loop
         self._commander = commander          # test seam: commander(id, index)
-        self._offset_writer = offset_writer   # test seam: offset_writer(id, steps)
-        self._capture = capture               # test seam: capture(grid_index) -> tile
-        self._meta_seam = meta                # test seam: meta(id) -> {flap_chars,total_steps,home_offset}
-        self._frame = None                    # (jpeg bytes, ts)
-        self._offsets: dict[int, int] = {}    # seeded from each module's detail as it's read
-        self._reel: dict[int, str] = {}       # flap_chars per module, for the live activity line
-        self._pos: dict[int, int] = {}        # last commanded flap index per module (for settle timing)
-        self.activity = None                  # {module, char, action} — what it's doing right now
+        self._adjuster = adjuster            # test seam: adjuster(id, steps) — the live nudge
+        self._restorer = restorer            # test seam: restorer(id, steps) — absolute + home
+        self._capture = capture              # test seam: capture(grid_index) -> tile
+        self._meta_seam = meta               # test seam: meta(id) -> {flap_chars,total_steps,home_offset}
+        self._frame = None                   # (jpeg bytes, ts)
+        self._reel: dict[int, str] = {}      # flap_chars per module (settle timing, parking)
+        self._pos: dict[int, int] = {}       # last commanded flap index per module (settle timing)
+        self.activity = None                 # {module, action} — what it's doing right now
+        self.events: list[dict] = []         # the live narration the UI renders (bounded)
+        self._seq = 0
         self.error = None
         self.finished = False
         self.session = CalibrationSession(
             [{"id": m["id"], "grid_index": m["grid_index"]} for m in modules],
             meta_fn=self._meta, capture_index=self._capture_index,
-            get_offset=self._get_offset, set_offset=self._set_offset)
+            adjust=self._adjust, restore=self._restore, park_fn=self._park,
+            log_fn=self._log_event)
+
+    def _log_event(self, mid, kind, data) -> None:
+        """One line of the live narration: what the run measured / did on which module. The UI
+        turns these structured events into readable text — see the Calibrate page's log."""
+        self._seq += 1
+        self.events.append({"seq": self._seq, "module": self.modules[mid]["grid_index"],
+                            "kind": kind, **(data or {})})
+        if len(self.events) > 400:
+            del self.events[:100]
+
+    def _park(self, mid):
+        """Leave a finished module on its blank by RE-HOMING it — which both lands on flap 0
+        (the blank) and confirms the hall sync, per the calibration doc's "always finish with
+        Home Motor"."""
+        self._say(mid, "parking")
+        self._pos[mid] = 0
+        if self._commander is not None:
+            reel = self._reel.get(mid, "")
+            self._commander(mid, reel.index(" ") if " " in reel else 0)
+            return
+        from . import gateway
+        self._run_coro(gateway.flap_home(self.gateway_url, mid))
 
     def _meta(self, mid):
-        """Read module ``mid``'s reel + offset (``/api/flap/all``), seed its offset, and return
-        ``{flap_chars, total_steps}`` — or None when it isn't ready (no dump / no blank)."""
+        """Read module ``mid``'s reel + SAVED calibration (``/api/flap/all``): its flap set,
+        steps/rev and current home offset, straight from its own EEPROM. Returns None when the
+        module isn't ready (no dump / no blank to anchor on)."""
         if self._meta_seam is not None:
             m = self._meta_seam(mid)
         else:
@@ -434,9 +456,8 @@ class AutocalRun:
             m = {"flap_chars": chars, "total_steps": dump[1], "home_offset": dump[0]}
         if not m:
             return None
-        self._offsets[mid] = m["home_offset"]
         self._reel[mid] = m["flap_chars"]
-        return {"flap_chars": m["flap_chars"], "total_steps": m["total_steps"]}
+        return dict(m)
 
     def _say(self, mid, action) -> None:
         """Record what the run is doing right now, for the UI's live line — a coarse PHASE
@@ -462,17 +483,38 @@ class AutocalRun:
             from . import gateway
             self._run_coro(gateway.flap_show_index(self.gateway_url, mid, index))
 
-    def _get_offset(self, mid):
-        return self._offsets[mid]
+    def _sleep_abortable(self, seconds: float) -> None:
+        """Sleep in slices so a Stop lands within ~a step, never after a minutes-long wait."""
+        end = time.time() + seconds
+        while time.time() < end:
+            if self.session is not None and self.session._abort:
+                raise RuntimeError("aborted")
+            time.sleep(min(0.2, max(0.0, end - time.time())))
 
-    def _set_offset(self, mid, steps):
+    def _adjust(self, mid, steps):
+        """A LIVE correction: the gateway's NUDGE moves the reel by ``steps`` AND saves the new
+        home offset instantly — so the very next camera read sees the change. (An absolute
+        home-offset write is invisible until the next re-home; using it here was the beta ≤6
+        bug.) The nudge builds on the module's SAVED offset, and its per-flap Character Map is
+        untouched — a hand-tuned reel keeps its tuning and just shifts as a whole."""
         self._say(mid, "adjusting")
-        self._offsets[mid] = steps
-        if self._offset_writer is not None:
-            self._offset_writer(mid, steps)
-        elif self._commander is None:
-            from . import gateway
-            self._run_coro(gateway.flap_set_homeoffset(self.gateway_url, mid, steps))
+        if self._adjuster is not None:
+            self._adjuster(mid, steps)
+            return
+        from . import gateway
+        self._run_coro(gateway.flap_nudge(self.gateway_url, mid, steps))
+        # A negative nudge may wrap most of a revolution forward — allow the full settle.
+        self._sleep_abortable(self.settle_s)
+
+    def _restore(self, mid, steps):
+        """Put a module's SAVED offset back (revert): an absolute write plus a re-home, because
+        a written offset only takes effect when the reel re-homes."""
+        if self._restorer is not None:
+            self._restorer(mid, steps)
+            return
+        from . import gateway
+        self._run_coro(gateway.flap_set_homeoffset(self.gateway_url, mid, steps))
+        self._run_coro(gateway.flap_home(self.gateway_url, mid))
 
     def _capture_tile(self, grid_index):
         if self._capture is not None:
@@ -494,24 +536,56 @@ class AutocalRun:
         if last is None:
             return self.settle_s
         dist = (i - last) % n
-        return max(0.35, min(self.settle_s, 0.35 + (dist / n) * self.settle_s))
+        return max(SETTLE_FLOOR_S, min(self.settle_s, SETTLE_FLOOR_S + (dist / n) * self.settle_s))
+
+    def _fresh_tile(self, grid_index, after: float, timeout: float = 6.0):
+        """This module's tile from a camera frame that arrived AFTER ``after`` — never a stale
+        one from before/mid-move. Returns ``(tile, frame_ts)``.
+
+        If no fresh frame arrives within ``timeout`` the stream has stopped — the user left the
+        page, closed it, or the webcam went away — so RAISE rather than calibrate against a
+        frozen image. The run then ends and the wall stops, instead of flipping on blind."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            fr = self._frame
+            if fr is not None and fr[1] >= after:
+                img = Image.open(io.BytesIO(fr[0]))
+                return tiles(img, self.corners, self.rows, self.cols)[grid_index], fr[1]
+            if self.session is not None and self.session._abort:
+                raise RuntimeError("aborted")
+            time.sleep(0.1)
+        raise RuntimeError("camera stream stopped — calibration halted")
 
     def _capture_index(self, mid, i):
-        """Command module ``mid`` to flap ``i``, let it settle, and return its rectified tile.
-        The fast calibrator calls this on demand (it doesn't sweep every flap)."""
+        """Command module ``mid`` to flap ``i`` and return its tile — only once the flap has
+        VERIFIABLY settled. After the motion-time estimate, we require two consecutive fresh
+        frames whose tile agrees: a flap in flight smears and changes frame to frame, a settled
+        one differs only by sensor noise. A timer alone is a guess; this is observation."""
+        if self.session is not None and self.session._abort:
+            raise RuntimeError("aborted")
         self._say(mid, "reading")
         wait = self._settle_for(mid, i)
         self._command(mid, i)
-        if self._commander is None:           # real hardware: let the flap physically settle
-            time.sleep(wait)
-        return self._capture_tile(self.modules[mid]["grid_index"])
+        gi = self.modules[mid]["grid_index"]
+        if self._commander is not None:            # simulated wall — no physics to wait on
+            return self._capture_tile(gi)
+        self._sleep_abortable(wait)                # the motion-time estimate…
+        tile, ts = self._fresh_tile(gi, time.time())
+        deadline = time.time() + 5.0               # …then PROOF of stillness
+        while time.time() < deadline:
+            nxt, ts = self._fresh_tile(gi, ts + 1e-6)
+            if tiles_similar(tile, nxt):
+                return nxt
+            tile = nxt
+        return tile          # still changing after 5s — use the last read; the loop re-measures
 
     # -- lifecycle -----------------------------------------------------------
     def run_blocking(self) -> None:
         try:
             self.session.run()
         except Exception as e:               # noqa: BLE001 - surfaced in status
-            self.error = str(e)
+            if str(e) != "aborted":          # a Stop is a clean outcome, not an error
+                self.error = str(e)
         finally:
             self.finished = True
 
@@ -525,4 +599,5 @@ class AutocalRun:
     def status(self) -> dict:
         return {**self.session.progress, "finished": self.finished, "error": self.error,
                 "settle_s": self.settle_s,
-                "activity": None if self.finished else self.activity}
+                "activity": None if self.finished else self.activity,
+                "events": list(self.events)[-80:]}

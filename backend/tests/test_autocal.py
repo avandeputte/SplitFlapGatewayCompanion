@@ -1,9 +1,11 @@
-"""Phase 0 spike for camera auto-calibration (app/autocal.py).
+"""Camera auto-calibration (app/autocal.py), proved without a camera or a gateway.
 
-No camera, no gateway: the vision is proved against SYNTHETIC fixtures — tiles rendered with
-Pillow, assembled into a reel, then a module "sweep" simulated with a KNOWN home-offset error,
-a vertical shift, brightness variation and noise. The engine must recover the error. That is
-the whole risk of the feature, so it is the whole of Phase 0.
+The vision is tested against SYNTHETIC fixtures — tiles rendered with Pillow, assembled into a
+reel, a module "sweep" simulated with a KNOWN home-offset error, vertical shift, brightness
+variation and noise. The orchestration is tested against a simulated wall whose modules mirror
+the REAL calibration contract: ``nudge`` is a LIVE correction (reel moves + offset saved
+instantly); an absolute home-offset write only takes effect on a re-home (which is why the loop
+must never use it for corrections — that bug shipped in beta ≤6 and is pinned here).
 """
 
 from __future__ import annotations
@@ -34,10 +36,6 @@ def _glyph_tile(ch: str, w=autocal.TILE_W, h=autocal.TILE_H, shift=0) -> np.ndar
         d.rectangle([x, y, x + bw, y + bh], fill=40 + (seed % 7) * 10)
         d.text((x + 4, y + 2), ch, fill=10)
     return np.asarray(img, dtype=np.float32)
-
-
-def _reel(flap_chars=REEL) -> list[np.ndarray]:
-    return [_glyph_tile(c) for c in flap_chars]
 
 
 def _sweep(flap_chars=REEL, *, error=0, shift=0, noise=0.0, bright=0.0, seed=0):
@@ -143,14 +141,25 @@ def test_tiles_returns_row_major_modules():
     assert len(autocal.tiles(flat, corners, rows, cols)) == 15
 
 
+def test_tiles_similar_tells_settled_from_moving():
+    """Consecutive reads of a SETTLED flap agree (sensor noise only); mid-move they differ."""
+    assert autocal.tiles_similar(_glyph_tile("A"), _glyph_tile("A"))
+    noisy = np.clip(_glyph_tile("A") + np.random.default_rng(1).normal(0, 1.5,
+                    (autocal.TILE_H, autocal.TILE_W)), 0, 255).astype(np.float32)
+    assert autocal.tiles_similar(_glyph_tile("A"), noisy)
+    assert not autocal.tiles_similar(_glyph_tile("A"), _glyph_tile("W"))
+
+
 # ===========================================================================
-# Phase 1: the closed-loop orchestration, driven against a simulated wall.
+# the simulated wall — mirrors the REAL calibration contract
 # ===========================================================================
 class FakeModule:
-    """A simulated split-flap module: it holds a home-offset error (in steps) and renders what
-    the camera would see when commanded to an index. ``conv`` is the (unknown, hardware-
-    dependent) sign relating a home-offset change to reel movement — calibrate_module must
-    converge for either value."""
+    """A simulated split-flap module: holds a home-offset error (in steps) and renders what the
+    camera would see. ``conv`` is the (hardware-dependent) direction a nudge moves the glyph in
+    the window — the calibrator must converge for either value.
+
+    Mirrors the real write contract: ``nudge`` moves the reel AND saves the offset instantly
+    (the live correction); ``restore`` is the absolute write + re-home that revert uses."""
 
     def __init__(self, reel, total_steps, *, err_flaps=0, sub=0.0, conv=1):
         self.reel = reel
@@ -165,9 +174,14 @@ class FakeModule:
     def show_index(self, i):
         self.commanded = int(i) % self.n
 
-    def set_homeoffset(self, steps):
-        self.err_steps += self.conv * (steps - self.homeoffset)
+    def nudge(self, steps):
+        self.homeoffset += steps
+        self.err_steps += self.conv * steps
+
+    def restore(self, steps):
+        d = steps - self.homeoffset
         self.homeoffset = steps
+        self.err_steps += self.conv * d          # applied because restore ends with a re-home
 
     def capture(self):
         pos = self.commanded + self.err_steps / self.spf      # displayed flap, fractional
@@ -183,60 +197,282 @@ class FakeModule:
         return out
 
 
-def _drive(mod, **kw):
-    return autocal.calibrate_module(mod.sweep, lambda: mod.homeoffset, mod.set_homeoffset,
-                                    mod.reel, mod.total, **kw)
+def _fast(mod, **kw):
+    def cap(i):
+        mod.show_index(i)
+        return mod.capture()
+    return autocal.calibrate_module_fast(cap, mod.nudge, mod.reel, mod.total, **kw)
 
 
 def test_an_already_aligned_module_is_left_alone():
-    mod = FakeModule(REEL, 2000, err_flaps=0, sub=0.0)
-    r = _drive(mod)
+    mod = FakeModule(REEL, 2000)
+    r = _fast(mod)
     assert r["status"] == "aligned"
-    assert r["applied_steps"] == 0
+    assert r["applied_steps"] == 0 and mod.homeoffset == 1000
 
 
 @pytest.mark.parametrize("err,conv", [(3, 1), (3, -1), (-5, 1), (12, -1), (1, 1)])
-def test_a_whole_flap_error_converges_for_either_hardware_sign(err, conv):
+def test_a_whole_flap_error_converges_for_either_nudge_direction(err, conv):
     mod = FakeModule(REEL, 2000, err_flaps=err, conv=conv)
-    r = _drive(mod)
-    assert r["status"] in ("adjusted", "aligned"), r
-    # the module really ends aligned: command index 3, it shows reel flap 3
+    r = _fast(mod)
+    assert r["status"] in ("adjusted", "aligned"), r["history"]
     mod.show_index(3)
-    res = autocal.analyze_sweep(mod.sweep(), REEL)
-    assert res["aligned"], res
+    assert autocal.analyze_sweep(mod.sweep(), REEL)["aligned"]
 
 
 def test_a_sub_flap_residual_is_corrected():
-    mod = FakeModule(REEL, 2000, err_flaps=0, sub=0.25, conv=1)
-    r = _drive(mod)
+    mod = FakeModule(REEL, 2000, sub=0.25)
+    r = _fast(mod)
     assert r["status"] in ("adjusted", "aligned")
     assert autocal.analyze_sweep(mod.sweep(), REEL)["aligned"]
 
 
 def test_a_combined_whole_and_sub_error_converges():
     mod = FakeModule(REEL, 3600, err_flaps=4, sub=0.3, conv=-1)
-    r = _drive(mod)
+    r = _fast(mod)
     assert r["status"] in ("adjusted", "aligned"), r["history"]
     assert autocal.analyze_sweep(mod.sweep(), REEL)["aligned"]
 
 
-def test_abort_stops_the_loop():
+def test_abort_stops_the_loop_without_touching_the_module():
     mod = FakeModule(REEL, 2000, err_flaps=7)
-    r = _drive(mod, should_abort=lambda: True)
+    r = _fast(mod, should_abort=lambda: True)
     assert r["status"] == "failed" and r["reason"] == "aborted"
-    assert mod.err_steps == 7 * mod.spf     # untouched
+    assert mod.homeoffset == 1000
 
 
-def test_an_ambiguous_module_is_flagged_not_calibrated():
+def test_events_narrate_measure_and_adjust():
+    """The live log the UI renders: the loop must report what it measured and what it did."""
     mod = FakeModule(REEL, 2000, err_flaps=2)
-    orig_sweep = mod.sweep
-    def ambiguous():
-        s = orig_sweep()
-        s[5] = _glyph_tile(" ")             # a second near-blank -> no clean anchor
-        return s
-    r = autocal.calibrate_module(ambiguous, lambda: mod.homeoffset, mod.set_homeoffset,
-                                 mod.reel, mod.total)
-    assert r["status"] == "needs_review"
+    seen = []
+    _fast(mod, notify=lambda kind, data: seen.append((kind, data)))
+    kinds = [k for k, _ in seen]
+    assert "measured" in kinds and "adjust" in kinds
+    first_measure = next(d for k, d in seen if k == "measured")
+    assert first_measure["offset_flaps"] == 2
+
+
+# ===========================================================================
+# the fast path (find the blank without sweeping the whole reel)
+# ===========================================================================
+class _CountingWall:
+    """A FakeModule that counts captures (settle cycles) — the thing the fast path minimises."""
+    def __init__(self, err_flaps=0, sub=0.0, conv=1):
+        self.m = FakeModule(REEL, 2000, err_flaps=err_flaps, sub=sub, conv=conv)
+        self.captures = 0
+
+    def capture_index(self, i):
+        self.m.show_index(i)
+        self.captures += 1
+        return self.m.capture()
+
+
+@pytest.mark.parametrize("err", [0, 1, 4, -3, 9])
+def test_find_blank_recovers_the_offset(err):
+    w = _CountingWall(err_flaps=err)
+    offset, conf, blank_cmd = autocal.find_blank(w.capture_index, len(REEL), 0)
+    assert offset == err
+    assert conf > 0.3
+
+
+def test_find_blank_is_cheap_when_aligned():
+    w = _CountingWall()
+    autocal.find_blank(w.capture_index, len(REEL), 0)
+    assert w.captures <= 6, f"an aligned module should cost a few captures, not a sweep ({w.captures})"
+
+
+def test_fast_calibrate_is_cheap_when_already_aligned():
+    w = _CountingWall()
+    r = autocal.calibrate_module_fast(w.capture_index, w.m.nudge, REEL, 2000)
+    assert r["status"] == "aligned"
+    assert w.captures <= 8 and r["applied_steps"] == 0
+
+
+def test_fast_calibrate_falls_back_to_full_sweep_when_the_blank_is_ambiguous(monkeypatch):
+    """If the blank can't be found confidently, spend one full sweep on that module rather than
+    give up or guess."""
+    w = _CountingWall(err_flaps=3)
+    monkeypatch.setattr(autocal, "find_blank", lambda *a, **k: (3, 0.0, 0))
+    r = autocal.calibrate_module_fast(w.capture_index, w.m.nudge, REEL, 2000)
+    assert w.captures >= len(REEL)
+    assert r["status"] in ("adjusted", "aligned", "needs_review")
+
+
+# ===========================================================================
+# the wall-level session: lazy meta, snapshot, park, revert, summary
+# ===========================================================================
+def _capture_index(mods):
+    def cap(mid, i):
+        mods[mid].show_index(i)
+        return mods[mid].capture()
+    return cap
+
+
+def _fake_wall(specs):
+    """specs: list of (id, err_flaps). Returns (mods, modules, wiring) for a CalibrationSession."""
+    mods = {mid: FakeModule(REEL, 2000, err_flaps=err) for mid, err in specs}
+    modules = [{"id": mid, "grid_index": mid} for mid, _ in specs]
+    wiring = dict(
+        meta_fn=lambda mid: {"flap_chars": REEL, "total_steps": 2000,
+                             "home_offset": mods[mid].homeoffset},
+        capture_index=_capture_index(mods),
+        adjust=lambda mid, s: mods[mid].nudge(s),
+        restore=lambda mid, s: mods[mid].restore(s),
+        park_fn=lambda mid: mods[mid].show_index(0),
+    )
+    return mods, modules, wiring
+
+
+def test_the_session_calibrates_every_module_and_snapshots():
+    mods, modules, wiring = _fake_wall([(0, 3), (1, 0), (2, -4)])
+    sess = autocal.CalibrationSession(modules, **wiring)
+    prog = sess.run()
+    assert prog["done"] and prog["completed"] == 3
+    assert sess.snapshot == {0: 1000, 1: 1000, 2: 1000}   # each module's saved offset, pre-run
+    assert {r["status"] for r in prog["results"].values()} <= {"aligned", "adjusted"}
+    for mid in (0, 1, 2):
+        mods[mid].show_index(7)
+        assert autocal.analyze_sweep(mods[mid].sweep(), REEL)["aligned"]
+
+
+def test_the_session_parks_each_finished_module_on_the_blank():
+    mods, modules, wiring = _fake_wall([(0, 2), (1, 0)])
+    autocal.CalibrationSession(modules, **wiring).run()
+    assert mods[0].commanded == 0 and mods[1].commanded == 0
+
+
+def test_the_session_reverts_to_the_snapshot():
+    mods, modules, wiring = _fake_wall([(0, 5), (1, 8)])
+    sess = autocal.CalibrationSession(modules, **wiring)
+    sess.run()
+    assert mods[0].homeoffset != 1000 or mods[1].homeoffset != 1000   # it moved them
+    sess.revert()
+    assert mods[0].homeoffset == 1000 and mods[1].homeoffset == 1000
+
+
+def test_a_module_that_isnt_ready_is_flagged_not_calibrated():
+    mods, modules, wiring = _fake_wall([(0, 3), (1, 0)])
+    base_meta = wiring["meta_fn"]
+    wiring["meta_fn"] = lambda mid: None if mid == 1 else base_meta(mid)
+    prog = autocal.CalibrationSession(modules, **wiring).run()
+    assert prog["results"][1]["status"] == "needs_review"
+    assert prog["results"][0]["status"] in ("aligned", "adjusted")
+
+
+def test_session_summary_counts_outcomes():
+    mods, modules, wiring = _fake_wall([(0, 0), (1, 4), (2, -2)])
+    prog = autocal.CalibrationSession(modules, **wiring).run()
+    s = prog["summary"]
+    assert s["aligned"] + s["adjusted"] == 3 and s["failed"] == 0
+
+
+# ===========================================================================
+# AutocalRun — the live manager (injected seams; no gateway, no camera)
+# ===========================================================================
+def _run_over_fake_wall(specs, **kw):
+    wall = {mid: FakeModule(REEL, 2000, err_flaps=err) for mid, err in specs}
+    modules = [{"id": mid, "grid_index": mid} for mid, _ in specs]
+    run = autocal.AutocalRun(
+        gateway_url="http://gw", corners=[(0, 0), (1, 0), (1, 1), (0, 1)],
+        rows=1, cols=len(specs), modules=modules, settle_s=0,
+        commander=lambda mid, idx: wall[mid].show_index(idx),
+        adjuster=lambda mid, steps: wall[mid].nudge(steps),
+        restorer=lambda mid, steps: wall[mid].restore(steps),
+        capture=lambda gi: wall[gi].capture(),
+        meta=lambda mid: {"flap_chars": REEL, "total_steps": 2000,
+                          "home_offset": wall[mid].homeoffset}, **kw)
+    return wall, run
+
+
+def test_autocal_run_calibrates_the_whole_wall():
+    wall, run = _run_over_fake_wall([(0, 4), (1, 0), (2, -3)])
+    run.run_blocking()
+    st = run.status
+    assert st["finished"] and st["error"] is None and st["completed"] == 3
+    for mid in (0, 1, 2):
+        wall[mid].show_index(9)
+        assert autocal.analyze_sweep(wall[mid].sweep(), REEL)["aligned"]
+
+
+def test_autocal_run_emits_the_event_narration():
+    _, run = _run_over_fake_wall([(0, 4)])
+    run.run_blocking()
+    kinds = [e["kind"] for e in run.status["events"]]
+    assert kinds[0] == "start"
+    assert "measured" in kinds and "adjust" in kinds and "result" in kinds and "parked" in kinds
+    assert all("seq" in e and "module" in e for e in run.status["events"])
+
+
+def test_autocal_run_revert_restores_offsets():
+    wall, run = _run_over_fake_wall([(0, 6)])
+    run.run_blocking()
+    assert wall[0].homeoffset != 1000
+    run.revert()
+    assert wall[0].homeoffset == 1000
+
+
+def test_autocal_run_abort_is_a_clean_stop_not_an_error():
+    _, run = _run_over_fake_wall([(0, 3)])
+    run.session.abort()
+    run.run_blocking()
+    st = run.status
+    assert st["finished"] and st["aborted"] and st["error"] is None
+
+
+def test_abort_interrupts_a_capture_immediately():
+    """Stop must land within a step — not after a long sweep's worth of settles."""
+    _, run = _run_over_fake_wall([(0, 5)])
+    run._commander = None                 # the real-hardware path (sleeps + frames)
+    run.session.abort()
+    with pytest.raises(RuntimeError, match="aborted"):
+        run._capture_index(0, 1)
+
+
+def test_autocal_run_frame_to_tile_extracts_the_right_module():
+    """The real capture path: a streamed JPEG is rectified with the clicked corners and the
+    requested module's tile comes back."""
+    import io
+    rows, cols = 2, 3
+    W, H = cols * autocal.TILE_W, rows * autocal.TILE_H
+    wall_img = Image.new("L", (W, H), 230)
+    d = ImageDraw.Draw(wall_img)
+    gx, gy = 2 * autocal.TILE_W, 1 * autocal.TILE_H            # module 5 (row 1, col 2)
+    d.rectangle([gx + 8, gy + 8, gx + autocal.TILE_W - 8, gy + autocal.TILE_H - 8], fill=20)
+    buf = io.BytesIO(); wall_img.convert("RGB").save(buf, "JPEG", quality=90)
+
+    run = autocal.AutocalRun(gateway_url="x", corners=[(0, 0), (W, 0), (W, H), (0, H)],
+                             rows=rows, cols=cols, modules=[], loop=None)
+    run.push_frame(buf.getvalue())
+    inks = [autocal.tile_ink(run._capture_tile(i)) for i in range(rows * cols)]
+    assert int(np.argmax(inks)) == 5
+
+
+def test_fresh_tile_raises_when_the_camera_stream_stops():
+    """The watchdog: no fresh frames (user left the page / closed the camera) must HALT the run,
+    not let it keep flipping the wall against a frozen image."""
+    import time as _t
+    run = autocal.AutocalRun(gateway_url="x", corners=[(0, 0), (1, 0), (1, 1), (0, 1)],
+                             rows=1, cols=1, modules=[], loop=None)
+    with pytest.raises(RuntimeError, match="camera stream stopped"):
+        run._fresh_tile(0, after=_t.time(), timeout=0.3)
+
+
+def test_autocal_run_status_before_start_is_empty_progress():
+    _, run = _run_over_fake_wall([(0, 0)])
+    st = run.status
+    assert st["completed"] == 0 and st["total"] == 1 and not st["finished"]
+
+
+def test_settle_time_is_proportional_to_the_forward_move():
+    """The dominant cost was a flat per-capture settle. A split-flap only moves forward, and
+    settle_s is the full-revolution time, so the wait must scale with the actual move."""
+    _, run = _run_over_fake_wall([(0, 0)])
+    run.settle_s = 4.0
+    run._reel[0] = REEL
+    n = len(REEL)
+    assert run._settle_for(0, 0) == 4.0                 # first command, position unknown -> full
+    assert run._settle_for(0, 1) <= autocal.SETTLE_FLOOR_S + 0.2   # a +1 step: the floor
+    assert run._settle_for(0, n - 1) > 4.0 * 0.8        # a near-full forward turn ~ full settle
 
 
 # ===========================================================================
@@ -268,221 +504,17 @@ def test_flap_helpers_post_the_right_shapes(monkeypatch):
 
     async def go():
         await gateway.flap_show_index("http://gw", 5, 3)
+        await gateway.flap_nudge("http://gw", 5, -40)
         await gateway.flap_set_homeoffset("http://gw", 5, 128)
-        mods = await gateway.flap_modules("http://gw")
-        return mods
+        await gateway.flap_home("http://gw", 5)
+        return await gateway.flap_modules("http://gw")
     mods = asyncio.run(go())
 
     assert ("POST", "/api/flap/index", {"id": 5, "index": 3}) in calls
+    assert ("POST", "/api/flap/nudge", {"id": 5, "steps": -40}) in calls
     assert ("POST", "/api/flap/homeoffset", {"id": 5, "steps": 128}) in calls
-    assert ("GET", "/api/flap/modules", None) in calls
+    assert ("POST", "/api/flap/home", {"id": 5}) in calls
     assert mods == [{"id": 5, "flapCount": 40}]
-
-
-# ===========================================================================
-# the wall-level job: run all modules, abort, revert
-# ===========================================================================
-def _capture_index(mods):
-    def cap(mid, i):
-        mods[mid].show_index(i)
-        return mods[mid].capture()
-    return cap
-
-
-def _fake_wall(specs):
-    """specs: list of (id, err_flaps). Returns (mods, modules, wiring) for a CalibrationSession."""
-    mods = {mid: FakeModule(REEL, 2000, err_flaps=err) for mid, err in specs}
-    modules = [{"id": mid, "grid_index": mid} for mid, _ in specs]
-    wiring = dict(
-        meta_fn=lambda mid: {"flap_chars": REEL, "total_steps": 2000},
-        capture_index=_capture_index(mods),
-        get_offset=lambda mid: mods[mid].homeoffset,
-        set_offset=lambda mid, s: mods[mid].set_homeoffset(s),
-    )
-    return mods, modules, wiring
-
-
-def test_the_session_calibrates_every_module_and_snapshots():
-    mods, modules, wiring = _fake_wall([(0, 3), (1, 0), (2, -4)])
-    sess = autocal.CalibrationSession(modules, **wiring)
-    prog = sess.run()
-    assert prog["done"] and prog["completed"] == 3
-    assert sess.snapshot == {0: 1000, 1: 1000, 2: 1000}   # captured as each module was touched
-    assert {r["status"] for r in prog["results"].values()} <= {"aligned", "adjusted"}
-    for mid in (0, 1, 2):
-        mods[mid].show_index(7)
-        assert autocal.analyze_sweep(mods[mid].sweep(), REEL)["aligned"]
-
-
-def test_the_session_reverts_to_the_snapshot():
-    mods, modules, wiring = _fake_wall([(0, 5), (1, 8)])
-    sess = autocal.CalibrationSession(modules, **wiring)
-    sess.run()
-    assert mods[0].homeoffset != 1000 or mods[1].homeoffset != 1000   # it moved them
-    sess.revert()
-    assert mods[0].homeoffset == 1000 and mods[1].homeoffset == 1000
-
-
-def test_a_module_that_isnt_ready_is_flagged_not_calibrated():
-    mods, modules, wiring = _fake_wall([(0, 3), (1, 0)])
-    wiring["meta_fn"] = lambda mid: None if mid == 1 else {"flap_chars": REEL, "total_steps": 2000}
-    prog = autocal.CalibrationSession(modules, **wiring).run()
-    assert prog["results"][1]["status"] == "needs_review"
-    assert prog["results"][0]["status"] in ("aligned", "adjusted")
-
-
-# ===========================================================================
-# AutocalRun — the live manager (injected seams; no gateway, no camera)
-# ===========================================================================
-def _run_over_fake_wall(specs, **kw):
-    wall = {mid: FakeModule(REEL, 2000, err_flaps=err) for mid, err in specs}
-    modules = [{"id": mid, "grid_index": mid} for mid, _ in specs]
-    run = autocal.AutocalRun(
-        gateway_url="http://gw", corners=[(0, 0), (1, 0), (1, 1), (0, 1)],
-        rows=1, cols=len(specs), modules=modules, settle_s=0,
-        commander=lambda mid, idx: wall[mid].show_index(idx),
-        offset_writer=lambda mid, steps: wall[mid].set_homeoffset(steps),
-        capture=lambda gi: wall[gi].capture(),
-        meta=lambda mid: {"flap_chars": REEL, "total_steps": 2000, "home_offset": 1000}, **kw)
-    return wall, run
-
-
-def test_autocal_run_calibrates_the_whole_wall():
-    wall, run = _run_over_fake_wall([(0, 4), (1, 0), (2, -3)])
-    run.run_blocking()
-    st = run.status
-    assert st["finished"] and st["error"] is None and st["completed"] == 3
-    for mid in (0, 1, 2):
-        wall[mid].show_index(9)
-        assert autocal.analyze_sweep(wall[mid].sweep(), REEL)["aligned"]
-
-
-def test_autocal_run_revert_restores_offsets():
-    wall, run = _run_over_fake_wall([(0, 6)])
-    run.run_blocking()
-    assert wall[0].homeoffset != 1000
-    run.revert()
-    assert wall[0].homeoffset == 1000
-
-
-def test_autocal_run_frame_to_tile_extracts_the_right_module():
-    """The real capture path: a streamed JPEG is rectified with the clicked corners and the
-    requested module's tile comes back."""
-    import io
-    rows, cols = 2, 3
-    W, H = cols * autocal.TILE_W, rows * autocal.TILE_H
-    wall_img = Image.new("L", (W, H), 230)
-    d = ImageDraw.Draw(wall_img)
-    gx, gy = 2 * autocal.TILE_W, 1 * autocal.TILE_H            # module 5 (row 1, col 2)
-    d.rectangle([gx + 8, gy + 8, gx + autocal.TILE_W - 8, gy + autocal.TILE_H - 8], fill=20)
-    buf = io.BytesIO(); wall_img.convert("RGB").save(buf, "JPEG", quality=90)
-
-    run = autocal.AutocalRun(gateway_url="x", corners=[(0, 0), (W, 0), (W, H), (0, H)],
-                             rows=rows, cols=cols, modules=[], loop=None)
-    run.push_frame(buf.getvalue())
-    inks = [autocal.tile_ink(run._capture_tile(i)) for i in range(rows * cols)]
-    assert int(np.argmax(inks)) == 5
-
-
-def test_autocal_run_status_before_start_is_empty_progress():
-    _, run = _run_over_fake_wall([(0, 0)])
-    st = run.status
-    assert st["completed"] == 0 and st["total"] == 1 and not st["finished"]
-
-
-# ===========================================================================
-# Phase 3: the fast path (find the blank without sweeping the whole reel)
-# ===========================================================================
-class _CountingWall:
-    """A FakeModule that counts how many captures (settle cycles) it took — the thing the fast
-    path exists to reduce."""
-    def __init__(self, err_flaps=0, sub=0.0):
-        self.m = FakeModule(REEL, 2000, err_flaps=err_flaps, sub=sub)
-        self.captures = 0
-    def capture_index(self, i):
-        self.m.show_index(i)
-        self.captures += 1
-        return self.m.capture()
-
-
-@pytest.mark.parametrize("err", [0, 1, 4, -3, 9])
-def test_find_blank_recovers_the_offset(err):
-    w = _CountingWall(err_flaps=err)
-    offset, conf, blank_cmd = autocal.find_blank(w.capture_index, len(REEL), 0)
-    assert offset == err
-    assert conf > 0.3
-
-
-def test_find_blank_is_cheap_when_aligned():
-    w = _CountingWall(err_flaps=0)
-    autocal.find_blank(w.capture_index, len(REEL), 0)
-    assert w.captures <= 6, f"an aligned module should cost a few captures, not a full sweep ({w.captures})"
-
-
-def test_fast_calibrate_converges_and_is_cheap_when_already_aligned():
-    w = _CountingWall(err_flaps=0)
-    r = autocal.calibrate_module_fast(w.capture_index, lambda: w.m.homeoffset,
-                                      w.m.set_homeoffset, REEL, 2000)
-    assert r["status"] == "aligned"
-    assert w.captures <= 8 and r["applied_steps"] == 0
-
-
-@pytest.mark.parametrize("err,conv", [(5, 1), (5, -1), (-7, 1)])
-def test_fast_calibrate_fixes_a_wrong_letter_module(err, conv):
-    w = _CountingWall()
-    w.m = FakeModule(REEL, 2000, err_flaps=err, conv=conv)
-    r = autocal.calibrate_module_fast(w.capture_index, lambda: w.m.homeoffset,
-                                      w.m.set_homeoffset, REEL, 2000)
-    assert r["status"] in ("adjusted", "aligned"), r["history"]
-    w.m.show_index(11)
-    assert autocal.analyze_sweep(w.m.sweep(), REEL)["aligned"]
-
-
-def test_fast_calibrate_falls_back_to_full_sweep_when_the_blank_is_ambiguous(monkeypatch):
-    """If the blank can't be found confidently, it spends one full sweep on that module rather
-    than giving up or guessing."""
-    w = _CountingWall(err_flaps=3)
-    # force find_blank to report no-confidence so the fallback path runs
-    monkeypatch.setattr(autocal, "find_blank", lambda *a, **k: (3, 0.0, 0))
-    r = autocal.calibrate_module_fast(w.capture_index, lambda: w.m.homeoffset,
-                                      w.m.set_homeoffset, REEL, 2000)
-    # fallback used analyze_sweep (a full reel's worth of captures in a round)
-    assert w.captures >= len(REEL)
-    assert r["status"] in ("adjusted", "aligned", "needs_review")
-
-
-def test_session_summary_counts_outcomes():
-    mods, modules, wiring = _fake_wall([(0, 0), (1, 4), (2, -2)])
-    sess = autocal.CalibrationSession(modules, **wiring)
-    prog = sess.run()
-    s = prog["summary"]
-    assert s["aligned"] + s["adjusted"] == 3 and s["failed"] == 0
-
-
-# ===========================================================================
-# routes: the wall-module listing (the Phase-2 bug: the list endpoint has no reel)
-# ===========================================================================
-def test_wall_modules_filters_to_provisioned_in_grid(monkeypatch):
-    import asyncio
-    from app import gateway
-    from app.routes import autocal as ac
-
-    class _Cfg:
-        transport = {"gateway_url": "http://gw"}
-        grid = {"rows": 1, "cols": 4, "module_id_base": 0}
-    class _D:
-        config = _Cfg
-
-    async def fake_modules(url, timeout=10.0):
-        return [{"id": 0, "provisioned": True}, {"id": 1, "provisioned": True},
-                {"id": 255}, {"id": 9, "provisioned": True},   # 255 = slot; 9 = out of grid
-                {"id": 2, "provisioned": False}]               # not provisioned
-    monkeypatch.setattr(gateway, "flap_modules", fake_modules)
-
-    url, mods = asyncio.run(ac._wall_modules(_D))
-    assert url == "http://gw"
-    assert [m["id"] for m in mods] == [0, 1]                   # the ready wall cells, in order
-    assert mods[0]["grid_index"] == 0 and mods[1]["grid_index"] == 1
 
 
 def test_flap_all_posts_the_id_and_returns_detail(monkeypatch):
@@ -505,14 +537,27 @@ def test_flap_all_posts_the_id_and_returns_detail(monkeypatch):
     assert detail["flapChars"] == " ABC"
 
 
-def test_settle_time_is_proportional_to_the_forward_move():
-    """The dominant cost was a flat per-capture settle. A split-flap only moves forward, and
-    settle_s is the full-revolution time, so the wait must scale with the actual move."""
-    _, run = _run_over_fake_wall([(0, 0)])
-    run.settle_s = 4.0
-    run._reel[0] = REEL
-    n = len(REEL)
-    assert run._settle_for(0, 0) == 4.0                 # first command, position unknown -> full
-    assert run._settle_for(0, 1) < 0.6                  # a +1 step is quick
-    assert run._settle_for(0, 2) < 0.6                  # another +1
-    assert run._settle_for(0, n - 1) > 4.0 * 0.8        # a near-full forward turn ~ full settle
+# ===========================================================================
+# routes: the wall-module listing (the list endpoint has no reel — read lazily)
+# ===========================================================================
+def test_wall_modules_filters_to_provisioned_in_grid(monkeypatch):
+    import asyncio
+    from app import gateway
+    from app.routes import autocal as ac
+
+    class _Cfg:
+        transport = {"gateway_url": "http://gw"}
+        grid = {"rows": 1, "cols": 4, "module_id_base": 0}
+    class _D:
+        config = _Cfg
+
+    async def fake_modules(url, timeout=10.0):
+        return [{"id": 0, "provisioned": True}, {"id": 1, "provisioned": True},
+                {"id": 255}, {"id": 9, "provisioned": True},   # 255 = slot; 9 = out of grid
+                {"id": 2, "provisioned": False}]               # not provisioned
+    monkeypatch.setattr(gateway, "flap_modules", fake_modules)
+
+    url, mods = asyncio.run(ac._wall_modules(_D))
+    assert url == "http://gw"
+    assert [m["id"] for m in mods] == [0, 1]                   # the ready wall cells, in order
+    assert mods[0]["grid_index"] == 0 and mods[1]["grid_index"] == 1

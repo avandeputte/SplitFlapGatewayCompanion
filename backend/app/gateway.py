@@ -420,10 +420,28 @@ async def flap_show_index(gateway_url: str, mid: int, index: int, timeout: float
 
 async def flap_set_homeoffset(gateway_url: str, mid: int, steps: int, timeout: float = 10.0) -> None:
     """``POST /api/flap/homeoffset`` — set module ``mid``'s home offset to ``steps`` (absolute
-    steps past the Hall trigger to flap 0). This is what calibration writes; the gateway
-    persists it to EEPROM."""
+    steps past the Hall trigger to flap 0), persisted to EEPROM. NOTE: this does NOT move the
+    reel — the value only takes effect on the next re-home (follow with ``flap_home``). The
+    live correction primitive is ``flap_nudge``."""
     r = await _arequest("POST", gateway_url, "/api/flap/homeoffset",
                         json={"id": int(mid), "steps": int(steps)}, timeout=timeout)
+    r.raise_for_status()
+
+
+async def flap_nudge(gateway_url: str, mid: int, steps: int, timeout: float = 10.0) -> None:
+    """``POST /api/flap/nudge`` — move module ``mid``'s reel by ``steps`` AND save the new home
+    offset, instantly (the Calibration tab's live nudge). THE correction primitive for
+    auto-calibration: the camera sees the change on the very next read."""
+    r = await _arequest("POST", gateway_url, "/api/flap/nudge",
+                        json={"id": int(mid), "steps": int(steps)}, timeout=timeout)
+    r.raise_for_status()
+
+
+async def flap_home(gateway_url: str, mid: int, timeout: float = 10.0) -> None:
+    """``POST /api/flap/home`` — re-home one module (lands on flap 0, re-syncs the Hall; makes a
+    written home offset take effect)."""
+    r = await _arequest("POST", gateway_url, "/api/flap/home",
+                        json={"id": int(mid)}, timeout=timeout)
     r.raise_for_status()
 
 

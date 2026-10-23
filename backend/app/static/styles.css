@@ -438,6 +438,11 @@ a.btn { text-decoration: none; display: inline-block; }
 .cal-cell.cal-needs_review { background: var(--y, #fcb81b); color: #0a0a0a; }
 .cal-cell.cal-failed { background: var(--r, #da291c); color: #fff; }
 .cal-cell.cal-active { outline: 2px solid #39d; outline-offset: 1px; box-shadow: 0 0 8px #39d; }
+.cal-log { margin-top: 12px; max-width: 560px; max-height: 220px; overflow-y: auto;
+  background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px 12px;
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.7;
+  color: #bcc5d2; }
+.cal-log .ok { color: #6fcf7a; } .cal-log .warn { color: #fcb81b; } .cal-log .bad { color: #e06c5f; }
 @keyframes cal-pulse { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 
 .compose-controls { margin-top: 10px; }
