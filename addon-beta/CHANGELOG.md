@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.8
+
+- **Auto-calibrate: the live log now moves with the wall.** Every flap it looks at is narrated
+  ("looked at flap 5 — ink 0.04"), plus the glyph-height check — no more a lone "starting" line
+  while it works. Also fixed: the settled-flap check compared raw pixels, which flicker on a real
+  webcam even when nothing moves, so every read waited out its full timeout — reads are much
+  quicker now (noise-immune comparison).
+
 ## 2.12.0-beta.7
 
 - **Auto-calibrate: corrections now actually move the reel.** They were written as an absolute
