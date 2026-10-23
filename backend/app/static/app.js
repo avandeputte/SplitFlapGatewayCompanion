@@ -701,16 +701,13 @@ async function calPoll() {
     const a = st.activity;
     if (a) {
       const where = String((a.module || 0) + 1);
-      if (a.action === "adjusting") {
-        line += "  ·  " + t("module %s — adjusting", where);
-      } else {
-        const ch = a.char === " " ? t("(blank)") : (a.char || "?");
-        line += "  ·  " + t("module %s — showing “%s”", where, ch);
-      }
+      line += "  ·  " + (a.action === "adjusting"
+        ? t("module %s — adjusting", where)
+        : t("module %s — reading the reel", where));
     }
     $("calStatus").textContent = line;
   }
-  CAL.pollTimer = setTimeout(calPoll, 1000);
+  CAL.pollTimer = setTimeout(calPoll, 500);   // keep the activity line close to real time
 }
 
 function calFinish() {

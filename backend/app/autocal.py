@@ -438,10 +438,13 @@ class AutocalRun:
         self._reel[mid] = m["flap_chars"]
         return {"flap_chars": m["flap_chars"], "total_steps": m["total_steps"]}
 
-    def _say(self, mid, action, char=None) -> None:
-        """Record what the run is doing right now, for the UI's live line."""
-        self.activity = {"module": self.modules[mid]["grid_index"], "action": action,
-                         "char": char}
+    def _say(self, mid, action) -> None:
+        """Record what the run is doing right now, for the UI's live line — a coarse PHASE
+        (``reading`` the reel / ``adjusting`` the offset), per module. Deliberately NOT the flap
+        character: on an un-calibrated module the glyph on the wall is NOT the one we commanded
+        (that's what we're fixing), and we never read the actual glyph — so naming a character
+        would be a lie, and the per-flap churn is faster than the screen refresh anyway."""
+        self.activity = {"module": self.modules[mid]["grid_index"], "action": action}
 
     # -- frames --------------------------------------------------------------
     def push_frame(self, data: bytes) -> None:
@@ -496,8 +499,7 @@ class AutocalRun:
     def _capture_index(self, mid, i):
         """Command module ``mid`` to flap ``i``, let it settle, and return its rectified tile.
         The fast calibrator calls this on demand (it doesn't sweep every flap)."""
-        reel = self._reel.get(mid, "")
-        self._say(mid, "showing", reel[i] if i < len(reel) else None)
+        self._say(mid, "reading")
         wait = self._settle_for(mid, i)
         self._command(mid, i)
         if self._commander is None:           # real hardware: let the flap physically settle
