@@ -3,6 +3,15 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.2
+
+- **Auto-calibrate: fixed the Calibrate button doing nothing.** The page read the wall's module
+  list from an endpoint that doesn't carry each module's reel, so it decided no module was ready
+  ("modules are still learning their reels") and left Calibrate disabled. It now lists the
+  provisioned modules and reads each one's reel + home offset as its turn comes, so Calibrate
+  works on a configured wall; a module that genuinely isn't ready is flagged rather than blocking
+  the run.
+
 ## 2.12.0-beta.1
 
 - **Auto-calibrate with a webcam (experimental).** A new **Calibrate** tab (physical walls only)
