@@ -3,6 +3,19 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.12
+
+- **Auto-calibrate now uses OCR** — deployed the way it measures strongest: tesseract reads each
+  sweep back as lines of text, every recognized character is mapped to the flap it came from, and
+  the alignment of all those reads pins the reel's rotation decisively (measured 18/18 correct
+  under noise and low contrast, where single-glyph reads land only ~half). It is a third anchor
+  beside the blank and the glyph-shape consensus — **every confident anchor must agree**, and the
+  log says which ones did: “✓ offset 2 flap(s) — anchored by glyph shapes + OCR”.
+- After the per-flap verify, **OCR reads the whole reel back** and must agree it sits at zero
+  (“✓ OCR read the reel back — matches (22 of 53 flaps)”), and any flap the shape check disputed
+  gets OCR’s reading of it in the log.
+- Works without tesseract too (bare installs): the other anchors carry the run.
+
 ## 2.12.0-beta.11
 
 - **MCP error messages reach the client again.** Newer `mcp` releases (2.1+) mask a tool's
