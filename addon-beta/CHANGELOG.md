@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.4
+
+- **Auto-calibrate shows what it's doing.** While a run is going the page says e.g.
+  “module 7 — showing “A”” and “module 7 — adjusting”, highlights the module being worked on,
+  and each module cell's tooltip carries the detail (offset found, sub-flap, confidence, steps
+  written) — so a result that needs a look explains itself.
+
 ## 2.12.0-beta.3
 
 - **MCP tools for auto-calibration.** `get_calibration` (monitor a run's per-module results),
