@@ -658,7 +658,7 @@ function calSyncRunBtn() {
 }
 
 async function calStart() {
-  try { await post("/api/autocal/start", { corners: CAL.corners, verify: $("calVerify").checked }); }
+  try { await post("/api/autocal/start", { corners: CAL.corners }); }
   catch (e) { $("calStatus").textContent = t("Failed: %s", e.message); return; }
   CAL.running = true;
   CAL.lastSeq = 0;
@@ -745,31 +745,51 @@ async function calRevert() {
 // This is what lets you TRUST the run — every measurement, every nudge, every verdict.
 function calEventLine(e) {
   const m = String((e.module || 0) + 1);
+  const ch = (c) => (c === " " ? t("(blank)") : (c === undefined ? "?" : c));
   switch (e.kind) {
     case "start": return [null, t("module %s: starting", m)];
     case "not_ready": return ["warn", t("module %s: not ready — skipped", m)];
     case "probe":
-      return [null, e.char !== undefined
-        ? t("module %s: dialed flap %s (“%s”) — saw ink %s", m, String(e.flap),
-            e.char === " " ? t("(blank)") : e.char, String(e.ink))
-        : t("module %s: looked at flap %s — ink %s", m, String(e.flap), String(e.ink))];
-    case "glyph_check": return [null, t("module %s: checking glyph height", m)];
+      return [null, t("module %s: dialed flap %s (“%s”) — saw ink %s", m, String(e.flap),
+                      ch(e.char), String(e.ink))];
+    case "learned": {
+      const pct = String(Math.round(Math.abs(e.sub_flap || 0) * 100));
+      const dir = (e.sub_flap || 0) > 0 ? t("low") : t("high");
+      return [null, t("module %s: reel learned — %s flap(s) off · glyph %s% %s · confidence %s",
+                      m, String(e.offset_flaps), pct, dir, String(e.confidence))];
+    }
+    case "anchor":
+      // the two independent answers to "which captured flap is which character"
+      if (e.used === "both")
+        return ["ok", t("module %s: ✓ blank and glyph-shape anchors agree (%s flap(s) off)", m, String(e.blank))];
+      if (e.used === "blank")
+        return [null, t("module %s: glyph-shape check abstained (unfamiliar font) — using the blank anchor", m)];
+      if (e.used === "font")
+        return ["warn", t("module %s: blank ambiguous (colour flaps look blank too) — glyph shapes set the offset (%s)", m, String(e.font))];
+      if (e.used === "conflict")
+        return ["bad", t("module %s: ⚠ anchors disagree — blank says %s, glyph shapes say %s", m, String(e.blank), String(e.font))];
+      return ["bad", t("module %s: ⚠ no trustworthy anchor — flagged for a look", m)];
+    case "relearn": return [null, t("module %s: re-reading the reel at the corrected offset", m)];
     case "verify_start": return [null, t("module %s: verifying all %s flaps, one by one", m, String(e.flaps))];
+    case "verify":
+      // the literal dialed-vs-saw check, one line per flap
+      if (e.ok)
+        return ["ok", e.flat
+          ? t("module %s: dialed flap %s (“%s”) — a flat flap is showing, as expected", m, String(e.flap), ch(e.expected))
+          : t("module %s: dialed flap %s (“%s”) — saw “%s” ✓", m, String(e.flap), ch(e.expected), ch(e.saw))];
+      if (e.flat)
+        return ["bad", t("module %s: ⚠ dialed flap %s (“%s”) — a printed flap is showing", m, String(e.flap), ch(e.expected))];
+      if (e.saw === e.expected)
+        return ["warn", t("module %s: dialed flap %s (“%s”) — looks like “%s” but unsure", m, String(e.flap), ch(e.expected), ch(e.saw))];
+      return ["bad", t("module %s: ⚠ dialed flap %s (“%s”) — saw “%s” instead", m, String(e.flap), ch(e.expected), ch(e.saw))];
     case "skip_suspect":
       return ["bad", t("module %s: ⚠ flap %s (“%s”) did not present — possible skip", m,
-                       String(e.flap), e.char === " " ? t("(blank)") : (e.char || "?"))];
+                       String(e.flap), ch(e.char || "?"))];
     case "reel_verified": return ["ok", t("module %s: ✓ every flap presented; blank in place", m)];
     case "reel_issues": return ["warn", t("module %s: reel check found %s suspect flap(s)", m, String(e.skips))];
     case "park_check":
       return e.ok ? ["ok", t("module %s: homed — blank confirmed (ink %s)", m, String(e.ink))]
                   : ["bad", t("module %s: ⚠ homed, but a printed flap is showing (ink %s)", m, String(e.ink))];
-    case "fallback": return ["warn", t("module %s: blank unclear — scanning the whole reel", m)];
-    case "measured": {
-      const pct = String(Math.round(Math.abs(e.sub_flap || 0) * 100));
-      const dir = (e.sub_flap || 0) > 0 ? t("low") : t("high");
-      return [null, t("module %s: blank %s flap(s) off · glyph %s% %s · confidence %s",
-                      m, String(e.offset_flaps), pct, dir, String(e.confidence))];
-    }
     case "adjust": return [null, t("module %s: nudging %s steps", m, String(e.steps))];
     case "result":
       if (e.status === "aligned") return ["ok", t("module %s: ✓ already aligned", m)];

@@ -1,28 +1,43 @@
 """autocal.py — camera-based auto-calibration vision, no I/O.
 
-PHASE 0 (spike): the recognition engine only. Given a photo of the wall and the four
-corners the user clicked, it rectifies the wall to a grid of per-module tiles; given a
-*sweep* of one module (a capture per commanded flap index 0..N-1), it works out how far
-that module's home offset is wrong — in whole flaps and in sub-flap vertical shift — with a
-confidence score. The job orchestration (driving the gateway's /api/flap/* endpoints) and
-the SPA/webcam live in later phases; everything here is pure functions over PIL images and
-numpy arrays, so the hard part (the vision) is testable without a camera or a gateway.
+Given a photo of the wall and the four corners the user clicked, it rectifies the wall to a
+grid of per-module tiles; given a *sweep* of one module (a capture per commanded flap index
+0..N-1), it works out how far that module's home offset is wrong — whole flaps plus sub-flap
+vertical shift — and then PROVES the result flap by flap. The orchestration (driving the
+gateway's /api/flap/* endpoints) and the SPA/webcam live around this; everything here is pure
+functions over PIL images and numpy arrays, testable without a camera or a gateway.
 
-THE CORE IDEA — anchor on the blank, not on OCR. Every reel's flap set contains a blank
-(the space, normally index 0), and a blank tile is the one tile with almost no ink: trivial
-to find, nothing to read. So we sweep the module, find which COMMANDED index produced the
-blank, and that pins the absolute rotation of the reel with no character recognition at all.
-Letter/font recognition is left as a later cross-check; the blank landmark is what makes
-"fully automatic" robust.
+HOW A MODULE IS CALIBRATED — learn, anchor twice, correct, verify every flap:
+  1. LEARN: one full sweep captures every flap, and the module's own reel becomes its glyph
+     library (``learn_reel``). No font is assumed; lighting, camera, print and the horizontal
+     flap seam all match by construction, because the references ARE this wall's flaps.
+  2. ANCHOR x2: the library needs one absolute fact — which captured tile is which character.
+     Two INDEPENDENT anchors answer it: (a) the blank, the one provably uniform flap, found by
+     peak-deviation flatness (``tile_blankness``); (b) the cyclic shift that best matches the
+     whole sweep against RENDERED seamed references (``consensus_shift``) — each per-glyph
+     match is weak (unknown font), but N votes picking one rotation are strong, and it only
+     picks a rotation, never reads a letter. A confident disagreement = needs_review, never a
+     guess; a confident consensus can RESCUE an ambiguous blank (solid-colour flaps — the
+     white one especially — are exactly as flat as the blank in grayscale).
+  3. CORRECT: nudges (live, relative — see the write contract at ``_adjust``), spot-checked by
+     identity each round until the shift reads zero.
+  4. VERIFY: every flap is re-read and identified against the learned library — dialed A must
+     SHOW A; "saw B instead" means it went one too far and is said in those words. An unsure
+     match is flagged by name, never asserted.
 
-Assumes a plain (non-colour) reel for the spike: a solid COLOUR flap is also low-ink and
-would need a hue test to tell from the blank — a Phase 1 refinement, noted at `tile_ink`.
+WHY NOT OCR — measured, not assumed: tesseract on seam-cut single flap glyphs scored at best
+6/22 on realistic tiles, with high-confidence WRONG reads (a seam-cut E genuinely is two bars
+— it read `=` at conf 72; H→7, 1→H). A verifier that is confidently wrong is worse than none,
+so recognition here is image MATCHING — the module's own glyphs for per-flap identity, rendered
+references only to vote on the rotation — and OCR stays out.
 """
 
 from __future__ import annotations
 
 import io
 import time
+from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
 from PIL import Image
@@ -100,6 +115,127 @@ def _pool4(t: np.ndarray) -> np.ndarray:
 def tiles_similar(a: np.ndarray, b: np.ndarray) -> bool:
     """Do two consecutive reads of the same module agree — i.e. has the flap stopped moving?"""
     return float(np.mean(np.abs(_pool4(a) - _pool4(b)))) < TILE_STABLE_DIFF
+
+
+def tile_blankness(tile: np.ndarray) -> float:
+    """How BLANK a tile is, 0 (flat) upward. The 99th-percentile deviation from the median: a
+    faint glyph (a dot, an apostrophe) has few but STRONG dark pixels — a huge deviation — while
+    a true blank deviates only by sensor noise. Far sharper at "blank vs faintest glyph" than
+    the ink spread (std), which once scored a wall's blank 0.117 against a '.' at 0.132."""
+    med = float(np.median(tile))
+    return float(np.percentile(np.abs(tile - med), 99)) / 255.0
+
+
+# ---------------------------------------------------------------------------
+# Glyph recognition — learned from the module's OWN reel, no font assumed.
+#
+# One full sweep captures a tile per commanded index. The blank (the one flap that is provably
+# uniform) anchors which captured tile is which character; every captured tile then becomes the
+# reference for its character, under this exact camera, lighting and print. From then on,
+# "dialed 3" must MATCH the learned "3" — if it matches the learned "4", the reel is one flap
+# ahead and the offset falls straight out. Identity, not ink, is the verification.
+# ---------------------------------------------------------------------------
+def _pool2(t: np.ndarray) -> np.ndarray:
+    # finer than _pool4: glyph matching needs the shape detail (B vs 8, S vs $) that 4x4
+    # pooling blurs into razor-thin margins, while 2x2 still averages sensor noise away
+    h, w = (t.shape[0] // 2) * 2, (t.shape[1] // 2) * 2
+    return t[:h, :w].reshape(h // 2, 2, w // 2, 2).mean(axis=(1, 3))
+
+
+def _vroll(t: np.ndarray, dy: int) -> np.ndarray:
+    """The tile with its content moved ``dy`` pixels down (up when negative), background-filled.
+    A home-offset error shifts EVERY glyph by the same amount, so matching under a vertical
+    roll is how a capture is compared against a library learned at a different sub-flap."""
+    if dy == 0:
+        return t
+    out = np.full_like(t, float(np.median(t)))
+    if dy > 0:
+        out[dy:] = t[:-dy]
+    else:
+        out[:dy] = t[-dy:]
+    return out
+
+
+GLYPH_SEAM_BAND = 3   # pixel rows masked either side of a seam position when comparing
+
+
+def glyph_pool(tile: np.ndarray) -> np.ndarray:
+    """The stored form of a glyph reference: the 2x2-pooled tile, raw (masking and
+    normalisation happen per comparison, because the seam mask depends on the roll)."""
+    return _pool2(tile)
+
+
+def _seam_mask(pool_h: int, dys) -> np.ndarray:
+    """Which pooled rows to KEEP when comparing tiles. The seam sits mid-window and never
+    moves with the glyph, so a capture rolled by ``dy`` carries its seam band to mid+dy while
+    the reference keeps its own at mid — both bands are dropped from both sides, or the seam
+    scores as (dis)agreement it isn't. When the positions coincide (dy=0) NOTHING is masked:
+    identical seams correlate fine, and a glyph that hugs the seam (a dash) needs those rows."""
+    keep = np.ones(pool_h, dtype=bool)
+    if len(set(dys)) <= 1:
+        return keep
+    mid = TILE_H // 2
+    for dy in dys:
+        y = mid + dy
+        lo, hi = (y - GLYPH_SEAM_BAND) // 2, (y + GLYPH_SEAM_BAND) // 2
+        keep[max(0, lo):min(pool_h, hi + 1)] = False
+    return keep
+
+
+def _masked_glyph(pool: np.ndarray, keep: np.ndarray) -> np.ndarray:
+    """A pooled tile as a lighting-independent shape vector: seam rows dropped,
+    median-centred, unit-energy — ready for normalized cross-correlation (a dot product)."""
+    v = pool[keep].astype(np.float64).ravel()
+    v -= np.median(v)
+    nrm = float(np.linalg.norm(v))
+    return v / nrm if nrm > 1e-9 else v
+
+
+def learn_reel(tiles: list, flap_chars: str) -> dict:
+    """Turn a full commanded-order sweep into this module's own glyph library.
+
+    The blank anchors the labels: if the flattest tile sits at commanded index j while the reel
+    keeps its blank at index b, the reel is offset by (b - j) and every captured tile is the
+    reference image for the character actually behind it. ``confidence`` is how uniquely flat
+    that blank is against the runner-up — LOW on a reel with solid-colour flaps (they are just
+    as flat in grayscale), which is what the rendered-consensus anchor is for. ``blankness``
+    (each character's learned flatness) travels with the library so later checks judge the flat
+    flaps by flatness, not by glyph identity (normalized near-flat tiles are just noise)."""
+    n = len(flap_chars)
+    blank_index = flap_chars.index(" ") if " " in flap_chars else 0
+    flat = [tile_blankness(t) for t in tiles]
+    j = int(np.argmin(flat))
+    srt = sorted(flat)
+    spread = srt[-1] - srt[0]
+    confidence = float((srt[1] - srt[0]) / spread) if (n > 1 and spread > 1e-9) else 0.0
+    offset = (blank_index - j) % n
+    signed = offset if offset <= n // 2 else offset - n
+    templates = {flap_chars[(i + signed) % n]: glyph_pool(tiles[i]) for i in range(n)}
+    blankness = {flap_chars[(i + signed) % n]: flat[i] for i in range(n)}
+    return {"offset_flaps": signed, "confidence": round(confidence, 4),
+            "blank_cmd_index": j, "templates": templates, "blankness": blankness}
+
+
+def identify(tile: np.ndarray, templates: dict, rolls=(0,)) -> tuple[str, float, float]:
+    """Which learned character this tile is: ``(char, score, margin)``. ``margin`` is the gap to
+    the runner-up — a small margin means "unsure", to be flagged rather than asserted.
+
+    ``rolls`` are the vertical registrations to try (``_vroll``): the library may have been
+    learned at a different sub-flap shift than the capture, and the shapes only line up once
+    that shared shift is rolled out (the seam, which does NOT move with the glyph, is masked
+    at both its positions). The best-scoring roll wins, margin judged within it."""
+    best = ("?", -1e9, 0.0)
+    for dy in rolls:
+        cap = _pool2(_vroll(tile, dy))
+        keep = _seam_mask(cap.shape[0], (0, dy))
+        g = _masked_glyph(cap, keep)
+        scored = sorted(((float(np.sum(g * _masked_glyph(tpl, keep))), ch)
+                         for ch, tpl in templates.items()), reverse=True)
+        sc, ch = scored[0]
+        if sc > best[1]:
+            best = (ch, sc, sc - (scored[1][0] if len(scored) > 1 else 0.0))
+    ch, sc, margin = best
+    return ch, round(sc, 3), round(margin, 3)
 
 
 def tile_v_centroid(tile: np.ndarray) -> float:
@@ -188,55 +324,10 @@ def steps_per_flap(total_steps: int, flap_count: int) -> float:
     return float(total_steps) / max(1, int(flap_count))
 
 
-def find_blank(capture_index, n: int, blank_index: int = 0, notify=None) -> tuple[int, float, int]:
-    """Locate the blank flap WITHOUT sweeping the whole reel.
-
-    ``capture_index(i)`` commands the module to flap ``i`` and returns its tile. We sample a
-    few spread flaps to learn the "a letter is printed here" ink baseline, then search forward
-    from ``blank_index`` and STOP at the first flap whose ink is clearly below that baseline —
-    the blank. An already-aligned module is found in a handful of captures instead of a full
-    sweep; one that is off by k flaps costs about k more.
-
-    Returns ``(offset_flaps, confidence, blank_cmd_index, evidence)`` — sign convention as in
-    ``analyze_sweep`` (commanding ``i`` currently shows reel flap ``i + offset_flaps``), and
-    ``evidence`` = ``{baseline, blank_ink}``: what a printed flap vs the blank measured as, so a
-    later check (did the re-home REALLY land on the blank?) can judge a new capture by the same
-    yardstick instead of a hard-coded threshold.
-    """
-    seen: dict[int, float] = {}
-    say = notify or (lambda kind, data: None)
-
-    def ink_at(i):
-        i %= n
-        if i not in seen:
-            seen[i] = tile_ink(capture_index(i))
-            say("probe", {"flap": i, "ink": round(seen[i], 3)})   # live: what it looked at + saw
-        return seen[i]
-
-    sample = sorted({(blank_index + round(k * n / 4)) % n for k in range(4)})
-    letters = sorted(ink_at(i) for i in sample)
-    baseline = letters[len(letters) // 2] if letters else 0.0          # median ~ a letter's ink
-
-    best_i, best_ink = blank_index % n, 1e9
-    for k in range(n):
-        i = (blank_index + k) % n
-        v = ink_at(i)
-        if v < best_ink:
-            best_ink, best_i = v, i
-        if baseline > 1e-6 and v < 0.45 * baseline:                     # clearly the blank
-            best_ink, best_i = v, i
-            break
-
-    conf = max(0.0, min(1.0, (baseline - best_ink) / baseline)) if baseline > 1e-6 else 0.0
-    offset = (blank_index - best_i) % n
-    signed = offset if offset <= n // 2 else offset - n
-    return signed, round(conf, 4), best_i, {"baseline": round(baseline, 4),
-                                            "blank_ink": round(best_ink, 4)}
-
-
 def looks_blank(ink: float, evidence: dict) -> bool:
-    """Judge a NEW capture by the module's own measured yardstick: closer to its blank's ink
-    than to its printed-flap baseline. Used to verify a re-home really landed on the blank."""
+    """Judge a NEW capture by the module's own measured yardstick (``evidence`` =
+    ``{baseline, blank_ink}``, from its learning sweep): closer to its blank's ink than to its
+    printed-flap baseline. Used to verify a re-home really landed on the blank."""
     base = float(evidence.get("baseline", 0.0))
     blank = float(evidence.get("blank_ink", 0.0))
     if base <= blank + 1e-6:
@@ -244,123 +335,330 @@ def looks_blank(ink: float, evidence: dict) -> bool:
     return ink < blank + 0.5 * (base - blank)
 
 
-def verify_reel(capture_index, flap_chars: str, *, notify=None, should_abort=None) -> dict:
-    """The full-reel check: step EVERY flap once and prove each step presented a NEW flap.
+GLYPH_MARGIN_MIN = 0.03   # an identification closer than this to its runner-up is "unsure".
+                          # Measured on a 64-glyph DejaVu reel at pool2 with registration
+                          # rolls: correct reads keep margins >= ~0.05 even under noise and
+                          # +/-2px residual shift, so 0.03 flags genuine ambiguity only.
 
-    A skipped/stuck flap shows the same image on two consecutive commands — two reads that are
-    near-identical (strict threshold: only sensor noise apart) mark a suspect. The blank must
-    also land exactly at its reel index, and nowhere else as the minimum. Costs one step per
-    flap, so it's optional — but it is the only thing that catches a flap being skipped."""
-    say = notify or (lambda kind, data: None)
+# ---------------------------------------------------------------------------
+# The rendered-reference anchor — the independent cross-check on the blank.
+#
+# The learned library needs one absolute fact from outside itself: which captured tile is
+# which character. The blank gives it, but a solid-colour flap (and the white one especially)
+# is exactly as flat as the blank in grayscale — so a SECOND, independent anchor votes:
+# match the whole sweep against rendered seamed references and take the cyclic-shift
+# consensus. (Single-glyph OCR was measured and rejected for this job — see the module
+# docstring: at best 6/22 on seam-cut glyphs, with confidently-wrong reads.)
+# ---------------------------------------------------------------------------
+COLOR_LETTERS = "roygbpw"  # the reel's solid-colour flaps: no glyph printed on them
+FONT_ANCHOR_MIN = 0.12     # consensus margin below this = the font anchor ABSTAINS
+FONT_MATCH_MIN = 0.12      # mean per-glyph similarity below this = too alien, abstain too
+_FONT_PATH = Path(__file__).resolve().parent / "fonts" / "DejaVuSans-Bold.ttf"
+
+
+def physical_glyph(ch: str) -> str:
+    """What is PRINTED on the flap for a reel character: `q` is the double-quote flap."""
+    return '"' if ch == "q" else ch
+
+
+def render_reference(ch: str) -> np.ndarray:
+    """What a flap printed with ``ch`` roughly looks like: a bold dark glyph on a light flap,
+    cut by the horizontal seam every real flap has. The font is NOT assumed to match the
+    wall's — a reference only has to look more like its own character than like the others,
+    and only in aggregate (see ``consensus_shift``)."""
+    from PIL import ImageDraw, ImageFont
+    img = Image.new("L", (TILE_W, TILE_H), 230)
+    d = ImageDraw.Draw(img)
+    font = ImageFont.truetype(str(_FONT_PATH), int(TILE_H * 0.8))
+    g = physical_glyph(ch)
+    x0, y0, x1, y1 = d.textbbox((0, 0), g, font=font)
+    d.text(((TILE_W - (x1 - x0)) // 2 - x0, (TILE_H - (y1 - y0)) // 2 - y0), g,
+           fill=25, font=font)
+    a = np.asarray(img, dtype=np.float32).copy()
+    a[TILE_H // 2 - 1:TILE_H // 2 + 1, :] = 230.0        # the seam
+    return a
+
+
+@lru_cache(maxsize=8)
+def reference_templates(flap_chars: str) -> dict:
+    """Rendered references (pooled) for the reel's PRINTABLE glyphs (the blank and the
+    solid-colour flaps carry no glyph to render)."""
+    return {ch: glyph_pool(render_reference(ch))
+            for ch in flap_chars if ch != " " and ch not in COLOR_LETTERS}
+
+
+def consensus_shift(sweep_tiles: list, flap_chars: str) -> dict:
+    """The INDEPENDENT absolute anchor: which cyclic shift of the reel best explains the whole
+    sweep, judged against rendered references. Each per-glyph match is weak (the wall's font
+    is unknown), but N votes on one rotation are strong — and the consensus only has to PICK A
+    ROTATION, never read a letter, which is exactly why it works where single-glyph OCR
+    measurably failed. The sweep may carry the module's whole sub-flap shift, so a few GLOBAL
+    vertical registrations are tried and each shift keeps its best. Returns
+    ``{offset_flaps, confidence}`` with the ``analyze_sweep`` sign convention;
+    ``offset_flaps`` is None when no shift stands out or nothing matches — an alien-enough
+    look ABSTAINS rather than guesses, and the blank anchor rules alone."""
     n = len(flap_chars)
-    blank_index = flap_chars.index(" ") if " " in flap_chars else 0
-    say("verify_start", {"flaps": n})
-    inks: list[float] = []
-    prev = None
-    skips: list[int] = []
-    for i in range(n):
-        if should_abort is not None and should_abort():
-            return {"ok": False, "reason": "aborted", "skips": skips, "blank_ok": False}
-        tile = capture_index(i)
-        ink = tile_ink(tile)
-        inks.append(ink)
-        say("probe", {"flap": i, "ink": round(ink, 3)})
-        # Identical to the PREVIOUS flap's read = this step presented nothing new. Strict
-        # threshold: truly the same physical flap differs only by noise. (Caveat: two colour
-        # flaps of near-equal brightness could read close in grayscale — a suspect is a flag
-        # for a human look, not a verdict.)
-        if prev is not None and float(np.mean(np.abs(_pool4(prev) - _pool4(tile)))) < 2.0:
-            skips.append(i - 1)
-            say("skip_suspect", {"flap": i - 1})
-        prev = tile
-    blank_ok = int(np.argmin(inks)) == blank_index
-    ok = blank_ok and not skips
-    say("reel_verified" if ok else "reel_issues",
-        {"skips": len(skips), "blank_ok": blank_ok})
-    return {"ok": ok, "skips": skips, "blank_ok": blank_ok}
+    refs = reference_templates(flap_chars)
+    if not refs:
+        return {"offset_flaps": None, "confidence": 0.0}
+    ph = _pool2(sweep_tiles[0]).shape[0]
+    scores = np.full(n, -1e9)
+    for dy in range(-TILE_H // 2, TILE_H // 2 + 1, 4):
+        keep = _seam_mask(ph, (0, dy))
+        g = [_masked_glyph(_pool2(_vroll(t, dy)), keep) for t in sweep_tiles]
+        r = {ch: _masked_glyph(p, keep) for ch, p in refs.items()}
+        for s in range(n):
+            tot = sum(float(np.sum(g[i] * r[flap_chars[(i + s) % n]]))
+                      for i in range(n) if flap_chars[(i + s) % n] in refs)
+            scores[s] = max(scores[s], tot)
+    srt = np.sort(scores)
+    spread = float(srt[-1] - srt[0])
+    conf = float((srt[-1] - srt[-2]) / spread) if (n > 1 and spread > 1e-9) else 0.0
+    if conf < FONT_ANCHOR_MIN or float(srt[-1]) / len(refs) < FONT_MATCH_MIN:
+        return {"offset_flaps": None, "confidence": round(conf, 4)}
+    s = int(np.argmax(scores))
+    return {"offset_flaps": s if s <= n // 2 else s - n, "confidence": round(conf, 4)}
 
 
-def calibrate_module_fast(capture_index, adjust, flap_chars: str,
-                          total_steps: int, *, max_rounds: int = MAX_ROUNDS,
-                          confidence_min: float = CONFIDENCE_MIN, should_abort=None,
-                          notify=None) -> dict:
-    """Drive ONE module to aligned: locate the blank with ``find_blank`` (no full sweep), read
-    the sub-flap shift off the glyph beside it, then correct and re-measure until it's right.
+def calibrate_module_learned(capture_index, adjust, flap_chars: str, total_steps: int, *,
+                             max_rounds: int = MAX_ROUNDS, confidence_min: float = CONFIDENCE_MIN,
+                             should_abort=None, notify=None) -> dict:
+    """Calibrate ONE module with LEARNED glyph recognition — dial A, verify you see A.
 
-    ``adjust(delta_steps)`` must be a LIVE, RELATIVE correction — the gateway's **nudge**, which
-    moves the reel AND saves the new home offset instantly. It must NOT be an absolute
-    home-offset write: per the calibration contract, that only takes effect after the next
-    re-home, so the camera would see no change, and re-applying the "missing" correction every
-    round would silently pile up a huge wrong offset. (Exactly that bug shipped in beta ≤6.)
-
-    The direction a nudge moves the glyph in the window is hardware-dependent, so the loop
-    DISCOVERS the sign: if a correction makes the error worse, it flips and continues.
-    If the blank can't be found confidently it falls back to one full sweep + ``analyze_sweep``
-    for this module."""
+    1. LEARNING SWEEP: read every flap once, in commanded order — the module's own reel becomes
+       its glyph library (``learn_reel``). The sweep also catches skipped flaps (consecutive
+       identical reads) and gives the sub-flap shift.
+    2. ANCHOR x2: the blank (flatness) and the rendered-reference consensus must agree on the
+       absolute rotation. Confident disagreement = needs_review; a confident consensus rescues
+       an ambiguous blank (solid-colour flaps are exactly as flat); both unsure = needs_review.
+    3. CORRECT: nudge, then spot-check (the blank by flatness + up to two glyph witnesses, so a
+       single lookalike misread can't steer the loop) until it reads zero. If anything was
+       corrected, RE-LEARN: sweep again at the corrected offset — the seam cuts every glyph at
+       a fixed window height, so a library learned at the old shift cannot fully verify the new
+       one — and the fresh sweep's anchors must independently agree the module now sits at zero.
+    4. VERIFY: re-read EVERY flap and identify it against the library. Each line is the literal
+       check 'dialed 3 — saw 3' / 'saw 4 instead'; an unsure match (margin below
+       ``GLYPH_MARGIN_MIN``) is flagged by name, never asserted. The flat flaps (blank,
+       colours) are verified by flatness — grayscale cannot tell WHICH flat flap is showing.
+    """
     n = len(flap_chars)
     blank_index = flap_chars.index(" ") if " " in flap_chars else 0
     spf = steps_per_flap(total_steps, n)
-    sign, applied, prev_err = 1, 0, None
-    history: list[dict] = []
-    _raw_say = notify or (lambda kind, data: None)
+    say0 = notify or (lambda kind, data: None)
 
     def say(kind, data):
-        # Every probe line carries WHAT WAS DIALED (the flap index and the character that index
-        # should hold) next to what the camera saw — the dialed-vs-seen detail the log lives on.
         if kind == "probe" and "flap" in data:
             data = {**data, "char": flap_chars[data["flap"] % n]}
-        _raw_say(kind, data)
+        say0(kind, data)
 
-    for rnd in range(max_rounds):
-        if should_abort is not None and should_abort():
-            return {"status": "failed", "reason": "aborted", "rounds": rnd,
-                    "applied_steps": applied, "history": history}
+    def aborted():
+        return should_abort is not None and should_abort()
 
-        offset, conf, blank_cmd, evidence = find_blank(capture_index, n, blank_index, notify=say)
-        if conf < confidence_min:
-            # Ambiguous — spend a full sweep on this one module and trust analyze_sweep.
-            say("fallback", {})
-            res = analyze_sweep([capture_index(i) for i in range(n)], flap_chars)
-            offset, conf, sub = res["offset_flaps"], res["confidence"], res["sub_flap"]
-            srt = sorted(res["inks"])
-            evidence = {"baseline": srt[len(srt) // 2], "blank_ink": srt[0]}
-            if conf < confidence_min:
-                return {"status": "needs_review", "rounds": rnd + 1, "applied_steps": applied,
-                        "final": {"offset_flaps": offset, "sub_flap": sub, "confidence": conf},
-                        "history": history}
+    def fail(status, rounds, **extra):
+        return {"status": status, "rounds": rounds, "applied_steps": applied, **extra,
+                "history": history}
+
+    applied, history = 0, []
+
+    def full_sweep():
+        """One narrated pass over every flap: ``(tiles, skips)``, tiles None on abort. A skip
+        suspect = two consecutive near-identical reads — a flap that never presented. Each
+        sweep reports its OWN suspects: on a misaligned module two adjacent lookalikes can
+        genuinely match mid-window (a shifted E loses the bar that tells it from F), so only
+        the final, aligned sweep's verdict stands."""
+        out, found, prev = [], [], None
+        for i in range(n):
+            if aborted():
+                return None, found
+            t = capture_index(i)
+            say("probe", {"flap": i, "ink": round(tile_ink(t), 3)})
+            if prev is not None and float(np.mean(np.abs(_pool4(prev) - _pool4(t)))) < 2.0:
+                found.append(i - 1)
+                say("skip_suspect", {"flap": i - 1, "char": flap_chars[(i - 1) % n]})
+            out.append(t)
+            prev = t
+        return out, found
+
+    def learn_and_anchor(tiles):
+        """``learn_reel`` + ``consensus_shift`` and the agreement rules. Returns
+        ``(lib, offset, conf, used)`` — ``used`` is how the rotation was decided:
+        blank alone (consensus abstained), both in agreement, font rescue of an ambiguous
+        blank (the library is then relabelled), or conflict/none (don't proceed)."""
+        lib = learn_reel(tiles, flap_chars)
+        anchor = consensus_shift(tiles, flap_chars)
+        b_off, b_conf = lib["offset_flaps"], lib["confidence"]
+        f_off = anchor["offset_flaps"]
+        if b_conf >= confidence_min and (f_off is None or f_off == b_off):
+            used, offset, conf = ("blank" if f_off is None else "both"), b_off, b_conf
+        elif b_conf >= confidence_min:
+            used, offset, conf = "conflict", b_off, b_conf   # two confident, two answers
+        elif f_off is not None:
+            # the blank is ambiguous (colour flaps are just as flat) — the consensus rescues
+            # it, and the library is relabelled to the rotation the consensus picked
+            used, offset, conf = "font", f_off, anchor["confidence"]
+            lib["templates"] = {flap_chars[(i + offset) % n]: glyph_pool(tiles[i])
+                                for i in range(n)}
+            lib["blankness"] = {flap_chars[(i + offset) % n]: tile_blankness(tiles[i])
+                                for i in range(n)}
         else:
-            # Sub-flap from the glyph right after the blank (the blank itself has no ink).
-            say("glyph_check", {})
-            sub = tile_v_centroid(capture_index((blank_cmd + 1) % n)) - 0.5
+            used, offset, conf = "none", b_off, b_conf
+        say("anchor", {"blank": b_off, "font": f_off, "used": used,
+                       "confidence": anchor["confidence"]})
+        return lib, offset, conf, used
 
-        err = offset + sub
-        aligned = offset == 0 and abs(sub) < 0.08
-        say("measured", {"offset_flaps": offset, "sub_flap": round(sub, 3),
-                         "confidence": round(conf, 2)})
-        history.append({"round": rnd, "offset_flaps": offset, "sub_flap": round(sub, 4),
-                        "confidence": conf})
-        if aligned:
-            return {"status": "aligned" if rnd == 0 else "adjusted", "rounds": rnd + 1,
-                    "applied_steps": applied,
-                    "final": {"offset_flaps": offset, "sub_flap": round(sub, 4),
-                              "confidence": conf, **evidence},
-                    "history": history}
-        if prev_err is not None and abs(err) > abs(prev_err) + 0.02:
-            sign = -sign
-        delta = int(round(sign * -err * spf)) or (-sign if err > 0 else sign)
-        say("adjust", {"steps": delta})
-        adjust(delta)                          # a live nudge: reel moves now, offset saved now
-        applied += delta
-        prev_err = err
+    # -- 1. the learning sweep ------------------------------------------------
+    tiles, skips = full_sweep()
+    if tiles is None:
+        return fail("failed", 0, reason="aborted")
+    inks = sorted(tile_ink(t) for t in tiles)
+    evidence = {"baseline": round(inks[n // 2], 4), "blank_ink": round(inks[0], 4)}
 
-    offset, conf, blank_cmd, evidence = find_blank(capture_index, n, blank_index, notify=say)
-    sub = tile_v_centroid(capture_index((blank_cmd + 1) % n)) - 0.5
-    aligned = offset == 0 and abs(sub) < 0.08
-    return {"status": "adjusted" if aligned else "failed", "rounds": max_rounds,
-            "applied_steps": applied,
-            "final": {"offset_flaps": offset, "sub_flap": round(sub, 4),
-                      "confidence": conf, **evidence},
-            "history": history}
+    # -- 2. the two anchors must agree on the absolute rotation ----------------
+    lib, offset, conf, used = learn_and_anchor(tiles)
+    if used in ("conflict", "none"):
+        return fail("needs_review", 1,
+                    final={"offset_flaps": offset, "sub_flap": 0.0,
+                           "confidence": conf, **evidence})
+
+    flats = lib["blankness"]
+    flat_cut = flats.get(" ", 0.0) * 2.5 + 0.03      # flat flaps: the blank + the colours
+
+    def is_flat(ch):
+        return flats.get(ch, 1.0) <= flat_cut
+
+    j = (blank_index - offset) % n                   # where the blank sat in the sweep
+    nb = next(((blank_index + k) % n for k in range(1, n)
+               if not is_flat(flap_chars[(blank_index + k) % n])), (blank_index + 1) % n)
+    nb2 = next(((nb + k) % n for k in range(1, n)
+                if not is_flat(flap_chars[(nb + k) % n])), nb)
+    sub = tile_v_centroid(tiles[(j + (nb - blank_index)) % n]) - 0.5
+    say("learned", {"offset_flaps": offset, "sub_flap": round(sub, 3), "confidence": conf})
+    history.append({"round": 0, "offset_flaps": offset, "sub_flap": round(sub, 4),
+                    "confidence": conf})
+
+    # Corrections compare captures against a library learned at ANOTHER sub-flap shift, so the
+    # spot-check identifies under a wide vertical roll search (the seam, which does not move
+    # with the glyph, is masked at both of its positions — see ``_seam_mask``).
+    search_rolls = tuple(range(-(TILE_H // 2), TILE_H // 2 + 1, 2))
+
+    def reel_shift(ch, at):
+        s = (flap_chars.index(ch) - at) % n if ch in flap_chars else 0
+        return s if s <= n // 2 else s - n
+
+    # -- 3. correct until a FRESH sweep proves zero ----------------------------
+    # The library must describe the wall AS IT STANDS when the final verify runs: a correction
+    # moves every glyph relative to the seam (which stays fixed mid-window), so after any
+    # nudge the module is RE-SWEPT and re-anchored — the fresh anchors must independently
+    # agree on zero, and a residual the fresh sweep still shows is corrected against the
+    # fresh library, within the shared round budget.
+    sign, prev_err = 1, None
+    rounds_left, fresh = max_rounds, True            # fresh: lib/tiles match the wall right now
+    while True:
+        while not (offset == 0 and abs(sub) < 0.08):
+            if aborted():
+                return fail("failed", len(history), reason="aborted")
+            if rounds_left <= 0:
+                return fail("failed", len(history),
+                            final={"offset_flaps": offset, "sub_flap": round(sub, 4),
+                                   "confidence": conf, **evidence})
+            rounds_left -= 1
+            err = offset + sub
+            if prev_err is not None and abs(err) > abs(prev_err) + 0.02:
+                sign = -sign
+            delta = int(round(sign * -err * spf)) or (-sign if err > 0 else sign)
+            say("adjust", {"steps": delta})
+            adjust(delta)
+            applied += delta
+            prev_err = err
+            fresh = False
+            # spot-check, narrated: the blank back at its slot (by flatness — identity can't
+            # tell near-flat tiles apart) plus a glyph witness; a whole-flap claim needs a
+            # SECOND witness to agree, so one lookalike misread can't steer the loop
+            t0 = capture_index(blank_index)
+            blank_ok = tile_blankness(t0) <= flat_cut
+            say("verify", {"flap": blank_index, "expected": " ",
+                           "saw": " " if blank_ok else "?", "ok": blank_ok, "flat": True,
+                           "margin": 1.0 if blank_ok else 0.0})
+            t1 = capture_index(nb)
+            ch1, _, m1 = identify(t1, lib["templates"], rolls=search_rolls)
+            shift1 = reel_shift(ch1, nb)
+            say("verify", {"flap": nb, "expected": flap_chars[nb], "saw": ch1,
+                           "ok": shift1 == 0, "margin": m1})
+            if shift1 == 0 and blank_ok:
+                offset = 0
+            else:
+                t2 = capture_index(nb2)
+                ch2, _, m2 = identify(t2, lib["templates"], rolls=search_rolls)
+                shift2 = reel_shift(ch2, nb2)
+                say("verify", {"flap": nb2, "expected": flap_chars[nb2], "saw": ch2,
+                               "ok": shift2 == 0, "margin": m2})
+                offset = shift1 if shift1 == shift2 else (0 if blank_ok else shift2)
+            sub = tile_v_centroid(t1) - 0.5
+            history.append({"round": len(history), "offset_flaps": offset,
+                            "sub_flap": round(sub, 4), "confidence": conf})
+        if fresh:
+            break                                    # the library IS the wall as it stands
+        # re-learn at the corrected offset, and prove the correction on the fresh sweep
+        # (whose skip verdict replaces the misaligned sweep's — see full_sweep)
+        say("relearn", {})
+        tiles, skips = full_sweep()
+        if tiles is None:
+            return fail("failed", len(history), reason="aborted")
+        inks = sorted(tile_ink(t) for t in tiles)
+        evidence = {"baseline": round(inks[n // 2], 4), "blank_ink": round(inks[0], 4)}
+        lib, offset, conf, used = learn_and_anchor(tiles)
+        flats = lib["blankness"]
+        flat_cut = flats.get(" ", 0.0) * 2.5 + 0.03
+        if used in ("conflict", "none"):
+            return fail("needs_review", len(history),
+                        final={"offset_flaps": offset, "sub_flap": round(sub, 4),
+                               "confidence": conf, **evidence})
+        j2 = (blank_index - offset) % n
+        sub = tile_v_centroid(tiles[(j2 + (nb - blank_index)) % n]) - 0.5
+        fresh = True
+        history.append({"round": len(history), "offset_flaps": offset,
+                        "sub_flap": round(sub, 4), "confidence": conf})
+
+    # -- 4. verify EVERY flap by identity -------------------------------------
+    say("verify_start", {"flaps": n})
+    verify_rolls = (-1, 0, 1)      # the library is at TODAY's registration; allow jitter only
+    shifts, flagged = [], []
+    for i in range(n):
+        if aborted():
+            return fail("failed", len(history), reason="aborted")
+        t = capture_index(i)
+        expected = flap_chars[i]
+        if is_flat(expected):
+            # no glyph to identify on the blank/colour flaps; prove a flat flap is presenting
+            # (the sweep's skip check covers whether each of them stepped in turn)
+            ok = tile_blankness(t) <= flat_cut
+            say("verify", {"flap": i, "expected": expected, "saw": expected if ok else "?",
+                           "ok": ok, "flat": True, "margin": 1.0 if ok else 0.0})
+            if not ok:
+                flagged.append(i)
+            continue
+        ch, score, margin = identify(t, lib["templates"], rolls=verify_rolls)
+        ok = ch == expected and margin >= GLYPH_MARGIN_MIN
+        say("verify", {"flap": i, "expected": expected, "saw": ch, "ok": ok,
+                       "margin": margin})
+        if ch in flap_chars and not is_flat(ch):
+            shifts.append(reel_shift(ch, i))
+        if not ok:
+            flagged.append(i)
+    consistent_shift = int(np.median(shifts)) if shifts else 0
+    blank_ok = blank_index not in flagged
+    say("reel_verified" if (not flagged and not skips) else "reel_issues",
+        {"skips": len(skips) + len(flagged), "blank_ok": blank_ok})
+
+    aligned = consistent_shift == 0 and not flagged and not skips and abs(sub) < 0.08
+    status = ("aligned" if applied == 0 else "adjusted") if aligned else \
+             ("failed" if consistent_shift != 0 else "needs_review")
+    out = fail(status, len(history),
+               final={"offset_flaps": consistent_shift, "sub_flap": round(sub, 4),
+                      "confidence": conf, **evidence})
+    out["reel_check"] = {"ok": aligned, "skips": skips, "blank_ok": blank_ok,
+                         "flagged": flagged}
+    return out
 
 
 class CalibrationSession:
@@ -382,12 +680,12 @@ class CalibrationSession:
       - ``peek_fn(id)``        -> the module's CURRENT tile, commanding nothing — how the
                                   post-home check confirms the blank is really showing.
     ``snapshot`` records each module's saved offset (from its own EEPROM, via ``meta_fn``) as its
-    turn comes, so ``revert()`` undoes exactly what the run touched. With ``verify`` on, every
-    calibrated module gets a FULL-REEL pass (one step per flap) that catches skipped flaps.
+    turn comes, so ``revert()`` undoes exactly what the run touched. Every module's run ends with
+    a per-flap identity verification — nothing is inferred from the blank alone.
     """
 
     def __init__(self, modules, *, meta_fn, capture_index, adjust, restore, park_fn=None,
-                 peek_fn=None, log_fn=None, verify=True):
+                 peek_fn=None, log_fn=None):
         self.modules = list(modules)
         self._meta = meta_fn
         self._capture_index = capture_index
@@ -396,7 +694,6 @@ class CalibrationSession:
         self._park = park_fn
         self._peek = peek_fn
         self._log = log_fn or (lambda mid, kind, data: None)
-        self.verify = verify
         self._abort = False
         self.snapshot: dict[int, int] = {}
         self.results: dict[int, dict] = {}
@@ -429,27 +726,16 @@ class CalibrationSession:
                 self._log(mid, "not_ready", {})
                 continue
             self.snapshot[mid] = meta["home_offset"]           # its own saved value, pre-run
-            res = calibrate_module_fast(
+            # The learned flow: one sweep teaches this module's own glyphs, corrections are
+            # spot-checked, and EVERY flap is then verified by identity — dialed A must match
+            # the learned A. Nothing is inferred from the blank alone: a move that overshoots
+            # after a perfect blank is exactly what the per-flap verify exists to catch.
+            res = calibrate_module_learned(
                 lambda i, mid=mid: self._capture_index(mid, i),
                 lambda s, mid=mid: self._adjust(mid, s),
                 meta["flap_chars"], meta["total_steps"], should_abort=lambda: self._abort,
                 notify=lambda kind, data, mid=mid: self._log(mid, kind, data))
             self.results[mid] = res
-            # The full-reel pass: prove every flap presents (catches skipped/stuck flaps, which
-            # the alignment check alone cannot see). Only worth running on a module that just
-            # measured good; a bad one is already flagged.
-            if self.verify and not self._abort and res["status"] in ("aligned", "adjusted"):
-                chars = meta["flap_chars"]
-                check = verify_reel(
-                    lambda i, mid=mid: self._capture_index(mid, i), chars,
-                    should_abort=lambda: self._abort,
-                    notify=lambda kind, data, mid=mid, chars=chars: self._log(
-                        mid, kind,
-                        {**data, "char": chars[data["flap"] % len(chars)]}
-                        if kind in ("probe", "skip_suspect") and "flap" in data else data))
-                res["reel_check"] = check
-                if not check["ok"] and check.get("reason") != "aborted":
-                    res["status"] = "needs_review"
             self._log(mid, "result", {"status": res["status"],
                                       "applied_steps": res.get("applied_steps", 0)})
             # A finished module ends on its blank (a home) — and the run then LOOKS at it: a
@@ -489,7 +775,7 @@ class CalibrationSession:
 # gateway — see test_autocal.py.
 # ---------------------------------------------------------------------------
 class AutocalRun:
-    def __init__(self, *, gateway_url, corners, rows, cols, modules, settle_s=4.0, verify=True,
+    def __init__(self, *, gateway_url, corners, rows, cols, modules, settle_s=4.0,
                  loop=None, commander=None, adjuster=None, restorer=None, capture=None, meta=None):
         # modules: [{id, grid_index}] — the reel/offset is fetched lazily per module (meta).
         self.gateway_url = gateway_url
@@ -515,7 +801,7 @@ class AutocalRun:
             [{"id": m["id"], "grid_index": m["grid_index"]} for m in modules],
             meta_fn=self._meta, capture_index=self._capture_index,
             adjust=self._adjust, restore=self._restore, park_fn=self._park,
-            peek_fn=self._peek, log_fn=self._log_event, verify=verify)
+            peek_fn=self._peek, log_fn=self._log_event)
 
     def _log_event(self, mid, kind, data) -> None:
         """One line of the live narration: what the run measured / did on which module. The UI

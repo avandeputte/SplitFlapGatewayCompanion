@@ -23,7 +23,6 @@ log = logging.getLogger("companion")
 
 class StartReq(BaseModel):
     corners: list[list[float]]           # [[x,y]×4] — TL, TR, BR, BL, in the streamed frame
-    verify: bool = True                  # full-reel check per module (catches skipped flaps)
 
 
 def _is_physical(caps) -> bool:
@@ -98,7 +97,7 @@ def build(deps):
         run = autocal.AutocalRun(
             gateway_url=url, corners=[tuple(c) for c in req.corners],
             rows=int(g["rows"]), cols=int(g["cols"]), modules=mods, settle_s=settle,
-            verify=req.verify, loop=asyncio.get_running_loop())
+            loop=asyncio.get_running_loop())
         deps.autocal_run = run
         asyncio.create_task(asyncio.to_thread(run.run_blocking))
         log.info("autocal: started on %d modules", len(mods))
