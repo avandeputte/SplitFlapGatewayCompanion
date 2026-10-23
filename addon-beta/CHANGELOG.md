@@ -3,6 +3,21 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.7
+
+- **Auto-calibrate: corrections now actually move the reel.** They were written as an absolute
+  home offset, which only takes effect after a re-home — so the camera saw no change and the run
+  piled up a wrong offset. Corrections now use the live **nudge** (moves the reel and saves
+  instantly), building on each module's saved offset; per-flap character maps are untouched.
+- **Reads are taken from a proven-settled flap** — two consecutive camera frames must agree before
+  a measurement counts, instead of trusting a timer.
+- **Stop works immediately**, even mid-scan; **leaving the page stops the run and the camera**, and
+  the run also halts itself if camera frames stop arriving.
+- **Each finished module is re-homed** (lands on the blank and confirms the hall sync).
+- **A live log narrates the run** — what it measured on each module (flaps off, glyph height,
+  confidence), every nudge, and each verdict — so you can see exactly what it's doing.
+- Pacing is steadier: at least ~1 s per step.
+
 ## 2.12.0-beta.6
 
 - **Auto-calibrate: the live status now matches the wall.** It used to say “showing ‘X’”, but on a
