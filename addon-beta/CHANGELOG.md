@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.11
+
+- **MCP error messages reach the client again.** Newer `mcp` releases (2.1+) mask a tool's
+  exception text as a bare “Error executing tool …”, so every refusal — “no such display”,
+  “this gateway has no Quiet Time”, “time must be HH:MM” — arrived blank. Refusals are now raised
+  as proper tool errors, whose text is meant for the client, on old and new `mcp` alike.
+
 ## 2.12.0-beta.10
 
 - **Auto-calibrate now verifies every flap by identity.** One sweep teaches the module its own
