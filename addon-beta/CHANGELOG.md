@@ -3,6 +3,12 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.20
+
+- Calibrate: whole-board calibration replaces the per-module home search — it zeroes every
+  offset, reads the whole board in one broadcast sweep, and sets each module's home from the
+  board's consensus blank position (glare-robust, and it never trusts a module's saved offset).
+
 ## 2.12.0-beta.19
 
 - Debug: a **broadcast** endpoint that shows a flap index on every module at once, so one sweep

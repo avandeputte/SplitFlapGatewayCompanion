@@ -157,25 +157,15 @@ def test_canonicalize_normalises_white_on_dark():
 
 
 def test_autocal_run_calibrates_a_white_on_dark_wall():
-    """End to end on a white-on-dark wall: the modules render inverted, and the capture path
-    must canonicalize so the home search and verify work exactly as on a light wall."""
-    def inv(ch, w=autocal.TILE_W, h=autocal.TILE_H, shift=0):
-        return 255.0 - _glyph_tile(ch, w, h, shift)
-    wall = {mid: FakeModule(REEL, 2000, err_flaps=err, render=inv) for mid, err in [(0, 2), (1, -1)]}
-    modules = [{"id": mid, "grid_index": mid} for mid in wall]
-    run = autocal.AutocalRun(
-        gateway_url="http://gw", corners=[(0, 0), (1, 0), (1, 1), (0, 1)],
-        rows=1, cols=len(wall), modules=modules, settle_s=0,
-        commander=lambda mid, idx: wall[mid].show_index(idx),
-        adjuster=lambda mid, steps: wall[mid].nudge(steps),
-        restorer=lambda mid, steps: wall[mid].restore(steps),
-        capture=lambda gi: wall[gi].capture(),                    # inverted; _capture_tile fixes
-        meta=lambda mid: {"flap_chars": REEL, "total_steps": 2000,
-                          "home_offset": wall[mid].homeoffset})
+    """End to end on a white-on-dark wall: the modules render inverted, and the broadcast sweep's
+    capture path must canonicalize so the blank detection and consensus work exactly as on a
+    light wall."""
+    inv = lambda ch: 255.0 - _reel_render(ch)
+    wall, run = _board_wall([(0, 23), (1, 24)], render=inv)
     run.run_blocking()
     assert run.status["error"] is None
+    assert run.status["summary"]["adjusted"] == 2
     for mid in wall:
-        wall[mid].show_index(7)
         assert autocal.analyze_sweep([255.0 - t for t in wall[mid].sweep()], REEL)["aligned"]
 
 
@@ -326,6 +316,79 @@ def test_tiles_similar_survives_realistic_camera_noise():
     b = np.clip(a + rng.normal(0, 6.0, a.shape), 0, 255).astype(np.float32)   # heavy sensor noise
     assert autocal.tiles_similar(a, b), "same flap under noise must read as settled"
     assert not autocal.tiles_similar(a, _glyph_tile("W"))
+
+
+# ---------------------------------------------------------------------------
+# whole-board calibration (broadcast sweep -> consensus blank -> set offsets)
+# ---------------------------------------------------------------------------
+def _color_tile(ch):
+    return np.full((autocal.TILE_H, autocal.TILE_W), _COLOR_LUMA[ch], dtype=np.float32)
+
+
+def _reel_render(ch):
+    return _color_tile(ch) if ch in _COLOR_LUMA else _glyph_tile(ch)
+
+
+def _zeroed_sweep(blank_index, reel=REEL64):
+    """A module's broadcast sweep from a zeroed offset: index i shows reel ``(i - blank_index)``,
+    so the blank (reel 0) lands at commanded index ``blank_index``."""
+    n = len(reel)
+    return [_reel_render(reel[(i - blank_index) % n]) for i in range(n)]
+
+
+@pytest.mark.parametrize("blank_index", [0, 10, 30, 44, 60])
+def test_detect_blank_finds_the_blank(blank_index):
+    """The blank is the empty flap followed by the alphabet — not a mid-reel letter (also
+    followed by letters) nor a colour (empty, but followed by more colours)."""
+    b, conf = autocal.detect_blank(_zeroed_sweep(blank_index), REEL64)
+    assert b == blank_index
+    assert conf > 0
+
+
+def test_board_consensus_overrules_an_outlier():
+    blanks = {0: (44, 0.1), 1: (43, 0.1), 2: (45, 0.1), 3: (10, 0.05)}   # module 3 is wrong
+    corrected, median = autocal.board_consensus(blanks)
+    assert median in (43, 44, 45)
+    assert corrected[3] == median            # the board overrules the outlier
+    assert corrected[0] == 44                # a good read is kept
+
+
+def test_calibrate_board_sets_every_offset_from_one_sweep():
+    bidx = {0: 44, 1: 44, 2: 45, 3: 43, 4: 44, 5: 10}   # a consistent board + one outlier (m5)
+    spf, n = 64, len(REEL64)
+    sweeps = {m: _zeroed_sweep(bidx[m]) for m in bidx}
+    state = {"i": 0}
+    setoff = {}
+    broadcast = lambda i: state.__setitem__("i", i)
+    capture_all = lambda: {m: sweeps[m][state["i"]] for m in bidx}
+    set_offset = lambda m, steps: setoff.__setitem__(m, steps)
+
+    def peek(m):   # home shows reel[(offset_flaps - true_blank)]; == blank only when they match
+        off_flaps = setoff[m] // spf
+        return _reel_render(REEL64[(off_flaps - bidx[m]) % n])
+
+    r = autocal.calibrate_board(list(bidx), broadcast=broadcast, capture_all=capture_all,
+                                set_offset=set_offset, peek=peek, flap_chars=REEL64,
+                                total_steps=spf * n)
+    # the consistent modules are calibrated exactly: offset = blank_index * steps-per-flap
+    for m in (0, 1, 2, 3, 4):
+        assert setoff[m] == bidx[m] * spf, (m, setoff[m])
+        assert r["results"][m]["status"] == "adjusted" and r["results"][m]["home_blank"]
+    # the genuine outlier (blank far from the board) is overruled toward the board, not left at
+    # its own wrong read, and ends up near the consensus rather than at its true-but-lone 10
+    assert abs(setoff[5] // spf - r["median"]) <= 4
+
+
+def test_calibrate_board_aborts_cleanly():
+    bidx = {0: 44, 1: 44}
+    sweeps = {m: _zeroed_sweep(bidx[m]) for m in bidx}
+    state = {"i": 0}
+    r = autocal.calibrate_board(
+        list(bidx), broadcast=lambda i: state.__setitem__("i", i),
+        capture_all=lambda: {m: sweeps[m][state["i"]] for m in bidx},
+        set_offset=lambda m, s: None, peek=lambda m: _reel_render(" "),
+        flap_chars=REEL64, total_steps=64 * len(REEL64), should_abort=lambda: True)
+    assert r.get("aborted")
 
 
 # ===========================================================================
@@ -635,39 +698,102 @@ def _run_over_fake_wall(specs, **kw):
     return wall, run
 
 
+class BoardFakeModule:
+    """A simulated module for the WHOLE-BOARD flow: a fixed mechanical blank position (where the
+    blank lands in a ZEROED broadcast sweep), an absolute home offset, and a render of the flap
+    the camera would see for any commanded index.
+
+    The display contract matches ``_zeroed_sweep``: with the offset at ``off_flaps`` flaps,
+    commanding index ``i`` shows reel ``(i + off_flaps - blank_index) mod N`` — so at a zeroed
+    offset the blank sits at commanded index ``blank_index``, and once the offset is set to
+    ``blank_index`` flaps the blank lands at home (index 0)."""
+
+    def __init__(self, reel, total_steps, *, blank_index, saved_offset=1000, render=_reel_render):
+        self.reel = reel
+        self.n = len(reel)
+        self.total = total_steps
+        self.spf = total_steps / self.n
+        self.blank_index = int(blank_index) % self.n
+        self.offset = int(saved_offset)          # the "saved" calibration — never trusted
+        self.commanded = 0
+        self.render = render
+
+    def show_index(self, i):
+        self.commanded = int(i) % self.n
+
+    def set_offset(self, steps):                 # absolute write + re-home to the blank
+        self.offset = int(steps)
+        self.commanded = 0
+
+    def meta(self):
+        return {"flap_chars": self.reel, "total_steps": self.total, "home_offset": self.offset}
+
+    def capture(self):
+        off_flaps = int(round(self.offset / self.spf))
+        shown = (self.commanded + off_flaps - self.blank_index) % self.n
+        return self.render(self.reel[shown])
+
+    def sweep(self):
+        out = []
+        for i in range(self.n):
+            self.show_index(i)
+            out.append(self.capture())
+        return out
+
+
+def _board_wall(specs, render=_reel_render):
+    """specs: list of (id, blank_index). Returns (wall, run) wired for the whole-board flow —
+    broadcast sweep via the commander seam, absolute offset writes via the restorer seam."""
+    wall = {mid: BoardFakeModule(REEL, 2000, blank_index=bi, render=render) for mid, bi in specs}
+    modules = [{"id": mid, "grid_index": mid} for mid, _ in specs]
+    run = autocal.AutocalRun(
+        gateway_url="http://gw", corners=[(0, 0), (1, 0), (1, 1), (0, 1)],
+        rows=1, cols=len(specs), modules=modules, settle_s=0,
+        commander=lambda mid, idx: wall[mid].show_index(idx),
+        restorer=lambda mid, steps: wall[mid].set_offset(steps),
+        capture=lambda gi: wall[gi].capture(),
+        meta=lambda mid: wall[mid].meta())
+    return wall, run
+
+
 def test_autocal_run_calibrates_the_whole_wall():
-    wall, run = _run_over_fake_wall([(0, 4), (1, 0), (2, -3)])
+    wall, run = _board_wall([(0, 30), (1, 31), (2, 29)])
     run.run_blocking()
     st = run.status
     assert st["finished"] and st["error"] is None and st["completed"] == 3
+    assert st["summary"]["adjusted"] == 3 and st["median"] == 30
     for mid in (0, 1, 2):
-        wall[mid].show_index(9)
         assert autocal.analyze_sweep(wall[mid].sweep(), REEL)["aligned"]
+    # every module's offset was written from its own blank, in whole flaps of the measured reel
+    for mid, bi in ((0, 30), (1, 31), (2, 29)):
+        assert round(wall[mid].offset / wall[mid].spf) == bi
 
 
-def test_autocal_run_emits_the_event_narration():
-    _, run = _run_over_fake_wall([(0, 4)])
+def test_autocal_run_emits_the_board_narration():
+    _, run = _board_wall([(0, 30)])
     run.run_blocking()
     kinds = [e["kind"] for e in run.events]            # the full buffer; status serves a window
     assert kinds[0] == "start"
-    for k in ("fw_calibrate", "adjust", "verify_start", "verify", "result", "park_check"):
+    for k in ("zeroed", "sweep", "consensus", "module_done"):
         assert k in kinds, k
-    verify = next(e for e in run.events if e["kind"] == "verify")
-    assert "expected" in verify and "saw" in verify    # the dialed-vs-saw detail
-    assert all("seq" in e and "module" in e for e in run.status["events"])
+    done = next(e for e in run.events if e["kind"] == "module_done")
+    assert "blank" in done and "status" in done and "module" in done   # the per-module result
+    sweep = next(e for e in run.events if e["kind"] == "sweep")
+    assert "index" in sweep and "of" in sweep          # board-wide, no module
+    assert all("seq" in e for e in run.status["events"])
 
 
 def test_autocal_run_revert_restores_offsets():
-    wall, run = _run_over_fake_wall([(0, 6)])
+    wall, run = _board_wall([(0, 20)])
     run.run_blocking()
-    assert wall[0].homeoffset != 1000
+    assert wall[0].offset != 1000                      # it moved the offset to calibrate
     run.revert()
-    assert wall[0].homeoffset == 1000
+    assert wall[0].offset == 1000                      # back to the pre-run saved value
 
 
 def test_autocal_run_abort_is_a_clean_stop_not_an_error():
-    _, run = _run_over_fake_wall([(0, 3)])
-    run.session.abort()
+    _, run = _board_wall([(0, 30)])
+    run.abort()
     run.run_blocking()
     st = run.status
     assert st["finished"] and st["aborted"] and st["error"] is None

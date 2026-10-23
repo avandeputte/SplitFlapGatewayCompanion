@@ -730,15 +730,24 @@ async function calPoll() {
           : t("Done — all %s modules aligned.", String(st.total));
       calFinish(); return;
     }
-    let line = t("Calibrating… %s of %s.", String(st.completed || 0), String(st.total || 0));
     const a = st.activity;
-    if (a) {
-      const where = String((a.module || 0) + 1);
-      line += "  ·  " + (a.action === "adjusting" ? t("module %s — adjusting", where)
-        : a.action === "parking" ? t("module %s — returning to blank", where)
-        : a.action === "homing" ? t("module %s — homing", where)
-        : a.action === "measuring" ? t("module %s — measuring the reel", where)
-        : t("module %s — reading the reel", where));
+    let line;
+    if (a && a.action === "sweeping") {
+      // one broadcast sweep reads the whole board at once — no per-module "N of M" yet
+      const sw = [...(st.events || [])].reverse().find((e) => e.kind === "sweep");
+      line = (sw && sw.of)
+        ? t("Reading the whole board — flap %s of %s", String((sw.index || 0) + 1), String(sw.of))
+        : t("Reading the whole board…");
+    } else {
+      line = t("Calibrating… %s of %s.", String(st.completed || 0), String(st.total || 0));
+      if (a && a.module !== null && a.module !== undefined) {
+        const where = String(a.module + 1);
+        line += "  ·  " + (a.action === "measuring" ? t("module %s — measuring the reel", where)
+          : a.action === "adjusting" ? t("module %s — adjusting", where)
+          : a.action === "parking" ? t("module %s — returning to blank", where)
+          : a.action === "homing" ? t("module %s — homing", where)
+          : t("module %s — reading the reel", where));
+      }
     }
     $("calStatus").textContent = line;
   }
@@ -766,6 +775,18 @@ function calEventLine(e) {
   switch (e.kind) {
     case "start": return [null, t("module %s: starting", m)];
     case "not_ready": return ["warn", t("module %s: not ready — skipped", m)];
+    // -- the whole-board flow: zero every offset, one broadcast sweep, consensus blank --
+    case "zeroed":
+      return e.steps ? [null, t("module %s: offset cleared — reel is %s steps per turn", m, String(e.steps))]
+                     : [null, t("module %s: offset cleared", m)];
+    case "sweep": return [null, ""];   // high-frequency; shown live in the status line, not the log
+    case "consensus":
+      return [null, t("blank found across the whole board — aligning every module to it")];
+    case "module_done":
+      if (e.flagged)
+        return ["warn", t("module %s: ? blank unclear — set to the board consensus", m)];
+      return e.ok ? ["ok", t("module %s: ✓ blank in place at home", m)]
+                  : ["warn", t("module %s: ? home did not land on the blank", m)];
     case "fw_calibrate":
       return e.steps ? [null, t("module %s: the reel measured itself — %s steps per turn", m, String(e.steps))]
                      : [null, t("module %s: measuring the reel (steps per turn)", m)];

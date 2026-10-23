@@ -354,6 +354,154 @@ def steps_per_flap(total_steps: int, flap_count: int) -> float:
     return float(total_steps) / max(1, int(flap_count))
 
 
+# ---------------------------------------------------------------------------
+# Whole-board calibration — the approach proven on the real wall.
+#
+# The old per-module home search leaned on recognising glyphs or finding the blank by one
+# fragile appearance signal, both of which the wall's glare and font defeated. The board
+# approach instead: zero every module's offset, BROADCAST each flap index to the whole board
+# and capture one frame per step (so 15 modules cost ONE sweep), then per module find the blank
+# by the one glare-robust signal — the flap with little STROKE STRUCTURE that is FOLLOWED BY the
+# long run of letters (A-Z…). The blank sits at a consistent mechanical offset across the board,
+# so a module whose detection disagrees with the board is corrected toward it. Crucially this
+# only ever compares blank POSITIONS (a number per module), never glyph appearance across
+# modules — which is the part the per-module lighting breaks.
+# ---------------------------------------------------------------------------
+BLANK_RUN = 24             # flaps after the blank that should be glyphs (the A-Z..0-9 run)
+BLANK_OUTLIER = 3          # a detected blank this many flaps off the board consensus is corrected
+
+
+def detect_blank(sweep: list, flap_chars: str) -> tuple[int, float]:
+    """Find which commanded index shows the blank, from one module's broadcast sweep (a tile per
+    flap index, captured from a ZEROED offset so index i shows reel ``(i + mechanical_offset)``).
+
+    The blank is the flap with the least stroke structure (``stroke_energy``) that is FOLLOWED by
+    the longest run of glyphs — the alphabet begins right after the blank, so no other low-stroke
+    flap (punctuation, a colour) has as many glyphs after it. Returns ``(index, confidence)``;
+    confidence is how clearly that run beats the runner-up's."""
+    n = len(sweep)
+    if n == 0:
+        return 0, 0.0
+    se = [stroke_energy(t) for t in sweep]
+    run = min(BLANK_RUN, n - 1)
+
+    def follow(i):                                     # mean stroke of the flaps right after i
+        return float(np.mean([se[(i + 1 + k) % n] for k in range(run)]))
+
+    # The blank is the flap that is BOTH empty (low stroke) AND followed by the alphabet (high
+    # following run). A mid-reel letter has a high run too but is not empty; a colour is empty
+    # but has a low run (more colours follow) — only the blank maxes both, so score the
+    # difference. (Weighting the empties by 2 keeps a faint-but-real glyph from winning.)
+    def score(i):
+        return follow(i) - 2.0 * se[i]
+
+    scored = sorted(((score(i), i) for i in range(n)), reverse=True)
+    best = scored[0][1]
+    top = scored[0][0]
+    gap = top - scored[1][0]
+    conf = float(gap / abs(top)) if abs(top) > 1e-9 else 0.0
+    return best, round(conf, 4)
+
+
+def refine_blank(sweep: list, around: int, flap_chars: str, window: int = 4) -> tuple[int, bool]:
+    """Pin the blank precisely NEAR a trusted position (the board consensus), from the sweep.
+    Uses the same empty-and-followed-by-the-alphabet score as ``detect_blank`` but only over
+    flaps within ``window`` of ``around`` — so a noisy coarse read snaps to the real blank
+    nearby. Returns ``(index, confident)``; ``confident`` is False when the best flap in the
+    window scores far below the module's GLOBAL best — i.e. the real blank is NOT near the
+    consensus (a genuinely different module), so it should be flagged rather than trusted."""
+    n = len(sweep)
+    se = [stroke_energy(t) for t in sweep]
+    run = min(BLANK_RUN, n - 1)
+
+    def follow(i):
+        return float(np.mean([se[(i + 1 + k) % n] for k in range(run)]))
+
+    def score(i):
+        return follow(i) - 2.0 * se[i]
+
+    window_best = max(range(-window, window + 1), key=lambda d: score((around + d) % n))
+    bi = (around + window_best) % n
+    # confident when the chosen flap is empty enough to be the blank (glare can lift it a little);
+    # a window with no empty flap (the real blank isn't near the consensus) reads as not confident
+    confident = bool(se[bi] <= BLANK_CONFIRM)
+    return bi, confident
+
+
+def board_consensus(blanks: dict) -> tuple[dict, int]:
+    """``blanks``: ``{module_id: (blank_index, confidence)}``. The blank is at a consistent
+    mechanical offset across the board, so a module whose detected index is an outlier (more than
+    ``BLANK_OUTLIER`` flaps off the median) is pulled to the median — a noisy per-module read is
+    overruled by the board. Returns ``({module_id: corrected_index}, median)``."""
+    vals = sorted(b for b, _ in blanks.values())
+    if not vals:
+        return {}, 0
+    median = int(vals[len(vals) // 2])
+    out = {}
+    for mid, (b, _c) in blanks.items():
+        out[mid] = median if abs(b - median) > BLANK_OUTLIER else b
+    return out, median
+
+
+BLANK_CONFIRM = 0.036      # a flap's stroke at/below this reads as the (empty) blank
+
+
+def calibrate_board(modules, *, broadcast, capture_all, set_offset, peek, flap_chars,
+                    total_steps, should_abort=None, notify=None) -> dict:
+    """Calibrate the WHOLE board from a zeroed state in one broadcast sweep. Seams (all injected,
+    so the flow is tested without a gateway or camera):
+      - ``broadcast(index)``   -> show flap ``index`` on every module at once, settle.
+      - ``capture_all()``      -> ``{module_id: tile}`` from the current (settled) frame.
+      - ``set_offset(id, steps)`` -> write ``id``'s absolute home offset and re-home.
+      - ``peek(id)``           -> ``id``'s current tile (to verify the home landed on the blank).
+    Each module must already have its offset ZEROED (so a broadcast of flap ``i`` shows reel
+    ``(i + mechanical_offset)``). Returns per-module results with the chosen blank index + status.
+    """
+    say = notify or (lambda kind, data: None)
+
+    def aborted():
+        return should_abort is not None and should_abort()
+
+    n = len(flap_chars)
+    spf = steps_per_flap(total_steps, n)
+
+    # 1. one broadcast sweep captures every module's full reel
+    sweeps = {m: [None] * n for m in modules}
+    for i in range(n):
+        if aborted():
+            return {"aborted": True, "results": {}}
+        broadcast(i)
+        frame = capture_all()
+        for m in modules:
+            if frame.get(m) is not None:
+                sweeps[m][i] = frame[m]
+        say("sweep", {"index": i, "of": n})
+
+    # 2. detect each module's blank, then let the board overrule the outliers
+    blanks = {m: detect_blank(sweeps[m], flap_chars) for m in modules}
+    corrected, median = board_consensus(blanks)
+    say("consensus", {"median": median})
+
+    # 3. refine near the consensus, set the offset so the blank sits at home, verify
+    results = {}
+    for m in modules:
+        if aborted():
+            return {"aborted": True, "results": results}
+        rb, ok = refine_blank(sweeps[m], corrected[m], flap_chars)
+        weak = (not ok) or stroke_energy(sweeps[m][rb]) > BLANK_CONFIRM
+        if weak:                                   # a glary/unclear module: trust the board
+            rb = median
+        set_offset(m, int(round(rb * spf)))        # home now lands on the blank
+        home_tile = peek(m)
+        home_blank = stroke_energy(home_tile) <= BLANK_CONFIRM
+        status = ("adjusted" if home_blank and not weak else "needs_review")
+        results[m] = {"status": status, "blank_index": rb, "home_blank": home_blank,
+                      "flagged": weak}
+        say("module_done", {"module": m, "blank": rb, "ok": home_blank, "status": status,
+                            "flagged": weak})
+    return {"results": results, "median": median}
+
+
 def looks_blank(ink: float, evidence: dict) -> bool:
     """Judge a NEW capture by the module's own measured yardstick (``evidence`` =
     ``{baseline, blank_ink}``, from its learning sweep): closer to its blank's ink than to its
@@ -986,7 +1134,7 @@ class CalibrationSession:
 class AutocalRun:
     def __init__(self, *, gateway_url, corners, rows, cols, modules, settle_s=4.0,
                  loop=None, commander=None, adjuster=None, restorer=None, capture=None,
-                 meta=None, fw_calibrator=None):
+                 meta=None, fw_calibrator=None, broadcaster=None):
         # modules: [{id, grid_index}] — the reel/offset is fetched lazily per module (meta).
         self.gateway_url = gateway_url
         self.corners = corners
@@ -1000,6 +1148,7 @@ class AutocalRun:
         self._capture = capture              # test seam: capture(grid_index) -> tile
         self._meta_seam = meta               # test seam: meta(id) -> {flap_chars,total_steps,home_offset}
         self._fw_seam = fw_calibrator        # test seam: fw_calibrator(id) -> measured steps | None
+        self._broadcaster = broadcaster      # test seam: broadcaster(index) -> show flap on all
         self._frame = None                   # (jpeg bytes, ts)
         self._reel: dict[int, str] = {}      # flap_chars per module (settle timing, parking)
         self._total: dict[int, int] = {}     # total steps/rev per module (proportional settle)
@@ -1009,6 +1158,10 @@ class AutocalRun:
         self._seq = 0
         self.error = None
         self.finished = False
+        self._abort = False
+        self.snapshot: dict[int, int] = {}   # pre-run offsets, for revert
+        self.board_results: dict[int, dict] = {}
+        self.board_median = None
         self.session = CalibrationSession(
             [{"id": m["id"], "grid_index": m["grid_index"]} for m in modules],
             meta_fn=self._meta, capture_index=self._capture_index,
@@ -1253,9 +1406,98 @@ class AutocalRun:
         return self._settled_tile(gi)
 
     # -- lifecycle -----------------------------------------------------------
+    # -- whole-board calibration (the live driver) ---------------------------
+    def _broadcast(self, index):
+        """Show flap ``index`` on EVERY module at once, then wait the settle."""
+        self.activity = {"module": None, "action": "sweeping", "index": int(index)}
+        if self._broadcaster is not None:
+            self._broadcaster(index)
+            return
+        if self._commander is not None:           # a fake wall with no broadcast seam
+            for mid in self.modules:
+                self._commander(mid, index)
+            return
+        from . import gateway
+        self._run_coro(gateway.flap_show_index(self.gateway_url, -1, int(index)))
+        self._sleep_abortable(self.settle_s)
+
+    def _capture_all(self) -> dict:
+        """Every module's tile from the current (settled) frame — one rectify for the whole
+        board, so a broadcast sweep costs one frame per step, not one per module."""
+        if self._capture is not None:
+            return {mid: canonicalize(self._capture(m["grid_index"]))
+                    for mid, m in self.modules.items()}
+        gi0 = next(iter(self.modules.values()))["grid_index"]
+        self._settled_tile(gi0)                   # wait until the board has stopped moving
+        if self._frame is None:
+            raise RuntimeError("no camera frame yet")
+        img = Image.open(io.BytesIO(self._frame[0]))
+        ts = tiles(img, self.corners, self.rows, self.cols)
+        return {mid: canonicalize(ts[m["grid_index"]]) for mid, m in self.modules.items()}
+
+    def _set_offset(self, mid, steps):
+        """Write an ABSOLUTE home offset and re-home so it takes effect."""
+        if self._restorer is not None:
+            self._restorer(mid, steps)
+            return
+        from . import gateway
+        self._run_coro(gateway.flap_set_homeoffset(self.gateway_url, mid, int(steps)))
+        self._run_coro(gateway.flap_home(self.gateway_url, mid))
+        self._sleep_abortable(self.settle_s)
+
+    def _run_board(self) -> None:
+        """Whole-board calibration: read each reel, firmware-measure steps and ZERO every offset,
+        one broadcast sweep, consensus blank, set offsets."""
+        mods = list(self.modules)
+        metas = {}
+        for mid in mods:
+            if self._abort:
+                return
+            self._log_event(mid, "start", {})
+            m = self._meta(mid)
+            if not m:
+                self.board_results[mid] = {"status": "needs_review", "reason": "not ready"}
+                self._log_event(mid, "not_ready", {})
+                continue
+            metas[mid] = m
+            self.snapshot[mid] = m["home_offset"]
+        # firmware-measure steps + zero every offset (never trust the saved calibration)
+        for mid in list(metas):
+            if self._abort:
+                return
+            self.activity = {"module": self.modules[mid]["grid_index"], "action": "measuring"}
+            steps = self._fw_calibrate(mid)
+            if steps:
+                metas[mid]["total_steps"] = steps
+            self._set_offset(mid, 0)
+            self._log_event(mid, "zeroed", {"steps": metas[mid].get("total_steps")})
+        if not metas:
+            return
+        first = next(iter(metas.values()))
+        res = calibrate_board(
+            list(metas), broadcast=self._broadcast, capture_all=self._capture_all,
+            set_offset=self._set_offset, peek=self._peek,
+            flap_chars=first["flap_chars"], total_steps=first["total_steps"],
+            should_abort=lambda: self._abort, notify=self._board_notify)
+        self.board_results.update(res.get("results", {}))
+        self.board_median = res.get("median")
+
+    def _board_notify(self, kind, data) -> None:
+        """Route a board event to the live log — per-module ones carry ``module`` (an id);
+        board-wide ones (the sweep progress, the consensus) are logged without a module."""
+        self._seq += 1
+        if "module" in data:
+            ev = {"seq": self._seq, "module": self.modules[data["module"]]["grid_index"],
+                  "kind": kind, **{k: v for k, v in data.items() if k != "module"}}
+        else:
+            ev = {"seq": self._seq, "kind": kind, **data}
+        self.events.append(ev)
+        if len(self.events) > 400:
+            del self.events[:100]
+
     def run_blocking(self) -> None:
         try:
-            self.session.run()
+            self._run_board()
         except Exception as e:               # noqa: BLE001 - surfaced in status
             if str(e) != "aborted":          # a Stop is a clean outcome, not an error
                 self.error = str(e)
@@ -1263,14 +1505,22 @@ class AutocalRun:
             self.finished = True
 
     def abort(self) -> None:
+        self._abort = True
         self.session.abort()
 
     def revert(self) -> None:
-        self.session.revert()
+        for mid, steps in self.snapshot.items():
+            self._set_offset(mid, steps)
 
     @property
     def status(self) -> dict:
-        return {**self.session.progress, "finished": self.finished, "error": self.error,
-                "settle_s": self.settle_s,
+        summary = {"aligned": 0, "adjusted": 0, "needs_review": 0, "failed": 0}
+        for r in self.board_results.values():
+            summary[r["status"]] = summary.get(r["status"], 0) + 1
+        return {"total": len(self.modules), "completed": len(self.board_results),
+                "aborted": self._abort, "done": self.finished and not self._abort,
+                "summary": summary, "results": dict(self.board_results),
+                "median": self.board_median,
+                "finished": self.finished, "error": self.error, "settle_s": self.settle_s,
                 "activity": None if self.finished else self.activity,
                 "events": list(self.events)[-80:]}
