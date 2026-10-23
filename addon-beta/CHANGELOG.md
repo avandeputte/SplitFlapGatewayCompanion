@@ -3,6 +3,18 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.16
+
+- **Fixed the real blocker, seen on the actual wall: white characters on black flaps.** The
+  whole vision pipeline assumed dark characters on light flaps, so on a white-on-black wall the
+  blank (a black flap) looked bright-to-it-backwards, the glyph centring was inverted, and every
+  recognition match was meaningless. Each captured tile is now **normalised to a canonical
+  polarity** (dark glyph on light flap), so both kinds of wall work. On the debug session this
+  took a glyph match from 0.17 (noise) to 0.61.
+- **Corner guidance:** the Calibrate page now says to trace the **printed character area — the
+  flaps themselves — not the plastic frame or bezel**, which keeps the bezel out of every
+  measurement.
+
 ## 2.12.0-beta.15
 
 - **Fixed: every module reported “not ready — no EEPROM dump.”** The firmware step-count
