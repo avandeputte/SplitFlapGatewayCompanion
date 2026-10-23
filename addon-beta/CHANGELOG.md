@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.17
+
+- **Tiles now match the real module shape.** Split-flap modules are tall and narrow (~1:2), but
+  the capture tile was wide (4:3), squashing every glyph sideways and throwing off centring and
+  the seam. Each tile's proportions are now derived from the clicked corners, so any wall's
+  modules are captured without distortion. (Found by comparing captured tiles to the real wall
+  over the debug session.)
+- **Always firmware-calibrate first; never trust saved values.** Every module re-measures its
+  step count via the firmware and uses the device's own home attempt as the starting point — the
+  saved offset/steps are treated as untrusted (only a fallback). If they were right, there'd be
+  nothing to calibrate.
+- Debug readout adds **stroke energy** and tile shape, toward a glare-proof blank detector
+  (a blank has no stroke structure even when glare ruins the simple ink measure).
+
 ## 2.12.0-beta.16
 
 - **Fixed the real blocker, seen on the actual wall: white characters on black flaps.** The
