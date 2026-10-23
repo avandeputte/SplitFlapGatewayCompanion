@@ -21,6 +21,9 @@ would need a hue test to tell from the blank — a Phase 1 refinement, noted at 
 
 from __future__ import annotations
 
+import io
+import time
+
 import numpy as np
 from PIL import Image
 
@@ -264,3 +267,105 @@ class CalibrationSession:
         """Restore every module's home offset to its pre-run value."""
         for mid, steps in self.snapshot.items():
             self._set(mid, steps)
+
+
+# ---------------------------------------------------------------------------
+# AutocalRun — the live job: the browser streams camera frames, this drives the
+# CalibrationSession server-side (so all the logic stays in the tested Python).
+#
+# The browser owns the camera; it POSTs the latest frame continuously and clicks the four
+# wall corners once. This object commands the gateway, waits for the mechanical settle, reads
+# whatever frame is current (settled by then), rectifies this module's tile and feeds the
+# session. Gateway calls are async; the session loop is synchronous and runs in a worker
+# thread, bridging back to the event loop via run_coroutine_threadsafe. Side effects are
+# injectable (``commander`` / ``capture``) so the whole run is tested without a camera or a
+# gateway — see test_autocal.py.
+# ---------------------------------------------------------------------------
+class AutocalRun:
+    def __init__(self, *, gateway_url, corners, rows, cols, modules, settle_s=4.0,
+                 loop=None, commander=None, offset_writer=None, capture=None):
+        # modules: [{id, grid_index, flap_chars, total_steps, home_offset}]
+        self.gateway_url = gateway_url
+        self.corners = corners
+        self.rows, self.cols = rows, cols
+        self.settle_s = settle_s
+        self.modules = {m["id"]: m for m in modules}
+        self._loop = loop
+        self._commander = commander          # test seam: commander(id, index)
+        self._offset_writer = offset_writer   # test seam: offset_writer(id, steps)
+        self._capture = capture               # test seam: capture(grid_index) -> tile
+        self._frame = None                    # (jpeg bytes, ts)
+        self._offsets = {m["id"]: m["home_offset"] for m in modules}
+        self.error = None
+        self.finished = False
+        self.session = CalibrationSession(
+            [{"id": m["id"], "flap_chars": m["flap_chars"], "total_steps": m["total_steps"]}
+             for m in modules],
+            sweep_fn=self._sweep, get_offset=self._get_offset, set_offset=self._set_offset)
+
+    # -- frames --------------------------------------------------------------
+    def push_frame(self, data: bytes) -> None:
+        self._frame = (data, time.time())
+
+    # -- gateway bridges (called from the worker thread) ---------------------
+    def _run_coro(self, coro):
+        import asyncio
+        return asyncio.run_coroutine_threadsafe(coro, self._loop).result(timeout=20)
+
+    def _command(self, mid, index):
+        if self._commander is not None:
+            self._commander(mid, index)
+        else:
+            from . import gateway
+            self._run_coro(gateway.flap_show_index(self.gateway_url, mid, index))
+
+    def _get_offset(self, mid):
+        return self._offsets[mid]
+
+    def _set_offset(self, mid, steps):
+        self._offsets[mid] = steps
+        if self._offset_writer is not None:
+            self._offset_writer(mid, steps)
+        elif self._commander is None:
+            from . import gateway
+            self._run_coro(gateway.flap_set_homeoffset(self.gateway_url, mid, steps))
+
+    def _capture_tile(self, grid_index):
+        if self._capture is not None:
+            return self._capture(grid_index)
+        if self._frame is None:
+            raise RuntimeError("no camera frame yet")
+        img = Image.open(io.BytesIO(self._frame[0]))
+        return tiles(img, self.corners, self.rows, self.cols)[grid_index]
+
+    def _sweep(self, mid):
+        m = self.modules[mid]
+        out = []
+        for i in range(len(m["flap_chars"])):
+            if self.session is not None and self.session._abort:
+                break
+            self._command(mid, i)
+            if self._commander is None:       # real hardware: let the flap settle
+                time.sleep(self.settle_s)
+            out.append(self._capture_tile(m["grid_index"]))
+        return out
+
+    # -- lifecycle -----------------------------------------------------------
+    def run_blocking(self) -> None:
+        try:
+            self.session.run()
+        except Exception as e:               # noqa: BLE001 - surfaced in status
+            self.error = str(e)
+        finally:
+            self.finished = True
+
+    def abort(self) -> None:
+        self.session.abort()
+
+    def revert(self) -> None:
+        self.session.revert()
+
+    @property
+    def status(self) -> dict:
+        return {**self.session.progress, "finished": self.finished, "error": self.error,
+                "settle_s": self.settle_s}

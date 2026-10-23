@@ -313,3 +313,62 @@ def test_the_session_reverts_to_the_snapshot():
     assert mods[0].homeoffset != 1000 or mods[1].homeoffset != 1000   # it moved them
     sess.revert()
     assert mods[0].homeoffset == 1000 and mods[1].homeoffset == 1000
+
+
+# ===========================================================================
+# AutocalRun — the live manager (injected seams; no gateway, no camera)
+# ===========================================================================
+def _run_over_fake_wall(specs, **kw):
+    wall = {mid: FakeModule(REEL, 2000, err_flaps=err) for mid, err in specs}
+    modules = [{"id": mid, "grid_index": mid, "flap_chars": REEL, "total_steps": 2000,
+                "home_offset": 1000} for mid, _ in specs]
+    run = autocal.AutocalRun(
+        gateway_url="http://gw", corners=[(0, 0), (1, 0), (1, 1), (0, 1)],
+        rows=1, cols=len(specs), modules=modules, settle_s=0,
+        commander=lambda mid, idx: wall[mid].show_index(idx),
+        offset_writer=lambda mid, steps: wall[mid].set_homeoffset(steps),
+        capture=lambda gi: wall[gi].capture(), **kw)
+    return wall, run
+
+
+def test_autocal_run_calibrates_the_whole_wall():
+    wall, run = _run_over_fake_wall([(0, 4), (1, 0), (2, -3)])
+    run.run_blocking()
+    st = run.status
+    assert st["finished"] and st["error"] is None and st["completed"] == 3
+    for mid in (0, 1, 2):
+        wall[mid].show_index(9)
+        assert autocal.analyze_sweep(wall[mid].sweep(), REEL)["aligned"]
+
+
+def test_autocal_run_revert_restores_offsets():
+    wall, run = _run_over_fake_wall([(0, 6)])
+    run.run_blocking()
+    assert wall[0].homeoffset != 1000
+    run.revert()
+    assert wall[0].homeoffset == 1000
+
+
+def test_autocal_run_frame_to_tile_extracts_the_right_module():
+    """The real capture path: a streamed JPEG is rectified with the clicked corners and the
+    requested module's tile comes back."""
+    import io
+    rows, cols = 2, 3
+    W, H = cols * autocal.TILE_W, rows * autocal.TILE_H
+    wall_img = Image.new("L", (W, H), 230)
+    d = ImageDraw.Draw(wall_img)
+    gx, gy = 2 * autocal.TILE_W, 1 * autocal.TILE_H            # module 5 (row 1, col 2)
+    d.rectangle([gx + 8, gy + 8, gx + autocal.TILE_W - 8, gy + autocal.TILE_H - 8], fill=20)
+    buf = io.BytesIO(); wall_img.convert("RGB").save(buf, "JPEG", quality=90)
+
+    run = autocal.AutocalRun(gateway_url="x", corners=[(0, 0), (W, 0), (W, H), (0, H)],
+                             rows=rows, cols=cols, modules=[], loop=None)
+    run.push_frame(buf.getvalue())
+    inks = [autocal.tile_ink(run._capture_tile(i)) for i in range(rows * cols)]
+    assert int(np.argmax(inks)) == 5
+
+
+def test_autocal_run_status_before_start_is_empty_progress():
+    _, run = _run_over_fake_wall([(0, 0)])
+    st = run.status
+    assert st["completed"] == 0 and st["total"] == 1 and not st["finished"]

@@ -29,6 +29,9 @@ COMPANION_TABS: list[dict[str, str]] = [
     {"id": "compose", "label": "Compose"},
     {"id": "playlists", "label": "Shows"},
     {"id": "triggers", "label": "Triggers"},
+    # Camera auto-calibration — the SPA reveals this tab only for a physical wall (a drawn
+    # Matrix/LCD wall has no reel to align), but it is a real companion tab, so it is listed.
+    {"id": "calibrate", "label": "Calibrate"},
 ]
 
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,24}$")

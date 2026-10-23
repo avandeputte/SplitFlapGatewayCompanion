@@ -543,9 +543,10 @@ function wireTabs() {
       document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
       btn.classList.add("active");
       const tab = btn.dataset.tab;
-      ["apps", "compose", "playlists", "triggers"]
+      ["apps", "compose", "playlists", "triggers", "calibrate"]
         .forEach((p) => $("page-" + p).classList.toggle("hidden", p !== tab));
-      const loaders = { apps: loadApps, playlists: loadPlaylists, triggers: loadTriggers };
+      const loaders = { apps: loadApps, playlists: loadPlaylists, triggers: loadTriggers,
+                        calibrate: loadCalibrate };
       if (loaders[tab]) loaders[tab]();
       if (tab === "compose") $("cmpCatcher").focus();   // opens the keyboard on iOS
       current.textContent = btn.textContent;
@@ -554,6 +555,181 @@ function wireTabs() {
   );
   const active = document.querySelector(".tab[data-tab].active");
   if (active) current.textContent = active.textContent;
+}
+
+// ---- auto-calibrate (physical split-flap walls) ---------------------------
+// A webcam aligns every module. The browser owns the camera: it taps the wall's four corners
+// once and streams frames; the backend (routes/autocal.py) runs the calibration loop and we
+// poll it. getUserMedia needs a secure context (HTTPS or localhost) — through HA ingress that
+// is HA's own origin, so it works when HA itself is served over HTTPS.
+const CAL = { stream: null, corners: [], plan: null, frameTimer: null, pollTimer: null,
+              wired: false, capW: 0, capH: 0, running: false };
+
+async function revealCalibrateTab() {
+  // Offer the tab only for a physical wall (a Matrix/LCD wall has no reel to calibrate).
+  try {
+    const plan = await api("/api/autocal/plan");
+    $("tabCalibrate").classList.toggle("hidden", plan.reason === "not a physical split-flap wall");
+  } catch (e) { $("tabCalibrate").classList.add("hidden"); }
+}
+
+async function loadCalibrate() {
+  calWire();
+  calStopStreaming();
+  let plan;
+  try { plan = await api("/api/autocal/plan"); }
+  catch (e) {
+    $("calUnavail").textContent = t("Failed: %s", e.message);
+    $("calUnavail").classList.remove("hidden"); $("calMain").classList.add("hidden"); return;
+  }
+  CAL.plan = plan;
+  if (plan.reason === "not a physical split-flap wall") {
+    $("calUnavail").textContent = t("Auto-calibrate is only for a physical split-flap wall.");
+    $("calUnavail").classList.remove("hidden"); $("calMain").classList.add("hidden"); return;
+  }
+  $("calMain").classList.remove("hidden");
+  $("calUnavail").classList.toggle("hidden", !!plan.available);
+  if (!plan.available) $("calUnavail").textContent = plan.reason || t("Not ready yet.");
+  if (!window.isSecureContext) {
+    $("calHint").textContent =
+      t("A webcam needs a secure (HTTPS) connection — open Home Assistant over HTTPS to use this.");
+  }
+  calRenderGrid(null);
+}
+
+function calWire() {
+  if (CAL.wired) return;
+  CAL.wired = true;
+  $("calStartCam").addEventListener("click", calStartCamera);
+  $("calResetCorners").addEventListener("click", () => { CAL.corners = []; calDrawOverlay(); calSyncRunBtn(); });
+  $("calOverlay").addEventListener("click", calTapCorner);
+  $("calRun").addEventListener("click", calStart);
+  $("calAbort").addEventListener("click", () => post("/api/autocal/abort").catch(() => {}));
+  $("calRevert").addEventListener("click", calRevert);
+  window.addEventListener("resize", calDrawOverlay);
+}
+
+async function calStartCamera() {
+  try {
+    CAL.stream = await navigator.mediaDevices.getUserMedia(
+      { video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false });
+  } catch (e) { $("calStatus").textContent = t("Camera unavailable: %s", e.message); return; }
+  const v = $("calVideo");
+  v.srcObject = CAL.stream; await v.play();
+  CAL.capW = Math.min(v.videoWidth || 1280, 800);                 // cap width for bandwidth
+  CAL.capH = Math.round((v.videoHeight || 720) * CAL.capW / (v.videoWidth || 1280));
+  CAL.corners = [];
+  calDrawOverlay(); calSyncRunBtn();
+  $("calStartCam").textContent = t("Restart camera");
+}
+
+function calTapCorner(e) {
+  if (!CAL.stream || CAL.corners.length >= 4 || CAL.running) return;
+  const r = $("calOverlay").getBoundingClientRect();
+  const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+  CAL.corners.push([Math.round(fx * CAL.capW), Math.round(fy * CAL.capH)]);
+  calDrawOverlay(); calSyncRunBtn();
+}
+
+function calDrawOverlay() {
+  const v = $("calVideo"), o = $("calOverlay");
+  o.width = v.clientWidth; o.height = v.clientHeight;
+  const g = o.getContext("2d"); g.clearRect(0, 0, o.width, o.height);
+  if (!CAL.capW) return;
+  const pts = CAL.corners.map(([x, y]) => [x / CAL.capW * o.width, y / CAL.capH * o.height]);
+  g.strokeStyle = "#3399dd"; g.fillStyle = "#3399dd"; g.lineWidth = 2; g.font = "14px sans-serif";
+  pts.forEach(([x, y], i) => { g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill(); g.fillText(String(i + 1), x + 8, y - 8); });
+  if (pts.length >= 2) {
+    g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+    pts.slice(1).forEach((p) => g.lineTo(p[0], p[1]));
+    if (pts.length === 4) g.closePath();
+    g.stroke();
+  }
+}
+
+function calSyncRunBtn() {
+  $("calRun").disabled = CAL.corners.length !== 4 || !(CAL.plan && CAL.plan.available) || CAL.running;
+  if (CAL.stream && CAL.corners.length < 4) {
+    const labels = [t("top-left"), t("top-right"), t("bottom-right"), t("bottom-left")];
+    $("calHint").textContent = t("Tap the %s corner.", labels[CAL.corners.length]);
+  }
+}
+
+async function calStart() {
+  try { await post("/api/autocal/start", { corners: CAL.corners }); }
+  catch (e) { $("calStatus").textContent = t("Failed: %s", e.message); return; }
+  CAL.running = true;
+  $("calRun").classList.add("hidden"); $("calAbort").classList.remove("hidden");
+  $("calRevert").classList.add("hidden");
+  calStartStreaming();
+  calPoll();
+}
+
+function calStartStreaming() {
+  const v = $("calVideo");
+  const cv = document.createElement("canvas"); cv.width = CAL.capW; cv.height = CAL.capH;
+  const g = cv.getContext("2d");
+  CAL.frameTimer = setInterval(() => {
+    if (!CAL.stream) return;
+    g.drawImage(v, 0, 0, CAL.capW, CAL.capH);
+    cv.toBlob((b) => { if (b) api("/api/autocal/frame", { method: "POST", body: b }).catch(() => {}); },
+              "image/jpeg", 0.7);
+  }, 500);
+}
+
+function calStopStreaming() {
+  if (CAL.frameTimer) { clearInterval(CAL.frameTimer); CAL.frameTimer = null; }
+  if (CAL.pollTimer) { clearTimeout(CAL.pollTimer); CAL.pollTimer = null; }
+}
+
+async function calPoll() {
+  let st = null;
+  try { st = await api("/api/autocal/status"); } catch (e) { /* keep trying */ }
+  if (st) {
+    calRenderGrid(st);
+    if (st.finished) {
+      $("calStatus").textContent = st.error
+        ? t("Stopped: %s", st.error)
+        : t("Done — %s of %s modules.", String(st.completed), String(st.total));
+      calFinish(); return;
+    }
+    $("calStatus").textContent = t("Calibrating… %s of %s.", String(st.completed || 0), String(st.total || 0));
+  }
+  CAL.pollTimer = setTimeout(calPoll, 1000);
+}
+
+function calFinish() {
+  CAL.running = false;
+  calStopStreaming();
+  $("calAbort").classList.add("hidden");
+  $("calRun").classList.remove("hidden"); calSyncRunBtn();
+  $("calRevert").classList.remove("hidden");
+}
+
+async function calRevert() {
+  try { await post("/api/autocal/revert"); $("calStatus").textContent = t("Reverted."); }
+  catch (e) { $("calStatus").textContent = t("Failed: %s", e.message); }
+}
+
+function calRenderGrid(st) {
+  const grid = $("calGrid"), plan = CAL.plan; if (!plan) return;
+  grid.style.setProperty("--cols", plan.cols);
+  const results = (st && st.results) || {};
+  const idByIndex = {};
+  (plan.modules || []).forEach((m) => { idByIndex[m.grid_index] = m.id; });
+  const glyph = { aligned: "✓", adjusted: "✓", needs_review: "?", failed: "✕" };
+  grid.innerHTML = "";
+  for (let i = 0; i < plan.rows * plan.cols; i++) {
+    const cell = el("div", "cal-cell");
+    const id = idByIndex[i];
+    if (id === undefined) { cell.classList.add("cal-absent"); grid.appendChild(cell); continue; }
+    const res = results[id];
+    const status = res ? res.status : (CAL.running ? "pending" : "idle");
+    cell.classList.add("cal-" + status);
+    cell.title = "#" + id + ": " + status;
+    cell.textContent = glyph[status] || "";
+    grid.appendChild(cell);
+  }
 }
 
 // ---- apps ------------------------------------------------------------------
@@ -2126,6 +2302,7 @@ function updateDevBtn(st) {
 
 async function refreshGridUI() {
   await bootGrid();
+  revealCalibrateTab();            // the wall may have changed physical<->drawn
   const active = document.querySelector(".tab.active");
   if (!active || active.dataset.tab === "apps") loadApps();
 }
@@ -2651,6 +2828,7 @@ async function init() {
   await loadDisplays();
   wireTabs();
   await bootGrid();
+  revealCalibrateTab();            // show the Calibrate tab only for a physical wall
   $("stopAppBtn").addEventListener("click", stopApp);
   $("homeAllBtn").addEventListener("click", homeAll);
   $("gifBtn").addEventListener("click", () => guard(async () => {

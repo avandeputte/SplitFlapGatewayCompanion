@@ -36,6 +36,7 @@ from .gateway import (addon_public_url, build_sync_patch, detect_local_ip,
                       post_companion, push_gateway_settings, supports_settings)
 from .registry import DisplayRegistry
 from .routes import apps as routes_apps
+from .routes import autocal as routes_autocal
 from .routes import canvas_api as routes_canvas_api
 from .routes import dev as routes_dev
 from .routes import game_api as routes_game_api
@@ -526,6 +527,10 @@ async def _verify_reachable(companion_url: str):
 _display_tasks: dict[str, list] = {}
 _companion_url: str = ""
 
+# The single in-progress camera auto-calibration run, or None (see routes/autocal.py).
+# Process-wide on purpose: one webcam, one wall being physically moved at a time.
+autocal_run = None
+
 
 async def restore_registry_from(d) -> list:
     """A rebuilt companion learns the OTHER walls from the one gateway it was given.
@@ -824,6 +829,7 @@ _include_flat(routes_message.build(_SELF))
 _include_flat(routes_local_api.build(_SELF))
 _include_flat(routes_canvas_api.build(_SELF))
 _include_flat(routes_game_api.build(_SELF))
+_include_flat(routes_autocal.build(_SELF))
 
 # Re-exported: the model lives with the playlist routes now; test_audit_fixes pins
 # from here that a non-dict playlist entry is rejected at the door.

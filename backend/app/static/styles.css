@@ -421,6 +421,24 @@ a.btn { text-decoration: none; display: inline-block; }
   display: flex; align-items: center; justify-content: center; }
 .msg-editor .swatch-symbol { font-size: 14px; }
 
+/* Auto-calibrate page */
+.cal-stage { position: relative; max-width: 560px; margin: 10px 0;
+  border: 1px solid #333; border-radius: 10px; overflow: hidden; background: #000; }
+.cal-stage video { display: block; width: 100%; height: auto; }
+.cal-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.cal-grid { display: grid; grid-template-columns: repeat(var(--cols, 15), 1fr);
+  gap: 4px; margin-top: 12px; max-width: 560px; }
+.cal-cell { aspect-ratio: 2 / 3; border-radius: 4px; border: 1px solid #333;
+  background: #1a1a1a; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: #0a0a0a; }
+.cal-cell.cal-absent { background: transparent; border-style: dashed; border-color: #262626; }
+.cal-cell.cal-idle, .cal-cell.cal-pending { background: #2a2a2a; }
+.cal-cell.cal-pending { animation: cal-pulse 1.2s ease-in-out infinite; }
+.cal-cell.cal-aligned, .cal-cell.cal-adjusted { background: var(--g, #1f9a44); color: #fff; }
+.cal-cell.cal-needs_review { background: var(--y, #fcb81b); color: #0a0a0a; }
+.cal-cell.cal-failed { background: var(--r, #da291c); color: #fff; }
+@keyframes cal-pulse { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+
 .compose-controls { margin-top: 10px; }
 .cmp-speed { width: 84px; }
 
