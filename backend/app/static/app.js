@@ -688,9 +688,13 @@ async function calPoll() {
   if (st) {
     calRenderGrid(st);
     if (st.finished) {
+      const s = st.summary || {};
+      const flagged = (s.needs_review || 0) + (s.failed || 0);
       $("calStatus").textContent = st.error
         ? t("Stopped: %s", st.error)
-        : t("Done — %s of %s modules.", String(st.completed), String(st.total));
+        : flagged
+          ? t("Done — %s of %s modules; %s need a look.", String(st.completed), String(st.total), String(flagged))
+          : t("Done — all %s modules aligned.", String(st.total));
       calFinish(); return;
     }
     $("calStatus").textContent = t("Calibrating… %s of %s.", String(st.completed || 0), String(st.total || 0));

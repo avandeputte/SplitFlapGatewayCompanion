@@ -220,20 +220,116 @@ def calibrate_module(sweep_fn, get_offset, set_offset, flap_chars: str,
             "applied_steps": applied, "final": res, "history": history}
 
 
+def find_blank(capture_index, n: int, blank_index: int = 0) -> tuple[int, float, int]:
+    """Locate the blank flap WITHOUT sweeping the whole reel.
+
+    ``capture_index(i)`` commands the module to flap ``i`` and returns its tile. We sample a
+    few spread flaps to learn the "a letter is printed here" ink baseline, then search forward
+    from ``blank_index`` and STOP at the first flap whose ink is clearly below that baseline —
+    the blank. An already-aligned module is found in a handful of captures instead of a full
+    sweep; one that is off by k flaps costs about k more.
+
+    Returns ``(offset_flaps, confidence, blank_cmd_index)`` with the same sign convention as
+    ``analyze_sweep``: commanding index ``i`` currently shows reel flap ``(i + offset_flaps)``.
+    """
+    seen: dict[int, float] = {}
+
+    def ink_at(i):
+        i %= n
+        if i not in seen:
+            seen[i] = tile_ink(capture_index(i))
+        return seen[i]
+
+    sample = sorted({(blank_index + round(k * n / 4)) % n for k in range(4)})
+    letters = sorted(ink_at(i) for i in sample)
+    baseline = letters[len(letters) // 2] if letters else 0.0          # median ~ a letter's ink
+
+    best_i, best_ink = blank_index % n, 1e9
+    for k in range(n):
+        i = (blank_index + k) % n
+        v = ink_at(i)
+        if v < best_ink:
+            best_ink, best_i = v, i
+        if baseline > 1e-6 and v < 0.45 * baseline:                     # clearly the blank
+            best_ink, best_i = v, i
+            break
+
+    conf = max(0.0, min(1.0, (baseline - best_ink) / baseline)) if baseline > 1e-6 else 0.0
+    offset = (blank_index - best_i) % n
+    signed = offset if offset <= n // 2 else offset - n
+    return signed, round(conf, 4), best_i
+
+
+def calibrate_module_fast(capture_index, get_offset, set_offset, flap_chars: str,
+                          total_steps: int, *, max_rounds: int = MAX_ROUNDS,
+                          confidence_min: float = CONFIDENCE_MIN, should_abort=None) -> dict:
+    """Like ``calibrate_module`` but it locates the blank with ``find_blank`` instead of
+    sweeping every flap, so a mostly-aligned wall calibrates quickly. Sub-flap is read from the
+    flap right after the blank (a real glyph). If the blank can't be found confidently it falls
+    back to a full sweep + ``analyze_sweep`` (robust, slow) for that module."""
+    n = len(flap_chars)
+    blank_index = flap_chars.index(" ") if " " in flap_chars else 0
+    spf = steps_per_flap(total_steps, n)
+    sign, applied, prev_err = 1, 0, None
+    history: list[dict] = []
+
+    for rnd in range(max_rounds):
+        if should_abort is not None and should_abort():
+            return {"status": "failed", "reason": "aborted", "rounds": rnd,
+                    "applied_steps": applied, "history": history}
+
+        offset, conf, blank_cmd = find_blank(capture_index, n, blank_index)
+        if conf < confidence_min:
+            # Ambiguous — spend a full sweep on this one module and trust analyze_sweep.
+            res = analyze_sweep([capture_index(i) for i in range(n)], flap_chars)
+            offset, conf, sub = res["offset_flaps"], res["confidence"], res["sub_flap"]
+            if conf < confidence_min:
+                return {"status": "needs_review", "rounds": rnd + 1, "applied_steps": applied,
+                        "final": {"offset_flaps": offset, "sub_flap": sub, "confidence": conf},
+                        "history": history}
+        else:
+            # Sub-flap from the glyph right after the blank (the blank itself has no ink).
+            sub = tile_v_centroid(capture_index((blank_cmd + 1) % n)) - 0.5
+
+        err = offset + sub
+        aligned = offset == 0 and abs(sub) < 0.08
+        history.append({"round": rnd, "offset_flaps": offset, "sub_flap": round(sub, 4),
+                        "confidence": conf})
+        if aligned:
+            return {"status": "aligned" if rnd == 0 else "adjusted", "rounds": rnd + 1,
+                    "applied_steps": applied,
+                    "final": {"offset_flaps": offset, "sub_flap": round(sub, 4), "confidence": conf},
+                    "history": history}
+        if prev_err is not None and abs(err) > abs(prev_err) + 0.02:
+            sign = -sign
+        delta = int(round(sign * -err * spf)) or (-sign if err > 0 else sign)
+        set_offset(get_offset() + delta)
+        applied += delta
+        prev_err = err
+
+    offset, conf, blank_cmd = find_blank(capture_index, n, blank_index)
+    sub = tile_v_centroid(capture_index((blank_cmd + 1) % n)) - 0.5
+    aligned = offset == 0 and abs(sub) < 0.08
+    return {"status": "adjusted" if aligned else "failed", "rounds": max_rounds,
+            "applied_steps": applied,
+            "final": {"offset_flaps": offset, "sub_flap": round(sub, 4), "confidence": conf},
+            "history": history}
+
+
 class CalibrationSession:
     """The wall-level job: calibrate every module in turn, one at a time, abortably, and be
     able to put every offset back the way it was.
 
-    Side effects are injected, exactly as for ``calibrate_module``, so the whole run is tested
-    against the simulated wall. Each ``module`` is ``{id, flap_chars, total_steps}``:
-      - ``sweep_fn(id)``  -> the module's flap sweep (command each index, capture);
+    Side effects are injected, exactly as for ``calibrate_module_fast``, so the whole run is
+    tested against the simulated wall. Each ``module`` is ``{id, flap_chars, total_steps}``:
+      - ``capture_index(id, i)`` -> command module ``id`` to flap ``i`` and return its tile;
       - ``get_offset(id)`` / ``set_offset(id, steps)`` -> its home offset.
     ``snapshot`` records every offset up front so ``revert()`` can undo a run the user dislikes.
     """
 
-    def __init__(self, modules, sweep_fn, get_offset, set_offset):
+    def __init__(self, modules, capture_index, get_offset, set_offset):
         self.modules = list(modules)
-        self._sweep_fn = sweep_fn
+        self._capture_index = capture_index
         self._get = get_offset
         self._set = set_offset
         self._abort = False
@@ -248,15 +344,21 @@ class CalibrationSession:
     def progress(self) -> dict:
         return {"total": len(self.modules), "completed": len(self.results),
                 "aborted": self._abort, "done": self.done,
-                "results": dict(self.results)}
+                "summary": self._summary(), "results": dict(self.results)}
+
+    def _summary(self) -> dict:
+        s = {"aligned": 0, "adjusted": 0, "needs_review": 0, "failed": 0}
+        for r in self.results.values():
+            s[r["status"]] = s.get(r["status"], 0) + 1
+        return s
 
     def run(self) -> dict:
         for m in self.modules:
             if self._abort:
                 break
             mid = m["id"]
-            self.results[mid] = calibrate_module(
-                lambda mid=mid: self._sweep_fn(mid),
+            self.results[mid] = calibrate_module_fast(
+                lambda i, mid=mid: self._capture_index(mid, i),
                 lambda mid=mid: self._get(mid),
                 lambda s, mid=mid: self._set(mid, s),
                 m["flap_chars"], m["total_steps"], should_abort=lambda: self._abort)
@@ -301,7 +403,8 @@ class AutocalRun:
         self.session = CalibrationSession(
             [{"id": m["id"], "flap_chars": m["flap_chars"], "total_steps": m["total_steps"]}
              for m in modules],
-            sweep_fn=self._sweep, get_offset=self._get_offset, set_offset=self._set_offset)
+            capture_index=self._capture_index, get_offset=self._get_offset,
+            set_offset=self._set_offset)
 
     # -- frames --------------------------------------------------------------
     def push_frame(self, data: bytes) -> None:
@@ -338,17 +441,13 @@ class AutocalRun:
         img = Image.open(io.BytesIO(self._frame[0]))
         return tiles(img, self.corners, self.rows, self.cols)[grid_index]
 
-    def _sweep(self, mid):
-        m = self.modules[mid]
-        out = []
-        for i in range(len(m["flap_chars"])):
-            if self.session is not None and self.session._abort:
-                break
-            self._command(mid, i)
-            if self._commander is None:       # real hardware: let the flap settle
-                time.sleep(self.settle_s)
-            out.append(self._capture_tile(m["grid_index"]))
-        return out
+    def _capture_index(self, mid, i):
+        """Command module ``mid`` to flap ``i``, let it settle, and return its rectified tile.
+        The fast calibrator calls this on demand (it doesn't sweep every flap)."""
+        self._command(mid, i)
+        if self._commander is None:           # real hardware: let the flap physically settle
+            time.sleep(self.settle_s)
+        return self._capture_tile(self.modules[mid]["grid_index"])
 
     # -- lifecycle -----------------------------------------------------------
     def run_blocking(self) -> None:

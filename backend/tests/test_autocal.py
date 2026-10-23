@@ -282,12 +282,19 @@ def test_flap_helpers_post_the_right_shapes(monkeypatch):
 # ===========================================================================
 # the wall-level job: run all modules, abort, revert
 # ===========================================================================
+def _capture_index(mods):
+    def cap(mid, i):
+        mods[mid].show_index(i)
+        return mods[mid].capture()
+    return cap
+
+
 def _fake_wall(specs):
-    """specs: list of (id, err_flaps). Returns (modules_meta, wiring) for a CalibrationSession."""
+    """specs: list of (id, err_flaps). Returns (modules, meta, wiring) for a CalibrationSession."""
     mods = {mid: FakeModule(REEL, 2000, err_flaps=err) for mid, err in specs}
     meta = [{"id": mid, "flap_chars": REEL, "total_steps": 2000} for mid, _ in specs]
     wiring = dict(
-        sweep_fn=lambda mid: mods[mid].sweep(),
+        capture_index=_capture_index(mods),
         get_offset=lambda mid: mods[mid].homeoffset,
         set_offset=lambda mid, s: mods[mid].set_homeoffset(s),
     )
@@ -372,3 +379,72 @@ def test_autocal_run_status_before_start_is_empty_progress():
     _, run = _run_over_fake_wall([(0, 0)])
     st = run.status
     assert st["completed"] == 0 and st["total"] == 1 and not st["finished"]
+
+
+# ===========================================================================
+# Phase 3: the fast path (find the blank without sweeping the whole reel)
+# ===========================================================================
+class _CountingWall:
+    """A FakeModule that counts how many captures (settle cycles) it took — the thing the fast
+    path exists to reduce."""
+    def __init__(self, err_flaps=0, sub=0.0):
+        self.m = FakeModule(REEL, 2000, err_flaps=err_flaps, sub=sub)
+        self.captures = 0
+    def capture_index(self, i):
+        self.m.show_index(i)
+        self.captures += 1
+        return self.m.capture()
+
+
+@pytest.mark.parametrize("err", [0, 1, 4, -3, 9])
+def test_find_blank_recovers_the_offset(err):
+    w = _CountingWall(err_flaps=err)
+    offset, conf, blank_cmd = autocal.find_blank(w.capture_index, len(REEL), 0)
+    assert offset == err
+    assert conf > 0.3
+
+
+def test_find_blank_is_cheap_when_aligned():
+    w = _CountingWall(err_flaps=0)
+    autocal.find_blank(w.capture_index, len(REEL), 0)
+    assert w.captures <= 6, f"an aligned module should cost a few captures, not a full sweep ({w.captures})"
+
+
+def test_fast_calibrate_converges_and_is_cheap_when_already_aligned():
+    w = _CountingWall(err_flaps=0)
+    r = autocal.calibrate_module_fast(w.capture_index, lambda: w.m.homeoffset,
+                                      w.m.set_homeoffset, REEL, 2000)
+    assert r["status"] == "aligned"
+    assert w.captures <= 8 and r["applied_steps"] == 0
+
+
+@pytest.mark.parametrize("err,conv", [(5, 1), (5, -1), (-7, 1)])
+def test_fast_calibrate_fixes_a_wrong_letter_module(err, conv):
+    w = _CountingWall()
+    w.m = FakeModule(REEL, 2000, err_flaps=err, conv=conv)
+    r = autocal.calibrate_module_fast(w.capture_index, lambda: w.m.homeoffset,
+                                      w.m.set_homeoffset, REEL, 2000)
+    assert r["status"] in ("adjusted", "aligned"), r["history"]
+    w.m.show_index(11)
+    assert autocal.analyze_sweep(w.m.sweep(), REEL)["aligned"]
+
+
+def test_fast_calibrate_falls_back_to_full_sweep_when_the_blank_is_ambiguous(monkeypatch):
+    """If the blank can't be found confidently, it spends one full sweep on that module rather
+    than giving up or guessing."""
+    w = _CountingWall(err_flaps=3)
+    # force find_blank to report no-confidence so the fallback path runs
+    monkeypatch.setattr(autocal, "find_blank", lambda *a, **k: (3, 0.0, 0))
+    r = autocal.calibrate_module_fast(w.capture_index, lambda: w.m.homeoffset,
+                                      w.m.set_homeoffset, REEL, 2000)
+    # fallback used analyze_sweep (a full reel's worth of captures in a round)
+    assert w.captures >= len(REEL)
+    assert r["status"] in ("adjusted", "aligned", "needs_review")
+
+
+def test_session_summary_counts_outcomes():
+    mods, meta, wiring = _fake_wall([(0, 0), (1, 4), (2, -2)])
+    sess = autocal.CalibrationSession(meta, **wiring)
+    prog = sess.run()
+    s = prog["summary"]
+    assert s["aligned"] + s["adjusted"] == 3 and s["failed"] == 0
