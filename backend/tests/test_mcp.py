@@ -131,11 +131,12 @@ def call(main, name, args=None):
 
 def test_tools_are_all_registered(mcp_on):
     names = sorted(t.name for t in asyncio.run(mcp_on.mcp.list_tools()))
-    assert names == ["clear_alarm", "clear_display", "configure_app", "get_app_settings",
-                     "get_display", "get_gateway_settings", "get_timer", "list_alarms",
-                     "list_apps", "list_displays", "list_playlists", "list_styles", "run_app",
-                     "run_playlist", "run_zones", "set_alarm", "set_gateway_settings",
-                     "show_message", "start_timer", "stop", "stop_timer"]
+    assert names == ["abort_calibration", "clear_alarm", "clear_display", "configure_app",
+                     "get_app_settings", "get_calibration", "get_display", "get_gateway_settings",
+                     "get_timer", "list_alarms", "list_apps", "list_displays", "list_playlists",
+                     "list_styles", "revert_calibration", "run_app", "run_playlist", "run_zones",
+                     "set_alarm", "set_gateway_settings", "show_message", "start_timer", "stop",
+                     "stop_timer"]
 
 
 def test_every_tool_takes_an_optional_display(mcp_on):

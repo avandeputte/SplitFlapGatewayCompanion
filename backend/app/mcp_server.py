@@ -59,7 +59,8 @@ def build(displays) -> MCPServer:
             "wall. Showing a message takes the display over and stops any running app "
             "or playlist. Reads report what is physically on the flaps right now. "
             "The wall may have symbol flaps (a heart, arrows, a smiley); get_display "
-            "lists the ones it can show."
+            "lists the ones it can show. A physical wall can be auto-calibrated with a "
+            "webcam (get_calibration monitors a run; it is driven from the browser)."
         ),
     )
 
@@ -508,6 +509,49 @@ def build(displays) -> MCPServer:
         if not await asyncio.to_thread(gateway.alarms_set, url, slots):
             raise ValueError("the gateway refused the alarm update")
         return {"ok": True, "slot": int(slot)}
+
+    # --- webcam auto-calibration (monitor + safety control) -----------------
+    # Calibration is DRIVEN from the browser, which owns the webcam and reads each module
+    # through it — so a run can't be started or fed with frames from here. These tools let an
+    # agent watch a run and stop/undo it, not replace the camera.
+    @mcp.tool()
+    def get_calibration(display: str = "") -> dict:
+        """Progress of webcam auto-calibration (the Calibrate tab) — monitor only.
+
+        `supported` is whether this wall can be auto-calibrated (a physical split-flap wall).
+        `running` is whether a run is in progress. `status` (when a run exists) has the per-module
+        results — each `aligned`, `adjusted`, `needs_review` or `failed` — and a `summary` count.
+        Calibration is started and fed frames from the browser (it needs the webcam), not here."""
+        caps = _res(display).controller.caps
+        import app.main as _main
+        run = _main.autocal_run
+        return {
+            "supported": caps is not None and not caps.has_canvas,
+            "running": run is not None and not run.status["finished"],
+            "status": run.status if run is not None else None,
+        }
+
+    @mcp.tool()
+    def abort_calibration(display: str = "") -> dict:
+        """Stop a calibration run in progress. Offsets already written stay — use
+        revert_calibration to undo the run entirely. (`display` is accepted for a uniform tool
+        contract but ignored: one webcam drives one run at a time, process-wide.)"""
+        import app.main as _main
+        run = _main.autocal_run
+        if run is not None:
+            run.abort()
+        return {"ok": True}
+
+    @mcp.tool()
+    def revert_calibration(display: str = "") -> dict:
+        """Undo the last calibration run: restore every module's home offset to its pre-run value.
+        (`display` is accepted for a uniform tool contract but ignored — the run is process-wide.)"""
+        import app.main as _main
+        run = _main.autocal_run
+        if run is None:
+            raise ValueError("no calibration run to revert")
+        run.revert()
+        return {"ok": True}
 
     return mcp
 
