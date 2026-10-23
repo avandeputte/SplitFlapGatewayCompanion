@@ -410,6 +410,7 @@ class AutocalRun:
         self._frame = None                    # (jpeg bytes, ts)
         self._offsets: dict[int, int] = {}    # seeded from each module's detail as it's read
         self._reel: dict[int, str] = {}       # flap_chars per module, for the live activity line
+        self._pos: dict[int, int] = {}        # last commanded flap index per module (for settle timing)
         self.activity = None                  # {module, char, action} — what it's doing right now
         self.error = None
         self.finished = False
@@ -478,14 +479,29 @@ class AutocalRun:
         img = Image.open(io.BytesIO(self._frame[0]))
         return tiles(img, self.corners, self.rows, self.cols)[grid_index]
 
+    def _settle_for(self, mid, i) -> float:
+        """How long to wait after commanding flap ``i`` — proportional to how far the reel
+        actually turns, not a flat worst-case. A split-flap only moves FORWARD, so the move is
+        ``(i - last) mod N`` flaps; ``settle_s`` is the FULL-revolution time, so one flap is a
+        fraction of it. A +1 step waits a moment; only a near-full turn waits the whole time.
+        The first command to a module (position unknown) waits the full settle."""
+        n = len(self._reel.get(mid, "")) or 1
+        last = self._pos.get(mid)
+        self._pos[mid] = i
+        if last is None:
+            return self.settle_s
+        dist = (i - last) % n
+        return max(0.35, min(self.settle_s, 0.35 + (dist / n) * self.settle_s))
+
     def _capture_index(self, mid, i):
         """Command module ``mid`` to flap ``i``, let it settle, and return its rectified tile.
         The fast calibrator calls this on demand (it doesn't sweep every flap)."""
         reel = self._reel.get(mid, "")
         self._say(mid, "showing", reel[i] if i < len(reel) else None)
+        wait = self._settle_for(mid, i)
         self._command(mid, i)
         if self._commander is None:           # real hardware: let the flap physically settle
-            time.sleep(self.settle_s)
+            time.sleep(wait)
         return self._capture_tile(self.modules[mid]["grid_index"])
 
     # -- lifecycle -----------------------------------------------------------

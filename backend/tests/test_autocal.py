@@ -503,3 +503,16 @@ def test_flap_all_posts_the_id_and_returns_detail(monkeypatch):
     assert seen == {"method": "POST", "path": "/api/flap/all", "json": {"id": 5}}
     assert gateway._parse_dump(detail["dump"]) == (42, 4096)
     assert detail["flapChars"] == " ABC"
+
+
+def test_settle_time_is_proportional_to_the_forward_move():
+    """The dominant cost was a flat per-capture settle. A split-flap only moves forward, and
+    settle_s is the full-revolution time, so the wait must scale with the actual move."""
+    _, run = _run_over_fake_wall([(0, 0)])
+    run.settle_s = 4.0
+    run._reel[0] = REEL
+    n = len(REEL)
+    assert run._settle_for(0, 0) == 4.0                 # first command, position unknown -> full
+    assert run._settle_for(0, 1) < 0.6                  # a +1 step is quick
+    assert run._settle_for(0, 2) < 0.6                  # another +1
+    assert run._settle_for(0, n - 1) > 4.0 * 0.8        # a near-full forward turn ~ full settle
