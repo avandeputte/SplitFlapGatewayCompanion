@@ -57,7 +57,9 @@ def analyze_tile(tile, flap_chars: str) -> dict:
     med = float(np.median(tile))
     return {"ink": round(autocal.tile_ink(tile), 4),
             "blankness": round(autocal.tile_blankness(tile), 4),
+            "stroke_energy": round(autocal.stroke_energy(tile), 4),
             "median_level": round(med, 1),
+            "shape": list(tile.shape),
             "centroid": round(autocal.tile_v_centroid(tile), 4),
             "identify": {"char": ch, "score": score, "margin": margin},
             "ocr": ops.get(0)}

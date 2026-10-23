@@ -123,13 +123,13 @@ def test_the_blank_need_not_be_index_zero():
 # sub-flap vertical shift
 # ---------------------------------------------------------------------------
 def test_a_glyph_riding_low_is_measured_positive():
-    r = autocal.analyze_sweep(_sweep(error=0, shift=6), REEL)
+    r = autocal.analyze_sweep(_sweep(error=0, shift=12), REEL)
     assert r["offset_flaps"] == 0
     assert r["sub_flap"] > 0.08 and not r["aligned"]
 
 
 def test_a_glyph_riding_high_is_measured_negative():
-    r = autocal.analyze_sweep(_sweep(error=0, shift=-6), REEL)
+    r = autocal.analyze_sweep(_sweep(error=0, shift=-12), REEL)
     assert r["sub_flap"] < -0.08
 
 

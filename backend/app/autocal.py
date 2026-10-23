@@ -44,7 +44,11 @@ from PIL import Image
 
 # The rectified size each module tile is normalised to before analysis. Big enough to keep
 # a glyph legible, small enough to stay cheap; the real camera resolution is downscaled to it.
-TILE_W, TILE_H = 64, 48
+TILE_W, TILE_H = 48, 96      # PORTRAIT: split-flap modules are tall and narrow (~1:2). A wide
+                             # tile would squash each glyph sideways — the real wall measured a
+                             # module cell at ~0.5 (width:height), so tiles are taller than wide.
+                             # ``tiles`` derives the real width from the clicked corners so any
+                             # wall's proportions are preserved; this is the fixture/default.
 
 
 # ---------------------------------------------------------------------------
@@ -74,15 +78,31 @@ def rectify(image: Image.Image, corners, out_w: int, out_h: int) -> Image.Image:
                                         resample=Image.BILINEAR)
 
 
+def _module_tile_w(corners, rows: int, cols: int) -> int:
+    """The per-module tile WIDTH that keeps the real module proportions, from the clicked quad.
+    Split-flap modules are tall and narrow, and that ratio varies by wall, so the width is
+    derived from the corners (height fixed at ``TILE_H``) instead of assumed square."""
+    try:
+        c = [np.asarray(p, dtype=float) for p in corners]          # TL, TR, BR, BL
+        w = (np.linalg.norm(c[1] - c[0]) + np.linalg.norm(c[2] - c[3])) / 2.0
+        h = (np.linalg.norm(c[3] - c[0]) + np.linalg.norm(c[2] - c[1])) / 2.0
+        aspect = (w / max(1, cols)) / (h / max(1, rows))           # physical module W:H
+        return int(np.clip(round(TILE_H * aspect), 16, 2 * TILE_H))
+    except Exception:                                              # noqa: BLE001 - bad corners
+        return TILE_W
+
+
 def tiles(image: Image.Image, corners, rows: int, cols: int) -> list[np.ndarray]:
     """Rectify the wall and slice it into ``rows`` x ``cols`` per-module tiles, row-major
-    (module 0 top-left), each a float32 grayscale array of shape (TILE_H, TILE_W)."""
-    flat = rectify(image, corners, cols * TILE_W, rows * TILE_H)
+    (module 0 top-left), each a float32 grayscale array of shape ``(TILE_H, tile_w)`` where
+    ``tile_w`` preserves the real module aspect (see ``_module_tile_w``)."""
+    tw = _module_tile_w(corners, rows, cols)
+    flat = rectify(image, corners, cols * tw, rows * TILE_H)
     arr = np.asarray(flat, dtype=np.float32)
     out = []
     for r in range(rows):
         for c in range(cols):
-            out.append(arr[r * TILE_H:(r + 1) * TILE_H, c * TILE_W:(c + 1) * TILE_W].copy())
+            out.append(arr[r * TILE_H:(r + 1) * TILE_H, c * tw:(c + 1) * tw].copy())
     return out
 
 
@@ -126,6 +146,16 @@ def _pool4(t: np.ndarray) -> np.ndarray:
 def tiles_similar(a: np.ndarray, b: np.ndarray) -> bool:
     """Do two consecutive reads of the same module agree — i.e. has the flap stopped moving?"""
     return float(np.mean(np.abs(_pool4(a) - _pool4(b)))) < TILE_STABLE_DIFF
+
+
+def stroke_energy(tile: np.ndarray) -> float:
+    """How much STROKE STRUCTURE a tile carries, 0 upward — mean edge magnitude on the pooled
+    tile. A printed character is dense with stroke edges; a blank, a solid-colour flap or a
+    glare wash is smooth and scores low. Robust to glare where ``tile_blankness`` is not: glare
+    inflates the pixel-deviation measure (a blank then reads "inky"), but it adds no strokes."""
+    p = _pool2(tile)
+    gx = np.abs(np.diff(p, axis=1)); gy = np.abs(np.diff(p, axis=0))
+    return float((gx.mean() + gy.mean()) / 2.0) / 255.0
 
 
 def tile_blankness(tile: np.ndarray) -> float:
@@ -877,18 +907,20 @@ class CalibrationSession:
                 self.results[mid] = {"status": "needs_review", "reason": "module not ready"}
                 self._log(mid, "not_ready", {})
                 continue
-            self.snapshot[mid] = meta["home_offset"]           # its own saved value, pre-run
-            # Total Steps first (the golden order), but only MEASURE it when it isn't already
-            # known: re-spinning an already-calibrated reel every run is slow and needless. When
-            # the saved value is missing/zero, the firmware measures it and we use that.
-            if self._fw_calibrate is not None and not meta.get("total_steps"):
+            self.snapshot[mid] = meta["home_offset"]           # saved value, only for revert
+            # ALWAYS let the firmware measure the step count first (the golden order) and never
+            # trust the module's saved calibration — the whole reason to be here is that its
+            # saved values are wrong. The measurement replaces the saved total; the saved value
+            # is only a last-resort fallback if the measurement didn't complete.
+            if self._fw_calibrate is not None:
                 steps = self._fw_calibrate(mid)
                 self._log(mid, "fw_calibrate", {"steps": steps, "measured": True})
                 if steps:
                     meta["total_steps"] = steps
-            else:
-                self._log(mid, "fw_calibrate", {"steps": meta.get("total_steps"),
-                                                "measured": False})
+            if not meta.get("total_steps"):
+                self.results[mid] = {"status": "needs_review", "reason": "no step count"}
+                self._log(mid, "not_ready", {})
+                continue
             # The guided flow: home and read what shows (the reel ORDER says which way to go),
             # walk to the blank in quarter-flap nudges, then dial every character and read it
             # back, correcting the same way, until a full pass needs no correction.
