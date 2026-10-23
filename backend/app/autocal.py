@@ -89,6 +89,17 @@ def tiles(image: Image.Image, corners, rows: int, cols: int) -> list[np.ndarray]
 # ---------------------------------------------------------------------------
 # Per-tile measurements.
 # ---------------------------------------------------------------------------
+def canonicalize(tile: np.ndarray) -> np.ndarray:
+    """Normalise a tile to the polarity the whole pipeline assumes — a DARK glyph on a LIGHT
+    flap. Many real walls are the opposite (white characters on black flaps), which shows up as
+    a DARK flap background (a low median), so those tiles are inverted; an already-light flap
+    passes through. Measuring ink, blankness, the sub-flap centroid and matching rendered
+    references all assume a bright background with darker ink, so this one step makes both kinds
+    of wall work. (A solid-colour flap is near-uniform either way, so its flatness is unchanged.)
+    """
+    return (255.0 - tile) if float(np.median(tile)) < 128.0 else tile
+
+
 def tile_ink(tile: np.ndarray) -> float:
     """How much is PRINTED on this tile, 0..1. A letter is dark ink on a light flap, so its
     intensity spread is wide; a blank flap is near-uniform, so its spread is tiny. Standard
@@ -1120,11 +1131,11 @@ class AutocalRun:
 
     def _capture_tile(self, grid_index):
         if self._capture is not None:
-            return self._capture(grid_index)
+            return canonicalize(self._capture(grid_index))
         if self._frame is None:
             raise RuntimeError("no camera frame yet")
         img = Image.open(io.BytesIO(self._frame[0]))
-        return tiles(img, self.corners, self.rows, self.cols)[grid_index]
+        return canonicalize(tiles(img, self.corners, self.rows, self.cols)[grid_index])
 
     def _settle_for(self, mid, i) -> float:
         """How long to wait after commanding flap ``i`` — proportional to how far the reel
@@ -1152,7 +1163,8 @@ class AutocalRun:
             fr = self._frame
             if fr is not None and fr[1] >= after:
                 img = Image.open(io.BytesIO(fr[0]))
-                return tiles(img, self.corners, self.rows, self.cols)[grid_index], fr[1]
+                tile = canonicalize(tiles(img, self.corners, self.rows, self.cols)[grid_index])
+                return tile, fr[1]
             if self.session is not None and self.session._abort:
                 raise RuntimeError("aborted")
             time.sleep(0.1)

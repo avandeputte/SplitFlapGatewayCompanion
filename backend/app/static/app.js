@@ -656,7 +656,7 @@ function calSyncRunBtn() {
   const dbg = $("calDebug"); if (dbg) dbg.disabled = !ready;
   if (CAL.stream && CAL.corners.length < 4) {
     const labels = [t("top-left"), t("top-right"), t("bottom-right"), t("bottom-left")];
-    $("calHint").textContent = t("Tap the %s corner.", labels[CAL.corners.length]);
+    $("calHint").textContent = t("Tap the %s corner of the printed character area (not the bezel).", labels[CAL.corners.length]);
   }
 }
 

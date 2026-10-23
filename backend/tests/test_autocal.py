@@ -144,6 +144,41 @@ def test_blankness_separates_the_blank_from_the_faintest_glyph():
     assert dot > 4 * blank + 0.05
 
 
+def test_canonicalize_normalises_white_on_dark():
+    """The real wall is often white characters on BLACK flaps — the opposite polarity to what
+    every measurement assumes. Canonicalize inverts those (dark background) and leaves an
+    already-light flap alone, so both walls land in the same canonical form."""
+    light = _glyph_tile("A")                       # dark glyph on a light flap (canonical)
+    dark = 255.0 - light                           # white glyph on a dark flap
+    assert np.allclose(autocal.canonicalize(dark), light, atol=1.0)
+    assert np.allclose(autocal.canonicalize(light), light)       # already canonical: unchanged
+    assert autocal.tile_blankness(autocal.canonicalize(255.0 - _glyph_tile(" "))) \
+        == pytest.approx(autocal.tile_blankness(_glyph_tile(" ")), abs=0.01)
+
+
+def test_autocal_run_calibrates_a_white_on_dark_wall():
+    """End to end on a white-on-dark wall: the modules render inverted, and the capture path
+    must canonicalize so the home search and verify work exactly as on a light wall."""
+    def inv(ch, w=autocal.TILE_W, h=autocal.TILE_H, shift=0):
+        return 255.0 - _glyph_tile(ch, w, h, shift)
+    wall = {mid: FakeModule(REEL, 2000, err_flaps=err, render=inv) for mid, err in [(0, 2), (1, -1)]}
+    modules = [{"id": mid, "grid_index": mid} for mid in wall]
+    run = autocal.AutocalRun(
+        gateway_url="http://gw", corners=[(0, 0), (1, 0), (1, 1), (0, 1)],
+        rows=1, cols=len(wall), modules=modules, settle_s=0,
+        commander=lambda mid, idx: wall[mid].show_index(idx),
+        adjuster=lambda mid, steps: wall[mid].nudge(steps),
+        restorer=lambda mid, steps: wall[mid].restore(steps),
+        capture=lambda gi: wall[gi].capture(),                    # inverted; _capture_tile fixes
+        meta=lambda mid: {"flap_chars": REEL, "total_steps": 2000,
+                          "home_offset": wall[mid].homeoffset})
+    run.run_blocking()
+    assert run.status["error"] is None
+    for mid in wall:
+        wall[mid].show_index(7)
+        assert autocal.analyze_sweep([255.0 - t for t in wall[mid].sweep()], REEL)["aligned"]
+
+
 def test_colour_flaps_are_flat_but_most_are_darker_than_the_blank():
     """Why the home search uses brightness, not just flatness: a solid colour flap is flat too,
     so flatness alone can't tell it from the blank — but most colours sit well below the flap
