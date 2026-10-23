@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.3
+
+- **MCP tools for auto-calibration.** `get_calibration` (monitor a run's per-module results),
+  `abort_calibration` and `revert_calibration`, so an LLM/MCP client can watch and stop/undo a
+  run. Calibration is still driven from the browser (it owns the webcam) — these monitor and
+  control, they don't replace the camera.
+
 ## 2.12.0-beta.2
 
 - **Auto-calibrate: fixed the Calibrate button doing nothing.** The page read the wall's module
