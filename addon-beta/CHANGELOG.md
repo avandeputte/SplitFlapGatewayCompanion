@@ -3,6 +3,16 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.1
+
+- **Auto-calibrate with a webcam (experimental).** A new **Calibrate** tab (physical walls only)
+  aligns every module automatically: point a webcam at the wall, tap its four corners, and the
+  companion steps each module, reads it, and writes its home offset until the blank sits right and
+  glyphs ride centred — fixing both wrong-letter and half-shown modules. It anchors on the blank
+  flap (no fragile OCR), discovers the gateway's offset direction on its own, flags modules it
+  isn't sure about instead of guessing, and can revert the whole run. Live webcam needs a secure
+  (HTTPS) connection; needs gateway firmware that reports per-module reel/offset. Feedback welcome.
+
 ## 2.11.0
 
 Promoted to stable. The beta channel is caught up to the stable release; it will move ahead again
