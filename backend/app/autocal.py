@@ -146,3 +146,121 @@ def analyze_sweep(sweep: list[np.ndarray], flap_chars: str) -> dict:
         "aligned": signed == 0 and abs(sub_flap) < 0.08,
         "inks": [round(float(x), 4) for x in inks],
     }
+
+
+# ---------------------------------------------------------------------------
+# Orchestration: drive ONE module's home offset to aligned (Phase 1).
+#
+# This is the closed loop the calibration job runs per module. It is pure — every side
+# effect is an injected callable — so the whole thing is tested against a simulated wall
+# with no camera and no gateway (see test_autocal.py). In production the session wires:
+#   sweep_fn    -> command each flap index on the gateway, wait to settle, grab the latest
+#                  camera frame and rectify this module's tile (one pass per call);
+#   get_offset  -> the module's current homeOffset (from /api/flap/modules);
+#   set_offset  -> POST /api/flap/homeoffset.
+# ---------------------------------------------------------------------------
+CONFIDENCE_MIN = 0.12          # below this, flag the module for a human rather than guess
+MAX_ROUNDS = 6                 # a correction + a few refinements; mechanical walls are slow
+
+
+def steps_per_flap(total_steps: int, flap_count: int) -> float:
+    return float(total_steps) / max(1, int(flap_count))
+
+
+def calibrate_module(sweep_fn, get_offset, set_offset, flap_chars: str,
+                     total_steps: int, *, max_rounds: int = MAX_ROUNDS,
+                     confidence_min: float = CONFIDENCE_MIN, should_abort=None) -> dict:
+    """Iterate a single module to aligned, measuring with the camera and writing its home
+    offset, until the blank sits at index 0 and glyphs ride centred — or we run out of rounds
+    or the measurement is too ambiguous to trust.
+
+    The direction a home-offset change moves the reel is hardware-dependent, so the loop
+    DISCOVERS the sign: if a correction makes the error worse, it flips sign and continues.
+    That makes the real-hardware sign a non-issue (Phase 3 just confirms it converges).
+
+    Returns ``{status, rounds, applied_steps, final, history}`` where status is
+    ``aligned`` (already good), ``adjusted`` (fixed), ``needs_review`` (too ambiguous) or
+    ``failed`` (didn't converge / aborted).
+    """
+    spf = steps_per_flap(total_steps, len(flap_chars))
+    sign = 1
+    applied = 0
+    prev_err = None
+    history: list[dict] = []
+
+    for rnd in range(max_rounds):
+        if should_abort is not None and should_abort():
+            return {"status": "failed", "reason": "aborted", "rounds": rnd,
+                    "applied_steps": applied, "history": history}
+        res = analyze_sweep(sweep_fn(), flap_chars)
+        err = res["offset_flaps"] + res["sub_flap"]            # total error, in flaps
+        history.append({"round": rnd, "offset_flaps": res["offset_flaps"],
+                        "sub_flap": res["sub_flap"], "confidence": res["confidence"]})
+        if res["confidence"] < confidence_min:
+            return {"status": "needs_review", "rounds": rnd + 1, "applied_steps": applied,
+                    "final": res, "history": history}
+        if res["aligned"]:
+            return {"status": "aligned" if rnd == 0 else "adjusted", "rounds": rnd + 1,
+                    "applied_steps": applied, "final": res, "history": history}
+        # A correction that made things worse means our sign guess was wrong; flip it.
+        if prev_err is not None and abs(err) > abs(prev_err) + 0.02:
+            sign = -sign
+        delta = int(round(sign * -err * spf))                  # move to shrink the error
+        if delta == 0:                                         # a sub-flap residual < 1 step
+            delta = -sign if err > 0 else sign
+        set_offset(get_offset() + delta)
+        applied += delta
+        prev_err = err
+
+    res = analyze_sweep(sweep_fn(), flap_chars)
+    return {"status": "adjusted" if res["aligned"] else "failed", "rounds": max_rounds,
+            "applied_steps": applied, "final": res, "history": history}
+
+
+class CalibrationSession:
+    """The wall-level job: calibrate every module in turn, one at a time, abortably, and be
+    able to put every offset back the way it was.
+
+    Side effects are injected, exactly as for ``calibrate_module``, so the whole run is tested
+    against the simulated wall. Each ``module`` is ``{id, flap_chars, total_steps}``:
+      - ``sweep_fn(id)``  -> the module's flap sweep (command each index, capture);
+      - ``get_offset(id)`` / ``set_offset(id, steps)`` -> its home offset.
+    ``snapshot`` records every offset up front so ``revert()`` can undo a run the user dislikes.
+    """
+
+    def __init__(self, modules, sweep_fn, get_offset, set_offset):
+        self.modules = list(modules)
+        self._sweep_fn = sweep_fn
+        self._get = get_offset
+        self._set = set_offset
+        self._abort = False
+        self.snapshot = {m["id"]: get_offset(m["id"]) for m in self.modules}
+        self.results: dict[int, dict] = {}
+        self.done = False
+
+    def abort(self) -> None:
+        self._abort = True
+
+    @property
+    def progress(self) -> dict:
+        return {"total": len(self.modules), "completed": len(self.results),
+                "aborted": self._abort, "done": self.done,
+                "results": dict(self.results)}
+
+    def run(self) -> dict:
+        for m in self.modules:
+            if self._abort:
+                break
+            mid = m["id"]
+            self.results[mid] = calibrate_module(
+                lambda mid=mid: self._sweep_fn(mid),
+                lambda mid=mid: self._get(mid),
+                lambda s, mid=mid: self._set(mid, s),
+                m["flap_chars"], m["total_steps"], should_abort=lambda: self._abort)
+        self.done = not self._abort
+        return self.progress
+
+    def revert(self) -> None:
+        """Restore every module's home offset to its pre-run value."""
+        for mid, steps in self.snapshot.items():
+            self._set(mid, steps)

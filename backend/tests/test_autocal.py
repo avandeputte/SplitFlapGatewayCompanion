@@ -141,3 +141,175 @@ def test_tiles_returns_row_major_modules():
     flat = Image.new("L", (W, H), 230)
     corners = [(0, 0), (W, 0), (W, H), (0, H)]       # already flat
     assert len(autocal.tiles(flat, corners, rows, cols)) == 15
+
+
+# ===========================================================================
+# Phase 1: the closed-loop orchestration, driven against a simulated wall.
+# ===========================================================================
+class FakeModule:
+    """A simulated split-flap module: it holds a home-offset error (in steps) and renders what
+    the camera would see when commanded to an index. ``conv`` is the (unknown, hardware-
+    dependent) sign relating a home-offset change to reel movement — calibrate_module must
+    converge for either value."""
+
+    def __init__(self, reel, total_steps, *, err_flaps=0, sub=0.0, conv=1):
+        self.reel = reel
+        self.n = len(reel)
+        self.total = total_steps
+        self.spf = total_steps / self.n
+        self.conv = conv
+        self.homeoffset = 1000
+        self.err_steps = err_flaps * self.spf + sub * self.spf
+        self.commanded = 0
+
+    def show_index(self, i):
+        self.commanded = int(i) % self.n
+
+    def set_homeoffset(self, steps):
+        self.err_steps += self.conv * (steps - self.homeoffset)
+        self.homeoffset = steps
+
+    def capture(self):
+        pos = self.commanded + self.err_steps / self.spf      # displayed flap, fractional
+        whole = int(round(pos)) % self.n
+        frac = pos - round(pos)                                # sub-flap residual, in flaps
+        return _glyph_tile(self.reel[whole], shift=int(round(frac * autocal.TILE_H)))
+
+    def sweep(self):
+        out = []
+        for i in range(self.n):
+            self.show_index(i)
+            out.append(self.capture())
+        return out
+
+
+def _drive(mod, **kw):
+    return autocal.calibrate_module(mod.sweep, lambda: mod.homeoffset, mod.set_homeoffset,
+                                    mod.reel, mod.total, **kw)
+
+
+def test_an_already_aligned_module_is_left_alone():
+    mod = FakeModule(REEL, 2000, err_flaps=0, sub=0.0)
+    r = _drive(mod)
+    assert r["status"] == "aligned"
+    assert r["applied_steps"] == 0
+
+
+@pytest.mark.parametrize("err,conv", [(3, 1), (3, -1), (-5, 1), (12, -1), (1, 1)])
+def test_a_whole_flap_error_converges_for_either_hardware_sign(err, conv):
+    mod = FakeModule(REEL, 2000, err_flaps=err, conv=conv)
+    r = _drive(mod)
+    assert r["status"] in ("adjusted", "aligned"), r
+    # the module really ends aligned: command index 3, it shows reel flap 3
+    mod.show_index(3)
+    res = autocal.analyze_sweep(mod.sweep(), REEL)
+    assert res["aligned"], res
+
+
+def test_a_sub_flap_residual_is_corrected():
+    mod = FakeModule(REEL, 2000, err_flaps=0, sub=0.25, conv=1)
+    r = _drive(mod)
+    assert r["status"] in ("adjusted", "aligned")
+    assert autocal.analyze_sweep(mod.sweep(), REEL)["aligned"]
+
+
+def test_a_combined_whole_and_sub_error_converges():
+    mod = FakeModule(REEL, 3600, err_flaps=4, sub=0.3, conv=-1)
+    r = _drive(mod)
+    assert r["status"] in ("adjusted", "aligned"), r["history"]
+    assert autocal.analyze_sweep(mod.sweep(), REEL)["aligned"]
+
+
+def test_abort_stops_the_loop():
+    mod = FakeModule(REEL, 2000, err_flaps=7)
+    r = _drive(mod, should_abort=lambda: True)
+    assert r["status"] == "failed" and r["reason"] == "aborted"
+    assert mod.err_steps == 7 * mod.spf     # untouched
+
+
+def test_an_ambiguous_module_is_flagged_not_calibrated():
+    mod = FakeModule(REEL, 2000, err_flaps=2)
+    orig_sweep = mod.sweep
+    def ambiguous():
+        s = orig_sweep()
+        s[5] = _glyph_tile(" ")             # a second near-blank -> no clean anchor
+        return s
+    r = autocal.calibrate_module(ambiguous, lambda: mod.homeoffset, mod.set_homeoffset,
+                                 mod.reel, mod.total)
+    assert r["status"] == "needs_review"
+
+
+# ===========================================================================
+# gateway orchestration helpers (shapes + parsing)
+# ===========================================================================
+def test_parse_dump_reads_homeoffset_and_totalsteps():
+    from app import gateway
+    assert gateway._parse_dump("42:4096:0=210,1=320") == (42, 4096)
+    assert gateway._parse_dump("") is None
+    assert gateway._parse_dump("garbage") is None
+
+
+def test_flap_helpers_post_the_right_shapes(monkeypatch):
+    import asyncio
+    from app import gateway
+
+    calls = []
+
+    class _R:
+        status_code = 200
+        def raise_for_status(self): pass
+        def json(self): return {"modules": [{"id": 5, "flapCount": 40}]}
+
+    async def fake_arequest(method, url, path, *, timeout, **kw):
+        calls.append((method, path, kw.get("json")))
+        return _R()
+
+    monkeypatch.setattr(gateway, "_arequest", fake_arequest)
+
+    async def go():
+        await gateway.flap_show_index("http://gw", 5, 3)
+        await gateway.flap_set_homeoffset("http://gw", 5, 128)
+        mods = await gateway.flap_modules("http://gw")
+        return mods
+    mods = asyncio.run(go())
+
+    assert ("POST", "/api/flap/index", {"id": 5, "index": 3}) in calls
+    assert ("POST", "/api/flap/homeoffset", {"id": 5, "steps": 128}) in calls
+    assert ("GET", "/api/flap/modules", None) in calls
+    assert mods == [{"id": 5, "flapCount": 40}]
+
+
+# ===========================================================================
+# the wall-level job: run all modules, abort, revert
+# ===========================================================================
+def _fake_wall(specs):
+    """specs: list of (id, err_flaps). Returns (modules_meta, wiring) for a CalibrationSession."""
+    mods = {mid: FakeModule(REEL, 2000, err_flaps=err) for mid, err in specs}
+    meta = [{"id": mid, "flap_chars": REEL, "total_steps": 2000} for mid, _ in specs]
+    wiring = dict(
+        sweep_fn=lambda mid: mods[mid].sweep(),
+        get_offset=lambda mid: mods[mid].homeoffset,
+        set_offset=lambda mid, s: mods[mid].set_homeoffset(s),
+    )
+    return mods, meta, wiring
+
+
+def test_the_session_calibrates_every_module_and_snapshots():
+    mods, meta, wiring = _fake_wall([(0, 3), (1, 0), (2, -4)])
+    sess = autocal.CalibrationSession(meta, **wiring)
+    assert sess.snapshot == {0: 1000, 1: 1000, 2: 1000}
+    prog = sess.run()
+    assert prog["done"] and prog["completed"] == 3
+    assert {r["status"] for r in prog["results"].values()} <= {"aligned", "adjusted"}
+    for mid in (0, 1, 2):
+        mods[mid].show_index(7)
+        assert autocal.analyze_sweep(mods[mid].sweep(), REEL)["aligned"]
+
+
+def test_the_session_reverts_to_the_snapshot():
+    mods, meta, wiring = _fake_wall([(0, 5), (1, 8)])
+    sess = autocal.CalibrationSession(meta, **wiring)
+    sess.run()
+    assert mods[0].homeoffset != 1000 or mods[1].homeoffset != 1000   # it moved them
+    sess.revert()
+    assert mods[0].homeoffset == 1000 and mods[1].homeoffset == 1000

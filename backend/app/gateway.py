@@ -379,6 +379,45 @@ async def home_all(gateway_url: str, timeout: float = 10.0) -> bool:
     return r.status_code < 400
 
 
+# --- auto-calibration orchestration (see autocal.py) ----------------------------
+# Thin async wrappers over the gateway's per-module flap endpoints, used by the camera
+# auto-calibration job to drive a module through a flap sweep and write its home offset.
+def _parse_dump(dump: str) -> tuple[int, int] | None:
+    """A module's EEPROM ``dump`` is ``homeOffset:totalSteps:0=pos,1=pos,...`` — return
+    ``(homeOffset, totalSteps)``, or None when the string isn't that shape (an old/stale module)."""
+    try:
+        home, total = dump.split(":")[:2]
+        return int(home), int(total)
+    except (AttributeError, ValueError):
+        return None
+
+
+async def flap_modules(gateway_url: str, timeout: float = 10.0) -> list[dict]:
+    """``GET /api/flap/modules`` — per-module metadata (id, flapCount, flapChars, the EEPROM
+    dump with homeOffset/totalSteps, mode, stale). The list the calibration job plans from."""
+    r = await _arequest("GET", gateway_url, "/api/flap/modules", timeout=timeout)
+    r.raise_for_status()
+    data = r.json()
+    mods = data.get("modules", data) if isinstance(data, dict) else data
+    return mods if isinstance(mods, list) else []
+
+
+async def flap_show_index(gateway_url: str, mid: int, index: int, timeout: float = 10.0) -> None:
+    """``POST /api/flap/index`` — turn module ``mid`` to flap ``index`` (one step of a sweep)."""
+    r = await _arequest("POST", gateway_url, "/api/flap/index",
+                        json={"id": int(mid), "index": int(index)}, timeout=timeout)
+    r.raise_for_status()
+
+
+async def flap_set_homeoffset(gateway_url: str, mid: int, steps: int, timeout: float = 10.0) -> None:
+    """``POST /api/flap/homeoffset`` — set module ``mid``'s home offset to ``steps`` (absolute
+    steps past the Hall trigger to flap 0). This is what calibration writes; the gateway
+    persists it to EEPROM."""
+    r = await _arequest("POST", gateway_url, "/api/flap/homeoffset",
+                        json={"id": int(mid), "steps": int(steps)}, timeout=timeout)
+    r.raise_for_status()
+
+
 def gateway_version(gw: dict) -> tuple[int, int] | None:
     """(major, minor) parsed from a gateway /api/config document, or None.
 
