@@ -12,6 +12,12 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 COPY backend/requirements.txt ./backend/requirements.txt
+# tesseract: auto-calibration's OCR — it reads the reel back as a text LINE (strong, measured)
+# to anchor and validate the rotation; eng traineddata ships with the Debian package.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tesseract-ocr \
+ && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 COPY backend/ ./backend/

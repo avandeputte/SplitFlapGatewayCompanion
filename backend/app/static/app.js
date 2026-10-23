@@ -758,17 +758,27 @@ function calEventLine(e) {
       return [null, t("module %s: reel learned — %s flap(s) off · glyph %s% %s · confidence %s",
                       m, String(e.offset_flaps), pct, dir, String(e.confidence))];
     }
-    case "anchor":
-      // the two independent answers to "which captured flap is which character"
-      if (e.used === "both")
-        return ["ok", t("module %s: ✓ blank and glyph-shape anchors agree (%s flap(s) off)", m, String(e.blank))];
-      if (e.used === "blank")
-        return [null, t("module %s: glyph-shape check abstained (unfamiliar font) — using the blank anchor", m)];
-      if (e.used === "font")
-        return ["warn", t("module %s: blank ambiguous (colour flaps look blank too) — glyph shapes set the offset (%s)", m, String(e.font))];
+    case "anchor": {
+      // the independent answers to "which captured flap is which character": the blank's
+      // flatness, the glyph-shape consensus, and OCR reading the sweep back
+      const names = { blank: t("blank"), font: t("glyph shapes"), ocr: t("OCR") };
+      const val = (v) => (v === null || v === undefined ? "—" : String(v));
       if (e.used === "conflict")
-        return ["bad", t("module %s: ⚠ anchors disagree — blank says %s, glyph shapes say %s", m, String(e.blank), String(e.font))];
-      return ["bad", t("module %s: ⚠ no trustworthy anchor — flagged for a look", m)];
+        return ["bad", t("module %s: ⚠ anchors disagree — blank %s · glyph shapes %s · OCR %s", m, val(e.blank), val(e.font), val(e.ocr))];
+      if (e.used === "none")
+        return ["bad", t("module %s: ⚠ no trustworthy anchor — flagged for a look", m)];
+      const who = String(e.used).split("+").map((k) => names[k] || k).join(" + ");
+      const off = e.used.indexOf("blank") >= 0 ? e.blank : (e.used.indexOf("font") >= 0 ? e.font : e.ocr);
+      return ["ok", t("module %s: ✓ offset %s flap(s) — anchored by %s", m, val(off), who)];
+    }
+    case "ocr_check":
+      // OCR reads the whole verified reel back — bulk validation of WHICH characters show
+      if (e.shift === null || e.shift === undefined)
+        return [null, t("module %s: OCR read the reel back — not enough to judge (%s of %s)", m, String(e.hits), String(e.votes))];
+      return e.ok ? ["ok", t("module %s: ✓ OCR read the reel back — matches (%s of %s flaps)", m, String(e.hits), String(e.votes))]
+                  : ["bad", t("module %s: ⚠ OCR reads the reel %s flap(s) off", m, String(e.shift))];
+    case "verify_ocr":
+      return ["warn", t("module %s: flap %s (“%s”) — OCR read “%s”", m, String(e.flap), ch(e.expected), String(e.ocr))];
     case "relearn": return [null, t("module %s: re-reading the reel at the corrected offset", m)];
     case "verify_start": return [null, t("module %s: verifying all %s flaps, one by one", m, String(e.flaps))];
     case "verify":

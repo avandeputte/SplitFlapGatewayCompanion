@@ -43,6 +43,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements-dev.txt
 
+      # tesseract backs auto-calibration's OCR reel validation (autocal.ocr_*); the
+      # Docker image installs the same package, so CI must test with it present.
+      - name: Install tesseract
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr
+
       - name: Run the test suite
         run: cd backend && python -m pytest -q
 

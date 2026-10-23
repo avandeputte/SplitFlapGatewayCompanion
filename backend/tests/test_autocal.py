@@ -240,6 +240,82 @@ def test_consensus_never_gives_a_wrong_opinion_on_an_alien_look(error):
 
 
 # ---------------------------------------------------------------------------
+# the OCR anchor — reads the reel back as text lines, opinions aligned in bulk
+# ---------------------------------------------------------------------------
+needs_tesseract = pytest.mark.skipif(not autocal.ocr_available(),
+                                     reason="tesseract binary not installed")
+
+
+@pytest.fixture(autouse=True)
+def _ocr_off_unless_marked(request, monkeypatch):
+    """Real tesseract costs ~1s per calibrate run: the orchestration tests run with OCR
+    disabled (the other anchors carry them, as on an install without the binary), and the
+    tests marked ``@pytest.mark.ocr`` exercise the real engine end to end."""
+    if "ocr" not in request.keywords:
+        monkeypatch.setattr(autocal, "ocr_available", lambda: False)
+
+
+@pytest.mark.ocr
+@needs_tesseract
+def test_ocr_tile_opinions_map_back_to_their_tiles():
+    """A line read of many tiles, each recognized character box-mapped to its source tile:
+    most opinions must name the right tile's character (individually weak is fine — never
+    mostly-wrong)."""
+    chars = "ABCDEFGHIJKLMNOP"
+    tiles_ = [_glyph_tile(c) for c in chars]
+    ops = autocal.ocr_tile_opinions(tiles_, REEL64)
+    assert len(ops) >= 8
+    right = sum(1 for i, v in ops.items() if v == chars[i])
+    assert right >= len(ops) * 0.6, ops
+
+
+@pytest.mark.ocr
+@needs_tesseract
+@pytest.mark.parametrize("error", [0, 2, -5])
+def test_ocr_shift_anchors_the_rotation(error):
+    """The OCR anchor on a full default-reel sweep under noise: weak per-glyph reads, decisive
+    in aggregate — and it genuinely READS characters, so it needs no font or blank at all."""
+    r = autocal.ocr_shift(_sweep(REEL64, error=error, noise=8.0, seed=abs(error) + 3), REEL64)
+    assert r["offset_flaps"] == error, r
+    assert r["hits"] >= autocal.OCR_ANCHOR_MIN_HITS
+
+
+def test_align_opinions_abstains_on_weak_or_conflicting_evidence():
+    assert autocal.align_opinions({}, REEL64)["offset_flaps"] is None
+    few = {0: "A", 1: "B"}                                  # too few hits
+    assert autocal.align_opinions(few, REEL64)["offset_flaps"] is None
+    # scattered random opinions: no shift dominates
+    noise = {i: REEL64[(i * 7 + 3) % 40 + 1] for i in range(0, 60, 2)}
+    assert autocal.align_opinions(noise, REEL64)["offset_flaps"] is None
+
+
+@pytest.mark.ocr
+@needs_tesseract
+def test_ocr_votes_in_the_anchor_and_reads_the_reel_back():
+    mod = FakeModule(REEL64, 4096, err_flaps=2)
+    seen = []
+    r = _learned(mod, notify=lambda k, d: seen.append((k, d)))
+    assert r["status"] == "adjusted"
+    anchors = [d for k, d in seen if k == "anchor"]
+    assert all("ocr" in a and "blank" in a and "font" in a for a in anchors)
+    assert any("ocr" in a["used"] for a in anchors)         # OCR actually anchored
+    checks = [d for k, d in seen if k == "ocr_check"]
+    assert checks and checks[-1]["ok"] and checks[-1]["shift"] == 0
+    assert r["reel_check"]["ocr"]["shift"] == 0
+
+
+def test_calibration_still_works_without_tesseract(monkeypatch):
+    """Bare installs may lack the binary: the other anchors carry the run, no ocr_check."""
+    monkeypatch.setattr(autocal, "ocr_available", lambda: False)
+    mod = FakeModule(REEL, 2000, err_flaps=3)
+    seen = []
+    r = _learned(mod, notify=lambda k, d: seen.append((k, d)))
+    assert r["status"] == "adjusted" and r["reel_check"]["ok"]
+    assert "ocr_check" not in [k for k, _ in seen]
+    assert r["reel_check"]["ocr"]["shift"] is None
+
+
+# ---------------------------------------------------------------------------
 # perspective rectification
 # ---------------------------------------------------------------------------
 def test_rectify_undoes_a_known_perspective_and_lands_ink_in_the_right_tile():
@@ -391,7 +467,8 @@ def test_the_default_reel_with_colour_flaps_calibrates_via_the_font_rescue():
     assert r["status"] == "adjusted"
     assert r["reel_check"]["ok"]
     anchors = [d for k, d in seen if k == "anchor"]
-    assert anchors[0]["used"] == "font"
+    assert "blank" not in anchors[0]["used"]               # the blank abstained (white flap tie)
+    assert anchors[0]["used"] in ("font", "ocr", "font+ocr")
 
 
 def test_anchor_conflict_is_flagged_never_guessed():

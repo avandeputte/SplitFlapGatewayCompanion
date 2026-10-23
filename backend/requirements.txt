@@ -35,3 +35,5 @@ zeroconf>=0.132        # gateway discovery accelerator (app/discovery.py). Optio
                        # default Docker), where the HTTP sweep does the finding instead.
 pillow>=10.0       # canvas apps (image → raw frame) and the HACS board-image entity
 pyyaml>=6
+pytesseract>=0.3   # auto-calibration's OCR reel validation (needs the tesseract-ocr binary;
+                   # the Docker image and CI install it, bare installs degrade gracefully)

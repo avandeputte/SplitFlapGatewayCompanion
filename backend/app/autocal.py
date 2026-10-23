@@ -11,25 +11,28 @@ HOW A MODULE IS CALIBRATED — learn, anchor twice, correct, verify every flap:
   1. LEARN: one full sweep captures every flap, and the module's own reel becomes its glyph
      library (``learn_reel``). No font is assumed; lighting, camera, print and the horizontal
      flap seam all match by construction, because the references ARE this wall's flaps.
-  2. ANCHOR x2: the library needs one absolute fact — which captured tile is which character.
-     Two INDEPENDENT anchors answer it: (a) the blank, the one provably uniform flap, found by
+  2. ANCHOR x3: the library needs one absolute fact — which captured tile is which character.
+     Three INDEPENDENT anchors vote: (a) the blank, the one provably uniform flap, found by
      peak-deviation flatness (``tile_blankness``); (b) the cyclic shift that best matches the
-     whole sweep against RENDERED seamed references (``consensus_shift``) — each per-glyph
-     match is weak (unknown font), but N votes picking one rotation are strong, and it only
-     picks a rotation, never reads a letter. A confident disagreement = needs_review, never a
-     guess; a confident consensus can RESCUE an ambiguous blank (solid-colour flaps — the
-     white one especially — are exactly as flat as the blank in grayscale).
+     whole sweep against RENDERED seamed references (``consensus_shift``); (c) OCR reading the
+     sweep back as text lines (``ocr_shift``). Every confident anchor must agree — a
+     disagreement = needs_review, never a guess — and the agreeing anchors can RESCUE an
+     ambiguous blank (solid-colour flaps — the white one especially — are exactly as flat as
+     the blank in grayscale).
   3. CORRECT: nudges (live, relative — see the write contract at ``_adjust``), spot-checked by
      identity each round until the shift reads zero.
   4. VERIFY: every flap is re-read and identified against the learned library — dialed A must
      SHOW A; "saw B instead" means it went one too far and is said in those words. An unsure
-     match is flagged by name, never asserted.
+     match is flagged by name, never asserted. OCR then reads the WHOLE verified reel back and
+     must agree it sits at zero, and flagged flaps get OCR's reading of them in the log.
 
-WHY NOT OCR — measured, not assumed: tesseract on seam-cut single flap glyphs scored at best
-6/22 on realistic tiles, with high-confidence WRONG reads (a seam-cut E genuinely is two bars
-— it read `=` at conf 72; H→7, 1→H). A verifier that is confidently wrong is worse than none,
-so recognition here is image MATCHING — the module's own glyphs for per-flap identity, rendered
-references only to vote on the rotation — and OCR stays out.
+WHERE OCR FITS — measured, twice: tesseract on a seam-cut SINGLE glyph is unusable (at best
+6/22 on realistic tiles, with high-confidence WRONG reads — a seam-cut E genuinely is two bars
+and reads as `=`), so a lone OCR opinion never decides a flap. Reading the sweep as text LINES,
+each recognized character box-mapped back to its source tile, lands about half its characters —
+and the cyclic alignment of ~50 such opinions picks the rotation with huge margins (measured
+18/18, top 20-32 vs runner-up 2-4, under noise and low contrast). OCR therefore anchors and
+validates the reel in bulk, while per-flap identity stays with the learned-shape match.
 """
 
 from __future__ import annotations
@@ -387,6 +390,143 @@ def reference_templates(flap_chars: str) -> dict:
             for ch in flap_chars if ch != " " and ch not in COLOR_LETTERS}
 
 
+# ---------------------------------------------------------------------------
+# OCR — reads the reel back, the way OCR is actually strong.
+#
+# Measured twice: tesseract on a seam-cut SINGLE glyph is unusable (at best 6/22, with
+# confidently wrong reads — a seam-cut E really is two bars). Asked to read a LINE of many
+# flap tiles, box-mapped back to their source tiles, it lands ~half its characters — and a
+# cyclic alignment of ~50 such opinions picks the reel's rotation with huge margins (measured
+# 18/18 correct, top score 20-32 vs runner-up 2-4, under noise and low contrast). So OCR here
+# anchors and VALIDATES the whole reel's characters; it never vetoes a single flap alone.
+# Degrades to the other anchors when the tesseract binary is missing.
+# ---------------------------------------------------------------------------
+OCR_ANCHOR_MIN_HITS = 8    # an alignment this weak is no opinion…
+OCR_ANCHOR_DOMINANCE = 3   # …and the best shift must beat the runner-up by this factor
+_OCR_CHUNK = 16            # tiles per line read (keeps the strip a sane width)
+
+_OCR = {"checked": False, "ok": False}
+
+
+def ocr_available() -> bool:
+    if not _OCR["checked"]:
+        _OCR["checked"] = True
+        try:
+            import shutil
+
+            import pytesseract                                  # noqa: F401
+            _OCR["ok"] = shutil.which("tesseract") is not None
+        except Exception:                                       # noqa: BLE001
+            _OCR["ok"] = False
+    return _OCR["ok"]
+
+
+def _vert_filter(a: np.ndarray, k: int, op) -> np.ndarray:
+    out = a.copy()
+    for s in range(1, k + 1):
+        up = np.pad(a, ((s, 0), (0, 0)), mode="edge")[:-s]
+        dn = np.pad(a, ((0, s), (0, 0)), mode="edge")[s:]
+        out = op(op(out, up), dn)
+    return out
+
+
+def bridge_seam(a: np.ndarray, k: int) -> np.ndarray:
+    """Reconnect the two halves of a seam-cut glyph: thicken dark strokes vertically (grey
+    closing), then restore their weight. Without this, tesseract sees two half-characters."""
+    return _vert_filter(_vert_filter(a, k, np.minimum), k, np.maximum)
+
+
+def ocr_tile_opinions(tiles: list, flap_chars: str) -> dict:
+    """OCR's per-tile opinions: ``{tile_index: reel_char}`` for every tile it read a character
+    off. The tiles are composited into text LINES (chunks of ``_OCR_CHUNK``), contrast-
+    stretched, seam-bridged, binarized, upscaled, and read with the reel's glyph whitelist;
+    each recognized character is mapped back to its source tile by its box position, which
+    makes insertions/duplicates harmless. Individual opinions are WEAK (measured ~half right)
+    — only their alignment in bulk is trusted (``align_opinions``)."""
+    if not ocr_available() or not tiles:
+        return {}
+    import tempfile
+
+    import pytesseract
+
+    h, w = tiles[0].shape
+    upscale = max(2, 288 // h)
+    glyphs = "".join(sorted({physical_glyph(c) for c in flap_chars
+                             if c != " " and c not in COLOR_LETTERS} - {'"'}))
+    if not glyphs:
+        return {}
+    opinions: dict[int, str] = {}
+    for start in range(0, len(tiles), _OCR_CHUNK):
+        chunk = tiles[start:start + _OCR_CHUNK]
+        gap = max(8, h // 4)
+        xs, x = [], gap
+        strip = np.full((h, gap + len(chunk) * (w + gap)), 255.0)
+        for a in chunk:
+            lo, hi = np.percentile(a, 5), np.percentile(a, 95)
+            p = np.clip((a - lo) / max(1e-6, hi - lo), 0.0, 1.0) * 255.0
+            strip[:, x:x + w] = bridge_seam(p, max(2, h // 8))
+            xs.append((x, x + w))
+            x += w + gap
+        img = Image.fromarray(strip.astype(np.uint8), "L")
+        img = img.resize((img.width * upscale, img.height * upscale), Image.LANCZOS)
+        arr = np.asarray(img, dtype=np.float64)
+        img = Image.fromarray(np.where(arr < 128, 0, 255).astype(np.uint8), "L")
+        pad_px = 16
+        pad = Image.new("L", (img.width + 2 * pad_px, img.height + 2 * pad_px), 255)
+        pad.paste(img, (pad_px, pad_px))
+        try:
+            with tempfile.NamedTemporaryFile("w", suffix=".cfg", delete=False) as f:
+                f.write(f"tessedit_char_whitelist {glyphs}\n")
+                cfg = f.name
+            try:
+                boxes = pytesseract.image_to_boxes(pad, config=f'--psm 7 --oem 3 "{cfg}"')
+            finally:
+                import os
+                os.unlink(cfg)
+        except Exception:                                       # noqa: BLE001
+            continue
+        for line in boxes.splitlines():
+            parts = line.split()
+            if len(parts) < 5:
+                continue
+            ch = parts[0]
+            try:
+                bx0, bx1 = int(parts[1]), int(parts[3])
+            except ValueError:
+                continue
+            cx = ((bx0 + bx1) / 2 - pad_px) / upscale
+            for i, (x0, x1) in enumerate(xs):
+                if x0 - gap / 2 <= cx < x1 + gap / 2:
+                    ch = "q" if ch == '"' else ch
+                    if ch in flap_chars:
+                        opinions.setdefault(start + i, ch)      # a split glyph: first wins
+                    break
+    return opinions
+
+
+def align_opinions(opinions: dict, flap_chars: str) -> dict:
+    """The cyclic shift that best explains OCR's opinions: ``{offset_flaps, hits, votes}``
+    (``analyze_sweep`` sign convention). ``offset_flaps`` is None unless the best shift has
+    both enough hits and clear dominance over the runner-up — weak evidence ABSTAINS."""
+    n = len(flap_chars)
+    if not opinions or n < 2:
+        return {"offset_flaps": None, "hits": 0, "votes": len(opinions)}
+    scores = [sum(1 for k, v in opinions.items() if flap_chars[(k + s) % n] == v)
+              for s in range(n)]
+    srt = sorted(scores)
+    top, second = srt[-1], srt[-2]
+    if top < OCR_ANCHOR_MIN_HITS or top < OCR_ANCHOR_DOMINANCE * max(1, second):
+        return {"offset_flaps": None, "hits": int(top), "votes": len(opinions)}
+    s = int(np.argmax(scores))
+    return {"offset_flaps": s if s <= n // 2 else s - n, "hits": int(top),
+            "votes": len(opinions)}
+
+
+def ocr_shift(sweep_tiles: list, flap_chars: str) -> dict:
+    """The OCR anchor over a whole sweep: read the tiles as lines, align the opinions."""
+    return align_opinions(ocr_tile_opinions(sweep_tiles, flap_chars), flap_chars)
+
+
 def consensus_shift(sweep_tiles: list, flap_chars: str) -> dict:
     """The INDEPENDENT absolute anchor: which cyclic shift of the reel best explains the whole
     sweep, judged against rendered references. Each per-glyph match is weak (the wall's font
@@ -480,30 +620,41 @@ def calibrate_module_learned(capture_index, adjust, flap_chars: str, total_steps
         return out, found
 
     def learn_and_anchor(tiles):
-        """``learn_reel`` + ``consensus_shift`` and the agreement rules. Returns
-        ``(lib, offset, conf, used)`` — ``used`` is how the rotation was decided:
-        blank alone (consensus abstained), both in agreement, font rescue of an ambiguous
-        blank (the library is then relabelled), or conflict/none (don't proceed)."""
+        """``learn_reel`` + the independent anchors and their agreement rules. Returns
+        ``(lib, offset, conf, used)`` — ``used`` says how the rotation was decided: the names
+        of the agreeing confident anchors joined by '+' (e.g. "blank+ocr"), or "conflict"
+        (confident anchors disagree) / "none" (every anchor abstained) — don't proceed on
+        either. When the blank didn't vote (colour flaps are just as flat), the agreeing
+        anchors RESCUE the labelling and the library is relabelled to their rotation."""
         lib = learn_reel(tiles, flap_chars)
-        anchor = consensus_shift(tiles, flap_chars)
-        b_off, b_conf = lib["offset_flaps"], lib["confidence"]
-        f_off = anchor["offset_flaps"]
-        if b_conf >= confidence_min and (f_off is None or f_off == b_off):
-            used, offset, conf = ("blank" if f_off is None else "both"), b_off, b_conf
-        elif b_conf >= confidence_min:
-            used, offset, conf = "conflict", b_off, b_conf   # two confident, two answers
-        elif f_off is not None:
-            # the blank is ambiguous (colour flaps are just as flat) — the consensus rescues
-            # it, and the library is relabelled to the rotation the consensus picked
-            used, offset, conf = "font", f_off, anchor["confidence"]
-            lib["templates"] = {flap_chars[(i + offset) % n]: glyph_pool(tiles[i])
-                                for i in range(n)}
-            lib["blankness"] = {flap_chars[(i + offset) % n]: tile_blankness(tiles[i])
-                                for i in range(n)}
+        shape = consensus_shift(tiles, flap_chars)
+        ocr = ocr_shift(tiles, flap_chars)
+        votes = {}
+        if lib["confidence"] >= confidence_min:
+            votes["blank"] = lib["offset_flaps"]
+        if shape["offset_flaps"] is not None:
+            votes["font"] = shape["offset_flaps"]
+        if ocr["offset_flaps"] is not None:
+            votes["ocr"] = ocr["offset_flaps"]
+        data = {"blank": lib["offset_flaps"], "font": shape["offset_flaps"],
+                "ocr": ocr["offset_flaps"], "ocr_hits": ocr["hits"],
+                "confidence": lib["confidence"]}
+        if not votes:
+            used, offset, conf = "none", lib["offset_flaps"], lib["confidence"]
+        elif len(set(votes.values())) > 1:
+            used, offset, conf = "conflict", lib["offset_flaps"], lib["confidence"]
         else:
-            used, offset, conf = "none", b_off, b_conf
-        say("anchor", {"blank": b_off, "font": f_off, "used": used,
-                       "confidence": anchor["confidence"]})
+            used = "+".join(k for k in ("blank", "font", "ocr") if k in votes)
+            offset = next(iter(votes.values()))
+            conf = lib["confidence"] if "blank" in votes else \
+                (shape["confidence"] if "font" in votes
+                 else round(min(1.0, ocr["hits"] / 16), 4))
+            if offset != lib["offset_flaps"]:
+                lib["templates"] = {flap_chars[(i + offset) % n]: glyph_pool(tiles[i])
+                                    for i in range(n)}
+                lib["blankness"] = {flap_chars[(i + offset) % n]: tile_blankness(tiles[i])
+                                    for i in range(n)}
+        say("anchor", {**data, "used": used})
         return lib, offset, conf, used
 
     # -- 1. the learning sweep ------------------------------------------------
@@ -619,14 +770,15 @@ def calibrate_module_learned(capture_index, adjust, flap_chars: str, total_steps
         history.append({"round": len(history), "offset_flaps": offset,
                         "sub_flap": round(sub, 4), "confidence": conf})
 
-    # -- 4. verify EVERY flap by identity -------------------------------------
+    # -- 4. verify EVERY flap by identity, then OCR reads the reel back --------
     say("verify_start", {"flaps": n})
     verify_rolls = (-1, 0, 1)      # the library is at TODAY's registration; allow jitter only
-    shifts, flagged = [], []
+    shifts, flagged, vtiles = [], [], []
     for i in range(n):
         if aborted():
             return fail("failed", len(history), reason="aborted")
         t = capture_index(i)
+        vtiles.append(t)
         expected = flap_chars[i]
         if is_flat(expected):
             # no glyph to identify on the blank/colour flaps; prove a flat flap is presenting
@@ -647,17 +799,33 @@ def calibrate_module_learned(capture_index, adjust, flap_chars: str, total_steps
             flagged.append(i)
     consistent_shift = int(np.median(shifts)) if shifts else 0
     blank_ok = blank_index not in flagged
-    say("reel_verified" if (not flagged and not skips) else "reel_issues",
+
+    # OCR validates WHICH characters the verified reel is showing — in bulk, where it is
+    # measured-strong (a lone glyph opinion never vetoes a flap; the alignment of many does).
+    ops = ocr_tile_opinions(vtiles, flap_chars)
+    ver = align_opinions(ops, flap_chars)
+    ocr_ok = ver["offset_flaps"] in (None, 0)
+    if ocr_available():
+        say("ocr_check", {"shift": ver["offset_flaps"], "hits": ver["hits"],
+                          "votes": ver["votes"], "ok": ocr_ok})
+    for i in flagged:
+        if i in ops:            # a disputed flap: give OCR's reading of it too
+            say("verify_ocr", {"flap": i, "expected": flap_chars[i], "ocr": ops[i]})
+
+    say("reel_verified" if (not flagged and not skips and ocr_ok) else "reel_issues",
         {"skips": len(skips) + len(flagged), "blank_ok": blank_ok})
 
-    aligned = consistent_shift == 0 and not flagged and not skips and abs(sub) < 0.08
+    aligned = (consistent_shift == 0 and not flagged and not skips
+               and abs(sub) < 0.08 and ocr_ok)
     status = ("aligned" if applied == 0 else "adjusted") if aligned else \
-             ("failed" if consistent_shift != 0 else "needs_review")
+             ("failed" if (consistent_shift != 0 or not ocr_ok) else "needs_review")
     out = fail(status, len(history),
                final={"offset_flaps": consistent_shift, "sub_flap": round(sub, 4),
                       "confidence": conf, **evidence})
     out["reel_check"] = {"ok": aligned, "skips": skips, "blank_ok": blank_ok,
-                         "flagged": flagged}
+                         "flagged": flagged,
+                         "ocr": {"shift": ver["offset_flaps"], "hits": ver["hits"],
+                                 "votes": ver["votes"]}}
     return out
 
 
