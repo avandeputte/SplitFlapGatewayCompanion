@@ -3,6 +3,24 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.10
+
+- **Auto-calibrate now verifies every flap by identity.** One sweep teaches the module its own
+  reel — its actual print, under this camera and light, no font assumed — and the final pass then
+  dials every flap and checks the glyph that shows IS the glyph that was dialed: “dialed flap 2
+  (“B”) — saw “B” ✓”, or “saw “C” instead” flagged by name. “Saw ink” is gone as a verdict.
+- **The rotation is pinned by two independent anchors** that must agree: the blank (by flatness)
+  and a glyph-shape consensus against rendered references. Disagreement flags the module instead
+  of guessing, and the consensus rescues reels where colour flaps (the white one especially) look
+  exactly as blank as the blank.
+- **Corrected modules are re-swept and re-anchored** before the final verify, so the proof always
+  runs against the wall as it stands — and a module only counts as done when that fresh pass says
+  zero.
+- **OCR was evaluated and rejected on the evidence**: tesseract read seam-cut flap glyphs at best
+  6/22, with confidently wrong answers (a seam-cut E really does look like “=”). Glyph matching
+  does the verifying; no OCR dependency ships.
+- The “Check every flap” tickbox is gone — verification is always on.
+
 ## 2.12.0-beta.9
 
 - **Auto-calibrate checks its own work.** After each module is re-homed, the camera confirms the
