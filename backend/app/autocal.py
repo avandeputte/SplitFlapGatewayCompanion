@@ -200,10 +200,23 @@ def _vroll(t: np.ndarray, dy: int) -> np.ndarray:
 GLYPH_SEAM_BAND = 3   # pixel rows masked either side of a seam position when comparing
 
 
+def _canon(tile: np.ndarray) -> np.ndarray:
+    """Resize a tile to the canonical ``(TILE_H, TILE_W)`` shape used for RECOGNITION only, so
+    glyphs compare like-for-like no matter the captured tile's real width (which now varies with
+    the wall's module aspect — see ``_module_tile_w``). Blankness/stroke/centroid stay on the
+    real-aspect tile; only the glyph match is normalised."""
+    if tile.shape == (TILE_H, TILE_W):
+        return tile
+    im = Image.fromarray(np.clip(tile, 0, 255).astype(np.uint8), "L").resize(
+        (TILE_W, TILE_H), Image.LANCZOS)
+    return np.asarray(im, dtype=np.float32)
+
+
 def glyph_pool(tile: np.ndarray) -> np.ndarray:
-    """The stored form of a glyph reference: the 2x2-pooled tile, raw (masking and
-    normalisation happen per comparison, because the seam mask depends on the roll)."""
-    return _pool2(tile)
+    """The stored form of a glyph reference: the 2x2-pooled tile at the canonical recognition
+    size (masking and normalisation happen per comparison, because the seam mask depends on the
+    roll)."""
+    return _pool2(_canon(tile))
 
 
 def _seam_mask(pool_h: int, dys) -> np.ndarray:
@@ -241,6 +254,7 @@ def identify(tile: np.ndarray, templates: dict, rolls=(0,)) -> tuple[str, float,
     that shared shift is rolled out (the seam, which does NOT move with the glyph, is masked
     at both its positions). The best-scoring roll wins, margin judged within it."""
     best = ("?", -1e9, 0.0)
+    tile = _canon(tile)                            # recognition always on the canonical shape
     for dy in rolls:
         cap = _pool2(_vroll(tile, dy))
         keep = _seam_mask(cap.shape[0], (0, dy))
