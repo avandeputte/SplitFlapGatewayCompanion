@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.19
+
+- Debug: a **broadcast** endpoint that shows a flap index on every module at once, so one sweep
+  captures the whole board. Toward whole-board calibration — aligning all modules from one sweep
+  by cross-correlation (no per-module blank detection) and voting across modules for a
+  skip-and-glare-robust font library.
+
 ## 2.12.0-beta.18
 
 - **Fixes a crash in recognition on the aspect-correct tiles.** The rectified tile width now

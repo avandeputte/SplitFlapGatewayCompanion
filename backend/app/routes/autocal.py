@@ -259,6 +259,18 @@ def build(deps):
         return {"ok": True, "id": req.id, "index": req.index,
                 "flap_chars": chars, "analysis": analyze_tile(tile, chars)}
 
+    @router.post("/api/autocal/debug/broadcast")
+    async def debug_broadcast(req: DebugCmdReq):
+        """Broadcast 'show flap ``index``' to EVERY module at once (gateway ``id:-1``), wait the
+        settle, and return nothing — the caller then reads each module's tile. One broadcast
+        sweep captures the whole board, so 15 modules cost one sweep, not fifteen."""
+        run = _debug_run()
+        if req.index is None:
+            raise HTTPException(422, "index required for a broadcast")
+        await gateway.flap_show_index(run.gateway_url, -1, int(req.index))
+        await asyncio.sleep(run.settle_s)
+        return {"ok": True, "index": int(req.index)}
+
     @router.post("/api/autocal/debug/nudge")
     async def debug_nudge(req: DebugNudgeReq):
         run = _debug_run()
