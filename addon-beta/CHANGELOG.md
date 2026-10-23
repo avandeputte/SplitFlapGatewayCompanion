@@ -3,6 +3,14 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.6
+
+- **Auto-calibrate: the live status now matches the wall.** It used to say “showing ‘X’”, but on a
+  module that isn't calibrated yet the wall isn't showing that character (that's the thing being
+  fixed), and it changed faster than the screen refreshed — so it didn't match what you saw. It now
+  reports a plain phase per module (“reading the reel” / “adjusting”) and the page updates twice a
+  second.
+
 ## 2.12.0-beta.5
 
 - **Auto-calibrate is much faster.** It waited a flat ~4 s (a full-revolution worst case) after
