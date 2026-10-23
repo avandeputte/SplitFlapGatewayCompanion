@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.15
+
+- **Fixed: every module reported “not ready — no EEPROM dump.”** The firmware step-count
+  measurement spins the reel and leaves the module briefly unable to answer a bus query, so
+  reading its EEPROM right after came back empty. The reel is now read **before** any
+  maintenance, the step count is re-measured **only when it isn’t already known** (no needless
+  re-spin of a calibrated reel), and a stale read is retried.
+- **New: on-device debug tools.** A **Debug (MCP)** button on the Calibrate page streams camera
+  frames with the calibration loop off, so the wall can be driven step by step from MCP (or REST)
+  against the real camera: command a flap and read back the **actual captured tile** — the image
+  plus every measurement (ink, blankness, centroid, the glyph identification, OCR’s opinion) —
+  plus nudge / home / re-measure / read-EEPROM. This is for tuning the recognition on the real
+  font and lighting, which a simulator can’t stand in for.
+
 ## 2.12.0-beta.14
 
 - **Fixed: the home search could step over the blank.** Stepping a whole flap at a time kept the
