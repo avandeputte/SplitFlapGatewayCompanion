@@ -31,6 +31,10 @@ import asyncio
 import logging
 
 from mcp.server import MCPServer
+# ToolError = a refusal whose MESSAGE IS FOR THE CLIENT MODEL to read and act on. Newer mcp
+# (>=2.1) masks every other exception as a bare "Error executing tool <name>" — a plain
+# ValueError's text never reaches the client — so every deliberate refusal below raises this.
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 
 from . import gateway, renderer, vestaboard
@@ -71,7 +75,7 @@ def build(displays) -> MCPServer:
         d = displays.get(display)
         if d is None:
             known = ", ".join(displays.ids())
-            raise ValueError(f"no such display: {display!r} (known: {known})")
+            raise ToolError(f"no such display: {display!r} (known: {known})")
         return d
 
     def _grid(d) -> tuple[int, int]:
@@ -178,7 +182,7 @@ def build(displays) -> MCPServer:
         Without `seconds`, returns once the flaps have landed on the message.
         """
         if style and style not in renderer.ALL_STYLES:
-            raise ValueError(
+            raise ToolError(
                 f"unknown style {style!r} — one of: {', '.join(renderer.ALL_STYLES)}")
         d = _res(display)
         rows, cols = _grid(d)
@@ -251,7 +255,7 @@ def build(displays) -> MCPServer:
         try:
             await d.controller.run_app(app_id)
         except KeyError:
-            raise ValueError(f"app not installed: {app_id}")
+            raise ToolError(f"app not installed: {app_id}")
         d.ha.publish_state()
         return {"ok": True, "active_app": app_id, "display": d.id}
 
@@ -270,7 +274,7 @@ def build(displays) -> MCPServer:
         try:
             return {"app_id": app_id, "settings": d.plugins.app_settings_public(app_id)}
         except KeyError:
-            raise ValueError(f"app not installed: {app_id}")
+            raise ToolError(f"app not installed: {app_id}")
 
     @mcp.tool()
     async def configure_app(app_id: str, settings: dict, display: str = "") -> dict:
@@ -289,14 +293,14 @@ def build(displays) -> MCPServer:
         try:
             valid = {f["name"] for f in d.plugins.app_settings_public(app_id)}
         except KeyError:
-            raise ValueError(f"app not installed: {app_id}")
+            raise ToolError(f"app not installed: {app_id}")
         if not isinstance(settings, dict) or not settings:
-            raise ValueError("settings must be a non-empty object of name -> value")
+            raise ToolError("settings must be a non-empty object of name -> value")
 
         unknown = [k for k in settings if k.lstrip("_") not in valid
                    and k.replace(f"plugin_{app_id}_", "") not in valid]
         if unknown:
-            raise ValueError(f"unknown setting(s) for {app_id}: {', '.join(unknown)} — "
+            raise ToolError(f"unknown setting(s) for {app_id}: {', '.join(unknown)} — "
                              f"valid names: {', '.join(sorted(valid))}")
 
         # Store under the plugin_<id>_ keys the settings store expects.
@@ -339,10 +343,10 @@ def build(displays) -> MCPServer:
         saved = d.settings.get("saved_app_playlists", {}) or {}
         pl = saved.get(name) or d.plugins.builtin_playlists().get(name)
         if not pl:
-            raise ValueError(f"no such playlist: {name}")
+            raise ToolError(f"no such playlist: {name}")
         entries = pl.get("entries") or []
         if not entries:
-            raise ValueError(f"playlist {name!r} has no entries")
+            raise ToolError(f"playlist {name!r} has no entries")
         await d.controller.run_playlist(entries, pl.get("loop", True), name)
         d.ha.publish_state()
         return {"ok": True, "active_playlist": d.controller.active_playlist, "display": d.id}
@@ -384,7 +388,7 @@ def build(displays) -> MCPServer:
         d = _res(display)
         caps = d.controller._caps()
         if not getattr(caps, f"can_{need}", False):
-            raise ValueError(f"this display's gateway does not advertise the {need!r} "
+            raise ToolError(f"this display's gateway does not advertise the {need!r} "
                              "capability (a Matrix Gateway feature)")
         return d, str(d.config.transport.get("gateway_url") or "").strip()
 
@@ -397,7 +401,7 @@ def build(displays) -> MCPServer:
         _d, url = _timer_wall(display)
         st = await asyncio.to_thread(gateway.timer_get, url)
         if not st:
-            raise ValueError("the gateway did not answer /api/timer")
+            raise ToolError("the gateway did not answer /api/timer")
         return {"active": bool(st.get("active")), "remaining_seconds": int(st.get("remaining") or 0),
                 "alarm_firing": bool(st.get("alarmFiring"))}
 
@@ -406,11 +410,11 @@ def build(displays) -> MCPServer:
         """Start the on-device kitchen countdown (1 second .. 24 hours). The panel shows
         it and beeps at zero; it replaces any countdown already running."""
         if not 1 <= int(seconds) <= 86400:
-            raise ValueError("seconds must be 1 .. 86400 (24 h)")
+            raise ToolError("seconds must be 1 .. 86400 (24 h)")
         _d, url = _timer_wall(display)
         got = await asyncio.to_thread(gateway.timer_start, url, int(seconds))
         if not got.get("ok"):
-            raise ValueError("the gateway refused the timer (1 s .. 24 h)")
+            raise ToolError("the gateway refused the timer (1 s .. 24 h)")
         return {"ok": True, "remaining_seconds": int(got.get("remaining") or seconds)}
 
     @mcp.tool()
@@ -419,7 +423,7 @@ def build(displays) -> MCPServer:
         the firmware couples them, so this is also 'silence the alarm')."""
         _d, url = _timer_wall(display)
         if not await asyncio.to_thread(gateway.timer_stop, url):
-            raise ValueError("the gateway did not answer /api/timer")
+            raise ToolError("the gateway did not answer /api/timer")
         return {"ok": True}
 
     @mcp.tool()
@@ -429,7 +433,7 @@ def build(displays) -> MCPServer:
         _d, url = _timer_wall(display, "alarms")
         slots = await asyncio.to_thread(gateway.alarms_get, url)
         if not slots:
-            raise ValueError("the gateway did not answer /api/alarms")
+            raise ToolError("the gateway did not answer /api/alarms")
         return [{"slot": i, "time": s.get("time", "07:00"),
                  "days": gateway.mask_to_days(int(s.get("days") or 0x7F)),
                  "enabled": bool(s.get("enabled"))} for i, s in enumerate(slots)]
@@ -441,20 +445,20 @@ def build(displays) -> MCPServer:
         `days` is 'daily', 'weekdays', 'weekends' or day names like 'mon,wed,fri'.
         The other slots are left as they are."""
         if not 0 <= int(slot) <= 3:
-            raise ValueError("slot must be 0 .. 3")
+            raise ToolError("slot must be 0 .. 3")
         import re
         if not re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d", str(time).strip()):
-            raise ValueError("time must be HH:MM (24-hour)")
+            raise ToolError("time must be HH:MM (24-hour)")
         mask = gateway.days_to_mask(days)
         _d, url = _timer_wall(display, "alarms")
         slots = await asyncio.to_thread(gateway.alarms_get, url)
         if not slots:
-            raise ValueError("the gateway did not answer /api/alarms")
+            raise ToolError("the gateway did not answer /api/alarms")
         while len(slots) < 4:
             slots.append({"time": "07:00", "days": 0x7F, "enabled": False})
         slots[int(slot)] = {"time": str(time).strip(), "days": mask, "enabled": bool(enabled)}
         if not await asyncio.to_thread(gateway.alarms_set, url, slots):
-            raise ValueError("the gateway refused the alarm update")
+            raise ToolError("the gateway refused the alarm update")
         return {"ok": True, "slot": int(slot), "time": str(time).strip(),
                 "days": gateway.mask_to_days(mask), "enabled": bool(enabled)}
 
@@ -490,24 +494,25 @@ def build(displays) -> MCPServer:
                 gateway.apply_settings_patch,
                 str(d.config.transport.get("gateway_url") or "").strip(),
                 d.controller._caps(), patch)
-        except (LookupError, RuntimeError) as e:
-            raise ValueError(str(e))
+        except (LookupError, RuntimeError, ValueError) as e:
+            # the patch helper's refusals (capability missing, bad values) are for the client
+            raise ToolError(str(e))
         return {"ok": True, "applied": applied}
 
     @mcp.tool()
     async def clear_alarm(slot: int, display: str = "") -> dict:
         """Disable one alarm slot (0-3). The slot keeps its time and days for later."""
         if not 0 <= int(slot) <= 3:
-            raise ValueError("slot must be 0 .. 3")
+            raise ToolError("slot must be 0 .. 3")
         _d, url = _timer_wall(display, "alarms")
         slots = await asyncio.to_thread(gateway.alarms_get, url)
         if not slots:
-            raise ValueError("the gateway did not answer /api/alarms")
+            raise ToolError("the gateway did not answer /api/alarms")
         while len(slots) < 4:
             slots.append({"time": "07:00", "days": 0x7F, "enabled": False})
         slots[int(slot)]["enabled"] = False
         if not await asyncio.to_thread(gateway.alarms_set, url, slots):
-            raise ValueError("the gateway refused the alarm update")
+            raise ToolError("the gateway refused the alarm update")
         return {"ok": True, "slot": int(slot)}
 
     # --- webcam auto-calibration (monitor + safety control) -----------------
@@ -549,7 +554,7 @@ def build(displays) -> MCPServer:
         import app.main as _main
         run = _main.autocal_run
         if run is None:
-            raise ValueError("no calibration run to revert")
+            raise ToolError("no calibration run to revert")
         run.revert()
         return {"ok": True}
 
