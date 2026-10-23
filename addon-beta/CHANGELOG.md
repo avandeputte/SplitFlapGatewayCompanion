@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.13
+
+- **Auto-calibrate now works the way you do at the wall — no reel survey.** The firmware
+  measures Total Steps first, the module is homed, and the camera reads what’s showing: a letter
+  means the offset overshot the blank, a colour or symbol means it fell short. It steps a whole
+  flap at a time to the blank (found by its one reliable signature — a bright, empty flap whose
+  next flap is a letter), centres it, then dials every character and reads it back.
+- **Recognition only ever answers a local question** (“is this the dialed flap, a neighbour, or
+  a flat flap?”), which is far sturdier than reading the whole reel; glyph reads never steer the
+  home offset — the blank does. OCR still reads the finished reel back as the whole-reel check.
+- This replaces the learn-the-whole-reel approach that kept misreading on the live wall. The run
+  is deterministic: it finds the blank within one revolution whatever the hardware’s nudge
+  direction, and a flap it can’t confirm is flagged for a look, never chased into oscillation.
+
 ## 2.12.0-beta.12
 
 - **Auto-calibrate now uses OCR** — deployed the way it measures strongest: tesseract reads each
