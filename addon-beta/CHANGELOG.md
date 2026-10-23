@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.5
+
+- **Auto-calibrate is much faster.** It waited a flat ~4 s (a full-revolution worst case) after
+  *every* camera read, even a one-flap step. A split-flap only turns forward, so it now waits only
+  as long as the reel actually moves — a +1 step is a fraction of a second. A module that falls back
+  to a full-reel scan drops from minutes to tens of seconds, and a normal module to a few seconds.
+
 ## 2.12.0-beta.4
 
 - **Auto-calibrate shows what it's doing.** While a run is going the page says e.g.
