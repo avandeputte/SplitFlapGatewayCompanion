@@ -197,8 +197,11 @@ def find_blank(capture_index, n: int, blank_index: int = 0, notify=None) -> tupl
     the blank. An already-aligned module is found in a handful of captures instead of a full
     sweep; one that is off by k flaps costs about k more.
 
-    Returns ``(offset_flaps, confidence, blank_cmd_index)`` with the same sign convention as
-    ``analyze_sweep``: commanding index ``i`` currently shows reel flap ``(i + offset_flaps)``.
+    Returns ``(offset_flaps, confidence, blank_cmd_index, evidence)`` — sign convention as in
+    ``analyze_sweep`` (commanding ``i`` currently shows reel flap ``i + offset_flaps``), and
+    ``evidence`` = ``{baseline, blank_ink}``: what a printed flap vs the blank measured as, so a
+    later check (did the re-home REALLY land on the blank?) can judge a new capture by the same
+    yardstick instead of a hard-coded threshold.
     """
     seen: dict[int, float] = {}
     say = notify or (lambda kind, data: None)
@@ -227,7 +230,54 @@ def find_blank(capture_index, n: int, blank_index: int = 0, notify=None) -> tupl
     conf = max(0.0, min(1.0, (baseline - best_ink) / baseline)) if baseline > 1e-6 else 0.0
     offset = (blank_index - best_i) % n
     signed = offset if offset <= n // 2 else offset - n
-    return signed, round(conf, 4), best_i
+    return signed, round(conf, 4), best_i, {"baseline": round(baseline, 4),
+                                            "blank_ink": round(best_ink, 4)}
+
+
+def looks_blank(ink: float, evidence: dict) -> bool:
+    """Judge a NEW capture by the module's own measured yardstick: closer to its blank's ink
+    than to its printed-flap baseline. Used to verify a re-home really landed on the blank."""
+    base = float(evidence.get("baseline", 0.0))
+    blank = float(evidence.get("blank_ink", 0.0))
+    if base <= blank + 1e-6:
+        return False
+    return ink < blank + 0.5 * (base - blank)
+
+
+def verify_reel(capture_index, flap_chars: str, *, notify=None, should_abort=None) -> dict:
+    """The full-reel check: step EVERY flap once and prove each step presented a NEW flap.
+
+    A skipped/stuck flap shows the same image on two consecutive commands — two reads that are
+    near-identical (strict threshold: only sensor noise apart) mark a suspect. The blank must
+    also land exactly at its reel index, and nowhere else as the minimum. Costs one step per
+    flap, so it's optional — but it is the only thing that catches a flap being skipped."""
+    say = notify or (lambda kind, data: None)
+    n = len(flap_chars)
+    blank_index = flap_chars.index(" ") if " " in flap_chars else 0
+    say("verify_start", {"flaps": n})
+    inks: list[float] = []
+    prev = None
+    skips: list[int] = []
+    for i in range(n):
+        if should_abort is not None and should_abort():
+            return {"ok": False, "reason": "aborted", "skips": skips, "blank_ok": False}
+        tile = capture_index(i)
+        ink = tile_ink(tile)
+        inks.append(ink)
+        say("probe", {"flap": i, "ink": round(ink, 3)})
+        # Identical to the PREVIOUS flap's read = this step presented nothing new. Strict
+        # threshold: truly the same physical flap differs only by noise. (Caveat: two colour
+        # flaps of near-equal brightness could read close in grayscale — a suspect is a flag
+        # for a human look, not a verdict.)
+        if prev is not None and float(np.mean(np.abs(_pool4(prev) - _pool4(tile)))) < 2.0:
+            skips.append(i - 1)
+            say("skip_suspect", {"flap": i - 1})
+        prev = tile
+    blank_ok = int(np.argmin(inks)) == blank_index
+    ok = blank_ok and not skips
+    say("reel_verified" if ok else "reel_issues",
+        {"skips": len(skips), "blank_ok": blank_ok})
+    return {"ok": ok, "skips": skips, "blank_ok": blank_ok}
 
 
 def calibrate_module_fast(capture_index, adjust, flap_chars: str,
@@ -252,19 +302,28 @@ def calibrate_module_fast(capture_index, adjust, flap_chars: str,
     spf = steps_per_flap(total_steps, n)
     sign, applied, prev_err = 1, 0, None
     history: list[dict] = []
-    say = notify or (lambda kind, data: None)   # the live event feed the UI narrates from
+    _raw_say = notify or (lambda kind, data: None)
+
+    def say(kind, data):
+        # Every probe line carries WHAT WAS DIALED (the flap index and the character that index
+        # should hold) next to what the camera saw — the dialed-vs-seen detail the log lives on.
+        if kind == "probe" and "flap" in data:
+            data = {**data, "char": flap_chars[data["flap"] % n]}
+        _raw_say(kind, data)
 
     for rnd in range(max_rounds):
         if should_abort is not None and should_abort():
             return {"status": "failed", "reason": "aborted", "rounds": rnd,
                     "applied_steps": applied, "history": history}
 
-        offset, conf, blank_cmd = find_blank(capture_index, n, blank_index, notify=say)
+        offset, conf, blank_cmd, evidence = find_blank(capture_index, n, blank_index, notify=say)
         if conf < confidence_min:
             # Ambiguous — spend a full sweep on this one module and trust analyze_sweep.
             say("fallback", {})
             res = analyze_sweep([capture_index(i) for i in range(n)], flap_chars)
             offset, conf, sub = res["offset_flaps"], res["confidence"], res["sub_flap"]
+            srt = sorted(res["inks"])
+            evidence = {"baseline": srt[len(srt) // 2], "blank_ink": srt[0]}
             if conf < confidence_min:
                 return {"status": "needs_review", "rounds": rnd + 1, "applied_steps": applied,
                         "final": {"offset_flaps": offset, "sub_flap": sub, "confidence": conf},
@@ -283,7 +342,8 @@ def calibrate_module_fast(capture_index, adjust, flap_chars: str,
         if aligned:
             return {"status": "aligned" if rnd == 0 else "adjusted", "rounds": rnd + 1,
                     "applied_steps": applied,
-                    "final": {"offset_flaps": offset, "sub_flap": round(sub, 4), "confidence": conf},
+                    "final": {"offset_flaps": offset, "sub_flap": round(sub, 4),
+                              "confidence": conf, **evidence},
                     "history": history}
         if prev_err is not None and abs(err) > abs(prev_err) + 0.02:
             sign = -sign
@@ -293,12 +353,13 @@ def calibrate_module_fast(capture_index, adjust, flap_chars: str,
         applied += delta
         prev_err = err
 
-    offset, conf, blank_cmd = find_blank(capture_index, n, blank_index, notify=say)
+    offset, conf, blank_cmd, evidence = find_blank(capture_index, n, blank_index, notify=say)
     sub = tile_v_centroid(capture_index((blank_cmd + 1) % n)) - 0.5
     aligned = offset == 0 and abs(sub) < 0.08
     return {"status": "adjusted" if aligned else "failed", "rounds": max_rounds,
             "applied_steps": applied,
-            "final": {"offset_flaps": offset, "sub_flap": round(sub, 4), "confidence": conf},
+            "final": {"offset_flaps": offset, "sub_flap": round(sub, 4),
+                      "confidence": conf, **evidence},
             "history": history}
 
 
@@ -317,20 +378,25 @@ class CalibrationSession:
                                   reel and saves the offset instantly);
       - ``restore(id, steps)`` -> write an ABSOLUTE home offset back and re-home so it takes
                                   effect (only used by ``revert``);
-      - ``park_fn(id)``        -> leave a finished module on its blank (home).
+      - ``park_fn(id)``        -> leave a finished module on its blank (home);
+      - ``peek_fn(id)``        -> the module's CURRENT tile, commanding nothing — how the
+                                  post-home check confirms the blank is really showing.
     ``snapshot`` records each module's saved offset (from its own EEPROM, via ``meta_fn``) as its
-    turn comes, so ``revert()`` undoes exactly what the run touched.
+    turn comes, so ``revert()`` undoes exactly what the run touched. With ``verify`` on, every
+    calibrated module gets a FULL-REEL pass (one step per flap) that catches skipped flaps.
     """
 
     def __init__(self, modules, *, meta_fn, capture_index, adjust, restore, park_fn=None,
-                 log_fn=None):
+                 peek_fn=None, log_fn=None, verify=True):
         self.modules = list(modules)
         self._meta = meta_fn
         self._capture_index = capture_index
         self._adjust = adjust
         self._restore = restore
         self._park = park_fn
+        self._peek = peek_fn
         self._log = log_fn or (lambda mid, kind, data: None)
+        self.verify = verify
         self._abort = False
         self.snapshot: dict[int, int] = {}
         self.results: dict[int, dict] = {}
@@ -369,14 +435,37 @@ class CalibrationSession:
                 meta["flap_chars"], meta["total_steps"], should_abort=lambda: self._abort,
                 notify=lambda kind, data, mid=mid: self._log(mid, kind, data))
             self.results[mid] = res
+            # The full-reel pass: prove every flap presents (catches skipped/stuck flaps, which
+            # the alignment check alone cannot see). Only worth running on a module that just
+            # measured good; a bad one is already flagged.
+            if self.verify and not self._abort and res["status"] in ("aligned", "adjusted"):
+                chars = meta["flap_chars"]
+                check = verify_reel(
+                    lambda i, mid=mid: self._capture_index(mid, i), chars,
+                    should_abort=lambda: self._abort,
+                    notify=lambda kind, data, mid=mid, chars=chars: self._log(
+                        mid, kind,
+                        {**data, "char": chars[data["flap"] % len(chars)]}
+                        if kind in ("probe", "skip_suspect") and "flap" in data else data))
+                res["reel_check"] = check
+                if not check["ok"] and check.get("reason") != "aborted":
+                    res["status"] = "needs_review"
             self._log(mid, "result", {"status": res["status"],
                                       "applied_steps": res.get("applied_steps", 0)})
-            # A finished module ends on its blank (a home), not whatever flap the last read
-            # landed on — the wall goes visibly clean, module by module, and the re-home
-            # confirms the hall sync, as the calibration doc's "always finish with Home" says.
+            # A finished module ends on its blank (a home) — and the run then LOOKS at it: a
+            # re-home that lands on a printed flap is reported, never assumed fine. (A module
+            # once reported "homed" while visibly showing a glyph; this check is why.)
             if self._park is not None and not self._abort:
                 self._park(mid)
-                self._log(mid, "parked", {})
+                if self._peek is not None:
+                    ink = tile_ink(self._peek(mid))
+                    ok = looks_blank(ink, res.get("final", {}))
+                    self._log(mid, "park_check", {"ok": ok, "ink": round(ink, 3)})
+                    if not ok:
+                        res["status"] = "needs_review"
+                        res["park_failed"] = True
+                else:
+                    self._log(mid, "parked", {})
         self.done = not self._abort
         return self.progress
 
@@ -400,7 +489,7 @@ class CalibrationSession:
 # gateway — see test_autocal.py.
 # ---------------------------------------------------------------------------
 class AutocalRun:
-    def __init__(self, *, gateway_url, corners, rows, cols, modules, settle_s=4.0,
+    def __init__(self, *, gateway_url, corners, rows, cols, modules, settle_s=4.0, verify=True,
                  loop=None, commander=None, adjuster=None, restorer=None, capture=None, meta=None):
         # modules: [{id, grid_index}] — the reel/offset is fetched lazily per module (meta).
         self.gateway_url = gateway_url
@@ -426,7 +515,7 @@ class AutocalRun:
             [{"id": m["id"], "grid_index": m["grid_index"]} for m in modules],
             meta_fn=self._meta, capture_index=self._capture_index,
             adjust=self._adjust, restore=self._restore, park_fn=self._park,
-            log_fn=self._log_event)
+            peek_fn=self._peek, log_fn=self._log_event, verify=verify)
 
     def _log_event(self, mid, kind, data) -> None:
         """One line of the live narration: what the run measured / did on which module. The UI
@@ -566,11 +655,22 @@ class AutocalRun:
             time.sleep(0.1)
         raise RuntimeError("camera stream stopped — calibration halted")
 
+    def _settled_tile(self, gi):
+        """A read PROVEN settled: two consecutive fresh frames whose tile agrees. A flap in
+        flight smears and changes frame to frame; a settled one differs only by sensor noise."""
+        tile, ts = self._fresh_tile(gi, time.time())
+        deadline = time.time() + 2.5
+        while time.time() < deadline:
+            nxt, ts = self._fresh_tile(gi, ts + 1e-6)
+            if tiles_similar(tile, nxt):
+                return nxt
+            tile = nxt
+        return tile      # still changing — use the last read; the loop re-measures anyway
+
     def _capture_index(self, mid, i):
         """Command module ``mid`` to flap ``i`` and return its tile — only once the flap has
-        VERIFIABLY settled. After the motion-time estimate, we require two consecutive fresh
-        frames whose tile agrees: a flap in flight smears and changes frame to frame, a settled
-        one differs only by sensor noise. A timer alone is a guess; this is observation."""
+        VERIFIABLY settled (motion-time estimate, then proof of stillness). A timer alone is a
+        guess; this is observation."""
         if self.session is not None and self.session._abort:
             raise RuntimeError("aborted")
         self._say(mid, "reading")
@@ -580,14 +680,16 @@ class AutocalRun:
         if self._commander is not None:            # simulated wall — no physics to wait on
             return self._capture_tile(gi)
         self._sleep_abortable(wait)                # the motion-time estimate…
-        tile, ts = self._fresh_tile(gi, time.time())
-        deadline = time.time() + 2.5               # …then PROOF of stillness
-        while time.time() < deadline:
-            nxt, ts = self._fresh_tile(gi, ts + 1e-6)
-            if tiles_similar(tile, nxt):
-                return nxt
-            tile = nxt
-        return tile          # still changing after 5s — use the last read; the loop re-measures
+        return self._settled_tile(gi)              # …then PROOF of stillness
+
+    def _peek(self, mid):
+        """The module's CURRENT tile, commanding nothing — how the post-home check confirms a
+        re-home genuinely landed on the blank rather than assuming it did."""
+        gi = self.modules[mid]["grid_index"]
+        if self._capture is not None:              # simulated wall
+            return self._capture(gi)
+        self._sleep_abortable(self.settle_s)       # a home can be a near-full revolution
+        return self._settled_tile(gi)
 
     # -- lifecycle -----------------------------------------------------------
     def run_blocking(self) -> None:

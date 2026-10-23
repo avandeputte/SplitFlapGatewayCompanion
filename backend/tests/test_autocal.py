@@ -161,8 +161,9 @@ class FakeModule:
     Mirrors the real write contract: ``nudge`` moves the reel AND saves the offset instantly
     (the live correction); ``restore`` is the absolute write + re-home that revert uses."""
 
-    def __init__(self, reel, total_steps, *, err_flaps=0, sub=0.0, conv=1):
+    def __init__(self, reel, total_steps, *, err_flaps=0, sub=0.0, conv=1, glued=None):
         self.reel = reel
+        self.glued = glued                       # a flap that never presents (sticks to the next)
         self.n = len(reel)
         self.total = total_steps
         self.spf = total_steps / self.n
@@ -186,6 +187,8 @@ class FakeModule:
     def capture(self):
         pos = self.commanded + self.err_steps / self.spf      # displayed flap, fractional
         whole = int(round(pos)) % self.n
+        if self.glued is not None and whole == self.glued:     # the stuck flap shows the NEXT one
+            whole = (whole + 1) % self.n
         frac = pos - round(pos)                                # sub-flap residual, in flaps
         return _glyph_tile(self.reel[whole], shift=int(round(frac * autocal.TILE_H)))
 
@@ -270,7 +273,7 @@ class _CountingWall:
 @pytest.mark.parametrize("err", [0, 1, 4, -3, 9])
 def test_find_blank_recovers_the_offset(err):
     w = _CountingWall(err_flaps=err)
-    offset, conf, blank_cmd = autocal.find_blank(w.capture_index, len(REEL), 0)
+    offset, conf, blank_cmd, evidence = autocal.find_blank(w.capture_index, len(REEL), 0)
     assert offset == err
     assert conf > 0.3
 
@@ -292,7 +295,7 @@ def test_fast_calibrate_falls_back_to_full_sweep_when_the_blank_is_ambiguous(mon
     """If the blank can't be found confidently, spend one full sweep on that module rather than
     give up or guess."""
     w = _CountingWall(err_flaps=3)
-    monkeypatch.setattr(autocal, "find_blank", lambda *a, **k: (3, 0.0, 0))
+    monkeypatch.setattr(autocal, "find_blank", lambda *a, **k: (3, 0.0, 0, {"baseline": 0.2, "blank_ink": 0.01}))
     r = autocal.calibrate_module_fast(w.capture_index, w.m.nudge, REEL, 2000)
     assert w.captures >= len(REEL)
     assert r["status"] in ("adjusted", "aligned", "needs_review")
@@ -397,9 +400,12 @@ def test_autocal_run_calibrates_the_whole_wall():
 def test_autocal_run_emits_the_event_narration():
     _, run = _run_over_fake_wall([(0, 4)])
     run.run_blocking()
-    kinds = [e["kind"] for e in run.status["events"]]
+    kinds = [e["kind"] for e in run.events]            # the full buffer; status serves a window
     assert kinds[0] == "start"
-    assert "measured" in kinds and "adjust" in kinds and "result" in kinds and "parked" in kinds
+    assert "measured" in kinds and "adjust" in kinds and "result" in kinds and "park_check" in kinds
+    assert "verify_start" in kinds                     # the full-reel pass ran (default on)
+    probe = next(e for e in run.events if e["kind"] == "probe")
+    assert "char" in probe and "ink" in probe          # dialed-vs-saw detail on every look
     assert all("seq" in e and "module" in e for e in run.status["events"])
 
 
@@ -582,3 +588,66 @@ def test_tiles_similar_survives_realistic_camera_noise():
     b = np.clip(a + rng.normal(0, 6.0, a.shape), 0, 255).astype(np.float32)   # heavy sensor noise
     assert autocal.tiles_similar(a, b), "same flap under noise must read as settled"
     assert not autocal.tiles_similar(a, _glyph_tile("W"))
+
+
+# ===========================================================================
+# full-reel verification + the post-home check
+# ===========================================================================
+def test_verify_reel_passes_a_healthy_module():
+    w = _CountingWall()
+    r = autocal.verify_reel(w.capture_index, REEL)
+    assert r["ok"] and r["skips"] == [] and r["blank_ok"]
+
+
+def test_verify_reel_catches_a_glued_flap():
+    """A stuck flap shows the same image on two consecutive commands — the check must name it."""
+    w = _CountingWall()
+    w.m = FakeModule(REEL, 2000, glued=10)
+    seen = []
+    r = autocal.verify_reel(w.capture_index, REEL, notify=lambda k, d: seen.append((k, d)))
+    assert not r["ok"] and 10 in r["skips"]
+    assert any(k == "skip_suspect" and d.get("flap") == 10 for k, d in seen)
+
+
+def test_find_blank_returns_its_evidence():
+    w = _CountingWall()
+    _, _, _, ev = autocal.find_blank(w.capture_index, len(REEL), 0)
+    assert ev["blank_ink"] < ev["baseline"]
+    assert autocal.looks_blank(ev["blank_ink"], ev)
+    assert not autocal.looks_blank(ev["baseline"], ev)
+
+
+def test_session_flags_a_module_whose_home_lands_wrong():
+    """The 'module 2 says homed but shows a glyph' failure: after parking, the session LOOKS at
+    the module; a printed flap showing means needs_review, never a quiet green check."""
+    mods, modules, wiring = _fake_wall([(0, 0)])
+    wiring["park_fn"] = lambda mid: mods[mid].show_index(5)      # a BAD home: lands on a letter
+    wiring["peek_fn"] = lambda mid: mods[mid].capture()
+    prog = autocal.CalibrationSession(modules, **wiring).run()
+    assert prog["results"][0].get("park_failed") is True
+    assert prog["results"][0]["status"] == "needs_review"
+
+
+def test_session_confirms_a_good_home():
+    mods, modules, wiring = _fake_wall([(0, 2)])
+    wiring["peek_fn"] = lambda mid: mods[mid].capture()          # park_fn already shows blank
+    prog = autocal.CalibrationSession(modules, **wiring).run()
+    assert prog["results"][0].get("park_failed") is None
+    assert prog["results"][0]["status"] in ("aligned", "adjusted")
+    assert prog["results"][0]["reel_check"]["ok"]                # verify ran and passed
+
+
+def test_session_verify_catches_the_glued_flap_and_downgrades():
+    mods, modules, wiring = _fake_wall([(0, 0)])
+    mods[0].glued = 20
+    prog = autocal.CalibrationSession(modules, **wiring).run()
+    r = prog["results"][0]
+    assert r["reel_check"]["ok"] is False and 20 in r["reel_check"]["skips"]
+    assert r["status"] == "needs_review"
+
+
+def test_session_verify_can_be_turned_off():
+    mods, modules, wiring = _fake_wall([(0, 0)])
+    mods[0].glued = 20
+    prog = autocal.CalibrationSession(modules, verify=False, **wiring).run()
+    assert "reel_check" not in prog["results"][0]

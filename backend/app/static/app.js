@@ -658,7 +658,7 @@ function calSyncRunBtn() {
 }
 
 async function calStart() {
-  try { await post("/api/autocal/start", { corners: CAL.corners }); }
+  try { await post("/api/autocal/start", { corners: CAL.corners, verify: $("calVerify").checked }); }
   catch (e) { $("calStatus").textContent = t("Failed: %s", e.message); return; }
   CAL.running = true;
   CAL.lastSeq = 0;
@@ -748,9 +748,21 @@ function calEventLine(e) {
   switch (e.kind) {
     case "start": return [null, t("module %s: starting", m)];
     case "not_ready": return ["warn", t("module %s: not ready — skipped", m)];
-    case "probe": return [null, t("module %s: looked at flap %s — ink %s", m,
-                                  String(e.flap), String(e.ink))];
+    case "probe":
+      return [null, e.char !== undefined
+        ? t("module %s: dialed flap %s (“%s”) — saw ink %s", m, String(e.flap),
+            e.char === " " ? t("(blank)") : e.char, String(e.ink))
+        : t("module %s: looked at flap %s — ink %s", m, String(e.flap), String(e.ink))];
     case "glyph_check": return [null, t("module %s: checking glyph height", m)];
+    case "verify_start": return [null, t("module %s: verifying all %s flaps, one by one", m, String(e.flaps))];
+    case "skip_suspect":
+      return ["bad", t("module %s: ⚠ flap %s (“%s”) did not present — possible skip", m,
+                       String(e.flap), e.char === " " ? t("(blank)") : (e.char || "?"))];
+    case "reel_verified": return ["ok", t("module %s: ✓ every flap presented; blank in place", m)];
+    case "reel_issues": return ["warn", t("module %s: reel check found %s suspect flap(s)", m, String(e.skips))];
+    case "park_check":
+      return e.ok ? ["ok", t("module %s: homed — blank confirmed (ink %s)", m, String(e.ink))]
+                  : ["bad", t("module %s: ⚠ homed, but a printed flap is showing (ink %s)", m, String(e.ink))];
     case "fallback": return ["warn", t("module %s: blank unclear — scanning the whole reel", m)];
     case "measured": {
       const pct = String(Math.round(Math.abs(e.sub_flap || 0) * 100));
