@@ -3,6 +3,20 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.14
+
+- **Fixed: the home search could step over the blank.** Stepping a whole flap at a time kept the
+  reel's fractional offset, so a reel sitting half a flap off never showed the blank cleanly in
+  the window — it half-showed, read as a letter, and the search walked right past it. The search
+  now **centres the flap first** (vertical centroid, a reliable signal), so the blank lands
+  cleanly when it comes round.
+- **The log names the letter it sees** at each step (“home shows ‘E’ — stepping to the blank”),
+  so the reel is visibly cycling and a skipped blank would be obvious.
+- **Home-search steps settle in proportion to how far the reel turns** — a one-flap step no
+  longer waits the full-revolution settle, so finding the blank is much quicker.
+- **“Not ready” now says why** (“no flap set reported”, “reel has no blank flap”, “no EEPROM
+  dump”) instead of skipping a module silently.
+
 ## 2.12.0-beta.13
 
 - **Auto-calibrate now works the way you do at the wall — no reel survey.** The firmware
