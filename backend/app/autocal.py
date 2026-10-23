@@ -409,6 +409,8 @@ class AutocalRun:
         self._meta_seam = meta                # test seam: meta(id) -> {flap_chars,total_steps,home_offset}
         self._frame = None                    # (jpeg bytes, ts)
         self._offsets: dict[int, int] = {}    # seeded from each module's detail as it's read
+        self._reel: dict[int, str] = {}       # flap_chars per module, for the live activity line
+        self.activity = None                  # {module, char, action} — what it's doing right now
         self.error = None
         self.finished = False
         self.session = CalibrationSession(
@@ -432,7 +434,13 @@ class AutocalRun:
         if not m:
             return None
         self._offsets[mid] = m["home_offset"]
+        self._reel[mid] = m["flap_chars"]
         return {"flap_chars": m["flap_chars"], "total_steps": m["total_steps"]}
+
+    def _say(self, mid, action, char=None) -> None:
+        """Record what the run is doing right now, for the UI's live line."""
+        self.activity = {"module": self.modules[mid]["grid_index"], "action": action,
+                         "char": char}
 
     # -- frames --------------------------------------------------------------
     def push_frame(self, data: bytes) -> None:
@@ -454,6 +462,7 @@ class AutocalRun:
         return self._offsets[mid]
 
     def _set_offset(self, mid, steps):
+        self._say(mid, "adjusting")
         self._offsets[mid] = steps
         if self._offset_writer is not None:
             self._offset_writer(mid, steps)
@@ -472,6 +481,8 @@ class AutocalRun:
     def _capture_index(self, mid, i):
         """Command module ``mid`` to flap ``i``, let it settle, and return its rectified tile.
         The fast calibrator calls this on demand (it doesn't sweep every flap)."""
+        reel = self._reel.get(mid, "")
+        self._say(mid, "showing", reel[i] if i < len(reel) else None)
         self._command(mid, i)
         if self._commander is None:           # real hardware: let the flap physically settle
             time.sleep(self.settle_s)
@@ -495,4 +506,5 @@ class AutocalRun:
     @property
     def status(self) -> dict:
         return {**self.session.progress, "finished": self.finished, "error": self.error,
-                "settle_s": self.settle_s}
+                "settle_s": self.settle_s,
+                "activity": None if self.finished else self.activity}

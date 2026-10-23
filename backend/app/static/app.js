@@ -697,7 +697,18 @@ async function calPoll() {
           : t("Done — all %s modules aligned.", String(st.total));
       calFinish(); return;
     }
-    $("calStatus").textContent = t("Calibrating… %s of %s.", String(st.completed || 0), String(st.total || 0));
+    let line = t("Calibrating… %s of %s.", String(st.completed || 0), String(st.total || 0));
+    const a = st.activity;
+    if (a) {
+      const where = String((a.module || 0) + 1);
+      if (a.action === "adjusting") {
+        line += "  ·  " + t("module %s — adjusting", where);
+      } else {
+        const ch = a.char === " " ? t("(blank)") : (a.char || "?");
+        line += "  ·  " + t("module %s — showing “%s”", where, ch);
+      }
+    }
+    $("calStatus").textContent = line;
   }
   CAL.pollTimer = setTimeout(calPoll, 1000);
 }
@@ -719,6 +730,7 @@ function calRenderGrid(st) {
   const grid = $("calGrid"), plan = CAL.plan; if (!plan) return;
   grid.style.setProperty("--cols", plan.cols);
   const results = (st && st.results) || {};
+  const activeIndex = st && st.activity ? st.activity.module : -1;
   const idByIndex = {};
   (plan.modules || []).forEach((m) => { idByIndex[m.grid_index] = m.id; });
   const glyph = { aligned: "✓", adjusted: "✓", needs_review: "?", failed: "✕" };
@@ -730,7 +742,12 @@ function calRenderGrid(st) {
     const res = results[id];
     const status = res ? res.status : (CAL.running ? "pending" : "idle");
     cell.classList.add("cal-" + status);
-    cell.title = "#" + id + ": " + status;
+    if (i === activeIndex) cell.classList.add("cal-active");   // the module being worked on now
+    // tooltip carries the detail the grid can't: offset / sub-flap / confidence / steps written
+    const f = res && res.final;
+    cell.title = f
+      ? `#${id}: ${status} · offset ${f.offset_flaps} · sub ${f.sub_flap} · conf ${f.confidence} · ${res.applied_steps} steps`
+      : "#" + id + ": " + status;
     cell.textContent = glyph[status] || "";
     grid.appendChild(cell);
   }
