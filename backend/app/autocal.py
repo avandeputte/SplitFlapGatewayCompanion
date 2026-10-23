@@ -86,13 +86,20 @@ def tile_ink(tile: np.ndarray) -> float:
     return float(np.std(tile) / 255.0)
 
 
-TILE_STABLE_DIFF = 6.0   # mean |a-b| in intensity levels: consecutive reads of a SETTLED flap
-                         # differ only by sensor noise (well below this); one in flight, wildly.
+TILE_STABLE_DIFF = 4.0   # mean |a-b| on POOLED tiles. Pooling first matters: raw webcam pixels
+                         # flicker with JPEG noise and auto-exposure even when nothing moves, so a
+                         # raw-pixel diff never settles; 4x4 mean-pooling averages that out while a
+                         # flap in flight still differs by tens of levels.
+
+
+def _pool4(t: np.ndarray) -> np.ndarray:
+    h, w = (t.shape[0] // 4) * 4, (t.shape[1] // 4) * 4
+    return t[:h, :w].reshape(h // 4, 4, w // 4, 4).mean(axis=(1, 3))
 
 
 def tiles_similar(a: np.ndarray, b: np.ndarray) -> bool:
     """Do two consecutive reads of the same module agree — i.e. has the flap stopped moving?"""
-    return float(np.mean(np.abs(a - b))) < TILE_STABLE_DIFF
+    return float(np.mean(np.abs(_pool4(a) - _pool4(b)))) < TILE_STABLE_DIFF
 
 
 def tile_v_centroid(tile: np.ndarray) -> float:
@@ -181,7 +188,7 @@ def steps_per_flap(total_steps: int, flap_count: int) -> float:
     return float(total_steps) / max(1, int(flap_count))
 
 
-def find_blank(capture_index, n: int, blank_index: int = 0) -> tuple[int, float, int]:
+def find_blank(capture_index, n: int, blank_index: int = 0, notify=None) -> tuple[int, float, int]:
     """Locate the blank flap WITHOUT sweeping the whole reel.
 
     ``capture_index(i)`` commands the module to flap ``i`` and returns its tile. We sample a
@@ -194,11 +201,13 @@ def find_blank(capture_index, n: int, blank_index: int = 0) -> tuple[int, float,
     ``analyze_sweep``: commanding index ``i`` currently shows reel flap ``(i + offset_flaps)``.
     """
     seen: dict[int, float] = {}
+    say = notify or (lambda kind, data: None)
 
     def ink_at(i):
         i %= n
         if i not in seen:
             seen[i] = tile_ink(capture_index(i))
+            say("probe", {"flap": i, "ink": round(seen[i], 3)})   # live: what it looked at + saw
         return seen[i]
 
     sample = sorted({(blank_index + round(k * n / 4)) % n for k in range(4)})
@@ -250,7 +259,7 @@ def calibrate_module_fast(capture_index, adjust, flap_chars: str,
             return {"status": "failed", "reason": "aborted", "rounds": rnd,
                     "applied_steps": applied, "history": history}
 
-        offset, conf, blank_cmd = find_blank(capture_index, n, blank_index)
+        offset, conf, blank_cmd = find_blank(capture_index, n, blank_index, notify=say)
         if conf < confidence_min:
             # Ambiguous — spend a full sweep on this one module and trust analyze_sweep.
             say("fallback", {})
@@ -262,6 +271,7 @@ def calibrate_module_fast(capture_index, adjust, flap_chars: str,
                         "history": history}
         else:
             # Sub-flap from the glyph right after the blank (the blank itself has no ink).
+            say("glyph_check", {})
             sub = tile_v_centroid(capture_index((blank_cmd + 1) % n)) - 0.5
 
         err = offset + sub
@@ -283,7 +293,7 @@ def calibrate_module_fast(capture_index, adjust, flap_chars: str,
         applied += delta
         prev_err = err
 
-    offset, conf, blank_cmd = find_blank(capture_index, n, blank_index)
+    offset, conf, blank_cmd = find_blank(capture_index, n, blank_index, notify=say)
     sub = tile_v_centroid(capture_index((blank_cmd + 1) % n)) - 0.5
     aligned = offset == 0 and abs(sub) < 0.08
     return {"status": "adjusted" if aligned else "failed", "rounds": max_rounds,
@@ -571,7 +581,7 @@ class AutocalRun:
             return self._capture_tile(gi)
         self._sleep_abortable(wait)                # the motion-time estimate…
         tile, ts = self._fresh_tile(gi, time.time())
-        deadline = time.time() + 5.0               # …then PROOF of stillness
+        deadline = time.time() + 2.5               # …then PROOF of stillness
         while time.time() < deadline:
             nxt, ts = self._fresh_tile(gi, ts + 1e-6)
             if tiles_similar(tile, nxt):

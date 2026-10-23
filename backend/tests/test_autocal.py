@@ -561,3 +561,24 @@ def test_wall_modules_filters_to_provisioned_in_grid(monkeypatch):
     assert url == "http://gw"
     assert [m["id"] for m in mods] == [0, 1]                   # the ready wall cells, in order
     assert mods[0]["grid_index"] == 0 and mods[1]["grid_index"] == 1
+
+
+def test_find_blank_narrates_every_probe():
+    """The live log must move WITH the wall: each flap looked at is reported, with its ink —
+    "module 1: starting" followed by a minute of silence is what broke the user's trust."""
+    w = _CountingWall(err_flaps=2)
+    seen = []
+    autocal.find_blank(w.capture_index, len(REEL), 0, notify=lambda k, d: seen.append((k, d)))
+    probes = [d for k, d in seen if k == "probe"]
+    assert len(probes) == w.captures                 # one narration line per actual look
+    assert all("flap" in d and "ink" in d for d in probes)
+
+
+def test_tiles_similar_survives_realistic_camera_noise():
+    """Raw webcam pixels flicker (JPEG + auto-exposure) even when nothing moves — the stillness
+    check must pool that noise away or every read burns its whole timeout."""
+    rng = np.random.default_rng(7)
+    a = _glyph_tile("K")
+    b = np.clip(a + rng.normal(0, 6.0, a.shape), 0, 255).astype(np.float32)   # heavy sensor noise
+    assert autocal.tiles_similar(a, b), "same flap under noise must read as settled"
+    assert not autocal.tiles_similar(a, _glyph_tile("W"))

@@ -748,6 +748,9 @@ function calEventLine(e) {
   switch (e.kind) {
     case "start": return [null, t("module %s: starting", m)];
     case "not_ready": return ["warn", t("module %s: not ready — skipped", m)];
+    case "probe": return [null, t("module %s: looked at flap %s — ink %s", m,
+                                  String(e.flap), String(e.ink))];
+    case "glyph_check": return [null, t("module %s: checking glyph height", m)];
     case "fallback": return ["warn", t("module %s: blank unclear — scanning the whole reel", m)];
     case "measured": {
       const pct = String(Math.round(Math.abs(e.sub_flap || 0) * 100));
