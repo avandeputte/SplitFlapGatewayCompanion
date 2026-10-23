@@ -603,6 +603,33 @@ def calibrate_module(capture_index, adjust, home, flap_chars: str, total_steps: 
             return True, th, "light"
         return (home_kind(capture_index(landmark_i)) == "glyph"), th, "light"
 
+    def name_at_home(tile):
+        """Which letter is showing at the home slot (best effort, against the rendered
+        references) — for the log, so the reel is visibly cycling and a skipped blank shows."""
+        if not refs:
+            return "?"
+        return identify(tile, refs, rolls=rolls)[0]
+
+    # Center whatever glyph is at home FIRST. Full-flap steps preserve the reel's fractional
+    # offset, so if it sits ~half a flap off, the blank would never land cleanly in the window:
+    # it would half-show, read as a letter, and the sweep would step right OVER it. The vertical
+    # centroid is a reliable gradient (unlike glyph identity), so a few small nudges — direction
+    # discovered by what shrinks the offset — bring the fraction to ~0 and the blank will land
+    # cleanly when it comes around.
+    t = capture_index(blank_index)
+    if home_kind(t) == "glyph":
+        cstep, cdir = max(1, inc // 2), 1
+        c = tile_v_centroid(t) - 0.5
+        for _ in range(8):
+            if abs(c) < 0.08 or aborted():
+                break
+            adjust(cdir * cstep)
+            applied += cdir * cstep
+            c2 = tile_v_centroid(capture_index(blank_index)) - 0.5
+            if abs(c2) > abs(c) + 0.02:            # that way made it worse -> reverse
+                cdir = -cdir
+            c = c2
+
     confirmed, blank_t = False, None
     for _ in range(n + 1):
         if aborted():
@@ -611,7 +638,9 @@ def calibrate_module(capture_index, adjust, home, flap_chars: str, total_steps: 
         if ok:
             confirmed, blank_t = True, th
             break
-        say("seeking", {"saw": kind})              # dark colour / a glyph / a pale flat flap
+        # NAME the letter (so the cycling A,B,C… is visible and a skipped blank is obvious)
+        say("seeking", {"saw": "glyph", "char": name_at_home(th)} if kind == "glyph"
+            else {"saw": kind})
         delta = flap_steps                         # one whole flap forward; circular -> hits it
         say("adjust", {"steps": delta})
         adjust(delta)
@@ -697,9 +726,10 @@ def calibrate_module(capture_index, adjust, home, flap_chars: str, total_steps: 
                 flagged.add(i)
                 if confident and abs(shift) <= 2:   # a vote on a possible global shift
                     shifts.append(shift)
-        # a whole-reel offset: a VERY strong majority of the confident votes on one nonzero
-        # shift (the blank-home is trusted, so this only catches a uniform whole-flap slip; a
-        # scattered handful of misreads must never move the reel off a good home)
+        # The blank-home is trusted (found by the direction-agnostic sweep + centering), so a
+        # verify pass that still reads a strong whole-reel shift means the blank detection was
+        # fooled — land on needs_review and report it, rather than risk a directional nudge off
+        # a good home. A scattered handful of misreads just flags those flaps.
         consensus = 0
         if shifts:
             best = max(set(shifts), key=shifts.count)
@@ -707,14 +737,8 @@ def calibrate_module(capture_index, adjust, home, flap_chars: str, total_steps: 
                 consensus = best
         history.append({"pass": pass_no, "consensus": consensus, "flagged": len(flagged),
                         "skips": len(skips)})
-        if consensus == 0:
-            clean = not flagged and not skips
-            break
-        # letters later than dialed (shift>0) = offset too high = move down whole flaps
-        delta = step_dir * (-consensus * flap_steps)
-        say("adjust", {"steps": delta})
-        adjust(delta)
-        applied += delta
+        clean = consensus == 0 and not flagged and not skips
+        break
 
     # -- 3. sub-flap polish, then OCR reads the reel back ----------------------
     sub_src = [i for i in range(n) if not is_flat_char(flap_chars[i]) and i not in flagged
@@ -911,6 +935,7 @@ class AutocalRun:
         self._fw_seam = fw_calibrator        # test seam: fw_calibrator(id) -> measured steps | None
         self._frame = None                   # (jpeg bytes, ts)
         self._reel: dict[int, str] = {}      # flap_chars per module (settle timing, parking)
+        self._total: dict[int, int] = {}     # total steps/rev per module (proportional settle)
         self._pos: dict[int, int] = {}       # last commanded flap index per module (settle timing)
         self.activity = None                 # {module, action} — what it's doing right now
         self.events: list[dict] = []         # the live narration the UI renders (bounded)
@@ -996,12 +1021,18 @@ class AutocalRun:
             raw = self._run_coro(gateway.flap_all(self.gateway_url, mid))
             dump = gateway._parse_dump(raw.get("dump", ""))
             chars = raw.get("flapChars") or ""
-            if dump is None or not chars or " " not in chars:
+            # say WHY a module is skipped, so "not ready" is diagnosable from the log
+            reason = ("no EEPROM dump" if dump is None else
+                      "no flap set reported" if not chars else
+                      "reel has no blank flap" if " " not in chars else None)
+            if reason is not None:
+                self._log_event(mid, "meta_missing", {"reason": reason})
                 return None
             m = {"flap_chars": chars, "total_steps": dump[1], "home_offset": dump[0]}
         if not m:
             return None
         self._reel[mid] = m["flap_chars"]
+        self._total[mid] = int(m.get("total_steps") or 0)
         return dict(m)
 
     def _say(self, mid, action) -> None:
@@ -1048,8 +1079,17 @@ class AutocalRun:
             return
         from . import gateway
         self._run_coro(gateway.flap_nudge(self.gateway_url, mid, steps))
-        # A negative nudge may wrap most of a revolution forward — allow the full settle.
-        self._sleep_abortable(self.settle_s)
+        # Wait in proportion to how far the reel actually turns: a POSITIVE nudge moves only
+        # that many steps forward (a one-flap home-search step is a fraction of a revolution,
+        # so it settles fast — no reason to wait the full-revolution time). A NEGATIVE nudge
+        # wraps almost all the way around forward, so it gets the full settle.
+        total = self._total.get(mid) or 0
+        if steps >= 0 and total > 0:
+            frac = min(1.0, steps / total)
+            wait = max(SETTLE_FLOOR_S, frac * self.settle_s)
+        else:
+            wait = self.settle_s
+        self._sleep_abortable(wait)
 
     def _restore(self, mid, steps):
         """Put a module's SAVED offset back (revert): an absolute write plus a re-home, because

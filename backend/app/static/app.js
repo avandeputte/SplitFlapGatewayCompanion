@@ -757,10 +757,14 @@ function calEventLine(e) {
     case "seeking":
       // the home search: homed and reading what shows, stepping toward the blank
       if (e.saw === "glyph")
-        return [null, t("module %s: a letter is showing at home — stepping to the blank", m)];
+        return [null, e.char
+          ? t("module %s: home shows “%s” — stepping to the blank", m, ch(e.char))
+          : t("module %s: a letter is showing at home — stepping to the blank", m)];
       if (e.saw === "dark")
         return [null, t("module %s: a colour flap is showing at home — stepping to the blank", m)];
       return [null, t("module %s: searching for the blank at home", m)];
+    case "meta_missing":
+      return ["warn", t("module %s: not ready — %s", m, String(e.reason))];
     case "ocr_check":
       // OCR reads the whole confirmed reel back — bulk validation of WHICH characters show
       if (e.shift === null || e.shift === undefined)
