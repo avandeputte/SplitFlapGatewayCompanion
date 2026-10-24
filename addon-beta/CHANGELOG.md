@@ -3,6 +3,13 @@
 Home Assistant shows this when an update is available. Newest first; the version headings
 have to match the add-on's `version`, or the update notice comes up blank.
 
+## 2.12.0-beta.21
+
+- Calibrate: capture at higher resolution — the camera stream keeps ~1600px (was capped at 800)
+  and the rectified tiles are larger, so each module gets about twice the pixels the blank/stroke
+  detection depends on. On a real wall that detection was resolution-limited; this is the first
+  step toward reliable per-module alignment on dense reels.
+
 ## 2.12.0-beta.20
 
 - Calibrate: whole-board calibration replaces the per-module home search — it zeroes every

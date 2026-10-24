@@ -44,11 +44,16 @@ from PIL import Image
 
 # The rectified size each module tile is normalised to before analysis. Big enough to keep
 # a glyph legible, small enough to stay cheap; the real camera resolution is downscaled to it.
-TILE_W, TILE_H = 48, 96      # PORTRAIT: split-flap modules are tall and narrow (~1:2). A wide
+TILE_W, TILE_H = 72, 144     # PORTRAIT: split-flap modules are tall and narrow (~1:2). A wide
                              # tile would squash each glyph sideways — the real wall measured a
                              # module cell at ~0.5 (width:height), so tiles are taller than wide.
                              # ``tiles`` derives the real width from the clicked corners so any
                              # wall's proportions are preserved; this is the fixture/default.
+                             # Sized to the camera's per-module pixels (the SPA now keeps ~1600px
+                             # of frame, ~100px/module on a 15-wide wall): a bigger tile would only
+                             # upscale and blur, a smaller one throws away stroke detail — the
+                             # signal the blank/stroke measures depend on (resolution-limited below
+                             # this on the real wall).
 
 
 # ---------------------------------------------------------------------------

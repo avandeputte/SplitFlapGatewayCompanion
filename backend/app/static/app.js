@@ -615,11 +615,14 @@ function calWire() {
 async function calStartCamera() {
   try {
     CAL.stream = await navigator.mediaDevices.getUserMedia(
-      { video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false });
+      { video: { facingMode: "environment", width: { ideal: 1920 } }, audio: false });
   } catch (e) { $("calStatus").textContent = t("Camera unavailable: %s", e.message); return; }
   const v = $("calVideo");
   v.srcObject = CAL.stream; await v.play();
-  CAL.capW = Math.min(v.videoWidth || 1280, 800);                 // cap width for bandwidth
+  // Each module gets only (frame width / columns) pixels, and the backend's stroke/blank signal
+  // is resolution-limited below ~80px/module — so keep most of the camera's detail (a 500ms
+  // JPEG at 1600px is well within LAN/ingress bandwidth) rather than the old 800px cap.
+  CAL.capW = Math.min(v.videoWidth || 1280, 1600);
   CAL.capH = Math.round((v.videoHeight || 720) * CAL.capW / (v.videoWidth || 1280));
   CAL.corners = [];
   calDrawOverlay(); calSyncRunBtn();
@@ -692,7 +695,7 @@ function calStartStreaming() {
     if (!CAL.stream) return;
     g.drawImage(v, 0, 0, CAL.capW, CAL.capH);
     cv.toBlob((b) => { if (b) api("/api/autocal/frame", { method: "POST", body: b }).catch(() => {}); },
-              "image/jpeg", 0.7);
+              "image/jpeg", 0.85);
   }, 500);
 }
 
